@@ -1,0 +1,768 @@
+{
+  "command": "document.edit",
+  "document": {
+    "schema_version": 2,
+    "id": "original-paint-cards",
+    "kind": "vector",
+    "width": 480,
+    "height": 260,
+    "color_space": "srgb",
+    "revision": 0,
+    "resolution_ppi": 96,
+    "items": []
+  },
+  "expected_revision": 0,
+  "operations": [
+    {
+      "op": "add",
+      "item": {
+        "id": "background",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 0,
+            "y": 0,
+            "width": 480,
+            "height": 260
+          },
+          "fill": {
+            "type": "linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": [
+                  246,
+                  242,
+                  255,
+                  255
+                ]
+              },
+              {
+                "offset": 1.0,
+                "color": [
+                  215,
+                  234,
+                  249,
+                  255
+                ]
+              }
+            ],
+            "start": [
+              0,
+              0
+            ],
+            "end": [
+              480,
+              260
+            ]
+          }
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card0",
+        "name": "Orbit",
+        "content": {
+          "type": "group"
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "surface0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 24,
+            "y": 28,
+            "width": 136,
+            "height": 204
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            220
+          ]
+        },
+        "parent": "card0"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "swatch0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 36,
+            "y": 40,
+            "width": 112,
+            "height": 112
+          },
+          "fill": {
+            "type": "radial",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": [
+                  225,
+                  83,
+                  110,
+                  255
+                ]
+              },
+              {
+                "offset": 1.0,
+                "color": [
+                  244,
+                  181,
+                  82,
+                  255
+                ]
+              }
+            ],
+            "center": [
+              66,
+              68
+            ],
+            "radius": 102,
+            "space": "linear_rgb"
+          }
+        },
+        "parent": "card0"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "accent0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 40,
+            "y": 175,
+            "width": 65,
+            "height": 5
+          },
+          "fill": [
+            225,
+            83,
+            110,
+            255
+          ]
+        },
+        "parent": "card0"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "meta0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 40,
+            "y": 189,
+            "width": 98,
+            "height": 3
+          },
+          "fill": [
+            193,
+            203,
+            219,
+            255
+          ]
+        },
+        "parent": "card0"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "meta20",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 40,
+            "y": 199,
+            "width": 76,
+            "height": 3
+          },
+          "fill": [
+            218,
+            224,
+            233,
+            255
+          ]
+        },
+        "parent": "card0"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "orbit",
+        "parent": "card0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "ellipse",
+            "cx": 92,
+            "cy": 96,
+            "rx": 32,
+            "ry": 22
+          },
+          "stroke": {
+            "color": [
+              255,
+              255,
+              255,
+              230
+            ],
+            "width": 4
+          },
+          "fill": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "satellite",
+        "parent": "card0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "ellipse",
+            "cx": 117,
+            "cy": 81,
+            "rx": 8,
+            "ry": 8
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card1",
+        "name": "Flow",
+        "content": {
+          "type": "group"
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "surface1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 172,
+            "y": 28,
+            "width": 136,
+            "height": 204
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            220
+          ]
+        },
+        "parent": "card1"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "swatch1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 184,
+            "y": 40,
+            "width": 112,
+            "height": 112
+          },
+          "fill": {
+            "type": "radial",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": [
+                  90,
+                  105,
+                  227,
+                  255
+                ]
+              },
+              {
+                "offset": 1.0,
+                "color": [
+                  143,
+                  209,
+                  233,
+                  255
+                ]
+              }
+            ],
+            "center": [
+              214,
+              68
+            ],
+            "radius": 102,
+            "space": "linear_rgb"
+          }
+        },
+        "parent": "card1"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "accent1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 188,
+            "y": 175,
+            "width": 65,
+            "height": 5
+          },
+          "fill": [
+            90,
+            105,
+            227,
+            255
+          ]
+        },
+        "parent": "card1"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "meta1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 188,
+            "y": 189,
+            "width": 98,
+            "height": 3
+          },
+          "fill": [
+            193,
+            203,
+            219,
+            255
+          ]
+        },
+        "parent": "card1"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "meta21",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 188,
+            "y": 199,
+            "width": 76,
+            "height": 3
+          },
+          "fill": [
+            218,
+            224,
+            233,
+            255
+          ]
+        },
+        "parent": "card1"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "flow0",
+        "parent": "card1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "path",
+            "commands": [
+              {
+                "verb": "move",
+                "to": [
+                  206,
+                  78
+                ]
+              },
+              {
+                "verb": "cubic",
+                "control1": [
+                  229,
+                  54
+                ],
+                "control2": [
+                  244,
+                  104
+                ],
+                "to": [
+                  274,
+                  80
+                ]
+              }
+            ]
+          },
+          "stroke": {
+            "color": [
+              255,
+              255,
+              255,
+              235
+            ],
+            "width": 4,
+            "cap": "round"
+          }
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "flow1",
+        "parent": "card1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "path",
+            "commands": [
+              {
+                "verb": "move",
+                "to": [
+                  206,
+                  93
+                ]
+              },
+              {
+                "verb": "cubic",
+                "control1": [
+                  229,
+                  69
+                ],
+                "control2": [
+                  244,
+                  119
+                ],
+                "to": [
+                  274,
+                  95
+                ]
+              }
+            ]
+          },
+          "stroke": {
+            "color": [
+              255,
+              255,
+              255,
+              235
+            ],
+            "width": 4,
+            "cap": "round"
+          }
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "flow2",
+        "parent": "card1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "path",
+            "commands": [
+              {
+                "verb": "move",
+                "to": [
+                  206,
+                  108
+                ]
+              },
+              {
+                "verb": "cubic",
+                "control1": [
+                  229,
+                  84
+                ],
+                "control2": [
+                  244,
+                  134
+                ],
+                "to": [
+                  274,
+                  110
+                ]
+              }
+            ]
+          },
+          "stroke": {
+            "color": [
+              255,
+              255,
+              255,
+              235
+            ],
+            "width": 4,
+            "cap": "round"
+          }
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card2",
+        "name": "Growth",
+        "content": {
+          "type": "group"
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "surface2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 320,
+            "y": 28,
+            "width": 136,
+            "height": 204
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            220
+          ]
+        },
+        "parent": "card2"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "swatch2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 332,
+            "y": 40,
+            "width": 112,
+            "height": 112
+          },
+          "fill": {
+            "type": "radial",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": [
+                  39,
+                  121,
+                  109,
+                  255
+                ]
+              },
+              {
+                "offset": 1.0,
+                "color": [
+                  137,
+                  205,
+                  121,
+                  255
+                ]
+              }
+            ],
+            "center": [
+              362,
+              68
+            ],
+            "radius": 102,
+            "space": "linear_rgb"
+          }
+        },
+        "parent": "card2"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "accent2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 336,
+            "y": 175,
+            "width": 65,
+            "height": 5
+          },
+          "fill": [
+            39,
+            121,
+            109,
+            255
+          ]
+        },
+        "parent": "card2"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "meta2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 336,
+            "y": 189,
+            "width": 98,
+            "height": 3
+          },
+          "fill": [
+            193,
+            203,
+            219,
+            255
+          ]
+        },
+        "parent": "card2"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "meta22",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 336,
+            "y": 199,
+            "width": 76,
+            "height": 3
+          },
+          "fill": [
+            218,
+            224,
+            233,
+            255
+          ]
+        },
+        "parent": "card2"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "bar0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 356,
+            "y": 111,
+            "width": 12,
+            "height": 18
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            235
+          ]
+        },
+        "parent": "card2"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "bar1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 378,
+            "y": 98,
+            "width": 12,
+            "height": 31
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            235
+          ]
+        },
+        "parent": "card2"
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "bar2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 400,
+            "y": 85,
+            "width": 12,
+            "height": 44
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            235
+          ]
+        },
+        "parent": "card2"
+      }
+    }
+  ]
+}

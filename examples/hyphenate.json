@@ -1,0 +1,11 @@
+{
+  "command": "text.hyphenate",
+  "rules": {
+    "case": "ascii_lower",
+    "patterns": [
+      {"text": "vector", "weights": [0, 0, 0, 1, 0, 0, 3], "at_start": true}
+    ],
+    "exceptions": {"vectoria": []}
+  },
+  "words": ["Vectorium", "VECTORIA"]
+}

@@ -1,0 +1,52 @@
+# Affine transforms and stroke scaling
+
+Transforms retain editable source geometry. An item matrix `[a,b,c,d,e,f]` maps a local point to `[a*x+c*y+e, b*x+d*y+f]`. Coordinates use a top-left origin with positive y downward. Matrix multiplication applies the right operand first; the world matrix is the ordered product of ancestor matrices followed by the item matrix. Reflection, rotation, nonuniform scale and shear use this same contract.
+
+## Composition and pivots
+
+The atomic `transform` edit takes `id`, `matrix`, optional `space` and optional `anchor:[x,y]`. `space` defaults to `replace`. With parent world matrix P, current item matrix L and supplied matrix M:
+
+- `local`: store L*M.
+- `world`: store inverse(P)*M*P*L.
+- `replace`: store M in parent coordinates.
+
+An anchor wraps M as translate(anchor)*M*translate(-anchor) before that operation. Thus an anchor is in item-local coordinates for `local`, document coordinates for `world`, and parent coordinates for `replace`. A matrix with translation can move the anchor; only its linear part is pivoted. The library's `geometry::inverse` returns the ordinary affine inverse; applying an inverse composition restores the preceding transform up to f64 roundoff.
+
+```json
+{"op":"transform","id":"connector","space":"world","matrix":[3,0,0,2,0,0],"anchor":[8,40]}
+```
+
+This scales around document point `[8,40]` without changing the source centerline. Inspection reports the composed world matrix and unclipped geometry bounds. Bounds exclude live strokes, visibility and opacity. Locks, dependency locks, expected revisions and all-or-nothing batches apply.
+
+## Explicit stroke policies
+
+Vector strokes accept `scaling:"object"` or `scaling:"document"`:
+
+| Policy | Centerline | Width, dashes, arrows and tolerance |
+| --- | --- | --- |
+| `object` (default) | Editable local geometry | Evaluate the outline locally, then transform it with the item and ancestors |
+| `document` | Map controls through the complete world matrix | Evaluate the outline in document logical units after placement |
+
+Omitting `scaling` preserves existing object-scaled behavior and snapshot serialization. The policy is retained through vector edits, duplication, variants, reusable components and durable sessions. Unknown values fail explicitly.
+
+Document scaling keeps line widths, dash intervals/phase, arrow lengths/widths and curve tolerance constant under changes to item or ancestor scale. Width-profile positions follow evaluated document-space contour length. Cap and join geometry is constructed in that space, including reflected, sheared and closed contours. Paint coordinates continue to follow the item; a gradient is not detached by the stroke policy. Masks, clipping, fill/overall opacity and effects retain their existing contracts. Layer-effect strokes are separate decorations with their own documented units.
+
+Export scale converts logical units into output pixels for both policies. For example, a document-scaled width of 2 produces a 6-pixel-wide horizontal line at PNG scale 3. It is not a fixed physical or device-pixel width. Independently exported artboards remove board placement and ancestor context first; their local viewport becomes the document coordinate system for fixed-width evaluation. Shared mask references and component copies each evaluate their actual placement separately.
+
+Evaluation tightens the saved maximum curve tolerance for the current placement using a conservative linear stretch bound and raster density 16. Document-scaled strokes refine the already transformed centerline; object-scaled strokes account for the composed world matrix. Saved controls remain unchanged, and all outline consumers share the same geometry at that placement. See [stroke precision](STROKES.md#evaluation-precision-and-limits).
+
+## Expansion and SVG
+
+`stroke_expand` freezes the current evaluated outline as ordinary editable filled geometry. Document-space outlines are mapped back through the current inverse world matrix into the original item's coordinates. The existing group/centerline/outline structure preserves paints and appearance. Receipts expose `source_scaling` and `future_scaling:"filled_geometry_follows_object"`.
+
+After expansion, future resizing scales the filled outline normally. Keep the live stroke or undo expansion when future constant-width behavior is needed. A reusable component or mask source can have several placements with different fixed-width outlines. Expanding a document-scaled stroke directly inside such a definition therefore returns `UNSUPPORTED`. Unlink the desired component placement first and expand its independent child. Source definitions and other placements remain intact.
+
+SVG exports document-scaled strokes as filled paths and reports loss of editable stroke controls and future fixed-width behavior. Per-reference mask outlines use their actual placement. Snapshot export retains the policy. SVG `vector-effect` import remains outside the supported subset and fails explicitly; no silent policy inference occurs.
+
+## Precision and bounds
+
+Affine geometry and stroke evaluation use original f64 calculations. Raster coverage uses f32 coordinates and quantized antialiasing. Inverse mapping for editable expansion or SVG adds normal floating-point roundoff, so arbitrary ill-conditioned transforms do not carry a universal byte-identical edge-pixel guarantee. Stored and world coordinates, matrices and generated outlines must pass their existing bounds. A matrix must be finite, each entry at most 32768 in magnitude, absolute determinant at least 1e-8, and nonsingular at renderer precision. Singular or unrepresentable semantics fail explicitly.
+
+The limits in [STROKES.md](STROKES.md) apply in the declared evaluation space. Hidden items still consume work. Mask copies and independent artboard outputs are checked at their actual transforms before output. Expansion also checks ordinary stored path/item/coordinate limits and may fail even when a live outline can render. Such failures leave the source document and existing outputs unchanged.
+
+Independent rational matrix algebra, analytic segment normals/areas, complete expected pixel grids, explicitly mapped cubic controls, placement-specific masks/artboards, limits and durable MCP history are covered by `tests/test_transform_policies_cli.py`. The original `examples/transform_workflow.py` publishes a diagram comparison using both policies.

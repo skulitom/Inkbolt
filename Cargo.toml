@@ -1,6 +1,6 @@
 [package]
 name = "inkbolt"
-version = "0.1.0"
+version = "0.81.0"
 edition = "2024"
 license = "MIT"
 description = "A local vector and raster editing engine for agents"
@@ -8,5 +8,23 @@ publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
 schemars = "1.2.2"
+tiny-skia = { version = "=0.12.0", default-features = false, features = ["std"] }
+png = "=0.18.1"
+base64 = "=0.22.1"
+sha2 = "=0.10.9"
+crc32fast = "=1.5.2"
+flate2 = { version = "=1.1.10", default-features = false, features = ["rust_backend"] }
+rustybuzz = "=0.20.1"
+unicode-segmentation = "=1.12.0"
+unicode-script = "=0.5.8"
+unicode-bidi = "=0.3.18"
+rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "limits"] }
+num-rational = "=0.4.2"
+num-traits = "=0.2.19"
+roxmltree = "=0.21.1"
+jpeg-encoder = { version = "=0.7.1", default-features = false, features = ["std"] }
+jpeg-decoder = { version = "=0.3.2", default-features = false, features = ["platform_independent"] }
+tiff = { version = "=0.11.3", default-features = false, features = ["deflate", "lzw"] }
+moxcms = { version = "=0.9.1", default-features = false, features = ["lut", "extended_range", "options"] }

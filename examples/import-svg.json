@@ -1,0 +1,8 @@
+{
+  "command": "svg.import",
+  "id": "imported-diagram",
+  "source": {
+    "kind": "text",
+    "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"32\" viewBox=\"0 0 64 32\"><title>Editable process diagram</title><g fill=\"#2468ac\"><rect id=\"input\" x=\"4\" y=\"8\" width=\"16\" height=\"16\"/><rect id=\"output\" x=\"44\" y=\"8\" width=\"16\" height=\"16\"/></g><path id=\"link\" d=\"M20 16 C28 8 36 24 44 16\" fill=\"none\" stroke=\"#bd6134\" stroke-width=\"2\"/><path id=\"arrow\" d=\"M38 12 L44 16 L38 20 Z\" fill=\"#bd6134\"/></svg>"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "command": "document.edit",
+  "document": {
+    "schema_version": 2,
+    "id": "clipped-color-region",
+    "kind": "raster",
+    "width": 24,
+    "height": 16,
+    "color_space": "srgb",
+    "items": [
+      {"id": "icon", "opacity": 0.75, "transform": [1, 0, 0, 1, 4, 3], "content": {"type": "group"}},
+      {"id": "base", "parent": "icon", "content": {"type": "fill", "width": 16, "height": 10, "paint": [30, 90, 180, 128]}, "clip": {
+        "fill_rule": "even_odd", "geometry": {"shape": "path", "commands": [
+          {"verb": "move", "to": [0, 0]}, {"verb": "line", "to": [16, 0]}, {"verb": "line", "to": [16, 10]}, {"verb": "line", "to": [0, 10]}, {"verb": "close"},
+          {"verb": "move", "to": [6, 3]}, {"verb": "line", "to": [10, 3]}, {"verb": "line", "to": [10, 7]}, {"verb": "line", "to": [6, 7]}, {"verb": "close"}
+        ]}
+      }},
+      {"id": "texture", "parent": "icon", "content": {"type": "fill", "width": 16, "height": 10, "paint": {
+        "type": "linear", "start": [0, 0], "end": [16, 0], "stops": [
+          {"offset": 0, "color": [240, 80, 30, 255]}, {"offset": 1, "color": [30, 220, 200, 255]}
+        ]
+      }}}
+    ]
+  },
+  "expected_revision": 0,
+  "operations": [{"op": "layer_clip", "id": "texture", "clip_to": "base"}]
+}

@@ -1,0 +1,597 @@
+{
+  "command": "document.edit",
+  "document": {
+    "schema_version": 2,
+    "id": "original-workflow",
+    "kind": "vector",
+    "width": 480,
+    "height": 240,
+    "color_space": "srgb",
+    "revision": 0,
+    "resolution_ppi": 96,
+    "items": []
+  },
+  "expected_revision": 0,
+  "operations": [
+    {
+      "op": "add",
+      "item": {
+        "id": "canvas",
+        "name": "canvas",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 0,
+            "y": 0,
+            "width": 480,
+            "height": 240
+          },
+          "fill": [
+            246,
+            248,
+            250,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "connector-144",
+        "name": "connector 144",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "path",
+            "commands": [
+              {
+                "verb": "move",
+                "to": [
+                  144,
+                  120
+                ]
+              },
+              {
+                "verb": "line",
+                "to": [
+                  192,
+                  120
+                ]
+              }
+            ]
+          },
+          "fill": null,
+          "stroke": {
+            "color": [
+              70,
+              93,
+              113,
+              255
+            ],
+            "width": 3,
+            "cap": "round"
+          }
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "arrow-144",
+        "name": "arrow 144",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "path",
+            "commands": [
+              {
+                "verb": "move",
+                "to": [
+                  184,
+                  115
+                ]
+              },
+              {
+                "verb": "line",
+                "to": [
+                  192,
+                  120
+                ]
+              },
+              {
+                "verb": "line",
+                "to": [
+                  184,
+                  125
+                ]
+              },
+              {
+                "verb": "close"
+              }
+            ]
+          },
+          "fill": [
+            70,
+            93,
+            113,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "connector-288",
+        "name": "connector 288",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "path",
+            "commands": [
+              {
+                "verb": "move",
+                "to": [
+                  288,
+                  120
+                ]
+              },
+              {
+                "verb": "line",
+                "to": [
+                  336,
+                  120
+                ]
+              }
+            ]
+          },
+          "fill": null,
+          "stroke": {
+            "color": [
+              70,
+              93,
+              113,
+              255
+            ],
+            "width": 3,
+            "cap": "round"
+          }
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "arrow-288",
+        "name": "arrow 288",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "path",
+            "commands": [
+              {
+                "verb": "move",
+                "to": [
+                  328,
+                  115
+                ]
+              },
+              {
+                "verb": "line",
+                "to": [
+                  336,
+                  120
+                ]
+              },
+              {
+                "verb": "line",
+                "to": [
+                  328,
+                  125
+                ]
+              },
+              {
+                "verb": "close"
+              }
+            ]
+          },
+          "fill": [
+            70,
+            93,
+            113,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "node-0",
+        "name": "node 0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 48,
+            "y": 64,
+            "width": 96,
+            "height": 112
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "stroke": {
+            "color": [
+              215,
+              222,
+              228,
+              255
+            ],
+            "width": 2
+          }
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "accent-0",
+        "name": "accent 0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 48,
+            "y": 64,
+            "width": 96,
+            "height": 6
+          },
+          "fill": [
+            22,
+            99,
+            180,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "marker-0",
+        "name": "marker 0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "ellipse",
+            "cx": 96,
+            "cy": 105,
+            "rx": 19,
+            "ry": 19
+          },
+          "fill": [
+            22,
+            99,
+            180,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "title-bar-0",
+        "name": "title bar 0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 66,
+            "y": 139,
+            "width": 60,
+            "height": 5
+          },
+          "fill": [
+            70,
+            93,
+            113,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "detail-bar-0",
+        "name": "detail bar 0",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 75,
+            "y": 151,
+            "width": 42,
+            "height": 4
+          },
+          "fill": [
+            170,
+            185,
+            197,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "node-1",
+        "name": "node 1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 192,
+            "y": 64,
+            "width": 96,
+            "height": 112
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "stroke": {
+            "color": [
+              215,
+              222,
+              228,
+              255
+            ],
+            "width": 2
+          }
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "accent-1",
+        "name": "accent 1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 192,
+            "y": 64,
+            "width": 96,
+            "height": 6
+          },
+          "fill": [
+            21,
+            132,
+            115,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "marker-1",
+        "name": "marker 1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "ellipse",
+            "cx": 240,
+            "cy": 105,
+            "rx": 19,
+            "ry": 19
+          },
+          "fill": [
+            21,
+            132,
+            115,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "title-bar-1",
+        "name": "title bar 1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 210,
+            "y": 139,
+            "width": 60,
+            "height": 5
+          },
+          "fill": [
+            70,
+            93,
+            113,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "detail-bar-1",
+        "name": "detail bar 1",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 219,
+            "y": 151,
+            "width": 42,
+            "height": 4
+          },
+          "fill": [
+            170,
+            185,
+            197,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "node-2",
+        "name": "node 2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 336,
+            "y": 64,
+            "width": 96,
+            "height": 112
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "stroke": {
+            "color": [
+              215,
+              222,
+              228,
+              255
+            ],
+            "width": 2
+          }
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "accent-2",
+        "name": "accent 2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 336,
+            "y": 64,
+            "width": 96,
+            "height": 6
+          },
+          "fill": [
+            169,
+            91,
+            34,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "marker-2",
+        "name": "marker 2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "ellipse",
+            "cx": 384,
+            "cy": 105,
+            "rx": 19,
+            "ry": 19
+          },
+          "fill": [
+            169,
+            91,
+            34,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "title-bar-2",
+        "name": "title bar 2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 354,
+            "y": 139,
+            "width": 60,
+            "height": 5
+          },
+          "fill": [
+            70,
+            93,
+            113,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "detail-bar-2",
+        "name": "detail bar 2",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 363,
+            "y": 151,
+            "width": 42,
+            "height": 4
+          },
+          "fill": [
+            170,
+            185,
+            197,
+            255
+          ],
+          "stroke": null
+        }
+      }
+    }
+  ]
+}

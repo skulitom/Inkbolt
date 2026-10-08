@@ -12,8 +12,9 @@ fn both_document_kinds_round_trip_without_state() {
         let document = execute(request).unwrap();
         assert_eq!(
             document,
-            json!({"schema_version": 1, "id": "test-01", "kind": kind,
-            "width": 1, "height": 32768, "color_space": "srgb"})
+            json!({"schema_version": 2, "id": "test-01", "kind": kind,
+            "width": 1, "height": 32768, "color_space": "srgb", "revision":0,
+            "resolution_ppi":96.0, "items":[]})
         );
         let validated = execute(
             serde_json::from_value(json!({
@@ -31,7 +32,7 @@ fn document_invariants_are_enforced() {
     let original = json!({"schema_version": 1, "id": "valid", "kind": "raster",
         "width": 20, "height": 30, "color_space": "srgb"});
     for (field, value) in [
-        ("schema_version", json!(2)),
+        ("schema_version", json!(3)),
         ("width", json!(0)),
         ("height", json!(32769)),
         ("id", json!("")),

@@ -1,0 +1,8 @@
+{
+  "command": "svg.import",
+  "id": "clipped-gradient-icon",
+  "source": {
+    "kind": "text",
+    "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"24\"><title>Clipped gradient icon</title><defs><linearGradient id=\"base\"><stop offset=\"0\" stop-color=\"#e02040\"/><stop offset=\"1\" stop-color=\"#2050d0\"/></linearGradient><linearGradient id=\"ramp\" href=\"#base\"/><clipPath id=\"window\" clip-rule=\"evenodd\"><path d=\"M4 4 H28 V20 H4 Z M12 8 H20 V16 H12 Z\"/></clipPath></defs><rect id=\"icon\" x=\"4\" y=\"4\" width=\"24\" height=\"16\" fill=\"url(#ramp)\" clip-path=\"url(#window)\"/></svg>"
+  }
+}

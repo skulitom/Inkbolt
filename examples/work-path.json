@@ -1,0 +1,25 @@
+{
+  "command": "document.edit",
+  "document": {
+    "schema_version": 2,
+    "id": "curved-region",
+    "kind": "raster",
+    "width": 24,
+    "height": 20,
+    "color_space": "srgb",
+    "items": [{"id": "color", "content": {"type": "fill", "width": 24, "height": 20, "paint": [30, 100, 210, 255]}}]
+  },
+  "expected_revision": 0,
+  "operations": [
+    {"op": "add", "item": {"id": "region", "name": "Editable curved region", "content": {
+      "type": "work_path", "geometry": {"shape": "path", "commands": [
+        {"verb": "move", "to": [2, 2]},
+        {"verb": "cubic", "control1": [6, 2], "control2": [10, 6], "to": [14, 14]},
+        {"verb": "line", "to": [2, 14]},
+        {"verb": "close"}
+      ]}
+    }}},
+    {"op": "selection_path", "id": "region"},
+    {"op": "mask_from_selection", "id": "color"}
+  ]
+}

@@ -1,0 +1,594 @@
+{
+  "command": "document.edit",
+  "document": {
+    "schema_version": 2,
+    "id": "grouped-cards",
+    "kind": "vector",
+    "width": 480,
+    "height": 260,
+    "color_space": "srgb"
+  },
+  "expected_revision": 0,
+  "operations": [
+    {
+      "op": "add",
+      "item": {
+        "id": "page",
+        "name": "page",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 0,
+            "y": 0,
+            "width": 480,
+            "height": 260
+          },
+          "fill": [
+            242,
+            246,
+            250,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-0-background",
+        "name": "card 0 background",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 0,
+            "y": 0,
+            "width": 104,
+            "height": 136
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-0-field",
+        "name": "card 0 field",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 10,
+            "y": 10,
+            "width": 84,
+            "height": 68
+          },
+          "fill": [
+            230,
+            237,
+            243,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-0-circle",
+        "name": "card 0 circle",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "ellipse",
+            "cx": 54,
+            "cy": 50,
+            "rx": 40,
+            "ry": 40
+          },
+          "fill": [
+            32,
+            99,
+            179,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "group",
+      "ids": [
+        "card-0-field",
+        "card-0-circle"
+      ],
+      "new_id": "card-0-image"
+    },
+    {
+      "op": "clip",
+      "id": "card-0-image",
+      "clip": {
+        "geometry": {
+          "shape": "rect",
+          "x": 10,
+          "y": 10,
+          "width": 84,
+          "height": 68
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-0-label",
+        "name": "card 0 label",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 14,
+            "y": 96,
+            "width": 64,
+            "height": 5
+          },
+          "fill": [
+            63,
+            81,
+            99,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-0-detail",
+        "name": "card 0 detail",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 14,
+            "y": 109,
+            "width": 44,
+            "height": 4
+          },
+          "fill": [
+            160,
+            178,
+            194,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "group",
+      "ids": [
+        "card-0-background",
+        "card-0-image",
+        "card-0-label",
+        "card-0-detail"
+      ],
+      "new_id": "card-0",
+      "name": "Editable card 1",
+      "role": "layer"
+    },
+    {
+      "op": "clip",
+      "id": "card-0",
+      "clip": {
+        "geometry": {
+          "shape": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 104,
+          "height": 136
+        }
+      }
+    },
+    {
+      "op": "transform",
+      "id": "card-0",
+      "matrix": [
+        1,
+        0,
+        0,
+        1,
+        30,
+        10
+      ]
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-1-background",
+        "name": "card 1 background",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 0,
+            "y": 0,
+            "width": 104,
+            "height": 136
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-1-field",
+        "name": "card 1 field",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 10,
+            "y": 10,
+            "width": 84,
+            "height": 68
+          },
+          "fill": [
+            230,
+            237,
+            243,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-1-circle",
+        "name": "card 1 circle",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "ellipse",
+            "cx": 54,
+            "cy": 50,
+            "rx": 40,
+            "ry": 40
+          },
+          "fill": [
+            17,
+            130,
+            106,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "group",
+      "ids": [
+        "card-1-field",
+        "card-1-circle"
+      ],
+      "new_id": "card-1-image"
+    },
+    {
+      "op": "clip",
+      "id": "card-1-image",
+      "clip": {
+        "geometry": {
+          "shape": "rect",
+          "x": 10,
+          "y": 10,
+          "width": 84,
+          "height": 68
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-1-label",
+        "name": "card 1 label",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 14,
+            "y": 96,
+            "width": 64,
+            "height": 5
+          },
+          "fill": [
+            63,
+            81,
+            99,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-1-detail",
+        "name": "card 1 detail",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 14,
+            "y": 109,
+            "width": 44,
+            "height": 4
+          },
+          "fill": [
+            160,
+            178,
+            194,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "group",
+      "ids": [
+        "card-1-background",
+        "card-1-image",
+        "card-1-label",
+        "card-1-detail"
+      ],
+      "new_id": "card-1",
+      "name": "Editable card 2",
+      "role": "layer"
+    },
+    {
+      "op": "clip",
+      "id": "card-1",
+      "clip": {
+        "geometry": {
+          "shape": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 104,
+          "height": 136
+        }
+      }
+    },
+    {
+      "op": "transform",
+      "id": "card-1",
+      "matrix": [
+        1,
+        0,
+        0,
+        1,
+        140,
+        30
+      ]
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-2-background",
+        "name": "card 2 background",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 0,
+            "y": 0,
+            "width": 104,
+            "height": 136
+          },
+          "fill": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-2-field",
+        "name": "card 2 field",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 10,
+            "y": 10,
+            "width": 84,
+            "height": 68
+          },
+          "fill": [
+            230,
+            237,
+            243,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-2-circle",
+        "name": "card 2 circle",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "ellipse",
+            "cx": 54,
+            "cy": 50,
+            "rx": 40,
+            "ry": 40
+          },
+          "fill": [
+            177,
+            97,
+            30,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "group",
+      "ids": [
+        "card-2-field",
+        "card-2-circle"
+      ],
+      "new_id": "card-2-image"
+    },
+    {
+      "op": "clip",
+      "id": "card-2-image",
+      "clip": {
+        "geometry": {
+          "shape": "rect",
+          "x": 10,
+          "y": 10,
+          "width": 84,
+          "height": 68
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-2-label",
+        "name": "card 2 label",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 14,
+            "y": 96,
+            "width": 64,
+            "height": 5
+          },
+          "fill": [
+            63,
+            81,
+            99,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "card-2-detail",
+        "name": "card 2 detail",
+        "content": {
+          "type": "vector",
+          "geometry": {
+            "shape": "rect",
+            "x": 14,
+            "y": 109,
+            "width": 44,
+            "height": 4
+          },
+          "fill": [
+            160,
+            178,
+            194,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "op": "group",
+      "ids": [
+        "card-2-background",
+        "card-2-image",
+        "card-2-label",
+        "card-2-detail"
+      ],
+      "new_id": "card-2",
+      "name": "Editable card 3",
+      "role": "layer"
+    },
+    {
+      "op": "clip",
+      "id": "card-2",
+      "clip": {
+        "geometry": {
+          "shape": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 104,
+          "height": 136
+        }
+      }
+    },
+    {
+      "op": "transform",
+      "id": "card-2",
+      "matrix": [
+        1,
+        0,
+        0,
+        1,
+        250,
+        50
+      ]
+    },
+    {
+      "op": "align",
+      "ids": [
+        "card-0",
+        "card-1",
+        "card-2"
+      ],
+      "axis": "y",
+      "anchor": "min",
+      "reference": {
+        "type": "bounds",
+        "bounds": [
+          0,
+          62,
+          480,
+          62
+        ]
+      }
+    },
+    {
+      "op": "distribute",
+      "ids": [
+        "card-0",
+        "card-1",
+        "card-2"
+      ],
+      "axis": "x",
+      "mode": "gaps",
+      "reference": {
+        "type": "bounds",
+        "bounds": [
+          24,
+          0,
+          456,
+          260
+        ]
+      }
+    }
+  ]
+}

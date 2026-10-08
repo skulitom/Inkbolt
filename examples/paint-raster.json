@@ -1,0 +1,103 @@
+{
+  "command": "document.edit",
+  "document": {
+    "schema_version": 2,
+    "id": "original-fill-panels",
+    "kind": "raster",
+    "width": 256,
+    "height": 128,
+    "color_space": "srgb",
+    "revision": 0,
+    "resolution_ppi": 96,
+    "items": []
+  },
+  "expected_revision": 0,
+  "operations": [
+    {
+      "op": "add",
+      "item": {
+        "id": "freeform",
+        "content": {
+          "type": "fill",
+          "width": 128,
+          "height": 128,
+          "paint": {
+            "type": "freeform",
+            "anchors": [
+              {
+                "point": [
+                  0,
+                  0
+                ],
+                "color": [
+                  230,
+                  58,
+                  120,
+                  255
+                ]
+              },
+              {
+                "point": [
+                  128,
+                  0
+                ],
+                "color": [
+                  84,
+                  64,
+                  220,
+                  255
+                ]
+              },
+              {
+                "point": [
+                  64,
+                  128
+                ],
+                "color": [
+                  252,
+                  194,
+                  92,
+                  255
+                ]
+              }
+            ]
+          },
+          "dither": "ordered4x4"
+        }
+      }
+    },
+    {
+      "op": "add",
+      "item": {
+        "id": "pattern",
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          128,
+          0
+        ],
+        "content": {
+          "type": "fill",
+          "width": 128,
+          "height": 128,
+          "paint": {
+            "type": "pattern",
+            "width": 2,
+            "height": 2,
+            "rgba_hex": "183048ff2e5574ff2e5574ff183048ff",
+            "transform": [
+              8,
+              0,
+              0,
+              8,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

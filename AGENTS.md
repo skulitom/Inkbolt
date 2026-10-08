@@ -1,7 +1,7 @@
 # Inkbolt project instructions
 
 - Build an original local vector and raster editing engine for agents, sister to Cutbolt.
-- Read README.md, docs/ARCHITECTURE.md and docs/ROADMAP.md before extending behavior. This is a foundation, not an implemented editing or rendering engine.
+- Read README.md, docs/ARCHITECTURE.md and docs/ROADMAP.md before extending behavior. Consult docs/features.json for the full implementation scope and verified status; do not infer completion from scaffolding or partial behavior.
 - Use the Rust library and structured JSON CLI. MCP stdio is planned. Do not introduce a network listener, hosted API, account requirement or telemetry.
 - Read docs/RESEARCH.md before application inspection. Keep product names, exact target mappings, inventories, audit scripts, binary-analysis projects, captures and reports in the external private research root recorded in local Git configuration.
 - Public material uses project-owned vector/raster capability names. Run tools/check_repo.py and its --staged mode before committing. Do not disable the local content policy or commit hook.

@@ -27,7 +27,8 @@ class CliTests(unittest.TestCase):
     def test_capabilities_and_schema(self):
         code, response = self.invoke(b"", "capabilities")
         self.assertEqual(code, 0)
-        self.assertFalse(response["result"]["features"]["editing"])
+        self.assertTrue(response["result"]["features"]["editing"])
+        self.assertTrue(response["result"]["features"]["sessions"])
         code, schema = self.invoke(b"", "schema")
         self.assertEqual(code, 0)
         self.assertIn("$schema", schema["result"])
@@ -38,7 +39,7 @@ class CliTests(unittest.TestCase):
             (b'{"command":"capabilities","extra":1}', "INVALID_REQUEST"),
             (b'{"command":"capabilities","command":"schema"}', "INVALID_REQUEST"),
             (b'{"command":"capabilities"}\n{}', "INVALID_REQUEST"),
-            (b" " * (1024 * 1024 + 1), "REQUEST_TOO_LARGE"),
+            (b" " * (16 * 1024 * 1024 + 1), "REQUEST_TOO_LARGE"),
             (b'{"command":"document.create","id":"x","kind":"raster","width":0,"height":1}', "INVALID_DOCUMENT")]:
             code, response = self.invoke(payload)
             self.assertEqual(code, 1)
