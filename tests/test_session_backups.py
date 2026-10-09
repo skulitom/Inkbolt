@@ -121,7 +121,7 @@ class SessionBackupTests(unittest.TestCase):
                     if variant=='state':db.execute("UPDATE states SET payload=x'00' WHERE id=0")
                     if variant=='receipt':db.execute("UPDATE requests SET sha256=? WHERE revision=0",('0'*64,))
                     if variant=='head':db.execute("UPDATE meta SET sha256=?",('0'*64,))
-                    if variant=='version':db.execute('PRAGMA user_version=2')
+                    if variant=='version':db.execute('PRAGMA user_version=99')
                     if variant=='schema':db.execute('CREATE TABLE extra(x)')
                     db.commit()
             before=self.files();self.recover(self.identity(path),root='restore-'+variant,error='SESSION_FORMAT' if variant in ['schema','version'] else 'SESSION_CORRUPT');self.assertEqual(self.files(),before)

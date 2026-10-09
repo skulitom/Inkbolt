@@ -197,7 +197,7 @@ pub fn execute(
     }
     let replayable = matches!(
         command.as_str(),
-        "session.create" | "session.apply" | "session.apply_proposal"
+        "session.create" | "session.continue" | "session.apply" | "session.apply_proposal"
     );
     if !replayable {
         context.check()?;

@@ -4,7 +4,7 @@ A session stores one vector or raster document under an explicit absolute `sessi
 
 ## Commands
 
-Commands require `session_id`, directly or inside the reviewed proposal for `session.apply_proposal`. Without a workspace, `session_root` remains required and absolute. With `--workspace`, it defaults to `.inkbolt/sessions`; explicit roots must resolve inside that workspace. Top-level document arguments can reference exact committed session revisions. See [workspaces and saved revisions](AGENT_WORKSPACE.md). IDs use document ID syntax (1..128 ASCII letters, digits, dots, underscores or hyphens). The filename is the SHA-256 of the UTF-8 session ID followed by `.sqlite3`; IDs cannot escape the root or become reserved platform filenames.
+Commands require `session_id`, directly or inside the reviewed proposal for `session.apply_proposal`. For commands addressing a live session, `session_root` remains required and absolute without a workspace. Migration addresses a supplied backup and output instead. With `--workspace`, it defaults to `.inkbolt/sessions`; explicit roots must resolve inside that workspace. Top-level document arguments can reference exact committed session revisions. See [workspaces and saved revisions](AGENT_WORKSPACE.md). IDs use document ID syntax (1..128 ASCII letters, digits, dots, underscores or hyphens). The filename is the SHA-256 of the UTF-8 session ID followed by `.sqlite3`; IDs cannot escape the root or become reserved platform filenames.
 
 | Command | Other inputs | Result |
 | --- | --- | --- |
@@ -18,6 +18,8 @@ Commands require `session_id`, directly or inside the reviewed proposal for `ses
 | session.verify | optional control | Storage integrity, content/receipt/metadata checksums, references and bounded ledger validation |
 | session.backup | expected_revision, output; optional control | Verified standalone copy of complete history, exact byte identity and logical history fingerprint |
 | session.recover | source with file_path/bytes/sha256; optional control | Checked restoration into an unused session destination, preserving identity/history and external resource bindings |
+| session.migrate | source, target_version:2, output; optional control | Explicit version-1 to version-2 backup copy, preserving every original history row |
+| session.continue | request_id, parent with source/session_id/revision; optional control | Fresh history under a new ID from a pinned parent revision, with checked provenance and durable retry |
 
 `resources` has optional absolute `asset_root` and `font_root`. They are runtime bindings saved with content. Image and font bytes remain in their external immutable stores; sessions are not self-contained resource archives. Structural persistence does not imply that stored resources are present. Rendering resolves and verifies them as usual.
 
@@ -46,13 +48,13 @@ Provide a new request ID for each intended action. Retrying the same ID with the
 
 The retry lookup occurs before revision/cancellation checks: a committed creation or edit remains committed even if the retry has an expired deadline. Existing creation inputs still receive bounded validation without the newly expired control; invalid typed numbers cannot masquerade as missing JSON values in the fingerprint. New creation uses full controlled validation before reserving storage. Otherwise, a stale expected revision fails with `REVISION_CONFLICT`; inspect the current document before issuing a new action. Transactions serialize writers. `SESSION_BUSY` means the bounded 250 ms lock wait expired; retry the same request ID. A lost response or I/O error can leave commit outcome uncertain: inspect `session.receipt` or retry the original request rather than generating a new ID.
 
-`response_mode:"compact"` is optional on creation, read, apply, apply_proposal and receipt commands. It returns pinned document/receipt references and summaries; full responses remain the default. This presentation field is excluded from durable identity, so it may change on retry. See [compact responses](AGENT_RESPONSES.md). [Dry runs and checked proposals](SESSION_PROPOSALS.md) add read-only review before applying the same validated action; typed actions reject nonfinite numbers before retry fingerprinting.
+`response_mode:"compact"` is optional on creation, continuation, read, apply, apply_proposal and receipt commands. It returns pinned document/receipt references and summaries; full responses remain the default. This presentation field is excluded from durable identity, so it may change on retry. See [compact responses](AGENT_RESPONSES.md). [Dry runs and checked proposals](SESSION_PROPOSALS.md) add read-only review before applying the same validated action; typed actions reject nonfinite numbers before retry fingerprinting.
 
 Creation is also idempotent for identical typed document/resources and request ID. A different creation request never overwrites an existing session. The existing session remains untouched when input validation or creation publication fails.
 
 ## Cancellation
 
-`control` is optional on session.create, session.apply, session.dry_run, session.apply_proposal, session.verify and document.edit:
+`control` is optional on session.create, session.apply, session.dry_run, session.apply_proposal, session.verify, session.backup, session.recover, session.migrate, session.continue and document.edit:
 
 ```json
 {"timeout_ms":10000,"cancel_file":"C:/work/controls/cancel-request-17"}
@@ -75,11 +77,11 @@ Checks are cooperative, between operations/verification records and immediately 
 | Database pages | 128 MiB |
 | One receipt | 64 KiB |
 
-Profile-specific document and whole-request limits also apply; see [LARGE_VECTOR.md](LARGE_VECTOR.md). History is never silently evicted. `HISTORY_LIMIT` means preserve the current session, read/export its desired document and create a new session ID for more work. Limits protect storage; they do not extend the engine's rendering or document-size capacity.
+Profile-specific document and whole-request limits also apply; see [LARGE_VECTOR.md](LARGE_VECTOR.md). History is never silently evicted. `HISTORY_LIMIT` means preserve the current session, use `session.backup`, and start linked history with `session.continue` at the desired revision. Limits protect storage; they do not extend the engine's rendering or document-size capacity.
 
-The store uses schema version 1, SQLite rollback journal DELETE mode, 4096-byte pages and synchronous FULL. Content, head, undo/redo stacks and receipt commit together. Ordinary writable openings perform SQLite hot-journal recovery. Read-only dry runs and comparison captures do not repair a pending hot journal; first use `session.verify` or an ordinary session read to recover and inspect the store. Keep the database and its journal together. Tests terminate an owned process after actual dirty-page spill before commit and immediately after commit; the former restores the old state and the latter retains the new receipt. Cancellation after spill also rolls back.
+New stores use schema version 2; existing version-1 stores remain supported without an implicit upgrade. Both use SQLite rollback journal DELETE mode, 4096-byte pages and synchronous FULL. Content, head, undo/redo stacks and receipt commit together. Ordinary writable openings perform SQLite hot-journal recovery. Read-only dry runs and comparison captures do not repair a pending hot journal; first use `session.verify` or an ordinary session read to recover and inspect the store. Keep the database and its journal together. Tests terminate an owned process after actual dirty-page spill before commit and immediately after commit; the former restores the old state and the latter retains the new receipt. Cancellation after spill also rolls back.
 
-Creation flushes and closes its temporary database before create-only hard-link publication. An interrupted creation can leave an unpublished `.inkbolt-session-*.tmp` file and journal. No automatic sweep deletes these, because another process may own them. The final database and its `-journal` must stay together during recovery. Use [session.backup and session.recover](SESSION_BACKUPS.md) for checked copies of live committed history and exact-byte restoration; retain external image/font stores separately. An ad hoc file copy still requires all users of that session to be closed. Storage migrations and explicit continuation into a new session identity remain open.
+Creation flushes and closes its temporary database before create-only hard-link publication. An interrupted creation can leave an unpublished `.inkbolt-session-*.tmp` file and journal. No automatic sweep deletes these, because another process may own them. The final database and its `-journal` must stay together during recovery. Use [session.backup and session.recover](SESSION_BACKUPS.md) for checked copies of live committed history and exact-byte restoration; retain external image/font stores separately. An ad hoc file copy still requires all users of that session to be closed. See [explicit migration and linked continuation](SESSION_LINEAGE.md) for create-only version upgrades and new history with checked parent provenance.
 
 Durability relies on local filesystem locking and the operating system honoring flushes. Process interruption is tested; sudden power loss, failing hardware and malicious modification are not guaranteed by checksums. Stored paths are explicit local paths, not a filesystem sandbox or access-control boundary. Unsupported versions, changed schema, corrupt states/receipts or missing references fail explicitly and do not trigger destructive repair.
 

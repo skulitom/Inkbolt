@@ -4,7 +4,7 @@ An original local vector and raster editing engine for agents. Cutbolt handles t
 
 **Engine scope: 161/167 independently verified checkpoints (96.41%).** Six checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
 
-Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; [visual revision comparisons](docs/VISUAL_COMPARISONS.md) add aligned images and change masks. MCP preview format sends each PNG payload once. [Document checks and export preflight](docs/DOCUMENT_CHECKS.md) support explicit repairs. [Checked backups](docs/SESSION_BACKUPS.md) preserve full session history. Durable jobs, larger raster workloads and complete readiness evidence remain on that plan.
+Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; [visual revision comparisons](docs/VISUAL_COMPARISONS.md) add aligned images and change masks. MCP preview format sends each PNG payload once. [Document checks and export preflight](docs/DOCUMENT_CHECKS.md) support explicit repairs. [Checked backups](docs/SESSION_BACKUPS.md) preserve full session history; [explicit migration and linked continuation](docs/SESSION_LINEAGE.md) upgrade copies and start fresh history without discarding the original. Durable jobs, larger raster workloads and complete readiness evidence remain on that plan.
 
 ## Start locally
 
@@ -47,7 +47,7 @@ The engine covers vector geometry, typography, artboards, retained raster edits,
 
 The standard vector profile holds 256 items; an explicit large-vector profile holds 8,192. Inline mutable pixel storage is limited to 65,536 pixels, and rendered output to 1,048,576 pixels. Storage allowances do not increase independent processing budgets. See [large documents](docs/LARGE_VECTOR.md) and capability reporting before selecting a workload.
 
-Sessions retain external resource bindings, not a self-contained resource archive. History has explicit limits and no silent eviction. Live backup/migration, persistent render jobs and production-sized raster editing remain readiness work. Unknown semantics fail explicitly.
+Sessions retain external resource bindings, not a self-contained resource archive. History has explicit limits and no silent eviction. Checked backup, migration and linked continuation are available. Persistent render jobs, durable publication receipts and production-sized raster editing remain readiness work. Unknown semantics fail explicitly.
 
 ## Development and provenance
 

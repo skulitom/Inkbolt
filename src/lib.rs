@@ -515,6 +515,24 @@ pub enum Request {
         #[serde(default)]
         control: control::Options,
     },
+    #[serde(rename = "session.migrate")]
+    SessionMigrate {
+        session_id: String,
+        source: sessions::backup::Source,
+        target_version: i64,
+        output: sessions::backup::Output,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "session.continue")]
+    SessionContinue {
+        session_root: PathBuf,
+        session_id: String,
+        request_id: String,
+        parent: sessions::lineage::Parent,
+        #[serde(default)]
+        control: control::Options,
+    },
     #[serde(rename = "artboard.export")]
     ArtboardExport {
         #[serde(default)]
@@ -844,6 +862,10 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
     let persistent = matches!(
         request,
         Request::SessionCreate { .. }
+            | Request::SessionContinue { .. }
+            | Request::SessionBackup { .. }
+            | Request::SessionRecover { .. }
+            | Request::SessionMigrate { .. }
             | Request::SessionApply { .. }
             | Request::SessionApplyProposal { .. }
             | Request::Publish { .. }
@@ -855,6 +877,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
     if !matches!(
         request,
         Request::SessionCreate { .. }
+            | Request::SessionContinue { .. }
             | Request::SessionApply { .. }
             | Request::SessionApplyProposal { .. }
     ) {
@@ -1142,6 +1165,8 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "session.history",
                 "session.verify",
                 "session.backup",
+                "session.migrate",
+                "session.continue",
                 "session.recover",
                 "artboard.export",
                 "font.import",
@@ -1228,7 +1253,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "selection_analysis":{"source":"scale_one_rgba8_composite","distance":"maximum_absolute_component_difference","components":["rgb","rgba"],"methods":["color_range","connected","edge"],"connectivity":["four","eight"],"edge":"color_gated_triangular_integer_weights_then_levels"},
                 "pixel_selection":{"coordinates":"document_grid","storage":"gray8","nonprinting":true,"combine":{"add":"maximum","subtract":"saturating_difference","intersect":"minimum"},"morphology":"square_max_min_zero_outside","feather":"separable_triangular_zero_outside","mask_application":"native_pixel_centers_then_rgba8_quantization"},
                 "publication":{"output_bytes":publish::MAX_OUTPUT_BYTES,"overwrite":"never","root":"explicit_existing_local_directory","formats":["pdf","png","jpeg","tiff","svg","snapshot"]},
-                "session_contract":{"storage_version":sessions::STORE_VERSION,"backend":"sqlite_rollback_full_sync","conflicts":"expected_revision","retry":"original_receipt_and_document","history":"immutable_states_no_eviction","resources":"external_explicit_roots","cancellation":"cooperative_precommit","export":"read_document_then_export_returned_snapshot"},
+                "session_contract":{"storage_version":sessions::STORE_VERSION,"supported_storage_versions":sessions::SUPPORTED_STORE_VERSIONS,"backend":"sqlite_rollback_full_sync","conflicts":"expected_revision","retry":"original_receipt_and_document","history":"immutable_states_no_eviction","resources":"external_explicit_roots","cancellation":"cooperative_precommit","export":"read_document_then_export_returned_snapshot"},
                 "unsupported":unsupported,
             });
             capabilities["filters"].as_object_mut().unwrap().extend(json!({"creative_operators":["twist","relief","high_pass","extrema","tone_fold","edge_ink","stroke_rank","value_field","field_repair"],"creative_contract":"docs/CREATIVE_FILTERS.md","creative_alpha":"center_preserved_except_twist_and_field_repair","creative_coordinates":"item_local_twist_and_value_field;output_grid_field_repair;document_units_other_kernels"}).as_object().unwrap().clone());
@@ -1548,7 +1573,9 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             capabilities["session_proposals"] = json!({"dry_run":"session.dry_run","apply":"session.apply_proposal","version":1,"actions":"all_session_actions","database_dry_run_access":"read_only","history_changed_by_dry_run":false,"bound_inputs":["session_id","request_id","expected_revision","request_fingerprint","base_state_sha256","result_state_sha256"],"comparison":"structural_with_optional_pixels","preview":"optional_full_canvas_PNG_at_scale_one","persistent_proposal_store":false,"proposal_is_authorization":false,"history_storage_and_receipt_limits":"shared_with_real_apply;filesystem_commit_can_still_fail"});
             capabilities["paged_inspection"] = json!({"command":"document.inspect.page","collections":["items","assets","fonts","anchors"],"maximum_records":inspection::MAX_PAGE_ITEMS,"maximum_result_bytes":inspection::MAX_PAGE_BYTES,"cursor":"document_content_and_view_and_limit_bound","order":"document_storage_for_items;id_for_resources;component_then_command_for_anchors","field_selection":true,"legacy_inspection":"unchanged","external_resources_verified":false});
             capabilities["document_checks"] = json!({"command":"document.check","report_version":1,"checks":["structure","pinned_resource_registries","authored_text_and_story_layout","retained_nested_snapshots","instance_replacement_content"],"maximum_issues":checks::MAX_ISSUES,"maximum_report_bytes":checks::MAX_REPORT_BYTES,"default_issues":64,"font_axes":"validated_even_for_empty_text","incomplete":"explicit_for_skipped_layouts_or_stopped_work","errors":"located_original_codes_and_repair_guidance","external_object_links":"not_read_or_refreshed","delivery_certificate":false,"source_changed":false});
-            capabilities["session_backups"] = json!({"commands":["session.backup","session.recover"],"storage_version":sessions::STORE_VERSION,"maximum_database_bytes":sessions::MAX_DATABASE_BYTES,"capture":"expected_head_read_transaction;bounded_256_page_steps;writers_may_receive_SESSION_BUSY","verification":"whole_history_checksums_and_links;exact_head_and_history_identity;validated_copy_before_publication","publication":"create_only_hard_link;no_existing_destination_or_sidecars;late_cancellation_keeps_success","restore_identity":"exact_byte_length_and_sha256;original_session_id_preserved","retains":["immutable_states","undo_redo","named_snapshots","resource_bindings","retry_receipts"],"resources_copied":false,"external_resources_verified":false,"implicit_migration":false,"durable_publication_ledger":false,"hot_journal":"read_only_backup_requires_ordinary_session_recovery_first","orphans":"retained_after_crash;only_owned_live_temporary_files_cleaned"});
+            capabilities["session_backups"] = json!({"commands":["session.backup","session.recover","session.migrate"],"storage_version":sessions::STORE_VERSION,"supported_storage_versions":sessions::SUPPORTED_STORE_VERSIONS,"maximum_database_bytes":sessions::MAX_DATABASE_BYTES,"capture":"expected_head_read_transaction;bounded_256_page_steps;writers_may_receive_SESSION_BUSY","verification":"whole_history_checksums_and_links;exact_head_and_history_identity;validated_copy_before_publication","publication":"create_only_hard_link;no_existing_destination_or_sidecars;late_cancellation_keeps_success","restore_identity":"exact_byte_length_and_sha256;original_session_id_preserved","retains":["immutable_states","undo_redo","named_snapshots","resource_bindings","retry_receipts"],"resources_copied":false,"external_resources_verified":false,"implicit_migration":false,"durable_publication_ledger":false,"hot_journal":"read_only_backup_requires_ordinary_session_recovery_first","orphans":"retained_after_crash;only_owned_live_temporary_files_cleaned"});
+            capabilities["session_continuation"] = json!({"command":"session.continue","parent":"exact_revision_in_hash_pinned_whole_history_backup","new_identity":true,"new_revision":0,"old_history":"preserved_in_parent_backup;not_copied_or_evicted","new_undo_redo_and_snapshots":"empty","resources":"original_bindings_retained;explicit_rebinding;no_external_resource_reads","lineage":"version_1_checksums_and_initial_receipt_link;returned_by_read_receipt_verify_and_compact_results","retry":"same_request_id_and_parent_identity;committed_receipt_survives_missing_parent","automatic_parent_traversal":false,"authentication":false});
+            capabilities["session_migration"] = json!({"command":"session.migrate","supported":[{"from":1,"to":2}],"publication":"new_backup_only;no_in_place_or_implicit_upgrade","adds":"empty_checked_lineage_table","preserves":"all_original_rows_and_logical_history_sha256","restore":"session.recover_with_returned_backup_identity","downgrade":false});
             capabilities["export_preflight"] = json!({"command":"document.preflight","preparation":"same_encoder_and_destination_checks_as_document.publish","success":"created_false_receipt_with_exact_bytes_sha256_and_actual_losses","failure":"ready_false_with_original_error_and_repair_guidance","cancellation":"normal_error_no_partial_report","writes_files":false,"reserves_output":false,"predicts_filesystem_write_success":false,"durable_receipt_ledger":false});
             capabilities["focused_previews"] = json!({"command":"document.preview","focus":["canvas","region","items","artboard"],"image":"PNG_with_existing_output_profile_and_loss_contract","region_and_items":"full_composition_crop;full_evaluation_limits_apply","item_bounds":"unclipped_geometry_without_strokes_or_effects;explicit_margin","artboard":"standalone_owned_subtree;existing_artboard_export_contract","coordinates":"explicit_document_world_to_pixel_and_inverse;pixel_edges_and_centers","quantization":"outward_to_original_render_grid_then_clip","source_identity":"canonical_document_sha256_and_revision","source_changed":false});
             capabilities["visual_comparison"] = json!({"commands":["document.diff.preview","session.diff.preview"],"artifacts":["before","after","mask"],"color":"common_srgb_rgba8_view;original_output_profiles_recorded_but_not_applied","alignment":"world_grid_or_standalone_artboard_local;union_extents;transparent_missing_pixels;no_registration_or_resampling","fractional_grid_phase":"reject_unless_integer_at_requested_scale;1e-9_pixel_roundoff_tolerance","focus":["canvas","region","union_of_items_in_both_revisions","artboard"],"metrics":"exact_and_strictly_above_threshold_channel_deltas;end_exclusive_bounds;per_side_world_corners","maximum_output_pixels":visual_diff::MAX_PIXELS,"source_render_limits":"unchanged_full_render_limits","structural":"included_by_default;optional_omission_is_explicit_null","source_changed":false});
@@ -1752,6 +1779,32 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             &session_root,
             &session_id,
             &source,
+            &context.scoped(&control)?,
+        ),
+        Request::SessionMigrate {
+            session_id,
+            source,
+            target_version,
+            output,
+            control,
+        } => sessions::lineage::migrate(
+            &session_id,
+            &source,
+            target_version,
+            &output,
+            &context.scoped(&control)?,
+        ),
+        Request::SessionContinue {
+            session_root,
+            session_id,
+            request_id,
+            parent,
+            control,
+        } => sessions::lineage::continue_from(
+            &session_root,
+            &session_id,
+            &request_id,
+            &parent,
             &context.scoped(&control)?,
         ),
         Request::ArtboardExport {

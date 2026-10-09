@@ -7,6 +7,7 @@ use std::path::PathBuf;
 pub const COMPACT_TARGET_BYTES: usize = 8 * 1024;
 pub const COMMANDS: &[&str] = &[
     "session.create",
+    "session.continue",
     "session.read",
     "session.apply",
     "session.apply_proposal",
@@ -35,7 +36,7 @@ pub(crate) fn take(value: &mut Value) -> Result<Mode, Error> {
     {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "response_mode is supported by session.create, session.read, session.apply, session.apply_proposal and session.receipt",
+            "response_mode is supported by session.create, session.continue, session.read, session.apply, session.apply_proposal and session.receipt",
         ));
     }
     serde_json::from_value(mode)
@@ -56,6 +57,11 @@ fn target(request: &Request) -> Option<(PathBuf, String)> {
             ..
         } => Some((session_root.clone(), proposal.session_id.clone())),
         Request::SessionCreate {
+            session_root,
+            session_id,
+            ..
+        }
+        | Request::SessionContinue {
             session_root,
             session_id,
             ..
@@ -99,6 +105,7 @@ fn compact(result: Value, root: PathBuf, session_id: String) -> Value {
         "undo_depth",
         "redo_depth",
         "replayed",
+        "lineage",
     ] {
         if let Some(value) = result.get(key) {
             summary[key] = value.clone();

@@ -15,7 +15,7 @@ pub struct Output {
     pub file_name: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Source {
     pub file_path: PathBuf,
@@ -28,7 +28,7 @@ fn io(message: &str) -> Error {
     Error::new("IO_ERROR", message)
 }
 
-fn checked_path(path: &Path) -> Result<(), Error> {
+pub(super) fn checked_path(path: &Path) -> Result<(), Error> {
     assets::absolute(path)?;
     if path.as_os_str().len() > 4096 {
         return Err(limit("History path exceeds 4096 characters"));
@@ -36,7 +36,7 @@ fn checked_path(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-fn no_sidecars(path: &Path) -> Result<(), Error> {
+pub(super) fn no_sidecars(path: &Path) -> Result<(), Error> {
     for suffix in ["-journal", "-wal", "-shm"] {
         let mut name = path.as_os_str().to_owned();
         name.push(suffix);
@@ -45,7 +45,7 @@ fn no_sidecars(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-fn absent(path: &Path) -> Result<(), Error> {
+pub(super) fn absent(path: &Path) -> Result<(), Error> {
     match fs::symlink_metadata(path) {
         Ok(_) => Err(Error::new(
             "OUTPUT_EXISTS",
@@ -56,7 +56,7 @@ fn absent(path: &Path) -> Result<(), Error> {
     }
 }
 
-fn output_path(output: &Output) -> Result<PathBuf, Error> {
+pub(super) fn output_path(output: &Output) -> Result<PathBuf, Error> {
     checked_path(&output.output_root)?;
     let name = &output.file_name;
     let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
@@ -84,7 +84,7 @@ fn output_path(output: &Output) -> Result<PathBuf, Error> {
     Ok(target)
 }
 
-fn open_copy(path: &Path, readonly: bool) -> Result<Connection, Error> {
+pub(super) fn open_copy(path: &Path, readonly: bool) -> Result<Connection, Error> {
     let db = Connection::open_with_flags(
         path,
         (if readonly {
@@ -99,14 +99,14 @@ fn open_copy(path: &Path, readonly: bool) -> Result<Connection, Error> {
     Ok(db)
 }
 
-fn inspect(path: &Path, session_id: &str, control: &Control) -> Result<Value, Error> {
+pub(super) fn inspect(path: &Path, session_id: &str, control: &Control) -> Result<Value, Error> {
     let mut db = open_copy(path, true)?;
     check_schema(&db)?;
     let tx = db.transaction().map_err(sql)?;
     verify_connection(&tx, session_id, control)
 }
 
-fn identity(path: &Path, control: &Control) -> Result<Source, Error> {
+pub(super) fn identity(path: &Path, control: &Control) -> Result<Source, Error> {
     let mut file = fs::File::open(path).map_err(|_| io("Unable to read prepared history"))?;
     let mut digest = Sha256::new();
     let mut bytes = 0;
@@ -132,7 +132,7 @@ fn identity(path: &Path, control: &Control) -> Result<Source, Error> {
     })
 }
 
-fn publish(temp: &Path, target: &Path, control: &Control) -> Result<(), Error> {
+pub(super) fn publish(temp: &Path, target: &Path, control: &Control) -> Result<(), Error> {
     control.check()?;
     no_sidecars(target)?;
     match fs::hard_link(temp, target) {
@@ -229,6 +229,23 @@ pub fn recover(
 ) -> Result<Value, Error> {
     control.check()?;
     checked_path(root)?;
+    validate_source(source)?;
+    let target = store_path(root, session_id)?;
+    checked_path(&target)?;
+    absent(&target)?;
+    no_sidecars(&target)?;
+    let temp = copy_source(root, source, control)?;
+    let verified = inspect(&temp.0, session_id, control)?;
+    let result = json!({"created":true,"session_id":session_id,"session_root":root,"database":target,"source":source,"session":verified,"history_preserved":true,"resources_copied":false,"external_resources_verified":false,"source_changed":false,"migration_performed":false});
+    #[cfg(test)]
+    super::fault_point("recovery_before_publish");
+    publish(&temp.0, &target, control)?;
+    #[cfg(test)]
+    super::fault_point("recovery_after_publish");
+    Ok(result)
+}
+
+pub(super) fn validate_source(source: &Source) -> Result<(), Error> {
     checked_path(&source.file_path)?;
     if source.bytes == 0
         || source.bytes > MAX_DATABASE_BYTES
@@ -243,10 +260,17 @@ pub fn recover(
             "Backup identity requires 1..128 MiB bytes and a lowercase SHA-256",
         ));
     }
-    let target = store_path(root, session_id)?;
-    checked_path(&target)?;
-    absent(&target)?;
-    no_sidecars(&target)?;
+    Ok(())
+}
+
+/// Read pinned bytes once; never open the supplied source as SQLite.
+pub(super) fn copy_source(
+    root: &Path,
+    source: &Source,
+    control: &Control,
+) -> Result<Temporary, Error> {
+    control.check()?;
+    validate_source(source)?;
     let metadata = fs::symlink_metadata(&source.file_path)
         .map_err(|_| io("Unable to inspect backup source"))?;
     if !metadata.is_file() || metadata.file_type().is_symlink() {
@@ -292,7 +316,11 @@ pub fn recover(
         file.write_all(&buffer[..count])
             .map_err(|_| io("Unable to write recovery temporary"))?;
         #[cfg(test)]
-        super::fault_point("recovery_during_copy");
+        {
+            super::fault_point("recovery_during_copy");
+            super::fault_point("migration_during_copy");
+            super::fault_point("continuation_during_copy");
+        }
     }
     if bytes != source.bytes || format!("{:x}", digest.finalize()) != source.sha256 {
         return Err(Error::new(
@@ -305,12 +333,5 @@ pub fn recover(
         .map_err(|_| io("Unable to flush recovered history"))?;
     drop(file);
     drop(input);
-    let verified = inspect(&temp.0, session_id, control)?;
-    let result = json!({"created":true,"session_id":session_id,"session_root":root,"database":target,"source":source,"session":verified,"history_preserved":true,"resources_copied":false,"external_resources_verified":false,"source_changed":false,"migration_performed":false});
-    #[cfg(test)]
-    super::fault_point("recovery_before_publish");
-    publish(&temp.0, &target, control)?;
-    #[cfg(test)]
-    super::fault_point("recovery_after_publish");
-    Ok(result)
+    Ok(temp)
 }

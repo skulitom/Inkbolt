@@ -1,6 +1,6 @@
 # Compact session responses
 
-Set `response_mode:"compact"` on `session.create`, `session.read`, `session.apply`, `session.apply_proposal` or `session.receipt` to avoid receiving the entire saved document on each call. CLI and MCP use the same projection. Omission or `response_mode:"full"` retains the original full response.
+Set `response_mode:"compact"` on `session.create`, `session.continue`, `session.read`, `session.apply`, `session.apply_proposal` or `session.receipt` to avoid receiving the entire saved document on each call. CLI and MCP use the same projection. Omission or `response_mode:"full"` retains the original full response.
 
 ```json
 {"command":"session.apply","session_id":"poster","expected_revision":3,"request_id":"move-title","action":{"type":"edit","operations":[{"op":"transform","id":"title","matrix":[1,0,0,1,12,0],"space":"world"}]},"response_mode":"compact"}
@@ -27,3 +27,5 @@ Compact mode is currently limited to durable session results. A snapshot edit or
 `tests/test_compact_responses.py` checks a 65,536-pixel saved document, the 8 KiB ordinary receipt target, recovery of every original pixel, CLI/MCP parity, mixed-mode retries, historical references after later edits, named snapshots and rejection before mutation. `tests/session_retries.rs` checks expired creation retries and rejects optional nonfinite Rust values that would otherwise serialize like missing values. Default full responses continue through the existing suite. See [workspaces and input references](AGENT_WORKSPACE.md) and the [readiness plan](AGENT_READINESS.md).
 
 `python tools/measure_responses.py` records actual CLI input/output bytes, per-call elapsed time, executable/source fingerprints and independent pixel recovery for the original fixture. It uses a temporary external session and makes five scripted engine calls. `--output <new-external-report.json>` retains a create-only report. This measures response volume; it does not measure autonomous task success, model tokens or peak memory.
+
+Continuation responses retain the checked `lineage` object in compact and full modes. Ordinary sessions return null provenance. Parent backup paths remain data; result projection never traverses them. See [linked history](SESSION_LINEAGE.md).

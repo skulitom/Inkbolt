@@ -311,13 +311,19 @@ fn description(command: &str) -> &'static str {
             "Page committed history receipts in revision order. Set limit 1..128 and pass next_after_revision as after_revision for the next page."
         }
         "session.verify" => {
-            "Verify bounded database integrity, state/receipt hashes and history references. Does not verify external image/font availability or repair files."
+            "Verify bounded database integrity, state/receipt hashes, provenance and history references. An ordinary writable opening can recover a pending SQLite rollback journal; corrupt logical history is rejected. Does not verify external image/font availability."
         }
         "session.backup" => {
             "Capture an expected session head in one read transaction, copy its entire history in bounded steps, verify the copy and create a new .sqlite3 backup without overwriting. Returns exact byte identity and history fingerprint. Retains undo/redo, named snapshots, resource bindings and retry receipts; external image/font bytes are not copied or read. Pending hot journals need ordinary session recovery first."
         }
         "session.recover" => {
             "Restore an exact hash-pinned standalone session backup into an unused session destination. Verifies the whole history before create-only publication; preserves original session ID, revisions, undo/redo, named snapshots and retry receipts. Requires no existing destination or journal sidecars. Retains resource paths without accessing or rebinding them. No implicit migration or source modification."
+        }
+        "session.migrate" => {
+            "Explicitly migrate a hash-pinned standalone version-1 backup into a new version-2 backup. Checks the whole history and preserves all existing state, receipt, undo/redo and snapshot rows. Creates an empty provenance table; no automatic upgrade, downgrade, overwrite or resource access. Restore the returned backup with session.recover."
+        }
+        "session.continue" => {
+            "Start a new session ID at revision zero from an exact parent revision in a hash-pinned complete backup. Preserves the parent backup and document/resource content; new undo/redo and snapshot history starts empty. Stores checked parent provenance visible in reads, receipts and verification. Retry with the same request ID and parent identity recovers the committed result even if the parent is later unavailable. Resource rebinding is explicit. Supports compact receipts."
         }
         "session.diff" => {
             "Compare two committed session revisions including saved resource bindings. Rendering uses immutable captured states, releasing the database read lock first."
@@ -414,6 +420,8 @@ pub fn catalog_in_workspace(
                 | "font.import"
                 | "session.create"
                 | "session.backup"
+                | "session.migrate"
+                | "session.continue"
                 | "session.recover"
                 | "session.apply"
                 | "session.apply_proposal"

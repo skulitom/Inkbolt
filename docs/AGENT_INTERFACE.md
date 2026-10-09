@@ -16,7 +16,7 @@ Use `document.diff.preview` or `session.diff.preview` for aligned before/after i
 
 Use `document.check` for bounded located structural/resource/typography diagnostics, and `document.preflight` for actual export preparation without writes. Inspect `status`/`complete` and `ready`; a successful diagnostic request can report problems. See [checks and repair workflows](DOCUMENT_CHECKS.md).
 
-Use `session.backup` for a checked copy of all session history and `session.recover` to restore its exact bytes into an unused destination. Resource stores remain external, versions are checked and no migration is implicit. See [backup and restoration](SESSION_BACKUPS.md).
+Use `session.backup` for a checked copy of all session history and `session.recover` to restore its exact bytes into an unused destination. Resource stores remain external, versions are checked and no migration is implicit. See [backup and restoration](SESSION_BACKUPS.md). `session.migrate` creates a checked upgraded backup; `session.continue` starts fresh history from an exact backup revision with parent provenance and a durable retry receipt. See [migration and linked history](SESSION_LINEAGE.md).
 
 Native layered exchange now maps nested normal/pass-through folders to explicit parent references, validates balanced boundaries and keeps empty groups without manufacturing pixels. Native import/export, declared loss receipts and durable agent workflows share this contract. Extended interchange remains partial and uncredited; larger axes, masks, text and embedded objects are still required.
 
@@ -295,7 +295,7 @@ Errors include FONT_ROOT_REQUIRED, FONT_MISSING, FONT_CORRUPT, FONT_IN_USE, FONT
 
 ## Persistent editing
 
-The `session.create`, `session.read`, `session.apply`, `session.receipt`, `session.history` and `session.verify` commands wrap the same validated snapshot model in durable local storage. All take an explicit absolute `session_root` and `session_id`. Mutations require `request_id`, and `session.apply` also requires `expected_revision`. Use `schema` for the full typed request and [SESSIONS.md](SESSIONS.md) for action fields, persistence boundaries, cancellation, limits and recovery. `document.edit` also accepts the optional `control` object documented there; existing calls default to no deadline or cancellation marker.
+The `session.create`, `session.read`, `session.apply`, `session.receipt`, `session.history` and `session.verify` commands wrap the same validated snapshot model in durable local storage. These commands take `session_id` and an absolute `session_root`, with workspace defaults available. Creation and editing require `request_id`, and `session.apply` also requires `expected_revision`. Use `schema` for the full typed request and [SESSIONS.md](SESSIONS.md) for action fields, persistence boundaries, cancellation, limits and recovery. `document.edit` also accepts the optional `control` object documented there; existing calls default to no deadline or cancellation marker.
 
 ## Agent adapters and published outputs
 

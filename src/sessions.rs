@@ -1,5 +1,6 @@
 //! Local transactional sessions with immutable content states, saved history and retry receipts.
 pub mod backup;
+pub mod lineage;
 use crate::{
     Document, Error, assets,
     control::Control,
@@ -19,7 +20,8 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
-pub const STORE_VERSION: i64 = 1;
+pub const STORE_VERSION: i64 = 2;
+pub const SUPPORTED_STORE_VERSIONS: &[i64] = &[1, 2];
 pub const APPLICATION_ID: i64 = 0x494e4b53;
 pub const MAX_STATES: usize = 256;
 pub const MAX_REQUESTS: usize = 2048;
@@ -206,14 +208,16 @@ fn configure(db: &Connection) -> Result<(), Error> {
     }
     Ok(())
 }
+fn storage_version(db: &Connection) -> Result<i64, Error> {
+    db.pragma_query_value(None, "user_version", |r| r.get(0))
+        .map_err(sql)
+}
 fn check_schema(db: &Connection) -> Result<(), Error> {
     let app: i64 = db
         .pragma_query_value(None, "application_id", |r| r.get(0))
         .map_err(sql)?;
-    let version: i64 = db
-        .pragma_query_value(None, "user_version", |r| r.get(0))
-        .map_err(sql)?;
-    if app != APPLICATION_ID || version != STORE_VERSION {
+    let version = storage_version(db)?;
+    if app != APPLICATION_ID || !SUPPORTED_STORE_VERSIONS.contains(&version) {
         return Err(Error::new(
             "SESSION_FORMAT",
             "Unrecognized session format or version",
@@ -225,9 +229,13 @@ fn check_schema(db: &Connection) -> Result<(), Error> {
         .map_err(sql)?
         .collect::<Result<_, _>>()
         .map_err(sql)?;
-    if actual.len() != SCHEMA.len()
+    let mut schema = SCHEMA.to_vec();
+    if version == 2 {
+        schema.push(lineage::SCHEMA);
+    }
+    if actual.len() != schema.len()
         || actual.iter().any(|(name, kind, text)| {
-            kind != "table" || !SCHEMA.iter().any(|(n, s)| *n == name && *s == text)
+            kind != "table" || !schema.iter().any(|(n, s)| *n == name && *s == text)
         })
     {
         return Err(Error::new(
@@ -359,6 +367,7 @@ fn read_meta(db: &Connection, session_id: &str) -> Result<Meta, Error> {
     if receipt.state_id != meta.current_state || receipt.revision != meta.revision {
         return Err(corrupt("Session head disagrees with its committed receipt"));
     }
+    lineage::read(db, session_id)?;
     Ok(meta)
 }
 fn save_meta(db: &Connection, meta: &Meta) -> Result<(), Error> {
@@ -420,7 +429,7 @@ fn prepare_state(db: &Connection, state: &State) -> Result<(Vec<u8>, String), Er
     if count >= MAX_STATES as i64 || total + bytes.len() as i64 > MAX_HISTORY_BYTES {
         return Err(Error::new(
             "HISTORY_LIMIT",
-            "Session history is full; export a snapshot and start a new session without deleting this history",
+            "Session history is full; use session.backup then session.continue to start linked history without deleting the original",
         ));
     }
     let hash = assets::sha256(&bytes);
@@ -478,7 +487,7 @@ fn response(
     }
     state.document.revision = u64::from(receipt.revision);
     Ok(
-        json!({"session_id":meta.session_id,"receipt":receipt,"replayed":replayed,"current_revision":meta.revision,"current_state_id":meta.current_state,"document":state.document,"resources":state.resources}),
+        json!({"session_id":meta.session_id,"receipt":receipt,"replayed":replayed,"current_revision":meta.revision,"current_state_id":meta.current_state,"document":state.document,"resources":state.resources,"lineage":lineage::read(db, &meta.session_id)?}),
     )
 }
 struct Temporary(PathBuf);
@@ -537,28 +546,65 @@ pub fn create(
     let fingerprint = assets::sha256(&encode(
         &json!({"type":"create","document":document,"resources":resources}),
     )?);
-    let existing = || -> Result<Value, Error> {
-        let mut db = open(root, session_id)?;
-        let tx = db.transaction().map_err(sql)?;
-        let meta = read_meta(&tx, session_id)?;
-        let Some((old, receipt)) = request(&tx, request_id)? else {
-            return Err(Error::new(
-                "SESSION_EXISTS",
-                "Session ID already exists; existing data is preserved",
-            ));
-        };
-        if old != fingerprint || receipt.action != "create" {
-            return Err(Error::new(
-                "REQUEST_ID_REUSED",
-                "Request ID was already used for different content",
-            ));
-        }
-        response(&tx, &meta, receipt, true)
-    };
     if existed {
-        return existing();
+        return replay_creation(root, session_id, request_id, &fingerprint, "create");
     }
+    create_prepared(
+        root,
+        session_id,
+        request_id,
+        State {
+            document: document.clone(),
+            resources: resources.clone(),
+        },
+        &fingerprint,
+        None,
+        control,
+    )
+}
+
+fn replay_creation(
+    root: &Path,
+    session_id: &str,
+    request_id: &str,
+    fingerprint: &str,
+    action: &str,
+) -> Result<Value, Error> {
+    let mut db = open(root, session_id)?;
+    let tx = db.transaction().map_err(sql)?;
+    let meta = read_meta(&tx, session_id)?;
+    let Some((old, receipt)) = request(&tx, request_id)? else {
+        return Err(Error::new(
+            "SESSION_EXISTS",
+            "Session ID already exists; existing data is preserved",
+        ));
+    };
+    if old != fingerprint || receipt.action != action {
+        return Err(Error::new(
+            "REQUEST_ID_REUSED",
+            "Request ID was already used for different content",
+        ));
+    }
+    response(&tx, &meta, receipt, true)
+}
+
+fn create_prepared(
+    root: &Path,
+    session_id: &str,
+    request_id: &str,
+    mut state: State,
+    fingerprint: &str,
+    mut origin: Option<lineage::Origin>,
+    control: &Control,
+) -> Result<Value, Error> {
     control.check()?;
+    let target = store_path(root, session_id)?;
+    backup::no_sidecars(&target)?;
+    let action = if origin.is_some() {
+        "continue"
+    } else {
+        "create"
+    };
     let temp = reserve(root)?;
     let mut db = Connection::open_with_flags(
         &temp.0,
@@ -582,13 +628,14 @@ pub fn create(
     for (_, statement) in SCHEMA {
         tx.execute_batch(statement).map_err(sql)?;
     }
-    let mut state = State {
-        document: document.clone(),
-        resources: resources.clone(),
-    };
+    tx.execute_batch(lineage::SCHEMA.1).map_err(sql)?;
     state.document.schema_version = 2;
     state.document.revision = 0;
     let hash = put_state(&tx, 0, &state)?;
+    if let Some(origin) = &mut origin {
+        origin.initial_state_sha256 = hash.clone();
+        lineage::save(&tx, origin)?;
+    }
     let meta = Meta {
         session_id: session_id.to_owned(),
         revision: 0,
@@ -601,14 +648,15 @@ pub fn create(
         request_id: request_id.to_owned(),
         revision: 0,
         from_revision: 0,
-        action: "create".into(),
+        action: action.into(),
         label: String::new(),
         from_state: 0,
         state_id: 0,
         state_sha256: hash,
         changes: Vec::new(),
     };
-    save_request(&tx, &fingerprint, &receipt)?;
+    save_request(&tx, fingerprint, &receipt)?;
+    let result = response(&tx, &meta, receipt, false)?;
     control.check()?;
     tx.commit().map_err(sql)?;
     db.close().map_err(|(_, e)| sql(e))?;
@@ -619,9 +667,17 @@ pub fn create(
         .and_then(|f| f.sync_all())
         .map_err(|_| Error::new("IO_ERROR", "Unable to flush new session database"))?;
     control.check()?;
+    backup::no_sidecars(&target)?;
+    #[cfg(test)]
+    if origin.is_some() {
+        fault_point("continuation_before_publish");
+    }
+    control.check()?;
     match fs::hard_link(&temp.0, &target) {
         Ok(()) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => return existing(),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            return replay_creation(root, session_id, request_id, fingerprint, action);
+        }
         Err(_) => {
             return Err(Error::new(
                 "SESSION_STORE_ERROR",
@@ -629,10 +685,11 @@ pub fn create(
             ));
         }
     }
-    let mut db = open(root, session_id)?;
-    let tx = db.transaction().map_err(sql)?;
-    let current = read_meta(&tx, session_id)?;
-    response(&tx, &current, receipt, false)
+    #[cfg(test)]
+    if origin.is_some() {
+        fault_point("continuation_after_publish");
+    }
+    Ok(result)
 }
 fn snapshots(db: &Connection) -> Result<Vec<Snapshot>, Error> {
     let mut stmt = db
@@ -683,7 +740,7 @@ pub fn read(root: &Path, session_id: &str, snapshot: Option<&str>) -> Result<Val
     let (mut state, hash) = load_state(&tx, state_id)?;
     state.document.revision = u64::from(revision);
     Ok(
-        json!({"session_id":session_id,"revision":revision,"current_revision":meta.revision,"state_id":state_id,"state_sha256":hash,"document":state.document,"resources":state.resources,"undo_depth":meta.undo.len(),"redo_depth":meta.redo.len(),"snapshots":names}),
+        json!({"session_id":session_id,"revision":revision,"current_revision":meta.revision,"state_id":state_id,"state_sha256":hash,"document":state.document,"resources":state.resources,"undo_depth":meta.undo.len(),"redo_depth":meta.redo.len(),"snapshots":names,"lineage":lineage::read(&tx, session_id)?}),
     )
 }
 pub fn receipt(root: &Path, session_id: &str, request_id: &str) -> Result<Value, Error> {
@@ -1358,8 +1415,13 @@ fn verify_connection(tx: &Connection, session_id: &str, control: &Control) -> Re
         digest.update(encode(snapshot)?);
     }
     control.check()?;
+    let origin = lineage::read(tx, session_id)?;
+    // Empty provenance keeps v1 logical fingerprints stable across migration.
+    if let Some(origin) = &origin {
+        digest.update(encode(origin)?);
+    }
     Ok(
-        json!({"valid":true,"session_id":session_id,"revision":meta.revision,"states":hashes.len(),"requests":ids.len(),"state_bytes":total,"storage_version":STORE_VERSION,"sqlite_version":rusqlite::version(),"journal_mode":"delete","synchronous":"full","head_state_sha256":hashes.get(&meta.current_state),"history_sha256":format!("{:x}",digest.finalize()),"undo_depth":meta.undo.len(),"redo_depth":meta.redo.len(),"snapshots":snapshots.len()}),
+        json!({"valid":true,"session_id":session_id,"revision":meta.revision,"states":hashes.len(),"requests":ids.len(),"state_bytes":total,"storage_version":storage_version(tx)?,"sqlite_version":rusqlite::version(),"journal_mode":"delete","synchronous":"full","head_state_sha256":hashes.get(&meta.current_state),"history_sha256":format!("{:x}",digest.finalize()),"undo_depth":meta.undo.len(),"redo_depth":meta.redo.len(),"snapshots":snapshots.len(),"lineage":origin}),
     )
 }
 #[cfg(test)]
@@ -1437,6 +1499,8 @@ mod tests {
         let mut cmd = Command::new(std::env::current_exe().unwrap());
         let worker = if point.starts_with("backup_") || point.starts_with("recovery_") {
             "sessions::tests::history_worker"
+        } else if point.starts_with("migration_") || point.starts_with("continuation_") {
+            "sessions::tests::lineage_worker"
         } else {
             "sessions::tests::crash_worker"
         };
@@ -1558,25 +1622,26 @@ mod tests {
             cancel_file: cancelled.then(|| root.join("cancel")),
         })
         .unwrap();
-        let result = if point.starts_with("backup_") {
-            backup::create(
-                &root,
-                "recovery",
-                3,
-                &backup::Output {
+        let request = if point.starts_with("backup_") {
+            crate::Request::SessionBackup {
+                session_root: root.clone(),
+                session_id: "recovery".into(),
+                expected_revision: 3,
+                output: backup::Output {
                     output_root: root.clone(),
                     file_name: "result.sqlite3".into(),
                 },
-                &control,
-            )
+                control: Default::default(),
+            }
         } else {
-            backup::recover(
-                &root.join("restored"),
-                "recovery",
-                &history_source(&root),
-                &control,
-            )
+            crate::Request::SessionRecover {
+                session_root: root.join("restored"),
+                session_id: "recovery".into(),
+                source: history_source(&root),
+                control: Default::default(),
+            }
         };
+        let result = crate::execute_controlled(request, &control);
         if cancelled && !point.ends_with("after_publish") {
             assert_eq!(result.unwrap_err().code, "CANCELLED");
         } else {
@@ -1649,6 +1714,204 @@ mod tests {
                 "Retries must preserve orphan evidence owned by the killed process"
             );
         }
+    }
+    fn lineage_request(root: &Path, point: &str) -> crate::Request {
+        if point.starts_with("migration_") {
+            crate::Request::SessionMigrate {
+                session_id: "recovery".into(),
+                source: history_source(root),
+                target_version: 2,
+                output: backup::Output {
+                    output_root: root.to_owned(),
+                    file_name: "migrated.sqlite3".into(),
+                },
+                control: Default::default(),
+            }
+        } else {
+            crate::Request::SessionContinue {
+                session_root: root.join("restored"),
+                session_id: "continued".into(),
+                request_id: "continue".into(),
+                parent: lineage::Parent {
+                    source: history_source(root),
+                    session_id: "recovery".into(),
+                    revision: 1,
+                },
+                control: Default::default(),
+            }
+        }
+    }
+    #[test]
+    fn lineage_worker() {
+        let Some(root) = std::env::var_os("INKBOLT_SESSION_FAULT_ROOT") else {
+            return;
+        };
+        let root = PathBuf::from(root);
+        let point = std::env::var("INKBOLT_SESSION_FAULT").unwrap();
+        let cancelled = std::env::var_os("INKBOLT_SESSION_TEST_CANCEL").is_some();
+        let control = Control::new(&crate::control::Options {
+            timeout_ms: None,
+            cancel_file: cancelled.then(|| root.join("cancel")),
+        })
+        .unwrap();
+        let result = crate::execute_controlled(lineage_request(&root, &point), &control);
+        if cancelled && !point.ends_with("after_publish") {
+            assert_eq!(result.unwrap_err().code, "CANCELLED");
+        } else {
+            assert!(result.is_ok(), "{result:?}");
+        }
+    }
+    #[test]
+    fn migration_and_continuation_survive_crash_and_cancellation_through_executor() {
+        for cancel in [false, true] {
+            for point in [
+                "migration_during_copy",
+                "migration_after_schema",
+                "migration_before_publish",
+                "migration_after_publish",
+                "continuation_during_copy",
+                "continuation_after_capture",
+                "continuation_before_publish",
+                "continuation_after_publish",
+            ] {
+                let root = TestRoot::new();
+                let mut expected = history_fixture(&root.0);
+                let backup_path = root.0.join("snapshot.sqlite3");
+                // Original synthetic source with the exact former table schema.
+                let db = backup::open_copy(&backup_path, false).unwrap();
+                db.execute_batch("DROP TABLE lineage; PRAGMA user_version=1;")
+                    .unwrap();
+                db.close().unwrap();
+                let source = backup::identity(&backup_path, &Control::default()).unwrap();
+                fs::write(root.0.join("identity.json"), encode(&source).unwrap()).unwrap();
+                let source_bytes = fs::read(&backup_path).unwrap();
+                let live_path = store_path(&root.0, "recovery").unwrap();
+                let live_bytes = fs::read(&live_path).unwrap();
+                let mut worker = spawn(&root.0, point, cancel);
+                if cancel {
+                    fs::write(root.0.join("cancel"), b"stop").unwrap();
+                    fs::write(root.0.join("release"), b"release").unwrap();
+                    finish(&mut worker);
+                } else {
+                    worker.0.kill().unwrap();
+                    worker.0.wait().unwrap();
+                }
+                assert_eq!(fs::read(&backup_path).unwrap(), source_bytes);
+                assert_eq!(fs::read(&live_path).unwrap(), live_bytes);
+                let target = if point.starts_with("migration_") {
+                    root.0.join("migrated.sqlite3")
+                } else {
+                    store_path(&root.0.join("restored"), "continued").unwrap()
+                };
+                let committed = point.ends_with("after_publish");
+                assert_eq!(target.exists(), committed, "{point}");
+                let retained = orphans(&root.0);
+                assert_eq!(retained.is_empty(), cancel);
+                let retry = crate::execute(lineage_request(&root.0, point));
+                if point.starts_with("migration_") {
+                    if committed {
+                        assert_eq!(retry.unwrap_err().code, "OUTPUT_EXISTS");
+                    } else {
+                        retry.unwrap();
+                    }
+                    expected["storage_version"] = json!(2);
+                    assert_eq!(
+                        backup::inspect(&target, "recovery", &Control::default()).unwrap(),
+                        expected
+                    );
+                } else {
+                    let result = retry.unwrap();
+                    assert_eq!(result["replayed"], committed);
+                    assert_eq!(result["lineage"]["parent"]["revision"], 1);
+                    assert_eq!(result["lineage"]["source_storage_version"], 1);
+                    assert_eq!(result["document"]["items"][0]["opacity"], 1.0);
+                    assert_eq!(
+                        verify(&root.0.join("restored"), "continued", &Control::default()).unwrap()
+                            ["states"],
+                        1
+                    );
+                }
+                assert_eq!(
+                    orphans(&root.0),
+                    retained,
+                    "Retry must preserve old owned evidence"
+                );
+            }
+        }
+    }
+    #[test]
+    fn full_history_can_continue_without_evicting_a_single_state() {
+        let root = TestRoot::new();
+        let doc:Document=serde_json::from_value(json!({"schema_version":2,"id":"fixture","kind":"vector","width":2,"height":2,"color_space":"srgb","items":[{"id":"box","content":{"type":"vector","geometry":{"shape":"rect","x":0,"y":0,"width":1,"height":1},"fill":[1,2,3,255]}}]})).unwrap();
+        create(
+            &root.0,
+            "full",
+            "create",
+            &doc,
+            &Resources::default(),
+            &Control::default(),
+        )
+        .unwrap();
+        let action = |n: usize| {
+            serde_json::from_value(json!({"type":"edit","operations":[{"op":"properties","id":"box","name":format!("name-{n}")}]})).unwrap()
+        };
+        for n in 1..MAX_STATES {
+            mutate(
+                &root.0,
+                "full",
+                &format!("r-{n}"),
+                (n - 1) as u64,
+                &action(n),
+                &Control::default(),
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            mutate(
+                &root.0,
+                "full",
+                "over",
+                255,
+                &action(256),
+                &Control::default()
+            )
+            .unwrap_err()
+            .code,
+            "HISTORY_LIMIT"
+        );
+        let path = store_path(&root.0, "full").unwrap();
+        let original = fs::read(&path).unwrap();
+        let result = backup::create(
+            &root.0,
+            "full",
+            255,
+            &backup::Output {
+                output_root: root.0.clone(),
+                file_name: "full.sqlite3".into(),
+            },
+            &Control::default(),
+        )
+        .unwrap();
+        let parent = lineage::Parent {
+            source: serde_json::from_value(result["backup"].clone()).unwrap(),
+            session_id: "full".into(),
+            revision: 255,
+        };
+        lineage::continue_from(&root.0, "next", "continue", &parent, &Control::default()).unwrap();
+        mutate(
+            &root.0,
+            "next",
+            "next-edit",
+            0,
+            &action(256),
+            &Control::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            verify(&root.0, "next", &Control::default()).unwrap()["states"],
+            2
+        );
+        assert_eq!(fs::read(&path).unwrap(), original);
     }
     #[test]
     fn history_cancellation_discards_unpublished_copies_but_keeps_committed_success() {
