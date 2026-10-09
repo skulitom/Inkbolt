@@ -15,8 +15,9 @@ from test_editing_cli import png_pixels
 
 
 class Client:
-    def __init__(self):
-        self.process=subprocess.Popen([str(EXE),'mcp'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    def __init__(self, args=(), workspace=None):
+        prefix=[] if workspace is None else ['--workspace',str(workspace)]
+        self.process=subprocess.Popen([str(EXE),*prefix,'mcp',*args],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         self.messages=queue.Queue();self.saved={};self.next_id=0
         def receive():
             for line in self.process.stdout:

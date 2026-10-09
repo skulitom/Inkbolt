@@ -1,6 +1,6 @@
 //! Bounded MCP stdio adapter for the shared local engine, protocol 2025-11-25.
 use crate::{
-    Error, Request,
+    Error,
     control::{Control, Options},
 };
 use serde::{
@@ -9,7 +9,7 @@ use serde::{
 };
 use serde_json::{Map, Value, json};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, HashSet},
     fmt,
     io::{self, BufRead, Write},
     sync::{Arc, Mutex, mpsc},
@@ -22,6 +22,40 @@ pub const MAX_RESPONSE_BYTES: usize = 96 * 1024 * 1024;
 pub const MAX_PENDING: usize = 8;
 pub const MAX_REQUEST_IDS: usize = 4096;
 const PAGE: usize = 8;
+
+pub const CORE_CATALOG_BYTES: usize = 96 * 1024;
+const CORE: &[&str] = &[
+    "schema.lookup",
+    "document.create",
+    "document.inspect",
+    "document.query",
+    "document.edit",
+    "document.render",
+    "session.create",
+    "session.read",
+    "session.apply",
+    "session.receipt",
+    "session.history",
+    "session.diff",
+    "session.publish",
+    "asset.import",
+    "font.import",
+];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CatalogMode {
+    Full,
+    Core,
+}
+
+impl CatalogMode {
+    fn cursor(self) -> &'static str {
+        match self {
+            Self::Full => "inkbolt-tools-v1:",
+            Self::Core => "inkbolt-tools-core-v1:",
+        }
+    }
+}
 
 // Parse once without losing duplicate-key errors when dispatch adds the command field.
 struct Strict(Value);
@@ -83,6 +117,9 @@ pub(crate) fn strict_value(text: &str) -> Result<Value, Error> {
 }
 fn description(command: &str) -> &'static str {
     match command {
+        "schema.lookup" => {
+            "Discover command arguments and shared graphics types. Use name index for available names. Large schemas return an outline; select a listed variant or definition, or use full:true for all reachable definitions. Read-only. The original schema command still returns the entire engine schema."
+        }
         "layered.import" => {
             "Read a bounded local layered RGB file into editable native pixel layers. Preserves order, names, visibility, integer extents and exact byte opacity. Checks an optional source hash, uses explicit color policy and leaves the file unchanged. Unsupported masks, groups, text and effects fail explicitly; no flattened-cache substitution."
         }
@@ -288,28 +325,6 @@ fn description(command: &str) -> &'static str {
         _ => "Execute a validated Inkbolt engine command.",
     }
 }
-fn references(value: &Value, out: &mut BTreeSet<String>) {
-    match value {
-        Value::Object(m) => {
-            if let Some(r) = m
-                .get("$ref")
-                .and_then(Value::as_str)
-                .and_then(|s| s.strip_prefix("#/$defs/"))
-            {
-                out.insert(r.to_owned());
-            }
-            for v in m.values() {
-                references(v, out);
-            }
-        }
-        Value::Array(v) => {
-            for v in v {
-                references(v, out);
-            }
-        }
-        _ => {}
-    }
-}
 fn portable_schema(value: &mut Value) {
     match value {
         Value::Object(map) => {
@@ -333,43 +348,27 @@ fn portable_schema(value: &mut Value) {
     }
 }
 pub fn catalog() -> BTreeMap<String, (String, Value)> {
-    let schema = json!(schemars::schema_for!(Request));
+    catalog_with_mode(CatalogMode::Full)
+}
+
+pub fn catalog_with_mode(mode: CatalogMode) -> BTreeMap<String, (String, Value)> {
+    catalog_in_workspace(mode, false)
+}
+
+pub fn catalog_in_workspace(
+    mode: CatalogMode,
+    workspace: bool,
+) -> BTreeMap<String, (String, Value)> {
     let mut tools = BTreeMap::new();
-    for variant in schema["oneOf"].as_array().unwrap() {
-        let command = variant["properties"]["command"]["const"].as_str().unwrap();
-        let mut input = variant.clone();
-        input["properties"]
-            .as_object_mut()
-            .unwrap()
-            .remove("command");
-        input["required"]
-            .as_array_mut()
-            .unwrap()
-            .retain(|v| v != "command");
+    for command in crate::schema::commands() {
+        if mode == CatalogMode::Core && !CORE.contains(&command) {
+            continue;
+        }
+        let mut input = crate::schema::arguments(command, mode == CatalogMode::Core).unwrap();
+        if workspace {
+            crate::workspace::describe(&mut input);
+        }
         input["properties"]["response_format"] = json!({"type":"string","enum":["json","markdown"],"default":"json","description":"Text presentation; structuredContent always preserves the complete JSON envelope."});
-        let mut needed = BTreeSet::new();
-        references(&input, &mut needed);
-        loop {
-            let old = needed.len();
-            for key in needed.clone() {
-                references(&schema["$defs"][&key], &mut needed);
-            }
-            if needed.len() == old {
-                break;
-            }
-        }
-        if !needed.is_empty() {
-            input["$defs"] = Value::Object(
-                needed
-                    .into_iter()
-                    .map(|k| {
-                        let v = schema["$defs"][&k].clone();
-                        (k, v)
-                    })
-                    .collect(),
-            );
-        }
-        input["$schema"] = schema["$schema"].clone();
         portable_schema(&mut input);
         let name = format!("inkbolt_{}", command.replace('.', "_"));
         let mutable = matches!(
@@ -385,7 +384,60 @@ pub fn catalog() -> BTreeMap<String, (String, Value)> {
         let tool = json!({"name":name,"description":description(command),"inputSchema":input,"outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},"annotations":{"readOnlyHint":!mutable,"destructiveHint":command=="session.apply","idempotentHint":true,"openWorldHint":false},"execution":{"taskSupport":"forbidden"}});
         tools.insert(name, (command.to_owned(), tool));
     }
+    if mode == CatalogMode::Core {
+        let tool = json!({
+            "name":"inkbolt_run",
+            "description":"Run any engine command through the same validated executor. Discover names and arguments with inkbolt_schema_lookup. Arguments omit command. Editing retains revision checks and durable retry receipts; source files and existing outputs are preserved.",
+            "inputSchema":{"type":"object","additionalProperties":false,"required":["command","arguments"],"properties":{
+                "command":{"type":"string","enum":crate::schema::commands().collect::<Vec<_>>()},
+                "arguments":{"type":"object","additionalProperties":true,"description":"Command fields from schema.lookup, without command or response_format."},
+                "response_format":{"type":"string","enum":["json","markdown"],"default":"json"}
+            }},
+            "outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},
+            "annotations":{"readOnlyHint":false,"destructiveHint":true,"idempotentHint":false,"openWorldHint":false},
+            "execution":{"taskSupport":"forbidden"}
+        });
+        tools.insert("inkbolt_run".into(), ("run".into(), tool));
+    }
     tools
+}
+
+fn dispatch_arguments(command: &str, mut args: Map<String, Value>) -> Result<Value, Error> {
+    let (command, mut args) = if command == "run" {
+        let name = args
+            .remove("command")
+            .and_then(|v| v.as_str().map(str::to_owned));
+        let arguments = args.remove("arguments");
+        match (name, arguments) {
+            (Some(name), Some(Value::Object(arguments)))
+                if args.is_empty() && crate::schema::commands().any(|c| c == name) =>
+            {
+                (name, arguments)
+            }
+            _ => {
+                return Err(Error::new(
+                    "INVALID_REQUEST",
+                    "Run requires a known command and an arguments object, with no extra fields",
+                ));
+            }
+        }
+    } else {
+        (command.to_owned(), args)
+    };
+    if args.contains_key("command") {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            "Tool selects the command; omit command from arguments",
+        ));
+    }
+    args.insert("command".into(), json!(command));
+    if serde_json::to_vec(&args).unwrap().len() > crate::MAX_REQUEST_BYTES as usize {
+        return Err(Error::new(
+            "REQUEST_TOO_LARGE",
+            "Engine arguments exceed 16 MiB",
+        ));
+    }
+    Ok(Value::Object(args))
 }
 fn protocol_error(id: Option<Value>, code: i32, message: &str) -> Value {
     let mut value = json!({"jsonrpc":"2.0","error":{"code":code,"message":message}});
@@ -451,7 +503,7 @@ fn line(input: &mut impl BufRead) -> io::Result<Option<Result<Vec<u8>, ()>>> {
 struct Job {
     id: Value,
     key: String,
-    request: Request,
+    request: Value,
     control: Control,
     markdown: bool,
 }
@@ -499,14 +551,26 @@ fn tool_result(result: Result<Value, Error>, markdown: bool) -> Value {
     json!({"content":content,"structuredContent":envelope,"isError":failed})
 }
 pub fn run() -> io::Result<()> {
+    run_with_mode(CatalogMode::Full)
+}
+
+pub fn run_with_mode(mode: CatalogMode) -> io::Result<()> {
+    run_in_workspace(mode, None)
+}
+
+pub fn run_in_workspace(
+    mode: CatalogMode,
+    workspace: Option<crate::workspace::Workspace>,
+) -> io::Result<()> {
     let output = Arc::new(Mutex::new(io::stdout()));
     let active: Active = Arc::new(Mutex::new(BTreeMap::new()));
     let (tx, rx) = mpsc::sync_channel::<Job>(MAX_PENDING);
     let worker_output = output.clone();
     let worker_active = active.clone();
+    let worker_workspace = workspace.clone();
     let worker = thread::spawn(move || {
         for job in rx {
-            let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||crate::execute_controlled(job.request,&job.control))).unwrap_or_else(|_|Err(Error::new("INTERNAL_ERROR","Engine request failed unexpectedly; inspect any persistent request receipt before retrying")));
+            let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||crate::request::execute(job.request,worker_workspace.as_ref(),&job.control))).unwrap_or_else(|_|Err(Error::new("INTERNAL_ERROR","Engine request failed unexpectedly; inspect any persistent request receipt before retrying")));
             // Notifications are fire-and-forget; persistent outcome remains available by receipt.
             if !job.control.is_cancelled() {
                 let response =
@@ -521,7 +585,7 @@ pub fn run() -> io::Result<()> {
             worker_active.lock().unwrap().remove(&job.key);
         }
     });
-    let tools = catalog();
+    let tools = catalog_in_workspace(mode, workspace.is_some());
     let mut initialized = false;
     let mut ready = false;
     let mut seen = HashSet::new();
@@ -652,7 +716,7 @@ pub fn run() -> io::Result<()> {
                 initialized = true;
                 send(
                     &output,
-                    &json!({"jsonrpc":"2.0","id":id,"result":{"protocolVersion":PROTOCOL,"capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"inkbolt","version":env!("CARGO_PKG_VERSION")},"instructions":"Local graphics engine. Inspect capabilities and schema; preserve source files. Use durable session request IDs and expected revisions for safe edits. Export publication is create-only. Read tool errors and unsupported semantics. Stdio has no network listener; paths run with the launching user's permissions."}}),
+                    &json!({"jsonrpc":"2.0","id":id,"result":{"protocolVersion":PROTOCOL,"capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"inkbolt","version":env!("CARGO_PKG_VERSION")},"instructions":format!("Local graphics engine. Use schema.lookup with name index to discover commands; request one command or type and select a listed variant/definition. Large schemas are outlined unless full:true. {} Preserve source files. Use durable session request IDs and expected revisions for safe edits. Export publication is create-only. Read tool errors and unsupported semantics. Stdio has no network listener; paths run with the launching user's permissions.", if mode == CatalogMode::Core { "This compact catalog defers shared types; inkbolt_run reaches every engine command with unchanged arguments and validation." } else { "Every engine command has a direct tool. A compact catalog is available with mcp --tools core." })}}),
                 )?;
                 continue;
             }
@@ -676,7 +740,7 @@ pub fn run() -> io::Result<()> {
                     let start = match params.get("cursor") {
                         None => 0,
                         Some(Value::String(s)) => match s
-                            .strip_prefix("inkbolt-tools-v1:")
+                            .strip_prefix(mode.cursor())
                             .and_then(|s| s.parse::<usize>().ok())
                         {
                             Some(n) if n < tools.len() && n % PAGE == 0 => n,
@@ -698,7 +762,7 @@ pub fn run() -> io::Result<()> {
                     };
                     let mut result = json!({"tools":tools.values().skip(start).take(PAGE).map(|(_,v)|v).collect::<Vec<_>>()});
                     if start + PAGE < tools.len() {
-                        result["nextCursor"] = json!(format!("inkbolt-tools-v1:{}", start + PAGE));
+                        result["nextCursor"] = json!(format!("{}{}", mode.cursor(), start + PAGE));
                     }
                     send(&output, &json!({"jsonrpc":"2.0","id":id,"result":result}))?;
                 }
@@ -756,29 +820,7 @@ pub fn run() -> io::Result<()> {
                             continue;
                         }
                     };
-                    if args.contains_key("command") {
-                        send(
-                            &output,
-                            &json!({"jsonrpc":"2.0","id":id,"result":tool_result(Err(Error::new("INVALID_REQUEST","Tool name selects the command; omit command from arguments")),markdown)}),
-                        )?;
-                        continue;
-                    }
-                    args.insert("command".into(), json!(command));
-                    let encoded = serde_json::to_vec(&args)?;
-                    let request = if encoded.len() > crate::MAX_REQUEST_BYTES as usize {
-                        Err(Error::new(
-                            "REQUEST_TOO_LARGE",
-                            "Engine arguments exceed 16 MiB",
-                        ))
-                    } else {
-                        serde_json::from_value::<Request>(Value::Object(args)).map_err(|_| {
-                            Error::new(
-                                "INVALID_REQUEST",
-                                "Arguments must match the tool input schema",
-                            )
-                        })
-                    };
-                    let request = match request {
+                    let request = match dispatch_arguments(command, args) {
                         Ok(r) => r,
                         Err(e) => {
                             send(

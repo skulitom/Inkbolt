@@ -22,8 +22,36 @@ pub struct Control {
     cancelled: Arc<AtomicBool>,
     deadline: Option<Instant>,
     cancel_files: Vec<PathBuf>,
+    workspace: Option<crate::workspace::Workspace>,
 }
 impl Control {
+    pub(crate) fn has_workspace(&self) -> bool {
+        self.workspace.is_some()
+    }
+
+    pub(crate) fn in_workspace(&self, workspace: Option<&crate::workspace::Workspace>) -> Self {
+        let mut control = self.clone();
+        if let Some(workspace) = workspace {
+            control.workspace = Some(workspace.clone());
+        }
+        control
+    }
+
+    pub(crate) fn check_resource_paths(
+        &self,
+        resources: &crate::sessions::Resources,
+    ) -> Result<(), Error> {
+        if let Some(workspace) = &self.workspace {
+            for root in resources
+                .asset_root
+                .iter()
+                .chain(resources.font_root.iter())
+            {
+                workspace.resolve(root)?;
+            }
+        }
+        Ok(())
+    }
     pub fn new(options: &Options) -> Result<Self, Error> {
         Self::default().scoped(options)
     }
@@ -66,6 +94,7 @@ impl Control {
             cancelled: self.cancelled.clone(),
             deadline,
             cancel_files,
+            workspace: self.workspace.clone(),
         })
     }
 

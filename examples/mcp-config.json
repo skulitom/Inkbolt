@@ -2,7 +2,7 @@
   "mcpServers": {
     "inkbolt": {
       "command": "C:/Tools/Inkbolt/inkbolt.exe",
-      "args": ["mcp"]
+      "args": ["mcp", "--tools", "core"]
     }
   }
 }

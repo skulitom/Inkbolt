@@ -688,6 +688,13 @@ fn revision_state(db: &Connection, revision: u64, meta: &Meta) -> Result<State, 
     state.document.revision = revision;
     Ok(state)
 }
+/// Capture an immutable saved revision and its resource bindings under one read transaction.
+pub fn capture(root: &Path, session_id: &str, revision: u64) -> Result<State, Error> {
+    let mut db = open(root, session_id)?;
+    let tx = db.transaction().map_err(sql)?;
+    let meta = read_meta(&tx, session_id)?;
+    revision_state(&tx, revision, &meta)
+}
 pub fn compare(
     root: &Path,
     session_id: &str,
@@ -702,6 +709,8 @@ pub fn compare(
     let meta = read_meta(&tx, session_id)?;
     let before = revision_state(&tx, from_revision, &meta)?;
     let after = revision_state(&tx, to_revision, &meta)?;
+    control.check_resource_paths(&before.resources)?;
+    control.check_resource_paths(&after.resources)?;
     // Release the read lock before rendering; both captured states remain immutable.
     drop(tx);
     drop(db);
@@ -735,6 +744,7 @@ pub fn publish(
         ));
     }
     let state = revision_state(&tx, expected_revision, &meta)?;
+    control.check_resource_paths(&state.resources)?;
     drop(tx);
     drop(db);
     let mut result = crate::publish::publish(&state.document, &state.resources, options, control)?;
@@ -792,6 +802,7 @@ pub fn mutate(
             operations,
             label: requested,
         } => {
+            control.check_resource_paths(&state.resources)?;
             if requested.len() > 512 || requested.chars().any(char::is_control) {
                 return Err(Error::new(
                     "INVALID_REQUEST",
@@ -911,7 +922,8 @@ pub fn mutate(
         ));
     }
     meta.revision = next;
-    let (_, hash) = load_state(&tx, meta.current_state)?;
+    let (committed, hash) = load_state(&tx, meta.current_state)?;
+    control.check_resource_paths(&committed.resources)?;
     let receipt = Receipt {
         request_id: request_id.to_owned(),
         revision: next,

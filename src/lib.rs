@@ -55,6 +55,7 @@ pub mod render;
 pub mod render_quality;
 pub mod repair;
 pub mod repeats;
+pub mod request;
 mod resample;
 pub mod retouch;
 pub mod sample_convert;
@@ -63,6 +64,7 @@ pub mod sample_profiles;
 mod sample_tiff;
 pub mod samples;
 pub mod scene;
+pub mod schema;
 pub mod selection_analysis;
 pub mod selections;
 pub mod sequences;
@@ -82,6 +84,7 @@ pub mod vector_canvas;
 pub mod volumes;
 pub mod warps;
 mod work_paths;
+pub mod workspace;
 
 pub use model::{ColorSpace, Document, DocumentKind, MAX_DIMENSION, validate};
 use schemars::JsonSchema;
@@ -342,6 +345,16 @@ pub enum Request {
     Capabilities {},
     #[serde(rename = "schema")]
     Schema {},
+    #[serde(rename = "schema.lookup")]
+    SchemaLookup {
+        /// Command name, shared type alias, or index to discover available names.
+        name: String,
+        /// One tagged variant or referenced definition listed in the schema outline.
+        select: Option<String>,
+        /// Return the complete schema even when it exceeds the outline budget.
+        #[serde(default)]
+        full: bool,
+    },
     #[serde(rename = "implementation.status")]
     ImplementationStatus {},
     #[serde(rename = "document.publish")]
@@ -997,6 +1010,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "session.publish",
                 "capabilities",
                 "schema",
+                "schema.lookup",
                 "implementation.status",
                 "session.create",
                 "session.read",
@@ -1393,9 +1407,29 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 .unwrap()
                 .extend([json!("layered"), json!("layered_large")]);
             capabilities["layered_interchange"] = json!({"status":"basic_interchange_verified","import":"layered.import","export_format":"layered","file_version":1,"additional_file_versions":[2],"large_export_format":"layered_large","dimensions_by_version":{"standard":30000,"large":32768},"extended_status":"partial_uncredited","mode":"rgb8","layer_order":"bottom_to_top","layer_sources":["inline_raster","encoded_srgb_rgba8_samples"],"import_compression":["raw","rle","zip","zip_prediction"],"export_compression":"rle;raw_available_in_Rust_library","preserved":["original_layer_pixels_including_hidden_RGB","integer_extents","names","visibility","byte_opacity","byte_fill_opacity","whole_layer_lock"],"source_changed":false,"canvas_pixels":layered::MAX_CANVAS_PIXELS,"stored_pixels":model::MAX_STORED_PIXELS,"file_bytes":layered::MAX_FILE_BYTES,"maximum_layers":model::MAX_ITEMS,"profile_policy":"exact_builtin_srgb;explicit_convert_srgb_for_other_profiles;explicit_assume_srgb_for_untagged","merged_preview":"white_matted_RGB_with_separate_alpha;8bit_unmatting_loss;layers_remain_original","metadata":"explicit_strip_if_descriptive_metadata_present","incoming_metadata":"strict_known_inactive_records_with_omission_receipts","descriptor_limits":{"bytes":65536,"depth":8,"values":512,"container_entries":128},"density_units":"fixed_values_always_ppi;unit_selectors_are_display_only","groups":{"modes":["normal_isolated","normal_pass_through"],"empty":true,"ancestor_levels":16,"serialized_records":512,"transforms":"absolute_integer_source_placements;imported_groups_identity","open_state":"omitted_UI_metadata","unsupported":["non_normal_group_blends","group_fill_opacity","knockout","cached_group_pixel_extents","layer_role_containers"]},"masks":{"authored_gray8":true,"independent_bounds":true,"constant_empty_planes":true,"controls":["linked","enabled","outside_black_or_white","exact_byte_density"],"sampling":"nearest_integer_translation","unsupported":["nonzero_native_feather","obsolete_invert_flag","derived_masks","combined_real_vector_masks","implicit_resampling"]},"empty_layer_names":"encoded_exactly;native_consumers_may_generate_names;receipt_lists_empty_name_source_ids","unsupported":["large_axes_above_32768","empty_pixel_layers","native_mask_feather","derived_or_combined_masks","text","embedded_objects","non_normal_blends","extra_channels","nonempty_guides","unknown_appearance_records"],"checkpoint":"raster.interchange.basic"});
+            capabilities["agent_discovery"] = json!({
+                "lookup":"schema.lookup", "index":"index",
+                "large_schema_outline_bytes":schema::OUTLINE_BYTES,
+                "full_schema":"schema", "mcp_default":"full",
+                "mcp_compact_arguments":["mcp","--tools","core"],
+                "mcp_compact_budget_bytes":mcp::CORE_CATALOG_BYTES,
+                "mcp_dispatcher":"inkbolt_run", "execution_validation":"complete_typed_request"
+            });
+            capabilities["agent_inputs"] = json!({
+                "workspace_flag":"--workspace ABSOLUTE_DIRECTORY",
+                "workspace_position":"before_request_file_or_mcp",
+                "saved_document":{"fields":["session_id","revision","session_root"],"revision":"required_immutable_committed_revision","session_root":"required_without_workspace","placement":"top_level_document_before_after_arguments","resources":"inherit_saved_bindings_including_null_unless_explicitly_overridden","nested_transfer_source":false},
+                "json_library_api":"request::execute",
+                "typed_library_api":"execute_and_execute_controlled_keep_inline_snapshots",
+                "request_bytes":MAX_REQUEST_BYTES,"expanded_request_bytes":MAX_REQUEST_BYTES,
+                "workspace_is_os_sandbox":false
+            });
             Ok(capabilities)
         }
-        Request::Schema {} => Ok(json!(schemars::schema_for!(Request))),
+        Request::Schema {} => Ok(schema::full().clone()),
+        Request::SchemaLookup { name, select, full } => {
+            schema::lookup_in_workspace(&name, select.as_deref(), full, context.has_workspace())
+        }
         Request::ImplementationStatus {} => Ok(implementation_status()),
         Request::Publish {
             document,

@@ -1,5 +1,9 @@
 # Architecture
 
+`request` prepares JSON inputs for CLI and MCP, expanding top-level pinned session references and applying explicit `workspace` defaults before typed execution. Runtime-path normalization follows declared schema fields and leaves document/metadata strings literal. Session operations check resource bindings inside their existing transactions through the shared control context; retry receipts retain precedence over cancellation. The typed Rust snapshot API remains available. See [workspaces and saved revisions](AGENT_WORKSPACE.md).
+
+`schema` derives focused argument/type lookup from the same Rust request definitions used by execution. Large lookups return explicit outlines; complete schemas retain all reachable definitions. The optional compact MCP catalog defers large shared types, retains everyday commands and dispatches specialist requests through the existing controlled executor. Catalog mode does not change editing, publication or cancellation semantics. See [agent discovery](AGENT_DISCOVERY.md) and the separate [readiness plan](AGENT_READINESS.md).
+
 `strokes::placed_tolerance` bounds linear placement stretch and anticipates raster density 16. All outline consumers share the resulting refinement; stored controls remain unchanged. Generated outline budgets include hidden content before regional rendering. Authored cuts take precedence over coincident generated vertices only within bounded roundoff; distinct unrepresentable authored cuts fail explicitly.
 
 `render::coverage_path` constructs backend paths from binary64 output-space controls. `render::sparse` plans conservative regions for ordinary large-vector scenes, charges visited pixels and path controls, and preserves paint space and hierarchy order. Other compositing semantics retain general preparation. Resource resolution and validation precede either drawing route; see [LARGE_VECTOR.md](LARGE_VECTOR.md).

@@ -4,7 +4,7 @@ A session stores one vector or raster document under an explicit absolute `sessi
 
 ## Commands
 
-Every command requires `session_root` and `session_id`. IDs use document ID syntax (1..128 ASCII letters, digits, dots, underscores or hyphens). The filename is the SHA-256 of the UTF-8 session ID followed by `.sqlite3`; IDs cannot escape the root or become reserved platform filenames.
+Every command requires `session_id`. Without a workspace, `session_root` remains required and absolute. With `--workspace`, it defaults to `.inkbolt/sessions`; explicit roots must resolve inside that workspace. Top-level document arguments can reference exact committed session revisions. See [workspaces and saved revisions](AGENT_WORKSPACE.md). IDs use document ID syntax (1..128 ASCII letters, digits, dots, underscores or hyphens). The filename is the SHA-256 of the UTF-8 session ID followed by `.sqlite3`; IDs cannot escape the root or become reserved platform filenames.
 
 | Command | Other inputs | Result |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ Creation is also idempotent for identical typed document/resources and request I
 
 Timeout is 0..60000 ms; zero expires immediately, omission means no deadline. `cancel_file` must be absolute; its existence requests cancellation. The caller creates/removes the marker. Inkbolt does not modify it. Rust callers may instead clone `Control` and call `cancel()` on the shared token.
 
-Checks are cooperative, between operations/verification records and immediately before commit/publication. They do not forcibly interrupt an individual operation, filesystem call or SQLite lock wait. Precommit `CANCELLED`/`TIMEOUT` discards all candidate changes. A cancellation arriving after commit does not turn success into an uncommitted failure. Rendering, import and export commands do not yet accept this control object.
+Checks are cooperative, between operations/verification records and immediately before commit/publication. They do not forcibly interrupt an individual operation, filesystem call or SQLite lock wait. Precommit `CANCELLED`/`TIMEOUT` discards all candidate changes. A cancellation arriving after commit does not turn success into an uncommitted failure. Document rendering and exports also accept the shared control object; supported commands report their controls in the request schema. Blocking filesystem and individual codec calls are not forcibly interrupted.
 
 ## Storage limits and persistence boundary
 

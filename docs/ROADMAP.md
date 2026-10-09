@@ -1,5 +1,7 @@
 # Roadmap and verified scope
 
+The accepted [agent-readiness plan](AGENT_READINESS.md) tracks interface efficiency, operational recovery, practical workloads and benchmark evidence separately. Compact discovery and focused schemas add no credit to the 167 original engine checkpoints.
+
 Current-placement stroke refinement now preserves small curves enlarged by transforms and shares evaluated geometry across raster output, expansion and outlined delivery. Saved controls and history remain intact; generated geometry limits remain enforced. This finishes the current precision fix without completing the broader resource acceptance criterion. The verified total remains **161/167 (96.41%)**; six original checkpoints remain open.
 
 Regional vector evaluation now admits the original sparse 5,000-object preview without increasing work or memory ceilings. Output-space coverage removes premature control rounding across fills, strokes, images and masks. Rational geometry and complete pixel fixtures cover these changes; the resource checkpoint still requires its complete acceptance review and earns no new credit yet. The total remains **161/167 (96.41%)**.

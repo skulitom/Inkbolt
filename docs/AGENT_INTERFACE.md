@@ -1,4 +1,8 @@
-# Agent interface v0.7
+# Agent interface
+
+For compact MCP discovery and focused `schema.lookup` queries, see [agent discovery](AGENT_DISCOVERY.md). Full CLI schemas and command results remain available. [Agent readiness](AGENT_READINESS.md) tracks the broader interface and workflow improvements separately from engine checkpoints.
+
+Use an explicit [workspace](AGENT_WORKSPACE.md) for default resource/session roots and relative runtime paths. Top-level snapshot inputs also accept exact saved revision references; the same JSON preparation and typed execution serve CLI and MCP.
 
 Native layered exchange now maps nested normal/pass-through folders to explicit parent references, validates balanced boundaries and keeps empty groups without manufacturing pixels. Native import/export, declared loss receipts and durable agent workflows share this contract. Extended interchange remains partial and uncredited; larger axes, masks, text and embedded objects are still required.
 
