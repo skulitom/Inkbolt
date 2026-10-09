@@ -38,6 +38,7 @@ The source audit follows filesystem publication, SQLite mutation, process owners
 | `asset.import` | Publish or verify one content-addressed RGBA8 blob. An unchanged-source retry returns the same asset descriptor; `created` reports this invocation and becomes false when content already exists. |
 | `font.import` | Publish/verify the retained license followed by the font blob. A failure between files may leave a complete license. Reimport verifies existing content and creates only the missing blob. |
 | `sequence.import` | Publish/verify complete image-cache entries and return the complete editable document only when every frame succeeds. An interrupted or rejected import can leave complete cached entries. |
+| Rust `sample_store::Candidate::publish` (library only) | Verify inherited native blocks and create/verify complete new blocks; per-invocation counts and unchanged-manifest retry. Pure candidate edits do not write. Process-death/cancellation/concurrent-publication tests cover this writer. Document/CLI integration and its history commit boundary remain pending; see [native storage](NATIVE_SAMPLE_STORAGE.md). |
 
 ## Resource cache recovery
 

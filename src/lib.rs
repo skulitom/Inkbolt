@@ -73,6 +73,7 @@ pub mod retouch;
 pub mod sample_convert;
 pub mod sample_import;
 pub mod sample_profiles;
+pub mod sample_store;
 mod sample_tiff;
 pub mod samples;
 pub mod scene;
@@ -1417,6 +1418,18 @@ fn capability_report() -> Value {
         .unwrap()
         .extend([json!("layered"), json!("layered_large")]);
     capabilities["layered_interchange"] = json!({"status":"basic_interchange_verified","import":"layered.import","export_format":"layered","file_version":1,"additional_file_versions":[2],"large_export_format":"layered_large","dimensions_by_version":{"standard":30000,"large":32768},"extended_status":"partial_uncredited","mode":"rgb8","layer_order":"bottom_to_top","layer_sources":["inline_raster","encoded_srgb_rgba8_samples"],"import_compression":["raw","rle","zip","zip_prediction"],"export_compression":"rle;raw_available_in_Rust_library","preserved":["original_layer_pixels_including_hidden_RGB","integer_extents","names","visibility","byte_opacity","byte_fill_opacity","whole_layer_lock"],"source_changed":false,"canvas_pixels":layered::MAX_CANVAS_PIXELS,"stored_pixels":model::MAX_STORED_PIXELS,"file_bytes":layered::MAX_FILE_BYTES,"maximum_layers":model::MAX_ITEMS,"profile_policy":"exact_builtin_srgb;explicit_convert_srgb_for_other_profiles;explicit_assume_srgb_for_untagged","merged_preview":"white_matted_RGB_with_separate_alpha;8bit_unmatting_loss;layers_remain_original","metadata":"explicit_strip_if_descriptive_metadata_present","incoming_metadata":"strict_known_inactive_records_with_omission_receipts","descriptor_limits":{"bytes":65536,"depth":8,"values":512,"container_entries":128},"density_units":"fixed_values_always_ppi;unit_selectors_are_display_only","groups":{"modes":["normal_isolated","normal_pass_through"],"empty":true,"ancestor_levels":16,"serialized_records":512,"transforms":"absolute_integer_source_placements;imported_groups_identity","open_state":"omitted_UI_metadata","unsupported":["non_normal_group_blends","group_fill_opacity","knockout","cached_group_pixel_extents","layer_role_containers"]},"masks":{"authored_gray8":true,"independent_bounds":true,"constant_empty_planes":true,"controls":["linked","enabled","outside_black_or_white","exact_byte_density"],"sampling":"nearest_integer_translation","unsupported":["nonzero_native_feather","obsolete_invert_flag","derived_masks","combined_real_vector_masks","implicit_resampling"]},"empty_layer_names":"encoded_exactly;native_consumers_may_generate_names;receipt_lists_empty_name_source_ids","unsupported":["large_axes_above_32768","empty_pixel_layers","native_mask_feather","derived_or_combined_masks","text","embedded_objects","non_normal_blends","extra_channels","nonempty_guides","unknown_appearance_records"],"checkpoint":"raster.interchange.basic"});
+    capabilities["native_sample_store_library"] = json!({
+        "status":"library_primitive;document_and_CLI_integration_pending",
+        "module":"sample_store", "manifest_version":1,
+        "tile_edge":sample_store::TILE_EDGE, "max_pixels":sample_store::MAX_PIXELS,
+        "max_tiles":sample_store::MAX_TILES, "max_region_pixels":sample_store::MAX_REGION_PIXELS,
+        "depths":["u8","u16","f32"], "channels":["rgba","gray_alpha"],
+        "candidate_edits":"pure_copy_on_write;unchanged_blocks_shared",
+        "publication":"explicit_create_only_verified_immutable_blocks;complete_orphans_retained",
+        "interpretation":"native_type_and_encoding_bound;ICC_profile_is_separate_document_metadata",
+        "cli_storage_limits_changed":false, "streaming_import":false,
+        "document_history_integration":false, "render_integration":false
+    });
     capabilities["agent_discovery"] = json!({
         "lookup":"schema.lookup", "index":"index",
         "large_schema_outline_bytes":schema::OUTLINE_BYTES,
