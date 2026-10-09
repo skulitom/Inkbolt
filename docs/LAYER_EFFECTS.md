@@ -171,3 +171,13 @@ Independent fixtures verify exact alpha algebra, full effect boundaries,
 Gaussian fields, local signed hash cells, all color modes, transformed exports,
 resource limits and durable history. No external application, model or network
 service is needed.
+
+## Large-image evaluation
+
+Opt-in [tiled rendering](RENDER_QUALITY.md#tiled-layer-effects) retains the same
+shadow, lit-shadow, stroke and overlay controls across bounded expanded tiles.
+Paints use global original-item coordinates; effects derive from immutable
+source alpha. Unblurred integer-offset shadows borrow that alpha and use one
+exact tap. Work accounting follows actual expanded visits, including shortened
+native TIFF bands, without increasing existing work or memory limits. Large
+stacks can still reject, and HDR effect restrictions remain unchanged.

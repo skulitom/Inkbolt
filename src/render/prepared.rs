@@ -148,7 +148,7 @@ impl Prepared {
             .iter()
             .map(|i| crate::effects::work(i, scale))
             .sum();
-        if count * effect_work > crate::effects::MAX_WORK {
+        if neighborhood.is_none() && count * effect_work > crate::effects::MAX_WORK {
             return Err(limit(
                 "Render exceeds layer effect and coverage evaluation work limit",
             ));
@@ -531,7 +531,7 @@ impl Prepared {
             )?;
             if self.work - self.tile_work + work > MAX_RENDER_WORK {
                 return Err(limit(
-                    "Codec band filter neighborhoods exceed render work limit",
+                    "Codec band filter/effect neighborhoods exceed render work limit",
                 ));
             }
         }

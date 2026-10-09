@@ -1466,7 +1466,8 @@ fn capability_report() -> Value {
         "encoded_output_bytes":publish::MAX_OUTPUT_BYTES,
         "rgba8_delivery":"complete_final_byte_image_retained;no_complete_f64_surface",
         "tiled_filters":{"operators":["box","gaussian","directional","surface"],"borders":["transparent","clamp","reflect"],"support":"summed_stack_and_ancestor_neighborhoods;clipped_to_full_evaluation_viewport","masks":"global_linked_or_unlinked_coordinates","work":"actual_expanded_tile_visits_including_short_native_codec_bands","unsupported_controls_reject_when_disabled":true},
-        "unsupported_tiled":["other_filter_operators","wrapped_filter_borders","item_effects","artwork_masks","raw","retained_object_surfaces"],
+        "tiled_effects":{"operators":["shadow","lit_shadow","stroke","overlay"],"support":"maximum_immutable_alpha_effect_support_plus_sequential_filter_and_ancestor_support","paints":"global_original_item_space","controls":["fill_opacity","overall_opacity","scale","contour","lighting","disabled_effects"],"integer_unblurred_shadow":"borrowed_alpha_single_tap;reduced_work_charge","work_limits_raised":false},
+        "unsupported_tiled":["other_filter_operators","wrapped_filter_borders","artwork_masks","raw","retained_object_surfaces"],
         "other_limits":"existing_total_work_source_cache_and_format_batch_limits_apply",
         "native_full_surface_library_api":"whole_evaluation_only",
         "progress":"render_tiles;cooperative_cancellation_between_tiles"

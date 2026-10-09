@@ -767,7 +767,7 @@ fn transform_shape(
     } else {
         let mut shape_item = item.clone();
         shape_item.fill_opacity = 1.0;
-        crate::effects::apply(&shape_item, &mut pixels, size, world, light)?;
+        crate::effects::apply_region(&shape_item, &mut pixels, size, world, light, origin)?;
     }
     for (f, p) in shape.iter_mut().zip(pixels.as_chunks::<4>().0) {
         *f = p[3];
@@ -780,11 +780,12 @@ fn decorate(
     size: [u32; 3],
     world: Matrix,
     light: crate::effects::Lighting,
+    origin: [u32; 2],
 ) -> Result<(), Error> {
     if let Some(shape) = &mut surface.shape {
-        transform_shape(item, shape, size, world, false, (light, [0; 2]))?;
+        transform_shape(item, shape, size, world, false, (light, origin))?;
     }
-    crate::effects::apply(item, &mut surface.pixels, size, world, light)?;
+    crate::effects::apply_region(item, &mut surface.pixels, size, world, light, origin)?;
     if let Some(shape) = &mut surface.shape {
         // Alpha-dependent decorations and replacement filters need not be
         // monotone. A footprint always contains its actual visible coverage.
@@ -1077,6 +1078,7 @@ fn apply_clipped_layers(
             size,
             resources.world(document, j)?,
             resources.light,
+            resources.origin,
         )?;
         let coverage = coverage(item, resources.world(document, j)?, size, resources)?;
         for (pixel, (dst, src)) in pixels
@@ -1197,7 +1199,14 @@ fn draw_items(
             // Clipped siblings then see that opaque base, including outside the
             // source grid. Applying the matte to the final backdrop would lose
             // those clipping and adjustment semantics.
-            decorate(item, &mut surface, size, world, resources.light)?;
+            decorate(
+                item,
+                &mut surface,
+                size,
+                world,
+                resources.light,
+                resources.origin,
+            )?;
             let coverage = coverage(item, world, size, resources)?;
             for (pixel, src) in surface.pixels.as_chunks_mut::<4>().0.iter_mut().enumerate() {
                 let mut dst = [
@@ -1236,7 +1245,14 @@ fn draw_items(
             continue;
         }
         apply_clipped_layers(document, i, &mut surface.pixels, size, resources)?;
-        decorate(item, &mut surface, size, world, resources.light)?;
+        decorate(
+            item,
+            &mut surface,
+            size,
+            world,
+            resources.light,
+            resources.origin,
+        )?;
         let coverage = coverage(item, world, size, resources)?;
         for (pixel, (dst, src)) in accum
             .as_chunks_mut::<4>()

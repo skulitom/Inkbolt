@@ -56,18 +56,17 @@ pub(super) fn path_work(
 
 pub(super) fn validate(document: &Document, scale: u32) -> Result<Option<Neighborhood>, Error> {
     let mut radii = Vec::with_capacity(document.items.len());
-    let mut filtered = false;
+    let mut needed = false;
     for item in &document.items {
-        if !item.effects.is_empty()
-            || item.artwork_mask.is_some()
+        if item.artwork_mask.is_some()
             || matches!(item.content, Content::Raw { .. } | Content::Object { .. })
         {
-            return Err(Error::new("UNSUPPORTED_TILED_RENDER", "Tiled evaluation does not yet support effects, artwork masks, raw development or retained object surfaces").at_item(&item.id));
+            return Err(Error::new("UNSUPPORTED_TILED_RENDER", "Tiled evaluation does not yet support artwork masks, raw development or retained object surfaces").at_item(&item.id));
         }
         let mut radius = 0;
         for filter in &item.filters {
             use crate::filters::{Border, Operator};
-            filtered = true;
+            needed = true;
             let support = match filter.operator {
                 Operator::Box { radius } | Operator::Surface { radius, .. } => radius * scale,
                 Operator::Gaussian { sigma } => (3.0 * sigma * scale as f64).ceil() as u32,
@@ -83,9 +82,11 @@ pub(super) fn validate(document: &Document, scale: u32) -> Result<Option<Neighbo
             }
             radius += support;
         }
+        needed |= !item.effects.is_empty();
+        radius += crate::effects::support(item, scale, document.global_light);
         radii.push(radius);
     }
-    if !filtered {
+    if !needed {
         return Ok(None);
     }
     let mut halo = 0;
@@ -137,12 +138,13 @@ impl Neighborhood {
         let mut work = 0u64;
         let mut paint_work = 0u64;
         let mut filter_work = 0u64;
+        let mut effect_work = 0u64;
         let shape = if crate::knockout::active(document) {
             24
         } else {
             0
         };
-        let filter_passes = if shape == 0 { 1 } else { 2 };
+        let shape_passes = if shape == 0 { 1 } else { 2 };
         let mut costs = Vec::new();
         for item in &document.items {
             let paint: u64 = match &item.content {
@@ -161,9 +163,15 @@ impl Neighborhood {
                 _ => 1,
             };
             let paint = paint + 4 * u64::from(item.mask.as_ref().is_some_and(|m| m.enabled));
-            let filter = crate::filters::work(item, scale) * filter_passes;
+            let filter = crate::filters::work(item, scale) * shape_passes;
+            let effect = crate::effects::work(item, scale) * shape_passes;
             let passes = 1 + texts.get(&item.id).map_or(0, |t| t.paths.len()) as u64;
-            costs.push((2 + passes + paint + filter + shape, paint, filter));
+            costs.push((
+                2 + passes + paint + filter + effect + shape,
+                paint,
+                filter,
+                effect,
+            ));
         }
         let generated = if spatial.is_none() {
             crate::strokes::generated_work(document)?
@@ -183,10 +191,11 @@ impl Neighborhood {
             );
             for i in indices {
                 pixels[i] += count;
-                let (cost, paint, filter) = costs[i];
+                let (cost, paint, filter, effect) = costs[i];
                 work += count * cost;
                 paint_work += count * paint;
                 filter_work += count * filter;
+                effect_work += count * effect;
             }
             if spatial.is_none() {
                 work += path_work(document, texts, size)?
@@ -195,9 +204,10 @@ impl Neighborhood {
             if work > MAX_RENDER_WORK
                 || paint_work > crate::paint::MAX_PAINT_WORK
                 || filter_work > crate::filters::MAX_WORK
+                || effect_work > crate::effects::MAX_WORK
             {
                 return Err(limit(
-                    "Filter neighborhoods exceed visited tile work limits",
+                    "Filter/effect neighborhoods exceed visited tile work limits",
                 ));
             }
         }
@@ -208,7 +218,7 @@ impl Neighborhood {
         work += crate::pixel_warps::work_for_pixels(document, scale, Some(&pixels))?;
         if work > MAX_RENDER_WORK {
             return Err(limit(
-                "Filter neighborhoods and reconstruction exceed render work limit",
+                "Filter/effect neighborhoods and reconstruction exceed render work limit",
             ));
         }
         Ok(work)

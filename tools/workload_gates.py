@@ -49,11 +49,15 @@ LAYOUT_CONTRACTS = {'mixed-native-5000': WIDE_CONTRACTS['wide-mixed-native']}
 FILTER_CASES = ('native-box-blur',)
 FILTER_HARNESS = HARNESS + ('tools/measure_extra.py', 'tools/measure_native_filter.py', 'tools/native_filter_workload.py')
 FILTER_CONTRACTS = {'native-box-blur': WIDE_CONTRACTS['wide-mixed-native']}
+SHADOW_CASES = ('native-shadow-history',)
+SHADOW_HARNESS = HARNESS + ('tools/measure_extra.py', 'tools/measure_native_shadow.py', 'tools/native_shadow_workload.py')
+SHADOW_CONTRACTS = {'native-shadow-history': WIDE_CONTRACTS['wide-mixed-native']}
 SUITES = {
     'scale-v1': (CASES, HARNESS, CONTRACTS, ('native-tiled-v1', 'legacy-v1')),
     'wide-native-v1': (WIDE_CASES, WIDE_HARNESS, WIDE_CONTRACTS, ('native-tiled-v1',)),
     'native-layout-v1': (LAYOUT_CASES, LAYOUT_HARNESS, LAYOUT_CONTRACTS, ('native-tiled-v1',)),
     'native-filter-v1': (FILTER_CASES, FILTER_HARNESS, FILTER_CONTRACTS, ('native-tiled-v1',)),
+    'native-shadow-v1': (SHADOW_CASES, SHADOW_HARNESS, SHADOW_CONTRACTS, ('native-tiled-v1',)),
 }
 
 

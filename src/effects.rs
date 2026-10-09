@@ -2,6 +2,7 @@
 use crate::{Error, control::Control, model::*, paint, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::collections::HashSet;
 
 pub const MAX_STACK: usize = 8;
@@ -247,7 +248,7 @@ impl Effect {
         let [w, h, scale] = size;
         let s = self.scale * scale as f64;
         let mut result = if let Some((offset, sigma)) = self.shadow(light) {
-            let blurred = blur(alpha, w, h, sigma * s, Some(control))?;
+            let blurred = blur_or_borrow(alpha, w, h, sigma * s, Some(control))?;
             let mut result = vec![0.0; alpha.len()];
             for (n, value) in result.iter_mut().enumerate() {
                 if n.is_multiple_of(4096) {
@@ -276,6 +277,25 @@ impl Effect {
         Ok(result)
     }
 }
+pub(crate) fn support(item: &Item, scale: u32, light: Lighting) -> u32 {
+    item.effects
+        .iter()
+        .filter(|e| e.enabled)
+        .map(|e| {
+            let s = e.scale * scale as f64;
+            if let Some((offset, sigma)) = e.shadow(light) {
+                (offset[0].abs().max(offset[1].abs()) * s).ceil() as u32
+                    + (3.0 * sigma * s).ceil() as u32
+                    + 1
+            } else if let Operator::Stroke { radius, .. } = e.operator {
+                (radius as f64 * s).ceil() as u32
+            } else {
+                0
+            }
+        })
+        .max()
+        .unwrap_or(0)
+}
 pub(crate) fn set_light(document: &mut Document, light: Lighting) -> Result<(), Error> {
     for (i, item) in document.items.iter().enumerate() {
         if item
@@ -296,6 +316,13 @@ pub(crate) fn work(item: &Item, scale: u32) -> u64 {
         .map(|e| {
             let s = e.scale * scale as f64;
             let base = match e.operator {
+                Operator::Shadow { offset, sigma }
+                    if sigma == 0.0 && offset.iter().all(|v| (v * s).fract() == 0.0) =>
+                {
+                    // Borrow original alpha and read one exact tap instead of
+                    // allocating a blur copy and four weighted source taps.
+                    16
+                }
                 Operator::Shadow { sigma, .. } | Operator::LitShadow { sigma, .. } => {
                     2 * (2 * (3.0 * sigma * s).ceil() as u64 + 1) + 24
                 }
@@ -326,6 +353,9 @@ fn shifted(alpha: &[f64], w: u32, h: u32, x: f64, y: f64) -> f64 {
     let iy = y.floor() as i64;
     let fx = x - x.floor();
     let fy = y - y.floor();
+    if fx == 0.0 && fy == 0.0 {
+        return at(alpha, w, h, ix, iy);
+    }
     [(0, 1.0 - fx), (1, fx)]
         .into_iter()
         .map(|(dx, wx)| {
@@ -335,6 +365,19 @@ fn shifted(alpha: &[f64], w: u32, h: u32, x: f64, y: f64) -> f64 {
                 .sum::<f64>()
         })
         .sum()
+}
+fn blur_or_borrow<'a>(
+    alpha: &'a [f64],
+    w: u32,
+    h: u32,
+    sigma: f64,
+    control: Option<&Control>,
+) -> Result<Cow<'a, [f64]>, Error> {
+    if sigma == 0.0 {
+        Ok(Cow::Borrowed(alpha))
+    } else {
+        blur(alpha, w, h, sigma, control).map(Cow::Owned)
+    }
 }
 fn blur(
     alpha: &[f64],
@@ -432,12 +475,13 @@ fn over(dst: &mut [f64], color: [f64; 4], weight: f64) {
     }
     dst[3] = alpha + (1.0 - alpha) * dst[3];
 }
-pub(crate) fn apply(
+pub(crate) fn apply_region(
     item: &Item,
     pixels: &mut [f64],
     size: [u32; 3],
     world: Matrix,
     light: Lighting,
+    origin: [u32; 2],
 ) -> Result<(), Error> {
     let [w, h, scale] = size;
     if !item.effects.iter().any(|e| e.enabled) {
@@ -451,14 +495,18 @@ pub(crate) fn apply(
     let alpha: Vec<_> = pixels.as_chunks::<4>().0.iter().map(|p| p[3]).collect();
     let mut decorated = vec![0.0; pixels.len()];
     let canvas_point = |n: usize| {
-        [(n % w as usize) as f64 + 0.5, (n / w as usize) as f64 + 0.5].map(|v| v / scale as f64)
+        [
+            (origin[0] as usize + n % w as usize) as f64 + 0.5,
+            (origin[1] as usize + n / w as usize) as f64 + 0.5,
+        ]
+        .map(|v| v / scale as f64)
     };
     // All shadows are below content, in list order. Their source is immutable.
     for e in item.effects.iter().filter(|e| e.enabled) {
         if let Some((offset, sigma)) = e.shadow(light) {
             let color = sampler(e, world)?;
             let s = e.scale * scale as f64;
-            let blurred = blur(&alpha, w, h, sigma * s, None)?;
+            let blurred = blur_or_borrow(&alpha, w, h, sigma * s, None)?;
             for y in 0..h {
                 for x in 0..w {
                     let amount = shifted(

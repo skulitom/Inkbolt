@@ -118,7 +118,8 @@ class WideWorkloadGateTests(unittest.TestCase):
                 modules.setdefault(path.stem, set()).add(path.relative_to(ROOT).as_posix())
         for driver, harness in [('tools/measure_wide_native.py', gates.WIDE_HARNESS),
                                 ('tools/measure_native_layout.py', gates.LAYOUT_HARNESS),
-                                ('tools/measure_native_filter.py', gates.FILTER_HARNESS)]:
+                                ('tools/measure_native_filter.py', gates.FILTER_HARNESS),
+                                ('tools/measure_native_shadow.py', gates.SHADOW_HARNESS)]:
             pending = [driver]; seen = set()
             while pending:
                 name = pending.pop()
@@ -167,6 +168,25 @@ class WideWorkloadGateTests(unittest.TestCase):
                 broken=copy.deepcopy(r);broken['rows'][0][field].pop(index)
                 self.assertEqual(gates.check(gate,broken)['status'],'ineligible')
         for name in gates.FILTER_HARNESS:
+            changed=copy.deepcopy(r);changed['candidate_files'][name]='9'*64
+            self.assertEqual(gates.check(gate,changed)['status'],'ineligible')
+
+
+    def test_native_shadow_requires_all_outputs_and_its_separate_original_oracle(self):
+        r=copy.deepcopy(self.report)
+        r['suite']='native-shadow-v1';r['selected_cases']=['native-shadow-history']
+        for row in r['rows']: row['case']='native-shadow-history'
+        r['candidate_files'].update({name:'3'*64 for name in gates.SHADOW_HARNESS})
+        gate=gates.create(r,'4'*64,'Original shadow records only')
+        self.assertEqual(gates.check(gate,r)['status'],'passed')
+        self.assertEqual(gates.check(self.gate,r)['status'],'ineligible')
+        self.assertEqual(gates.check(gate,self.report)['status'],'ineligible')
+        self.assertEqual(gates.check(gate,baseline_tests.report())['status'],'ineligible')
+        for field in ('calls','checks'):
+            for index in range(len(r['rows'][0][field])):
+                broken=copy.deepcopy(r);broken['rows'][0][field].pop(index)
+                self.assertEqual(gates.check(gate,broken)['status'],'ineligible')
+        for name in gates.SHADOW_HARNESS:
             changed=copy.deepcopy(r);changed['candidate_files'][name]='9'*64
             self.assertEqual(gates.check(gate,changed)['status'],'ineligible')
 
