@@ -1,11 +1,10 @@
 //! Original source-preserving region cloning and boundary-constrained healing.
-use crate::{Error, assets, control::Control, geometry, model::*, render, scene};
+use crate::{Error, control::Control, geometry, model::*, native_pixels as pixels, render, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::path::Path;
-mod pixels;
 
 pub const MAX_WORK: u64 = 67_108_864;
 pub const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
@@ -89,6 +88,14 @@ impl Work<'_> {
             return Err(limit("Retouch exceeds 67108864 work units"));
         }
         self.control.check()
+    }
+}
+impl pixels::Budget for Work<'_> {
+    fn charge(&mut self, pixels: usize) -> Result<(), Error> {
+        self.add(pixels)
+    }
+    fn control(&self) -> &Control {
+        self.control
     }
 }
 fn neighbors(i: usize, w: usize, h: usize) -> [Option<usize>; 4] {
@@ -324,11 +331,21 @@ pub(crate) fn apply(
         ));
     }
     let mut work = Work { count: 0, control };
-    let mut target = pixels::Pixels::new(&document.items[index].content, asset_root, &mut work)?;
+    let mut target = pixels::Pixels::new(
+        &document.items[index].content,
+        asset_root,
+        "UNSUPPORTED_RETOUCH_ENCODING",
+        &mut work,
+    )?;
     let mut source = if source_index == index {
         target.clone()
     } else {
-        pixels::Pixels::new(&document.items[source_index].content, asset_root, &mut work)?
+        pixels::Pixels::new(
+            &document.items[source_index].content,
+            asset_root,
+            "UNSUPPORTED_RETOUCH_ENCODING",
+            &mut work,
+        )?
     };
     let source_hash = source.identity.clone();
     let target_hash = target.identity.clone();

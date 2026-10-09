@@ -1,13 +1,17 @@
 //! Original deterministic native-pixel strokes with integrated circular coverage.
-use crate::{Error, assets, control::Control, geometry, model::*, render, scene};
+use crate::{
+    Error, assets, control::Control, geometry, model::*, native_pixels as pixels, render, scene,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use std::path::Path;
 
 pub const MAX_POINTS: usize = 1024;
 pub const MAX_DABS: usize = 8192;
 pub const MAX_WORK: u64 = 67_108_864;
+pub const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
 pub const MAX_TEXTURE_PIXELS: usize = 4096;
 pub const COVERAGE_TOLERANCE: f64 = 0.0000001;
 const ALGORITHM: &str = "inkbolt-pixel-brush-v1";
@@ -296,6 +300,14 @@ impl Work<'_> {
         Ok(())
     }
 }
+impl pixels::Budget for Work<'_> {
+    fn charge(&mut self, pixels: usize) -> Result<(), Error> {
+        self.add(pixels as u64)
+    }
+    fn control(&self) -> &Control {
+        self.control
+    }
+}
 fn primitive(x: f64) -> f64 {
     (x * (1.0 - x * x).max(0.0).sqrt() + x.asin()) / 2.0
 }
@@ -457,7 +469,13 @@ fn over(old: [f64; 4], source: [f64; 4], weight: f64) -> [f64; 4] {
 fn interpolate(a: [f64; 4], b: [f64; 4], t: f64) -> [f64; 4] {
     std::array::from_fn(|i| a[i] + (b[i] - a[i]) * t)
 }
-fn sample(data: &[[f64; 4]], w: u32, h: u32, p: Point, border: Border) -> [f64; 4] {
+fn sample(
+    mut data: impl FnMut(u32, u32) -> Result<[f64; 4], Error>,
+    w: u32,
+    h: u32,
+    p: Point,
+    border: Border,
+) -> Result<[f64; 4], Error> {
     let x = p[0] - 0.5;
     let y = p[1] - 0.5;
     let ix = x.floor() as i64;
@@ -475,13 +493,14 @@ fn sample(data: &[[f64; 4]], w: u32, h: u32, p: Point, border: Border) -> [f64; 
             xx = xx.clamp(0, w as i64 - 1);
             yy = yy.clamp(0, h as i64 - 1);
         }
-        if xx >= 0 && yy >= 0 && xx < w as i64 && yy < h as i64 {
+        if weight > 0.0 && xx >= 0 && yy >= 0 && xx < w as i64 && yy < h as i64 {
+            let pixel = data(xx as u32, yy as u32)?;
             for k in 0..4 {
-                result[k] += data[yy as usize * w as usize + xx as usize][k] * weight;
+                result[k] += pixel[k] * weight;
             }
         }
     }
-    result
+    Ok(result)
 }
 fn pixel_bounds(dab: &Dab, w: u32, h: u32) -> ([u32; 2], [u32; 2]) {
     let r = dab.diameter / 2.0;
@@ -500,27 +519,17 @@ pub(crate) fn apply(
     document: &mut Document,
     index: usize,
     s: &Stroke,
+    asset_root: Option<&Path>,
     control: &Control,
 ) -> Result<Value, Error> {
     let prepared = prepare(s, control)?;
     let world = scene::world_transform(document, index)?;
     crate::pixel_warps::reject_native(&document.items[index])?;
-    let Content::Raster {
-        width,
-        height,
-        rgba_hex,
-        ..
-    } = &document.items[index].content
-    else {
-        return Err(Error::new(
-            "INVALID_OPERATION",
-            "Brush strokes require an inline native pixel layer; convert a copy to pixel content explicitly first",
-        ));
-    };
-    let (w, h) = (*width, *height);
-    let original = render::unhex(rgba_hex);
-    let source_hash = assets::identity(w, h, &original);
-    let mut minimum_work = w as u64 * h as u64;
+    let content = &document.items[index].content;
+    let spec = pixels::spec(content)?;
+    let (w, h) = (spec.width, spec.height);
+    let (mut low, mut high) = ([w, h], [0, 0]);
+    let mut minimum_work = 0u64;
     for (i, dab) in prepared.dabs.iter().enumerate() {
         if i % 64 == 0 {
             control.check()?;
@@ -528,12 +537,55 @@ pub(crate) fn apply(
         if dab.diameter == 0.0 || dab.opacity == 0.0 || s.flow == 0.0 || s.opacity == 0.0 {
             continue;
         }
-        let (low, high) = pixel_bounds(dab, w, h);
-        minimum_work += (high[0] - low[0]) as u64 * (high[1] - low[1]) as u64;
+        let (a, b) = pixel_bounds(dab, w, h);
+        let area = (b[0] - a[0]) as u64 * (b[1] - a[1]) as u64;
+        minimum_work += area;
         if minimum_work > MAX_WORK {
             return Err(limit(
                 "Brush footprint preflight exceeds 67108864 work units",
             ));
+        }
+        if area > 0 {
+            low = [low[0].min(a[0]), low[1].min(a[1])];
+            high = [high[0].max(b[0]), high[1].max(b[1])];
+        }
+    }
+    if high == [0, 0] {
+        low = [0, 0];
+    }
+    let region = crate::sample_store::Region {
+        x: low[0],
+        y: low[1],
+        width: high[0] - low[0],
+        height: high[1] - low[1],
+    };
+    let count = region.width as u64 * region.height as u64;
+    if count > crate::sample_store::MAX_REGION_PIXELS {
+        return Err(limit(
+            "Brush deposition bounds exceed the 65536-pixel local edit window",
+        ));
+    }
+    // Include original/working/frozen-dab/output windows, weights, exact hex
+    // patches, source preparation/cache and complete replacement blocks.
+    let processing_memory_bytes = count * 256
+        + 8 * 1024 * 1024
+        + pixels::memory(content)
+        + pixels::replacement_memory(content, region);
+    if processing_memory_bytes > MAX_MEMORY_BYTES {
+        return Err(limit(
+            "Brush preparation and replacement blocks exceed the processing memory bound",
+        ));
+    }
+    let mut work = Work { count: 0, control };
+    let mut target =
+        pixels::Pixels::new(content, asset_root, "UNSUPPORTED_BRUSH_ENCODING", &mut work)?;
+    let source_hash = target.identity.clone();
+    let stride = target.stride();
+    let mut original = Vec::with_capacity(count as usize * stride);
+    for y in low[1]..high[1] {
+        control.check()?;
+        for x in low[0]..high[0] {
+            original.extend_from_slice(&target.raw(x as usize, y as usize, &mut work)?[..stride]);
         }
     }
 
@@ -549,12 +601,9 @@ pub(crate) fn apply(
         None
     };
     let mut data: Vec<_> = original
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|c| premul(*c))
+        .chunks_exact(stride)
+        .map(|c| pixels::premultiplied(c, spec))
         .collect();
-    let mut work = Work { count: 0, control };
     let mut reservoir = match s.mode {
         Mode::Mixer { color, .. } => premul(color),
         _ => [0.0; 4],
@@ -566,12 +615,12 @@ pub(crate) fn apply(
             previous = dab.center;
             continue;
         }
-        let (low, high) = pixel_bounds(dab, w, h);
+        let (dab_low, dab_high) = pixel_bounds(dab, w, h);
         let mut weights = Vec::new();
         let mut sampled = [0.0; 4];
         let mut total = 0.0;
-        for y in low[1]..high[1] {
-            for x in low[0]..high[0] {
+        for y in dab_low[1]..dab_high[1] {
+            for x in dab_low[0]..dab_high[0] {
                 let mut weight = coverage(dab, s.hardness, x, y, &mut work)?;
                 if let Some(t) = &s.texture {
                     let tx = ((x as f64 + 0.5 - t.origin[0]) / t.scale[0])
@@ -600,7 +649,7 @@ pub(crate) fn apply(
                 if weight == 0.0 {
                     continue;
                 }
-                let i = y as usize * w as usize + x as usize;
+                let i = (y - low[1]) as usize * region.width as usize + (x - low[0]) as usize;
                 weights.push((i, x, y, weight * s.flow * dab.opacity));
                 total += weight;
                 for k in 0..4 {
@@ -641,12 +690,21 @@ pub(crate) fn apply(
                     data[i] = interpolate(
                         prior[i],
                         sample(
-                            &prior,
+                            |xx, yy| {
+                                if xx >= low[0] && xx < high[0] && yy >= low[1] && yy < high[1] {
+                                    Ok(prior[(yy - low[1]) as usize * region.width as usize
+                                        + (xx - low[0]) as usize])
+                                } else {
+                                    // No dab can write outside this window. Read
+                                    // those donor cells from the immutable source.
+                                    target.sample(xx as usize, yy as usize, &mut work)
+                                }
+                            },
                             w,
                             h,
                             [x as f64 + 0.5 - delta[0], y as f64 + 0.5 - delta[1]],
                             border,
-                        ),
+                        )?,
                         a,
                     );
                 }
@@ -658,30 +716,19 @@ pub(crate) fn apply(
     let mut output = original.clone();
     let mut changed = 0usize;
     let mut bounds = [w, h, 0, 0];
-    for (i, (before, after)) in original.as_chunks::<4>().0.iter().zip(data).enumerate() {
+    for (i, (before, after)) in original.chunks_exact(stride).zip(data).enumerate() {
         work.add(1)?;
-        let a = premul(*before);
+        let a = pixels::premultiplied(before, spec);
         let color = interpolate(a, after, s.opacity);
         if color == a {
             continue;
         }
-        let byte = |v: f64| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
-        let alpha = byte(color[3]);
-        let rgba = if alpha == 0 {
-            [0; 4]
-        } else {
-            [
-                byte(color[0] / color[3]),
-                byte(color[1] / color[3]),
-                byte(color[2] / color[3]),
-                alpha,
-            ]
-        };
-        if rgba != *before {
-            output[i * 4..i * 4 + 4].copy_from_slice(&rgba);
+        let rgba = pixels::encode(color, spec)?;
+        if &rgba[..stride] != before {
+            output[i * stride..i * stride + stride].copy_from_slice(&rgba[..stride]);
             changed += 1;
-            let x = i as u32 % w;
-            let y = i as u32 / w;
+            let x = i as u32 % region.width + low[0];
+            let y = i as u32 / region.width + low[1];
             bounds = [
                 bounds[0].min(x),
                 bounds[1].min(y),
@@ -690,13 +737,14 @@ pub(crate) fn apply(
             ];
         }
     }
-    let result_hash = assets::identity(w, h, &output);
-    control.check()?;
-    let Content::Raster { rgba_hex, .. } = &mut document.items[index].content else {
-        unreachable!()
+    let (next, result_hash) = if changed > 0 {
+        target.replace(content, region, &output, &mut work)?
+    } else {
+        (content.clone(), source_hash.clone())
     };
-    *rgba_hex = render::hex(&output);
+    control.check()?;
+    document.items[index].content = next;
     Ok(
-        json!({"algorithm":ALGORITHM,"stroke_sha256":prepared.hash,"source_sha256":source_hash,"result_sha256":result_hash,"dab_count":prepared.dabs.len(),"path_length":prepared.length,"dab_bounds":prepared.bounds,"changed_pixels":changed,"changed_bounds":if changed>0 {Some(bounds)} else {None},"work":work.count,"coordinates":"native_pixel_grid","selection_sampling":"world_mapped_native_centers","coverage_numeric_tolerance":COVERAGE_TOLERANCE,"quantization":"one_final_straight_rgba8_encoding_per_stroke","stroke_opacity":"final_premultiplied_interpolation_with_original"}),
+        json!({"algorithm":ALGORITHM,"stroke_sha256":prepared.hash,"source_sha256":source_hash,"result_sha256":result_hash,"dab_count":prepared.dabs.len(),"path_length":prepared.length,"dab_bounds":prepared.bounds,"changed_pixels":changed,"changed_bounds":if changed>0 {Some(bounds)} else {None},"work":work.count,"coordinates":"native_pixel_grid","selection_sampling":"world_mapped_native_centers","coverage_numeric_tolerance":COVERAGE_TOLERANCE,"source_identity_kind":target.identity_kind,"result_identity_kind":target.identity_kind,"sample_type":spec,"working_window":if count>0 {Some([region.x,region.y,region.width,region.height])} else {None},"processing_memory_bound_bytes":processing_memory_bytes,"files_written":false,"outside_window_preserved":true,"quantization":"one_final_straight_encoding_at_target_native_depth_per_stroke","stroke_opacity":"final_premultiplied_interpolation_with_original"}),
     )
 }

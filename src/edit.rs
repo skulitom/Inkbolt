@@ -967,7 +967,9 @@ fn apply_one(
         Operation::BrushStroke { id, stroke } => {
             let i = index(document, id)?;
             unlocked(document, i)?;
-            *details = Some(crate::pixel_brush::apply(document, i, stroke, control)?);
+            *details = Some(crate::pixel_brush::apply(
+                document, i, stroke, asset_root, control,
+            )?);
             Ok((id.clone(), "brush_stroke"))
         }
         Operation::Transfer { transfer } => {

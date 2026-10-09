@@ -187,7 +187,17 @@ class SampleTests(unittest.TestCase):
             self.assertEqual(self.invoke(dict(command='document.export',document=d,format=fmt,image_options=dict(depth='u16')),1)['code'],'INVALID_REQUEST')
         self.assertEqual(self.edit(d,[dict(op='mask_apply',id='source')],1)['code'],'UNSUPPORTED')
         stroke=dict(points=[dict(point=[.5,.5])],diameter=1,mode=dict(type='paint',color=[20,40,60,255]))
-        self.assertEqual(self.edit(d,[dict(op='brush_stroke',id='source',stroke=stroke)],1)['code'],'INVALID_OPERATION')
+        # Keep this historical registry evidence entry while checking the new
+        # native brush path and its remaining unsupported color domain.
+        before=copy.deepcopy(d)
+        changed=self.edit(d,[dict(op='brush_stroke',id='source',stroke=stroke)])
+        area=F('3.14159265358979323846264338327950288419716939937510')/4
+        expected=[q16(F(v,65535)*(1-area)+F(c,255)*area) for v,c in zip([1,2,3],[20,40,60])]+[65535]
+        self.assertEqual(changed['items'][0]['content']['grid']['data_hex'],packed(expected,'u16'))
+        self.assertEqual(changed['items'][0]['mask'],d['items'][0]['mask']);self.assertEqual(d,before)
+        linear=copy.deepcopy(d);linear['color_space']='linear_srgb'
+        linear['items'][0]['content']['grid'].update(depth='f32',encoding='linear_srgb',data_hex=packed([.1,.2,.3,1.0],'f32'))
+        self.assertEqual(self.edit(linear,[dict(op='brush_stroke',id='source',stroke=stroke)],1)['code'],'UNSUPPORTED_BRUSH_ENCODING')
         d['output_profile']=dict(type='builtin',name='srgb')
         self.assertEqual(self.exported(d,expected=1)['code'],'UNSUPPORTED')
 
@@ -248,7 +258,7 @@ class SampleTests(unittest.TestCase):
 
     def test_capabilities_describe_complete_supported_path_and_pending_boundaries(self):
         caps=self.invoke(dict(command='capabilities'))['sample_precision']
-        self.assertEqual(caps['depths'],['u8','u16','f32']);self.assertTrue(caps['hdr']);self.assertTrue(caps['high_depth_import']);self.assertFalse(caps['import']['profiles']);self.assertEqual(caps['conversion']['operation'],'sample_convert');self.assertFalse(caps['native_brush_and_mask_bake']);self.assertEqual(caps['tiff']['gray_policy'],'exact_neutral_rgb_required')
+        self.assertEqual(caps['depths'],['u8','u16','f32']);self.assertTrue(caps['hdr']);self.assertTrue(caps['high_depth_import']);self.assertFalse(caps['import']['profiles']);self.assertEqual(caps['conversion']['operation'],'sample_convert');self.assertFalse(caps['native_brush_and_mask_bake']);self.assertTrue(caps['native_brush']);self.assertTrue(caps['native_retouch']);self.assertFalse(caps['native_mask_bake']);self.assertEqual(caps['tiff']['gray_policy'],'exact_neutral_rgb_required')
 
 
 if __name__=='__main__':unittest.main()

@@ -8,7 +8,7 @@ Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). C
 
 ## Start locally
 
-[Native block documents](docs/NATIVE_SAMPLE_STORAGE.md) provide opt-in multi-megapixel PNG/TIFF import, exact local patch edits, native clone/heal retouching and durable history. Opt-in [tiled evaluation](docs/RENDER_QUALITY.md) renders screen, social and print-sized images with bounded floating-point surfaces and native-depth TIFF strips. Source precision and files stay intact. Bounded tile neighborhoods support box, Gaussian, directional and surface filters, plus retained shadows, strokes and overlays. Other filter families, streaming import, broader native operators and the complete scale acceptance gate remain in progress.
+[Native block documents](docs/NATIVE_SAMPLE_STORAGE.md) provide opt-in multi-megapixel PNG/TIFF import, exact local patch edits, native clone/heal retouching, bounded paint/erase/smudge/mixer strokes and durable history. Opt-in [tiled evaluation](docs/RENDER_QUALITY.md) renders screen, social and print-sized images with bounded floating-point surfaces and native-depth TIFF strips. Source precision and files stay intact. Bounded tile neighborhoods support box, Gaussian, directional and surface filters, plus retained shadows, strokes and overlays. Other filter families, streaming import, broader native operators and the complete scale acceptance gate remain in progress.
 
 Build with Rust/Cargo; current verification uses Rust 1.98.1. Worker leases require the file-locking API introduced in Rust 1.89. Development verification also uses Python 3.11+. Dependencies are locked in Cargo.lock and remain in the external package cache.
 

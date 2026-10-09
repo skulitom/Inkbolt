@@ -55,6 +55,9 @@ SHADOW_CONTRACTS = {'native-shadow-history': WIDE_CONTRACTS['wide-mixed-native']
 RETOUCH_CASES = ('native-retouch-history',)
 RETOUCH_HARNESS = HARNESS + ('tools/measure_extra.py', 'tools/measure_native_retouch.py', 'tools/native_retouch_workload.py')
 RETOUCH_CONTRACTS = {'native-retouch-history': WIDE_CONTRACTS['wide-mixed-native']}
+BRUSH_CASES = ('native-brush-history',)
+BRUSH_HARNESS = HARNESS + ('tools/measure_extra.py', 'tools/measure_native_brush.py', 'tools/native_brush_workload.py')
+BRUSH_CONTRACTS = {'native-brush-history': WIDE_CONTRACTS['wide-mixed-native']}
 SUITES = {
     'scale-v1': (CASES, HARNESS, CONTRACTS, ('native-tiled-v1', 'legacy-v1')),
     'wide-native-v1': (WIDE_CASES, WIDE_HARNESS, WIDE_CONTRACTS, ('native-tiled-v1',)),
@@ -62,6 +65,7 @@ SUITES = {
     'native-filter-v1': (FILTER_CASES, FILTER_HARNESS, FILTER_CONTRACTS, ('native-tiled-v1',)),
     'native-shadow-v1': (SHADOW_CASES, SHADOW_HARNESS, SHADOW_CONTRACTS, ('native-tiled-v1',)),
     'native-retouch-v1': (RETOUCH_CASES, RETOUCH_HARNESS, RETOUCH_CONTRACTS, ('native-tiled-v1',)),
+    'native-brush-v1': (BRUSH_CASES, BRUSH_HARNESS, BRUSH_CONTRACTS, ('native-tiled-v1',)),
 }
 
 

@@ -1,10 +1,29 @@
 //! Frozen typed sources and bounded raw block access for local native edits.
-use super::*;
 use crate::sample_store::{Candidate, Region, Spec, TILE_EDGE};
 use crate::samples::{Channels, Depth};
+use crate::{Error, assets, control::Control, model::Content, render};
 use std::{collections::BTreeMap, path::Path};
 
-pub(super) fn memory(content: &Content) -> u64 {
+pub(crate) trait Budget {
+    fn charge(&mut self, pixels: usize) -> Result<(), Error>;
+    fn control(&self) -> &Control;
+}
+
+pub(crate) fn replacement_memory(content: &Content, region: Region) -> u64 {
+    let Content::StoredSamples { grid } = content else {
+        return 0;
+    };
+    let columns = (region.x + region.width).div_ceil(TILE_EDGE) - region.x / TILE_EDGE;
+    let rows = (region.y + region.height).div_ceil(TILE_EDGE) - region.y / TILE_EDGE;
+    columns as u64
+        * rows as u64
+        * TILE_EDGE as u64
+        * TILE_EDGE as u64
+        * grid.base.spec.depth.bytes() as u64
+        * grid.base.spec.channels.count() as u64
+}
+
+pub(crate) fn memory(content: &Content) -> u64 {
     match content {
         Content::StoredSamples { grid } => grid.preparation_costs().1 * 8,
         Content::Samples { grid } => {
@@ -19,7 +38,7 @@ pub(super) fn memory(content: &Content) -> u64 {
     }
 }
 
-pub(super) fn spec(content: &Content) -> Result<Spec, Error> {
+pub(crate) fn spec(content: &Content) -> Result<Spec, Error> {
     match content {
         Content::Raster { width, height, .. } => Ok(Spec {
             width: *width,
@@ -38,7 +57,7 @@ pub(super) fn spec(content: &Content) -> Result<Spec, Error> {
         Content::StoredSamples { grid } => Ok(grid.base.spec),
         _ => Err(Error::new(
             "INVALID_OPERATION",
-            "Retouch requires raster, samples or stored_samples source and target layers",
+            "Pixel edits require raster, samples or stored_samples layers",
         )),
     }
 }
@@ -50,7 +69,7 @@ enum Data {
 }
 
 #[derive(Clone)]
-pub(super) struct Pixels<'a> {
+pub(crate) struct Pixels<'a> {
     pub spec: Spec,
     pub identity: String,
     pub identity_kind: &'static str,
@@ -64,7 +83,8 @@ impl<'a> Pixels<'a> {
     pub fn new(
         content: &Content,
         root: Option<&'a Path>,
-        work: &mut Work<'_>,
+        encoding_error: &'static str,
+        work: &mut impl Budget,
     ) -> Result<Self, Error> {
         let spec = spec(content)?;
         let (data, legacy) = match content {
@@ -75,16 +95,16 @@ impl<'a> Pixels<'a> {
         };
         if spec.encoding != crate::hdr::Encoding::EncodedSrgb {
             return Err(Error::new(
-                "UNSUPPORTED_RETOUCH_ENCODING",
-                "Normalized retouch requires explicit encoded sRGB samples; profiled and linear sources need an explicit conversion first",
+                encoding_error,
+                "Normalized pixel editing requires explicit encoded sRGB samples; profiled and linear sources need an explicit conversion first",
             ));
         }
         let (data, identity) = if let Some(bytes) = data {
-            work.add(spec.width as usize * spec.height as usize)?;
+            work.charge(spec.width as usize * spec.height as usize)?;
             let identity = if legacy {
                 assets::identity(spec.width, spec.height, &bytes)
             } else {
-                Candidate::from_bytes(spec, &bytes, work.control)?
+                Candidate::from_bytes(spec, &bytes, work.control())?
                     .manifest()
                     .sha256
                     .clone()
@@ -94,8 +114,8 @@ impl<'a> Pixels<'a> {
             let Content::StoredSamples { grid } = content else {
                 unreachable!()
             };
-            work.add(grid.preparation_costs().0 as usize)?;
-            let candidate = grid.prepare(root, work.control)?;
+            work.charge(grid.preparation_costs().0 as usize)?;
+            let candidate = grid.prepare(root, work.control())?;
             let identity = candidate.manifest().sha256.clone();
             (Data::Stored(candidate), identity)
         };
@@ -118,7 +138,7 @@ impl<'a> Pixels<'a> {
         self.spec.depth.bytes() * self.spec.channels.count()
     }
 
-    pub fn raw(&mut self, x: usize, y: usize, work: &mut Work<'_>) -> Result<[u8; 16], Error> {
+    pub fn raw(&mut self, x: usize, y: usize, work: &mut impl Budget) -> Result<[u8; 16], Error> {
         let stride = self.stride();
         let mut result = [0; 16];
         let bytes = match &self.data {
@@ -136,7 +156,7 @@ impl<'a> Pixels<'a> {
                 let height = (self.spec.height as usize - y0).min(edge);
                 self.clock += 1;
                 if !self.cache.contains_key(&index) {
-                    work.add(width * height)?;
+                    work.charge(width * height)?;
                     if self.cache.len() == 16 {
                         let oldest = *self
                             .cache
@@ -154,7 +174,7 @@ impl<'a> Pixels<'a> {
                             width: width as u32,
                             height: height as u32,
                         },
-                        work.control,
+                        work.control(),
                     )?;
                     self.cache.insert(index, (self.clock, bytes));
                 }
@@ -168,7 +188,12 @@ impl<'a> Pixels<'a> {
         Ok(result)
     }
 
-    pub fn sample(&mut self, x: usize, y: usize, work: &mut Work<'_>) -> Result<[f64; 4], Error> {
+    pub fn sample(
+        &mut self,
+        x: usize,
+        y: usize,
+        work: &mut impl Budget,
+    ) -> Result<[f64; 4], Error> {
         let raw = self.raw(x, y, work)?;
         Ok(premultiplied(&raw, self.spec))
     }
@@ -179,7 +204,7 @@ impl<'a> Pixels<'a> {
         content: &Content,
         region: Region,
         bytes: &[u8],
-        work: &mut Work<'_>,
+        work: &mut impl Budget,
     ) -> Result<(Content, String), Error> {
         let mut content = content.clone();
         let identity = match &self.data {
@@ -187,7 +212,7 @@ impl<'a> Pixels<'a> {
                 let stride = self.stride();
                 let mut output = original.clone();
                 for y in 0..region.height as usize {
-                    work.control.check()?;
+                    work.control().check()?;
                     let at = ((region.y as usize + y) * self.spec.width as usize
                         + region.x as usize)
                         * stride;
@@ -202,7 +227,7 @@ impl<'a> Pixels<'a> {
                     }
                     Content::Samples { grid } => {
                         grid.data_hex = render::hex(&output);
-                        Candidate::from_bytes(self.spec, &output, work.control)?
+                        Candidate::from_bytes(self.spec, &output, work.control())?
                             .manifest()
                             .sha256
                             .clone()
@@ -218,8 +243,8 @@ impl<'a> Pixels<'a> {
                 // their source pixels were already read through the local cache.
                 let columns = (region.x + region.width).div_ceil(TILE_EDGE) - region.x / TILE_EDGE;
                 let rows = (region.y + region.height).div_ceil(TILE_EDGE) - region.y / TILE_EDGE;
-                work.add((columns * rows * TILE_EDGE * TILE_EDGE) as usize)?;
-                let after = before.replace(self.root, region, bytes, work.control)?;
+                work.charge((columns * rows * TILE_EDGE * TILE_EDGE) as usize)?;
+                let after = before.replace(self.root, region, bytes, work.control())?;
                 if before.manifest().sha256 != after.manifest().sha256 {
                     grid.patches.push(crate::stored_samples::Patch {
                         region,
@@ -234,7 +259,7 @@ impl<'a> Pixels<'a> {
     }
 }
 
-pub(super) fn premultiplied(raw: &[u8], spec: Spec) -> [f64; 4] {
+pub(crate) fn premultiplied(raw: &[u8], spec: Spec) -> [f64; 4] {
     let mut values = [0.0; 4];
     for (v, bytes) in values.iter_mut().zip(raw.chunks_exact(spec.depth.bytes())) {
         *v = match spec.depth {
@@ -250,7 +275,7 @@ pub(super) fn premultiplied(raw: &[u8], spec: Spec) -> [f64; 4] {
     [r * a, g * a, b * a, a]
 }
 
-pub(super) fn encode(value: [f64; 4], spec: Spec) -> Result<[u8; 16], Error> {
+pub(crate) fn encode(value: [f64; 4], spec: Spec) -> Result<[u8; 16], Error> {
     let alpha = spec.depth.quantize(value[3].clamp(0.0, 1.0));
     let rgba = if alpha == 0.0 {
         [0.0; 4]
@@ -267,7 +292,7 @@ pub(super) fn encode(value: [f64; 4], spec: Spec) -> Result<[u8; 16], Error> {
         if rgba[0] != rgba[1] || rgba[1] != rgba[2] {
             return Err(Error::new(
                 "GRAYSCALE_CONVERSION_REQUIRED",
-                "A chromatic retouch result cannot be stored as gray_alpha; convert the target explicitly first",
+                "A chromatic pixel edit cannot be stored as gray_alpha; convert the target explicitly first",
             ));
         }
         values = [rgba[0], rgba[3], 0.0, 0.0];

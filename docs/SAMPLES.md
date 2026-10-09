@@ -22,7 +22,7 @@ The original byte string remains editable and survives snapshots, transfer, dura
 {"op":"sample_replace","id":"pixels","region":{"x":0,"y":0,"width":1,"height":1},"data_hex":"3930307531d4ffff"}
 ```
 
-This example supplies four little-endian unsigned 16-bit values. Replacement is atomic, checks item and ancestor locks, preserves every byte outside the rectangle and records before/after text hashes. It does not apply the active selection or the item's transform. Retained pixel deformation must be cleared first. Changing sampling or canvas placement preserves native sample bytes. The existing byte brush, retouch and permanent mask application paths reject this content; retained masks and adjustments can still change its rendered appearance.
+This example supplies four little-endian unsigned 16-bit values. Replacement is atomic, checks item and ancestor locks, preserves every byte outside the rectangle and records before/after text hashes. It does not apply the active selection or the item's transform. Retained pixel deformation must be cleared first. Changing sampling or canvas placement preserves native sample bytes. [Pixel brushes](PIXEL_BRUSHES.md) and [clone/heal retouch](RETOUCH.md) now preserve normalized native depth with bounded local storage. Permanent native mask application remains unsupported; retained masks and adjustments still change rendered appearance without baking. Discovery exposes `native_brush:true`, `native_retouch:true` and `native_mask_bake:false`. The legacy aggregate `native_brush_and_mask_bake` stays false because the complete combined capability is not implemented.
 
 TIFF delivery accepts `image_options.depth` and `image_options.channels` on document export, artboard export and create-only publication:
 
