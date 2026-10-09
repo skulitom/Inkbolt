@@ -43,14 +43,14 @@ def strict_json(raw):
 
 
 class Mcp:
-    """One owned synchronous stdio server; background-job commands are excluded."""
+    """One owned stdio server; background jobs require RecoveryTrial containment."""
     def __init__(self, case):
         self.case = case
         self.rid = 0
         self.closed = False
         self.stderr_path = case.root/'mcp.stderr.log'
         self.stderr = self.stderr_path.open('xb')
-        self.process = subprocess.Popen([str(case.executable), '--workspace', str(case.root),
+        self.process = case.spawn([str(case.executable), '--workspace', str(case.root),
             'mcp', '--tools', 'core'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=self.stderr, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         self.lines = queue.Queue(maxsize=2)
@@ -194,11 +194,28 @@ class Trial:
             self.server = Mcp(self)
             self.server.initialize()
 
+    def spawn(self, argv, **options):
+        return subprocess.Popen(argv, **options)
+
+    def execute(self, argv, payload):
+        return run_process(argv, payload, self.timeout)
+
+    def validate_command(self, command):
+        require(not command.startswith('job.'), 'Background jobs require the separate recovery adapter')
+
+    def memory_observations(self):
+        memory = [row.get('memory') for row in self.calls] if self.transport == 'cli' else [self.server_memory]
+        scope = 'individual CLI processes' if self.transport == 'cli' else 'complete persistent MCP server lifetime'
+        return memory, scope
+
+    def extra_results(self):
+        return {}
+
     def call(self, step, command, *, expected_error=None, retry_of=None, discard=False, preview=False, **arguments):
         require(self.agent_started is not None, 'Start the task before making measured calls')
         # Async jobs need their own containment/worker accounting adapter. Never
         # route one through the synchronous timeout cleanup implemented here.
-        require(not command.startswith('job.'), 'Background jobs require the separate recovery adapter')
+        self.validate_command(command)
         request = dict(command=command, **arguments)
         fingerprint = sha(json.dumps(request, sort_keys=True, separators=(',', ':')).encode())
         if retry_of is not None:
@@ -213,7 +230,7 @@ class Trial:
                 prefix = self.prefix(step)
                 payload = json.dumps(request, separators=(',', ':')).encode()
                 save(prefix.with_suffix('.request.json'), payload)
-                metrics, stdout, stderr = run_process([str(self.executable), '--workspace', str(self.root)], payload, self.timeout)
+                metrics, stdout, stderr = self.execute([str(self.executable), '--workspace', str(self.root)], payload)
                 save(prefix.with_suffix('.response.json'), stdout)
                 save(prefix.with_suffix('.stderr.txt'), stderr)
                 row.update(request_bytes=len(payload), response_bytes=len(stdout), **metrics)
@@ -282,7 +299,7 @@ class Trial:
         complete = not missing and all(check['status'] == 'pass' for check in self.checks)
         success = complete and bool(self.calls) and not self.error and all(
             row['status'] in ('success','expected_error','response_lost') for row in self.calls)
-        memory = [row.get('memory') for row in self.calls] if self.transport == 'cli' else [self.server_memory]
+        memory, memory_scope = self.memory_observations()
         memory_complete = bool(memory) and all(m and m.get('available') for m in memory)
         memory_values = [m for m in memory if m and m.get('available')]
         traffic = self.calls if self.transport == 'cli' else self.protocol
@@ -303,9 +320,9 @@ class Trial:
             engine_roundtrip_seconds=sum(row.get('seconds',0) for row in traffic),
             scripted_wall_seconds=None if self.agent_started is None else time.perf_counter()-self.agent_started,
             first_verified_preview_seconds=self.first_preview,
-            memory_complete=memory_complete, memory_scope='individual CLI processes' if self.transport=='cli' else 'complete persistent MCP server lifetime',
+            memory_complete=memory_complete, memory_scope=memory_scope,
             peak_working_set_bytes=max(m['peak_working_set_bytes'] for m in memory_values) if memory_complete else None,
             peak_commit_bytes=max(m['peak_commit_bytes'] for m in memory_values) if memory_complete else None,
-            token_usage=None,model_calls=None,agent_seconds=None,model_trials=False)
+            token_usage=None,model_calls=None,agent_seconds=None,model_trials=False, **self.extra_results())
         save_json(self.root/'result.json',result)
         return result

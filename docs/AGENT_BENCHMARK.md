@@ -1,9 +1,9 @@
 # Reproducible agent task benchmark
 
 `tools/agent_benchmark.py` records scripted reference workflows for the fixed
-B01-B20 tasks in [the readiness plan](AGENT_READINESS.md). Seventeen
+B01-B20 tasks in [the readiness plan](AGENT_READINESS.md). Eighteen
 adapters exercise real CLI and compact MCP commands with independent output,
-structure, resource, history and source-preservation checks. The remaining three
+structure, resource, history and source-preservation checks. The remaining two
 tasks stay explicit in every full report. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
 
@@ -41,7 +41,7 @@ selected task failed or is not implemented, or inputs changed. Argument errors
 also return 2 with a diagnostic. Unexpected driver/build errors are failures,
 even when some earlier trial files exist. A selected subset cannot set
 `complete_scripted_suite`; only a successful complete twenty-task run can.
-The current default full run therefore returns 2 because three adapters remain
+The current default full run therefore returns 2 because two adapters remain
 unimplemented. `actual_model_benchmark_complete` and
 `matched_cutbolt_comparison` remain false for scripted runs.
 
@@ -63,13 +63,36 @@ unimplemented. `actual_model_benchmark_complete` and
 | B15 resource repair | Located missing/corrupt resource diagnostics, content-checked replacements, reviewed binding-only repair and unchanged historical bindings |
 | B16 seeded layout repair | Actionable text overflow, reviewed frame-width repair, exact font/text/unrelated artwork, preview pixels, preflight/publication identity and history |
 | B17 lost response; B18 conflicting writers | Original receipts, exact retry hashes, undo preservation, stale-proposal rejection and reviewed replacement preserving both edits |
+| B19 output recovery | Active cancellation, actual supervisor termination during rendering, contained runner exit, explicit restart of the pinned revision, complete independent image pixels, stable physical output/receipt and overwrite rejection |
 
-B10 multi-megapixel photograph, B19 worker interruption and B20 linked Cutbolt
+B10 multi-megapixel photograph and B20 linked Cutbolt
 revisions still need adapters and
 their complete independent judges. Separate existing contract tests or handoff
-evidence do not silently fill those benchmark slots. In particular, the current
-synchronous transport rejects background-job commands: worker containment and
-memory must be measured by a dedicated recovery adapter.
+evidence do not silently fill those benchmark slots. The ordinary synchronous
+transport still rejects background-job commands; B19 uses a separate contained
+recovery adapter with complete process accounting.
+
+B19 uses the ordinary executable without test pause hooks or database writes by
+the harness. It observes the owned queue's checksummed rows, cancels an active
+export and terminates the exact recorded supervisor during rendering/encoding.
+The judge proves its runner exits, inspection leaves the final path absent,
+explicit resume produces every expected pixel of the original revision, and
+repeated submission/result/resume retains one complete receipt and the same
+physical file. Every observed final-file identity/hash must match that delivery.
+This bounded rendering interruption complements the storage-boundary tests in
+[recovery acceptance](RECOVERY_CONTRACTS.md); it does not inject a crash at every
+write instruction or claim that file polling observes every instant.
+
+Each B19 trial owns a Windows kill-on-close process tree before commands receive
+their first input. Recorded workers require matching PID, creation time,
+executable and container membership. Hidden Windows console hosts are recorded
+separately. Retained handles supply lifetime memory; the complete container count
+must match the measured command, supervisor, runner and console-host processes.
+Missing identities or leaked workers fail the trial. Cleanup stops only that
+owned tree. `recovery-evidence.json` retains ledger observations, interventions,
+process identities, final-file observations and accounting. CLI launch teardown
+may overlap an independent CLI cancellation caller; MCP stays serial on its
+persistent connection. Both transports retain every request and response.
 
 The fixture shapes, labels, fonts, image samples and failure conditions are
 original and deliberately bounded. Exact integer geometry supplies an independent
@@ -99,9 +122,12 @@ Complete print/interchange scope remains governed by the original feature regist
   First verified preview is the recorded completion time of the earliest image
   response or delivery later accepted by its independent pixel oracle. It is a
   retrospective availability measure, not a model's assessment of usefulness.
+  B19's overlapping CLI callers mean summed round trips need not equal wall time.
 - Windows memory uses OS lifetime high-water marks: the maximum individual CLI
-  process peak or the persistent MCP server peak. It excludes the Python driver
-  and admits no background workers. Unavailable memory stays null; these records
+  process peak or the persistent MCP server peak. B19 additionally includes every
+  supervisor, runner and owned console host, with separate identities and peaks.
+  These are maximum individual-process peaks, not a concurrent memory sum. The
+  Python driver is excluded. Unavailable memory stays null; these records
   do not imply another platform is supported.
 - Per-task distributions include every measured attempt, with count, minimum,
   median, maximum and population standard deviation. Success/failure/open counts

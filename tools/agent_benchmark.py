@@ -9,6 +9,7 @@ import traceback
 from benchmark_tasks import SUITE, TASKS, CHECKS
 from benchmark_adapters import ADAPTERS
 from benchmark_runtime import Trial
+from benchmark_recovery_runtime import RecoveryTrial
 from measure_workloads import (ROOT, candidate_identity, release_build, save_json,
                                sha, statistics_of)
 import measurement_host
@@ -22,7 +23,8 @@ def run_task(executable, root, task, repetition, transport):
             calls=[],checks=[],token_usage=None,model_calls=None,agent_seconds=None,model_trials=False)
         save_json(root/'result.json',row)
         return row
-    trial=Trial(executable,root,task,repetition,transport,CHECKS[task])
+    factory=RecoveryTrial if task=='B19' else Trial
+    trial=factory(executable,root,task,repetition,transport,CHECKS[task])
     try:
         ADAPTERS[task](trial)
     except Exception as error:
@@ -106,8 +108,8 @@ def main(argv=None):
         git_commit=provenance['git_commit'],git_status=provenance['git_status'],toolchain=provenance['toolchain'],
         environment=environment,conditions=args.conditions,
         rows=rows,aggregates=aggregate(rows),outcome=status,
-        timing='Round trips include local process/stdio/JSON costs. Scripted wall and retrospective verified-preview times include discovery and prior oracle work; fixture generation precedes begin. No autonomous agent time is inferred.',
-        memory='CLI uses the maximum observed individual-process lifetime peaks; MCP uses the persistent server lifetime. Neither includes the Python driver. Missing observations stay null. No background workers are admitted by this adapter.',
+        timing='Round trips include local process/stdio/JSON costs. B19 can overlap a CLI launch caller with its independent cancellation caller; summed round trips are not wall time. Scripted wall and retrospective verified-preview times include discovery and prior oracle work; fixture generation precedes begin. No autonomous agent time is inferred.',
+        memory='CLI uses the maximum observed individual-process lifetime peaks; MCP uses the persistent server lifetime. B19 also retains every supervisor/runner and owned console-host handle and requires complete contained-process counts. Peaks are individual-process maxima, not concurrent sums. Neither includes the Python driver. Missing observations stay null.',
         cache_conditions='Fresh workspace and server per trial; CLI process per call. OS caches may be warm. Repetition order rotates deterministically.',
         evidence='Raw CLI/MCP request/response bytes, stderr, original fixtures, delivered artifacts, exact source/executable and explicit required-check results retained. A lost-response injection retains the hidden response for the judge and marks it unobserved by the solver.',
         token_usage=None,model_calls=None,agent_seconds=None,

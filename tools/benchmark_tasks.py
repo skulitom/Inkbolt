@@ -45,4 +45,6 @@ CHECKS = {
     'B16': ('seeded-diagnosis', 'no-collateral-edits', 'repair-pixels', 'preflight-delivery', 'history-valid'),
     'B17': ('original-receipt', 'retry-idempotent', 'edited-pixels', 'undo-preserved', 'history-valid'),
     'B18': ('stale-rejected', 'both-intents-preserved', 'conflict-pixels', 'historical-pixels', 'history-valid'),
+    'B19': ('review-pixels', 'active-cancellation', 'interrupted-unpublished', 'recovered-pixels',
+            'revision-resource-pinning', 'single-publication-no-overwrite', 'no-partial-final', 'history-valid'),
 }
