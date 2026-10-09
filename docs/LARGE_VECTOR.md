@@ -43,6 +43,13 @@ Neutral groups have normal blending, full opacity and no knockout, clips, masks,
 
 All coverage routes now transform controls in binary64 before converting the resulting output-space points to the coverage backend's binary32 representation. This includes vector fills, both stroke scaling policies, image boundaries and geometric masks. Rectangle endpoints are added before conversion; ellipses use the original 32-arc approximation at every quality setting. Stored controls and matrices remain unchanged. Exact-rational tests cover extreme scale/shear, reflection, negative origins and cubic controls; independent area tests use explicit supersampling. Ordinary antialiasing still quantizes coverage and does not promise exact pixel area. See [coordinate fidelity](COORDINATE_PRECISION.md).
 
+Deep near-inverse hierarchies now have bounded composition error and an exact
+fallback. A separate original 5,000-object sparse layout exercises that fallback
+with analytic pixels. Bounded per-preparation chain reuse and memoized inspection
+bounds avoid recalculating the same exact product for every object and ancestor.
+The source controls, existing item/work limits and revision boundaries remain
+unchanged; see the [hierarchy precision contract](COORDINATE_PRECISION.md).
+
 Curved strokes now refine for their composed placement, anticipating all supported raster scales while retaining saved controls. Rendering, expansion, outlined SVG/PDF delivery, mask sources and native ink planes share the refined outline. Generated geometry limits include hidden content before regional planning; limit or cancellation failures leave no partial published artifact. Analytic arc-length/area fixtures and extreme-scale delivery tests cover this bounded fix. See [stroke precision](STROKES.md#evaluation-precision-and-limits).
 
 This remains partial implementation of `vector.resources.extended`. Complete independent resource and extreme-scale acceptance review is still required before the checkpoint earns credit. The total remains **161/167 (96.41%)**.

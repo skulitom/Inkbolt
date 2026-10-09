@@ -1,5 +1,13 @@
 # Architecture
 
+`scene::hierarchy` bounds ordinary composition error using fused product
+residuals, error-free sum residuals and upward-rounded error propagation. An exact
+rational chain product with certified final binary64 rounding handles unstable
+hierarchies. Per-preparation tables cache at most 128 identical chains; full
+inspection also memoizes geometry bounds for its immutable document. Validation,
+regional/tiled preparation and stroke-budget scans share this path, preserving
+source controls and avoiding repeated exact work in large layouts.
+
 Retained vector preparation receives explicit caller controls. Certified warp
 subdivision, dimensional profile cleanup/topology and face partitioning check that
 control; recursive validation preserves it through generated component,

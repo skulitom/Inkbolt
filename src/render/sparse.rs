@@ -68,6 +68,7 @@ impl Plan {
             Ok(())
         }
         visit(document, None, &mut ordered, control)?;
+        let worlds = scene::world_transforms(document, control)?;
         let count = width as u64 * height as u64;
         let mut plan = Self {
             regions: Vec::new(),
@@ -88,7 +89,7 @@ impl Plan {
             else {
                 unreachable!()
             };
-            let world = scene::world_transform(document, i)?;
+            let world = worlds[i];
             let mut bounds = [
                 f64::INFINITY,
                 f64::INFINITY,

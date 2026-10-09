@@ -654,6 +654,7 @@ pub fn validate_controlled(
     {
         return Err(limit("Document exceeds 64 filters"));
     }
+    let worlds = scene::world_transforms(document, control)?;
     for (i, item) in document.items.iter().enumerate() {
         if i % 32 == 0 {
             control.check()?;
@@ -672,7 +673,7 @@ pub fn validate_controlled(
             return Err(invalid("Opacity must be in 0..=1"));
         }
         geometry::validate_matrix(item.transform)?;
-        let world = scene::world_transform(document, i)?;
+        let world = worlds[i];
         geometry::validate_matrix(world)?;
         segments += crate::pixel_warps::validate(item, world).map_err(|e| e.at_item(&item.id))?;
         pixels += crate::filters::validate(item, world).map_err(|e| e.at_item(&item.id))?;
@@ -1020,6 +1021,7 @@ pub fn validate_controlled(
             return Err(limit("Document exceeds 4096 gradient stops and anchors"));
         }
     }
+    drop(worlds);
     crate::backgrounds::validate(document)?;
     crate::masks::validate_budget(document)?;
     crate::artwork_masks::validate(document)?;

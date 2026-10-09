@@ -44,9 +44,7 @@ impl Plan {
             .iter()
             .map(|item| item.parent.as_ref().map_or(n, |id| ids[id]))
             .collect();
-        let worlds = (0..n)
-            .map(|i| scene::world_transform(document, i))
-            .collect::<Result<Vec<_>, _>>()?;
+        let worlds = scene::world_transforms(document, control)?;
         let mut bounds = vec![None; n];
         let mut controls = vec![0u64; n];
         for (i, item) in document.items.iter().enumerate() {

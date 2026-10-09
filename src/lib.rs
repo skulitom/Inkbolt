@@ -1173,6 +1173,15 @@ fn capability_report() -> Value {
         .push(json!("retained_opaque_backgrounds"));
     capabilities["render_quality"] = json!({"field":"render_options","commands":["document.render","document.export","artboard.export","document.publish","session.publish"],"formats":["png","jpeg","tiff"],"antialias":["none","coverage","supersample2","supersample4"],"default_antialias":"coverage","supersample_factors":[2,4],"averaging_space":["encoded_srgb","linear_srgb"],"default_averaging":"encoded_srgb","compositing":"existing_encoded_srgb_premultiplied_f64","averaging":"completed_premultiplied_samples_before_requested_depth_projection","internal_scale_maximum":16,"padding_document_units":[0,256],"crop_to_canvas_default":true,"bounds":"symmetric_padding_then_optional_original_canvas_crop","profile_order":"average_then_rgba8_then_existing_output_conversion","effect_domain":"padded_evaluation_viewport","viewport_patterns":"noise_and_mosaic_rebase_to_evaluation_origin","limits":"all_evaluation_pixels_and_work_including_padding_and_samples","source_mutation":false,"edge_precision":"f32_coverage_then_f64_average_not_exact_area_for_arbitrary_geometry"});
     capabilities["coordinate_precision"] = json!({"storage":"IEEE754_binary64","snapshot":"exact_stored_finite_binary64_numbers","svg_literals":"roundtrip_decimal_geometry_transform_clip_and_gradient_numbers","direct_transport_absolute_error":0,"negative_coordinates":true,"fractional_coordinates":true,"geometry_control_point_absolute_limit":model::MAX_COORDINATE,"transform_component_absolute_limit":model::MAX_COORDINATE,"svg_normalization":"binary64_arithmetic_for_units_viewbox_relative_smooth_quadratic_and_transform_lists","generated_geometry":"uses_each_operation_declared_error_contract","zero_sign":"no_geometric_semantics","preview":"binary64_placement_then_output_space_binary32_quantized_coverage_not_exact_geometric_pixel_area","coverage_routes":["fills","object_and_document_strokes","image_boundaries","geometric_masks"],"ellipse_coverage":"original_32_tangent_cubic_arcs","external_svg_consumers":"their_own_precision_and_coverage_contract","scope":"within_document_and_svg_import_limits;retain_snapshot_for_source_parameters"});
+    capabilities["coordinate_precision"]["hierarchy"] = json!({
+        "fast_composition_point_error":scene::MAX_FAST_POINT_ERROR,
+        "error_scope":"composition_only;exact_application_to_controls_bounded_by_32768;final_point_arithmetic_and_coverage_are_separate",
+        "fallback":"exact_rational_product_of_stored_binary64_matrices;certified_nearest_final_coefficients",
+        "maximum_ancestors":scene::MAX_DEPTH,
+        "shared_chain_cache_entries":scene::MAX_CACHED_CHAINS,
+        "cache_scope":"one_immutable_validation_render_or_inspection;no_cross_revision_reuse",
+        "stored_controls_changed":false
+    });
     capabilities["dimensions"] = json!({"inspect":"geometry.measure","edit":"dimensions","units":["px","pt","pc","mm","cm","in"],"unit_conversion":"exact_rational_document_resolution_ppi","angle_degrees":[-360000,360000],"anchors":["min","center","max"],"bounds":"unclipped_geometry_projected_in_declared_axes;not_strokes_effects_or_glyph_ink","bounds_precision":"binary64","length":"sum_of_authored_boundaries_with_closed_contour_closing_edges","area":"signed_algebraic_contour_integral;null_for_any_open_contour;not_filled_union_area","certificate":"exact_rational_line_cubic_integrals_and_chord_polygon_or_analytic_ellipse_tangent_enclosures","length_tolerance":[0.000001,100],"area_tolerance":[0.000000001,10000],"work":dimensions::MAX_WORK,"subdivision_depth":32,"precision_failure":"NUMERIC_PRECISION","requested_logical_dimensions":[0.001,65536],"resize":"world_basis_scale_through_parent_inverse;requires_two_nonzero_source_dimensions","preserve_aspect":"exactly_one_requested_dimension","source_geometry_retained":true});
     capabilities["snapping"] = json!({"operation":"snap","targets":["point","grid","guide","item"],"target_limit":64,"reference_state":"frozen_before_operation","source_modes":["together","individual"],"rotated_bounds":true,"oblique_guides":true,"intersections_default":true,"priority":"point_grid_item_intersection_then_guide_projection;distance_then_input_order","grid_tie":"lower_index_per_axis","guide_parallel_threshold":1e-10,"units":["px","pt","pc","mm","cm","in"],"maximum_logical_distance":model::MAX_COORDINATE,"no_match":"explicit_receipt_without_item_mutation","source_geometry_retained":true});
     capabilities["swatches"] = json!({"dictionary":"document.swatches","inspect":"swatch.inspect","edit":"swatch","bake":"swatch_bake","convert":"swatch_convert_process_or_spot_retaining_components_or_explicit_replacement","definitions":["process","spot","tint"],"declaration_spaces":["srgb","gray","cmyk","lab","device"],"storage":"exact_declared_binary64;no_implicit_conversion","gray":"encoded_srgb_neutral","lab":"D50_L0..100_a_b_minus128..127","non_rgb_preview":"legacy_CMYK_Lab_require_explicit_preview;device_declarations_convert_source_profile_to_srgb","reference":{"swatch":"stable_id","tint":[0,1],"opacity":[0,1],"overprint":["knockout","preserve","preserve_nonzero"]},"precise_solid":"rgba_normalized_binary64_without_early_byte_rounding","preview_tint":"encoded_white_plus_effective_tint_times_alternate_minus_white","max_swatches":swatches::MAX_SWATCHES,"max_chain":swatches::MAX_DEPTH,"name_bytes":256,"locks":"direct_transitive_resource_and_saved_variant_dependents","deletion":"in_use_references_rejected","transfer":"independent_ID_remap_with_transitive_color_dependencies","vector_delivery":"display_srgb_gray;pdf_options.color_native_inks_preserves_spot_CMYK_Lab_and_overprint","image_delivery":"display_preview_with_explicit_losses","spot_separations":"native_PDF_Separation_resources;document_prepress_scalar_planes","overprint":"native_PDF_OP_op_OPM;display_requires_explicit_bake","separation_diagnostics":"swatch.inspect.ink_diagnostics_and_per_page_PDF_receipts;structural_not_plate_coverage","profile_driven_non_rgb_conversion":true});
@@ -2322,8 +2331,9 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
         } => checks::preflight(&document, &resources, &output, &context.scoped(&control)?),
         Request::Inspect { document } => {
             model::validate_controlled(&document, context)?;
+            let mut geometry = scene::GeometryCache::new(&document, context)?;
             let items: Vec<Value> = (0..document.items.len())
-                .map(|i| inspect_item(&document, i))
+                .map(|i| inspect_item(&document, i, &mut geometry))
                 .collect::<Result<_, _>>()?;
             let assets:Vec<_>=document.assets.iter().map(|(id,a)|json!({"id":id,"width":a.width,"height":a.height,"sha256":a.sha256,"storage":match a.storage{assets::Storage::Stored=>"stored",assets::Storage::Embedded{..}=>"embedded"},"provenance":a.provenance,"used_by":document.items.iter().filter_map(|item|match &item.content{model::Content::Image{asset_id,..} if asset_id==id=>Some(&item.id),_=>None}).collect::<Vec<_>>()})).collect();
             let fonts:Vec<_>=document.fonts.iter().map(|(id,font)|json!({"id":id,"font":font,"used_by":document.items.iter().filter(|item|instances::any_content(&item.content,&|c|match c {model::Content::Text {frame}=>text::styles(frame).any(|s|s.font_ids().any(|f|f==id)),model::Content::StoryFrame {story_id,..}=>document.stories.get(story_id).is_some_and(|story|story.styles().any(|s|s.font_ids().any(|f|f==id))),_=>false})).map(|item|&item.id).collect::<Vec<_>>()})).collect();
@@ -2362,7 +2372,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             font_root.as_deref(),
             &context.scoped(&control)?,
         ),
-        Request::Query { document, query } => query::execute(&document, &query),
+        Request::Query { document, query } => query::execute(&document, &query, context),
         Request::Measure {
             document,
             options,
@@ -2386,11 +2396,12 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             curve_tolerance,
         } => booleans::compute(&document, &ids, mode, curve_tolerance),
         Request::Select { document, ids } => {
-            validate(&document)?;
+            model::validate_controlled(&document, context)?;
             let indices = scene::selection(&document, &ids, false)?;
+            let mut geometry = scene::GeometryCache::new(&document, context)?;
             let items: Vec<_> = indices
                 .into_iter()
-                .map(|i| inspect_item(&document, i))
+                .map(|i| inspect_item(&document, i, &mut geometry))
                 .collect::<Result<_, _>>()?;
             Ok(
                 json!({"document_id":document.id,"revision":document.revision,"ids":ids,"items":items,"selection_state":"explicit_ids_only"}),
@@ -2516,7 +2527,13 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
     result
 }
 
-pub(crate) fn inspect_item(document: &Document, i: usize) -> Result<Value, Error> {
+pub(crate) fn inspect_item(
+    document: &Document,
+    i: usize,
+    geometry: &mut scene::GeometryCache,
+) -> Result<Value, Error> {
+    let world = geometry.world(i);
+    let bounds = geometry.bounds(i)?;
     let item = &document.items[i];
     let sibling_index = scene::children(document, item.parent.as_deref())
         .iter()
@@ -2534,7 +2551,7 @@ pub(crate) fn inspect_item(document: &Document, i: usize) -> Result<Value, Error
         ),
         _ => None,
     };
-    let mut result = json!({"object":match &item.content{model::Content::Object{object}=>Some(object.summary()),_=>None},"hdr_grade":item.hdr_grade,"samples":samples::inspect(&item.content),"pixel_warp":item.pixel_warp,"metadata":item.metadata,"id":item.id,"name":item.name,"content_type":query::item_type(item),"warp":match &item.content{model::Content::Warp{warp}=>Some(warp),_=>None},"repeat":match &item.content{model::Content::Repeat{repeat}=>Some(repeat),_=>None},"interpolation":match &item.content{model::Content::Interpolation{interpolation}=>Some(interpolation),_=>None},"instance":match &item.content{model::Content::Instance{instance}=>Some(instance),_=>None},"artwork_mask_source_sha256":artwork_masks::dependency_hash(document,i)?,"component_source_sha256":instances::dependency_hash(document,i)?,"group":match &item.content{model::Content::Group{isolated,knockout,role}=>Some(json!({"isolated":isolated,"knockout":knockout,"role":role})),_=>None},"geometry":match &item.content{model::Content::Vector{geometry,..}|model::Content::WorkPath{geometry,..}=>Some(geometry),_=>None},"stroke":match &item.content{model::Content::Vector{stroke,..}=>stroke.as_ref(),_=>None},"index":i,"sibling_index":sibling_index,"parent":item.parent,"clip_to":item.clip_to,"visible":item.visible,"effective_visible":scene::effective_visible(document,i)?,"locked":item.locked,"effective_locked":scene::effective_locked(document,i)?,"opacity":item.opacity,"fill_opacity":item.fill_opacity,"coverage":item.coverage,"effects":item.effects,"blend":item.blend,"world_transform":scene::world_transform(document,i)?,"geometry_bounds":scene::bounds(document,i)?,"clip":item.clip,"mask":item.mask,"artwork_mask":item.artwork_mask,"artwork_mask_world_transform":item.artwork_mask.as_ref().map(|m|scene::world_transform(document,i).map(|w|m.world_transform(w))).transpose()?,"filters":item.filters,"mask_world_transform":item.mask.as_ref().map(|m| scene::world_transform(document,i).map(|w| m.world_transform(w))).transpose()?,"image":image,"adjustment":match &item.content{model::Content::Adjustment{adjustment}=>Some(adjustment),_=>None},"frame":match &item.content{model::Content::Frame{frame}=>Some(frame),_=>None}});
+    let mut result = json!({"object":match &item.content{model::Content::Object{object}=>Some(object.summary()),_=>None},"hdr_grade":item.hdr_grade,"samples":samples::inspect(&item.content),"pixel_warp":item.pixel_warp,"metadata":item.metadata,"id":item.id,"name":item.name,"content_type":query::item_type(item),"warp":match &item.content{model::Content::Warp{warp}=>Some(warp),_=>None},"repeat":match &item.content{model::Content::Repeat{repeat}=>Some(repeat),_=>None},"interpolation":match &item.content{model::Content::Interpolation{interpolation}=>Some(interpolation),_=>None},"instance":match &item.content{model::Content::Instance{instance}=>Some(instance),_=>None},"artwork_mask_source_sha256":artwork_masks::dependency_hash(document,i)?,"component_source_sha256":instances::dependency_hash(document,i)?,"group":match &item.content{model::Content::Group{isolated,knockout,role}=>Some(json!({"isolated":isolated,"knockout":knockout,"role":role})),_=>None},"geometry":match &item.content{model::Content::Vector{geometry,..}|model::Content::WorkPath{geometry,..}=>Some(geometry),_=>None},"stroke":match &item.content{model::Content::Vector{stroke,..}=>stroke.as_ref(),_=>None},"index":i,"sibling_index":sibling_index,"parent":item.parent,"clip_to":item.clip_to,"visible":item.visible,"effective_visible":scene::effective_visible(document,i)?,"locked":item.locked,"effective_locked":scene::effective_locked(document,i)?,"opacity":item.opacity,"fill_opacity":item.fill_opacity,"coverage":item.coverage,"effects":item.effects,"blend":item.blend,"world_transform":world,"geometry_bounds":bounds,"clip":item.clip,"mask":item.mask,"artwork_mask":item.artwork_mask,"artwork_mask_world_transform":item.artwork_mask.as_ref().map(|m|m.world_transform(world)),"filters":item.filters,"mask_world_transform":item.mask.as_ref().map(|m|m.world_transform(world)),"image":image,"adjustment":match &item.content{model::Content::Adjustment{adjustment}=>Some(adjustment),_=>None},"frame":match &item.content{model::Content::Frame{frame}=>Some(frame),_=>None}});
     if matches!(
         &item.content,
         model::Content::WorkPath {

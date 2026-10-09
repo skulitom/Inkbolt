@@ -37,10 +37,30 @@ masks share this path. The exact-rational original control corpus bounds final
 coordinate error by `1e-5` output pixels; the rectangle endpoint fixture uses
 `1e-6`. Pixel tests separately cover scale factors through 32768, negative origins,
 reflection, nested placement, cubic controls, clipping and image footprints. These
-are explicit fixture bounds; arbitrary ill-conditioned hierarchy composition and
-inverse sampling retain their documented floating-point limitations. The backend's
+are explicit fixture bounds; matrix construction, inverse sampling and subsequent
+point arithmetic retain their documented floating-point limitations. The backend's
 coverage quantization is distinct from these geometric bounds. Use explicit
 supersampling when testing geometric area.
+
+Hierarchy composition now tracks rounding residuals and propagates conservative
+error bounds through all ancestors. The ordinary result is retained only when its
+composition error, applied exactly to any control with coordinates within 32768,
+is at most `1e-9` logical units per axis. Otherwise the complete product of the
+stored binary64 matrices is computed as exact rational numbers, then each final
+coefficient is rounded once to binary64 with a checked nearest-rounding interval.
+This prevents successive nearly inverse large transforms from silently losing
+their small residuals. It does not change the stored matrices or source controls.
+Final point arithmetic and output-space binary32 rounding remain separate stages;
+the composition bound alone is not a pixel-area or inverse-sampling certificate.
+
+Validation, regional/tiled preparation and stroke budgets reuse identical
+transform chains within a single immutable calculation. The cache holds at most
+128 chains, each within the existing 16-ancestor limit. Full inspection and
+selection also reuse calculated group bounds. Caches never cross document edits
+or requests. Independent rational matrices, final bounds, cubic coverage through
+output density 16, a 5,000-object shared hierarchy, cache-capacity overflow and
+durable revision/undo/retry behavior are checked in
+`tests/test_hierarchy_precision_cli.py`.
 
 Import normalizes external SVG syntax. For example, relative controls add to the
 current point, smooth controls reflect their predecessor, and quadratics become

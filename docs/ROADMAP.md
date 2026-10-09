@@ -1,5 +1,13 @@
 # Roadmap and verified scope
 
+Deep transform hierarchies now use a bounded-error ordinary path and exact
+composition when large nearly inverse matrices make that necessary. Independent
+rational and pixel fixtures include a 5,000-object shared hierarchy, bounded
+cache overflow and durable revisions. Transform and inspection reuse stays within
+one immutable calculation. This improves the resource/precision workstream;
+the complete original checkpoint audit and overall agent-readiness gates remain
+required, with the verified registry still at 161/167.
+
 Retained vector preparation now preserves cancellation through certified warps,
 dimensional profiles and recursive validation. Oversized dimensional profiles can
 fail as soon as an exact nonredundant-vertex bound proves the existing edge budget

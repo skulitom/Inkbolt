@@ -5,6 +5,9 @@ use crate::{
     model::*,
 };
 use std::collections::HashSet;
+mod hierarchy;
+pub(crate) use hierarchy::MAX_FAST_POINT_ERROR;
+pub(crate) const MAX_CACHED_CHAINS: usize = 128;
 
 pub const MAX_DEPTH: usize = 16;
 pub fn index(document: &Document, id: &str) -> Result<usize, Error> {
@@ -43,11 +46,46 @@ pub fn ancestors(document: &Document, i: usize) -> Result<Vec<usize>, Error> {
     Ok(result)
 }
 pub fn world_transform(document: &Document, i: usize) -> Result<Matrix, Error> {
-    let mut world = document.items[i].transform;
-    for p in ancestors(document, i)? {
-        world = geometry::multiply(document.items[p].transform, world);
+    let parents = ancestors(document, i)?;
+    hierarchy::compose(
+        document.items[i].transform,
+        &parents
+            .iter()
+            .map(|&p| document.items[p].transform)
+            .collect::<Vec<_>>(),
+    )
+}
+/// Reuse identical immutable transform chains within this one preparation.
+/// The fixed cache holds at most 128 chains of 17 matrices; it never survives
+/// a document edit, resolution change, mask placement or another request.
+pub(crate) fn world_transforms(
+    document: &Document,
+    control: &crate::control::Control,
+) -> Result<Vec<Matrix>, Error> {
+    let mut cache = std::collections::HashMap::<Vec<[u64; 6]>, Matrix>::new();
+    let mut worlds = Vec::with_capacity(document.items.len());
+    for (i, item) in document.items.iter().enumerate() {
+        if i % 32 == 0 {
+            control.check()?;
+        }
+        let parents = ancestors(document, i)?;
+        let chain: Vec<_> = std::iter::once(item.transform)
+            .chain(parents.iter().map(|&p| document.items[p].transform))
+            .collect();
+        let key: Vec<_> = chain.iter().map(|m| m.map(f64::to_bits)).collect();
+        let world = if let Some(world) = cache.get(&key) {
+            *world
+        } else {
+            let world = hierarchy::compose(chain[0], &chain[1..])?;
+            if cache.len() < MAX_CACHED_CHAINS {
+                cache.insert(key, world);
+            }
+            world
+        };
+        worlds.push(world);
     }
-    Ok(world)
+    control.check()?;
+    Ok(worlds)
 }
 pub fn parent_transform(document: &Document, i: usize) -> Result<Matrix, Error> {
     match &document.items[i].parent {
@@ -120,6 +158,14 @@ pub fn union(a: Bounds, b: Bounds) -> Bounds {
 }
 pub fn bounds(document: &Document, i: usize) -> Result<Option<Bounds>, Error> {
     let m = world_transform(document, i)?;
+    bounds_at(document, i, m, &mut |child| bounds(document, child))
+}
+fn bounds_at(
+    document: &Document,
+    i: usize,
+    m: Matrix,
+    child_bounds: &mut dyn FnMut(usize) -> Result<Option<Bounds>, Error>,
+) -> Result<Option<Bounds>, Error> {
     if let Some(p) = crate::pixel_warps::plan(&document.items[i])? {
         return Ok(Some(geometry::bounds(&p.geometry(), m)));
     }
@@ -184,12 +230,46 @@ pub fn bounds(document: &Document, i: usize) -> Result<Option<Bounds>, Error> {
         Content::Group { .. } => {
             let mut out = None;
             for c in children(document, Some(&document.items[i].id)) {
-                if let Some(b) = bounds(document, c)? {
+                if let Some(b) = child_bounds(c)? {
                     out = Some(out.map_or(b, |a| union(a, b)));
                 }
             }
             Ok(out)
         }
+    }
+}
+/// Bounds are evaluated lazily and at most once for this immutable inspection.
+pub(crate) struct GeometryCache<'a> {
+    document: &'a Document,
+    control: &'a crate::control::Control,
+    worlds: Vec<Matrix>,
+    bounds: Vec<Option<Option<Bounds>>>,
+}
+impl<'a> GeometryCache<'a> {
+    pub fn new(
+        document: &'a Document,
+        control: &'a crate::control::Control,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            document,
+            control,
+            worlds: world_transforms(document, control)?,
+            bounds: vec![None; document.items.len()],
+        })
+    }
+    pub fn world(&self, i: usize) -> Matrix {
+        self.worlds[i]
+    }
+    pub fn bounds(&mut self, i: usize) -> Result<Option<Bounds>, Error> {
+        self.control.check()?;
+        if let Some(value) = self.bounds[i] {
+            return Ok(value);
+        }
+        let value = bounds_at(self.document, i, self.worlds[i], &mut |child| {
+            self.bounds(child)
+        })?;
+        self.bounds[i] = Some(value);
+        Ok(value)
     }
 }
 pub fn selection(document: &Document, ids: &[String], disjoint: bool) -> Result<Vec<usize>, Error> {

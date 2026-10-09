@@ -45,6 +45,16 @@ SVG exports document-scaled strokes as filled paths and reports loss of editable
 
 ## Precision and bounds
 
+Hierarchy products use conservative error tracking and an exact rational fallback
+when ordinary composition could move a stored control by more than `1e-9` logical
+units before final point arithmetic. The fallback rounds only the completed
+matrix coefficients and verifies their nearest binary64 rounding. Identical
+chains and inspection bounds are reused within one immutable preparation, with a
+fixed cache bound and no reuse across edits. This preserves small residuals in
+deep sequences of large shears and nearly inverse transforms. See
+[coordinate fidelity](COORDINATE_PRECISION.md) for the precise scope and independent
+large-layout, numerical, coverage and history fixtures.
+
 Affine geometry and stroke evaluation use original f64 calculations. Raster coverage uses f32 coordinates and quantized antialiasing. Inverse mapping for editable expansion or SVG adds normal floating-point roundoff, so arbitrary ill-conditioned transforms do not carry a universal byte-identical edge-pixel guarantee. Stored and world coordinates, matrices and generated outlines must pass their existing bounds. A matrix must be finite, each entry at most 32768 in magnitude, absolute determinant at least 1e-8, and nonsingular at renderer precision. Singular or unrepresentable semantics fail explicitly.
 
 The limits in [STROKES.md](STROKES.md) apply in the declared evaluation space. Hidden items still consume work. Mask copies and independent artboard outputs are checked at their actual transforms before output. Expansion also checks ordinary stored path/item/coordinate limits and may fail even when a live outline can render. Such failures leave the source document and existing outputs unchanged.

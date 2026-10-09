@@ -121,8 +121,12 @@ fn valid_bounds(b: Bounds) -> Result<(), Error> {
     }
     Ok(())
 }
-pub(crate) fn execute(document: &Document, query: &Query) -> Result<Value, Error> {
-    validate(document)?;
+pub(crate) fn execute(
+    document: &Document,
+    query: &Query,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
+    validate_controlled(document, control)?;
     if let Some(region) = &query.region {
         valid_bounds(region.bounds)?;
     }
@@ -137,6 +141,7 @@ pub(crate) fn execute(document: &Document, query: &Query) -> Result<Value, Error
     }
     let mut items = Vec::new();
     let mut ids = Vec::new();
+    let mut geometry = scene::GeometryCache::new(document, control)?;
     for (i, item) in document.items.iter().enumerate() {
         let edit_blocked_by_locks = match scene::check_unlocked(document, i, true) {
             Ok(()) => false,
@@ -160,7 +165,7 @@ pub(crate) fn execute(document: &Document, query: &Query) -> Result<Value, Error
             }
         }
         if let Some(region) = &query.region {
-            let Some(b) = scene::bounds(document, i)? else {
+            let Some(b) = geometry.bounds(i)? else {
                 continue;
             };
             let r = region.bounds;
@@ -174,7 +179,7 @@ pub(crate) fn execute(document: &Document, query: &Query) -> Result<Value, Error
                 continue;
             }
         }
-        let mut inspected = crate::inspect_item(document, i)?;
+        let mut inspected = crate::inspect_item(document, i, &mut geometry)?;
         inspected["edit_blocked_by_locks"] = json!(edit_blocked_by_locks);
         if query.include_anchors || query.anchor_bounds.is_some() {
             let anchors = crate::paths::anchors(document, i)?

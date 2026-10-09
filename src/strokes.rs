@@ -196,14 +196,17 @@ pub(crate) fn svg_item_work(item: &Item, world: Matrix) -> Result<u64, Error> {
 }
 pub(crate) fn svg_work(document: &Document) -> Result<u64, Error> {
     let mut count = 0;
+    let worlds = crate::scene::world_transforms(document, &crate::control::Control::default())?;
     for (i, item) in document.items.iter().enumerate() {
-        let world = crate::scene::world_transform(document, i)?;
+        let world = worlds[i];
         count += svg_item_work(item, world)?;
         if let Some(mask) = item.artwork_mask.as_ref().filter(|m| m.enabled) {
             let instance = crate::artwork_masks::instance(document, mask, world)?;
             crate::model::validate(&instance)?;
+            let instance_worlds =
+                crate::scene::world_transforms(&instance, &crate::control::Control::default())?;
             for (j, node) in instance.items.iter().enumerate() {
-                count += svg_item_work(node, crate::scene::world_transform(&instance, j)?)?;
+                count += svg_item_work(node, instance_worlds[j])?;
             }
         }
     }
@@ -304,8 +307,9 @@ pub(crate) fn work(g: &Geometry, s: &Stroke) -> Result<u64, Error> {
 }
 pub(crate) fn document_work(document: &Document) -> Result<u64, Error> {
     let mut total = 0;
+    let worlds = crate::scene::world_transforms(document, &crate::control::Control::default())?;
     for (i, item) in document.items.iter().enumerate() {
-        total += item_work(item, crate::scene::world_transform(document, i)?)?;
+        total += item_work(item, worlds[i])?;
     }
     Ok(total)
 }

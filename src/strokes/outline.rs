@@ -671,8 +671,9 @@ pub(crate) fn generate(
 }
 pub(crate) fn generated_work(document: &Document) -> Result<u64, Error> {
     let mut count = 0;
+    let worlds = crate::scene::world_transforms(document, &crate::control::Control::default())?;
     for (i, item) in document.items.iter().enumerate() {
-        count += generated_item_work(item, crate::scene::world_transform(document, i)?)?;
+        count += generated_item_work(item, worlds[i])?;
         if count > MAX_OUTLINE_COMMANDS as u64 {
             return Err(crate::model::limit(
                 "Document exceeds generated stroke-outline command limit at delivery scale",
