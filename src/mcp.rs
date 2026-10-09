@@ -343,6 +343,9 @@ fn description(command: &str) -> &'static str {
         "job.status" => {
             "Inspect bounded job progress, cancellation and output summary. Reconciles stopped workers with durable publication proof without creating an absent output. A queued job with no live supervisor needs explicit job.resume; inspection does not launch work."
         }
+        "job.list" => {
+            "Rediscover saved jobs without knowing request IDs. Bounded pages preserve initial admission membership while reading saved progress afresh per page. Later submissions require a fresh listing. Does not resume, reconcile outcomes, reopen source resources or publish files; use job.status for stopped work and job.result for completed output."
+        }
         "job.result" => {
             "Return the full original publication result of a completed job, including actual format and loss receipts. Completion is historical; deleted outputs are not recreated."
         }
@@ -454,6 +457,7 @@ pub fn catalog_in_workspace(
                 | "publication.recover"
                 | "job.start"
                 | "job.status"
+                | "job.list"
                 | "job.result"
                 | "job.wait"
                 | "job.cancel"

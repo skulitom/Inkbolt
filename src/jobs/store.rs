@@ -323,6 +323,41 @@ pub(super) fn ids(db: &Connection) -> Result<Vec<String>, Error> {
     }
     Ok(ids)
 }
+/// Compact immutable membership for paging. Mutable progress does not invalidate
+/// a cursor, and bounded discovery does not deserialize every saved document.
+pub(super) fn inventory(db: &Connection) -> Result<Vec<(String, String)>, Error> {
+    let mut query = db.prepare("SELECT j.rowid,j.id,i.sha256 FROM jobs j LEFT JOIN inputs i ON i.id=j.id ORDER BY j.rowid LIMIT ?1").map_err(sql)?;
+    let rows: Vec<(i64, String, Option<String>)> = query
+        .query_map([(MAX_JOBS + 1) as i64], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })
+        .map_err(sql)?
+        .collect::<Result<_, _>>()
+        .map_err(sql)?;
+    let input_count: i64 = db
+        .query_row(
+            "SELECT COUNT(*) FROM (SELECT 1 FROM inputs LIMIT ?1)",
+            [(MAX_JOBS + 1) as i64],
+            |r| r.get(0),
+        )
+        .map_err(sql)?;
+    if rows.len() > MAX_JOBS || input_count != rows.len() as i64 {
+        return Err(corrupt("Job membership count or input linkage is invalid"));
+    }
+    rows.into_iter()
+        .enumerate()
+        .map(|(index, (ordinal, id, sha))| {
+            let sha = sha.ok_or_else(|| corrupt("Job input is missing"))?;
+            if ordinal != index as i64 + 1
+                || !model::valid_id(&id)
+                || !crate::fonts::valid_hash(&sha)
+            {
+                return Err(corrupt("Job admission order or input identity is invalid"));
+            }
+            Ok((id, sha))
+        })
+        .collect()
+}
 pub(super) fn check_active(
     db: &Connection,
     input: &Input,

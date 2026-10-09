@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import sqlite3
 import subprocess
+from threading import Event
 import time
 import unittest
 import test_agent_workspace as workspace
@@ -193,6 +194,142 @@ class JobTests(unittest.TestCase):
         self.cli('job.status',job_root=str(self.root.parent),request_id='one',error='PATH_OUTSIDE_WORKSPACE')
         self.cli('job.start',job_root=str(self.root/'fresh-jobs'),request_id='never',document=self.document(),output=dict(file_name='never.png',format='png'),control=dict(timeout_ms=0),error='TIMEOUT')
         self.assertFalse((self.root/'never.png').exists())
+
+    def test_list_missing_queue_defaults_schemas_and_cancellation_do_not_create_work(self):
+        empty=self.cli('job.list')
+        self.assertFalse(empty['exists']);self.assertEqual(empty['records'],[])
+        self.assertEqual(empty['snapshot_total'],0);self.assertIsNone(empty['next_cursor'])
+        self.assertFalse((self.root/'.inkbolt').exists())
+        with closing(Client(('--tools','core'),workspace=self.root)) as client:
+            client.initialize()
+            reply=client.tool('run',command='job.list',arguments={})
+            self.assertFalse(reply['isError']);self.assertEqual(reply['structuredContent']['result'],empty)
+        for limit in [0,33]:self.cli('job.list',options=dict(limit=limit),error='INVALID_REQUEST')
+        for cursor in ['not-a-cursor','a'*1025]:self.cli('job.list',options=dict(cursor=cursor),error='INVALID_CURSOR')
+        self.cli('job.list',control=dict(timeout_ms=0),error='TIMEOUT')
+        self.cli('job.list',job_root=str(self.root.parent),error='PATH_OUTSIDE_WORKSPACE')
+        self.assertFalse((self.root/'.inkbolt').exists())
+        found=self.cli('schema.lookup',name='job.list')
+        self.assertEqual(found['detail'],'full')
+        self.assertIn('job.list',self.cli('capabilities')['jobs']['commands'])
+
+    def test_list_pages_preserve_admission_membership_while_progress_and_queue_change(self):
+        ids=['zeta','alpha','middle','last','front']
+        with self.blocked_queue():
+            for rid in ids:self.start(rid=rid)
+            before=self.ledger().read_bytes()
+            first=self.cli('job.list',options=dict(limit=2))
+            self.assertEqual(self.ledger().read_bytes(),before)
+            self.assertEqual([r['request_id'] for r in first['records']],ids[:2])
+            self.assertEqual(first['snapshot_total'],5);self.assertEqual(first['current_total'],5)
+            self.start(rid='new-arrival');self.cli('job.cancel',request_id='middle')
+            cursor=first['next_cursor'];rows=first['records'];pages=[]
+            while cursor:
+                before=self.ledger().read_bytes()
+                page=self.cli('job.list',options=dict(limit=2,cursor=cursor));pages.append(page)
+                self.assertEqual(self.ledger().read_bytes(),before)
+                self.assertEqual(page['snapshot_total'],5);self.assertEqual(page['current_total'],6)
+                rows.extend(page['records']);cursor=page['next_cursor']
+            self.assertEqual([r['request_id'] for r in rows],ids)
+            self.assertEqual(rows[2]['state'],'cancelled')
+            self.assertEqual([p['offset'] for p in pages],[2,4])
+            fresh=self.cli('job.list');self.assertEqual(fresh['snapshot_total'],6)
+            self.assertEqual(fresh['records'][-1]['request_id'],'new-arrival')
+            self.assertLess(len(json.dumps(fresh).encode()),8192)
+            self.assertTrue(all('items' not in row['document'] for row in rows))
+            self.assertFalse(any(self.root.glob('*.png')))
+            with closing(Client(('--tools','core'),workspace=self.root)) as client:
+                client.initialize();reply=client.tool('run',command='job.list',arguments={})
+                self.assertEqual(reply['structuredContent']['result'],fresh)
+
+    def test_list_cursor_rejects_other_roots_limit_changes_mutated_inputs_and_missing_store(self):
+        with self.blocked_queue():
+            for rid in ['one','two','three']:self.start(rid=rid)
+            cursor=self.cli('job.list',options=dict(limit=1))['next_cursor']
+            self.cli('job.list',options=dict(limit=2,cursor=cursor),error='INVALID_CURSOR')
+            other=self.root/'other-queue';other.mkdir();shutil.copyfile(self.ledger(),other/'jobs.sqlite3')
+            self.cli('job.list',job_root=str(other),options=dict(limit=1,cursor=cursor),error='JOB_CURSOR_CHANGED')
+            with closing(sqlite3.connect(self.ledger())) as db:
+                data=json.loads(db.execute('SELECT payload FROM inputs WHERE id=?',('two',)).fetchone()[0])
+                data['document']['revision']+=1
+                payload=json.dumps(data,separators=(',',':')).encode()
+                db.execute('UPDATE inputs SET payload=?,sha256=? WHERE id=?',(payload,hashlib.sha256(payload).hexdigest(),'two'));db.commit()
+            self.cli('job.list',options=dict(limit=1,cursor=cursor),error='JOB_CURSOR_CHANGED')
+            changed=self.cli('job.list');self.assertEqual(changed['records'][1]['document']['revision'],1)
+            cursor=self.cli('job.list',options=dict(limit=1))['next_cursor']
+            saved=self.ledger().with_suffix('.saved');self.ledger().rename(saved)
+            self.cli('job.list',options=dict(limit=1,cursor=cursor),error='JOB_CURSOR_CHANGED')
+            self.assertFalse(self.ledger().exists());self.assertTrue(saved.exists())
+
+    def test_list_completed_work_without_reopening_missing_resources_build_or_output(self):
+        (self.root/'image.png').write_bytes(png(2,2,bytes([10,20,30,255]*4)))
+        asset=self.cli('asset.import',source_path='image.png')['asset']
+        doc=self.document();doc['assets']={'unused':asset}
+        engine=self.root/'worker.exe';shutil.copyfile(EXE,engine)
+        self.start(doc,options=dict(worker_executable=str(engine)));self.finish();self.idle()
+        (self.root/'.inkbolt/assets'/(asset['sha256']+'.rgba8')).unlink()
+        (self.root/'image.png').unlink();(self.root/'one.png').unlink();engine.unlink()
+        page=self.cli('job.list');row=page['records'][0]
+        self.assertEqual(row['request_id'],'one');self.assertEqual(row['state'],'completed')
+        self.assertEqual(row['next_action'],'job.result');self.assertEqual(row['format'],'png')
+        self.assertEqual(row['document'],dict(id=doc['id'],revision=doc['revision']))
+        self.assertFalse((self.root/'one.png').exists())
+
+    def test_list_byte_budget_shortens_pages_without_skipping_long_destinations(self):
+        root=self.root
+        for i in range(21):root=root/(str(i)+'x'*165)
+        ids=[f'long-{i}' for i in range(12)]
+        with self.blocked_queue():
+            for rid in ids:self.cli('job.start',request_id=rid,document=self.document(),output=dict(output_root=str(root),file_name=rid+'.png',format='png'))
+            options=dict(limit=32);seen=[];pages=0
+            while True:
+                page=self.cli('job.list',options=options);pages+=1
+                self.assertLessEqual(len(json.dumps(page,separators=(',',':')).encode()),32768)
+                self.assertGreater(page['returned'],0)
+                seen.extend(r['request_id'] for r in page['records'])
+                if not page['next_cursor']:break
+                options['cursor']=page['next_cursor']
+            self.assertGreater(pages,1);self.assertEqual(seen,ids)
+            self.assertFalse(root.exists())
+
+    def test_list_rejects_corrupt_rows_and_orphaned_inputs_without_partial_results(self):
+        with self.blocked_queue():
+            for rid in ['one','two']:self.start(rid=rid)
+            with closing(sqlite3.connect(self.ledger())) as db:
+                db.execute('UPDATE jobs SET state_sha256=? WHERE id=?',('0'*64,'two'));db.commit()
+            before=self.ledger().read_bytes()
+            self.cli('job.list',error='JOB_CORRUPT');self.assertEqual(self.ledger().read_bytes(),before)
+            with closing(sqlite3.connect(self.ledger())) as db:
+                db.execute('DELETE FROM jobs WHERE id=?',('two',));db.commit()
+            before=self.ledger().read_bytes()
+            self.cli('job.list',error='JOB_CORRUPT');self.assertEqual(self.ledger().read_bytes(),before)
+
+    def test_list_page_uses_one_snapshot_during_concurrent_progress_commits(self):
+        with self.blocked_queue():
+            for rid in ['one','two','three','four']:self.start(rid=rid)
+            ready=Event();stop=Event();commits=[]
+            def writer():
+                with closing(sqlite3.connect(self.ledger(),timeout=3)) as db:
+                    states=[json.loads(row[0]) for row in db.execute('SELECT state FROM jobs')]
+                    generation=0
+                    while not stop.is_set():
+                        generation+=1;db.execute('BEGIN IMMEDIATE')
+                        for state in states:
+                            state['progress']['completed']=generation
+                            payload=json.dumps(state,separators=(',',':')).encode()
+                            db.execute('UPDATE jobs SET state=?,state_sha256=? WHERE id=?',(payload,hashlib.sha256(payload).hexdigest(),state['id']))
+                        db.commit();commits.append(generation);ready.set();time.sleep(.003)
+            observed=[]
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future=pool.submit(writer)
+                try:
+                    self.assertTrue(ready.wait(5))
+                    for _ in range(10):
+                        page=self.cli('job.list');self.assertEqual(page['returned'],4)
+                        values={row['progress']['completed'] for row in page['records']}
+                        self.assertEqual(len(values),1,page);observed.extend(values)
+                finally:stop.set();future.result(timeout=5)
+            self.assertGreater(len(commits),1);self.assertGreater(len(set(observed)),1)
 
 
 if __name__=='__main__':unittest.main()

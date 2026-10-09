@@ -15,8 +15,9 @@ With an existing workspace selected, `job_root` defaults to `.inkbolt/jobs`; exp
 | Command | Behavior |
 | --- | --- |
 | `job.start` | Save verified inputs and submit once per request ID. Identical retries return the saved job; changed inputs reject with `REQUEST_ID_REUSED`. |
+| `job.list` | Rediscover retained request IDs, document revisions, destinations and saved progress in bounded pages. Never launches workers or reconciles outcomes. |
 | `job.status` | Compact progress, cancellation, error and output summary. Reconciles stopped workers but never launches work or publishes an absent output. |
-| `job.wait` | Observe for `wait_ms` in 0–30000, returning on completion, failure, cancellation, interruption or needed recovery. Cancelling the observation does not cancel the job. |
+| `job.wait` | Observe for `wait_ms` in 0â€“30000, returning on completion, failure, cancellation, interruption or needed recovery. Cancelling the observation does not cancel the job. |
 | `job.result` | Full historical publication receipt, including actual format losses, color and page details. Requires completed output. |
 | `job.cancel` | Persist cancellation. Queued/interrupted work becomes cancelled; running work receives cooperative cancellation and a two-second forced-stop grace. |
 | `job.resume` | Explicitly start a stalled queue or requeue failed/interrupted work with the original inputs. Completed/cancelled jobs stay terminal. Each new attempt is explicit, up to eight. |
@@ -24,6 +25,14 @@ With an existing workspace selected, `job_root` defaults to `.inkbolt/jobs`; exp
 Inspection and result commands can reconcile SQLite and saved publication state, so MCP marks them as potentially mutating. These are engine commands, separate from MCP protocol task support. `job.resume` can create a new attempt after a previous failure and is not advertised as an idempotent request. `job.start` supplies the durable submission identity.
 
 `job.status` includes document ID/revision/content identity, progress, output identity, worker/runner identities, and the last available process report. It omits document contents and the full publication receipt. Ordinary tickets target 8 KiB; unusually long paths can exceed that target. States are `queued`, `running`, `completed`, `cancelled`, `failed` and `interrupted`. A queued job whose supervisor is absent or cannot be verified reports that recovery is needed. Inspection does not silently restart it.
+
+## Rediscovering work after a lost conversation
+
+Call `{"command":"job.list"}` in the original workspace, or supply the explicit `job_root`. No request ID is needed. Each row identifies the saved document revision, intended destination, format, attempt, progress and error code. Use `job.status` for current ownership and stopped-worker reconciliation, then choose explicit cancellation or resumption; completed rows point to `job.result`. A stored `running` value alone does not prove that a worker is still alive.
+
+Listing defaults to eight records, accepts `options.limit` in 1â€“32 and bounds each result to 32 KiB. Long destinations can shorten a page. Pass `next_cursor` as `options.cursor` with the same limit and root until it is null. The first page fixes admission membership; later submissions appear in `current_total` but require a fresh listing to enumerate. Each page reads states from one database snapshot, so progress can change between pages without losing or duplicating members. Changed roots, recorded worker identities or original input membership invalidate the cursor. Cursors are content-bound continuations, not authentication or a frozen snapshot of outcomes.
+
+Only page candidates are decoded and checksum-verified, including at most one row held back by the byte limit; other rows contribute their saved input identities to the membership check. Listing does not open resource files, outputs or executable bytes, and a missing queue returns an empty result without creating directories. It can perform ordinary SQLite journal recovery, but it does not reconcile job outcomes, launch processes or publish staged output. Discovery covers the selected root; it does not search other directories or discard old records.
 
 ## Pinned inputs and builds
 
@@ -45,8 +54,8 @@ Each queue root is bound to the exact worker executable path, length and SHA-256
 | Inputs plus reserved state capacity | 256 MiB |
 | SQLite main file | 512 MiB |
 | One published output | Existing 32 MiB limit |
-| Worker lifetime | 1–3,600,000 ms; default 300,000 ms |
-| Worker committed memory | 64–2048 MiB; default 512 MiB |
+| Worker lifetime | 1â€“3,600,000 ms; default 300,000 ms |
+| Worker committed memory | 64â€“2048 MiB; default 512 MiB |
 
 `options.lifetime_ms` and `options.memory_mib` configure each attempt. Lifetime includes runner startup and is enforced independently of client polling. Submission `control` applies to submission; it does not become a background cancellation marker. An accepted job survives a late submission timeout. Observed process duration includes startup and polling delay. Peak committed memory is an operating-system measure, not resident memory, and may be unavailable after a supervisor crash.
 
@@ -68,4 +77,4 @@ Completed receipts remain historical even after the output is deleted. Neither s
 
 ## Evidence
 
-Original Rust fixtures exercise submission loss, supervisor death around claim/runner registration, a stopped encoder, both sides of publication, timeout after publication, queued/running cancellation, the idle-exit/admission race, capacity, and preserved receipts. CLI/MCP checks independently read PNG bytes and SQLite records and cover exact saved revisions, changed image/license/build identities, explicit resume, concurrent identical submissions, historical results, workspace restrictions and MCP EOF. The full repository checks remain required before accepting a build. This evidence does not replace model-driven workflow trials or practical-scale gates.
+Original Rust fixtures exercise submission loss, supervisor death around claim/runner registration, a stopped encoder, both sides of publication, timeout after publication, queued/running cancellation, the idle-exit/admission race, capacity, and preserved receipts. CLI/MCP checks independently read PNG bytes and SQLite records and cover exact saved revisions, changed image/license/build identities, explicit resume, concurrent identical submissions, historical results, workspace restrictions and MCP EOF. Discovery checks cover progress and admission changes between pages, missing resources/builds/outputs, changed cursors, byte limits and corrupt rows. Crash fixtures verify that discovery does not reconcile or publish stopped work. The full repository checks remain required before accepting a build. This evidence does not replace model-driven workflow trials or practical-scale gates.

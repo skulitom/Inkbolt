@@ -374,3 +374,5 @@ Explicit large vector documents use the persisted `resource_profile` field and p
 ## Durable export jobs
 
 Use `job.start` with a request ID, inline or pinned document, and existing publication options. `job.status` and bounded `job.wait` return compact progress; `job.result` returns the full historical receipt. Cancel explicitly with `job.cancel`, and resume stalled or interrupted work with `job.resume`. Defaults, pinned resources/builds, bounds and cancellation ordering are documented in [JOBS.md](JOBS.md). Ordinary publication remains synchronous.
+
+After losing request IDs, use `job.list` to rediscover retained work in the selected root. Follow its bounded pages with the same limit, then inspect a chosen job with `job.status`. Listing preserves its initial admission membership while saved progress may change between pages; it never starts or resumes work.

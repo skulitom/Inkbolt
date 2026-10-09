@@ -426,6 +426,14 @@ pub enum Request {
         #[serde(default)]
         control: control::Options,
     },
+    #[serde(rename = "job.list")]
+    JobList {
+        job_root: PathBuf,
+        #[serde(default)]
+        options: jobs::ListOptions,
+        #[serde(default)]
+        control: control::Options,
+    },
     #[serde(rename = "job.result")]
     JobResult {
         job_root: PathBuf,
@@ -984,6 +992,7 @@ fn capability_report() -> Value {
         "publication.receipt",
         "job.start",
         "job.status",
+        "job.list",
         "job.result",
         "job.wait",
         "job.cancel",
@@ -1785,6 +1794,11 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             request_id,
             control,
         } => jobs::status(&job_root, &request_id, &context.scoped(&control)?),
+        Request::JobList {
+            job_root,
+            options,
+            control,
+        } => jobs::list(&job_root, &options, &context.scoped(&control)?),
         Request::JobResult {
             job_root,
             request_id,

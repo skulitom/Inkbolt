@@ -257,6 +257,12 @@ fn supervisor_death_at_claim_and_runner_registration_requires_explicit_recovery(
                 job_process::process_state(r).unwrap() == job_process::ProcessState::NotRunning
             })
         });
+        let before = serde_json::to_value(owned.state()).unwrap();
+        let found = list(&owned.jobs(), &ListOptions::default(), &Control::default()).unwrap();
+        assert_eq!(found["records"][0]["request_id"], "one");
+        assert_eq!(found["records"][0]["state"], before["phase"]);
+        assert_eq!(found["records"][0]["next_action"], "job.status");
+        assert_eq!(serde_json::to_value(owned.state()).unwrap(), before);
         let observed = status(&owned.jobs(), "one", &Control::default()).unwrap();
         assert_eq!(observed["recovery_required"], true, "{point}: {observed}");
         assert!(!owned.root.join("one.png").exists());
@@ -290,6 +296,14 @@ fn prepared_bytes_survive_cancel_and_interruption_without_inspection_publishing_
         job_process::process_state(interrupted.state().runner.unwrap()).unwrap()
             == job_process::ProcessState::NotRunning
     });
+    let discovered = list(
+        &interrupted.jobs(),
+        &ListOptions::default(),
+        &Control::default(),
+    )
+    .unwrap();
+    assert_eq!(discovered["records"][0]["state"], "running");
+    assert!(!interrupted.root.join("one.png").exists());
     assert_eq!(
         status(&interrupted.jobs(), "one", &Control::default()).unwrap()["state"],
         "interrupted"
