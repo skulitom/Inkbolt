@@ -284,11 +284,12 @@ pub(crate) fn evaluate(
     }
     out
 }
-pub(crate) fn apply(
+pub(crate) fn apply_region(
     item: &Item,
     pixels: &mut [f64],
     size: [u32; 3],
     world: Matrix,
+    origin: [u32; 2],
 ) -> Result<(), Error> {
     let [width, _, scale] = size;
     for f in item
@@ -313,8 +314,10 @@ pub(crate) fn apply(
             let weight = f.opacity
                 * mask.as_ref().map_or(1.0, |m| {
                     m.sample([
-                        (i % width as usize) as f64 / scale as f64 + 0.5 / scale as f64,
-                        (i / width as usize) as f64 / scale as f64 + 0.5 / scale as f64,
+                        (origin[0] as usize + i % width as usize) as f64 / scale as f64
+                            + 0.5 / scale as f64,
+                        (origin[1] as usize + i / width as usize) as f64 / scale as f64
+                            + 0.5 / scale as f64,
                     ])
                 });
             let before = straight(*dst);

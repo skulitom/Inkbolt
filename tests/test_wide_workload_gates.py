@@ -117,7 +117,8 @@ class WideWorkloadGateTests(unittest.TestCase):
             for path in (ROOT/directory).glob('*.py'):
                 modules.setdefault(path.stem, set()).add(path.relative_to(ROOT).as_posix())
         for driver, harness in [('tools/measure_wide_native.py', gates.WIDE_HARNESS),
-                                ('tools/measure_native_layout.py', gates.LAYOUT_HARNESS)]:
+                                ('tools/measure_native_layout.py', gates.LAYOUT_HARNESS),
+                                ('tools/measure_native_filter.py', gates.FILTER_HARNESS)]:
             pending = [driver]; seen = set()
             while pending:
                 name = pending.pop()
@@ -151,6 +152,23 @@ class WideWorkloadGateTests(unittest.TestCase):
             elif change == 'missing': gate['baseline']['metrics'].clear()
             else: gate['baseline']['metrics']['ignored-case'] = gate['baseline']['metrics']['wide-mixed-native']
             self.assertEqual(gates.check(gate, self.report)['status'], 'ineligible')
+
+    def test_native_filter_gate_retains_every_native_output_and_its_own_oracle(self):
+        r=copy.deepcopy(self.report)
+        r['suite']='native-filter-v1';r['selected_cases']=['native-box-blur']
+        for row in r['rows']: row['case']='native-box-blur'
+        r['candidate_files'].update({name:'3'*64 for name in gates.FILTER_HARNESS})
+        gate=gates.create(r,'4'*64,'Original filter records only')
+        self.assertEqual(gates.check(gate,r)['status'],'passed')
+        self.assertEqual(gates.check(self.gate,r)['status'],'ineligible')
+        self.assertEqual(gates.check(gate,self.report)['status'],'ineligible')
+        for field in ('calls','checks'):
+            for index in range(len(r['rows'][0][field])):
+                broken=copy.deepcopy(r);broken['rows'][0][field].pop(index)
+                self.assertEqual(gates.check(gate,broken)['status'],'ineligible')
+        for name in gates.FILTER_HARNESS:
+            changed=copy.deepcopy(r);changed['candidate_files'][name]='9'*64
+            self.assertEqual(gates.check(gate,changed)['status'],'ineligible')
 
 
 if __name__ == '__main__': unittest.main()

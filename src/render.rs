@@ -756,14 +756,14 @@ fn transform_shape(
     size: [u32; 3],
     world: Matrix,
     filters: bool,
-    light: crate::effects::Lighting,
+    (light, origin): (crate::effects::Lighting, [u32; 2]),
 ) -> Result<(), Error> {
     if (filters && item.filters.is_empty()) || (!filters && item.effects.is_empty()) {
         return Ok(());
     }
     let mut pixels: Vec<f64> = shape.iter().flat_map(|&a| [0.0, 0.0, 0.0, a]).collect();
     if filters {
-        crate::filters::apply(item, &mut pixels, size, world)?;
+        crate::filters::apply_region(item, &mut pixels, size, world, origin)?;
     } else {
         let mut shape_item = item.clone();
         shape_item.fill_opacity = 1.0;
@@ -782,7 +782,7 @@ fn decorate(
     light: crate::effects::Lighting,
 ) -> Result<(), Error> {
     if let Some(shape) = &mut surface.shape {
-        transform_shape(item, shape, size, world, false, light)?;
+        transform_shape(item, shape, size, world, false, (light, [0; 2]))?;
     }
     crate::effects::apply(item, &mut surface.pixels, size, world, light)?;
     if let Some(shape) = &mut surface.shape {
@@ -1026,9 +1026,16 @@ fn drawable_pixels(
         grade.apply(&mut pixels);
     }
     if let Some(shape) = &mut shape {
-        transform_shape(item, shape, size, world, true, resources.light)?;
+        transform_shape(
+            item,
+            shape,
+            size,
+            world,
+            true,
+            (resources.light, resources.origin),
+        )?;
     }
-    crate::filters::apply(item, &mut pixels, size, world)?;
+    crate::filters::apply_region(item, &mut pixels, size, world, resources.origin)?;
     if resources.track_shape && shape.is_none() {
         shape = Some(alphas(&pixels));
     }

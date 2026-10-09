@@ -121,7 +121,7 @@ class TiledRenderTests(unittest.TestCase):
         self.assertEqual(self.pixels(d),self.pixels(d,False))
 
     def test_nonlocal_content_and_work_limits_fail_explicitly(self):
-        item=rect(w=5,h=5); item['filters']=[dict(id='blur',operator=dict(type='box',radius=1),border='clamp')]
+        item=rect(w=5,h=5); item['filters']=[dict(id='blur',operator=dict(type='radial',center=[2,2],angle=10),border='clamp')]
         d=self.document([item],10,10)
         self.cli('document.export',document=d,format='png',render_options=dict(evaluation='tiled'),error='UNSUPPORTED_TILED_RENDER')
         d=self.document([],4097,4096)

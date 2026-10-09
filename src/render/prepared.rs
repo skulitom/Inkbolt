@@ -6,6 +6,8 @@ pub(crate) struct Prepared {
     resources: Resources,
     mask_plan: ArtworkMaskPlan,
     sparse: Option<super::sparse::Plan>,
+    neighborhood: Option<super::tiled::Neighborhood>,
+    tile_work: u64,
     pub sampling: crate::render_quality::Plan,
     pub work: u64,
     pub buffers: u64,
@@ -72,9 +74,11 @@ impl Prepared {
         let height = document.height * scale;
         let count = width as u64 * height as u64;
         let tiled = plan.options.evaluation == crate::render_quality::Evaluation::Tiled;
-        if tiled {
-            super::tiled::validate(document)?;
-        }
+        let neighborhood = if tiled {
+            super::tiled::validate(document, scale)?
+        } else {
+            None
+        };
         if count
             > if tiled {
                 super::tiled::MAX_PIXELS
@@ -149,7 +153,7 @@ impl Prepared {
                 "Render exceeds layer effect and coverage evaluation work limit",
             ));
         }
-        if count * filter_work > crate::filters::MAX_WORK {
+        if !tiled && count * filter_work > crate::filters::MAX_WORK {
             return Err(limit("Render exceeds filter evaluation work limit"));
         }
         let tiled_path_work = if tiled && spatial.is_none() {
@@ -205,7 +209,9 @@ impl Prepared {
         {
             return Err(limit("Render exceeds paint evaluation work limit"));
         }
-        let own_work = if let Some(plan) = &spatial {
+        let own_work = if let Some(neighborhood) = &neighborhood {
+            neighborhood.work(document, &texts, spatial.as_ref(), &plan, u32::MAX, control)?
+        } else if let Some(plan) = &spatial {
             if plan.paint_work > crate::paint::MAX_PAINT_WORK {
                 return Err(limit("Spatial paint work exceeds limit"));
             }
@@ -270,7 +276,8 @@ impl Prepared {
             0
         };
         let buffer_count = if tiled {
-            count.min((super::tiled::EDGE as u64).pow(2))
+            let edge = super::tiled::EDGE + 2 * neighborhood.as_ref().map_or(0, |p| p.halo);
+            u64::from(width.min(edge)) * u64::from(height.min(edge))
         } else {
             count
         };
@@ -447,6 +454,8 @@ impl Prepared {
             resources,
             mask_plan,
             sparse,
+            neighborhood,
+            tile_work: own_work,
             sampling: plan,
             work,
             buffers,
@@ -509,6 +518,23 @@ impl Prepared {
         }
         let factor = self.sampling.options.antialias.factor();
         let traversal = self.traversal(max_rows);
+        if let Some(neighborhood) = &self.neighborhood
+            && traversal.rows != self.traversal(u32::MAX).rows
+        {
+            let work = neighborhood.work(
+                &self.document,
+                &self.resources.texts,
+                self.resources.spatial.as_ref(),
+                &self.sampling,
+                max_rows,
+                &self.resources.control,
+            )?;
+            if self.work - self.tile_work + work > MAX_RENDER_WORK {
+                return Err(limit(
+                    "Codec band filter neighborhoods exceed render work limit",
+                ));
+            }
+        }
         let empty_masks = BTreeMap::new();
         let total = traversal.total;
         let mut completed = 0;
@@ -517,15 +543,26 @@ impl Prepared {
             .progress("render_tiles", completed, Some(total));
         for ([x, y], output_size) in traversal.tiles() {
             self.resources.control.check()?;
-            let size = [
+            let mut size = [
                 output_size[0] * factor,
                 output_size[1] * factor,
                 self.sampling.internal_scale,
             ];
-            let origin = [
+            let mut origin = [
                 self.sampling.offset + x * factor,
                 self.sampling.offset + y * factor,
             ];
+            if let Some(neighborhood) = &self.neighborhood {
+                let (start, extent) = neighborhood.region(
+                    origin,
+                    [size[0], size[1]],
+                    self.sampling
+                        .evaluation
+                        .map(|v| v * self.sampling.internal_scale),
+                );
+                origin = start;
+                [size[0], size[1]] = extent;
+            }
             let tile = self
                 .resources
                 .spatial
