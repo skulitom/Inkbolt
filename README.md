@@ -35,6 +35,10 @@ Success is `{"ok":true,"result":...}` with exit code 0; failure is `{"ok":false,
 
 ## Editing workflow
 
+[Versioned graphics handoffs](docs/HANDOFF.md) deliver pinned stills or ordered
+sequences to Cutbolt with explicit timing and alpha policies. Checked source
+revisions produce new deliveries while preserving previously linked artwork.
+
 1. Create or import a document with explicit color and resource policies.
 2. Inspect objects, geometry and resources before building an atomic edit batch.
 3. Save a session for revisions, durable retry receipts, grouped undo/redo and named snapshots.

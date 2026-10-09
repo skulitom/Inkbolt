@@ -24,6 +24,7 @@ pub mod filters;
 mod finite;
 pub mod fonts;
 pub mod geometry;
+pub mod handoff;
 pub mod hdr;
 pub mod hyphenation;
 pub mod image_io;
@@ -135,6 +136,27 @@ fn resolution() -> f64 {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(tag = "command", deny_unknown_fields)]
 pub enum Request {
+    #[serde(rename = "handoff.export")]
+    HandoffExport {
+        document: Document,
+        #[serde(default)]
+        resources: sessions::Resources,
+        options: handoff::Options,
+        #[serde(default)]
+        previous: Option<handoff::Pinned>,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "handoff.inspect")]
+    HandoffInspect {
+        handoff: handoff::Pinned,
+        #[serde(default)]
+        input_root: Option<PathBuf>,
+        #[serde(default)]
+        include_schedule: bool,
+        #[serde(default)]
+        control: control::Options,
+    },
     #[serde(rename = "layered.import")]
     LayeredImport {
         source_path: PathBuf,
@@ -985,6 +1007,8 @@ fn capability_report() -> Value {
         "appearance.inspect",
         "sequence.import",
         "sequence.export",
+        "handoff.export",
+        "handoff.inspect",
         "sequence.inspect",
         "sequence.open",
         "swatch.inspect",
@@ -1230,6 +1254,19 @@ fn capability_report() -> Value {
         .as_array_mut()
         .unwrap()
         .push(json!("retained_multiple_fill_stroke_appearance"));
+    capabilities["handoff"] = json!({
+        "commands":["handoff.export","handoff.inspect"],"schema_version":handoff::VERSION,
+        "selection":["still_with_explicit_sequence_frame","complete_ordered_sequence"],
+        "source":"exact_editable_snapshot_with_external_resource_bindings;history_not_bundled",
+        "identity":"SHA256_of_compact_typed_manifest_and_every_source_frame_scene_file;content_named_flat_paths",
+        "revision_update":"explicit_pinned_previous_manifest;same_link_and_document;strictly_newer_source_revision",
+        "timing":["strict","sample_start"],"ending":["hold_last","loop","transparent"],
+        "alpha":["transparent","explicit_opaque_matte"],"color":"encoded_sRGB_straight_RGBA8_PNG;no_output_ICC",
+        "files":"export_returns_base64_without_writes;inspect_input_root_checks_all_complete_files",
+        "limits":{"frames":sequences::MAX_FRAMES,"aggregate_pixels":sequences::MAX_PIXELS,
+            "canvas_pixels":handoff::MAX_PIXELS,"axis":4096,"seconds":120,"bytes":handoff::MAX_BYTES},
+        "losses":handoff::LOSSES,"automatic_relink":false,"model_trials":false
+    });
     capabilities["sequences"] = json!({
         "commands":["sequence.import","sequence.inspect","sequence.open","sequence.export"],
         "storage":"document.variants.sequence","edits":["sequence_set","sequence_frame","sequence_from_layers"],
@@ -1573,6 +1610,30 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             expected_sha256.as_deref(),
             id,
             color_policy,
+            &context.scoped(&control)?,
+        ),
+        Request::HandoffExport {
+            document,
+            resources,
+            options,
+            previous,
+            control,
+        } => handoff::export(
+            &document,
+            &resources,
+            &options,
+            previous.as_ref(),
+            &context.scoped(&control)?,
+        ),
+        Request::HandoffInspect {
+            handoff,
+            input_root,
+            include_schedule,
+            control,
+        } => handoff::inspect(
+            &handoff,
+            input_root.as_deref(),
+            include_schedule,
             &context.scoped(&control)?,
         ),
         Request::SequenceImport {

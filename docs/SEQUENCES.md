@@ -41,6 +41,11 @@ Each distinct full-canvas state becomes an immutable image asset, an editable im
 
 ## Delivery and still handoff
 
+The [versioned handoff](HANDOFF.md) prepares still or complete sequence deliveries
+with exact source/frame/scene identities, explicit destination clocks and alpha,
+checked predecessor revisions and full-file inspection. The simpler still example
+below remains available; use the versioned contract for linked deliveries.
+
 `sequence.export` accepts `document`, optional `resources`, `scale`, `render_options`, `metadata_policy` and `control`. It returns ordered PNG artifacts, stable numbered filenames, SHA-256 identities, dimensions, raw delay fractions and play count. It writes no files. Retain its receipt with all frame files: PNG alone carries no animation timing. The existing PNG output-profile, metadata, alpha and quality contracts apply. All frames must succeed before a collection is returned.
 
 `document.export`, `document.publish` and `session.publish` accept `format: "apng"`. Publication accepts `.png` or `.apng`, resolves resources and renders the complete sequence before creating a new destination. Output consists of full-canvas straight RGBA8 frames using SOURCE and no disposal. Delays and plays are preserved; the first animation frame is the static/default image. A hidden imported poster is retained in the source but is not reexported as a separate default. Metadata and density use the PNG delivery contract. APNG output is encoded sRGB; saved output profiles fail explicitly. Render sampling, padding and explicit HDR display views use the shared renderer; native high-depth animation is not implied. APNG is not an artboard-range format.

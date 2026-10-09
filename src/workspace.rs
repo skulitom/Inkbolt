@@ -153,6 +153,7 @@ const PATH_FIELDS: &[&str] = &[
     "asset_root",
     "font_root",
     "output_root",
+    "input_root",
     "link_root",
 ];
 

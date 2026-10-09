@@ -1,5 +1,10 @@
 # Original graphics examples
 
+`python examples/handoff_workflow.py --output NEW_ABSOLUTE_DIRECTORY [--cutbolt EXE]`
+prepares two checked still revisions and an ordered sequence, retaining original
+deliveries and source history. The optional local Cutbolt executable inspects and
+renders every scene. See [the versioned handoff contract](../docs/HANDOFF.md).
+
 Run `combined_prepress_workflow.py --output NEW_DIRECTORY` for an original six-plate chart, retained sources, reference proof, gamut masks and combined PDF. Optionally supply `--profile PATH`; the default synthetic profile is a demonstration, not a measured printing condition.
 
 Run `python examples/recipe_workflow.py --output ABSOLUTE_NEW_FOLDER` for an original editable duotone chart, exact scalar plates, declared appearance preview, named-ink PDF and a curve revision. The output directory must not already exist.

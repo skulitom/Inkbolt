@@ -1,5 +1,11 @@
 # Roadmap and verified scope
 
+The agent-readiness handoff work now has a versioned still/sequence manifest,
+explicit clock/alpha/end policies, source and file identities, complete-file
+inspection and a runnable source-revision workflow. This advances A7 without
+awarding any of the six remaining engine checkpoints or implying model-task
+acceptance; see [the handoff contract](HANDOFF.md).
+
 Deep transform hierarchies now use a bounded-error ordinary path and exact
 composition when large nearly inverse matrices make that necessary. Independent
 rational and pixel fixtures include a 5,000-object shared hierarchy, bounded

@@ -174,6 +174,12 @@ fn description(command: &str) -> &'static str {
         "sequence.export" => {
             "Return independent PNG artifacts in exact frame order, with filenames, hashes, delay fractions and play count. Source artwork stays unchanged; no partial batch is returned on failure. Local image/font stores and render settings are explicit."
         }
+        "handoff.export" => {
+            "Prepare versioned content-bound still or sequence files and a Cutbolt scene. Requires explicit timing, alpha and ending policies. Pins the exact editable source, PNGs and scene; optional previous manifest must match the link and precede the new source revision. Returns files without writing them."
+        }
+        "handoff.inspect" => {
+            "Verify a pinned handoff manifest and its exact rational frame schedule. With input_root, verify all delivered files, editable source identity and PNG format. Missing or changed files fail; inspection never follows source resource bindings or mutates a linked revision."
+        }
         "volume.inspect" => {
             "Inspect retained extrusion, camera, lighting and projected vector faces"
         }

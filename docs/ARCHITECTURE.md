@@ -1,5 +1,12 @@
 # Architecture
 
+`handoff` prepares pure versioned file collections containing exact source
+snapshots, flattened sRGB PNGs, a derived Cutbolt scene and a pinned manifest.
+Original rational clock planning exposes strict alignment or explicit frame-start
+sampling, independent of playback. Content-derived flat names and bounded file
+inspection verify complete deliveries; predecessor pins require the same link and
+document with a newer source revision. No destination project is modified.
+
 `scene::hierarchy` bounds ordinary composition error using fused product
 residuals, error-free sum residuals and upward-rounded error propagation. An exact
 rational chain product with certified final binary64 rounding handles unstable
