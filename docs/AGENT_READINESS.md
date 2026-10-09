@@ -16,6 +16,8 @@ Accepted 9 October 2026. This work improves practical agent use without changing
 
 Order: baseline and compact discovery; workspace/references/compact results; dry runs/previews/diagnostics; durable jobs and recovery; practical raster scale and caching; packaged workflows and final acceptance. Original engine completion proceeds alongside those stages where the dependencies allow. A migration contract precedes storage changes that need it. Cache correctness depends on fixed revisions and content identities. A job receipt must distinguish committed output from interrupted work before retry automation is enabled.
 
+A4 process foundation: the Windows [contained worker library](JOB_PROCESSES.md) now has real-process checks for startup gating, supervisor death, owned cancellation, deadlines without polling, committed-memory caps, executable identity and OS lease recovery. Durable queue integration and publication/cancellation serialization remain open; library containment alone does not complete the jobs requirement.
+
 Do not infer a Linux or macOS support promise from the sister project's roadmap. The initial measured environment is Windows; each additional claimed platform requires equivalent evidence. No network listener, hosted dependency, account or telemetry is introduced. Preserve the research boundary, immutable sources, create-only outputs, explicit color and unsupported-semantics policies, dependency notices and existing history guarantees.
 
 ## Benchmark tasks

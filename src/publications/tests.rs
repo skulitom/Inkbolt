@@ -375,7 +375,7 @@ fn aggregate_receipt_budget_rejects_growth_without_evicting_existing_records() {
             }
         }
     }
-    assert!(inserted >= 63 && inserted < MAX_RECORDS);
+    assert!((63..MAX_RECORDS).contains(&inserted));
     tx.commit().unwrap();
     let total: i64 = db
         .query_row("SELECT SUM(length(payload)) FROM publications", [], |r| {

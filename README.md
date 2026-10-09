@@ -8,7 +8,7 @@ Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). C
 
 ## Start locally
 
-Build with Rust/Cargo. Development verification also uses Python 3.11+. Dependencies are locked in Cargo.lock and remain in the external package cache.
+Build with Rust/Cargo; current verification uses Rust 1.98.1. Worker leases require the file-locking API introduced in Rust 1.89. Development verification also uses Python 3.11+. Dependencies are locked in Cargo.lock and remain in the external package cache.
 
 ```powershell
 cargo build --locked
@@ -47,7 +47,7 @@ The engine covers vector geometry, typography, artboards, retained raster edits,
 
 The standard vector profile holds 256 items; an explicit large-vector profile holds 8,192. Inline mutable pixel storage is limited to 65,536 pixels, and rendered output to 1,048,576 pixels. Storage allowances do not increase independent processing budgets. See [large documents](docs/LARGE_VECTOR.md) and capability reporting before selecting a workload.
 
-Sessions retain external resource bindings, not a self-contained resource archive. History has explicit limits and no silent eviction. Checked backup, migration and linked continuation are available. Optional durable output receipts support recovery on the verified Windows backend. Persistent render jobs and production-sized raster editing remain readiness work. Unknown semantics fail explicitly.
+Sessions retain external resource bindings, not a self-contained resource archive. History has explicit limits and no silent eviction. Checked backup, migration and linked continuation are available. Optional durable output receipts support recovery on the verified Windows backend. The [contained worker library](docs/JOB_PROCESSES.md) provides process lifetime and memory limits; persistent render jobs and production-sized raster editing remain readiness work. Unknown semantics fail explicitly.
 
 ## Development and provenance
 
