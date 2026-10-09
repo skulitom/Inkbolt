@@ -1,5 +1,12 @@
 # Roadmap and verified scope
 
+The [agent task benchmark](AGENT_BENCHMARK.md) now has twelve independently
+judged scripted CLI/MCP adapters within the unchanged twenty-task inventory.
+Release identity, exact traffic and per-task measurements are retained; missing
+adapters and failures prevent complete-suite acceptance. Eight adapters, actual
+model trials and matched Cutbolt comparisons remain required. The engine registry
+stays at 161/167.
+
 Versioned typed document presets and a reviewed-edit/publication example now
 package common screen/social and physical-page workflows. Explicit dimensions,
 alpha/color choices, exact physical trim, bleed units and create-only delivery
