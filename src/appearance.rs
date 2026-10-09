@@ -183,13 +183,21 @@ pub(crate) fn evaluate(d: &Document) -> Result<Option<Document>, Error> {
     copy.variants = None;
     Ok(Some(copy))
 }
-pub(crate) fn validate(d: &Document) -> Result<(), Error> {
+pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Result<(), Error> {
     if let Some(copy) = evaluate(d)? {
-        crate::model::validate(&copy)?;
+        crate::model::validate_controlled(&copy, control)?;
     }
     Ok(())
 }
 pub(crate) fn bounds(spec: &Spec, matrix: Matrix) -> Result<geometry::Bounds, Error> {
+    bounds_controlled(spec, matrix, &crate::control::Control::default())
+}
+fn bounds_controlled(
+    spec: &Spec,
+    matrix: Matrix,
+    control: &crate::control::Control,
+) -> Result<geometry::Bounds, Error> {
+    control.check()?;
     stored(spec)?;
     spec.passes
         .iter()
@@ -197,7 +205,7 @@ pub(crate) fn bounds(spec: &Spec, matrix: Matrix) -> Result<geometry::Bounds, Er
             let g = if p.maps.is_empty() {
                 spec.geometry.clone()
             } else {
-                crate::warps::plan(&warp(spec, p))?.geometry
+                crate::warps::plan_controlled(&warp(spec, p), control)?.geometry
             };
             Ok(geometry::bounds(&g, matrix))
         })
@@ -206,12 +214,16 @@ pub(crate) fn bounds(spec: &Spec, matrix: Matrix) -> Result<geometry::Bounds, Er
         .reduce(scene::union)
         .ok_or_else(|| invalid("No appearance bounds"))
 }
-pub(crate) fn expand(d: &mut Document, index: usize) -> Result<Value, Error> {
+pub(crate) fn expand(
+    d: &mut Document,
+    index: usize,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
     let mut used = d.items.iter().map(|i| i.id.clone()).collect();
     let mut items = generated(&d.items[index], &mut used)?;
     for item in &mut items {
         if let Content::Warp { warp } = &item.content {
-            item.content = crate::warps::content(warp)?;
+            item.content = crate::warps::content_controlled(warp, control)?;
         }
     }
     let ids: Vec<_> = items.iter().skip(1).map(|i| i.id.clone()).collect();
@@ -221,13 +233,20 @@ pub(crate) fn expand(d: &mut Document, index: usize) -> Result<Value, Error> {
     )
 }
 pub fn inspect(d: &Document, id: &str) -> Result<Value, Error> {
-    crate::validate(d)?;
+    inspect_controlled(d, id, &crate::control::Control::default())
+}
+pub fn inspect_controlled(
+    d: &Document,
+    id: &str,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
+    crate::model::validate_controlled(d, control)?;
     let i = scene::index(d, id)?;
     let Content::Appearance { appearance: spec } = &d.items[i].content else {
         return Err(invalid("Appearance inspection requires an appearance item"));
     };
     Ok(
-        json!({"id":id,"source":spec.geometry,"fill_rule":spec.fill_rule,"passes":spec.passes,"order":"bottom_to_top","pipeline":"ordered_geometry_maps_then_fill_and_stroke_then_ordered_raster_filters_then_decorations;outer_item_controls_apply_to_isolated_stack","bounds":bounds(spec,scene::world_transform(d,i)?)?,"bounds_semantics":"geometry_including_disabled_passes;excludes_strokes_and_raster_effects","source_preserved":true}),
+        json!({"id":id,"source":spec.geometry,"fill_rule":spec.fill_rule,"passes":spec.passes,"order":"bottom_to_top","pipeline":"ordered_geometry_maps_then_fill_and_stroke_then_ordered_raster_filters_then_decorations;outer_item_controls_apply_to_isolated_stack","bounds":bounds_controlled(spec,scene::world_transform(d,i)?,control)?,"bounds_semantics":"geometry_including_disabled_passes;excludes_strokes_and_raster_effects","source_preserved":true}),
     )
 }
 

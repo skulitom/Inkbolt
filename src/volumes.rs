@@ -278,8 +278,12 @@ pub(crate) struct Plan {
     pub error: f64,
 }
 pub(crate) fn plan(s: &Spec) -> Result<Plan, Error> {
+    plan_controlled(s, &crate::control::Control::default())
+}
+fn plan_controlled(s: &Spec, control: &crate::control::Control) -> Result<Plan, Error> {
+    control.check()?;
     stored(s)?;
-    let profile = profile::build(s)?;
+    let profile = profile::build(s, control)?;
     let mut faces = vec![];
     let front: Vec<Vec<Point3>> = profile
         .contours
@@ -349,7 +353,7 @@ pub(crate) fn plan(s: &Spec) -> Result<Plan, Error> {
         }
     }
     faces.retain(|f| f.visible(&s.camera));
-    let faces = bsp::ordered(faces, &s.camera)?;
+    let faces = bsp::ordered(faces, &s.camera, control)?;
     let mut commands = 0;
     for f in &faces {
         commands += geometry::validate_geometry(&f.geometry(&s.camera)?)?;
@@ -365,11 +369,15 @@ pub(crate) fn plan(s: &Spec) -> Result<Plan, Error> {
         error: profile.error,
     })
 }
-fn generated(item: &Item, used: &mut HashSet<String>) -> Result<Vec<Item>, Error> {
+fn generated(
+    item: &Item,
+    used: &mut HashSet<String>,
+    control: &crate::control::Control,
+) -> Result<Vec<Item>, Error> {
     let Content::Volume { volume } = &item.content else {
         return Err(invalid("A volume item is required"));
     };
-    let plan = plan(volume)?;
+    let plan = plan_controlled(volume, control)?;
     let mut out = vec![Item {
         content: Content::Group {
             isolated: true,
@@ -395,7 +403,10 @@ fn generated(item: &Item, used: &mut HashSet<String>) -> Result<Vec<Item>, Error
     }
     Ok(out)
 }
-pub(crate) fn evaluate(d: &Document) -> Result<Option<Document>, Error> {
+pub(crate) fn evaluate(
+    d: &Document,
+    control: &crate::control::Control,
+) -> Result<Option<Document>, Error> {
     if !d
         .items
         .iter()
@@ -407,7 +418,7 @@ pub(crate) fn evaluate(d: &Document) -> Result<Option<Document>, Error> {
     let mut items = vec![];
     for i in &d.items {
         if matches!(i.content, Content::Volume { .. }) {
-            items.extend(generated(i, &mut used)?);
+            items.extend(generated(i, &mut used, control)?);
         } else {
             items.push(i.clone());
         }
@@ -422,9 +433,9 @@ pub(crate) fn evaluate(d: &Document) -> Result<Option<Document>, Error> {
     copy.variants = None;
     Ok(Some(copy))
 }
-pub(crate) fn validate(d: &Document) -> Result<(), Error> {
-    if let Some(copy) = evaluate(d)? {
-        crate::model::validate(&copy)?;
+pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Result<(), Error> {
+    if let Some(copy) = evaluate(d, control)? {
+        crate::model::validate_controlled(&copy, control)?;
     }
     Ok(())
 }
@@ -439,9 +450,13 @@ pub(crate) fn bounds(s: &Spec, matrix: Matrix) -> Result<geometry::Bounds, Error
         .reduce(scene::union)
         .unwrap())
 }
-pub(crate) fn expand(d: &mut Document, index: usize) -> Result<Value, Error> {
+pub(crate) fn expand(
+    d: &mut Document,
+    index: usize,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
     let mut used = d.items.iter().map(|i| i.id.clone()).collect();
-    let items = generated(&d.items[index], &mut used)?;
+    let items = generated(&d.items[index], &mut used, control)?;
     let ids: Vec<_> = items.iter().skip(1).map(|i| i.id.clone()).collect();
     d.items.splice(index..=index, items);
     Ok(
@@ -449,12 +464,19 @@ pub(crate) fn expand(d: &mut Document, index: usize) -> Result<Value, Error> {
     )
 }
 pub fn inspect(d: &Document, id: &str) -> Result<Value, Error> {
-    crate::validate(d)?;
+    inspect_controlled(d, id, &crate::control::Control::default())
+}
+pub fn inspect_controlled(
+    d: &Document,
+    id: &str,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
+    crate::model::validate_controlled(d, control)?;
     let i = scene::index(d, id)?;
     let Content::Volume { volume } = &d.items[i].content else {
         return Err(invalid("Volume inspection requires a volume item"));
     };
-    let p = plan(volume)?;
+    let p = plan_controlled(volume, control)?;
     let faces=p.faces.iter().map(|f|Ok(json!({"part":f.part,"normal":f.normal,"rgba":f.rgba,"vertices":f.contours,"geometry":f.geometry(&volume.camera)?}))).collect::<Result<Vec<_>,Error>>()?;
     Ok(
         json!({"id":id,"source":volume,"profile_edges":p.profile_edges,"source_curve_error_bound":p.error,"local_bounds":p.bounds,"faces":faces,"order":"far_to_near_bsp","lighting_space":"linear_srgb_diffuse_then_encoded_srgb_paints","dependencies":"built_in_cpu_geometry_and_materials;no_models_gpu_files_or_network","source_preserved":true}),

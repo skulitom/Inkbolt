@@ -214,7 +214,7 @@ fn apply_values(
     }
     Ok(changed)
 }
-pub(crate) fn validate(d: &Document) -> Result<(), Error> {
+pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Result<(), Error> {
     let Some(state) = &d.variants else {
         return Ok(());
     };
@@ -281,7 +281,7 @@ pub(crate) fn validate(d: &Document) -> Result<(), Error> {
         let mut candidate = d.clone();
         candidate.variants = None;
         apply_values(&mut candidate, state, &values(state, selected)?, false)?;
-        crate::model::validate(&candidate).map_err(|mut e| {
+        crate::model::validate_controlled(&candidate, control).map_err(|mut e| {
             e.message = format!("Variant {}: {}", selected.unwrap_or("<base>"), e.message);
             e
         })?;

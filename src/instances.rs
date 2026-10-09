@@ -289,7 +289,7 @@ pub(crate) fn instance_view(d: &Document, i: usize) -> Result<Document, Error> {
     b.emit(item.clone(), item.transform, &[])?;
     Ok(b.finish())
 }
-pub(crate) fn validate(d: &Document) -> Result<(), Error> {
+pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Result<(), Error> {
     let definitions: Vec<_> = d
         .items
         .iter()
@@ -361,10 +361,10 @@ pub(crate) fn validate(d: &Document) -> Result<(), Error> {
             filters: vec![],
         };
         b.emit(virtual_item, identity(), &[])?;
-        crate::model::validate(&b.finish())?;
+        crate::model::validate_controlled(&b.finish(), control)?;
     }
     if let Some(expanded) = evaluate(d)? {
-        crate::model::validate(&expanded)?;
+        crate::model::validate_controlled(&expanded, control)?;
     }
     Ok(())
 }

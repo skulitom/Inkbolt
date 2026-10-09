@@ -45,7 +45,9 @@ fn recurse(
     camera: &Camera,
     depth: usize,
     budget: &mut usize,
+    control: &crate::control::Control,
 ) -> Result<Vec<Face>, Error> {
+    control.check()?;
     if faces.is_empty() {
         return Ok(vec![]);
     }
@@ -60,6 +62,7 @@ fn recurse(
     let mut front = vec![];
     let mut back = vec![];
     for f in faces {
+        control.check()?;
         eps = eps.max(epsilon(&f));
         let mut positive = false;
         let mut negative = false;
@@ -99,15 +102,19 @@ fn recurse(
     } else {
         (front, back)
     };
-    let mut out = recurse(far, camera, depth + 1, budget)?;
+    let mut out = recurse(far, camera, depth + 1, budget, control)?;
     out.extend(coplanar);
-    out.extend(recurse(near, camera, depth + 1, budget)?);
+    out.extend(recurse(near, camera, depth + 1, budget, control)?);
     Ok(out)
 }
-pub(super) fn ordered(faces: Vec<Face>, camera: &Camera) -> Result<Vec<Face>, Error> {
+pub(super) fn ordered(
+    faces: Vec<Face>,
+    camera: &Camera,
+    control: &crate::control::Control,
+) -> Result<Vec<Face>, Error> {
     let mut budget = faces.len();
     if budget > MAX_FACES {
         return Err(limit("Volume exceeds 192 faces"));
     }
-    recurse(faces, camera, 0, &mut budget)
+    recurse(faces, camera, 0, &mut budget, control)
 }

@@ -1,5 +1,13 @@
 # Roadmap and verified scope
 
+Retained vector preparation now preserves cancellation through certified warps,
+dimensional profiles and recursive validation. Oversized dimensional profiles can
+fail as soon as an exact nonredundant-vertex bound proves the existing edge budget
+is exceeded. Collinear subdivisions, accepted geometry, history and publication
+contracts are preserved. This improves bounded work and routine feedback; the
+complete resource/extreme-scale acceptance review and the original six open
+checkpoints remain required.
+
 The accepted [agent-readiness plan](AGENT_READINESS.md) tracks interface efficiency, operational recovery, practical workloads and benchmark evidence separately. Compact discovery and focused schemas add no credit to the 167 original engine checkpoints.
 
 Opt-in [native block documents](NATIVE_SAMPLE_STORAGE.md) now retain multi-megapixel PNG/TIFF sources, exact local patch edits, native clone/heal retouch and all four pixel-brush modes with bounded local storage and pure patches, review proposals and durable history. [Tiled evaluation](RENDER_QUALITY.md) supports full-size screen/social/print PNG and native-depth TIFF strips for the declared composition subset, including bounded filters, shadows, strokes and overlays. Wider filter coverage, streaming decoding, remaining native operators, representative production compositions and complete measured scale acceptance remain open. The original total remains **161/167**.

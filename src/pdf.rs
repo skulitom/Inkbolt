@@ -821,9 +821,15 @@ pub fn export_controlled(
     let document = instances.as_ref().unwrap_or(document);
     let appearance = crate::appearance::evaluate(document)?;
     let document = appearance.as_ref().unwrap_or(document);
-    let volume = crate::volumes::evaluate(document)?;
+    let volume = crate::volumes::evaluate(
+        document,
+        control.unwrap_or(&crate::control::Control::default()),
+    )?;
     let document = volume.as_ref().unwrap_or(document);
-    let warps = crate::warps::evaluate(document)?;
+    let warps = crate::warps::evaluate_controlled(
+        document,
+        control.unwrap_or(&crate::control::Control::default()),
+    )?;
     let document = warps.as_ref().unwrap_or(document);
     let repeats = crate::repeats::evaluate(document)?;
     let document = repeats.as_ref().unwrap_or(document);

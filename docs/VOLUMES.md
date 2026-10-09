@@ -4,6 +4,17 @@ Both dimensional vector checkpoints are verified. The original engine retains cl
 
 ## Source and editing
 
+Preparation carries the caller's cancellation control through exact curve
+subdivision, redundant-point removal, topology checks and face partitioning.
+Profile rejection can finish early when an exact lower bound already exceeds
+128 edges: only nonredundant interior vertices count toward that bound. Straight
+subdivisions, including nonuniformly parameterized collinear cubics, retain their
+previous acceptance and projected geometry. Exact coordinates are converted once
+for profile cleanup and reused for topology. No tolerance or resource allowance
+was enlarged. The independent cancellation, history and boundary fixtures are in
+`tests/test_vector_preparation_cli.py`; existing inverse-ray and delivery fixtures
+remain required.
+
 Use `content.type:"volume"` with a `volume` specification. It requires `geometry`, `depth` and `material`. Optional controls are `fill_rule`, `rotation`, `pivot`, `translation`, `camera` and `tolerance`. `volume.inspect` accepts a document and item ID and returns retained source, projected geometry, 3D vertices/normals, face colors and far-to-near order. Atomic `volume` edits replace the specification on an ordinary vector or existing volume item.
 
 ```json

@@ -498,9 +498,9 @@ pub(crate) fn evaluate(d: &Document) -> Result<Option<Document>, Error> {
     d.variants = None;
     Ok(Some(d))
 }
-pub(crate) fn validate(d: &Document) -> Result<(), Error> {
+pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Result<(), Error> {
     if let Some(expanded) = evaluate(d)? {
-        crate::model::validate(&expanded)?;
+        crate::model::validate_controlled(&expanded, control)?;
     }
     Ok(())
 }

@@ -1,5 +1,13 @@
 # Architecture
 
+Retained vector preparation receives explicit caller controls. Certified warp
+subdivision, dimensional profile cleanup/topology and face partitioning check that
+control; recursive validation preserves it through generated component,
+appearance, repeat, interpolation and variant documents. A streaming exact turn
+count supplies a conservative lower bound on dimensional profile edges, allowing
+early rejection without charging redundant straight subdivisions. Accepted
+geometry still uses the original full certificate and topology checks.
+
 Bounded tiled filters and layer effects plan cumulative source support through stacks and ancestors. Sequential filter supports add; effects share immutable source alpha, so their maximum support adds to the filter support. The shared implementations evaluate expanded regions clipped to the full padded viewport, then only the finished interior is projected. Global mask/effect-paint coordinates and real borders remain stable. Exact visited regions, including shortened TIFF bands, feed work accounting; neighborhood scratch feeds the existing memory bound. Unblurred integer-offset shadows borrow original alpha and sample one exact tap, with a reduced work charge and unchanged processing limits. See [render quality](RENDER_QUALITY.md).
 
 The explicit [large raster profile](LARGE_RASTER.md) admits ordinary vector overlays and up to 8,192 raster-document items. It uses the existing native block store, conservative spatial evaluator and neighboring-tile reuse, with unchanged processing budgets. A separate original 5,000-annotation native-image workload checks precise source pixels, both annotation kinds, atomic edits and historical output.

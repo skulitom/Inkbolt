@@ -432,11 +432,11 @@ pub fn export_controlled(
         },
         options.render_options,
     )?;
-    crate::validate(document)?;
+    crate::model::validate_controlled(document, control)?;
     let expanded = crate::instances::evaluate(document)?;
     let variants = document.variants.as_ref();
     let document = expanded.as_ref().unwrap_or(document);
-    let warped = crate::warps::evaluate(document)?;
+    let warped = crate::warps::evaluate_controlled(document, control)?;
     let document = warped.as_ref().unwrap_or(document);
     let repeated = crate::repeats::evaluate(document)?;
     let document = repeated.as_ref().unwrap_or(document);

@@ -1193,6 +1193,8 @@ fn capability_report() -> Value {
         "lights":8,"light_intensity":[0,8],"light_space":"post_rotation_3D;direction_toward_light",
         "opacity":"opaque_surface;outer_item_opacity_after_solid_compositing",
         "maximum_profile_edges":volumes::MAX_EDGES,"maximum_projected_faces":volumes::MAX_FACES,
+        "early_profile_limit":"exact_nonredundant_interior_vertex_lower_bound;collinear_subdivision_does_not_spend_edges",
+        "preparation_cancellation":"caller_control_during_certified_subdivision_exact_profile_topology_and_face_partition",
         "visibility":"back_face_culling_and_bounded_BSP_partition_far_to_near",
         "numeric":"binary64_rigid_projection_and_plane_splits;shared_renderer_edge_quantization",
         "expansion":"independent_ordered_vector_faces;original_source_in_snapshot_or_history",
@@ -1612,8 +1614,12 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             asset_root.as_deref(),
             &context.scoped(&control)?,
         ),
-        Request::VolumeInspect { document, id } => volumes::inspect(&document, &id),
-        Request::AppearanceInspect { document, id } => appearance::inspect(&document, &id),
+        Request::VolumeInspect { document, id } => {
+            volumes::inspect_controlled(&document, &id, context)
+        }
+        Request::AppearanceInspect { document, id } => {
+            appearance::inspect_controlled(&document, &id, context)
+        }
         Request::SequenceInspect { document } => sequences::inspect(&document),
         Request::SequenceOpen { document, id } => sequences::open(&document, &id),
         Request::ObjectImport {

@@ -737,7 +737,7 @@ fn apply_one(
         Operation::VolumeExpand { id } => {
             let i = index(document, id)?;
             scene::check_unlocked(document, i, true)?;
-            *details = Some(crate::volumes::expand(document, i)?);
+            *details = Some(crate::volumes::expand(document, i, control)?);
             Ok((id.clone(), "volume_expanded"))
         }
         Operation::Appearance { id, appearance } => {
@@ -773,7 +773,7 @@ fn apply_one(
         Operation::AppearanceExpand { id } => {
             let i = index(document, id)?;
             scene::check_unlocked(document, i, true)?;
-            *details = Some(crate::appearance::expand(document, i)?);
+            *details = Some(crate::appearance::expand(document, i, control)?);
             Ok((id.clone(), "appearance_expanded"))
         }
         Operation::ObjectReplace {
@@ -895,7 +895,7 @@ fn apply_one(
                     "Expansion requires a warp item",
                 ));
             };
-            document.items[i].content = crate::warps::content(warp)?;
+            document.items[i].content = crate::warps::content_controlled(warp, control)?;
             *details = Some(
                 serde_json::json!({"source_retained_in_input":true,"expansion":"certified_polyline_geometry"}),
             );

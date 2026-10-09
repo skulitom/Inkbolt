@@ -18,6 +18,23 @@ The original workload tests retain 5,000 individually editable colored cells thr
 
 SVG import, validation, edits, SVG/PDF serialization and PNG/preview drawing check the caller's cancellation token during work. `document.export` and `document.render` accept the shared optional `control` object; timeouts and cancellation propagate through the same local engine. Publication remains create-only and exposes no partial output. Blocking filesystem reads and individual codec calls are not forcefully interrupted.
 
+Retained warp subdivision and dimensional profile preparation now receive the
+caller's control explicitly. Recursive component, appearance, repeat,
+interpolation and variant validation preserves it instead of creating an
+uncontrolled validation context. Ordinary rendering, SVG/PDF delivery, native ink
+preparation and explicit expansion pass the same control to the retained vector
+evaluators. Dimensional and appearance inspection also observes the stdio
+caller's cancellation token. This is cooperative cancellation, not a hard
+real-time guarantee for every engine operation.
+
+The dimensional profile planner rejects a workload as soon as exact arithmetic
+proves more than 128 nonredundant interior vertices. It still accepts arbitrarily
+subdivided straight runs within the independent source/expansion bounds. The
+existing final edge limit, curve certificate, topology checks and source retention
+are unchanged. `tests/test_vector_preparation_cli.py` checks active marker and
+stdio cancellation, deadlines across delivery formats, recursive validation,
+unchanged session history, collinear cubic subdivisions and the 128-edge boundary.
+
 The base drawing work is charged once; artwork-mask preparation adds only its own work. This accounting is shared with retained source-tree preparation and leaves the independent ink-rendering calculation intact.
 
 Large-vector scenes consisting of ordinary vector fills/strokes and neutral groups use regional evaluation. Each visible object's conservative transformed control bounds, including its generated stroke, are padded by two evaluation pixels and clipped to the viewport. Only that rectangle is allocated and visited. Paint coordinates stay in the original item space, sibling order is preserved, and hidden subtrees do not draw. Source validation and resource verification still run over the complete document. Scan, paint, composition and control work use the actual rectangles; peak buffers include the output and largest region. Dense overlap can still exceed the unchanged processing limit.

@@ -1027,13 +1027,13 @@ pub fn validate_controlled(
     crate::layer_clipping::validate(document)?;
     crate::effects::validate(document)?;
     crate::knockout::validate(document)?;
-    crate::instances::validate(document)?;
-    crate::appearance::validate(document)?;
-    crate::volumes::validate(document)?;
-    crate::warps::validate(document)?;
-    crate::repeats::validate(document)?;
-    crate::interpolation::validate(document)?;
-    crate::variants::validate(document)?;
+    crate::instances::validate(document, control)?;
+    crate::appearance::validate(document, control)?;
+    crate::volumes::validate(document, control)?;
+    crate::warps::validate(document, control)?;
+    crate::repeats::validate(document, control)?;
+    crate::interpolation::validate(document, control)?;
+    crate::variants::validate(document, control)?;
     if serde_json::to_vec(document)
         .map_err(|_| invalid("Document cannot be serialized"))?
         .len()

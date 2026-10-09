@@ -359,6 +359,7 @@ pub(super) fn flatten(
     edge: usize,
     budget: &mut Budget,
     out: &mut Vec<Segment>,
+    observer: &mut dyn FnMut(&Segment) -> Result<(), Error>,
 ) -> Result<(), Error> {
     struct Walk<'a> {
         tolerance: R,
@@ -367,6 +368,7 @@ pub(super) fn flatten(
         edge: usize,
         budget: &'a mut Budget,
         out: &'a mut Vec<Segment>,
+        observer: &'a mut dyn FnMut(&Segment) -> Result<(), Error>,
     }
     impl Walk<'_> {
         fn visit(&mut self, c: Curve, lo: f64, hi: f64, depth: usize) -> Result<(), Error> {
@@ -377,7 +379,7 @@ pub(super) fn flatten(
                 if self.out.len() == MAX_SEGMENTS {
                     return Err(limit("Warp expansion exceeds 4096 certified segments"));
                 }
-                self.out.push(Segment {
+                let segment = Segment {
                     contour: self.contour,
                     edge: self.edge,
                     parameter: [lo, hi],
@@ -387,7 +389,9 @@ pub(super) fn flatten(
                     // caller's encoded tolerance as an upper bound.
                     error_bound: upper_root(&error).min(self.encoded_tolerance),
                     degree: c.len() - 1,
-                });
+                };
+                (self.observer)(&segment)?;
+                self.out.push(segment);
                 return Ok(());
             }
             if depth == MAX_DEPTH {
@@ -408,6 +412,7 @@ pub(super) fn flatten(
         edge,
         budget,
         out,
+        observer,
     }
     .visit(c, 0., 1., 0)
 }

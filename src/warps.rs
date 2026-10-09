@@ -134,6 +134,13 @@ pub(crate) struct Plan {
 }
 impl Plan {
     fn new(spec: &Spec, budget: &mut exact::Budget) -> Result<Self, Error> {
+        Self::observed(spec, budget, &mut |_| Ok(()))
+    }
+    fn observed(
+        spec: &Spec,
+        budget: &mut exact::Budget,
+        observer: &mut dyn FnMut(&Segment) -> Result<(), Error>,
+    ) -> Result<Self, Error> {
         stored(spec)?;
         let maps = exact::prepare(&spec.maps, budget)?;
         let Geometry::Path { commands } = crate::primitives::expand(&spec.geometry)? else {
@@ -165,7 +172,15 @@ impl Plan {
             for (ei, edge) in contour.edges.iter().enumerate() {
                 let start = segments.len();
                 let mapped = exact::apply(exact::source(edge), &maps, budget)?;
-                exact::flatten(mapped, spec.tolerance, ci, ei, budget, &mut segments)?;
+                exact::flatten(
+                    mapped,
+                    spec.tolerance,
+                    ci,
+                    ei,
+                    budget,
+                    &mut segments,
+                    observer,
+                )?;
                 if ei == 0 {
                     commands.push(PathCommand::Move {
                         to: segments[start].from,
@@ -190,7 +205,27 @@ impl Plan {
     }
 }
 pub(crate) fn plan(spec: &Spec) -> Result<Plan, Error> {
-    Plan::new(spec, &mut exact::Budget::default())
+    plan_controlled(spec, &crate::control::Control::default())
+}
+pub(crate) fn plan_controlled(
+    spec: &Spec,
+    control: &crate::control::Control,
+) -> Result<Plan, Error> {
+    plan_observed(spec, control, &mut |_| Ok(()))
+}
+pub(crate) fn plan_observed(
+    spec: &Spec,
+    control: &crate::control::Control,
+    observer: &mut dyn FnMut(&Segment) -> Result<(), Error>,
+) -> Result<Plan, Error> {
+    control.check()?;
+    let plan = Plan::observed(
+        spec,
+        &mut exact::Budget::controlled(control.clone()),
+        observer,
+    )?;
+    control.check()?;
+    Ok(plan)
 }
 fn vector(spec: &Spec, geometry: Geometry) -> Content {
     Content::Vector {
@@ -200,10 +235,20 @@ fn vector(spec: &Spec, geometry: Geometry) -> Content {
         fill_rule: spec.fill_rule,
     }
 }
-pub(crate) fn content(spec: &Spec) -> Result<Content, Error> {
-    Ok(vector(spec, plan(spec)?.geometry))
+pub(crate) fn content_controlled(
+    spec: &Spec,
+    control: &crate::control::Control,
+) -> Result<Content, Error> {
+    Ok(vector(spec, plan_controlled(spec, control)?.geometry))
 }
 pub(crate) fn evaluate(document: &Document) -> Result<Option<Document>, Error> {
+    evaluate_controlled(document, &crate::control::Control::default())
+}
+pub(crate) fn evaluate_controlled(
+    document: &Document,
+    control: &crate::control::Control,
+) -> Result<Option<Document>, Error> {
+    control.check()?;
     if !document
         .items
         .iter()
@@ -212,10 +257,11 @@ pub(crate) fn evaluate(document: &Document) -> Result<Option<Document>, Error> {
         return Ok(None);
     }
     let mut d = document.clone();
-    let mut budget = exact::Budget::default();
+    let mut budget = exact::Budget::controlled(control.clone());
     let mut commands = 0;
     for i in &mut d.items {
         if let Content::Warp { warp } = &i.content {
+            control.check()?;
             let p = Plan::new(warp, &mut budget)?;
             commands += geo::validate_geometry(&p.geometry)?;
             if commands > MAX_SEGMENTS {
@@ -225,11 +271,15 @@ pub(crate) fn evaluate(document: &Document) -> Result<Option<Document>, Error> {
         }
     }
     d.variants = None;
+    control.check()?;
     Ok(Some(d))
 }
-pub(crate) fn validate(document: &Document) -> Result<(), Error> {
-    if let Some(d) = evaluate(document)? {
-        crate::model::validate(&d)?;
+pub(crate) fn validate(
+    document: &Document,
+    control: &crate::control::Control,
+) -> Result<(), Error> {
+    if let Some(d) = evaluate_controlled(document, control)? {
+        crate::model::validate_controlled(&d, control)?;
     }
     Ok(())
 }
@@ -285,7 +335,7 @@ pub fn inspect(
     let plan = Plan::new(spec, &mut budget)?;
     // Style and ordinary generated-document checks share the real vector contract.
     let d:Document=serde_json::from_value(serde_json::json!({"schema_version":2,"id":"warp-inspection","kind":"vector","width":1,"height":1,"color_space":"srgb","items":[{"id":"warp","content":vector(spec,plan.geometry.clone())}]})).map_err(|e|invalid(&e.to_string()))?;
-    crate::model::validate(&d)?;
+    crate::model::validate_controlled(&d, control)?;
     let maps = exact::prepare(&spec.maps, &mut budget)?;
     let mapped = samples
         .iter()
@@ -315,6 +365,24 @@ pub fn inspect(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cancellation_reaches_an_active_certified_segment_stream() {
+        let spec: Spec = serde_json::from_value(serde_json::json!({
+            "geometry":{"shape":"ellipse","cx":18,"cy":18,"rx":10,"ry":8},
+            "maps":[{"type":"affine","matrix":[1,0,0,1,0,0]}],
+            "tolerance":0.000001
+        }))
+        .unwrap();
+        let control = crate::control::Control::default();
+        let mut visited = 0;
+        let result = plan_observed(&spec, &control, &mut |_| {
+            visited += 1;
+            control.cancel();
+            Ok(())
+        });
+        assert!(matches!(result, Err(e) if e.code == "CANCELLED"));
+        assert!((1..=8).contains(&visited));
+    }
     #[test]
     fn direct_library_rejects_nonfinite_source_maps_and_tolerances() {
         let base: Spec = serde_json::from_value(serde_json::json!({"geometry":{"shape":"rect","x":0,"y":0,"width":1,"height":1},"fill":[0,0,0,255],"maps":[{"type":"perspective","domain":[0,0,1,1],"corners":[[0,0],[1,0],[1,1],[0,1]]}]})).unwrap();

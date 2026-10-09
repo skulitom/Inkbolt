@@ -1096,7 +1096,7 @@ fn native_plan(
 ) -> Result<NativePlan, Error> {
     control.check()?;
     let level = path.len();
-    crate::validate(document)?;
+    crate::model::validate_controlled(document, control)?;
     if document.color_space != ColorSpace::Srgb
         || (path.is_empty() && (document.ink_recipe.is_some() || document.output_profile.is_some()))
     {
@@ -1142,9 +1142,9 @@ fn native_plan(
     let document = viewport.as_ref();
     let appearance = crate::appearance::evaluate(document)?;
     let document = appearance.as_ref().unwrap_or(document);
-    let volume = crate::volumes::evaluate(document)?;
+    let volume = crate::volumes::evaluate(document, control)?;
     let document = volume.as_ref().unwrap_or(document);
-    let warped = crate::warps::evaluate(document)?;
+    let warped = crate::warps::evaluate_controlled(document, control)?;
     let document = warped.as_ref().unwrap_or(document);
     let repeated = crate::repeats::evaluate(document)?;
     let document = repeated.as_ref().unwrap_or(document);
