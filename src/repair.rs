@@ -553,7 +553,7 @@ pub(crate) fn apply(
                 opacity: o.opacity,
                 use_selection: o.use_selection,
             };
-            let details = retouch::apply(document, index, &ro, control)?;
+            let details = retouch::apply(document, index, &ro, None, control)?;
             work.add(details["work"].as_u64().expect("retouch work") as usize)?;
             json!({"source_id":source_id,"source_sha256":source.hash(),"source_origin":chosen,"valid_candidates":valid,"context_cells":context.len(),"context_rms":rms,"retouch":details})
         }

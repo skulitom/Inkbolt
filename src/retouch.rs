@@ -4,8 +4,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use std::path::Path;
+mod pixels;
 
 pub const MAX_WORK: u64 = 67_108_864;
+pub const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
 pub const MAX_ITERATIONS: u32 = 4096;
 const ALGORITHM: &str = "inkbolt-region-retouch-v1";
 fn one() -> f64 {
@@ -88,24 +91,6 @@ impl Work<'_> {
         self.control.check()
     }
 }
-fn premul(c: &[u8]) -> [f64; 4] {
-    let a = c[3] as f64 / 255.0;
-    [
-        c[0] as f64 / 255.0 * a,
-        c[1] as f64 / 255.0 * a,
-        c[2] as f64 / 255.0 * a,
-        a,
-    ]
-}
-fn encode(c: [f64; 4]) -> [u8; 4] {
-    let byte = |v: f64| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
-    let a = byte(c[3]);
-    if a == 0 {
-        [0; 4]
-    } else {
-        [byte(c[0] / c[3]), byte(c[1] / c[3]), byte(c[2] / c[3]), a]
-    }
-}
 fn neighbors(i: usize, w: usize, h: usize) -> [Option<usize>; 4] {
     let x = i % w;
     let y = i / w;
@@ -117,7 +102,7 @@ fn neighbors(i: usize, w: usize, h: usize) -> [Option<usize>; 4] {
     ]
 }
 fn sample(
-    data: &[[f64; 4]],
+    mut data: impl FnMut(usize, usize) -> Result<[f64; 4], Error>,
     w: usize,
     h: usize,
     p: Point,
@@ -159,8 +144,9 @@ fn sample(
             }
             continue;
         }
+        let pixel = data(x as usize, y as usize)?;
         for k in 0..4 {
-            out[k] += weight * data[y as usize * w + x as usize][k];
+            out[k] += weight * pixel[k];
         }
     }
     Ok(out)
@@ -260,6 +246,7 @@ pub(crate) fn apply(
     document: &mut Document,
     index: usize,
     o: &Options,
+    asset_root: Option<&Path>,
     control: &Control,
 ) -> Result<Value, Error> {
     control.check()?;
@@ -284,47 +271,74 @@ pub(crate) fn apply(
         ));
     }
     crate::pixel_warps::reject_native(&document.items[index])?;
-    let Content::Raster {
-        width,
-        height,
-        rgba_hex,
-        ..
-    } = &document.items[index].content
-    else {
-        return Err(Error::new(
-            "INVALID_OPERATION",
-            "Retouch requires an inline native pixel target",
-        ));
-    };
-    let (w, h) = (*width as usize, *height as usize);
-    let n = w * h;
-    let original = render::unhex(rgba_hex);
     let source_index = scene::index(document, &o.source_id)?;
     crate::pixel_warps::reject_native(&document.items[source_index])?;
-    let Content::Raster {
-        width: sw,
-        height: sh,
-        rgba_hex: source_hex,
-        ..
-    } = &document.items[source_index].content
-    else {
-        return Err(Error::new(
-            "INVALID_OPERATION",
-            "Retouch source must be an inline native pixel layer",
-        ));
-    };
-    let source_bytes = render::unhex(source_hex);
-    let source_hash = assets::identity(*sw, *sh, &source_bytes);
-    let target_hash = assets::identity(w as u32, h as u32, &original);
+    let spec = pixels::spec(&document.items[index].content)?;
+    pixels::spec(&document.items[source_index].content)?;
+    let (full_width, full_height) = (spec.width, spec.height);
     let r = &o.region;
     if r.width == 0
         || r.height == 0
-        || r.x as u64 + r.width as u64 > w as u64
-        || r.y as u64 + r.height as u64 > h as u64
+        || r.x as u64 + r.width as u64 > full_width as u64
+        || r.y as u64 + r.height as u64 > full_height as u64
     {
         return Err(invalid(
             "Retouch region must be nonempty and entirely within the target native grid",
         ));
+    }
+    if r.width as u64 * r.height as u64 > crate::sample_store::MAX_REGION_PIXELS {
+        return Err(limit("Retouch exceeds the 65536-pixel local edit region"));
+    }
+    // Every selected cell has its actual in-image neighbors in this window.
+    // No solver/storage buffer scales with the complete source image.
+    let x0 = r.x.saturating_sub(1) as usize;
+    let y0 = r.y.saturating_sub(1) as usize;
+    let w = (r.x + r.width + 1).min(full_width) as usize - x0;
+    let h = (r.y + r.height + 1).min(full_height) as usize - y0;
+    let n = w * h;
+    // Include simultaneous solver vectors, raw/output/hex windows, both source
+    // caches, prepared patch candidates and new complete replacement blocks.
+    // A narrow edit can intersect many full blocks; region area alone is not
+    // a safe memory estimate. Reject before loading or preparing resources.
+    let mut memory = n as u64 * 256
+        + r.width as u64 * r.height as u64 * 256
+        + 8 * 1024 * 1024
+        + pixels::memory(&document.items[index].content);
+    if source_index != index {
+        memory += pixels::memory(&document.items[source_index].content);
+    }
+    if matches!(document.items[index].content, Content::StoredSamples { .. }) {
+        let edge = crate::sample_store::TILE_EDGE;
+        let columns = (r.x + r.width).div_ceil(edge) - r.x / edge;
+        let rows = (r.y + r.height).div_ceil(edge) - r.y / edge;
+        memory += columns as u64
+            * rows as u64
+            * edge as u64
+            * edge as u64
+            * spec.depth.bytes() as u64
+            * spec.channels.count() as u64;
+    }
+    if memory > MAX_MEMORY_BYTES {
+        return Err(limit(
+            "Retouch preparation and replacement blocks exceed the processing memory bound",
+        ));
+    }
+    let mut work = Work { count: 0, control };
+    let mut target = pixels::Pixels::new(&document.items[index].content, asset_root, &mut work)?;
+    let mut source = if source_index == index {
+        target.clone()
+    } else {
+        pixels::Pixels::new(&document.items[source_index].content, asset_root, &mut work)?
+    };
+    let source_hash = source.identity.clone();
+    let target_hash = target.identity.clone();
+    let stride = target.stride();
+    let mut original = Vec::with_capacity(n * stride);
+    for y in y0..y0 + h {
+        control.check()?;
+        for x in x0..x0 + w {
+            original.extend_from_slice(&target.raw(x, y, &mut work)?[..stride]);
+        }
     }
     let gray = if let Some(hex) = &r.gray_hex {
         if hex.len() != r.width as usize * r.height as usize * 2
@@ -350,7 +364,6 @@ pub(crate) fn apply(
         None
     };
     let world = scene::world_transform(document, index)?;
-    let mut work = Work { count: 0, control };
     work.add(n)?;
     let mut weights = vec![0.0; n];
     let mut ids = Vec::new();
@@ -374,7 +387,7 @@ pub(crate) fn apply(
                     0.0
                 };
             }
-            let i = y * w + x;
+            let i = (y - y0) * w + x - x0;
             weights[i] = a;
             if a > 0.0 {
                 mapping[i] = ids.len();
@@ -433,17 +446,10 @@ pub(crate) fn apply(
         ));
     }
     let before: Vec<_> = original
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|c| premul(c))
+        .chunks_exact(stride)
+        .map(|c| pixels::premultiplied(c, target.spec))
         .collect();
-    let src: Vec<_> = source_bytes
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|c| premul(c))
-        .collect();
+    let (sw, sh) = (source.spec.width as usize, source.spec.height as usize);
     let mut field = vec![[0.0; 4]; n];
     if o.opacity > 0.0 {
         for (i, &required) in needed.iter().enumerate() {
@@ -452,12 +458,12 @@ pub(crate) fn apply(
             }
             if required {
                 field[i] = sample(
-                    &src,
-                    *sw as usize,
-                    *sh as usize,
+                    |x, y| source.sample(x, y, &mut work),
+                    sw,
+                    sh,
                     geometry::map(
                         o.source_transform,
-                        [(i % w) as f64 + 0.5, (i / w) as f64 + 0.5],
+                        [(i % w + x0) as f64 + 0.5, (i / w + y0) as f64 + 0.5],
                     ),
                     o.sampling,
                     o.border,
@@ -535,9 +541,9 @@ pub(crate) fn apply(
             if value == before[i] {
                 continue;
             }
-            let bytes = encode(value);
-            if bytes != original[i * 4..i * 4 + 4] {
-                output[i * 4..i * 4 + 4].copy_from_slice(&bytes);
+            let bytes = pixels::encode(value, target.spec)?;
+            if bytes[..stride] != original[i * stride..i * stride + stride] {
+                output[i * stride..i * stride + stride].copy_from_slice(&bytes[..stride]);
                 changed.push(i);
             }
         }
@@ -550,7 +556,8 @@ pub(crate) fn apply(
             .flatten()
             .filter(|&j| weights[j] == 0.0)
         {
-            let after = premul(&output[i * 4..i * 4 + 4]);
+            let after =
+                pixels::premultiplied(&output[i * stride..i * stride + stride], target.spec);
             for k in 0..4 {
                 seam_before += (before[i][k] - before[j][k]).powi(2);
                 seam_after += (after[k] - before[j][k]).powi(2);
@@ -564,17 +571,31 @@ pub(crate) fn apply(
             None
         }
     };
-    let result_hash = assets::identity(w as u32, h as u32, &output);
+    let mut patch = Vec::with_capacity(r.width as usize * r.height as usize * stride);
+    for y in r.y as usize..(r.y + r.height) as usize {
+        let at = ((y - y0) * w + r.x as usize - x0) * stride;
+        patch.extend_from_slice(&output[at..at + r.width as usize * stride]);
+    }
+    let (content, result_hash) = target.replace(
+        &document.items[index].content,
+        crate::sample_store::Region {
+            x: r.x,
+            y: r.y,
+            width: r.width,
+            height: r.height,
+        },
+        &patch,
+        &mut work,
+    )?;
+    let global_extent =
+        |ids: &[usize]| extent(ids, w).map(|b| [b[0] + x0, b[1] + y0, b[2] + x0, b[3] + y0]);
     let hash = format!(
         "{:x}",
         Sha256::digest(serde_json::to_vec(o).expect("validated retouch settings"))
     );
     control.check()?;
-    let Content::Raster { rgba_hex, .. } = &mut document.items[index].content else {
-        unreachable!()
-    };
-    *rgba_hex = render::hex(&output);
+    document.items[index].content = content;
     Ok(
-        json!({"algorithm":ALGORITHM,"settings_sha256":hash,"source_id":o.source_id,"source_sha256":source_hash,"target_before_sha256":target_hash,"result_sha256":result_hash,"region_pixels":ids.len(),"region_bounds":extent(&ids,w),"coverage_sum":weights.iter().sum::<f64>(),"components":components,"boundary_edges":boundary_edges,"image_edge_faces":image_edges,"perimeter":boundary_edges+image_edges,"changed_pixels":changed.len(),"changed_bounds":extent(&changed,w),"clamped_pixels":clamped,"solver_iterations":solver_iterations,"solver_residuals":residuals,"solver_residual_space":"unclamped_normalized_premultiplied_rgba","boundary_rms_before":seam(seam_before),"boundary_rms_after":seam(seam_after),"work":work.count,"coordinates":"target_native_grid_to_source_native_grid","source_sampling":"frozen_before_this_operation","selection_sampling":"world_mapped_native_centers","compositing":"masked_premultiplied_replacement_once","boundary_measurement":"four_connected_positive_coverage_domain"}),
+        json!({"algorithm":ALGORITHM,"settings_sha256":hash,"source_id":o.source_id,"source_sha256":source_hash,"target_before_sha256":target_hash,"result_sha256":result_hash,"region_pixels":ids.len(),"region_bounds":global_extent(&ids),"coverage_sum":weights.iter().sum::<f64>(),"components":components,"boundary_edges":boundary_edges,"image_edge_faces":image_edges,"perimeter":boundary_edges+image_edges,"changed_pixels":changed.len(),"changed_bounds":global_extent(&changed),"clamped_pixels":clamped,"solver_iterations":solver_iterations,"solver_residuals":residuals,"solver_residual_space":"unclamped_normalized_premultiplied_rgba","boundary_rms_before":seam(seam_before),"boundary_rms_after":seam(seam_after),"work":work.count,"coordinates":"target_native_grid_to_source_native_grid","source_sampling":"frozen_before_this_operation","selection_sampling":"world_mapped_native_centers","compositing":"masked_premultiplied_replacement_once","boundary_measurement":"four_connected_positive_coverage_domain","source_samples":source.spec,"target_samples":target.spec,"source_identity_kind":source.identity_kind,"target_identity_kind":target.identity_kind,"working_window":[x0,y0,w,h],"processing_memory_bound_bytes":memory,"files_written":false,"outside_region_preserved":true,"quantization":"one_final_straight_encoding_at_target_native_depth"}),
     )
 }
