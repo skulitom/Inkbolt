@@ -114,6 +114,24 @@ pub struct Receipt {
     pub state_sha256: String,
     pub changes: Vec<Value>,
 }
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Proposal {
+    pub version: u32,
+    pub session_id: String,
+    pub request_id: String,
+    pub expected_revision: u64,
+    pub request_fingerprint: String,
+    pub base_state_sha256: String,
+    pub result_state_sha256: String,
+}
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct DryRunOptions {
+    pub include_document: bool,
+    pub compare_pixels: bool,
+    pub preview: bool,
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Meta {
@@ -239,6 +257,9 @@ fn check_schema(db: &Connection) -> Result<(), Error> {
     Ok(())
 }
 fn open(root: &Path, session_id: &str) -> Result<Connection, Error> {
+    open_mode(root, session_id, false)
+}
+fn open_mode(root: &Path, session_id: &str, readonly: bool) -> Result<Connection, Error> {
     let path = store_path(root, session_id)?;
     let m = fs::symlink_metadata(&path).map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
@@ -257,8 +278,11 @@ fn open(root: &Path, session_id: &str) -> Result<Connection, Error> {
     }
     let db = Connection::open_with_flags(
         path,
-        OpenFlags::SQLITE_OPEN_READ_WRITE
-            | OpenFlags::SQLITE_OPEN_NO_MUTEX
+        (if readonly {
+            OpenFlags::SQLITE_OPEN_READ_ONLY
+        } else {
+            OpenFlags::SQLITE_OPEN_READ_WRITE
+        }) | OpenFlags::SQLITE_OPEN_NO_MUTEX
             | OpenFlags::SQLITE_OPEN_NOFOLLOW,
     )
     .map_err(sql)?;
@@ -372,6 +396,15 @@ fn load_state(db: &Connection, state_id: u32) -> Result<(State, String), Error> 
     Ok((state, hash))
 }
 fn put_state(db: &Connection, state_id: u32, state: &State) -> Result<String, Error> {
+    let (bytes, hash) = prepare_state(db, state)?;
+    db.execute(
+        "INSERT INTO states(id,payload,sha256) VALUES(?1,?2,?3)",
+        params![state_id, bytes, hash],
+    )
+    .map_err(sql)?;
+    Ok(hash)
+}
+fn prepare_state(db: &Connection, state: &State) -> Result<(Vec<u8>, String), Error> {
     let bytes = encode(state)?;
     if bytes.len() > MAX_STATE_BYTES {
         return Err(limit("Session state exceeds storage limit"));
@@ -390,12 +423,7 @@ fn put_state(db: &Connection, state_id: u32, state: &State) -> Result<String, Er
         ));
     }
     let hash = assets::sha256(&bytes);
-    db.execute(
-        "INSERT INTO states(id,payload,sha256) VALUES(?1,?2,?3)",
-        params![state_id, bytes, hash],
-    )
-    .map_err(sql)?;
-    Ok(hash)
+    Ok((bytes, hash))
 }
 fn request(db: &Connection, request_id: &str) -> Result<Option<(String, Receipt)>, Error> {
     let found: Option<(String, Vec<u8>, String, u32)> = db
@@ -758,32 +786,22 @@ pub fn publish(
     result["observed_current_revision"] = json!(meta.revision);
     Ok(result)
 }
-pub fn mutate(
-    root: &Path,
-    session_id: &str,
+struct PreparedAction {
+    meta: Meta,
+    state: State,
+    receipt: Receipt,
+    new_state: Option<(Vec<u8>, String)>,
+    snapshot_put: Option<(Snapshot, String)>,
+    snapshot_remove: Option<String>,
+}
+fn prepare_action(
+    db: &Connection,
+    mut meta: Meta,
     request_id: &str,
     expected_revision: u64,
     action: &Action,
     control: &Control,
-) -> Result<Value, Error> {
-    id(request_id)?;
-    let fingerprint = assets::sha256(&encode(
-        &json!({"expected_revision":expected_revision,"action":action}),
-    )?);
-    let mut db = open(root, session_id)?;
-    let tx = db
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(sql)?;
-    let mut meta = read_meta(&tx, session_id)?;
-    if let Some((old, receipt)) = request(&tx, request_id)? {
-        if old != fingerprint {
-            return Err(Error::new(
-                "REQUEST_ID_REUSED",
-                "Request ID was already used for different content",
-            ));
-        }
-        return response(&tx, &meta, receipt, true);
-    }
+) -> Result<PreparedAction, Error> {
     control.check()?;
     if expected_revision != u64::from(meta.revision) {
         return Err(Error::new(
@@ -800,7 +818,10 @@ pub fn mutate(
     let previous = meta.revision;
     let from_state = meta.current_state;
     let next = previous + 1;
-    let (mut state, _) = load_state(&tx, meta.current_state)?;
+    let (mut state, _) = load_state(db, meta.current_state)?;
+    let mut new_state = None;
+    let mut snapshot_put = None;
+    let mut snapshot_remove = None;
     let mut changes = Vec::new();
     let mut label = String::new();
     let kind = match action {
@@ -828,7 +849,7 @@ pub fn mutate(
             changes = result.changes.into_iter().map(|v| json!(v)).collect();
             state.document = result.document;
             state.document.revision = 0;
-            put_state(&tx, next, &state)?;
+            new_state = Some(prepare_state(db, &state)?);
             meta.undo.push(from_state);
             meta.redo.clear();
             meta.current_state = next;
@@ -837,7 +858,7 @@ pub fn mutate(
         Action::Resources { resources } => {
             resources.validate()?;
             state.resources = resources.clone();
-            put_state(&tx, next, &state)?;
+            new_state = Some(prepare_state(db, &state)?);
             meta.undo.push(from_state);
             meta.redo.clear();
             meta.current_state = next;
@@ -870,7 +891,7 @@ pub fn mutate(
         }
         Action::Snapshot { name } => {
             id(name)?;
-            let names = snapshots(&tx)?;
+            let names = snapshots(db)?;
             if names.iter().any(|s| s.name == *name) {
                 return Err(Error::new(
                     "SNAPSHOT_EXISTS",
@@ -886,17 +907,13 @@ pub fn mutate(
                 revision: next,
             };
             let hash = assets::sha256(&encode(&snapshot)?);
-            tx.execute(
-                "INSERT INTO snapshots(name,state_id,revision,sha256) VALUES(?1,?2,?3,?4)",
-                params![name, meta.current_state, next, hash],
-            )
-            .map_err(sql)?;
+            snapshot_put = Some((snapshot, hash));
             label = name.clone();
             "snapshot"
         }
         Action::Restore { name } => {
             id(name)?;
-            let names = snapshots(&tx)?;
+            let names = snapshots(db)?;
             let snapshot = names
                 .iter()
                 .find(|s| s.name == *name)
@@ -909,14 +926,13 @@ pub fn mutate(
         }
         Action::RemoveSnapshot { name } => {
             id(name)?;
-            if !snapshots(&tx)?.iter().any(|s| s.name == *name) {
+            if !snapshots(db)?.iter().any(|s| s.name == *name) {
                 return Err(Error::new(
                     "SNAPSHOT_NOT_FOUND",
                     "Named snapshot does not exist",
                 ));
             }
-            tx.execute("DELETE FROM snapshots WHERE name=?1", [name])
-                .map_err(sql)?;
+            snapshot_remove = Some(name.clone());
             label = name.clone();
             "remove_snapshot"
         }
@@ -928,7 +944,11 @@ pub fn mutate(
         ));
     }
     meta.revision = next;
-    let (committed, hash) = load_state(&tx, meta.current_state)?;
+    let (committed, hash) = if let Some((_, hash)) = &new_state {
+        (state, hash.clone())
+    } else {
+        load_state(db, meta.current_state)?
+    };
     control.check_resource_paths(&committed.resources)?;
     let receipt = Receipt {
         request_id: request_id.to_owned(),
@@ -941,7 +961,124 @@ pub fn mutate(
         state_sha256: hash,
         changes,
     };
-    save_meta(&tx, &meta)?;
+    if encode(&receipt)?.len() > MAX_RECEIPT_BYTES {
+        return Err(limit("Session receipt exceeds 64 KiB"));
+    }
+    Ok(PreparedAction {
+        meta,
+        state: committed,
+        receipt,
+        new_state,
+        snapshot_put,
+        snapshot_remove,
+    })
+}
+fn persist_action(db: &Connection, prepared: &PreparedAction) -> Result<(), Error> {
+    if let Some((bytes, hash)) = &prepared.new_state {
+        db.execute(
+            "INSERT INTO states(id,payload,sha256) VALUES(?1,?2,?3)",
+            params![prepared.receipt.state_id, bytes, hash],
+        )
+        .map_err(sql)?;
+    }
+    if let Some((snapshot, hash)) = &prepared.snapshot_put {
+        db.execute(
+            "INSERT INTO snapshots(name,state_id,revision,sha256) VALUES(?1,?2,?3,?4)",
+            params![snapshot.name, snapshot.state_id, snapshot.revision, hash],
+        )
+        .map_err(sql)?;
+    }
+    if let Some(name) = &prepared.snapshot_remove {
+        db.execute("DELETE FROM snapshots WHERE name=?1", [name])
+            .map_err(sql)?;
+    }
+    save_meta(db, &prepared.meta)
+}
+fn action_fingerprint(expected_revision: u64, action: &Action) -> Result<String, Error> {
+    crate::finite::check(action)?;
+    Ok(assets::sha256(&encode(
+        &json!({"expected_revision":expected_revision,"action":action}),
+    )?))
+}
+pub fn mutate(
+    root: &Path,
+    session_id: &str,
+    request_id: &str,
+    expected_revision: u64,
+    action: &Action,
+    control: &Control,
+) -> Result<Value, Error> {
+    mutate_checked(
+        root,
+        session_id,
+        request_id,
+        expected_revision,
+        action,
+        None,
+        control,
+    )
+}
+fn mutate_checked(
+    root: &Path,
+    session_id: &str,
+    request_id: &str,
+    expected_revision: u64,
+    action: &Action,
+    proposal: Option<&Proposal>,
+    control: &Control,
+) -> Result<Value, Error> {
+    id(request_id)?;
+    let fingerprint = action_fingerprint(expected_revision, action)?;
+    let mut db = open(root, session_id)?;
+    let tx = db
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(sql)?;
+    let meta = read_meta(&tx, session_id)?;
+    if let Some((old, receipt)) = request(&tx, request_id)? {
+        if old != fingerprint {
+            return Err(Error::new(
+                "REQUEST_ID_REUSED",
+                "Request ID was already used for different content",
+            ));
+        }
+        if let Some(proposal) = proposal {
+            let (_, base_hash) = load_state(&tx, receipt.from_state)?;
+            if base_hash != proposal.base_state_sha256
+                || receipt.state_sha256 != proposal.result_state_sha256
+            {
+                return Err(Error::new(
+                    "PROPOSAL_MISMATCH",
+                    "The committed receipt differs from the supplied proposal; recover the original session receipt",
+                ));
+            }
+        }
+        return response(&tx, &meta, receipt, true);
+    }
+    control.check()?;
+    if let Some(proposal) = proposal {
+        if expected_revision != u64::from(meta.revision) {
+            return Err(Error::new(
+                "REVISION_CONFLICT",
+                "Expected revision does not match the committed session head",
+            ));
+        }
+        let (_, base_hash) = load_state(&tx, meta.current_state)?;
+        if base_hash != proposal.base_state_sha256 {
+            return Err(Error::new(
+                "PROPOSAL_MISMATCH",
+                "The current content differs from the reviewed proposal base; create a new dry run",
+            ));
+        }
+    }
+    let prepared = prepare_action(&tx, meta, request_id, expected_revision, action, control)?;
+    if proposal.is_some_and(|p| p.result_state_sha256 != prepared.receipt.state_sha256) {
+        return Err(Error::new(
+            "PROPOSAL_MISMATCH",
+            "Re-evaluating the action changed the proposed content; create a new dry run",
+        ));
+    }
+    persist_action(&tx, &prepared)?;
+    let receipt = prepared.receipt;
     save_request(&tx, &fingerprint, &receipt)?;
     #[cfg(test)]
     fault_point("before_commit");
@@ -953,6 +1090,116 @@ pub fn mutate(
     let tx = db.transaction().map_err(sql)?;
     let current = read_meta(&tx, session_id)?;
     response(&tx, &current, receipt, false)
+}
+pub fn apply_proposal(
+    root: &Path,
+    proposal: &Proposal,
+    action: &Action,
+    control: &Control,
+) -> Result<Value, Error> {
+    id(&proposal.session_id)?;
+    id(&proposal.request_id)?;
+    if proposal.version != 1
+        || [
+            &proposal.request_fingerprint,
+            &proposal.base_state_sha256,
+            &proposal.result_state_sha256,
+        ]
+        .iter()
+        .any(|s| !crate::fonts::valid_hash(s))
+    {
+        return Err(Error::new(
+            "INVALID_PROPOSAL",
+            "Proposal version and content hashes must match the version-one dry-run contract",
+        ));
+    }
+    if action_fingerprint(proposal.expected_revision, action)? != proposal.request_fingerprint {
+        return Err(Error::new(
+            "PROPOSAL_MISMATCH",
+            "Action or expected revision differs from the reviewed proposal",
+        ));
+    }
+    mutate_checked(
+        root,
+        &proposal.session_id,
+        &proposal.request_id,
+        proposal.expected_revision,
+        action,
+        Some(proposal),
+        control,
+    )
+}
+pub fn dry_run(
+    root: &Path,
+    session_id: &str,
+    request_id: &str,
+    expected_revision: u64,
+    action: &Action,
+    options: &DryRunOptions,
+    control: &Control,
+) -> Result<Value, Error> {
+    control.check()?;
+    id(request_id)?;
+    let fingerprint = action_fingerprint(expected_revision, action)?;
+    let mut db = open_mode(root, session_id, true)?;
+    let tx = db.transaction().map_err(sql)?;
+    let meta = read_meta(&tx, session_id)?;
+    if let Some((old, _)) = request(&tx, request_id)? {
+        return Err(if old == fingerprint {
+            Error::new(
+                "REQUEST_ALREADY_COMMITTED",
+                "This request was already committed; recover it with session.receipt",
+            )
+        } else {
+            Error::new(
+                "REQUEST_ID_REUSED",
+                "Request ID was already used for different content",
+            )
+        });
+    }
+    let (mut before, base_hash) = load_state(&tx, meta.current_state)?;
+    before.document.revision = u64::from(meta.revision);
+    let mut prepared = prepare_action(&tx, meta, request_id, expected_revision, action, control)?;
+    let proposal = Proposal {
+        version: 1,
+        session_id: session_id.to_owned(),
+        request_id: request_id.to_owned(),
+        expected_revision,
+        request_fingerprint: fingerprint,
+        base_state_sha256: base_hash,
+        result_state_sha256: prepared.receipt.state_sha256.clone(),
+    };
+    // Rendering/comparison has no reason to retain the database read lock.
+    drop(tx);
+    drop(db);
+    prepared.state.document.revision = u64::from(prepared.receipt.revision);
+    if options.compare_pixels {
+        control.check_resource_paths(&before.resources)?;
+    }
+    let difference = crate::diff::compare(
+        &before.document,
+        &prepared.state.document,
+        &before.resources,
+        &prepared.state.resources,
+        options.compare_pixels,
+        control,
+    )?;
+    let mut result = json!({"dry_run":true,"committed":false,"proposal":proposal,"base_ref":{"session_root":root,"session_id":session_id,"revision":expected_revision},"predicted_receipt":prepared.receipt,"proposed_resources":prepared.state.resources,"difference":difference,"history":{"undo_depth":prepared.meta.undo.len(),"redo_depth":prepared.meta.redo.len(),"snapshot_put":prepared.snapshot_put.as_ref().map(|(s,_)|&s.name),"snapshot_remove":prepared.snapshot_remove},"apply_command":"session.apply_proposal","source_changed":false});
+    if options.preview {
+        result["preview"] = crate::render::png_controlled(
+            &prepared.state.document,
+            1,
+            prepared.state.resources.asset_root.as_deref(),
+            prepared.state.resources.font_root.as_deref(),
+            None,
+            control,
+        )?;
+    }
+    if options.include_document {
+        result["proposed_document"] = json!(prepared.state.document);
+    }
+    control.check()?;
+    Ok(result)
 }
 pub fn history(
     root: &Path,

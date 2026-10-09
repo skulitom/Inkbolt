@@ -17,6 +17,7 @@ fn artifact_paths(command: &str, result: &Value) -> Vec<String> {
         "document.export" | "channel.export" => paths.push("/result".into()),
         "artboard.export" => array_paths(result, "artifacts", "/artifact", &mut paths),
         "sequence.export" => array_paths(result, "frames", "/artifact", &mut paths),
+        "session.dry_run" => paths.push("/result/preview".into()),
         "document.separations" | "document.prepress" => {
             paths.push("/result/preview".into());
             array_paths(result, "plates", "", &mut paths);

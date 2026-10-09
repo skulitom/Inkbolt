@@ -195,7 +195,10 @@ pub fn execute(
                 .map_err(|_| invalid("Control must match the command schema"))?;
         context = context.scoped(&options)?;
     }
-    let replayable = matches!(command.as_str(), "session.create" | "session.apply");
+    let replayable = matches!(
+        command.as_str(),
+        "session.create" | "session.apply" | "session.apply_proposal"
+    );
     if !replayable {
         context.check()?;
     }

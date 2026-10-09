@@ -1,6 +1,6 @@
 # Compact session responses
 
-Set `response_mode:"compact"` on `session.create`, `session.read`, `session.apply` or `session.receipt` to avoid receiving the entire saved document on each call. CLI and MCP use the same projection. Omission or `response_mode:"full"` retains the original full response.
+Set `response_mode:"compact"` on `session.create`, `session.read`, `session.apply`, `session.apply_proposal` or `session.receipt` to avoid receiving the entire saved document on each call. CLI and MCP use the same projection. Omission or `response_mode:"full"` retains the original full response.
 
 ```json
 {"command":"session.apply","session_id":"poster","expected_revision":3,"request_id":"move-title","action":{"type":"edit","operations":[{"op":"transform","id":"title","matrix":[1,0,0,1,12,0],"space":"world"}]},"response_mode":"compact"}

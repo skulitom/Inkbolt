@@ -35,6 +35,8 @@ const CORE: &[&str] = &[
     "session.create",
     "session.read",
     "session.apply",
+    "session.dry_run",
+    "session.apply_proposal",
     "session.receipt",
     "session.history",
     "session.diff",
@@ -118,6 +120,12 @@ pub(crate) fn strict_value(text: &str) -> Result<Value, Error> {
 }
 fn description(command: &str) -> &'static str {
     match command {
+        "session.dry_run" => {
+            "Evaluate any session action on the expected head without changing the database. Returns a content-bound proposal, predicted receipt, structural differences and optional PNG/pixel comparison. Use session.apply_proposal with the same action to commit after review."
+        }
+        "session.apply_proposal" => {
+            "Commit a reviewed dry-run proposal only if revision, action and before/after content still match. Preserves atomic history, resource checks and durable retry receipts; no source or output is overwritten."
+        }
         "document.inspect.page" => {
             "Read bounded pages of selected item fields, asset/font inventories or path anchors. Cursor binds exact document content, view and page limit. Hidden/locked items are included; resources are structural inventories. Use pinned saved references to avoid resending documents."
         }
@@ -125,7 +133,7 @@ fn description(command: &str) -> &'static str {
             "Discover command arguments and shared graphics types. Use name index for available names. Large schemas return an outline; select a listed variant or definition, or use full:true for all reachable definitions. Read-only. The original schema command still returns the entire engine schema."
         }
         "layered.import" => {
-            "Read a bounded local layered RGB file into editable native pixel layers. Preserves order, names, visibility, integer extents and exact byte opacity. Checks an optional source hash, uses explicit color policy and leaves the file unchanged. Unsupported masks, groups, text and effects fail explicitly; no flattened-cache substitution."
+            "Read a bounded local layered RGB file into editable native pixels, normal/pass-through groups and authored scalar masks. Preserves source bytes and uses explicit color policy. Inspect capabilities.layered_interchange for exact version, metadata and mask limits. Unsupported text, embedded objects and appearance semantics fail explicitly; no flattened-cache substitution."
         }
         "color.convert" => {
             "Convert up to 4096 finite device RGB, grayscale, CMYK or physical D50 Lab samples through explicit profiles. Returns directional table identities, PCS values and clipped component counts. Untagged RGB needs explicit assume_srgb; other device spaces require matching profiles. Original components and profile bytes remain unchanged. No document edit or publication is performed."
@@ -243,7 +251,7 @@ fn description(command: &str) -> &'static str {
             "Inspect an explicit list of item IDs without persistent selection state. Use returned IDs in atomic edit operations."
         }
         "document.edit" => {
-            "Apply 1..64 typed operations atomically to a supplied snapshot at expected_revision. Supports physical-unit dimensions and rotated guide/grid/item snapping, reversible opaque raster backgrounds with retained sources and explicit matte/ordinary-layer conversion, retained per-font variation axes and explicit OpenType controls, Unicode script shaping, explicit pinned-font fallback and language systems, source-retaining pixel perspective/mesh/articulated controls, retained vector warp stacks and certified expansion, editable brick/hex/radial/mirrored repeat layouts and compound expansion, plus editable object interpolation with fixed counts, curved spines, unequal contours and expansion, plus editable vector brush motifs with spacing, width profiles, endpoints/corners and filled expansion, plus native-pixel clone/heal retouching and quality-gated patch/fill/move/guided edge repair with frozen explicit sources, measured boundaries and residual-checked healing, plus document/item metadata with private working fields. Returns a new snapshot and changes; leaves files unchanged."
+            "Apply 1..64 typed operations atomically to a snapshot at expected_revision. Discover supported operations with schema.lookup name operation and select a variant for its fields. Returns an editable snapshot and ordered changes; validates locks, resources and the complete batch. Leaves files unchanged."
         }
         "document.render" => {
             "Render a bounded snapshot into straight RGBA8 hex pixels. Supply asset_root and font_root when stored resources are referenced."
@@ -252,7 +260,7 @@ fn description(command: &str) -> &'static str {
             "Observe calibrated CMYK print delivery and optional independent named-ink recipe plates. Returns an sRGB PNG reference proof, exact scalar ink PNGs, measured D50 CIE76 differences, threshold mask and separate display clipping. Explicit print profile, matte, view intent and density; combined named inks require the whole canvas and an explicit CMYK fallback model. Optional ICC gamut-tag diagnostics distinguish missing tables and unclassified PCS overflow. Read-only, sources unchanged, no print job. Physical ink calibration, overprint simulation and universal reader preview parity are not inferred."
         }
         "document.prepress" => {
-            "Inspect native vector CMYK and spot ink planes over unmarked paper. Retains direct CMYK fractions, named ink identities and per-paint overprint; converts RGB, gray and Lab paints through an explicit profile before ink compositing. Supports normal isolated/pass-through groups, scalar masks, geometric clips, strokes and outlined text. Returns read-only scalar PNGs and requested continuous ink samples. Extended print preparation remains in progress; unsupported blends/effects/images fail explicitly."
+            "Inspect native CMYK and spot ink planes over unmarked paper, retaining direct ink fractions and explicit overprint. Other paints use a supplied profile. Supports the declared native blend, mask, effect, image and retained-source contracts; inspect capabilities.native_prepress for limits and required policies. Returns scalar PNGs, continuous samples and resource/compositing receipts without changing source."
         }
         "document.separations" => {
             "Evaluate a retained ink_recipe over saved scalar channels. Returns exact independent named-ink PNG plates and an explicitly modelled calibrated preview. Multiple curves may share one source for duotones; optional masks multiply before one exact byte projection. Read-only; sources and editable curves stay unchanged. pdf_options.ink_recipe delivers these samples as DeviceN inks. Ordinary artwork and calibrated process imagery are separate."
@@ -382,10 +390,11 @@ pub fn catalog_in_workspace(
                 | "font.import"
                 | "session.create"
                 | "session.apply"
+                | "session.apply_proposal"
                 | "session.publish"
                 | "document.publish"
         );
-        let tool = json!({"name":name,"description":description(command),"inputSchema":input,"outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},"annotations":{"readOnlyHint":!mutable,"destructiveHint":command=="session.apply","idempotentHint":true,"openWorldHint":false},"execution":{"taskSupport":"forbidden"}});
+        let tool = json!({"name":name,"description":description(command),"inputSchema":input,"outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},"annotations":{"readOnlyHint":!mutable,"destructiveHint":matches!(command,"session.apply"|"session.apply_proposal"),"idempotentHint":true,"openWorldHint":false},"execution":{"taskSupport":"forbidden"}});
         tools.insert(name, (command.to_owned(), tool));
     }
     if mode == CatalogMode::Core {

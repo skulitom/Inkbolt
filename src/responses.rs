@@ -9,6 +9,7 @@ pub const COMMANDS: &[&str] = &[
     "session.create",
     "session.read",
     "session.apply",
+    "session.apply_proposal",
     "session.receipt",
 ];
 
@@ -34,7 +35,7 @@ pub(crate) fn take(value: &mut Value) -> Result<Mode, Error> {
     {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "response_mode is supported by session.create, session.read, session.apply and session.receipt",
+            "response_mode is supported by session.create, session.read, session.apply, session.apply_proposal and session.receipt",
         ));
     }
     serde_json::from_value(mode)
@@ -49,6 +50,11 @@ pub(crate) fn describe(command: &str, schema: &mut Value) {
 
 fn target(request: &Request) -> Option<(PathBuf, String)> {
     match request {
+        Request::SessionApplyProposal {
+            session_root,
+            proposal,
+            ..
+        } => Some((session_root.clone(), proposal.session_id.clone())),
         Request::SessionCreate {
             session_root,
             session_id,

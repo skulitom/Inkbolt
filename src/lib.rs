@@ -19,6 +19,7 @@ pub mod dimensions;
 pub mod edit;
 pub mod effects;
 pub mod filters;
+mod finite;
 pub mod fonts;
 pub mod geometry;
 pub mod hdr;
@@ -429,6 +430,26 @@ pub enum Request {
         #[serde(default)]
         control: control::Options,
     },
+    #[serde(rename = "session.dry_run")]
+    SessionDryRun {
+        session_root: PathBuf,
+        session_id: String,
+        request_id: String,
+        expected_revision: u64,
+        action: sessions::Action,
+        #[serde(default)]
+        options: sessions::DryRunOptions,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "session.apply_proposal")]
+    SessionApplyProposal {
+        session_root: PathBuf,
+        proposal: sessions::Proposal,
+        action: sessions::Action,
+        #[serde(default)]
+        control: control::Options,
+    },
     #[serde(rename = "session.receipt")]
     SessionReceipt {
         session_root: PathBuf,
@@ -740,6 +761,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
         request,
         Request::SessionCreate { .. }
             | Request::SessionApply { .. }
+            | Request::SessionApplyProposal { .. }
             | Request::Publish { .. }
             | Request::SessionPublish { .. }
             | Request::SequenceImport { .. }
@@ -748,7 +770,9 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
     );
     if !matches!(
         request,
-        Request::SessionCreate { .. } | Request::SessionApply { .. }
+        Request::SessionCreate { .. }
+            | Request::SessionApply { .. }
+            | Request::SessionApplyProposal { .. }
     ) {
         context.check()?;
     }
@@ -1026,6 +1050,8 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "session.create",
                 "session.read",
                 "session.apply",
+                "session.dry_run",
+                "session.apply_proposal",
                 "session.receipt",
                 "session.history",
                 "session.verify",
@@ -1427,8 +1453,9 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "mcp_compact_budget_bytes":mcp::CORE_CATALOG_BYTES,
                 "mcp_dispatcher":"inkbolt_run", "execution_validation":"complete_typed_request"
             });
+            capabilities["session_proposals"] = json!({"dry_run":"session.dry_run","apply":"session.apply_proposal","version":1,"actions":"all_session_actions","database_dry_run_access":"read_only","history_changed_by_dry_run":false,"bound_inputs":["session_id","request_id","expected_revision","request_fingerprint","base_state_sha256","result_state_sha256"],"comparison":"structural_with_optional_pixels","preview":"optional_full_canvas_PNG_at_scale_one","persistent_proposal_store":false,"proposal_is_authorization":false,"history_storage_and_receipt_limits":"shared_with_real_apply;filesystem_commit_can_still_fail"});
             capabilities["paged_inspection"] = json!({"command":"document.inspect.page","collections":["items","assets","fonts","anchors"],"maximum_records":inspection::MAX_PAGE_ITEMS,"maximum_result_bytes":inspection::MAX_PAGE_BYTES,"cursor":"document_content_and_view_and_limit_bound","order":"document_storage_for_items;id_for_resources;component_then_command_for_anchors","field_selection":true,"legacy_inspection":"unchanged","external_resources_verified":false});
-            capabilities["mcp_preview"] = json!({"response_format":"preview","default":"json","image_bytes":"one_location_with_explicit_payload_ref","maximum_png_attachments":mcp_preview::MAX_IMAGES,"maximum_attached_base64_bytes":mcp_preview::MAX_IMAGE_BASE64_BYTES,"overflow":"one_inline_payload_in_structuredContent;duplicates_reference_it","text":"summary_only","supported_artifacts":["document.export","artboard.export","sequence.export","channel.export","document.proof","document.prepress","document.separations"],"other_results":"complete_structuredContent_without_textual_duplication"});
+            capabilities["mcp_preview"] = json!({"response_format":"preview","default":"json","image_bytes":"one_location_with_explicit_payload_ref","maximum_png_attachments":mcp_preview::MAX_IMAGES,"maximum_attached_base64_bytes":mcp_preview::MAX_IMAGE_BASE64_BYTES,"overflow":"one_inline_payload_in_structuredContent;duplicates_reference_it","text":"summary_only","supported_artifacts":["document.export","artboard.export","sequence.export","channel.export","document.proof","document.prepress","document.separations","session.dry_run"],"other_results":"complete_structuredContent_without_textual_duplication"});
             capabilities["agent_inputs"] = json!({
                 "workspace_flag":"--workspace ABSOLUTE_DIRECTORY",
                 "workspace_position":"before_request_file_or_mcp",
@@ -1509,6 +1536,34 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             &request_id,
             &document,
             &resources,
+            &context.scoped(&control)?,
+        ),
+        Request::SessionDryRun {
+            session_root,
+            session_id,
+            request_id,
+            expected_revision,
+            action,
+            options,
+            control,
+        } => sessions::dry_run(
+            &session_root,
+            &session_id,
+            &request_id,
+            expected_revision,
+            &action,
+            &options,
+            &context.scoped(&control)?,
+        ),
+        Request::SessionApplyProposal {
+            session_root,
+            proposal,
+            action,
+            control,
+        } => sessions::apply_proposal(
+            &session_root,
+            &proposal,
+            &action,
             &context.scoped(&control)?,
         ),
         Request::SessionRead {

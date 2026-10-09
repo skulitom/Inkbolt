@@ -4,13 +4,15 @@ A session stores one vector or raster document under an explicit absolute `sessi
 
 ## Commands
 
-Every command requires `session_id`. Without a workspace, `session_root` remains required and absolute. With `--workspace`, it defaults to `.inkbolt/sessions`; explicit roots must resolve inside that workspace. Top-level document arguments can reference exact committed session revisions. See [workspaces and saved revisions](AGENT_WORKSPACE.md). IDs use document ID syntax (1..128 ASCII letters, digits, dots, underscores or hyphens). The filename is the SHA-256 of the UTF-8 session ID followed by `.sqlite3`; IDs cannot escape the root or become reserved platform filenames.
+Commands require `session_id`, directly or inside the reviewed proposal for `session.apply_proposal`. Without a workspace, `session_root` remains required and absolute. With `--workspace`, it defaults to `.inkbolt/sessions`; explicit roots must resolve inside that workspace. Top-level document arguments can reference exact committed session revisions. See [workspaces and saved revisions](AGENT_WORKSPACE.md). IDs use document ID syntax (1..128 ASCII letters, digits, dots, underscores or hyphens). The filename is the SHA-256 of the UTF-8 session ID followed by `.sqlite3`; IDs cannot escape the root or become reserved platform filenames.
 
 | Command | Other inputs | Result |
 | --- | --- | --- |
 | session.create | request_id, document; optional resources, control | Initial document at session revision 0 and durable creation receipt |
 | session.read | optional snapshot name | Document, resources, revision, current_revision, state identity, undo/redo depths and named snapshots |
 | session.apply | request_id, expected_revision, action; optional control | Committed document, resources and receipt; replayed flag and current head information |
+| session.dry_run | request_id, expected_revision, action; optional options, control | Read-only proposal, predicted receipt/history, structural comparison and optional PNG/pixel comparison |
+| session.apply_proposal | proposal, action; optional control | Commit only if revision, reviewed action and before/after content still match |
 | session.receipt | request_id | Original committed result, even after later edits |
 | session.history | limit in 1..128; optional after_revision | Ordered receipt page with next_after_revision and has_more |
 | session.verify | optional control | Storage integrity, content/receipt/metadata checksums, references and bounded ledger validation |
@@ -42,13 +44,13 @@ Provide a new request ID for each intended action. Retrying the same ID with the
 
 The retry lookup occurs before revision/cancellation checks: a committed creation or edit remains committed even if the retry has an expired deadline. Existing creation inputs still receive bounded validation without the newly expired control; invalid typed numbers cannot masquerade as missing JSON values in the fingerprint. New creation uses full controlled validation before reserving storage. Otherwise, a stale expected revision fails with `REVISION_CONFLICT`; inspect the current document before issuing a new action. Transactions serialize writers. `SESSION_BUSY` means the bounded 250 ms lock wait expired; retry the same request ID. A lost response or I/O error can leave commit outcome uncertain: inspect `session.receipt` or retry the original request rather than generating a new ID.
 
-`response_mode:"compact"` is optional on creation, read, apply and receipt commands. It returns pinned document/receipt references and summaries; full responses remain the default. This presentation field is excluded from durable identity, so it may change on retry. See [compact responses](AGENT_RESPONSES.md).
+`response_mode:"compact"` is optional on creation, read, apply, apply_proposal and receipt commands. It returns pinned document/receipt references and summaries; full responses remain the default. This presentation field is excluded from durable identity, so it may change on retry. See [compact responses](AGENT_RESPONSES.md). [Dry runs and checked proposals](SESSION_PROPOSALS.md) add read-only review before applying the same validated action; typed actions reject nonfinite numbers before retry fingerprinting.
 
 Creation is also idempotent for identical typed document/resources and request ID. A different creation request never overwrites an existing session. The existing session remains untouched when input validation or creation publication fails.
 
 ## Cancellation
 
-`control` is optional on session.create, session.apply, session.verify and document.edit:
+`control` is optional on session.create, session.apply, session.dry_run, session.apply_proposal, session.verify and document.edit:
 
 ```json
 {"timeout_ms":10000,"cancel_file":"C:/work/controls/cancel-request-17"}

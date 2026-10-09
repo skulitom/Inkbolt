@@ -91,3 +91,80 @@ fn committed_creation_recovers_with_expired_control_but_rejects_nonfinite_typed_
         0
     );
 }
+
+#[test]
+fn ordinary_and_reviewed_action_retries_reject_optional_nonfinite_values() {
+    let root = OwnedRoot::new();
+    sessions::create(
+        &root.0,
+        "work",
+        "create",
+        &document(),
+        &Resources::default(),
+        &Control::default(),
+    )
+    .unwrap();
+    let original:sessions::Action=serde_json::from_value(json!({"type":"edit","operations":[{"op":"properties","id":"label","name":"Reviewed name"}]})).unwrap();
+    let mut invalid = original.clone();
+    let sessions::Action::Edit { operations, .. } = &mut invalid else {
+        panic!()
+    };
+    let inkbolt::edit::Operation::Properties { opacity, .. } = &mut operations[0] else {
+        panic!()
+    };
+    *opacity = Some(f64::NAN);
+    assert_eq!(json!(original), json!(invalid));
+    let first = sessions::mutate(
+        &root.0,
+        "work",
+        "ordinary",
+        0,
+        &original,
+        &Control::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        sessions::mutate(
+            &root.0,
+            "work",
+            "ordinary",
+            0,
+            &invalid,
+            &Control::default()
+        )
+        .unwrap_err()
+        .code,
+        "INVALID_REQUEST"
+    );
+    assert_eq!(
+        sessions::receipt(&root.0, "work", "ordinary").unwrap()["receipt"],
+        first["receipt"]
+    );
+    let result = sessions::dry_run(
+        &root.0,
+        "work",
+        "reviewed",
+        1,
+        &original,
+        &sessions::DryRunOptions::default(),
+        &Control::default(),
+    )
+    .unwrap();
+    let proposal: sessions::Proposal = serde_json::from_value(result["proposal"].clone()).unwrap();
+    let committed =
+        sessions::apply_proposal(&root.0, &proposal, &original, &Control::default()).unwrap();
+    assert_eq!(
+        sessions::apply_proposal(&root.0, &proposal, &invalid, &Control::default())
+            .unwrap_err()
+            .code,
+        "INVALID_REQUEST"
+    );
+    assert_eq!(
+        sessions::receipt(&root.0, "work", "reviewed").unwrap()["receipt"],
+        committed["receipt"]
+    );
+    assert_eq!(
+        sessions::read(&root.0, "work", None).unwrap()["current_revision"],
+        2
+    );
+}
