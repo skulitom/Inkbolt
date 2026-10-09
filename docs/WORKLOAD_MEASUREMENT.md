@@ -36,8 +36,26 @@ On Windows, the driver queries the still-owned process handle after exit. [`GetP
 
 Aggregates report all attempts, successes, failures, variance, bytes and observed memory. Successful-task timing/memory distributions exclude failed cases; fast resource-limit rejections cannot improve a success budget. No current latency/memory threshold is inferred from an unsuccessful workload. Record actual machine load and repeatability conditions; this tool does not isolate the computer from other desktop work.
 
+## Measured regression budgets
+
+`tools/workload_gates.py` creates versioned local budgets from a complete successful `scale-v1` report. It requires all seven fixed cases, at least five repetitions each, every original command and correctness check, unchanged inputs, an optimized binary, and complete positive Windows memory observations. It recomputes metrics from command records; aggregate success claims cannot hide a failed, missing, duplicate, timed-out or retried attempt.
+
+```powershell
+python tools/workload_gates.py create --baseline C:\Work\Evidence\baseline\report.json --output C:\Work\Evidence\scale-gate.json --reason "Five complete successful runs under the recorded conditions"
+python tools/measure_workloads.py --output-root C:\Work\Evidence\candidate --conditions "Sequential local run; no concurrent verification; other desktop work not controlled"
+python tools/workload_gates.py check --gate C:\Work\Evidence\scale-gate.json --report C:\Work\Evidence\candidate\report.json --output C:\Work\Evidence\comparison.json
+```
+
+The `scale-regression-v1` policy allows each case a median command-time sum of at most **1.5 times** its baseline median, a slowest-trial sum of at most **2 times** the baseline maximum, and maximum process peak committed memory of at most **1.5 times** the baseline peak. Time budgets round upward to milliseconds and memory budgets to MiB. Every output must still pass its independent correctness oracle. These fixed margins allow ordinary local timing variance; they are engineering regression budgets, not perceptual response targets or a statistical significance claim. First-preview time, response bytes and working-set peaks remain separately observed in the workload report.
+
+The gate pins the adapter, exact bytes of the fixture/measurement driver and its local helper import closure, machine/OS/Python identity, compiler and baseline report/source/executable identities. Engine revisions may change; changed workload oracles, adapters, machines or compilers require explicit review and a new baseline. Missing/incomparable data is `ineligible`, never a pass. A fresh result is bound to both report and gate hashes, and the baseline report itself cannot count as a new regression measurement. Outputs are create-only and external. The tool does not authenticate reports or prevent deliberate fabrication; retain the original trusted raw evidence, conditions and previous failed comparisons. It never automatically loosens budgets or substitutes faster failures.
+
+These gates cover the fixed seven-workload suite only. Broader production compositions, streaming native operations, actual model trials and matched sister-project results remain separate A5/A1 requirements. Small synthetic record-validation tests belong to the normal quick suite; full release measurements stay separate and sequential so concurrent test load does not distort engine timings.
+
 ## Identity and acceptance
 
 The report records the source fingerprint, complete candidate-file hashes including fixture/oracle code, Git state, toolchain, optimized Cargo artifact and executable hash. Cargo's actual binary path is used. Inputs are rechecked after measurement; changed source, executable or candidate files invalidate the report. Raw evidence stays externally, and a later commit can be associated only after the exact tested bytes are checked again. Editing implementation, generators or oracles makes earlier evidence stale.
+
+Windows architecture is observed through [`GetNativeSystemInfo` and its public `SYSTEM_INFO` structure](https://learn.microsoft.com/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info); CPU model/vendor/identifier come from the local hardware registry. Optional environment variables are insufficient, and older reports with missing machine/processor fields remain ineligible for machine-bound budgets. The driver captures identity before and after execution; a change invalidates the run. An unavailable hardware read is explicit missing evidence. No computer name, device serial, user identity or network lookup is collected.
 
 These measurements guide storage, bounded rendering and incremental preparation work. Multi-megapixel native editing, common screen/print sizes, more realistic mixed scenes, retained precision, identity-bound cache invalidation and measured acceptance budgets remain A5 requirements. Do not raise limits alone or award an engine checkpoint for adding this driver. Revalidate the [recovery contracts](RECOVERY_CONTRACTS.md) after relevant storage changes; actual model-driven trials and matched sister-project comparisons remain separate evidence.

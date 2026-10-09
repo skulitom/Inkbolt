@@ -7,7 +7,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import platform
 import statistics
 import struct
 import subprocess
@@ -15,6 +14,7 @@ import sys
 import time
 
 from measure_discovery import ROOT, source_identity
+import measurement_host
 
 sys.path.insert(0, str(ROOT / 'tests'))
 from test_images_cli import png
@@ -432,6 +432,7 @@ def main():
     output.mkdir()
     candidates = candidate_identity()
     source = source_identity()
+    environment = measurement_host.identity()
     executable, build = release_build(output)
     rows = []
     cases = tuple(dict.fromkeys(args.cases or CASES))
@@ -454,10 +455,7 @@ def main():
         git_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT).decode().strip(),
         git_status=subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT).decode(),
         toolchain=subprocess.check_output(['rustc', '--version']).decode().strip(),
-        environment=dict(system=platform.system(), release=platform.release(), version=platform.version(),
-                         machine=platform.machine(), pointer_bits=struct.calcsize('P')*8,
-                         processor=os.environ.get('PROCESSOR_IDENTIFIER'),
-                         logical_cpus=os.cpu_count(), python=sys.version),
+        environment=environment, environment_unchanged=environment == measurement_host.identity(),
         conditions=args.conditions, rows=rows, aggregates=aggregate(rows),
         timing='Synchronous CLI process startup, JSON transfer, execution and exit; excludes fixture generation, oracle and report work',
         memory='Max of per-command Windows lifetime working-set/commit peaks; excludes driver and no child processes are started',
@@ -465,7 +463,8 @@ def main():
         token_usage=None, model_calls=None, agent_time=None,
         latency_memory_gates='Not established; failed workloads cannot set successful-task budgets',
         outcome='baseline_recorded_with_failures' if any(not row['success'] for row in rows) else 'all_selected_workloads_passed')
-    report['valid_inputs'] = unchanged and report['source_unchanged'] and report['executable_unchanged']
+    report['valid_inputs'] = (unchanged and report['source_unchanged'] and report['executable_unchanged']
+                              and report['environment_unchanged'])
     if not report['valid_inputs']:
         report['outcome'] = 'invalid_inputs_changed'
     save_json(output/'report.json', report)
