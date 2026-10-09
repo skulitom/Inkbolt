@@ -13,7 +13,8 @@ from test_cli import EXE, ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task, aggregate
 from benchmark_tasks import TASKS, CHECKS
-from benchmark_graphics import ADAPTERS, pixels, png_check
+from benchmark_adapters import ADAPTERS
+from benchmark_graphics import pixels, png_check
 from benchmark_runtime import Trial, TaskFailure, strict_json, Mcp
 from test_images_cli import png
 

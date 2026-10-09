@@ -7,7 +7,7 @@ import sys
 import traceback
 
 from benchmark_tasks import SUITE, TASKS, CHECKS
-from benchmark_graphics import ADAPTERS
+from benchmark_adapters import ADAPTERS
 from benchmark_runtime import Trial
 from measure_workloads import (ROOT, candidate_identity, release_build, save_json,
                                sha, statistics_of)

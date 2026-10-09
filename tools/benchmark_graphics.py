@@ -379,8 +379,3 @@ def seeded_repair(case):
         png_check((case.root/'repaired.png').read_bytes(),48,32,expected)
     case.check('preflight-delivery',delivered_correct)
     verify_history(case)
-
-
-ADAPTERS = {'B01':diagram,'B02':icons,'B03':large_layout,'B04':svg_artwork,
-            'B05':palette,'B08':foreground_mask,'B09':local_retouch,'B13':transparent_delivery,
-            'B15':resource_repair,'B16':seeded_repair,'B17':lost_response,'B18':conflicting_writers}

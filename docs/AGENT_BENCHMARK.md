@@ -1,9 +1,9 @@
 # Reproducible agent task benchmark
 
 `tools/agent_benchmark.py` records scripted reference workflows for the fixed
-B01-B20 tasks in [the readiness plan](AGENT_READINESS.md). The first twelve
+B01-B20 tasks in [the readiness plan](AGENT_READINESS.md). Seventeen
 adapters exercise real CLI and compact MCP commands with independent output,
-structure, resource, history and source-preservation checks. The remaining eight
+structure, resource, history and source-preservation checks. The remaining three
 tasks stay explicit in every full report. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
 
@@ -41,7 +41,7 @@ selected task failed or is not implemented, or inputs changed. Argument errors
 also return 2 with a diagnostic. Unexpected driver/build errors are failures,
 even when some earlier trial files exist. A selected subset cannot set
 `complete_scripted_suite`; only a successful complete twenty-task run can.
-The current default full run therefore returns 2 because eight adapters remain
+The current default full run therefore returns 2 because three adapters remain
 unimplemented. `actual_model_benchmark_complete` and
 `matched_cutbolt_comparison` remain false for scripted runs.
 
@@ -53,15 +53,19 @@ unimplemented. `actual_model_benchmark_complete` and
 | B03 large layout | One requested change among 5,000 rectangles, every current and historical pixel, retained controls and checked history |
 | B04 SVG revision | Original grouped editable path, explicit import losses, revised SVG structure, independent placement pixels and unchanged original bytes |
 | B05 shared palette | Both live swatch dependencies, unrelated paint, current/original pixels and history |
+| B06 linked text | Exact overset location, reviewed multi-column repair, ordered source intervals, font/license identity, complete glyph pixels and original overflowing revision |
+| B07 multilingual typography | Authored glyph forms, visual order, logical clusters, mark anchors and exact pixels for Latin/Hebrew/numerals, Arabic joining, Han, Indic reordering and a Latin ligature |
 | B08 foreground mask; B09 retouch | Complete independent selection coverage, retained source pixels, exact local repair, unaffected pixels and historical output |
+| B11 mixed masks/effects | Pinned raster under an isolated masked vector group, exact rational shadow/fill/group composition, offset-only edit, source identity and historical pixels |
+| B12 layout variants | Shared component with inherited text/image/position rows, three independently decoded output sizes, original resources, restored base and preserved earlier deliveries |
 | B13 screen delivery | All 1920x1080 pixels, straight alpha without matte, explicit sRGB/metadata policy, editable source and overwrite rejection |
+| B14 physical print | Independently parsed A4 trim/media/bleed boxes, exact RGB blending and CMYK source profiles, native process/spot operands, focused display preview, preflight identity and declared PDF losses |
 | B15 resource repair | Located missing/corrupt resource diagnostics, content-checked replacements, reviewed binding-only repair and unchanged historical bindings |
 | B16 seeded layout repair | Actionable text overflow, reviewed frame-width repair, exact font/text/unrelated artwork, preview pixels, preflight/publication identity and history |
 | B17 lost response; B18 conflicting writers | Original receipts, exact retry hashes, undo preservation, stale-proposal rejection and reviewed replacement preserving both edits |
 
-B06 linked text, B07 multilingual typography, B10 multi-megapixel photograph,
-B11 mixed masks/effects, B12 variant families, B14 physical print delivery,
-B19 worker interruption and B20 linked Cutbolt revisions still need adapters and
+B10 multi-megapixel photograph, B19 worker interruption and B20 linked Cutbolt
+revisions still need adapters and
 their complete independent judges. Separate existing contract tests or handoff
 evidence do not silently fill those benchmark slots. In particular, the current
 synchronous transport rejects background-job commands: worker containment and
@@ -73,6 +77,13 @@ pixel oracle; source snapshots, decoded PNG samples, resource hashes and history
 checks establish the declared outcomes. These fixtures do not represent the full
 range or subjective quality of production artwork. Task IDs and required outcomes
 are checked against the accepted plan so incomplete tasks cannot disappear.
+
+The multilingual font uses original, glyph-distinct geometric outlines; the judge
+uses authored logical intervals, advances and rectangles rather than the engine's
+render as its reference. The print fixture uses original analytic ICC profiles,
+preserving declared process/spot values in PDF. Its display preview and calibrated
+RGB blending do not claim a press proof or a real printer's measured condition.
+Complete print/interchange scope remains governed by the original feature registry.
 
 ## Measurement meaning
 

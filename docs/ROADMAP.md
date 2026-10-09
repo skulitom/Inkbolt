@@ -1,9 +1,11 @@
 # Roadmap and verified scope
 
-The [agent task benchmark](AGENT_BENCHMARK.md) now has twelve independently
+The [agent task benchmark](AGENT_BENCHMARK.md) now has seventeen independently
 judged scripted CLI/MCP adapters within the unchanged twenty-task inventory.
 Release identity, exact traffic and per-task measurements are retained; missing
-adapters and failures prevent complete-suite acceptance. Eight adapters, actual
+adapters and failures prevent complete-suite acceptance. Linked text, mixed-script
+typography, masked effects, inherited layouts and profiled native-ink print pages
+now have complete declared task oracles. Three adapters, actual
 model trials and matched Cutbolt comparisons remain required. The engine registry
 stays at 161/167.
 
