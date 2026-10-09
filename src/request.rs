@@ -197,7 +197,13 @@ pub fn execute(
     }
     let replayable = matches!(
         command.as_str(),
-        "session.create" | "session.continue" | "session.apply" | "session.apply_proposal"
+        "session.create"
+            | "session.continue"
+            | "session.apply"
+            | "session.apply_proposal"
+            | "document.publish"
+            | "session.publish"
+            | "publication.recover"
     );
     if !replayable {
         context.check()?;

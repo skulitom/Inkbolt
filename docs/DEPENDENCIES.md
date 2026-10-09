@@ -1,5 +1,7 @@
 # Dependencies and provenance
 
+Durable output receipts add no external package. An original Windows binding calls the documented GetFileInformationByHandleEx/FileIdInfo interface to identify retained staging links; SQLite uses the existing pinned rusqlite dependency. No SDK source is included. See [publication receipts](PUBLICATION_RECEIPTS.md) for public interface references and verified platform limits.
+
 Combined prepress adds no external package. The existing pinned moxcms 0.9.1 `options` feature enables high-precision CMYK interpolation weights; LUT and extended-range features remain enabled. All 83 external versions, sources and licenses are unchanged. Original gamut evaluation reads public ICC encodings; it does not copy a color-engine evaluator. Private verification uses the existing external LittleCMS 2.12 C API with original floating-point table/curve fixtures, plus separately pinned PDF readers. These tools and generated profiles remain external and are not shipped.
 
 Original engine code is MIT licensed. The material checker is adapted from original Cutbolt tooling; LICENSE retains its notice. No engine code or audit output from external applications is incorporated.

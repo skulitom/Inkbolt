@@ -860,6 +860,18 @@ pub fn publish(
     options: &crate::publish::Options,
     control: &Control,
 ) -> Result<Value, Error> {
+    let state = capture_head(root, session_id, expected_revision, control)?;
+    let mut result = crate::publish::publish(&state.document, &state.resources, options, control)?;
+    result["session_id"] = json!(session_id);
+    result["observed_current_revision"] = json!(expected_revision);
+    Ok(result)
+}
+pub(crate) fn capture_head(
+    root: &Path,
+    session_id: &str,
+    expected_revision: u64,
+    control: &Control,
+) -> Result<State, Error> {
     control.check()?;
     let mut db = open(root, session_id)?;
     let tx = db.transaction().map_err(sql)?;
@@ -874,10 +886,7 @@ pub fn publish(
     control.check_resource_paths(&state.resources)?;
     drop(tx);
     drop(db);
-    let mut result = crate::publish::publish(&state.document, &state.resources, options, control)?;
-    result["session_id"] = json!(session_id);
-    result["observed_current_revision"] = json!(meta.revision);
-    Ok(result)
+    Ok(state)
 }
 struct PreparedAction {
     meta: Meta,

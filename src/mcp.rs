@@ -287,7 +287,7 @@ fn description(command: &str) -> &'static str {
             "Return PDF/PNG/APNG/JPEG/TIFF/BMP/TGA/GIF base64, working-sRGB vector SVG, or editable snapshot JSON. PDF uses native paths and outlined text by default; pdf_options.print explicitly flattens calibrated CMYK image pages with a supplied output ICC profile, required matte and sample density. pdf_options also selects ordered artboard pages and bleed, or omission exports the canvas. metadata_policy controls public descriptions, stripping, path-free resource manifests and reproducible provenance. Snapshots retain private records by default; other outputs exclude them. Saved output profiles explicitly convert and embed ICC bytes in images. JPEG/BMP transparency requires an explicit matte; TIFF declares straight or associated alpha. GIF requires exact palettes, binary alpha and centisecond timing; it exports all sequence frames. BMP/TGA/GIF reject output profiles; BMP/TGA descriptions require explicit stripping. Does not write a destination. Unsupported semantics fail explicitly."
         }
         "document.publish" => {
-            "Export a snapshot or one artboard into an existing explicit output root. Creates the chosen filename atomically and rejects every existing destination. Returns a byte/hash receipt and applied metadata policy."
+            "Export a snapshot or artboard into an existing output root without overwrite. Returns byte/hash and loss receipts. Optional receipt:{receipt_root,request_id} durably records prepared output and supports identical retries and publication.recover after interruption. Existing unrelated destinations always reject. Durable publication uses the verified Windows file-identity backend."
         }
         "document.diff.preview" | "session.diff.preview" => {
             "Review immutable revisions with aligned before/after PNGs, a change mask, exact and thresholded RGBA8 deltas, source hashes, structural differences and per-side world coordinate maps. Common sRGB display view; output ICC profiles are recorded but not applied. Supports canvas, region, union-of-items and standalone artboard focus. Rejects fractional grid shifts rather than resampling. Read-only; session form captures both saved revisions in one transaction."
@@ -329,7 +329,13 @@ fn description(command: &str) -> &'static str {
             "Compare two committed session revisions including saved resource bindings. Rendering uses immutable captured states, releasing the database read lock first."
         }
         "session.publish" => {
-            "Capture the expected current revision and publish its document or artboard create-only. Later concurrent edits cannot change the captured export. Does not add an undo step."
+            "Capture the expected current revision and publish its document or artboard create-only without adding an undo step. Optional receipt:{receipt_root,request_id} saves prepared output for recovery and returns the original result on retry even after the source session advances or disappears. New exports retain exact-head checks. Durable receipt backend currently requires Windows."
+        }
+        "publication.receipt" => {
+            "Inspect a bounded durable publication receipt by request ID without opening source resources or output files. Complete results are historical receipts, not current file verification. Prepared results identify recoverable output and direct you to publication.recover. Normal SQLite hot-journal recovery may occur when opening the ledger."
+        }
+        "publication.recover" => {
+            "Recover a prepared publication without rendering again. Verifies retained staging bytes and Windows file identity; publishes only to an absent destination, or recognizes the same already-published file. An unrelated destination with identical bytes is a conflict. Completed requests return their historical receipt even after output removal or timeout. Preserves altered/missing evidence and existing outputs."
         }
         "artboard.export" => {
             "Return independent PNG/JPEG/TIFF/BMP/TGA/SVG exports for all artboards, ordered IDs or an end-exclusive range, optionally with bleed and format-specific image options. Returns no partial batch on failure."
@@ -427,6 +433,7 @@ pub fn catalog_in_workspace(
                 | "session.apply_proposal"
                 | "session.publish"
                 | "document.publish"
+                | "publication.recover"
         );
         let tool = json!({"name":name,"description":description(command),"inputSchema":input,"outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},"annotations":{"readOnlyHint":!mutable,"destructiveHint":matches!(command,"session.apply"|"session.apply_proposal"),"idempotentHint":true,"openWorldHint":false},"execution":{"taskSupport":"forbidden"}});
         tools.insert(name, (command.to_owned(), tool));

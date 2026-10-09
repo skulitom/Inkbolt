@@ -1,5 +1,7 @@
 # Workspaces and saved revisions
 
+The optional durable output receipt store defaults `receipt_root` to `.inkbolt/publications`. Prepared recovery checks saved output and staging paths against the selected workspace before file access. Receipt inspection returns saved path data without following it. See [publication receipts](PUBLICATION_RECEIPTS.md).
+
 CLI and MCP accept an optional explicit workspace. Put the flag before the request file or `mcp`:
 
 ```powershell

@@ -54,6 +54,7 @@ pub mod previews;
 pub mod primitives;
 pub mod profiles;
 pub mod proof;
+pub mod publications;
 pub mod publish;
 pub mod query;
 pub mod raw;
@@ -371,6 +372,9 @@ pub enum Request {
         #[serde(default)]
         resources: sessions::Resources,
         output: publish::Options,
+        /// Optional durable prepared receipt for idempotent publication and recovery.
+        #[serde(default)]
+        receipt: Option<publications::ReceiptTarget>,
         #[serde(default)]
         control: control::Options,
     },
@@ -380,6 +384,23 @@ pub enum Request {
         session_id: String,
         expected_revision: u64,
         output: publish::Options,
+        /// Optional durable receipt; retries do not recapture an advanced session.
+        #[serde(default)]
+        receipt: Option<publications::ReceiptTarget>,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "publication.receipt")]
+    PublicationReceipt {
+        receipt_root: PathBuf,
+        request_id: String,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "publication.recover")]
+    PublicationRecover {
+        receipt_root: PathBuf,
+        request_id: String,
         #[serde(default)]
         control: control::Options,
     },
@@ -866,6 +887,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             | Request::SessionBackup { .. }
             | Request::SessionRecover { .. }
             | Request::SessionMigrate { .. }
+            | Request::PublicationRecover { .. }
             | Request::SessionApply { .. }
             | Request::SessionApplyProposal { .. }
             | Request::Publish { .. }
@@ -878,6 +900,9 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
         request,
         Request::SessionCreate { .. }
             | Request::SessionContinue { .. }
+            | Request::Publish { .. }
+            | Request::SessionPublish { .. }
+            | Request::PublicationRecover { .. }
             | Request::SessionApply { .. }
             | Request::SessionApplyProposal { .. }
     ) {
@@ -1150,6 +1175,8 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "document.diff.preview",
                 "session.diff.preview",
                 "document.publish",
+                "publication.receipt",
+                "publication.recover",
                 "session.diff",
                 "session.publish",
                 "capabilities",
@@ -1575,6 +1602,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             capabilities["document_checks"] = json!({"command":"document.check","report_version":1,"checks":["structure","pinned_resource_registries","authored_text_and_story_layout","retained_nested_snapshots","instance_replacement_content"],"maximum_issues":checks::MAX_ISSUES,"maximum_report_bytes":checks::MAX_REPORT_BYTES,"default_issues":64,"font_axes":"validated_even_for_empty_text","incomplete":"explicit_for_skipped_layouts_or_stopped_work","errors":"located_original_codes_and_repair_guidance","external_object_links":"not_read_or_refreshed","delivery_certificate":false,"source_changed":false});
             capabilities["session_backups"] = json!({"commands":["session.backup","session.recover","session.migrate"],"storage_version":sessions::STORE_VERSION,"supported_storage_versions":sessions::SUPPORTED_STORE_VERSIONS,"maximum_database_bytes":sessions::MAX_DATABASE_BYTES,"capture":"expected_head_read_transaction;bounded_256_page_steps;writers_may_receive_SESSION_BUSY","verification":"whole_history_checksums_and_links;exact_head_and_history_identity;validated_copy_before_publication","publication":"create_only_hard_link;no_existing_destination_or_sidecars;late_cancellation_keeps_success","restore_identity":"exact_byte_length_and_sha256;original_session_id_preserved","retains":["immutable_states","undo_redo","named_snapshots","resource_bindings","retry_receipts"],"resources_copied":false,"external_resources_verified":false,"implicit_migration":false,"durable_publication_ledger":false,"hot_journal":"read_only_backup_requires_ordinary_session_recovery_first","orphans":"retained_after_crash;only_owned_live_temporary_files_cleaned"});
             capabilities["session_continuation"] = json!({"command":"session.continue","parent":"exact_revision_in_hash_pinned_whole_history_backup","new_identity":true,"new_revision":0,"old_history":"preserved_in_parent_backup;not_copied_or_evicted","new_undo_redo_and_snapshots":"empty","resources":"original_bindings_retained;explicit_rebinding;no_external_resource_reads","lineage":"version_1_checksums_and_initial_receipt_link;returned_by_read_receipt_verify_and_compact_results","retry":"same_request_id_and_parent_identity;committed_receipt_survives_missing_parent","automatic_parent_traversal":false,"authentication":false});
+            capabilities["durable_publication"] = json!({"commands":["document.publish","session.publish"],"optional_argument":"receipt:{receipt_root,request_id}","inspection":"publication.receipt","recovery":"publication.recover","backend":"Windows_local_file_identity_and_SQLite_rollback_FULL","supported_here":cfg!(windows),"states":["prepared","complete"],"recovery_proof":"retained_staging_link;exact_bytes_sha256;volume_and_128bit_file_identity;identical_unrelated_bytes_rejected","request_identity":"normalized_typed_inputs_without_control","completed_retry":"original_receipt_without_reopening_sources_or_output","prepared_recovery":"publish_validated_staging_bytes;no_rerender","postpublication_store_failure":"successful_created_output_with_completion_pending_and_recovery_required","maximum_receipts":publications::MAX_RECORDS,"maximum_receipt_bytes":publications::MAX_RECEIPT_BYTES,"maximum_ledger_payload_bytes":publications::MAX_LEDGER_BYTES,"maximum_output_bytes":publish::MAX_OUTPUT_BYTES,"cleanup":"identified_owned_staging_after_completed_record;crash_or_uncertain_commit_evidence_retained","implicit_job_queue":false,"power_loss_guarantee":false});
             capabilities["session_migration"] = json!({"command":"session.migrate","supported":[{"from":1,"to":2}],"publication":"new_backup_only;no_in_place_or_implicit_upgrade","adds":"empty_checked_lineage_table","preserves":"all_original_rows_and_logical_history_sha256","restore":"session.recover_with_returned_backup_identity","downgrade":false});
             capabilities["export_preflight"] = json!({"command":"document.preflight","preparation":"same_encoder_and_destination_checks_as_document.publish","success":"created_false_receipt_with_exact_bytes_sha256_and_actual_losses","failure":"ready_false_with_original_error_and_repair_guidance","cancellation":"normal_error_no_partial_report","writes_files":false,"reserves_output":false,"predicts_filesystem_write_success":false,"durable_receipt_ledger":false});
             capabilities["focused_previews"] = json!({"command":"document.preview","focus":["canvas","region","items","artboard"],"image":"PNG_with_existing_output_profile_and_loss_contract","region_and_items":"full_composition_crop;full_evaluation_limits_apply","item_bounds":"unclipped_geometry_without_strokes_or_effects;explicit_margin","artboard":"standalone_owned_subtree;existing_artboard_export_contract","coordinates":"explicit_document_world_to_pixel_and_inverse;pixel_edges_and_centers","quantization":"outward_to_original_render_grid_then_clip","source_identity":"canonical_document_sha256_and_revision","source_changed":false});
@@ -1603,19 +1631,62 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             document,
             resources,
             output,
+            receipt,
             control,
-        } => publish::publish(&document, &resources, &output, &context.scoped(&control)?),
+        } => match receipt {
+            Some(target) => publications::document(
+                &document,
+                &resources,
+                &output,
+                &target,
+                &context.scoped(&control)?,
+            ),
+            None => publish::publish(&document, &resources, &output, &context.scoped(&control)?),
+        },
         Request::SessionPublish {
             session_root,
             session_id,
             expected_revision,
             output,
+            receipt,
             control,
-        } => sessions::publish(
-            &session_root,
-            &session_id,
-            expected_revision,
-            &output,
+        } => match receipt {
+            Some(target) => publications::session(
+                &session_root,
+                &session_id,
+                expected_revision,
+                &output,
+                &target,
+                &context.scoped(&control)?,
+            ),
+            None => sessions::publish(
+                &session_root,
+                &session_id,
+                expected_revision,
+                &output,
+                &context.scoped(&control)?,
+            ),
+        },
+        Request::PublicationReceipt {
+            receipt_root,
+            request_id,
+            control,
+        } => publications::receipt(
+            &publications::ReceiptTarget {
+                receipt_root,
+                request_id,
+            },
+            &context.scoped(&control)?,
+        ),
+        Request::PublicationRecover {
+            receipt_root,
+            request_id,
+            control,
+        } => publications::recover(
+            &publications::ReceiptTarget {
+                receipt_root,
+                request_id,
+            },
             &context.scoped(&control)?,
         ),
         Request::Diff {

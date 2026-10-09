@@ -25,6 +25,12 @@ pub struct Control {
     workspace: Option<crate::workspace::Workspace>,
 }
 impl Control {
+    pub(crate) fn check_path(&self, path: &std::path::Path) -> Result<(), Error> {
+        if let Some(workspace) = &self.workspace {
+            workspace.resolve(path)?;
+        }
+        Ok(())
+    }
     pub(crate) fn has_workspace(&self) -> bool {
         self.workspace.is_some()
     }

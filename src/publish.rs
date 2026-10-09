@@ -32,7 +32,7 @@ pub struct Options {
     #[serde(default)]
     pub include_bleed: bool,
 }
-fn destination(options: &Options) -> Result<PathBuf, Error> {
+pub(crate) fn destination(options: &Options) -> Result<PathBuf, Error> {
     assets::absolute(&options.output_root)?;
     let name = &options.file_name;
     let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
@@ -44,6 +44,7 @@ fn destination(options: &Options) -> Result<PathBuf, Error> {
         || name.ends_with('.')
         || reserved
         || name.starts_with(".inkbolt-output-")
+        || name.starts_with(".inkbolt-publication-")
     {
         return Err(Error::new(
             "INVALID_REQUEST",
@@ -79,7 +80,7 @@ fn destination(options: &Options) -> Result<PathBuf, Error> {
     }
     Ok(target)
 }
-fn exists(target: &Path) -> Result<(), Error> {
+pub(crate) fn exists(target: &Path) -> Result<(), Error> {
     match fs::symlink_metadata(target) {
         Ok(_) => Err(Error::new(
             "OUTPUT_EXISTS",
@@ -327,12 +328,12 @@ pub fn export_with_render_options(
     }
     Ok(artifact)
 }
-struct PreparedOutput {
-    target: PathBuf,
-    bytes: Vec<u8>,
-    receipt: Value,
+pub(crate) struct PreparedOutput {
+    pub target: PathBuf,
+    pub bytes: Vec<u8>,
+    pub receipt: Value,
 }
-fn prepare_publication(
+pub(crate) fn prepare_publication(
     document: &Document,
     resources: &Resources,
     options: &Options,
