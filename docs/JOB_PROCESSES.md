@@ -1,6 +1,6 @@
 # Contained job processes
 
-The Windows Rust library provides `job_process` as the process-lifetime foundation for durable background exports. The [durable export queue](JOBS.md) now supplies CLI/MCP submission and recovery. Ordinary engine requests keep their existing synchronous behavior. This milestone earns no original engine-checkpoint credit and does not complete readiness gate A4.
+The Windows Rust library provides `job_process` as the process-lifetime foundation for durable background exports. The [durable export queue](JOBS.md) now supplies CLI/MCP submission and recovery. Ordinary engine requests keep their existing synchronous behavior. This process library earns no original engine-checkpoint credit. Its evidence participates in the complete [A4 recovery audit](RECOVERY_CONTRACTS.md).
 
 ## Lifetime and startup contract
 
@@ -37,4 +37,4 @@ This is containment for trusted engine code, not a filesystem, network or hostil
 
 Rust checks use original synthetic data and owned hidden processes. They cover gate release and rejection, natural exit, cancellation, deadline without polling, dropping pending/running children, supervisor death before/after assignment and during work, descendant rejection, actual memory caps, immutable executable identities, PID/creation mismatches, and lease contention/release. Test instrumentation is compiled only into the Rust test binary. Generated files stay in owned temporary directories; no external application is inspected.
 
-The separate jobs module supplies durable submission, pinned inputs, ownership persistence, progress/status/wait/cancel APIs, startup/shutdown coordination, explicit recovery and publication serialization. This process library alone supplies no queue semantics. Full A4 audit and wider file-writer coverage remain open. Non-Windows spawn/identity entry points explicitly report unsupported; no additional platform acceptance is claimed.
+The separate jobs module supplies durable submission, pinned inputs, ownership persistence, progress/status/wait/cancel APIs, startup/shutdown coordination, explicit recovery and publication serialization. This process library alone supplies no queue semantics. The complete [A4 audit](RECOVERY_CONTRACTS.md) also covers wider file-writer contracts and a CLI/MCP workflow. Non-Windows spawn/identity entry points explicitly report unsupported; no additional platform acceptance is claimed.

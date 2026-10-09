@@ -107,11 +107,15 @@ fn publish(root: &Path, digest: &str, suffix: &str, bytes: &[u8]) -> Result<bool
             }
         };
         let temp = Temporary(p);
+        #[cfg(all(test, windows))]
+        crate::resource_recovery_tests::checkpoint(root, &format!("{suffix}_before_write"));
         f.write_all(bytes)
             .and_then(|_| f.sync_all())
             .map_err(|_| Error::new("IO_ERROR", "Unable to write immutable font resource"))?;
         drop(f);
-        return match fs::hard_link(&temp.0, &target) {
+        #[cfg(all(test, windows))]
+        crate::resource_recovery_tests::checkpoint(root, &format!("{suffix}_before_publish"));
+        let result = match fs::hard_link(&temp.0, &target) {
             Ok(()) => Ok(true),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                 load_blob(root, digest, suffix, bytes.len() as u64)?;
@@ -122,6 +126,9 @@ fn publish(root: &Path, digest: &str, suffix: &str, bytes: &[u8]) -> Result<bool
                 "Font root must support create-only hard-link publication",
             )),
         };
+        #[cfg(all(test, windows))]
+        crate::resource_recovery_tests::checkpoint(root, &format!("{suffix}_after_publish"));
+        return result;
     }
     Err(Error::new(
         "FONT_STORE_ERROR",

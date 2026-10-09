@@ -107,3 +107,6 @@ For curved labels, set the text frame `path`, inspect using `inkbolt_text_inspec
 `inkbolt_image_trace` is a read-only source conversion tool. Inspect its color/topology diagnostics and classification error before accepting the returned vector document. Retain the source and provenance for retracing, use a session for subsequent path/paint changes, and publish new outputs explicitly. See [TRACING.md](TRACING.md).
 
 `inkbolt_brush_inspect` returns deterministic placement/settings without mutation. Use `brush_stroke` in a revision-checked document/session edit, inspect its changed-pixel receipt, then preview and publish. Keep the starting snapshot and request for replay; session undo/retry preserve outcomes. See [PIXEL_BRUSHES.md](PIXEL_BRUSHES.md).
+
+
+Recovery contracts for sessions, publications, jobs and resource imports are inventoried in [recovery acceptance](RECOVERY_CONTRACTS.md). Cache imports retry by rereading unchanged original sources and verifying existing immutable blobs; only the documented session/publication/job commands retain historical request outcomes. Cancellation and partial-cache boundaries are explicit there.

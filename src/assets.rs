@@ -332,11 +332,15 @@ pub(crate) fn publish(asset: &ImageAsset, rgba: &[u8], root: &Path) -> Result<bo
             Err(_) => return Err(io_error()),
         }
     };
+    #[cfg(all(test, windows))]
+    crate::resource_recovery_tests::checkpoint(&root, "image_before_write");
     f.write_all(&header(asset.width, asset.height))
         .and_then(|_| f.write_all(rgba))
         .and_then(|_| f.sync_all())
         .map_err(|_| io_error())?;
     drop(f);
+    #[cfg(all(test, windows))]
+    crate::resource_recovery_tests::checkpoint(&root, "image_before_publish");
     // A hard link publishes the completely written file without replacing an existing name.
     let created = match fs::hard_link(&temporary.0, &target) {
         Ok(()) => true,
@@ -351,6 +355,8 @@ pub(crate) fn publish(asset: &ImageAsset, rgba: &[u8], root: &Path) -> Result<bo
             ));
         }
     };
+    #[cfg(all(test, windows))]
+    crate::resource_recovery_tests::checkpoint(&root, "image_after_publish");
     Ok(created)
 }
 fn png_error() -> Error {

@@ -1,5 +1,7 @@
 # Architecture
 
+The [recovery audit](RECOVERY_CONTRACTS.md) covers every persistent command family. Test-only resource checkpoints exercise actual public image/font/sequence imports before writing and on both sides of immutable-cache publication, including partial license/frame sets. A complete CLI/MCP workflow connects reviewed editing, pinned delivery, migration, restored undo and continuation. Production imports retain their existing bounded cache contract.
+
 `jobs` connects bounded checksummed SQLite input/state/runtime tables to hidden local supervisors and contained export processes. Launch/worker leases close the idle-exit admission race; recorded generations and PID/creation identities distinguish live owners from interrupted work. Immutable document inputs are separate from progress. A publication permit holds the job writer transaction across create-only publication and result recording, serializing cancellation with the commit point. Stopped-worker reconciliation only recognizes already-published evidence; it does not create absent outputs. See [durable jobs](JOBS.md).
 
 `jobs::listing` reads a bounded admission inventory and only the requested input/state payloads in one SQLite snapshot. Cursors bind the original input membership and queue root/build, keeping traversal stable as progress changes and excluding later admissions until a fresh listing. Byte limits can shorten a page. Discovery neither opens source resources/executables nor reconciles outcomes or starts workers.

@@ -2,7 +2,7 @@
 
 `job.start` captures a document and resource bindings into a local persistent queue, returns a compact ticket, and launches a hidden Windows supervisor. The submitting CLI or MCP process can close. The supervisor runs one bounded export process at a time and exits when the queue is empty. No listener, account, network service or telemetry is used.
 
-This implements the background export portion of readiness gate A4. It does not complete the overall readiness plan, expand document/render limits, add engine-checkpoint credit, or cover every existing file writer. Jobs currently publish one output through the existing document publisher, including its artboard and format options.
+This implements the background export portion of readiness gate A4; the complete requirement/writer/workflow evidence is recorded in the [recovery audit](RECOVERY_CONTRACTS.md). It does not complete the overall readiness plan, expand document/render limits, add engine-checkpoint credit, or cover every existing file writer. Jobs currently publish one output through the existing document publisher, including its artboard and format options.
 
 ## Commands
 
