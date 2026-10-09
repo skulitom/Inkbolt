@@ -179,6 +179,7 @@ impl Plan {
                 (resources.antialias, resources.linear),
                 [x0, y0],
                 Some(&resources.control),
+                None,
             )?;
             for (i, src) in pixels.as_chunks::<4>().0.iter().enumerate() {
                 if i.is_multiple_of(4096) {

@@ -52,7 +52,7 @@ where
     let row_values = width as usize * channels.count();
     let rows = (MAX_STRIP_BYTES / (row_values * std::mem::size_of::<C::Inner>()))
         .max(1)
-        .min((crate::render::tiled::EDGE / prepared.sampling.options.antialias.factor()) as usize)
+        .min((prepared.tile_edge() / prepared.sampling.options.antialias.factor()) as usize)
         as u32;
     let method = match compression {
         Compression::None => 1u16,

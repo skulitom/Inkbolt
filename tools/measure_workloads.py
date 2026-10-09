@@ -23,6 +23,7 @@ from test_image_io_cli import tiff_tags
 from pdf_reader import Pdf
 
 SUITE_VERSION = 'scale-v1'
+ADAPTERS = ('native-tiled-v1', 'legacy-v1')
 CASES = ('native-control', 'native-screen', 'stored-screen', 'social-square',
          'sparse-5000', 'mixed-5001', 'print-page')
 COLOR = bytes([20, 80, 150, 255])
@@ -157,8 +158,11 @@ def check_pdf(path):
 
 
 class Case:
-    def __init__(self, executable, root, name, repetition, timeout=90):
+    def __init__(self, executable, root, name, repetition, timeout=90, adapter=ADAPTERS[0]):
+        if adapter not in ADAPTERS:
+            raise ValueError('Unknown workload adapter')
         self.executable, self.root, self.timeout = executable, root, timeout
+        self.adapter = adapter
         self.name, self.repetition = name, repetition
         root.mkdir()
         self.calls, self.checks, self.sources = [], [], {}
@@ -216,6 +220,8 @@ class Case:
             return False
 
     def publish(self, step, doc, format, oracle, **options):
+        if self.adapter == 'native-tiled-v1' and format in ('png', 'tiff') and self.name != 'sparse-5000':
+            options.setdefault('render_options', dict(evaluation='tiled'))
         path = self.root / f'{step}.{format}'
         result = self.call(step, 'document.publish', available=doc is not None, document=doc,
                            output=dict(file_name=path.name, format=format, **options))
@@ -235,7 +241,7 @@ class Case:
         success = success and all(row['status'] == 'pass' for row in self.checks)
         memory = [row['memory'] for row in self.calls if 'memory' in row]
         available = bool(memory) and all(value['available'] for value in memory)
-        result = dict(case=self.name, repetition=self.repetition, success=success,
+        result = dict(case=self.name, adapter=self.adapter, repetition=self.repetition, success=success,
             calls=self.calls, checks=self.checks, fixture_sources=self.sources,
             engine_seconds=sum(row.get('seconds', 0) for row in self.calls),
             request_bytes=sum(row.get('request_bytes', 0) for row in self.calls),
@@ -258,7 +264,8 @@ def require(condition, message):
 def native_case(case, width, height):
     original = native_pixels(width, height)
     source = case.source('source.png', native_png(width, height, original))
-    imported = case.call('import', 'sample.import', source_path=source, id='native')
+    storage = dict(storage={}) if case.adapter == 'native-tiled-v1' else {}
+    imported = case.call('import', 'sample.import', source_path=source, id='native', **storage)
     created = case.call('save', 'session.create', available=imported is not None,
         session_id='native', request_id='create', document=imported['document'] if imported else None,
         response_mode='compact')
@@ -415,6 +422,7 @@ def main():
     parser.add_argument('--repetitions', type=int, default=5, choices=range(1, 11))
     parser.add_argument('--case', action='append', choices=CASES, dest='cases')
     parser.add_argument('--conditions', required=True, help='Describe machine load and other measurement conditions')
+    parser.add_argument('--adapter', choices=ADAPTERS, default=ADAPTERS[0], help='Versioned engine calls; required outcomes/oracles stay unchanged')
     args = parser.parse_args()
     if sys.flags.optimize:
         parser.error('Correctness oracles require Python assertions; do not use -O')
@@ -432,13 +440,13 @@ def main():
         # OS disk/page caches are not flushed and no cold-cache claim is made.
         offset = repetition % len(cases)
         for name in cases[offset:] + cases[:offset]:
-            case = Case(executable, output/f'{repetition+1:02d}-{name}', name, repetition+1)
+            case = Case(executable, output/f'{repetition+1:02d}-{name}', name, repetition+1, adapter=args.adapter)
             row = run_case(case)
             rows.append(row)
             print(json.dumps(dict(case=name, repetition=repetition+1, success=row['success'],
                                   seconds=row['engine_seconds'], peak_commit=row['peak_commit_bytes'])), flush=True)
     unchanged = candidates == candidate_identity()
-    report = dict(schema_version=1, suite=SUITE_VERSION, model_trials=False,
+    report = dict(schema_version=1, suite=SUITE_VERSION, adapter=args.adapter, model_trials=False,
         full_readiness_benchmark=False, selected_cases=list(cases), repetitions=args.repetitions,
         source_sha256=source, source_unchanged=source == source_identity(),
         candidate_files=candidates, candidate_files_unchanged=unchanged, build=build,

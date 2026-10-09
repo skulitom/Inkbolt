@@ -27,11 +27,27 @@ class WorkloadMeasurementTests(unittest.TestCase):
             self.assertEqual((root/'initial.tiff').read_bytes(), (root/'historical.tiff').read_bytes())
             self.assertEqual((root/'initial.tiff').read_bytes(), (root/'restored.tiff').read_bytes())
             self.assertNotEqual((root/'initial.tiff').read_bytes(), (root/'edited.tiff').read_bytes())
-            self.assertGreater(row['response_bytes'], 128*128*8)
+            self.assertEqual(row['adapter'],'native-tiled-v1')
+            self.assertLess(row['response_bytes'],128*128*8)
+            imported=json.loads((root/'00-import.response.json').read_bytes())['result']['document']
+            self.assertEqual(imported['items'][0]['content']['type'],'stored_samples')
             self.assertGreater(row['engine_seconds'], 0)
             if os.name == 'nt':
                 self.assertTrue(row['memory_complete'])
                 self.assertGreater(row['peak_commit_bytes'], 0)
+
+    def test_legacy_adapter_preserves_original_calls_and_native_oracle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=measure.Case(EXE,Path(directory)/'legacy','native-control',1,adapter='legacy-v1')
+            row=measure.run_case(case)
+            self.assertTrue(row['success'],row)
+            imported=json.loads((case.root/'00-import.response.json').read_bytes())['result']['document']
+            self.assertEqual(imported['items'][0]['content']['type'],'samples')
+            self.assertGreater(row['response_bytes'],128*128*8)
+            for call in case.root.glob('*.request.json'):
+                payload=json.loads(call.read_bytes())
+                self.assertNotIn('storage',payload)
+                self.assertNotIn('render_options',payload.get('output',{}))
 
     def test_oracle_mismatch_and_source_change_cannot_be_success(self):
         with tempfile.TemporaryDirectory() as directory:

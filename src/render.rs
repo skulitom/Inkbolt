@@ -4,9 +4,11 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, path::Path};
 
+mod coverage_cache;
 mod coverage_path;
 pub(crate) mod prepared;
 mod sparse;
+mod spatial;
 pub(crate) mod tiled;
 
 pub const MAX_RENDER_PIXELS: u64 = 1_048_576;
@@ -50,7 +52,12 @@ fn painted_pixels(
     height: u32,
     scale: u32,
     world: Matrix,
-    (antialias, linear, origin): (crate::render_quality::Antialias, bool, [u32; 2]),
+    (antialias, linear, origin, cached): (
+        crate::render_quality::Antialias,
+        bool,
+        [u32; 2],
+        Option<&[coverage_cache::Coverage]>,
+    ),
 ) -> Result<Vec<f64>, Error> {
     painted_region(
         item,
@@ -59,6 +66,7 @@ fn painted_pixels(
         (antialias, linear),
         origin,
         None,
+        cached,
     )
 }
 fn painted_region(
@@ -68,6 +76,7 @@ fn painted_region(
     (antialias, linear): (crate::render_quality::Antialias, bool),
     origin: [u32; 2],
     control: Option<&crate::control::Control>,
+    cached: Option<&[coverage_cache::Coverage]>,
 ) -> Result<Vec<f64>, Error> {
     let rectangle;
     let (geometry, fill, stroke, fill_rule, dither) = match &item.content {
@@ -110,16 +119,19 @@ fn painted_region(
     let transform = placed(world);
     let mut result = vec![0.0; width as usize * height as usize * 4];
     let local = geometry::inverse(world)?;
-    for (source, stroke) in fill
+    for (part, (source, stroke)) in fill
         .map(|p| (p, None))
         .into_iter()
         .chain(stroke.map(|s| (&s.color, Some(s))))
+        .enumerate()
     {
         if let Some(control) = control {
             control.check()?;
         }
         coverage.fill(tiny_skia::Color::TRANSPARENT);
-        if let Some(stroke) = stroke {
+        if cached.is_some() {
+            // Coverage was prepared once against the complete shape bounds.
+        } else if let Some(stroke) = stroke {
             if let Some(outline) = crate::strokes::generate_placed(geometry, stroke, world)? {
                 let stroke_transform = placed(stroke.scaling.matrix(world));
                 coverage.fill_path(
@@ -155,7 +167,13 @@ fn painted_region(
             {
                 control.check()?;
             }
-            if pixel.alpha() == 0 {
+            let alpha = cached.map_or(pixel.alpha(), |m| {
+                m[part].at([
+                    origin[0] + (i % width as usize) as u32,
+                    origin[1] + (i / width as usize) as u32,
+                ])
+            });
+            if alpha == 0 {
                 continue;
             }
             let canvas = [
@@ -170,13 +188,7 @@ fn painted_region(
                     *v = crate::hdr::decode(*v);
                 }
             }
-            composite(
-                dst,
-                color,
-                pixel.alpha() as f64 / 255.0,
-                BlendMode::Normal,
-                linear,
-            );
+            composite(dst, color, alpha as f64 / 255.0, BlendMode::Normal, linear);
         }
     }
     Ok(result)
@@ -404,6 +416,7 @@ fn clip_mask(
     )?))
 }
 struct Resources {
+    spatial: Option<spatial::Plan>,
     control: crate::control::Control,
     objects: BTreeMap<String, prepared::Prepared>,
     linear: bool,
@@ -417,10 +430,68 @@ struct Resources {
     texts: BTreeMap<String, crate::text::Layout>,
 }
 struct ResourcesView<'a> {
+    tile: Option<&'a spatial::Tile>,
     base: &'a Resources,
     artwork_masks: &'a BTreeMap<String, Vec<f64>>,
     control: &'a crate::control::Control,
     origin: [u32; 2],
+}
+impl ResourcesView<'_> {
+    fn clip(
+        &self,
+        item: &Item,
+        world: Matrix,
+        size: [u32; 3],
+    ) -> Result<Option<tiny_skia::Mask>, Error> {
+        if let Some(mask) = self
+            .spatial
+            .as_ref()
+            .and_then(|p| p.coverage.clips.get(&item.id))
+        {
+            return mask.mask(self.origin, [size[0], size[1]]).map(Some);
+        }
+        clip_mask(
+            item,
+            world,
+            size[0],
+            size[1],
+            size[2],
+            self.antialias,
+            self.origin,
+        )
+    }
+    fn paints(&self, id: &str) -> Option<&[coverage_cache::Coverage]> {
+        self.spatial
+            .as_ref()
+            .and_then(|p| p.coverage.paints.get(id))
+            .map(Vec::as_slice)
+    }
+    fn children(&self, document: &Document, parent: Option<&str>) -> std::borrow::Cow<'_, [usize]> {
+        if let (Some(plan), Some(tile)) = (&self.base.spatial, self.tile) {
+            std::borrow::Cow::Borrowed(
+                tile.children
+                    .get(&plan.parent(parent))
+                    .map_or(&[], |v| v.as_slice()),
+            )
+        } else {
+            std::borrow::Cow::Owned(scene::children(document, parent))
+        }
+    }
+    fn contains(&self, i: usize) -> bool {
+        match (&self.base.spatial, self.tile) {
+            (Some(plan), Some(tile)) => tile
+                .children
+                .get(&plan.parents[i])
+                .is_some_and(|v| v.binary_search(&i).is_ok()),
+            _ => true,
+        }
+    }
+    fn world(&self, document: &Document, i: usize) -> Result<Matrix, Error> {
+        self.base
+            .spatial
+            .as_ref()
+            .map_or_else(|| scene::world_transform(document, i), |p| Ok(p.worlds[i]))
+    }
 }
 impl std::ops::Deref for ResourcesView<'_> {
     type Target = Resources;
@@ -436,10 +507,15 @@ fn text_pixels(
     height: u32,
     scale: u32,
     world: Matrix,
-    (antialias, linear, origin): (crate::render_quality::Antialias, bool, [u32; 2]),
+    (antialias, linear, origin, cache): (
+        crate::render_quality::Antialias,
+        bool,
+        [u32; 2],
+        Option<&coverage_cache::Cache>,
+    ),
 ) -> Result<Vec<f64>, Error> {
     let mut result = vec![0.0; width as usize * height as usize * 4];
-    for p in &layout.paths {
+    for (index, p) in layout.paths.iter().enumerate() {
         let mut glyph = item.clone();
         glyph.content = Content::Vector {
             geometry: p.geometry.clone(),
@@ -454,6 +530,9 @@ fn text_pixels(
             (antialias, linear),
             origin,
             None,
+            cache
+                .and_then(|c| c.paints.get(&item.id))
+                .map(|v| &v[index..index + 1]),
         )?;
         for (dst, src) in result
             .as_chunks_mut::<4>()
@@ -481,7 +560,11 @@ fn text_pixels(
             transform: identity(),
             enabled: true,
         });
-        let mask = clip_mask(&clipped, world, width, height, scale, antialias, origin)?.unwrap();
+        let mask = if let Some(mask) = cache.and_then(|c| c.text_clips.get(&item.id)) {
+            mask.mask(origin, [width, height])?
+        } else {
+            clip_mask(&clipped, world, width, height, scale, antialias, origin)?.unwrap()
+        };
         for (pixel, &coverage) in result.as_chunks_mut::<4>().0.iter_mut().zip(mask.data()) {
             for v in pixel {
                 *v *= coverage as f64 / 255.0;
@@ -504,16 +587,8 @@ fn apply_adjustment(
     let Content::Adjustment { adjustment } = &item.content else {
         unreachable!()
     };
-    let [width, height, scale] = size;
-    let mask = clip_mask(
-        item,
-        scene::world_transform(document, i)?,
-        width,
-        height,
-        scale,
-        resources.antialias,
-        resources.origin,
-    )?;
+    let [width, _, scale] = size;
+    let mask = resources.clip(item, resources.world(document, i)?, size)?;
     for (n, pixel) in pixels.as_chunks_mut::<4>().0.iter_mut().enumerate() {
         let alpha = pixel[3];
         if alpha == 0.0 {
@@ -549,6 +624,14 @@ fn apply_clipped_adjustments(
     size: [u32; 3],
     resources: &ResourcesView<'_>,
 ) -> Result<(), Error> {
+    if let Some(plan) = &resources.spatial {
+        for &j in &plan.clipped_adjustments[i] {
+            if resources.contains(j) {
+                apply_adjustment(document, j, pixels, size, resources)?;
+            }
+        }
+        return Ok(());
+    }
     let siblings = scene::children(document, document.items[i].parent.as_deref());
     let position = siblings.iter().position(|&j| j == i).unwrap();
     for &j in &siblings[position + 1..] {
@@ -628,15 +711,7 @@ fn coverage<'a>(
     resources: &'a ResourcesView<'_>,
 ) -> Result<Coverage<'a>, Error> {
     let [width, height, scale] = size;
-    let clip = clip_mask(
-        item,
-        world,
-        width,
-        height,
-        scale,
-        resources.antialias,
-        resources.origin,
-    )?;
+    let clip = resources.clip(item, world, size)?;
     let frame = if let Content::Frame { frame } = &item.content {
         let mut temporary = item.clone();
         temporary.clip = Some(frame.clip());
@@ -729,7 +804,7 @@ fn drawable_pixels(
     resources.control.check()?;
     let item = &document.items[i];
     let [width, height, scale] = size;
-    let world = scene::world_transform(document, i)?;
+    let world = resources.world(document, i)?;
     let mut shape = None;
     let mut pixels = match &item.content {
         Content::Group { isolated: true, .. } | Content::Frame { .. } => {
@@ -749,7 +824,12 @@ fn drawable_pixels(
                     height,
                     scale,
                     world,
-                    (resources.antialias, resources.linear, resources.origin),
+                    (
+                        resources.antialias,
+                        resources.linear,
+                        resources.origin,
+                        None,
+                    ),
                 )?
             } else {
                 vec![0.0; width as usize * height as usize * 4]
@@ -771,7 +851,12 @@ fn drawable_pixels(
             height,
             scale,
             world,
-            (resources.antialias, resources.linear, resources.origin),
+            (
+                resources.antialias,
+                resources.linear,
+                resources.origin,
+                resources.paints(&item.id),
+            ),
         )?,
         Content::Text { .. } | Content::StoryFrame { .. } => text_pixels(
             item,
@@ -780,7 +865,12 @@ fn drawable_pixels(
             height,
             scale,
             world,
-            (resources.antialias, resources.linear, resources.origin),
+            (
+                resources.antialias,
+                resources.linear,
+                resources.origin,
+                resources.spatial.as_ref().map(|p| &p.coverage),
+            ),
         )?,
         Content::Object { object } => {
             let warp = crate::pixel_warps::plan(item)?;
@@ -953,9 +1043,15 @@ fn apply_clipped_layers(
     size: [u32; 3],
     resources: &ResourcesView<'_>,
 ) -> Result<(), Error> {
-    let siblings = scene::children(document, document.items[i].parent.as_deref());
-    let position = siblings.iter().position(|&j| j == i).unwrap();
-    for &j in &siblings[position + 1..] {
+    let siblings;
+    let candidates = if let Some(plan) = &resources.spatial {
+        &plan.clipped_layers[i][..]
+    } else {
+        siblings = scene::children(document, document.items[i].parent.as_deref());
+        let position = siblings.iter().position(|&j| j == i).unwrap();
+        &siblings[position + 1..]
+    };
+    for &j in candidates {
         let item = &document.items[j];
         if crate::layer_clipping::auxiliary(&item.content) {
             continue;
@@ -963,7 +1059,7 @@ fn apply_clipped_layers(
         if item.clip_to.as_deref() != Some(document.items[i].id.as_str()) {
             break;
         }
-        if !item.visible || item.opacity == 0.0 {
+        if !item.visible || item.opacity == 0.0 || !resources.contains(j) {
             continue;
         }
         let mut source = drawable_pixels(document, j, size, resources)?;
@@ -971,10 +1067,10 @@ fn apply_clipped_layers(
             item,
             &mut source,
             size,
-            scene::world_transform(document, j)?,
+            resources.world(document, j)?,
             resources.light,
         )?;
-        let coverage = coverage(item, scene::world_transform(document, j)?, size, resources)?;
+        let coverage = coverage(item, resources.world(document, j)?, size, resources)?;
         for (pixel, (dst, src)) in pixels
             .as_chunks_mut::<4>()
             .0
@@ -1012,7 +1108,7 @@ fn draw_items(
             .is_knockout()
     });
     let initial = knockout.then(|| accum.to_vec());
-    for i in scene::children(document, parent) {
+    for &i in resources.children(document, parent).iter() {
         resources.control.check()?;
         let item = &document.items[i];
         let background = crate::backgrounds::matte(document, &item.id);
@@ -1034,7 +1130,7 @@ fn draw_items(
             }
             continue;
         }
-        let world = scene::world_transform(document, i)?;
+        let world = resources.world(document, i)?;
         if matches!(
             item.content,
             Content::Group {
@@ -1404,6 +1500,7 @@ pub(crate) fn plan_artwork_masks(
             world,
             instance,
             Resources {
+                spatial: None,
                 control: crate::control::Control::default(),
                 objects: BTreeMap::new(),
                 linear: false,
@@ -1474,6 +1571,7 @@ impl ArtworkMaskPlan {
                 None,
                 [width, height, scale],
                 &ResourcesView {
+                    tile: None,
                     origin: [0; 2],
                     base: instance_resources,
                     artwork_masks: &no_nested_masks,

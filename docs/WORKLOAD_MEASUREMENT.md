@@ -12,6 +12,8 @@ The parent directory must exist; the output directory must be new and outside th
 
 The initial `scale-v1` suite has seven fixed cases. Each repetition uses new workspaces and synchronous CLI processes. Case order rotates deterministically; filesystem/page caches are not flushed, and the tool makes no cold-cache claim.
 
+The call adapter is versioned separately from these fixed fixtures and outcomes. Default `--adapter native-tiled-v1` opts into native block import and tiled PNG/native-TIFF output. The pure `sparse-5000` case retains the existing sparse whole evaluator; the mixed case uses tiled evaluation. `--adapter legacy-v1` reproduces the original inline import and whole-output calls for comparison. Reports record the adapter per run and per case. Both adapters use exactly the same dimensions, original sources, edit region, history checks, final outputs and independent oracles; no failed case is removed. Different adapters measure different call paths and must be identified when comparing results.
+
 | Case | Required outcome and independent oracle |
 | --- | --- |
 | `native-control` | Import an original 128×128 RGBA16 PNG, save a session, replace a 2×2 region, inspect the old revision, undo, and verify history. An independent TIFF reader checks every native sample before/after editing and undo, including unchanged surrounding pixels and adjacent 16-bit codes. |

@@ -182,6 +182,8 @@ impl Plan {
         if self.options.evaluation == Evaluation::Tiled {
             value["evaluation"] = json!("tiled");
             value["evaluation_tile_edge"] = json!(crate::render::tiled::EDGE);
+            value["evaluation_tile_policy"] =
+                json!("maximum_128;8_for_at_least_128_expanded_items");
         }
         if let Some(canvas) = self.canvas {
             value["vector_canvas"] = json!(canvas);

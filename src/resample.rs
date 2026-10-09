@@ -172,6 +172,13 @@ pub(crate) fn footprint(
 }
 
 pub(crate) fn document_work(document: &Document, scale: u32) -> Result<u64, Error> {
+    document_work_for_pixels(document, scale, None)
+}
+pub(crate) fn document_work_for_pixels(
+    document: &Document,
+    scale: u32,
+    regional_pixels: Option<&[u64]>,
+) -> Result<u64, Error> {
     let mut work = 0u64;
     let count = document.width as u64 * document.height as u64 * scale as u64 * scale as u64;
     for (i, item) in document.items.iter().enumerate() {
@@ -266,7 +273,11 @@ pub(crate) fn document_work(document: &Document, scale: u32) -> Result<u64, Erro
             )?,
         )
         .map_err(|e| e.at_item(&item.id))?;
-        work = work.saturating_add(count.saturating_mul(plan.work()));
+        work = work.saturating_add(
+            regional_pixels
+                .map_or(count, |pixels| pixels[i])
+                .saturating_mul(plan.work()),
+        );
         if work > MAX_WORK {
             return Err(limit("Render exceeds aggregate reconstruction work limit"));
         }

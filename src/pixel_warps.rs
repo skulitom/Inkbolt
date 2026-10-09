@@ -505,8 +505,15 @@ pub(crate) fn reject_native(item: &Item) -> Result<(), Error> {
     Ok(())
 }
 pub(crate) fn work(document: &Document, scale: u32) -> Result<u64, Error> {
+    work_for_pixels(document, scale, None)
+}
+pub(crate) fn work_for_pixels(
+    document: &Document,
+    scale: u32,
+    regional_pixels: Option<&[u64]>,
+) -> Result<u64, Error> {
     let mut units = 0u64;
-    for i in &document.items {
+    for (index, i) in document.items.iter().enumerate() {
         if let Some(s) = &i.pixel_warp {
             let (c, r) = match s.as_ref() {
                 Spec::Perspective { .. } => (1, 1),
@@ -514,10 +521,14 @@ pub(crate) fn work(document: &Document, scale: u32) -> Result<u64, Error> {
                     (*columns, *rows)
                 }
             };
-            units += (2 * c * r + 2 * c + 2 * r + 4) as u64;
+            units += (2 * c * r + 2 * c + 2 * r + 4) as u64
+                * regional_pixels.map_or(
+                    document.width as u64 * document.height as u64 * scale as u64 * scale as u64,
+                    |pixels| pixels[index],
+                );
         }
     }
-    let work = units * document.width as u64 * document.height as u64 * scale as u64 * scale as u64;
+    let work = units;
     if work > MAX_WORK {
         return Err(limit(
             "Pixel deformation exceeds inverse sampling work limit",

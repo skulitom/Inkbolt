@@ -14,6 +14,13 @@ pub(crate) struct Prepared {
     pub source_profiles: std::collections::BTreeSet<String>,
 }
 impl Prepared {
+    pub(crate) fn tile_edge(&self) -> u32 {
+        if self.resources.spatial.is_some() {
+            super::spatial::EDGE
+        } else {
+            super::tiled::EDGE
+        }
+    }
     pub fn new(
         document: &Document,
         scale: u32,
@@ -66,13 +73,31 @@ impl Prepared {
         {
             return Err(limit("Render exceeds pixel limits"));
         }
+        let fonts = crate::fonts::resolve(document, font_root)?;
+        let texts = crate::text::prepare(document, &fonts)?;
+        let spatial = if tiled && document.items.len() >= 128 {
+            Some(super::spatial::Plan::new(
+                document,
+                &texts,
+                [width, height, scale],
+                plan.offset,
+                plan.options.antialias,
+                control,
+            )?)
+        } else {
+            None
+        };
         let generated = crate::strokes::generated_work(document)?;
         let sparse = if tiled {
             None
         } else {
             super::sparse::Plan::new(document, [width, height, scale], control)?
         };
-        let outline_work = if sparse.is_some() { 0 } else { generated };
+        let outline_work = if sparse.is_some() || spatial.is_some() {
+            0
+        } else {
+            generated
+        };
         let outline_scan_work = outline_work
             * height as u64
             * if tiled {
@@ -83,7 +108,10 @@ impl Prepared {
         if outline_scan_work > MAX_RENDER_WORK {
             return Err(limit("Stroke outline scan work exceeds render limit"));
         }
-        if sparse.is_none() && count * document.items.len().max(1) as u64 > MAX_RENDER_WORK {
+        if sparse.is_none()
+            && spatial.is_none()
+            && count * document.items.len().max(1) as u64 > MAX_RENDER_WORK
+        {
             return Err(limit("Render exceeds pixel or work limits"));
         }
         let filter_work: u64 = document
@@ -91,10 +119,13 @@ impl Prepared {
             .iter()
             .map(|i| crate::filters::work(i, scale))
             .sum();
-        let reconstruction_work = crate::resample::document_work(document, scale)?;
-        let pixel_warp_work = crate::pixel_warps::work(document, scale)?;
+        let regional_pixels = spatial.as_ref().map(|p| p.pixels.as_slice());
+        let reconstruction_work =
+            crate::resample::document_work_for_pixels(document, scale, regional_pixels)?;
+        let pixel_warp_work =
+            crate::pixel_warps::work_for_pixels(document, scale, regional_pixels)?;
         let shape_work = crate::knockout::work(document, scale);
-        if count * shape_work > MAX_RENDER_WORK {
+        if spatial.is_none() && count * shape_work > MAX_RENDER_WORK {
             return Err(limit("Knockout footprint evaluation exceeds work limit"));
         }
         let effect_work: u64 = document
@@ -110,9 +141,7 @@ impl Prepared {
         if count * filter_work > crate::filters::MAX_WORK {
             return Err(limit("Render exceeds filter evaluation work limit"));
         }
-        let fonts = crate::fonts::resolve(document, font_root)?;
-        let texts = crate::text::prepare(document, &fonts)?;
-        let tiled_path_work = if tiled {
+        let tiled_path_work = if tiled && spatial.is_none() {
             super::tiled::path_work(document, &texts, [width, height])?
         } else {
             0
@@ -123,7 +152,7 @@ impl Prepared {
         let passes = texts.values().map(|t| t.paths.len()).sum::<usize>()
             + document.items.len()
             + usize::from(document.background.is_some());
-        if sparse.is_none() && count * passes.max(1) as u64 > MAX_RENDER_WORK {
+        if sparse.is_none() && spatial.is_none() && count * passes.max(1) as u64 > MAX_RENDER_WORK {
             return Err(limit("Text rendering exceeds work limit"));
         }
         for (i, item) in document.items.iter().enumerate() {
@@ -159,28 +188,40 @@ impl Prepared {
             .filter(|i| i.mask.as_ref().is_some_and(|m| m.enabled))
             .count() as u64
             * 4;
-        if sparse.is_none() && count * (paint_work + mask_work) > crate::paint::MAX_PAINT_WORK {
+        if sparse.is_none()
+            && spatial.is_none()
+            && count * (paint_work + mask_work) > crate::paint::MAX_PAINT_WORK
+        {
             return Err(limit("Render exceeds paint evaluation work limit"));
         }
-        let own_work = sparse.as_ref().map_or_else(
-            || {
-                count
-                    .saturating_mul(
-                        (passes as u64
-                            + filter_work
-                            + shape_work
-                            + effect_work
-                            + paint_work
-                            + mask_work)
-                            .max(1),
-                    )
-                    .saturating_add(reconstruction_work)
-                    .saturating_add(pixel_warp_work)
-                    .saturating_add(outline_scan_work)
-                    .saturating_add(tiled_path_work)
-            },
-            |s| s.work,
-        );
+        let own_work = if let Some(plan) = &spatial {
+            if plan.paint_work > crate::paint::MAX_PAINT_WORK {
+                return Err(limit("Spatial paint work exceeds limit"));
+            }
+            plan.work
+                .saturating_add(reconstruction_work)
+                .saturating_add(pixel_warp_work)
+        } else {
+            sparse.as_ref().map_or_else(
+                || {
+                    count
+                        .saturating_mul(
+                            (passes as u64
+                                + filter_work
+                                + shape_work
+                                + effect_work
+                                + paint_work
+                                + mask_work)
+                                .max(1),
+                        )
+                        .saturating_add(reconstruction_work)
+                        .saturating_add(pixel_warp_work)
+                        .saturating_add(outline_scan_work)
+                        .saturating_add(tiled_path_work)
+                },
+                |s| s.work,
+            )
+        };
         crate::objects::charge(own_work)?;
         let mut buffer_depth = 0;
         for (i, item) in document.items.iter().enumerate() {
@@ -255,7 +296,8 @@ impl Prepared {
         let mut source_profiles = std::collections::BTreeSet::new();
         let mut depth = 0;
         let mut work = own_work + mask_plan.work;
-        let mut buffers = (buffer_pixels * 4).max(mask_plan.buffer_values);
+        let mut buffers = (buffer_pixels * 4).max(mask_plan.buffer_values)
+            + spatial.as_ref().map_or(0, |p| p.buffer_values);
         for (i, item) in document.items.iter().enumerate() {
             control.check()?;
             if !scene::effective_visible(document, i)? {
@@ -319,6 +361,7 @@ impl Prepared {
             ));
         }
         let resources = Resources {
+            spatial,
             control: control.clone(),
             objects,
             linear: crate::hdr::linear(document),
@@ -415,6 +458,7 @@ impl Prepared {
         let mut accum = vec![0.0; width as usize * height as usize * 4];
         // Source plans and immutable stores are shared through this borrow.
         let resources = ResourcesView {
+            tile: None,
             base: &self.resources,
             artwork_masks: &masks,
             control: &self.resources.control,
@@ -453,7 +497,7 @@ impl Prepared {
             return consume([0; 2], [result.width, result.height], &result.rgba);
         }
         let factor = self.sampling.options.antialias.factor();
-        let edge = super::tiled::EDGE / factor;
+        let edge = self.tile_edge() / factor;
         let rows = edge.min(max_rows.max(1));
         let [width, height] = self.sampling.output;
         let empty_masks = BTreeMap::new();
@@ -475,7 +519,13 @@ impl Prepared {
                     self.sampling.offset + x * factor,
                     self.sampling.offset + y * factor,
                 ];
+                let tile = self
+                    .resources
+                    .spatial
+                    .as_ref()
+                    .map(|p| p.tile(origin, [size[0], size[1]]));
                 let resources = ResourcesView {
+                    tile: tile.as_ref(),
                     base: &self.resources,
                     artwork_masks: &empty_masks,
                     control: &self.resources.control,
