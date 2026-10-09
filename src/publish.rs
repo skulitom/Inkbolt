@@ -327,13 +327,19 @@ pub fn export_with_render_options(
     }
     Ok(artifact)
 }
-pub fn publish(
+struct PreparedOutput {
+    target: PathBuf,
+    bytes: Vec<u8>,
+    receipt: Value,
+}
+fn prepare_publication(
     document: &Document,
     resources: &Resources,
     options: &Options,
     control: &Control,
-) -> Result<Value, Error> {
+) -> Result<PreparedOutput, Error> {
     resources.validate()?;
+    control.check_resource_paths(resources)?;
     let target = destination(options)?;
     exists(&target)?;
     control.check()?;
@@ -425,6 +431,65 @@ pub fn publish(
             "Output root must be an existing local directory",
         ));
     }
+    let mut receipt = json!({"created":false,"path":target,"document_id":document.id,"revision":document.revision,"artboard_id":options.artboard_id,"include_bleed":pdf_options.as_ref().map_or(options.include_bleed, |p| p.include_bleed),"format":options.format,"scale":options.scale,"media_type":artifact["media_type"],"bytes":bytes.len(),"sha256":checksum,"losses":artifact.get("losses").cloned().unwrap_or(json!([]))});
+    if let Some(settings) = artifact.get("settings") {
+        receipt["settings"] = settings.clone();
+    }
+    for field in [
+        "sequence",
+        "sample_precision",
+        "swatches",
+        "render_settings",
+        "metadata",
+        "metadata_envelope",
+        "mesh_textures",
+        "text_paths",
+        "pages",
+        "pdf",
+        "inks",
+    ] {
+        if let Some(value) = artifact.get(field) {
+            receipt[field] = value.clone();
+        }
+    }
+    if let Some(profile) = artifact.get("color_profile") {
+        receipt["color_profile"] = profile.clone();
+    }
+    crate::variants::annotate_export(
+        document.variants.as_ref(),
+        &mut receipt,
+        matches!(options.format, ExportFormat::Snapshot),
+    );
+    Ok(PreparedOutput {
+        target,
+        bytes,
+        receipt,
+    })
+}
+
+/// Prepare exact output and inspect its destination without writing or reserving it.
+pub fn preflight(
+    document: &Document,
+    resources: &Resources,
+    options: &Options,
+    control: &Control,
+) -> Result<Value, Error> {
+    let prepared = prepare_publication(document, resources, options, control)?;
+    control.check()?;
+    Ok(prepared.receipt)
+}
+
+pub fn publish(
+    document: &Document,
+    resources: &Resources,
+    options: &Options,
+    control: &Control,
+) -> Result<Value, Error> {
+    let PreparedOutput {
+        target,
+        bytes,
+        mut receipt,
+    } = prepare_publication(document, resources, options, control)?;
     let mut reserved = None;
     for _ in 0..64 {
         let path = options.output_root.join(format!(
@@ -478,35 +543,7 @@ pub fn publish(
     #[cfg(test)]
     fault_point("after_publish");
     // Publication is the commit point; late cancellation cannot undo a completed export.
-    let mut receipt = json!({"created":true,"path":target,"document_id":document.id,"revision":document.revision,"artboard_id":options.artboard_id,"include_bleed":pdf_options.as_ref().map_or(options.include_bleed, |p| p.include_bleed),"format":options.format,"scale":options.scale,"media_type":artifact["media_type"],"bytes":bytes.len(),"sha256":checksum,"losses":artifact.get("losses").cloned().unwrap_or(json!([]))});
-    if let Some(settings) = artifact.get("settings") {
-        receipt["settings"] = settings.clone();
-    }
-    for field in [
-        "sequence",
-        "sample_precision",
-        "swatches",
-        "render_settings",
-        "metadata",
-        "metadata_envelope",
-        "mesh_textures",
-        "text_paths",
-        "pages",
-        "pdf",
-        "inks",
-    ] {
-        if let Some(value) = artifact.get(field) {
-            receipt[field] = value.clone();
-        }
-    }
-    if let Some(profile) = artifact.get("color_profile") {
-        receipt["color_profile"] = profile.clone();
-    }
-    crate::variants::annotate_export(
-        document.variants.as_ref(),
-        &mut receipt,
-        matches!(options.format, ExportFormat::Snapshot),
-    );
+    receipt["created"] = json!(true);
     Ok(receipt)
 }
 

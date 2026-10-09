@@ -1,5 +1,7 @@
 # Architecture
 
+`checks` combines model validation, pinned resource loaders and authored text/story layout into bounded located diagnostics. Missing prerequisites and work/report limits remain explicitly incomplete. `publish::prepare_publication` prepares a validated destination, exact bytes and receipt once for both read-only preflight and actual create-only publication. Receipt construction precedes file publication; the existing atomic hard-link commit point and late-cancellation semantics remain. See [document checks](DOCUMENT_CHECKS.md).
+
 `previews` crops completed full-composition pixels or shares controlled standalone artboard export, returning canonical document identity and explicit inverse coordinate maps. `contact_sheets` admits aggregate pixel budgets before sequential views, retains their common output profile and builds bounded nearest-sampled thumbnails with per-tile maps. See [focused previews](FOCUSED_PREVIEWS.md); neither path claims incremental render evaluation.
 
 Session action preparation is shared by ordinary mutation, read-only dry runs and proposal-checked commits. It evaluates candidate state, snapshot changes, history and receipt bounds before persistence. Dry runs open SQLite read-only and release their transaction before comparisons/rendering. Checked commits re-evaluate content under the writer transaction, while existing retry lookup still precedes cancellation. `finite` recursively checks typed action numbers before JSON fingerprinting. See [session proposals](SESSION_PROPOSALS.md).

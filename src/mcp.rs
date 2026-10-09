@@ -27,6 +27,7 @@ pub const CORE_CATALOG_BYTES: usize = 96 * 1024;
 const CORE: &[&str] = &[
     "schema.lookup",
     "document.create",
+    "document.check",
     "document.inspect",
     "document.inspect.page",
     "document.preview",
@@ -132,6 +133,12 @@ fn description(command: &str) -> &'static str {
         }
         "document.preview" => {
             "Review a canvas, document region, selected objects or standalone artboard as PNG. Returns explicit world/pixel matrices and exact document identity. Region/object views crop the full composition, preserving render semantics and limits. Use response_format preview for a single image payload."
+        }
+        "document.check" => {
+            "Check retained structure, pinned resources and authored text/story overflow, including nested snapshots and overrides. Returns bounded located diagnostics with repair guidance, checked counts and explicit incomplete/skipped status. Read-only; use document.preflight to prepare a specific export."
+        }
+        "document.preflight" => {
+            "Prepare the exact publication bytes and inspect the chosen destination without writing or reserving files. Returns ready status, expected hash/size and actual loss/profile receipts, or located errors with repair guidance. Later source changes, write failures or competing publishers can still prevent delivery."
         }
         "document.contact_sheet" => {
             "Review up to sixteen focused views of one document in a bounded PNG contact sheet. Row-major thumbnails retain explicit world/sheet coordinate maps and source identities. Nearest-neighbor reduction can omit thin details; use document.preview for full-resolution review. Read-only."

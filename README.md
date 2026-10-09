@@ -4,7 +4,7 @@ An original local vector and raster editing engine for agents. Cutbolt handles t
 
 **Engine scope: 161/167 independently verified checkpoints (96.41%).** Six checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
 
-Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; MCP preview format sends each PNG payload once. Diagnostics, durable jobs and larger raster workloads remain on that plan.
+Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; MCP preview format sends each PNG payload once. [Document checks and export preflight](docs/DOCUMENT_CHECKS.md) support explicit repairs. Visual difference review, durable jobs and larger raster workloads remain on that plan.
 
 ## Start locally
 
@@ -37,7 +37,7 @@ Success is `{"ok":true,"result":...}` with exit code 0; failure is `{"ok":false,
 2. Inspect objects, geometry and resources before building an atomic edit batch.
 3. Save a session for revisions, durable retry receipts, grouped undo/redo and named snapshots.
 4. Use a [session dry run](docs/SESSION_PROPOSALS.md) to inspect predicted changes and previews, then apply its checked proposal.
-5. Review [focused views or a contact sheet](docs/FOCUSED_PREVIEWS.md), compare the result, then publish to a new destination.
+5. Review [focused views or a contact sheet](docs/FOCUSED_PREVIEWS.md), compare and [preflight the result](docs/DOCUMENT_CHECKS.md), then publish to a new destination.
 
 Snapshot edits and ordinary exports return data. `document.publish` and `session.publish` write complete outputs without overwriting existing files. Image/font imports preserve source files and publish content-addressed copies to explicit local stores; fonts require retained license text. See [agent commands](docs/AGENT_INTERFACE.md), [sessions](docs/SESSIONS.md), [publication and comparisons](docs/AGENT_EXECUTION.md), and [runnable examples](examples/README.md).
 

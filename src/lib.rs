@@ -9,6 +9,7 @@ pub mod boards;
 pub mod booleans;
 pub mod canvas;
 pub mod channels;
+pub mod checks;
 pub mod color_adjustments;
 pub mod contact_sheets;
 pub mod control;
@@ -571,6 +572,25 @@ pub enum Request {
     },
     #[serde(rename = "document.validate")]
     Validate { document: Document },
+    #[serde(rename = "document.check")]
+    Check {
+        document: Document,
+        #[serde(default)]
+        options: checks::Options,
+        #[serde(default)]
+        resources: sessions::Resources,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "document.preflight")]
+    Preflight {
+        document: Document,
+        output: publish::Options,
+        #[serde(default)]
+        resources: sessions::Resources,
+        #[serde(default)]
+        control: control::Options,
+    },
     #[serde(rename = "document.inspect")]
     Inspect { document: Document },
     #[serde(rename = "document.inspect.page")]
@@ -1099,6 +1119,8 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "asset.embed",
                 "document.create",
                 "document.validate",
+                "document.check",
+                "document.preflight",
                 "document.inspect",
                 "document.inspect.page",
                 "document.preview",
@@ -1479,6 +1501,8 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             });
             capabilities["session_proposals"] = json!({"dry_run":"session.dry_run","apply":"session.apply_proposal","version":1,"actions":"all_session_actions","database_dry_run_access":"read_only","history_changed_by_dry_run":false,"bound_inputs":["session_id","request_id","expected_revision","request_fingerprint","base_state_sha256","result_state_sha256"],"comparison":"structural_with_optional_pixels","preview":"optional_full_canvas_PNG_at_scale_one","persistent_proposal_store":false,"proposal_is_authorization":false,"history_storage_and_receipt_limits":"shared_with_real_apply;filesystem_commit_can_still_fail"});
             capabilities["paged_inspection"] = json!({"command":"document.inspect.page","collections":["items","assets","fonts","anchors"],"maximum_records":inspection::MAX_PAGE_ITEMS,"maximum_result_bytes":inspection::MAX_PAGE_BYTES,"cursor":"document_content_and_view_and_limit_bound","order":"document_storage_for_items;id_for_resources;component_then_command_for_anchors","field_selection":true,"legacy_inspection":"unchanged","external_resources_verified":false});
+            capabilities["document_checks"] = json!({"command":"document.check","report_version":1,"checks":["structure","pinned_resource_registries","authored_text_and_story_layout","retained_nested_snapshots","instance_replacement_content"],"maximum_issues":checks::MAX_ISSUES,"maximum_report_bytes":checks::MAX_REPORT_BYTES,"default_issues":64,"font_axes":"validated_even_for_empty_text","incomplete":"explicit_for_skipped_layouts_or_stopped_work","errors":"located_original_codes_and_repair_guidance","external_object_links":"not_read_or_refreshed","delivery_certificate":false,"source_changed":false});
+            capabilities["export_preflight"] = json!({"command":"document.preflight","preparation":"same_encoder_and_destination_checks_as_document.publish","success":"created_false_receipt_with_exact_bytes_sha256_and_actual_losses","failure":"ready_false_with_original_error_and_repair_guidance","cancellation":"normal_error_no_partial_report","writes_files":false,"reserves_output":false,"predicts_filesystem_write_success":false,"durable_receipt_ledger":false});
             capabilities["focused_previews"] = json!({"command":"document.preview","focus":["canvas","region","items","artboard"],"image":"PNG_with_existing_output_profile_and_loss_contract","region_and_items":"full_composition_crop;full_evaluation_limits_apply","item_bounds":"unclipped_geometry_without_strokes_or_effects;explicit_margin","artboard":"standalone_owned_subtree;existing_artboard_export_contract","coordinates":"explicit_document_world_to_pixel_and_inverse;pixel_edges_and_centers","quantization":"outward_to_original_render_grid_then_clip","source_identity":"canonical_document_sha256_and_revision","source_changed":false});
             capabilities["contact_sheets"] = json!({"command":"document.contact_sheet","maximum_views":contact_sheets::MAX_VIEWS,"maximum_aggregate_evaluation_pixels":contact_sheets::MAX_PIXELS,"maximum_sheet_pixels":contact_sheets::MAX_PIXELS,"maximum_cell_axis":512,"columns":[1,8],"gap":[0,64],"thumbnail_sampling":"nearest_center;no_enlargement;thin_details_can_disappear","coordinates":"per_view_world_to_sheet_and_inverse","color":"one_document_output_profile;transparent_gaps;96ppi_sheet","source_changed":false});
             capabilities["mcp_preview"] = json!({"response_format":"preview","default":"json","image_bytes":"one_location_with_explicit_payload_ref","maximum_png_attachments":mcp_preview::MAX_IMAGES,"maximum_attached_base64_bytes":mcp_preview::MAX_IMAGE_BASE64_BYTES,"overflow":"one_inline_payload_in_structuredContent;duplicates_reference_it","text":"summary_only","supported_artifacts":["document.export","document.preview","document.contact_sheet","artboard.export","sequence.export","channel.export","document.proof","document.prepress","document.separations","session.dry_run"],"other_results":"complete_structuredContent_without_textual_duplication"});
@@ -1809,6 +1833,18 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             model::validate_controlled(&document, context)?;
             Ok(json!(document))
         }
+        Request::Check {
+            document,
+            options,
+            resources,
+            control,
+        } => checks::check(&document, &options, &resources, &context.scoped(&control)?),
+        Request::Preflight {
+            document,
+            output,
+            resources,
+            control,
+        } => checks::preflight(&document, &resources, &output, &context.scoped(&control)?),
         Request::Inspect { document } => {
             model::validate_controlled(&document, context)?;
             let items: Vec<Value> = (0..document.items.len())

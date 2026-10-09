@@ -12,6 +12,8 @@ Use `session.dry_run` to predict any session action without writing the store. `
 
 Use `document.preview` to review a region, object selection or standalone artboard with explicit world/pixel coordinates. `document.contact_sheet` combines bounded views of one document with exact per-tile maps. See [focused previews](FOCUSED_PREVIEWS.md).
 
+Use `document.check` for bounded located structural/resource/typography diagnostics, and `document.preflight` for actual export preparation without writes. Inspect `status`/`complete` and `ready`; a successful diagnostic request can report problems. See [checks and repair workflows](DOCUMENT_CHECKS.md).
+
 Native layered exchange now maps nested normal/pass-through folders to explicit parent references, validates balanced boundaries and keeps empty groups without manufacturing pixels. Native import/export, declared loss receipts and durable agent workflows share this contract. Extended interchange remains partial and uncredited; larger axes, masks, text and embedded objects are still required.
 
 Use `format:"layered_large"` for explicit version-two native publication with `.psb`; `layered.import` detects either supported container version. Discover both formats and current axis/storage limits through `capabilities.layered_interchange`. This partial extension does not complete the extended checkpoint.

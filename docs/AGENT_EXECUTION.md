@@ -22,6 +22,8 @@ Session comparisons capture both committed states in one read transaction, relea
 
 ## Publish a complete output without overwriting files
 
+`document.preflight` accepts the same document, resources and output options and runs the shared preparation/encoding path without writing or reserving files. It reports either located repair guidance or the exact expected output receipt with `created:false`. Preflight does not guarantee later write permission, disk capacity or exclusive destination ownership. See [checks and preflight](DOCUMENT_CHECKS.md).
+
 `document.publish` accepts document, optional resources, output and control. `session.publish` replaces document/resources with session_root, session_id and expected_revision. It requires the current head to match before capturing a snapshot; subsequent edits do not affect that export. Publication does not change session history.
 
 The output object requires:
