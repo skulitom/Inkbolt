@@ -1,5 +1,6 @@
 """Check candidate or indexed material; this is not proof of copyright provenance."""
 import argparse
+import io
 import json
 from pathlib import Path
 import re
@@ -68,6 +69,7 @@ def check_repository(root=ROOT, staged=False):
     issues = []
     files = {}
     if staged:
+        entries = []
         for record in git(root, "ls-files", "--stage", "-z").split(b"\0"):
             if not record:
                 continue
@@ -77,11 +79,36 @@ def check_repository(root=ROOT, staged=False):
             if stage != "0" or mode not in {"100644", "100755"}:
                 issues.append(f"Unexpected index entry: {name}")
                 continue
-            size = int(git(root, "cat-file", "-s", oid))
+            entries.append((name, oid))
+        # One metadata request and one bounded blob batch replace two Git
+        # launches per file. Inspect actual index objects, never working bytes.
+        request = "".join(oid + "\n" for _, oid in entries).encode("ascii")
+        metadata = git(root, "cat-file", "--batch-check", input_data=request).splitlines() if entries else []
+        if len(metadata) != len(entries):
+            raise ValueError("Incomplete indexed object metadata")
+        accepted = []
+        for (name, oid), row in zip(entries, metadata):
+            fields = row.decode("ascii").split()
+            if len(fields) != 3 or fields[:2] != [oid, "blob"]:
+                raise ValueError("Invalid indexed object metadata")
+            size = int(fields[2])
             if size > MAX_BYTES:
                 issues.append(f"Binary or oversized material: {name}")
                 continue
-            files[name] = git(root, "cat-file", "blob", oid)
+            accepted.append((name, oid, size))
+        # Bound each captured batch even if the index contains many large files.
+        for start in range(0, len(accepted), 16):
+            batch = accepted[start:start + 16]
+            stream = io.BytesIO(git(root, "cat-file", "--batch", input_data="".join(oid + "\n" for _, oid, _ in batch).encode("ascii")))
+            for name, oid, size in batch:
+                if stream.readline() != f"{oid} blob {size}\n".encode("ascii"):
+                    raise ValueError("Invalid indexed blob header")
+                content = stream.read(size)
+                if len(content) != size or stream.read(1) != b"\n":
+                    raise ValueError("Incomplete indexed blob")
+                files[name] = content
+            if stream.read(1):
+                raise ValueError("Unexpected indexed blob data")
     else:
         names = git(root, "ls-files", "--cached", "--others", "--exclude-standard", "-z").decode("utf-8").split("\0")
         for name in sorted(set(names) - {""}):

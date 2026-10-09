@@ -67,6 +67,33 @@ class RepositoryGuardTests(unittest.TestCase):
         self.write("BlockedVendorToken.md", b"Original text")
         self.assertTrue(any("restriction in path" in issue for issue in guard.check_repository(self.root)[0]))
 
+    def test_batch_reads_empty_repeated_unicode_and_newline_named_index_blobs(self):
+        names = ['empty.md', 'repeated.md', 'space name.md', 'unicode_\u03bb.md']
+        if __import__('os').name != 'nt':
+            names.append('line\nbreak.md')
+        for name in names:
+            self.write(name, b'' if name == 'empty.md' else b'Original shared bytes\n')
+        self.git('add', '.')
+        self.assertEqual(guard.check_repository(self.root, staged=True), ([], len(names) + 1))
+
+    def test_large_index_blob_is_rejected_without_loading_its_contents(self):
+        self.write('large.md', b'x' * (guard.MAX_BYTES + 1))
+        self.write('good.md', b'Original source\n')
+        self.git('add', '.')
+        issues, count = guard.check_repository(self.root, staged=True)
+        self.assertEqual(issues, ['Binary or oversized material: large.md'])
+        self.assertEqual(count, 2)
+
+    def test_unmerged_and_symlink_index_entries_fail_closed(self):
+        self.write('source.md', b'Original\n')
+        self.git('add', '.')
+        oid = self.git('hash-object', '-w', 'source.md').stdout.decode().strip()
+        self.git('update-index', '--add', '--cacheinfo', f'120000,{oid},link.md')
+        self.assertIn('Unexpected index entry: link.md', guard.check_repository(self.root, staged=True)[0])
+        subprocess.run(['git', 'update-index', '--index-info'], cwd=self.root,
+                       input=f'100644 {oid} 1\tunmerged.md\n'.encode(), check=True, capture_output=True)
+        self.assertIn('Unexpected index entry: unmerged.md', guard.check_repository(self.root, staged=True)[0])
+
 
 if __name__ == "__main__":
     unittest.main()

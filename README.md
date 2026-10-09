@@ -53,17 +53,23 @@ Sessions retain external resource bindings, not a self-contained resource archiv
 
 Read [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), [agent readiness](docs/AGENT_READINESS.md) and [research boundaries](docs/RESEARCH.md) before extending behavior. Historical feature updates are retained in [implementation history](docs/PROGRESS_HISTORY.md).
 
-Required checks:
+Routine feedback has a three-minute budget and reuses checks whose inputs passed unchanged:
 
 ```powershell
-cargo fmt --check
-cargo clippy --locked -- -D warnings
-cargo test --locked
 python tools/verify.py
+python tools/verify.py --only test_session_proposals,test_session_backups
+python tools/verify.py --rust sample_store::tests
+python tools/verify.py --last-failed
+```
+
+At milestones and before completion or feature claims, run every check afresh:
+
+```powershell
+python tools/verify.py --thorough
 python tools/check_repo.py --staged
 ```
 
-`python tools/verify.py --jobs 4` optionally runs the same Python modules in isolated concurrent processes and checks the complete discovery count. Serial execution remains the default. Concurrent verification timings are not performance benchmarks.
+The verifier includes formatting, locked build, all-target Clippy, Rust tests and Python checks. Up to four isolated workers run by default; `--jobs` supports one to eight. Quick runs return exit 2 if checks remain pending, preserve completed passes, and resume on the next invocation. `--list` explains selection/reuse. Explicit selections report their limited scope. See [the development loop](docs/DEVELOPMENT_LOOP.md) for cache boundaries, diagnostics and thorough acceptance. Concurrent check timings are not engine performance benchmarks.
 
 The separate [release workload measurements](docs/WORKLOAD_MEASUREMENT.md) exercise native edit/history fidelity and practical output sizes, retaining failed tasks alongside command time, response bytes and available Windows memory peaks. They guide the open scale work and do not count as model-driven task trials.
 

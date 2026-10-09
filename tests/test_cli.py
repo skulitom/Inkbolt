@@ -5,7 +5,7 @@ import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-EXE = ROOT / "target/debug" / ("inkbolt.exe" if os.name == "nt" else "inkbolt")
+EXE = Path(os.environ.get("INKBOLT_EXE", ROOT / "target/debug" / ("inkbolt.exe" if os.name == "nt" else "inkbolt")))
 
 
 class CliTests(unittest.TestCase):
