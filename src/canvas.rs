@@ -284,6 +284,7 @@ pub(crate) fn edit(document: &mut Document, action: &Action) -> Result<Value, Er
             match &mut item.content {
                 Content::Object { object } => object.sampling = method,
                 Content::Samples { grid } => grid.sampling = method,
+                Content::StoredSamples { grid } => grid.sampling = method,
                 Content::Raw { raw } => raw.sampling = method,
                 Content::Raster { sampling, .. } | Content::Image { sampling, .. } => {
                     *sampling = method

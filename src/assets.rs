@@ -364,13 +364,14 @@ fn png_error() -> Error {
 }
 /// Inspect framing before decoding so unsupported animation/profile/orientation semantics cannot disappear.
 fn preflight(bytes: &[u8], policy: ColorPolicy, declared: bool) -> Result<Interpretation, Error> {
-    preflight_depth(bytes, policy, declared, false, false)
+    preflight_depth(bytes, policy, declared, None, false)
 }
 pub(crate) fn preflight_samples(
     bytes: &[u8],
     policy: ColorPolicy,
+    max_pixels: usize,
 ) -> Result<Interpretation, Error> {
-    preflight_depth(bytes, policy, false, true, false)
+    preflight_depth(bytes, policy, false, Some(max_pixels), false)
 }
 pub(crate) fn preflight_sequence(
     bytes: &[u8],
@@ -382,13 +383,13 @@ pub(crate) fn preflight_sequence(
             "Sequence import does not yet convert color profiles",
         ));
     }
-    preflight_depth(bytes, policy, false, false, true)
+    preflight_depth(bytes, policy, false, None, true)
 }
 fn preflight_depth(
     bytes: &[u8],
     policy: ColorPolicy,
     declared: bool,
-    samples: bool,
+    samples: Option<usize>,
     animation: bool,
 ) -> Result<Interpretation, Error> {
     if bytes.get(..8) != Some(b"\x89PNG\r\n\x1a\n") {
@@ -422,10 +423,12 @@ fn preflight_depth(
             let w = u32::from_be_bytes(bytes[offset + 8..offset + 12].try_into().unwrap());
             let h = u32::from_be_bytes(bytes[offset + 12..offset + 16].try_into().unwrap());
             dimensions(w, h)?;
-            if samples && w as u64 * h as u64 > MAX_STORED_PIXELS as u64 {
-                return Err(limit("Sample import exceeds 65536 inline pixels"));
+            if samples.is_some_and(|max| w as u64 * h as u64 > max as u64) {
+                return Err(limit(
+                    "Sample import exceeds the selected storage pixel budget",
+                ));
             }
-            if bytes[offset + 16] == 16 && !samples {
+            if bytes[offset + 16] == 16 && samples.is_none() {
                 return Err(Error::new(
                     "UNSUPPORTED",
                     "Use sample.import to retain 16-bit image samples",

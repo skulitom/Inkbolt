@@ -332,6 +332,7 @@ pub fn item_bounds(item: &Item) -> Result<Bounds, Error> {
         )),
         Content::Object { object } => Ok(bounds(&object.geometry(), item.transform)),
         Content::Samples { grid } => Ok(bounds(&grid.geometry(), item.transform)),
+        Content::StoredSamples { grid } => Ok(bounds(&grid.geometry(), item.transform)),
         Content::Raw { raw } => Ok(bounds(&raw.geometry(), item.transform)),
         Content::Raster { width, height, .. } | Content::Fill { width, height, .. } => Ok(bounds(
             &Geometry::Rect {

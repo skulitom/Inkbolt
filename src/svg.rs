@@ -367,6 +367,7 @@ fn write_items(
             Content::Object { .. }
             | Content::Raw { .. }
             | Content::Samples { .. }
+            | Content::StoredSamples { .. }
             | Content::Adjustment { .. }
             | Content::Raster { .. }
             | Content::Fill { .. } => {

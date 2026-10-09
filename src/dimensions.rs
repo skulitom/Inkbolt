@@ -166,6 +166,7 @@ fn geometry_of(d: &Document, item: &Item) -> Result<Option<(Geometry, &'static s
             "image_frame",
         ),
         Content::Samples { grid } => (grid.geometry(), "sample_grid_frame"),
+        Content::StoredSamples { grid } => (grid.geometry(), "stored_sample_grid_frame"),
         Content::Raw { raw } => (raw.geometry(), "raw_sensor_frame"),
         Content::Raster { width, height, .. } | Content::Fill { width, height, .. } => (
             Geometry::Rect {

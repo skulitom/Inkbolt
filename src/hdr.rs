@@ -146,6 +146,13 @@ pub(crate) fn validate_document(d: &Document) -> Result<(), Error> {
         ));
     }
     for (index, item) in d.items.iter().enumerate() {
+        if matches!(&item.content, Content::StoredSamples { grid } if grid.base.spec.encoding == Encoding::LinearSrgb)
+            && !active
+        {
+            return Err(unsupported(
+                "Linear stored samples require explicit linear_srgb document compositing",
+            ));
+        }
         if matches!(&item.content, Content::Raw { raw } if matches!(raw.recipe.settings.output, crate::raw::Output::LinearSrgb32))
             && !active
         {

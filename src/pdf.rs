@@ -479,7 +479,7 @@ fn preflight(document: &Document) -> Result<(), Error> {
         }
         match &item.content {
             Content::Object { .. } => return Err(unsupported("PDF does not retain editable object sources; deliver an explicit image or snapshot").at_item(&item.id)),
-            Content::Raw { .. } | Content::Samples { .. } => return Err(unsupported("PDF delivery does not yet preserve retained sample-grid depths; use TIFF or a snapshot").at_item(&item.id)),
+            Content::Raw { .. } | Content::Samples { .. } | Content::StoredSamples { .. } => return Err(unsupported("PDF delivery does not yet preserve retained sample-grid depths; use TIFF or a snapshot").at_item(&item.id)),
             Content::Raster { sampling, .. } | Content::Image { sampling, .. } => {
                 if *sampling != assets::Sampling::Nearest {
                     return Err(unsupported("PDF image delivery requires nearest sampling; consumer interpolation cannot promise an exact reconstruction kernel").at_item(&item.id));

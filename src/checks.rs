@@ -55,6 +55,13 @@ fn recovery(code: &str) -> Value {
             "Resolve the exact image bytes in the intended asset store, or explicitly import and relink a reviewed replacement.",
             vec!["asset.verify", "asset.import", "session.dry_run"],
         ),
+        "SAMPLE_ROOT_REQUIRED"
+        | "SAMPLE_TILE_MISSING"
+        | "SAMPLE_TILE_CORRUPT"
+        | "SAMPLE_STORE_IO" => (
+            "Resolve the exact immutable native blocks in the bound asset store. Reimport the unchanged original into a fresh store if needed, verify its base manifest, then explicitly rebind the session. Retained patch edits remain in the snapshot.",
+            vec!["sample.import", "document.check", "session.dry_run"],
+        ),
         "RESOURCE_LIMIT" => (
             "Inspect the stated limit. Reduce the requested evaluation, split delivery, or choose an implemented resource profile where applicable; source storage and rendering limits are independent.",
             vec!["capabilities", "schema.lookup", "document.preview"],
@@ -346,6 +353,18 @@ impl Report<'_> {
             return Ok(());
         }
         match content {
+            Content::StoredSamples { grid } if self.options.resources => {
+                self.counts.images += 1;
+                if let Err(error) = grid.prepare(self.resources.asset_root.as_deref(), self.control)
+                {
+                    self.issue(
+                        error,
+                        "error",
+                        location(objects, pointer),
+                        json!({"base_manifest_sha256":grid.base.sha256}),
+                    )?;
+                }
+            }
             Content::Object { object } => {
                 let nested = object.document()?;
                 let mut path = objects.to_vec();

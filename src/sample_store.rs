@@ -63,6 +63,15 @@ impl Spec {
         self.validate()?;
         Ok(self.width as usize * self.height as usize * self.stride())
     }
+    /// Validate an exact native replacement without opening a resource store.
+    pub fn validate_region_bytes(&self, region: Region, bytes: &[u8]) -> Result<(), Error> {
+        self.validate()?;
+        region.validate(*self)?;
+        if bytes.len() != region.width as usize * region.height as usize * self.stride() {
+            return Err(invalid("Replacement bytes do not match the native region"));
+        }
+        validate_samples(bytes, *self)
+    }
     fn stride(&self) -> usize {
         self.depth.bytes() * self.channels.count()
     }
@@ -323,11 +332,7 @@ impl Candidate {
         check_root(root, control)?;
         self.manifest.validate()?;
         let spec = self.manifest.spec;
-        region.validate(spec)?;
-        if bytes.len() != region.width as usize * region.height as usize * spec.stride() {
-            return Err(invalid("Replacement bytes do not match the native region"));
-        }
-        validate_samples(bytes, spec)?;
+        spec.validate_region_bytes(region, bytes)?;
         let mut next = self.clone();
         for index in intersecting(spec, region) {
             control.check()?;

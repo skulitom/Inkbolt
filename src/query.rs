@@ -87,7 +87,7 @@ pub fn item_type(item: &Item) -> ItemType {
         Content::WorkPath { .. } => ItemType::WorkPath,
         Content::Adjustment { .. } => ItemType::Adjustment,
         Content::Vector { .. } => ItemType::Vector,
-        Content::Samples { .. } => ItemType::Samples,
+        Content::Samples { .. } | Content::StoredSamples { .. } => ItemType::Samples,
         Content::Raster { .. } => ItemType::Raster,
         Content::Image { .. } => ItemType::Image,
         Content::Fill { .. } => ItemType::Fill,

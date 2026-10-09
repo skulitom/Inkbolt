@@ -295,6 +295,9 @@ fn verify_resources(
     ) -> Result<(), Error> {
         control.check()?;
         match value {
+            model::Content::StoredSamples { grid } => {
+                grid.prepare(resources.asset_root.as_deref(), control)?;
+            }
             model::Content::Object { object } => {
                 verify_resources(&object.document()?, resources, control, visited)?
             }

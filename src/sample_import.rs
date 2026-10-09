@@ -8,7 +8,10 @@ use crate::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::{io::Cursor, path::Path};
+use std::{
+    io::Cursor,
+    path::{Path, PathBuf},
+};
 use tiff::tags::Tag;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -18,6 +21,27 @@ pub enum Policy {
     AssumeSrgb,
     ConvertSrgb,
     AssumeLinearSrgb,
+}
+
+pub const MAX_NATIVE_DECODED_BYTES: usize = 64 * 1024 * 1024;
+fn decoder_limit(max_pixels: usize) -> usize {
+    if max_pixels > MAX_STORED_PIXELS {
+        MAX_NATIVE_DECODED_BYTES
+    } else {
+        16 * 1024 * 1024
+    }
+}
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct NativeStore {
+    pub store_root: PathBuf,
+}
+struct DecodedSource {
+    width: u32,
+    height: u32,
+    depth: Depth,
+    channels: Channels,
+    bytes: Vec<u8>,
 }
 
 fn malformed() -> Error {
@@ -36,19 +60,25 @@ fn tiff_error(e: tiff::TiffError) -> Error {
         _ => malformed(),
     }
 }
-fn size(w: u32, h: u32) -> Result<(), Error> {
+fn size(w: u32, h: u32, max_pixels: usize) -> Result<(), Error> {
     assets::dimensions(w, h)?;
-    if w as u64 * h as u64 > MAX_STORED_PIXELS as u64 {
-        return Err(limit("Sample import exceeds 65536 inline pixels"));
+    if w as u64 * h as u64 > max_pixels as u64 {
+        return Err(limit(
+            "Sample import exceeds the selected storage pixel budget",
+        ));
     }
     Ok(())
 }
-fn png(bytes: &[u8], policy: ColorPolicy) -> Result<(Grid, Interpretation, Value), Error> {
-    let interpretation = assets::preflight_samples(bytes, policy)?;
+fn png(
+    bytes: &[u8],
+    policy: ColorPolicy,
+    max_pixels: usize,
+) -> Result<(DecodedSource, Interpretation, Value), Error> {
+    let interpretation = assets::preflight_samples(bytes, policy, max_pixels)?;
     let mut decoder = png::Decoder::new_with_limits(
         Cursor::new(bytes),
         png::Limits {
-            bytes: 16 * 1024 * 1024,
+            bytes: decoder_limit(max_pixels),
         },
     );
     decoder.set_ignore_text_chunk(true);
@@ -56,10 +86,10 @@ fn png(bytes: &[u8], policy: ColorPolicy) -> Result<(Grid, Interpretation, Value
     let mut reader = decoder.read_info().map_err(|_| malformed())?;
     let input_depth = reader.info().bit_depth as u8;
     let input_color = format!("{:?}", reader.info().color_type);
-    size(reader.info().width, reader.info().height)?;
+    size(reader.info().width, reader.info().height, max_pixels)?;
     let count = reader
         .output_buffer_size()
-        .filter(|n| *n <= MAX_STORED_PIXELS * 8)
+        .filter(|n| *n <= max_pixels.saturating_mul(8).min(MAX_NATIVE_DECODED_BYTES))
         .ok_or_else(|| limit("Sample PNG exceeds decoded byte limit"))?;
     let mut data = vec![0; count];
     let info = reader.next_frame(&mut data).map_err(|_| malformed())?;
@@ -82,9 +112,13 @@ fn png(bytes: &[u8], policy: ColorPolicy) -> Result<(Grid, Interpretation, Value
     } else {
         Channels::Rgba
     };
-    let mut native = Vec::with_capacity(
-        info.width as usize * info.height as usize * channels.count() * depth.bytes(),
-    );
+    let native_size = info.width as usize * info.height as usize * channels.count() * depth.bytes();
+    if native_size > MAX_NATIVE_DECODED_BYTES {
+        return Err(limit(
+            "Native image channels exceed the 64 MiB decoded byte budget",
+        ));
+    }
+    let mut native = Vec::with_capacity(native_size);
     for p in data.chunks_exact(n * depth.bytes()) {
         for c in p.chunks_exact(depth.bytes()) {
             if depth == Depth::U16 {
@@ -98,29 +132,30 @@ fn png(bytes: &[u8], policy: ColorPolicy) -> Result<(Grid, Interpretation, Value
         }
     }
     Ok((
-        Grid {
-            profile: None,
-            encoding: Default::default(),
+        DecodedSource {
             width: info.width,
             height: info.height,
             depth,
             channels,
-            data_hex: crate::render::hex(&native),
-            sampling: Default::default(),
+            bytes: native,
         },
         interpretation,
         json!({"input_depth":input_depth,"input_color":input_color,"normalization":"big_endian_to_little_endian;palette_and_low_bits_expanded;missing_alpha_opaque"}),
     ))
 }
-fn tiff(bytes: &[u8], policy: ColorPolicy) -> Result<(Grid, Interpretation, Value), Error> {
+fn tiff(
+    bytes: &[u8],
+    policy: ColorPolicy,
+    max_pixels: usize,
+) -> Result<(DecodedSource, Interpretation, Value), Error> {
     let mut limits = tiff::decoder::Limits::default();
-    limits.decoding_buffer_size = 16 * 1024 * 1024;
-    limits.intermediate_buffer_size = 16 * 1024 * 1024;
+    limits.decoding_buffer_size = decoder_limit(max_pixels);
+    limits.intermediate_buffer_size = decoder_limit(max_pixels);
     let mut decoder = tiff::decoder::Decoder::new(Cursor::new(bytes))
         .map_err(tiff_error)?
         .with_limits(limits);
     let (w, h) = decoder.dimensions().map_err(tiff_error)?;
-    size(w, h)?;
+    size(w, h, max_pixels)?;
     if decoder.more_images() {
         return Err(unsupported(
             "Sample import requires a single TIFF image; sequences need an explicit importer",
@@ -223,6 +258,11 @@ fn tiff(bytes: &[u8], policy: ColorPolicy) -> Result<(Grid, Interpretation, Valu
     }
     let count = w as usize * h as usize;
     let unit = depth.bytes();
+    if count * channels.count() * unit > MAX_NATIVE_DECODED_BYTES {
+        return Err(limit(
+            "Native image channels exceed the 64 MiB decoded byte budget",
+        ));
+    }
     let mut data = vec![0; count * n * unit];
     if decoder.get_chunk_type() == tiff::decoder::ChunkType::Tile {
         let (cw, ch) = decoder.chunk_dimensions();
@@ -299,15 +339,12 @@ fn tiff(bytes: &[u8], policy: ColorPolicy) -> Result<(Grid, Interpretation, Valu
         }
     }
     Ok((
-        Grid {
-            profile: None,
-            encoding: Default::default(),
+        DecodedSource {
             width: w,
             height: h,
             depth,
             channels,
-            data_hex: crate::render::hex(&native),
-            sampling: Default::default(),
+            bytes: native,
         },
         Interpretation::AssumedSrgb,
         json!({"compression":compression,"planar_configuration":planar,"input_photometric":photo,"normalization":"native_decoded_endian_to_little_endian;planes_interleaved;white_zero_inverted_by_codec;missing_alpha_opaque"}),
@@ -319,6 +356,34 @@ pub fn import(
     resolution_ppi: f64,
     selected: Policy,
 ) -> Result<Value, Error> {
+    import_with_storage(
+        source,
+        id,
+        resolution_ppi,
+        selected,
+        None,
+        &crate::control::Control::default(),
+    )
+}
+pub fn import_with_storage(
+    source: &Path,
+    id: String,
+    resolution_ppi: f64,
+    selected: Policy,
+    storage: Option<&NativeStore>,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
+    control.check()?;
+    control.check_path(source)?;
+    if let Some(storage) = storage {
+        assets::absolute(&storage.store_root)?;
+        control.check_path(&storage.store_root)?;
+    }
+    let max_pixels = if storage.is_some() {
+        crate::sample_store::MAX_PIXELS as usize
+    } else {
+        MAX_STORED_PIXELS
+    };
     let linear = matches!(selected, Policy::AssumeLinearSrgb);
     let policy = match selected {
         Policy::RequireSrgb => ColorPolicy::RequireSrgb,
@@ -332,34 +397,83 @@ pub fn import(
         ));
     }
     let bytes = assets::read_bounded(source, assets::MAX_IMPORT_BYTES)?;
-    let (mut grid, interpretation, normalization, format) =
+    let (decoded, interpretation, normalization, format) =
         if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
             if linear {
                 return Err(unsupported(
                     "Linear HDR sample import requires an explicit binary32 TIFF source",
                 ));
             }
-            let (g, i, n) = png(&bytes, policy)?;
+            let (g, i, n) = png(&bytes, policy, max_pixels)?;
             (g, i, n, "png")
         } else if bytes.starts_with(b"II") || bytes.starts_with(b"MM") {
-            let (g, i, n) = tiff(&bytes, policy)?;
+            let (g, i, n) = tiff(&bytes, policy, max_pixels)?;
             (g, i, n, "tiff")
         } else {
             return Err(unsupported("Sample import requires PNG or TIFF"));
         };
-    if linear {
-        grid.encoding = crate::hdr::Encoding::LinearSrgb;
-    }
-    grid.validate()?;
+    control.check()?;
+    let encoding = if linear {
+        crate::hdr::Encoding::LinearSrgb
+    } else {
+        crate::hdr::Encoding::EncodedSrgb
+    };
+    let spec = crate::sample_store::Spec {
+        width: decoded.width,
+        height: decoded.height,
+        depth: decoded.depth,
+        channels: decoded.channels,
+        encoding,
+    };
+    let candidate;
+    let content = if storage.is_some() {
+        candidate = Some(crate::sample_store::Candidate::from_bytes(
+            spec,
+            &decoded.bytes,
+            control,
+        )?);
+        Content::StoredSamples {
+            grid: Box::new(crate::stored_samples::Grid {
+                base: candidate.as_ref().unwrap().manifest().clone(),
+                patches: Vec::new(),
+                profile: None,
+                sampling: Default::default(),
+            }),
+        }
+    } else {
+        candidate = None;
+        let grid = Grid {
+            profile: None,
+            encoding,
+            width: decoded.width,
+            height: decoded.height,
+            depth: decoded.depth,
+            channels: decoded.channels,
+            data_hex: crate::render::hex(&decoded.bytes),
+            sampling: Default::default(),
+        };
+        grid.validate()?;
+        Content::Samples {
+            grid: Box::new(grid),
+        }
+    };
     let interpretation = if linear {
         json!("assumed_linear_srgb")
     } else {
         json!(interpretation)
     };
-    let document:Document=serde_json::from_value(json!({"schema_version":2,"id":id,"kind":"raster","width":grid.width,"height":grid.height,"resolution_ppi":resolution_ppi,"color_space":if linear {"linear_srgb"}else{"srgb"},"items":[{"id":"pixels","content":{"type":"samples","grid":grid}}]})).map_err(|_|malformed())?;
+    let document:Document=serde_json::from_value(json!({"schema_version":2,"id":id,"kind":"raster","width":spec.width,"height":spec.height,"resolution_ppi":resolution_ppi,"color_space":if linear {"linear_srgb"}else{"srgb"},"items":[{"id":"pixels","content":content}]})).map_err(|_|malformed())?;
     crate::validate(&document)?;
     let metadata = crate::metadata::recover(&bytes, format)?;
-    Ok(
-        json!({"document":document,"source_sha256":assets::sha256(&bytes),"source_bytes":bytes.len(),"source_format":format,"interpretation":interpretation,"normalization":normalization,"metadata":metadata,"source_changed":false,"losses":["Returns a new inline sample document without changing the source file. Palette/low-bit PNG samples expand to explicit channels, missing alpha becomes opaque, TIFF planes interleave and white-is-zero normalizes. Source descriptions remain separate untrusted metadata; source density does not override explicit document resolution. Explicit assume_linear_srgb imports finite signed binary32 TIFF radiance. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported."]}),
-    )
+    control.check()?;
+    let mut result = json!({"document":document,"source_sha256":assets::sha256(&bytes),"source_bytes":bytes.len(),"source_format":format,"interpretation":interpretation,"normalization":normalization,"metadata":metadata,"source_changed":false,"losses":["Returns a new inline sample document without changing the source file. Palette/low-bit PNG samples expand to explicit channels, missing alpha becomes opaque, TIFF planes interleave and white-is-zero normalizes. Source descriptions remain separate untrusted metadata; source density does not override explicit document resolution. Explicit assume_linear_srgb imports finite signed binary32 TIFF radiance. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported."]});
+    if let (Some(storage), Some(candidate)) = (storage, candidate) {
+        let publication = candidate.publish(&storage.store_root, control)?;
+        result["storage"] = json!({"kind":"native_tiles","store_root":storage.store_root,"manifest_sha256":publication.manifest.sha256,
+            "created_tiles":publication.created_tiles,"existing_tiles":publication.existing_tiles,"decoded_bytes":decoded.bytes.len()});
+        result["losses"][0] = json!(
+            "Returns a new native stored-sample document with immutable base blocks and exact retained patch edits. Original source bytes are unchanged. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported. Metadata remains separate; explicit resolution governs document size."
+        );
+    }
+    Ok(result)
 }

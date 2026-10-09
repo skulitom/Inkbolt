@@ -116,6 +116,7 @@ pub(crate) fn apply(
     transfer: &Transfer,
     asset_root: Option<&Path>,
     font_root: Option<&Path>,
+    control: &crate::control::Control,
 ) -> Result<serde_json::Value, Error> {
     let source = transfer.source.as_ref();
     validate(source)?;
@@ -229,9 +230,12 @@ pub(crate) fn apply(
     // Verify explicit destination bindings without publishing or moving any bytes.
     if transfer.verify_resources {
         for (_, item) in &copies {
-            if let Content::Object { object } = &item.content {
-                crate::objects::verify_resources(object, asset_root, font_root)?;
-            }
+            crate::objects::verify_content_resources(
+                &item.content,
+                asset_root,
+                font_root,
+                control,
+            )?;
         }
         for id in &images {
             crate::assets::load(&source.assets[id], asset_root)

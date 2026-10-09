@@ -356,6 +356,7 @@ struct Resources {
     track_shape: bool,
     masks: BTreeMap<String, crate::masks::Prepared>,
     assets: BTreeMap<String, Pixels>,
+    stored_samples: BTreeMap<String, crate::stored_samples::Reader>,
     texts: BTreeMap<String, crate::text::Layout>,
 }
 struct ResourcesView<'a> {
@@ -703,6 +704,19 @@ fn drawable_pixels(
                 assets::crop(w, h, None)?,
                 [object.width, object.height],
                 object.sampling,
+                (size, resources.antialias, Some(resources.control)),
+                world,
+                warp.as_ref(),
+            )?
+        }
+        Content::StoredSamples { grid } => {
+            let warp = crate::pixel_warps::plan(item)?;
+            let spec = grid.base.spec;
+            image_pixels(
+                &resources.stored_samples[&item.id],
+                assets::crop(spec.width, spec.height, None)?,
+                [spec.width as f64, spec.height as f64],
+                grid.sampling,
                 (size, resources.antialias, Some(resources.control)),
                 world,
                 warp.as_ref(),
@@ -1248,6 +1262,7 @@ pub(crate) fn plan_artwork_masks(
                 track_shape: false,
                 masks: BTreeMap::new(),
                 assets: BTreeMap::new(),
+                stored_samples: BTreeMap::new(),
                 texts,
             },
         ));

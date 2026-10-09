@@ -168,6 +168,7 @@ pub fn bounds(document: &Document, i: usize) -> Result<Option<Bounds>, Error> {
         ))),
         Content::Object { object } => Ok(Some(geometry::bounds(&object.geometry(), m))),
         Content::Samples { grid } => Ok(Some(geometry::bounds(&grid.geometry(), m))),
+        Content::StoredSamples { grid } => Ok(Some(geometry::bounds(&grid.geometry(), m))),
         Content::Raw { raw } => Ok(Some(geometry::bounds(&raw.geometry(), m))),
         Content::Raster { width, height, .. } | Content::Fill { width, height, .. } => {
             Ok(Some(geometry::bounds(

@@ -841,7 +841,9 @@ fn apply_one(
             region,
             data_hex,
         } => {
-            *details = Some(crate::samples::replace(document, id, region, data_hex)?);
+            *details = Some(crate::samples::replace(
+                document, id, region, data_hex, asset_root, control,
+            )?);
             Ok((id.clone(), "samples_replaced"))
         }
         Operation::SwatchConvert { id, kind, color } => {
@@ -968,7 +970,7 @@ fn apply_one(
         }
         Operation::Transfer { transfer } => {
             *details = Some(crate::transfer::apply(
-                document, transfer, asset_root, font_root,
+                document, transfer, asset_root, font_root, control,
             )?);
             Ok((document.id.clone(), "transferred"))
         }
@@ -1367,6 +1369,7 @@ fn apply_one(
             unlocked(document, i)?;
             match &mut document.items[i].content {
                 Content::Samples { grid } => grid.sampling = *sampling,
+                Content::StoredSamples { grid } => grid.sampling = *sampling,
                 Content::Raw { raw } => raw.sampling = *sampling,
                 Content::Image { sampling: old, .. } | Content::Raster { sampling: old, .. } => {
                     *old = *sampling

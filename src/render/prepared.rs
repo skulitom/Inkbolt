@@ -232,6 +232,15 @@ impl Prepared {
                 buffers = buffers.saturating_add(retained + scratch);
                 crate::objects::charge(raw_work)?;
             }
+            if let Content::StoredSamples { grid } = &item.content {
+                let (native_work, native_buffers) = grid.preparation_costs();
+                work = work.saturating_add(native_work);
+                buffers = buffers.saturating_add(native_buffers);
+                crate::objects::charge(native_work)?;
+                if let Some(profile) = &grid.profile {
+                    source_profiles.insert(assets::sha256(&crate::profiles::resolve(profile)?.0));
+                }
+            }
             if let Content::Samples { grid } = &item.content
                 && let Some(profile) = &grid.profile
             {
@@ -273,6 +282,32 @@ impl Prepared {
             track_shape: crate::knockout::active(document),
             masks: crate::masks::prepare_document(document)?,
             assets: assets::resolve(document, asset_root)?,
+            stored_samples: document
+                .items
+                .iter()
+                .enumerate()
+                .filter_map(|(i, item)| match &item.content {
+                    Content::StoredSamples { grid } => {
+                        Some(scene::effective_visible(document, i).and_then(|visible| {
+                            if visible {
+                                crate::stored_samples::Reader::new(
+                                    grid,
+                                    asset_root,
+                                    crate::hdr::linear(document),
+                                    control,
+                                )
+                                .map(|reader| Some((item.id.clone(), reader)))
+                            } else {
+                                Ok(None)
+                            }
+                        }))
+                    }
+                    _ => None,
+                })
+                .collect::<Result<Vec<_>, Error>>()?
+                .into_iter()
+                .flatten()
+                .collect(),
             texts,
         };
         control.check()?;

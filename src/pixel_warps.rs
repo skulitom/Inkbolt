@@ -452,6 +452,9 @@ pub(crate) fn frame(item: &Item) -> Result<Point, Error> {
     match item.content {
         Content::Object { ref object } => Ok([object.width, object.height]),
         Content::Samples { ref grid } => Ok([grid.width as f64, grid.height as f64]),
+        Content::StoredSamples { ref grid } => {
+            Ok([grid.base.spec.width as f64, grid.base.spec.height as f64])
+        }
         Content::Raw { ref raw } => Ok([
             raw.recipe.capture.width as f64,
             raw.recipe.capture.height as f64,
@@ -474,6 +477,7 @@ pub(crate) fn validate(item: &Item, world: Matrix) -> Result<usize, Error> {
     let Some(p) = plan(item)? else { return Ok(0) };
     if matches!(item.content,Content::Raster{sampling,..}|Content::Image{sampling,..} if sampling.advanced())
         || matches!(&item.content, Content::Samples{grid} if grid.sampling.advanced())
+        || matches!(&item.content, Content::StoredSamples{grid} if grid.sampling.advanced())
         || matches!(&item.content, Content::Raw{raw} if raw.sampling.advanced())
         || matches!(&item.content, Content::Object{object} if object.sampling.advanced())
     {

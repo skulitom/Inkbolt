@@ -212,6 +212,16 @@ pub(crate) fn document_work(document: &Document, scale: u32) -> Result<u64, Erro
                 [grid.width as f64, grid.height as f64],
                 grid.sampling,
             ),
+            Content::StoredSamples { grid } => (
+                Crop {
+                    x: 0,
+                    y: 0,
+                    width: grid.base.spec.width,
+                    height: grid.base.spec.height,
+                },
+                [grid.base.spec.width as f64, grid.base.spec.height as f64],
+                grid.sampling,
+            ),
             Content::Raster {
                 width,
                 height,

@@ -96,7 +96,7 @@ One UTF-8 JSON request per invocation, at most 16 MiB. Pass a file path or write
 | font.verify | font; optional font_root | Verify font/license bytes and parse the requested face |
 | text.inspect | document, id; optional font_root, include_outlines (false) | Source frame, glyph/line metrics, local/world ink bounds; optional painted outlines |
 | sample.measure | document; optional points, asset_root, font_root | Full-precision rendered samples, minima/maxima and negative/above-white channel counts; no display projection |
-| sample.import | source_path, id; optional resolution_ppi (96), color_policy | New inline native-depth raster document, immutable-source hash and interpretation/loss receipts; see SAMPLES.md |
+| sample.import | source_path, id; optional resolution_ppi (96), color_policy, storage.store_root | New native-depth raster document; inline by default or immutable native blocks with explicit storage. Source hash and interpretation/loss receipts; see SAMPLES.md and NATIVE_SAMPLE_STORAGE.md |
 | asset.import | source_path, store_root; optional color_policy, input_profile | Pinned image asset, created flag, source_format and metadata losses |
 | asset.verify | asset; optional asset_root | Verify embedded/stored pixel identity and dimensions |
 | asset.embed | asset; optional asset_root | An equivalent small embedded asset descriptor |

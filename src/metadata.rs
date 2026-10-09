@@ -152,6 +152,22 @@ pub fn manifest(document: &Document) -> Value {
     if !objects.is_empty() {
         result["objects"] = json!(objects);
     }
+    let stored: BTreeMap<_, _> = document
+        .items
+        .iter()
+        .filter_map(|i| match &i.content {
+            crate::model::Content::StoredSamples { grid } => Some((
+                &i.id,
+                json!({
+            "base_manifest_sha256":grid.base.sha256,"recipe_sha256":grid.recipe_sha256(),
+            "spec":grid.base.spec,"patch_count":grid.patches.len()}),
+            )),
+            _ => None,
+        })
+        .collect();
+    if !stored.is_empty() {
+        result["stored_samples"] = json!(stored);
+    }
     result
 }
 pub fn packet(

@@ -104,42 +104,61 @@ impl Grid {
     }
     pub(crate) fn decode(&self, linear: bool) -> Result<Decoded, Error> {
         self.validate()?;
-        let values = decode_values(&self.data_hex, self.depth);
-        let mut rgba: Vec<f64> = values
-            .chunks_exact(self.channels.count())
-            .flat_map(|p| match self.channels {
-                Channels::Rgba => [p[0], p[1], p[2], p[3]],
-                Channels::GrayAlpha => [p[0], p[0], p[0], p[1]],
-            })
-            .collect();
-        if let Some(profile) = &self.profile {
-            crate::profiles::convert_f64(
-                &mut rgba,
-                profile,
-                &crate::profiles::Profile::Builtin {
-                    name: if linear {
-                        crate::profiles::Builtin::LinearSrgb
-                    } else {
-                        crate::profiles::Builtin::Srgb
-                    },
+        decode_native(
+            self.width,
+            &crate::render::unhex(&self.data_hex),
+            self.depth,
+            self.channels,
+            self.encoding,
+            self.profile.as_ref(),
+            linear,
+        )
+    }
+}
+pub(crate) fn decode_native(
+    width: u32,
+    bytes: &[u8],
+    depth: Depth,
+    channels: Channels,
+    encoding: crate::hdr::Encoding,
+    profile: Option<&crate::profiles::Profile>,
+    linear: bool,
+) -> Result<Decoded, Error> {
+    let values = decode_native_values(bytes, depth);
+    let mut rgba: Vec<f64> = values
+        .chunks_exact(channels.count())
+        .flat_map(|p| match channels {
+            Channels::Rgba => [p[0], p[1], p[2], p[3]],
+            Channels::GrayAlpha => [p[0], p[0], p[0], p[1]],
+        })
+        .collect();
+    if let Some(profile) = profile {
+        crate::profiles::convert_f64(
+            &mut rgba,
+            profile,
+            &crate::profiles::Profile::Builtin {
+                name: if linear {
+                    crate::profiles::Builtin::LinearSrgb
+                } else {
+                    crate::profiles::Builtin::Srgb
                 },
-                crate::profiles::Intent::default(),
-                !linear,
-                None,
-            )?;
-        } else if linear && self.encoding == crate::hdr::Encoding::EncodedSrgb {
-            for p in rgba.as_chunks_mut::<4>().0 {
-                for v in &mut p[..3] {
-                    *v = crate::hdr::decode(*v);
-                }
+            },
+            crate::profiles::Intent::default(),
+            !linear,
+            None,
+        )?;
+    } else if linear && encoding == crate::hdr::Encoding::EncodedSrgb {
+        for p in rgba.as_chunks_mut::<4>().0 {
+            for v in &mut p[..3] {
+                *v = crate::hdr::decode(*v);
             }
         }
-        Ok(Decoded {
-            width: self.width,
-            rgba,
-            linear,
-        })
     }
+    Ok(Decoded {
+        width,
+        rgba,
+        linear,
+    })
 }
 fn validate_data(
     hex: &str,
@@ -176,6 +195,9 @@ fn validate_data(
 }
 pub(crate) fn decode_values(hex: &str, depth: Depth) -> Vec<f64> {
     let bytes = crate::render::unhex(hex);
+    decode_native_values(&bytes, depth)
+}
+fn decode_native_values(bytes: &[u8], depth: Depth) -> Vec<f64> {
     bytes
         .chunks_exact(depth.bytes())
         .map(|v| match depth {
@@ -221,6 +243,11 @@ pub(crate) struct Decoded {
     linear: bool,
 }
 impl Decoded {
+    pub(crate) fn premultiplied_at(&self, x: usize, y: usize) -> [f64; 4] {
+        let at = (y * self.width as usize + x) * 4;
+        let p = &self.rgba[at..at + 4];
+        [p[0] * p[3], p[1] * p[3], p[2] * p[3], p[3]]
+    }
     pub(crate) fn from_samples(width: u32, rgba: Vec<f64>, linear: bool) -> Self {
         Self {
             width,
@@ -271,10 +298,30 @@ pub(crate) fn replace(
     id: &str,
     region: &crate::edit::PixelRect,
     data: &str,
+    asset_root: Option<&std::path::Path>,
+    control: &crate::control::Control,
 ) -> Result<Value, Error> {
     let i = crate::scene::index(d, id)?;
     crate::scene::check_unlocked(d, i, false)?;
     crate::pixel_warps::reject_native(&d.items[i])?;
+    if let Content::StoredSamples { grid } = &mut d.items[i].content {
+        let patch = crate::stored_samples::Patch {
+            region: crate::sample_store::Region {
+                x: region.x,
+                y: region.y,
+                width: region.width,
+                height: region.height,
+            },
+            data_hex: data.to_owned(),
+        };
+        let (next, before, after) = grid.replace(asset_root, patch, control)?;
+        **grid = next;
+        return Ok(
+            json!({"id":id,"region":region,"depth":grid.base.spec.depth,"channels":grid.base.spec.channels,
+            "before_native_sha256":before,"after_native_sha256":after,"conversion":false,"outside_region_preserved":true,
+            "storage":"immutable_native_blocks_with_retained_patches","files_written":false}),
+        );
+    }
     let Content::Samples { grid } = &mut d.items[i].content else {
         return Err(Error::new(
             "INVALID_OPERATION",
@@ -320,6 +367,7 @@ pub(crate) fn annotate(document: &Document, artifact: &mut Value, depth: Depth) 
             Content::Samples { grid } => {
                 Some(json!({"id":i.id,"depth":grid.depth,"channels":grid.channels,"encoding":grid.encoding}))
             }
+            Content::StoredSamples { grid } => Some(json!({"id":i.id,"content":"stored_samples","depth":grid.base.spec.depth,"channels":grid.base.spec.channels,"encoding":grid.base.spec.encoding})),
             _ => None,
         })
         .collect();
@@ -329,6 +377,17 @@ pub(crate) fn annotate(document: &Document, artifact: &mut Value, depth: Depth) 
 }
 
 pub(crate) fn inspect(content: &Content) -> Option<Value> {
+    if let Content::StoredSamples { grid } = content {
+        let spec = grid.base.spec;
+        return Some(
+            json!({"content":"stored_samples","width":spec.width,"height":spec.height,
+            "depth":spec.depth,"channels":spec.channels,"sampling":grid.sampling,"sample_encoding":spec.encoding,
+            "source_profile":grid.profile.as_ref().map(crate::sample_profiles::identity).transpose().ok().flatten(),
+            "native_bytes":spec.width as u64 * spec.height as u64 * spec.depth.bytes() as u64 * spec.channels.count() as u64,
+            "base_manifest_sha256":grid.base.sha256,"recipe_sha256":grid.recipe_sha256(),"patch_count":grid.patches.len(),
+            "storage":"immutable_native_blocks_with_retained_patches","verification":"identities_only_not_file_verification"}),
+        );
+    }
     if let Content::Raw { raw } = content {
         return Some(
             json!({"content":"raw","width":raw.recipe.capture.width,"height":raw.recipe.capture.height,

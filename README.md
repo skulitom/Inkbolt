@@ -8,6 +8,8 @@ Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). C
 
 ## Start locally
 
+[Native block documents](docs/NATIVE_SAMPLE_STORAGE.md) provide opt-in multi-megapixel PNG/TIFF import, exact local patch edits, durable history and bounded view rendering. They keep original channel precision and source files intact. Full-resolution large output, streaming decoding and the complete scale acceptance gate remain in progress.
+
 Build with Rust/Cargo; current verification uses Rust 1.98.1. Worker leases require the file-locking API introduced in Rust 1.89. Development verification also uses Python 3.11+. Dependencies are locked in Cargo.lock and remain in the external package cache.
 
 ```powershell

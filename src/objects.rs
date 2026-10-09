@@ -379,6 +379,7 @@ pub(crate) fn verify_resources(
     object: &Object,
     asset_root: Option<&Path>,
     font_root: Option<&Path>,
+    control: &crate::control::Control,
 ) -> Result<(), Error> {
     let d = object.document()?;
     for asset in d.assets.values() {
@@ -388,9 +389,30 @@ pub(crate) fn verify_resources(
         crate::fonts::load(font, font_root)?;
     }
     for item in &d.items {
-        if let Content::Object { object } = &item.content {
-            verify_resources(object, asset_root, font_root)?;
+        verify_content_resources(&item.content, asset_root, font_root, control)?;
+    }
+    Ok(())
+}
+pub(crate) fn verify_content_resources(
+    content: &Content,
+    asset_root: Option<&Path>,
+    font_root: Option<&Path>,
+    control: &crate::control::Control,
+) -> Result<(), Error> {
+    control.check()?;
+    match content {
+        Content::Object { object } => verify_resources(object, asset_root, font_root, control)?,
+        Content::StoredSamples { grid } => {
+            grid.prepare(asset_root, control)?;
         }
+        Content::Instance { instance } => {
+            for over in instance.overrides.values() {
+                if let Some(content) = &over.content {
+                    verify_content_resources(content, asset_root, font_root, control)?;
+                }
+            }
+        }
+        _ => {}
     }
     Ok(())
 }

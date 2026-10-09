@@ -325,6 +325,9 @@ pub enum Content {
     Samples {
         grid: Box<crate::samples::Grid>,
     },
+    StoredSamples {
+        grid: Box<crate::stored_samples::Grid>,
+    },
     Warp {
         warp: Box<crate::warps::Spec>,
     },
@@ -549,12 +552,15 @@ pub fn validate_controlled(
         .items
         .iter()
         .filter_map(|item| {
-            if let Content::Samples { grid } = &item.content
-                && let Some(crate::profiles::Profile::Icc { data }) = &grid.profile
-            {
-                return Some(data.len());
+            let profile = match &item.content {
+                Content::Samples { grid } => grid.profile.as_ref(),
+                Content::StoredSamples { grid } => grid.profile.as_ref(),
+                _ => None,
+            };
+            match profile {
+                Some(crate::profiles::Profile::Icc { data }) => Some(data.len()),
+                _ => None,
             }
-            None
         })
         .sum();
     if profile_bytes > crate::sample_profiles::MAX_ENCODED_PROFILE_BYTES {
@@ -578,6 +584,7 @@ pub fn validate_controlled(
     let mut dash_work = 0;
     let mut outline_commands = 0;
     let mut pixels = 0usize;
+    let mut native_pixels = 0u64;
     if document.assets.len() > assets::MAX_ASSETS {
         return Err(limit("Document exceeds 64 image assets"));
     }
@@ -895,6 +902,19 @@ pub fn validate_controlled(
             }
             Content::Object { object } => {
                 crate::objects::validate_placement(object, document, world)?
+            }
+            Content::StoredSamples { grid } => {
+                if document.kind != DocumentKind::Raster {
+                    return Err(invalid("Stored sample grids require a raster document"));
+                }
+                grid.validate()?;
+                native_pixels += grid.base.spec.width as u64 * grid.base.spec.height as u64;
+                if native_pixels > crate::sample_store::MAX_PIXELS {
+                    return Err(limit(
+                        "Stored native sources exceed the aggregate pixel budget",
+                    ));
+                }
+                validate_world_geometry(&grid.geometry(), world)?;
             }
             Content::Samples { grid } => {
                 if document.kind != DocumentKind::Raster {

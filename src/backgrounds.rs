@@ -37,6 +37,7 @@ fn eligible(item: &Item) -> bool {
         item.content,
         Content::Object { .. }
             | Content::Samples { .. }
+            | Content::StoredSamples { .. }
             | Content::Raw { .. }
             | Content::Raster { .. }
             | Content::Image { .. }
