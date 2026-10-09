@@ -236,7 +236,8 @@ class StoredSampleTests(unittest.TestCase):
     def test_manifest_diagnostics_missing_store_limits_and_unsupported_consumers(self):
         caps = self.cli('capabilities')
         self.assertIn('stored_samples',caps['sample_precision']['contents'])
-        self.assertFalse(caps['sample_precision']['import']['native_storage']['output_limits_changed'])
+        self.assertTrue(caps['sample_precision']['import']['native_storage']['output_limits_changed'])
+        self.assertEqual(caps['render_quality']['evaluation']['default'],'whole')
         self.assertTrue(caps['native_sample_store_library']['document_history_integration'])
         d = self.imported(2,2)
         packet = json.loads(carrier(base64.b64decode(self.exported(d,metadata_policy=dict(manifest=True))['data']),'tiff'))

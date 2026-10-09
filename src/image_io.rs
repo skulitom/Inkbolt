@@ -466,7 +466,10 @@ pub(crate) fn export_with_metadata(
     resources: &Resources,
     options: Option<&Options>,
     metadata: Option<&str>,
-    render_options: Option<&crate::render_quality::Options>,
+    (render_options, control): (
+        Option<&crate::render_quality::Options>,
+        &crate::control::Control,
+    ),
 ) -> Result<Value, Error> {
     validate_options(format, options)?;
     let defaults = Options::default();
@@ -484,14 +487,16 @@ pub(crate) fn export_with_metadata(
             options,
             metadata,
             render_options,
+            control,
         );
     }
-    let mut p = crate::render::rasterize_with_options(
+    let mut p = crate::render::rasterize_controlled(
         document,
         scale,
         resources.asset_root.as_deref(),
         resources.font_root.as_deref(),
         render_options,
+        control,
     )?;
     if matches!(format, ExportFormat::Bmp | ExportFormat::Tga) {
         if document.output_profile.is_some() {

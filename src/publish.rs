@@ -270,7 +270,7 @@ pub fn export_with_render_options(
                 resources,
                 image_options,
                 packet.as_deref(),
-                render_options,
+                (render_options, control.unwrap_or(&Control::default())),
             )
         }
         ExportFormat::Png => crate::render::png_controlled(

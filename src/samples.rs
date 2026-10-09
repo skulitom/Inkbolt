@@ -227,6 +227,36 @@ pub(crate) trait Source {
         plan: &resample::Plan,
     ) -> Result<[f64; 4], Error>;
 }
+/// Convert byte source taps directly, without a full f64 copy of an image.
+pub(crate) struct WorkingPixels<'a> {
+    pub pixels: &'a crate::assets::Pixels,
+    pub linear: bool,
+}
+impl Source for WorkingPixels<'_> {
+    fn sample_planned(
+        &self,
+        crop: Crop,
+        point: Point,
+        plan: &resample::Plan,
+    ) -> Result<[f64; 4], Error> {
+        if !self.linear {
+            return self.pixels.sample_planned(crop, point, plan);
+        }
+        resample::straight_range(point, plan, true, |x, y| {
+            let x = x.clamp(crop.x as i64, (crop.x + crop.width - 1) as i64) as usize;
+            let y = y.clamp(crop.y as i64, (crop.y + crop.height - 1) as i64) as usize;
+            let at = (y * self.pixels.width as usize + x) * 4;
+            let p = &self.pixels.rgba[at..at + 4];
+            let a = p[3] as f64 / 255.0;
+            [
+                crate::hdr::decode(p[0] as f64 / 255.0) * a,
+                crate::hdr::decode(p[1] as f64 / 255.0) * a,
+                crate::hdr::decode(p[2] as f64 / 255.0) * a,
+                a,
+            ]
+        })
+    }
+}
 impl Source for crate::assets::Pixels {
     fn sample_planned(
         &self,
@@ -253,26 +283,6 @@ impl Decoded {
             width,
             rgba,
             linear,
-        }
-    }
-    pub(crate) fn from_pixels(p: &crate::assets::Pixels) -> Self {
-        Self {
-            width: p.width,
-            linear: true,
-            rgba: p
-                .rgba
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .flat_map(|p| {
-                    [
-                        crate::hdr::decode(p[0] as f64 / 255.0),
-                        crate::hdr::decode(p[1] as f64 / 255.0),
-                        crate::hdr::decode(p[2] as f64 / 255.0),
-                        p[3] as f64 / 255.0,
-                    ]
-                })
-                .collect(),
         }
     }
 }

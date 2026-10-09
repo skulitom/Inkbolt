@@ -1436,7 +1436,7 @@ fn capability_report() -> Value {
         "import":{"command":"sample.import","opt_in":"storage.store_root","workspace_opt_in":"storage:{}","max_decoded_bytes":sample_import::MAX_NATIVE_DECODED_BYTES},
         "retained_edits":{"operation":"sample_replace","max_patches":stored_samples::MAX_PATCHES,"max_aggregate_patch_pixels":stored_samples::MAX_PATCH_PIXELS,"writes_files":false,"snapshot":"immutable_base_manifest_plus_exact_native_patch_bytes"},
         "render_cache":{"scope":"one_prepared_source","max_decoded_pixels":262144,"maximum_source_decoding_passes":2},
-        "output_limits_changed":false,
+        "output_limits_changed":true, "large_output_opt_in":"render_options.evaluation:tiled",
         "unsupported":["stored_sample_convert","stored_sample_profile_edits","native_brush_and_mask_bake","native_ink_separations","layered_pixel_export","structural_SVG_PDF_export"],
         "full_dependency_verification":["sample_replace","visible_render_sources","document.check_resources","verified_transfer","job_admission_and_execution"]
     });
@@ -1444,7 +1444,23 @@ fn capability_report() -> Value {
     capabilities["sample_precision"]["import"]["native_storage"] = json!({
         "opt_in":"storage.store_root", "max_source_pixels":sample_store::MAX_PIXELS,
         "max_native_bytes":sample_import::MAX_NATIVE_DECODED_BYTES,
-        "output_limits_changed":false, "contract":"native_sample_store_library"
+        "output_limits_changed":true, "large_output_opt_in":"render_options.evaluation:tiled", "contract":"native_sample_store_library"
+    });
+    capabilities["render_quality"]["evaluation"] = json!({
+        "default":"whole", "modes":["whole","tiled"],
+        "whole_evaluation_pixels":render::MAX_RENDER_PIXELS,
+        "tiled_evaluation_pixels":render::tiled::MAX_PIXELS,
+        "tile_edge":render::tiled::EDGE,
+        "scene_preparation":"once_per_render;no_persistent_cache",
+        "source_cache":"bounded_native_tiles;inline_native_decoded_once;byte_asset_taps_converted_on_demand",
+        "native_tiff":"bounded_native_strips;none_lzw_deflate;one_final_depth_projection",
+        "native_strip_bytes":16*1024*1024,
+        "encoded_output_bytes":publish::MAX_OUTPUT_BYTES,
+        "rgba8_delivery":"complete_final_byte_image_retained;no_complete_f64_surface",
+        "unsupported_tiled":["item_filters","item_effects","artwork_masks","raw","retained_object_surfaces"],
+        "other_limits":"existing_total_work_source_cache_and_format_batch_limits_apply",
+        "native_full_surface_library_api":"whole_evaluation_only",
+        "progress":"render_tiles;cooperative_cancellation_between_tiles"
     });
     capabilities["agent_discovery"] = json!({
         "lookup":"schema.lookup", "index":"index",

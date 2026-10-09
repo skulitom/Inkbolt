@@ -7,6 +7,7 @@ use std::{collections::BTreeMap, path::Path};
 mod coverage_path;
 pub(crate) mod prepared;
 mod sparse;
+pub(crate) mod tiled;
 
 pub const MAX_RENDER_PIXELS: u64 = 1_048_576;
 pub const MAX_RENDER_WORK: u64 = 67_108_864;
@@ -49,14 +50,14 @@ fn painted_pixels(
     height: u32,
     scale: u32,
     world: Matrix,
-    (antialias, linear): (crate::render_quality::Antialias, bool),
+    (antialias, linear, origin): (crate::render_quality::Antialias, bool, [u32; 2]),
 ) -> Result<Vec<f64>, Error> {
     painted_region(
         item,
         [width, height, scale],
         world,
         (antialias, linear),
-        [0; 2],
+        origin,
         None,
     )
 }
@@ -193,13 +194,37 @@ pub(crate) fn image_pixels(
     world: Matrix,
     warp: Option<&crate::pixel_warps::Plan>,
 ) -> Result<Vec<f64>, Error> {
-    let [width, height, _] = size;
-    let mut result = vec![0.0; width as usize * height as usize * 4];
-    image_map(
+    image_region(
+        pixels,
         crop,
         frame,
         sampling,
-        (size, antialias, control),
+        (size, antialias, control, [0; 2]),
+        world,
+        warp,
+    )
+}
+fn image_region(
+    pixels: &dyn crate::samples::Source,
+    crop: Crop,
+    frame: [f64; 2],
+    sampling: Sampling,
+    (size, antialias, control, origin): (
+        [u32; 3],
+        crate::render_quality::Antialias,
+        Option<&crate::control::Control>,
+        [u32; 2],
+    ),
+    world: Matrix,
+    warp: Option<&crate::pixel_warps::Plan>,
+) -> Result<Vec<f64>, Error> {
+    let [width, height, _] = size;
+    let mut result = vec![0.0; width as usize * height as usize * 4];
+    image_map_region(
+        crop,
+        frame,
+        sampling,
+        (size, antialias, control, origin),
         world,
         warp,
         |i, point, plan, coverage| {
@@ -227,6 +252,30 @@ pub(crate) fn image_map(
     ),
     world: Matrix,
     warp: Option<&crate::pixel_warps::Plan>,
+    consume: impl FnMut(usize, Point, &crate::resample::Plan, u8) -> Result<(), Error>,
+) -> Result<(), Error> {
+    image_map_region(
+        crop,
+        frame,
+        sampling,
+        (size, antialias, control, [0; 2]),
+        world,
+        warp,
+        consume,
+    )
+}
+fn image_map_region(
+    crop: Crop,
+    frame: [f64; 2],
+    sampling: Sampling,
+    (size, antialias, control, origin): (
+        [u32; 3],
+        crate::render_quality::Antialias,
+        Option<&crate::control::Control>,
+        [u32; 2],
+    ),
+    world: Matrix,
+    warp: Option<&crate::pixel_warps::Plan>,
     mut consume: impl FnMut(usize, Point, &crate::resample::Plan, u8) -> Result<(), Error>,
 ) -> Result<(), Error> {
     let [width, height, scale] = size;
@@ -239,7 +288,7 @@ pub(crate) fn image_map(
         },
         |p| p.geometry(),
     );
-    let path = coverage_path::path(&geometry, world.map(|v| v * scale as f64))?;
+    let path = coverage_path::path(&geometry, regional_transform(world, scale, origin))?;
     let mut mask = tiny_skia::Mask::new(width, height)
         .ok_or_else(|| limit("Unable to allocate image coverage"))?;
     mask.fill_path(
@@ -263,8 +312,8 @@ pub(crate) fn image_map(
             continue;
         }
         let canvas = [
-            (i % width as usize) as f64 + 0.5,
-            (i / width as usize) as f64 + 0.5,
+            origin[0] as f64 + (i % width as usize) as f64 + 0.5,
+            origin[1] as f64 + (i / width as usize) as f64 + 0.5,
         ]
         .map(|v| v / scale as f64);
         let local = geometry::map(inverse, canvas);
@@ -326,6 +375,12 @@ pub(crate) fn geometry_mask(
     );
     Ok(mask)
 }
+fn regional_transform(world: Matrix, scale: u32, origin: [u32; 2]) -> Matrix {
+    let mut transform = world.map(|v| v * scale as f64);
+    transform[4] -= origin[0] as f64;
+    transform[5] -= origin[1] as f64;
+    transform
+}
 fn clip_mask(
     item: &Item,
     world: Matrix,
@@ -333,11 +388,12 @@ fn clip_mask(
     height: u32,
     scale: u32,
     antialias: crate::render_quality::Antialias,
+    origin: [u32; 2],
 ) -> Result<Option<tiny_skia::Mask>, Error> {
     let Some(clip) = item.clip.as_ref().filter(|clip| clip.enabled) else {
         return Ok(None);
     };
-    let transform = geometry::multiply(world, clip.transform).map(|v| v * scale as f64);
+    let transform = regional_transform(geometry::multiply(world, clip.transform), scale, origin);
     Ok(Some(geometry_mask(
         &clip.geometry,
         clip.fill_rule,
@@ -357,12 +413,14 @@ struct Resources {
     masks: BTreeMap<String, crate::masks::Prepared>,
     assets: BTreeMap<String, Pixels>,
     stored_samples: BTreeMap<String, crate::stored_samples::Reader>,
+    inline_samples: BTreeMap<String, crate::samples::Decoded>,
     texts: BTreeMap<String, crate::text::Layout>,
 }
 struct ResourcesView<'a> {
     base: &'a Resources,
     artwork_masks: &'a BTreeMap<String, Vec<f64>>,
     control: &'a crate::control::Control,
+    origin: [u32; 2],
 }
 impl std::ops::Deref for ResourcesView<'_> {
     type Target = Resources;
@@ -378,7 +436,7 @@ fn text_pixels(
     height: u32,
     scale: u32,
     world: Matrix,
-    (antialias, linear): (crate::render_quality::Antialias, bool),
+    (antialias, linear, origin): (crate::render_quality::Antialias, bool, [u32; 2]),
 ) -> Result<Vec<f64>, Error> {
     let mut result = vec![0.0; width as usize * height as usize * 4];
     for p in &layout.paths {
@@ -389,7 +447,14 @@ fn text_pixels(
             stroke: None,
             fill_rule: FillRule::Nonzero,
         };
-        let pixels = painted_pixels(&glyph, width, height, scale, world, (antialias, linear))?;
+        let pixels = painted_region(
+            &glyph,
+            [width, height, scale],
+            world,
+            (antialias, linear),
+            origin,
+            None,
+        )?;
         for (dst, src) in result
             .as_chunks_mut::<4>()
             .0
@@ -416,7 +481,7 @@ fn text_pixels(
             transform: identity(),
             enabled: true,
         });
-        let mask = clip_mask(&clipped, world, width, height, scale, antialias)?.unwrap();
+        let mask = clip_mask(&clipped, world, width, height, scale, antialias, origin)?.unwrap();
         for (pixel, &coverage) in result.as_chunks_mut::<4>().0.iter_mut().zip(mask.data()) {
             for v in pixel {
                 *v *= coverage as f64 / 255.0;
@@ -447,6 +512,7 @@ fn apply_adjustment(
         height,
         scale,
         resources.antialias,
+        resources.origin,
     )?;
     for (n, pixel) in pixels.as_chunks_mut::<4>().0.iter_mut().enumerate() {
         let alpha = pixel[3];
@@ -458,8 +524,10 @@ fn apply_adjustment(
             * mask.as_ref().map_or(1.0, |m| m.data()[n] as f64 / 255.0)
             * resources.masks.get(&item.id).map_or(1.0, |m| {
                 m.sample([
-                    (n % width as usize) as f64 / scale as f64 + 0.5 / scale as f64,
-                    (n / width as usize) as f64 / scale as f64 + 0.5 / scale as f64,
+                    (resources.origin[0] as usize + n % width as usize) as f64 / scale as f64
+                        + 0.5 / scale as f64,
+                    (resources.origin[1] as usize + n / width as usize) as f64 / scale as f64
+                        + 0.5 / scale as f64,
                 ])
             });
         if weight == 0.0 {
@@ -508,6 +576,7 @@ struct Coverage<'a> {
     frame: Option<tiny_skia::Mask>,
     mode: crate::coverage::Mode,
     inverse: Matrix,
+    origin: [u32; 2],
 }
 impl Coverage<'_> {
     fn alpha(&self, pixel: usize, alpha: f64) -> f64 {
@@ -518,8 +587,8 @@ impl Coverage<'_> {
     }
     fn sample(&self, pixel: usize, alpha: f64, opacity: f64) -> f64 {
         let point = [
-            (pixel % self.width as usize) as f64 + 0.5,
-            (pixel / self.width as usize) as f64 + 0.5,
+            self.origin[0] as f64 + (pixel % self.width as usize) as f64 + 0.5,
+            self.origin[1] as f64 + (pixel / self.width as usize) as f64 + 0.5,
         ]
         .map(|v| v / self.scale as f64);
         self.mode.alpha(
@@ -534,9 +603,11 @@ impl Coverage<'_> {
         self.artwork_mask.map_or(1.0, |m| m[pixel])
             * self.mask.map_or(1.0, |mask| {
                 mask.sample([
-                    (pixel % self.width as usize) as f64 / self.scale as f64
+                    (self.origin[0] as usize + pixel % self.width as usize) as f64
+                        / self.scale as f64
                         + 0.5 / self.scale as f64,
-                    (pixel / self.width as usize) as f64 / self.scale as f64
+                    (self.origin[1] as usize + pixel / self.width as usize) as f64
+                        / self.scale as f64
                         + 0.5 / self.scale as f64,
                 ])
             })
@@ -557,11 +628,27 @@ fn coverage<'a>(
     resources: &'a ResourcesView<'_>,
 ) -> Result<Coverage<'a>, Error> {
     let [width, height, scale] = size;
-    let clip = clip_mask(item, world, width, height, scale, resources.antialias)?;
+    let clip = clip_mask(
+        item,
+        world,
+        width,
+        height,
+        scale,
+        resources.antialias,
+        resources.origin,
+    )?;
     let frame = if let Content::Frame { frame } = &item.content {
         let mut temporary = item.clone();
         temporary.clip = Some(frame.clip());
-        clip_mask(&temporary, world, width, height, scale, resources.antialias)?
+        clip_mask(
+            &temporary,
+            world,
+            width,
+            height,
+            scale,
+            resources.antialias,
+            resources.origin,
+        )?
     } else {
         None
     };
@@ -575,6 +662,7 @@ fn coverage<'a>(
         frame,
         mode: item.coverage,
         inverse: geometry::inverse(world)?,
+        origin: resources.origin,
     })
 }
 // Shape is intrinsic evaluated alpha before item fill/opacity. Containers
@@ -661,7 +749,7 @@ fn drawable_pixels(
                     height,
                     scale,
                     world,
-                    (resources.antialias, resources.linear),
+                    (resources.antialias, resources.linear, resources.origin),
                 )?
             } else {
                 vec![0.0; width as usize * height as usize * 4]
@@ -683,7 +771,7 @@ fn drawable_pixels(
             height,
             scale,
             world,
-            (resources.antialias, resources.linear),
+            (resources.antialias, resources.linear, resources.origin),
         )?,
         Content::Text { .. } | Content::StoryFrame { .. } => text_pixels(
             item,
@@ -692,19 +780,24 @@ fn drawable_pixels(
             height,
             scale,
             world,
-            (resources.antialias, resources.linear),
+            (resources.antialias, resources.linear, resources.origin),
         )?,
         Content::Object { object } => {
             let warp = crate::pixel_warps::plan(item)?;
             let source = &resources.objects[&item.id];
             let [w, h] = source.sampling.output;
             let pixels = source.object_surface(object, resources.linear)?;
-            image_pixels(
+            image_region(
                 &pixels,
                 assets::crop(w, h, None)?,
                 [object.width, object.height],
                 object.sampling,
-                (size, resources.antialias, Some(resources.control)),
+                (
+                    size,
+                    resources.antialias,
+                    Some(resources.control),
+                    resources.origin,
+                ),
                 world,
                 warp.as_ref(),
             )?
@@ -712,24 +805,41 @@ fn drawable_pixels(
         Content::StoredSamples { grid } => {
             let warp = crate::pixel_warps::plan(item)?;
             let spec = grid.base.spec;
-            image_pixels(
+            image_region(
                 &resources.stored_samples[&item.id],
                 assets::crop(spec.width, spec.height, None)?,
                 [spec.width as f64, spec.height as f64],
                 grid.sampling,
-                (size, resources.antialias, Some(resources.control)),
+                (
+                    size,
+                    resources.antialias,
+                    Some(resources.control),
+                    resources.origin,
+                ),
                 world,
                 warp.as_ref(),
             )?
         }
         Content::Samples { grid } => {
             let warp = crate::pixel_warps::plan(item)?;
-            image_pixels(
-                &grid.decode(resources.linear)?,
+            let decoded;
+            let pixels = if let Some(cached) = resources.inline_samples.get(&item.id) {
+                cached
+            } else {
+                decoded = grid.decode(resources.linear)?;
+                &decoded
+            };
+            image_region(
+                pixels,
                 assets::crop(grid.width, grid.height, None)?,
                 [grid.width as f64, grid.height as f64],
                 grid.sampling,
-                (size, resources.antialias, Some(resources.control)),
+                (
+                    size,
+                    resources.antialias,
+                    Some(resources.control),
+                    resources.origin,
+                ),
                 world,
                 warp.as_ref(),
             )?
@@ -737,12 +847,17 @@ fn drawable_pixels(
         Content::Raw { raw } => {
             let grid = raw.grid(resources.control)?;
             let warp = crate::pixel_warps::plan(item)?;
-            image_pixels(
+            image_region(
                 &grid.decode(resources.linear)?,
                 assets::crop(grid.width, grid.height, None)?,
                 [grid.width as f64, grid.height as f64],
                 grid.sampling,
-                (size, resources.antialias, Some(resources.control)),
+                (
+                    size,
+                    resources.antialias,
+                    Some(resources.control),
+                    resources.origin,
+                ),
                 world,
                 warp.as_ref(),
             )?
@@ -754,24 +869,34 @@ fn drawable_pixels(
             sampling,
         } => {
             let warp = crate::pixel_warps::plan(item)?;
-            let inline = Pixels {
-                width: *w,
-                height: *h,
-                rgba: unhex(rgba_hex),
-            };
-            let converted;
-            let pixels: &dyn crate::samples::Source = if resources.linear {
-                converted = crate::samples::Decoded::from_pixels(&inline);
-                &converted
-            } else {
-                &inline
-            };
-            image_pixels(
+            let inline;
+            let working;
+            let pixels: &dyn crate::samples::Source =
+                if let Some(cached) = resources.inline_samples.get(&item.id) {
+                    cached
+                } else {
+                    inline = Pixels {
+                        width: *w,
+                        height: *h,
+                        rgba: unhex(rgba_hex),
+                    };
+                    working = crate::samples::WorkingPixels {
+                        pixels: &inline,
+                        linear: resources.linear,
+                    };
+                    &working
+                };
+            image_region(
                 pixels,
                 assets::crop(*w, *h, None)?,
                 [*w as f64, *h as f64],
                 *sampling,
-                (size, resources.antialias, Some(resources.control)),
+                (
+                    size,
+                    resources.antialias,
+                    Some(resources.control),
+                    resources.origin,
+                ),
                 world,
                 warp.as_ref(),
             )?
@@ -785,19 +910,21 @@ fn drawable_pixels(
         } => {
             let warp = crate::pixel_warps::plan(item)?;
             let source = &resources.assets[asset_id];
-            let converted;
-            let pixels: &dyn crate::samples::Source = if resources.linear {
-                converted = crate::samples::Decoded::from_pixels(source);
-                &converted
-            } else {
-                source
+            let working = crate::samples::WorkingPixels {
+                pixels: source,
+                linear: resources.linear,
             };
-            image_pixels(
-                pixels,
+            image_region(
+                &working,
                 assets::crop(source.width, source.height, *crop)?,
                 [*w, *h],
                 *sampling,
-                (size, resources.antialias, Some(resources.control)),
+                (
+                    size,
+                    resources.antialias,
+                    Some(resources.control),
+                    resources.origin,
+                ),
                 world,
                 warp.as_ref(),
             )?
@@ -1102,6 +1229,29 @@ pub fn rasterize_controlled(
     options: Option<&crate::render_quality::Options>,
     control: &crate::control::Control,
 ) -> Result<Rasterized, Error> {
+    if options.is_some_and(|o| o.evaluation == crate::render_quality::Evaluation::Tiled) {
+        let prepared = prepared::Prepared::new(
+            document, scale, asset_root, font_root, options, false, control,
+        )?;
+        let [width, height] = prepared.sampling.output;
+        let mut rgba = vec![0; width as usize * height as usize * 4];
+        prepared.visit(|origin, size, values| {
+            for (i, p) in values.as_chunks::<4>().0.iter().enumerate() {
+                let bytes = p.map(|v| (v * 255.0).round() as u8);
+                let at = ((origin[1] as usize + i / size[0] as usize) * width as usize
+                    + origin[0] as usize
+                    + i % size[0] as usize)
+                    * 4;
+                rgba[at..at + 4].copy_from_slice(if bytes[3] == 0 { &[0; 4] } else { &bytes });
+            }
+            Ok(())
+        })?;
+        return Ok(Rasterized {
+            width,
+            height,
+            rgba,
+        });
+    }
     rasterize_final(
         document,
         scale,
@@ -1263,6 +1413,7 @@ pub(crate) fn plan_artwork_masks(
                 masks: BTreeMap::new(),
                 assets: BTreeMap::new(),
                 stored_samples: BTreeMap::new(),
+                inline_samples: BTreeMap::new(),
                 texts,
             },
         ));
@@ -1323,6 +1474,7 @@ impl ArtworkMaskPlan {
                 None,
                 [width, height, scale],
                 &ResourcesView {
+                    origin: [0; 2],
                     base: instance_resources,
                     artwork_masks: &no_nested_masks,
                     control: control.unwrap_or(&instance_resources.control),
@@ -1532,6 +1684,9 @@ pub(crate) fn encode_png_with_profile(
         writer
             .write_image_data(rgba)
             .map_err(|_| Error::new("EXPORT_ERROR", "Unable to encode PNG pixels"))?;
+    }
+    if bytes.len() > crate::publish::MAX_OUTPUT_BYTES {
+        return Err(limit("Encoded PNG exceeds output byte limit"));
     }
     Ok(bytes)
 }

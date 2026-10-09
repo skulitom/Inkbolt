@@ -15,6 +15,7 @@ use tiff::{
     },
     tags::{PhotometricInterpretation, SampleFormat, Tag},
 };
+mod tiled;
 
 // The codec accepts custom channel declarations. Prediction is explicitly disabled;
 // compression remains independent of the number and depth of sample components.
@@ -87,12 +88,73 @@ pub(crate) fn export(
     options: &Options,
     metadata: Option<&str>,
     render_options: Option<&crate::render_quality::Options>,
+    control: &crate::control::Control,
 ) -> Result<Value, Error> {
     if document.output_profile.is_some() {
         return Err(Error::new(
             "UNSUPPORTED",
             "Explicit sample-depth TIFF delivery does not yet support output profiles; no RGB8 conversion is performed",
         ));
+    }
+    if render_options.is_some_and(|o| o.evaluation == crate::render_quality::Evaluation::Tiled) {
+        let prepared = crate::render::prepared::Prepared::new(
+            document,
+            scale,
+            resources.asset_root.as_deref(),
+            resources.font_root.as_deref(),
+            render_options,
+            true,
+            control,
+        )?;
+        let depth = options.depth.unwrap_or_default();
+        let channels = options.channels.unwrap_or_default();
+        let compression = options.compression.unwrap_or_default();
+        let linear =
+            crate::hdr::linear(document) && render_options.is_none_or(|o| o.view.is_none());
+        if linear && depth != Depth::F32 {
+            return Err(Error::new(
+                "HDR_VIEW_REQUIRED",
+                "Native HDR TIFF delivery requires f32 depth or an explicit view",
+            ));
+        }
+        let ppi = document.resolution_ppi * scale as f64;
+        macro_rules! write_tiled {
+            ($rgba:ty,$gray:ty,$project:expr) => {
+                match channels {
+                    Channels::Rgba => tiled::encode::<$rgba>(
+                        &prepared,
+                        (depth, channels, compression),
+                        ppi,
+                        metadata,
+                        $project,
+                    )?,
+                    Channels::GrayAlpha => tiled::encode::<GrayAlpha<$gray>>(
+                        &prepared,
+                        (depth, channels, compression),
+                        ppi,
+                        metadata,
+                        $project,
+                    )?,
+                }
+            };
+        }
+        let bytes = match depth {
+            Depth::U8 => write_tiled!(colortype::RGBA8, colortype::Gray8, |v| (v * 255.0).round()
+                as u8),
+            Depth::U16 => write_tiled!(colortype::RGBA16, colortype::Gray16, |v| (v * 65535.0)
+                .round()
+                as u16),
+            Depth::F32 => {
+                write_tiled!(colortype::RGBA32Float, colortype::Gray32Float, |v| v as f32)
+            }
+        };
+        control.check()?;
+        return artifact(
+            document,
+            prepared.sampling.output,
+            (depth, channels, compression, ppi, linear),
+            bytes,
+        );
     }
     let p = crate::render::rasterize_samples_with_options(
         document,
@@ -161,7 +223,21 @@ pub(crate) fn export(
             Depth::F32 => write!(f32, colortype::RGBA32Float, colortype::Gray32Float, |v| *v
                 as f32),
         };
-    let mut artifact = json!({"media_type":"image/tiff","encoding":"base64","width":p.width,"height":p.height,"color_space":"srgb","settings":{"depth":depth,"bits_per_sample":depth.bits(),"channels":channels,"compression":compression,"alpha":"unassociated","resolution_ppi":(ppi*1000.0).round()/1000.0},"losses":["Rendered normalized encoded-sRGB samples are rounded once to the requested integer or IEEE binary32 depth. Zero output alpha clears color. TIFF compression is lossless; layers and source bytes require snapshots. Untagged gray values use the encoded sRGB transfer interpretation. Profile conversion is unsupported on this path; an explicit HDR view precedes encoded projection when requested. Density is rounded to 0.001 pixels per inch."],"data":STANDARD.encode(bytes)});
+    control.check()?;
+    artifact(
+        document,
+        size,
+        (depth, channels, compression, ppi, linear),
+        bytes,
+    )
+}
+fn artifact(
+    document: &Document,
+    size: [u32; 2],
+    (depth, channels, compression, ppi, linear): (Depth, Channels, Compression, f64, bool),
+    bytes: Vec<u8>,
+) -> Result<Value, Error> {
+    let mut artifact = json!({"media_type":"image/tiff","encoding":"base64","width":size[0],"height":size[1],"color_space":"srgb","settings":{"depth":depth,"bits_per_sample":depth.bits(),"channels":channels,"compression":compression,"alpha":"unassociated","resolution_ppi":(ppi*1000.0).round()/1000.0},"losses":["Rendered normalized encoded-sRGB samples are rounded once to the requested integer or IEEE binary32 depth. Zero output alpha clears color. TIFF compression is lossless; layers and source bytes require snapshots. Untagged gray values use the encoded sRGB transfer interpretation. Profile conversion is unsupported on this path; an explicit HDR view precedes encoded projection when requested. Density is rounded to 0.001 pixels per inch."],"data":STANDARD.encode(bytes)});
     crate::swatches::annotate(document, &mut artifact)?;
     if linear {
         artifact["color_space"] = json!("linear_srgb");

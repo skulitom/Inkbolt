@@ -2,7 +2,7 @@
 
 The accepted [agent-readiness plan](AGENT_READINESS.md) tracks interface efficiency, operational recovery, practical workloads and benchmark evidence separately. Compact discovery and focused schemas add no credit to the 167 original engine checkpoints.
 
-Opt-in [native block documents](NATIVE_SAMPLE_STORAGE.md) now retain multi-megapixel PNG/TIFF sources, exact local patch edits, pure review proposals, durable history and bounded view rendering. Full-size output, streaming decoding, complete native operators and measured scale acceptance remain open. The original total remains **161/167**.
+Opt-in [native block documents](NATIVE_SAMPLE_STORAGE.md) now retain multi-megapixel PNG/TIFF sources, exact local patch edits, pure review proposals and durable history. [Tiled evaluation](RENDER_QUALITY.md) supports full-size screen/social/print PNG and native-depth TIFF strips for the declared composition subset. Neighbourhood effects, streaming decoding, complete native operators, mixed-object scale and measured scale acceptance remain open. The original total remains **161/167**.
 
 Current-placement stroke refinement now preserves small curves enlarged by transforms and shares evaluated geometry across raster output, expansion and outlined delivery. Saved controls and history remain intact; generated geometry limits remain enforced. This finishes the current precision fix without completing the broader resource acceptance criterion. The verified total remains **161/167 (96.41%)**; six original checkpoints remain open.
 

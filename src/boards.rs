@@ -609,10 +609,8 @@ pub fn export_controlled(
                             _ => 0,
                         })
                         .sum::<u64>();
-                if area > crate::render::MAX_RENDER_PIXELS
-                    || pixels > MAX_BATCH_PIXELS
-                    || work > MAX_BATCH_WORK
-                {
+                // Plan::new already checks each board's selected evaluation mode.
+                if pixels > MAX_BATCH_PIXELS || work > MAX_BATCH_WORK {
                     return Err(limit("Artboard range exceeds render pixel or work budget")
                         .at_artboard(&item.id));
                 }

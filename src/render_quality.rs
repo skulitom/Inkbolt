@@ -36,9 +36,23 @@ pub enum AveragingSpace {
 fn yes() -> bool {
     true
 }
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Evaluation {
+    #[default]
+    Whole,
+    Tiled,
+}
+impl Evaluation {
+    fn is_whole(&self) -> bool {
+        *self == Self::Whole
+    }
+}
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Options {
+    #[serde(skip_serializing_if = "Evaluation::is_whole")]
+    pub evaluation: Evaluation,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub view: Option<crate::hdr::View>,
     pub antialias: Antialias,
@@ -50,6 +64,7 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
+            evaluation: Evaluation::Whole,
             view: None,
             antialias: Antialias::Coverage,
             averaging_space: AveragingSpace::EncodedSrgb,
@@ -123,7 +138,11 @@ impl Plan {
         }
         let internal_scale = scale * options.antialias.factor();
         if evaluation[0] as u64 * evaluation[1] as u64 * (internal_scale as u64).pow(2)
-            > crate::render::MAX_RENDER_PIXELS
+            > if options.evaluation == Evaluation::Tiled {
+                crate::render::tiled::MAX_PIXELS
+            } else {
+                crate::render::MAX_RENDER_PIXELS
+            }
         {
             return Err(limit(
                 "Render evaluation including padding and supersampling exceeds pixel limit",
@@ -160,6 +179,10 @@ impl Plan {
             "output_dimensions":self.output,
             "origin":if self.options.crop_to_canvas {[0i64;2]}else{[-(self.options.padding as i64);2]},
             "compositing_space":if self.linear {"linear_srgb"}else{"encoded_srgb"},"view":self.options.view,"source_changed":false});
+        if self.options.evaluation == Evaluation::Tiled {
+            value["evaluation"] = json!("tiled");
+            value["evaluation_tile_edge"] = json!(crate::render::tiled::EDGE);
+        }
         if let Some(canvas) = self.canvas {
             value["vector_canvas"] = json!(canvas);
             value["logical_size"] = json!(self.logical_size);
@@ -208,16 +231,29 @@ impl Plan {
     }
     /// Average completed associated samples before the requested output depth.
     fn visit_samples(&self, accum: &[f64], width: u32, mut push: impl FnMut([f64; 4])) {
+        self.visit_region(accum, width, [0; 2], [0; 2], self.output, &mut push)
+    }
+    pub(crate) fn visit_region(
+        &self,
+        accum: &[f64],
+        width: u32,
+        evaluation_origin: [u32; 2],
+        output_origin: [u32; 2],
+        output_size: [u32; 2],
+        mut push: impl FnMut([f64; 4]),
+    ) {
         let factor = self.options.antialias.factor();
         let linear =
             !self.linear && matches!(self.options.averaging_space, AveragingSpace::LinearSrgb);
-        for y in 0..self.output[1] {
-            for x in 0..self.output[0] {
+        for y in output_origin[1]..output_origin[1] + output_size[1] {
+            for x in output_origin[0]..output_origin[0] + output_size[0] {
                 let mut sum = [0.0; 4];
                 for sy in 0..factor {
                     for sx in 0..factor {
-                        let at = (((self.offset + y * factor + sy) as usize * width as usize)
-                            + (self.offset + x * factor + sx) as usize)
+                        let at = (((self.offset + y * factor + sy - evaluation_origin[1])
+                            as usize
+                            * width as usize)
+                            + (self.offset + x * factor + sx - evaluation_origin[0]) as usize)
                             * 4;
                         let p = &accum[at..at + 4];
                         let weight = self.canvas_weight(

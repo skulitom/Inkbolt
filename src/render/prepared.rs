@@ -53,13 +53,34 @@ impl Prepared {
         let width = document.width * scale;
         let height = document.height * scale;
         let count = width as u64 * height as u64;
-        if count > MAX_RENDER_PIXELS {
+        let tiled = plan.options.evaluation == crate::render_quality::Evaluation::Tiled;
+        if tiled {
+            super::tiled::validate(document)?;
+        }
+        if count
+            > if tiled {
+                super::tiled::MAX_PIXELS
+            } else {
+                MAX_RENDER_PIXELS
+            }
+        {
             return Err(limit("Render exceeds pixel limits"));
         }
         let generated = crate::strokes::generated_work(document)?;
-        let sparse = super::sparse::Plan::new(document, [width, height, scale], control)?;
+        let sparse = if tiled {
+            None
+        } else {
+            super::sparse::Plan::new(document, [width, height, scale], control)?
+        };
         let outline_work = if sparse.is_some() { 0 } else { generated };
-        if outline_work * height as u64 > MAX_RENDER_WORK {
+        let outline_scan_work = outline_work
+            * height as u64
+            * if tiled {
+                width.div_ceil(super::tiled::EDGE) as u64
+            } else {
+                1
+            };
+        if outline_scan_work > MAX_RENDER_WORK {
             return Err(limit("Stroke outline scan work exceeds render limit"));
         }
         if sparse.is_none() && count * document.items.len().max(1) as u64 > MAX_RENDER_WORK {
@@ -91,6 +112,14 @@ impl Prepared {
         }
         let fonts = crate::fonts::resolve(document, font_root)?;
         let texts = crate::text::prepare(document, &fonts)?;
+        let tiled_path_work = if tiled {
+            super::tiled::path_work(document, &texts, [width, height])?
+        } else {
+            0
+        };
+        if tiled_path_work > MAX_RENDER_WORK {
+            return Err(limit("Tiled coverage preparation exceeds work limit"));
+        }
         let passes = texts.values().map(|t| t.paths.len()).sum::<usize>()
             + document.items.len()
             + usize::from(document.background.is_some());
@@ -147,7 +176,8 @@ impl Prepared {
                     )
                     .saturating_add(reconstruction_work)
                     .saturating_add(pixel_warp_work)
-                    .saturating_add(outline_work * height as u64)
+                    .saturating_add(outline_scan_work)
+                    .saturating_add(tiled_path_work)
             },
             |s| s.work,
         );
@@ -187,9 +217,14 @@ impl Prepared {
         } else {
             0
         };
+        let buffer_count = if tiled {
+            count.min((super::tiled::EDGE as u64).pow(2))
+        } else {
+            count
+        };
         let buffer_pixels = sparse.as_ref().map_or_else(
             || {
-                count
+                buffer_count
                     * (shape_buffers
                         + buffer_depth
                         + clipping_buffers
@@ -198,8 +233,8 @@ impl Prepared {
                         + 2 * usize::from(document.items.iter().any(|i| !i.filters.is_empty()))
                         + 2 * usize::from(document.items.iter().any(|i| !i.effects.is_empty())))
                         as u64
-                    + (count * references as u64).div_ceil(4)
-                    + count * 3 * u64::from(references != 0)
+                    + (buffer_count * references as u64).div_ceil(4)
+                    + buffer_count * 3 * u64::from(references != 0)
             },
             |s| s.buffer_pixels,
         );
@@ -225,6 +260,16 @@ impl Prepared {
             control.check()?;
             if !scene::effective_visible(document, i)? {
                 continue;
+            }
+            if tiled {
+                let pixels = match &item.content {
+                    Content::Samples { grid } => grid.width as u64 * grid.height as u64,
+                    Content::Raster { width, height, .. } => *width as u64 * *height as u64,
+                    _ => 0,
+                };
+                work = work.saturating_add(pixels * 3);
+                buffers = buffers.saturating_add(pixels * 8);
+                crate::objects::charge(pixels * 3)?;
             }
             if let Content::Raw { raw } = &item.content {
                 let (raw_work, retained, scratch) = crate::raw::retained::preparation_costs(raw);
@@ -282,6 +327,38 @@ impl Prepared {
             track_shape: crate::knockout::active(document),
             masks: crate::masks::prepare_document(document)?,
             assets: assets::resolve(document, asset_root)?,
+            inline_samples: if tiled {
+                let mut values = BTreeMap::new();
+                for (i, item) in document.items.iter().enumerate() {
+                    control.check()?;
+                    if !scene::effective_visible(document, i)? {
+                        continue;
+                    }
+                    let decoded = match &item.content {
+                        Content::Samples { grid } => {
+                            Some(grid.decode(crate::hdr::linear(document))?)
+                        }
+                        Content::Raster {
+                            width, rgba_hex, ..
+                        } => Some(crate::samples::decode_native(
+                            *width,
+                            &unhex(rgba_hex),
+                            crate::samples::Depth::U8,
+                            crate::samples::Channels::Rgba,
+                            crate::hdr::Encoding::EncodedSrgb,
+                            None,
+                            crate::hdr::linear(document),
+                        )?),
+                        _ => None,
+                    };
+                    if let Some(decoded) = decoded {
+                        values.insert(item.id.clone(), decoded);
+                    }
+                }
+                values
+            } else {
+                BTreeMap::new()
+            },
             stored_samples: document
                 .items
                 .iter()
@@ -325,6 +402,12 @@ impl Prepared {
         })
     }
     pub fn render(&self) -> Result<Vec<f64>, Error> {
+        if self.sampling.options.evaluation == crate::render_quality::Evaluation::Tiled {
+            return Err(Error::new(
+                "UNSUPPORTED_TILED_RENDER",
+                "Use the regional sample visitor for tiled evaluation; a complete floating-point surface is not allocated",
+            ));
+        }
         self.resources.control.check()?;
         let width = self.document.width * self.sampling.internal_scale;
         let height = self.document.height * self.sampling.internal_scale;
@@ -335,6 +418,7 @@ impl Prepared {
             base: &self.resources,
             artwork_masks: &masks,
             control: &self.resources.control,
+            origin: [0; 2],
         };
         let size = [width, height, self.sampling.internal_scale];
         if let Some(sparse) = &self.sparse {
@@ -350,6 +434,75 @@ impl Prepared {
             ));
         }
         Ok(accum)
+    }
+    /// Output tiles arrive in row-major tile order. Samples are straight and
+    /// already finished with the document's exact averaging/view policy.
+    pub(crate) fn visit(
+        &self,
+        consume: impl FnMut([u32; 2], [u32; 2], &[f64]) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.visit_rows(u32::MAX, consume)
+    }
+    pub(crate) fn visit_rows(
+        &self,
+        max_rows: u32,
+        mut consume: impl FnMut([u32; 2], [u32; 2], &[f64]) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        if self.sampling.options.evaluation != crate::render_quality::Evaluation::Tiled {
+            let result = self.samples()?;
+            return consume([0; 2], [result.width, result.height], &result.rgba);
+        }
+        let factor = self.sampling.options.antialias.factor();
+        let edge = super::tiled::EDGE / factor;
+        let rows = edge.min(max_rows.max(1));
+        let [width, height] = self.sampling.output;
+        let empty_masks = BTreeMap::new();
+        let total = u64::from(width.div_ceil(edge)) * u64::from(height.div_ceil(rows));
+        let mut completed = 0;
+        self.resources
+            .control
+            .progress("render_tiles", completed, Some(total));
+        for y in (0..height).step_by(rows as usize) {
+            for x in (0..width).step_by(edge as usize) {
+                self.resources.control.check()?;
+                let output_size = [edge.min(width - x), rows.min(height - y)];
+                let size = [
+                    output_size[0] * factor,
+                    output_size[1] * factor,
+                    self.sampling.internal_scale,
+                ];
+                let origin = [
+                    self.sampling.offset + x * factor,
+                    self.sampling.offset + y * factor,
+                ];
+                let resources = ResourcesView {
+                    base: &self.resources,
+                    artwork_masks: &empty_masks,
+                    control: &self.resources.control,
+                    origin,
+                };
+                let mut accum = vec![0.0; size[0] as usize * size[1] as usize * 4];
+                draw_items(&self.document, None, &mut accum, None, size, &resources)?;
+                if accum.iter().any(|v| !v.is_finite()) {
+                    return Err(Error::new(
+                        "NONFINITE_RENDER",
+                        "Compositing exceeded finite working precision",
+                    ));
+                }
+                let mut samples =
+                    Vec::with_capacity(output_size[0] as usize * output_size[1] as usize * 4);
+                self.sampling
+                    .visit_region(&accum, size[0], origin, [x, y], output_size, |p| {
+                        samples.extend_from_slice(&p)
+                    });
+                consume([x, y], output_size, &samples)?;
+                completed += 1;
+                self.resources
+                    .control
+                    .progress("render_tiles", completed, Some(total));
+            }
+        }
+        self.resources.control.check()
     }
     pub fn samples(&self) -> Result<SampleRaster, Error> {
         let values = self.render()?;
