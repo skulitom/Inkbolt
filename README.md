@@ -35,6 +35,11 @@ Success is `{"ok":true,"result":...}` with exit code 0; failure is `{"ok":false,
 
 ## Editing workflow
 
+[Versioned presets](docs/PRESETS.md) create editable screen/social artwork and
+physical print pages with explicit backgrounds, color policies and delivery
+settings. The [preset workflow](examples/preset_workflow.py) demonstrates reviewed
+edits, safe retries and create-only publication.
+
 [Versioned graphics handoffs](docs/HANDOFF.md) deliver pinned stills or ordered
 sequences to Cutbolt with explicit timing and alpha policies. Checked source
 revisions produce new deliveries while preserving previously linked artwork.

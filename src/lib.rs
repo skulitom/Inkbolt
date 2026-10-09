@@ -54,6 +54,7 @@ pub mod pdf;
 pub mod pixel_brush;
 pub mod pixel_warps;
 pub mod prepress;
+pub mod presets;
 pub mod previews;
 pub mod primitives;
 pub mod profiles;
@@ -136,6 +137,16 @@ fn resolution() -> f64 {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(tag = "command", deny_unknown_fields)]
 pub enum Request {
+    #[serde(rename = "preset.list")]
+    PresetList {},
+    #[serde(rename = "preset.create")]
+    PresetCreate {
+        id: String,
+        version: u32,
+        preset: presets::Spec,
+        #[serde(default)]
+        control: control::Options,
+    },
     #[serde(rename = "handoff.export")]
     HandoffExport {
         document: Document,
@@ -999,6 +1010,8 @@ fn capability_report() -> Value {
     limits.as_object_mut().unwrap().extend(json!({"boolean_inputs":booleans::MAX_INPUTS,"boolean_source_edges":booleans::MAX_EDGES,"boolean_flattened_edges":booleans::MAX_EDGES,"boolean_atomic_edges":booleans::MAX_ATOMS,"boolean_work":booleans::MAX_WORK}).as_object().unwrap().clone());
     let supported = json!({"vector":["rect","ellipse","rounded_rect","polygon","regular_polygon","star","path_conversion","anchor_handle_edits","exact_curve_split","contour_reverse","contour_join","certified_curve_simplification","polygon_boolean_operations","line","cubic","compound_path","solid_fill","linear_gradient","radial_gradient","freeform_gradient","editable_color_mesh","inline_pattern","certified_editable_vector_warps","editable_repeat_layouts","editable_object_interpolation","editable_vector_brush_patterns","editable_dash_patterns","dash_phase","variable_width_profiles","endpoint_arrowheads","stroke_expansion","gradient_stroke","centered_stroke","object_document_stroke_scaling","affine_transform"],"raster":["retained_pixel_deformation","canvas_crop","anchored_canvas_extent","editable_scene_scale","resolution_only_edit","layer_alpha_clipping","editable_tone_adjustments","editable_color_adjustments","clipped_adjustment_chains","composite_measurements","rgba8_inline_layers","pixel_replace_fill","affine_pixel_transforms","anchored_transforms","editable_fill_layers","affine_fill_layers","solid_gradient_pattern_fills","ordered_rgb_dither"],"shared":["shared_effect_lighting","effect_scaling","effect_contours","gradient_effect_colors","knockout_groups","content_fill_opacity","editable_layer_effects","seeded_dissolve","editable_artwork_masks","shared_nonprinting_mask_sources","pass_through_group_opacity_masks","nonprinting_work_paths","path_to_selection","path_to_vector_mask","saved_alpha_channels","named_ink_channels","channel_calculations","component_isolation","color_range_selection","connected_selection","image_guided_edge_refinement","editable_viewport_filters","groups","named_layers","geometric_clips","editable_grayscale_masks","mask_density_feather_invert_disable","linked_unlinked_masks","persistent_pixel_selections","selection_set_operations","selection_morphology","selection_to_mask","native_pixel_mask_application","alignment","distribution","explicit_id_selection","type_bounds_anchor_queries","placed_images","integer_pixel_crops","explicit_asset_relink","editable_text","character_style_ranges","paragraph_wrap","text_alignment","text_tracking","text_leading","text_ink_inspection","named_artboards","nested_frames","nonprinting_guides","guide_alignment","artboard_bleed","artboard_duplication","durable_sessions","grouped_undo_redo","named_snapshots","retry_receipts","cooperative_edit_cancellation"],"blend_modes":blending::MODES,"exports":["snapshot","apng_rgba8","ordered_png_sequence","svg_vector_normal_blend","png_rgba8","jpeg_explicit_matte","tiff_rgba8"],"paint_interpolation":["srgb","linear_rgb"],"gradient_alpha":"straight","freeform":"inverse_square_anchor_weights","pattern_sampling":"nearest_repeat","svg_paints":["solid","linear","radial","sampled_mesh"],"image_sampling":["nearest","bilinear_premultiplied_srgb","area_premultiplied_srgb","bicubic_premultiplied_srgb","lanczos3_premultiplied_srgb"],"imports":["png_8bit_normalized","jpeg_8bit_gray_rgb","tiff_8bit_gray_rgb_straight_alpha","svg_editable_geometry_gradients_clips","svg_editable_single_line_text","svg_editable_artwork_masks"],"asset_store":"sha256_rgba8_create_only","color":"encoded_srgb_rgba8","stack_order":"bottom_to_top_per_parent","text":{"scripts":["unicode_grapheme_script_runs"],"directions":["ltr","rtl","auto"],"auto_direction_requires":"bidi_unicode","bidi_modes":["single_run","unicode"],"alignment":["left","center","right","start","end"],"bidi":"explicit_single_run_or_unicode16_paragraphs", "bidi_inspection":"text.directions", "bidi_line_rules":"paragraph_resolution_then_L1_L2_then_shaper_L3_L4","fallback":"explicit_ordered_pinned_fonts_whole_run_then_grapheme","fallback_fonts":7,"language":"explicit_font_language_system_or_default","coverage":"shaped_glyphs_after_canonical_composition","shaping_context":"line_local_across_style_and_font_boundaries","fonts":"pinned_monochrome_sfnt_explicit_instances","font_variations":"per_font_axis_maps","axis_controls":16,"feature_controls":64,"feature_availability":"selected_font_tag_required_when_positive","tracking_liga":"explicit_feature_overrides_default_disable","font_inspection":"font.inspect","layout":"horizontal_unhinted_font_metrics_or_rigid_path_glyphs","glyph_compositing":"individual_ordered_paths","wrap":"ascii_space_or_grapheme","svg":"outlines","outline_conversion":"vector_documents"},"artboards":{"formats":["png","jpeg","tiff","svg_vector"],"selection":["all","ids","range_zero_based_end_exclusive"],"order":"hierarchy_preorder_sibling_stack","scope":"owned_subtree_local_coordinates","bleed":"integer_per_edge","frame_clipping":"always_on","background":"optional_solid_rgba"}});
     let commands = json!([
+        "preset.list",
+        "preset.create",
         "color.convert",
         "layered.import",
         "assist.segment",
@@ -1254,6 +1267,7 @@ fn capability_report() -> Value {
         .as_array_mut()
         .unwrap()
         .push(json!("retained_multiple_fill_stroke_appearance"));
+    capabilities["presets"] = presets::catalog();
     capabilities["handoff"] = json!({
         "commands":["handoff.export","handoff.inspect"],"schema_version":handoff::VERSION,
         "selection":["still_with_explicit_sequence_frame","complete_ordered_sequence"],
@@ -1612,6 +1626,13 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             color_policy,
             &context.scoped(&control)?,
         ),
+        Request::PresetList {} => Ok(presets::catalog()),
+        Request::PresetCreate {
+            id,
+            version,
+            preset,
+            control,
+        } => presets::create(id, version, preset, &context.scoped(&control)?),
         Request::HandoffExport {
             document,
             resources,

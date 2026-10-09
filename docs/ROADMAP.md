@@ -1,5 +1,11 @@
 # Roadmap and verified scope
 
+Versioned typed document presets and a reviewed-edit/publication example now
+package common screen/social and physical-page workflows. Explicit dimensions,
+alpha/color choices, exact physical trim, bleed units and create-only delivery
+share existing engine contracts. This advances A7; the complete benchmark,
+platform gates and six original engine checkpoints remain required.
+
 The agent-readiness handoff work now has a versioned still/sequence manifest,
 explicit clock/alpha/end policies, source and file identities, complete-file
 inspection and a runnable source-revision workflow. This advances A7 without

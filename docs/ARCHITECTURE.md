@@ -1,5 +1,12 @@
 # Architecture
 
+`presets` provides pure versioned screen and physical-page recipes over the
+existing document, artboard, logical-canvas and publication contracts. Explicit
+background/color choices, typed delivery settings and specification identities
+travel with editable sources. Physical trim retains fractional logical pixels;
+bleed uses the unchanged integer-pixel contract. Presets choose no printer
+profile, allocate no pixel sources and write no files.
+
 `handoff` prepares pure versioned file collections containing exact source
 snapshots, flattened sRGB PNGs, a derived Cutbolt scene and a pinned manifest.
 Original rational clock planning exposes strict alignment or explicit frame-start
@@ -326,4 +333,4 @@ Color meshes use original shared-knot bicubic geometry/color fields. Bounded der
 
 The original repair module adds exhaustive context-scored patch translations, frozen-donor exemplar fill, source-hole reconstruction followed by frozen-object moves, and guide-weighted channel medians. Explicit region masks, matching/edge-support/final-change limits, final boundary gates, deterministic decisions and bounded work use the ordinary atomic edit/session machinery. Same-source donor pools exclude the complete positive domain. Independent global minima, analytic textures, dense healing references and guided quantiles verify the contract. See REPAIR.md.
 
-Managed colour integration now supplies explicit per-paint RGB/gray/CMYK or D50 Lab encodings, assignment/conversion, four rendering intents, v4 reference-medium connections, supplied gamut diagnostics and exact profile embedding. Document RGB output association calibrates native PDF page/group blending; print exports select their own output condition and intent. Native and flattened print separation support all four intents, with independent colourimetric physical observation. The unchanged extended vector colour criterion is verified; the full total is 160/167. Independent evidence includes exact equations, source/history retention, external profile and PDF consumers, and actual agent-interface workflows. See [DEVICE_COLOR.md](DEVICE_COLOR.md).
+Managed colour integration now supplies explicit per-paint RGB/gray/CMYK or D50 Lab encodings, assignment/conversion, four rendering intents, v4 reference-medium connections, supplied gamut diagnostics and exact profile embedding. Document RGB output association calibrates native PDF page/group blending; print exports select their own output condition and intent. Native and flattened print separation support all four intents, with independent colourimetric physical observation. The unchanged extended vector colour criterion is verified; the current full total is 161/167. Independent evidence includes exact equations, source/history retention, external profile and PDF consumers, and actual agent-interface workflows. See [DEVICE_COLOR.md](DEVICE_COLOR.md).

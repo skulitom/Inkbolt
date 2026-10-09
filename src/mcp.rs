@@ -123,6 +123,12 @@ pub(crate) fn strict_value(text: &str) -> Result<Value, Error> {
 }
 fn description(command: &str) -> &'static str {
     match command {
+        "preset.list" => {
+            "List fixed versioned screen and physical print-page recipes, exact sizes and explicit delivery policies. Read-only; use schema.lookup preset.create for typed choices."
+        }
+        "preset.create" => {
+            "Return a new editable document, artboard parent ID, exact preset identity, preview and delivery settings. Requires a supported version and explicit background or print color. Writes no files. Save through session.create, add artwork under content_parent_id, review, preflight and publish to a new destination."
+        }
         "session.dry_run" => {
             "Evaluate any session action on the expected head without changing the database. Returns a content-bound proposal, predicted receipt, structural differences and optional PNG/pixel comparison. Use session.apply_proposal with the same action to commit after review."
         }

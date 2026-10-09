@@ -222,3 +222,11 @@ Run `python examples/pdf_workflow.py --output <new-directory>` for an original t
 `python examples/format_workflow.py --output <new-directory>` produces original BMP/TGA/GIF/TIFF deliveries and an editable timed sequence; the output directory must not exist.
 
 `proof_workflow.py --output NEW_DIRECTORY [--profile OUTPUT_ICC]` retains an original source chart, compares relative/absolute colourimetric views, writes exact process-ink planes and difference masks, and exports the matching print PDF. Omission uses an explicitly labelled analytic demonstration profile. See [PRINT_PROOF.md](../docs/PRINT_PROOF.md).
+# Typed preset workflow
+
+`python examples/preset_workflow.py --output C:\\Work\\new-preset-example`
+creates original transparent artwork and an A5 page using versioned recipes,
+reviewed session proposals, durable retries, export preflight and create-only
+publication. It also saves editable sources and checked history. Pass `--inkbolt`
+to select an exact executable; the output directory must be new. See
+[the contract](../docs/PRESETS.md) for physical units and color policies.
