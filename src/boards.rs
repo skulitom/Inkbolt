@@ -399,6 +399,20 @@ pub fn export(
     selection: &Selection,
     options: ExportOptions<'_>,
 ) -> Result<Value, Error> {
+    export_controlled(
+        document,
+        selection,
+        options,
+        &crate::control::Control::default(),
+    )
+}
+pub fn export_controlled(
+    document: &Document,
+    selection: &Selection,
+    options: ExportOptions<'_>,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
+    control.check()?;
     crate::image_io::validate_options(
         match options.format {
             Format::Png => crate::ExportFormat::Png,
@@ -452,6 +466,7 @@ pub fn export(
     let mut mesh_pixels = 0;
     // Check the complete range before producing an artifact or allocating output buffers.
     for &i in &chosen {
+        control.check()?;
         let item = &document.items[i];
         let Content::Frame { frame } = &item.content else {
             unreachable!()
@@ -622,6 +637,7 @@ pub fn export(
     let mut artifacts = Vec::new();
     let mut bytes = 0;
     for i in chosen {
+        control.check()?;
         let item = &document.items[i];
         let Content::Frame { frame } = &item.content else {
             unreachable!()
@@ -645,7 +661,7 @@ pub fn export(
                 font_root: options.font_root.map(Path::to_owned),
             },
             crate::publish::FormatOptions {
-                control: None,
+                control: Some(control),
                 image_options: options.image_options,
                 metadata_policy: options.metadata_policy,
                 render_options: options.render_options,
@@ -675,6 +691,7 @@ pub fn export(
         }
         artifacts.push(json!({"id":item.id,"name":item.name,"logical_size":crate::vector_canvas::logical_size(&standalone),"scale":options.scale,"source_bounds":[-(pad.left as f64),-(pad.top as f64),frame.size()[0]+pad.right as f64,frame.size()[1]+pad.bottom as f64],"trim_box":[pad.left as f64,pad.top as f64,pad.left as f64+frame.size()[0],pad.top as f64+frame.size()[1]],"artifact":artifact}));
     }
+    control.check()?;
     Ok(
         json!({"document_id":document.id,"revision":document.revision,"scope":"artboard_subtree_local","include_bleed":options.include_bleed,"coordinate_contract":"Each selected artboard exports its owned subtree in local coordinates. Its placement transform and all ancestor transforms, visibility, clipping and effects are excluded. Its own visibility, opacity, blending, explicit clip and opacity mask remain. Owned unlinked masks convert into the board export coordinate system. Guides do not render. Background extends into requested bleed.","artifacts":artifacts}),
     )

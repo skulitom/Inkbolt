@@ -10,6 +10,8 @@ The Rust library, one-request JSON CLI and MCP stdio adapter share the same vali
 
 ## Compare before committing more work
 
+Use [focused previews and contact sheets](FOCUSED_PREVIEWS.md) to review regions, selected objects and standalone artboards. Views carry exact document identities and world/pixel or world/sheet maps. A dry-run `proposed_document` can be previewed before its checked proposal is committed.
+
 `document.diff` accepts `before`, `after`, optional `before_resources`/`after_resources`, `compare_pixels` (false by default) and `control`. Both snapshots must have the same ID and document kind. Normal request/document bounds apply; for two large saved documents use `session.diff` with `session_root`, `session_id`, `from_revision`, `to_revision` and optional `compare_pixels`/`control`.
 
 The result reports metadata changes, stable-ID additions/removals/changes, changed item fields, before/after item hashes, sibling position, world transforms, geometry bounds, effective visibility/locks, and resource descriptor hashes. Changed ancestors can produce derived changes in otherwise identical child items. Inline raster changes include exact changed-pixel count, end-exclusive bounds and maximum absolute RGBA8 channel difference when dimensions match. Resized inline rasters report dimensions instead of pretending there is a one-to-one pixel correspondence.

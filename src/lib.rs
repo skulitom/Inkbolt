@@ -10,6 +10,7 @@ pub mod booleans;
 pub mod canvas;
 pub mod channels;
 pub mod color_adjustments;
+pub mod contact_sheets;
 pub mod control;
 pub mod coverage;
 pub mod creative_filters;
@@ -48,6 +49,7 @@ pub mod pdf;
 pub mod pixel_brush;
 pub mod pixel_warps;
 pub mod prepress;
+pub mod previews;
 pub mod primitives;
 pub mod profiles;
 pub mod proof;
@@ -579,6 +581,26 @@ pub enum Request {
         #[serde(default)]
         control: control::Options,
     },
+    #[serde(rename = "document.preview")]
+    Preview {
+        document: Document,
+        #[serde(default)]
+        options: previews::Options,
+        asset_root: Option<PathBuf>,
+        font_root: Option<PathBuf>,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "document.contact_sheet")]
+    ContactSheet {
+        document: Document,
+        #[serde(default)]
+        options: contact_sheets::Options,
+        asset_root: Option<PathBuf>,
+        font_root: Option<PathBuf>,
+        #[serde(default)]
+        control: control::Options,
+    },
     #[serde(rename = "document.query")]
     Query {
         document: Document,
@@ -1079,6 +1101,8 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "document.validate",
                 "document.inspect",
                 "document.inspect.page",
+                "document.preview",
+                "document.contact_sheet",
                 "document.query",
                 "document.measure",
                 "document.select",
@@ -1455,7 +1479,9 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             });
             capabilities["session_proposals"] = json!({"dry_run":"session.dry_run","apply":"session.apply_proposal","version":1,"actions":"all_session_actions","database_dry_run_access":"read_only","history_changed_by_dry_run":false,"bound_inputs":["session_id","request_id","expected_revision","request_fingerprint","base_state_sha256","result_state_sha256"],"comparison":"structural_with_optional_pixels","preview":"optional_full_canvas_PNG_at_scale_one","persistent_proposal_store":false,"proposal_is_authorization":false,"history_storage_and_receipt_limits":"shared_with_real_apply;filesystem_commit_can_still_fail"});
             capabilities["paged_inspection"] = json!({"command":"document.inspect.page","collections":["items","assets","fonts","anchors"],"maximum_records":inspection::MAX_PAGE_ITEMS,"maximum_result_bytes":inspection::MAX_PAGE_BYTES,"cursor":"document_content_and_view_and_limit_bound","order":"document_storage_for_items;id_for_resources;component_then_command_for_anchors","field_selection":true,"legacy_inspection":"unchanged","external_resources_verified":false});
-            capabilities["mcp_preview"] = json!({"response_format":"preview","default":"json","image_bytes":"one_location_with_explicit_payload_ref","maximum_png_attachments":mcp_preview::MAX_IMAGES,"maximum_attached_base64_bytes":mcp_preview::MAX_IMAGE_BASE64_BYTES,"overflow":"one_inline_payload_in_structuredContent;duplicates_reference_it","text":"summary_only","supported_artifacts":["document.export","artboard.export","sequence.export","channel.export","document.proof","document.prepress","document.separations","session.dry_run"],"other_results":"complete_structuredContent_without_textual_duplication"});
+            capabilities["focused_previews"] = json!({"command":"document.preview","focus":["canvas","region","items","artboard"],"image":"PNG_with_existing_output_profile_and_loss_contract","region_and_items":"full_composition_crop;full_evaluation_limits_apply","item_bounds":"unclipped_geometry_without_strokes_or_effects;explicit_margin","artboard":"standalone_owned_subtree;existing_artboard_export_contract","coordinates":"explicit_document_world_to_pixel_and_inverse;pixel_edges_and_centers","quantization":"outward_to_original_render_grid_then_clip","source_identity":"canonical_document_sha256_and_revision","source_changed":false});
+            capabilities["contact_sheets"] = json!({"command":"document.contact_sheet","maximum_views":contact_sheets::MAX_VIEWS,"maximum_aggregate_evaluation_pixels":contact_sheets::MAX_PIXELS,"maximum_sheet_pixels":contact_sheets::MAX_PIXELS,"maximum_cell_axis":512,"columns":[1,8],"gap":[0,64],"thumbnail_sampling":"nearest_center;no_enlargement;thin_details_can_disappear","coordinates":"per_view_world_to_sheet_and_inverse","color":"one_document_output_profile;transparent_gaps;96ppi_sheet","source_changed":false});
+            capabilities["mcp_preview"] = json!({"response_format":"preview","default":"json","image_bytes":"one_location_with_explicit_payload_ref","maximum_png_attachments":mcp_preview::MAX_IMAGES,"maximum_attached_base64_bytes":mcp_preview::MAX_IMAGE_BASE64_BYTES,"overflow":"one_inline_payload_in_structuredContent;duplicates_reference_it","text":"summary_only","supported_artifacts":["document.export","document.preview","document.contact_sheet","artboard.export","sequence.export","channel.export","document.proof","document.prepress","document.separations","session.dry_run"],"other_results":"complete_structuredContent_without_textual_duplication"});
             capabilities["agent_inputs"] = json!({
                 "workspace_flag":"--workspace ABSOLUTE_DIRECTORY",
                 "workspace_position":"before_request_file_or_mcp",
@@ -1613,7 +1639,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             include_bleed,
             asset_root,
             font_root,
-        } => boards::export(
+        } => boards::export_controlled(
             &document,
             &selection,
             boards::ExportOptions {
@@ -1626,6 +1652,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 asset_root: asset_root.as_deref(),
                 font_root: font_root.as_deref(),
             },
+            context,
         ),
         Request::FontImport {
             source_path,
@@ -1798,6 +1825,32 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             options,
             control,
         } => inspection::page(&document, &options, &context.scoped(&control)?),
+        Request::Preview {
+            document,
+            options,
+            asset_root,
+            font_root,
+            control,
+        } => previews::preview(
+            &document,
+            &options,
+            asset_root.as_deref(),
+            font_root.as_deref(),
+            &context.scoped(&control)?,
+        ),
+        Request::ContactSheet {
+            document,
+            options,
+            asset_root,
+            font_root,
+            control,
+        } => contact_sheets::sheet(
+            &document,
+            &options,
+            asset_root.as_deref(),
+            font_root.as_deref(),
+            &context.scoped(&control)?,
+        ),
         Request::Query { document, query } => query::execute(&document, &query),
         Request::Measure {
             document,

@@ -1446,7 +1446,20 @@ pub fn png_controlled(
     options: Option<&crate::render_quality::Options>,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
-    let mut p = rasterize_controlled(document, scale, root, font_root, options, control)?;
+    let p = rasterize_controlled(document, scale, root, font_root, options, control)?;
+    let mut artifact = png_pixels(document, p, scale)?;
+    if options.is_some() {
+        artifact["render_settings"] =
+            crate::render_quality::Plan::for_document(document, scale, options)?.receipt();
+    }
+    Ok(artifact)
+}
+/// Encode a completed working-space view with the ordinary PNG color contract.
+pub(crate) fn png_pixels(
+    document: &Document,
+    mut p: Rasterized,
+    scale: u32,
+) -> Result<Value, Error> {
     let profile = crate::profiles::output(document, &mut p.rgba)?;
     let bytes = encode_png_with_profile(
         p.width,
@@ -1456,10 +1469,6 @@ pub fn png_controlled(
         profile.as_ref().map(|(bytes, _)| bytes.as_slice()),
     )?;
     let mut artifact = json!({"media_type":"image/png","encoding":"base64","width":p.width,"height":p.height,"data":STANDARD.encode(bytes)});
-    if options.is_some() {
-        artifact["render_settings"] =
-            crate::render_quality::Plan::for_document(document, scale, options)?.receipt();
-    }
     if let Some((_, summary)) = profile {
         artifact["color_profile"] = summary;
         artifact["color_space"] = json!("icc_rgb");
