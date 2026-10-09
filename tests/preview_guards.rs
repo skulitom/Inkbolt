@@ -1,4 +1,6 @@
-use inkbolt::{Document, Request, contact_sheets, control::Control, execute, previews};
+use inkbolt::{
+    Document, Request, contact_sheets, control::Control, execute, previews, visual_diff,
+};
 use serde_json::json;
 
 #[test]
@@ -19,13 +21,30 @@ fn nonfinite_rust_preview_options_reject_without_panicking_or_producing_images()
             "INVALID_REQUEST"
         );
         let options = contact_sheets::Options {
-            views: vec![view],
+            views: vec![view.clone()],
             ..Default::default()
         };
         assert_eq!(
             contact_sheets::sheet(&document, &options, None, None, &Control::default())
                 .unwrap_err()
                 .code,
+            "INVALID_REQUEST"
+        );
+        let options = visual_diff::Options {
+            focus: view.focus,
+            ..Default::default()
+        };
+        assert_eq!(
+            visual_diff::compare(
+                &document,
+                &document,
+                &Default::default(),
+                &Default::default(),
+                &options,
+                &Control::default()
+            )
+            .unwrap_err()
+            .code,
             "INVALID_REQUEST"
         );
     }

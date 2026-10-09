@@ -66,7 +66,7 @@ fn checked_bounds(bounds: geometry::Bounds) -> Result<geometry::Bounds, Error> {
     Ok(bounds)
 }
 
-fn mapping(
+pub(crate) fn mapping(
     local_to_world: Matrix,
     origin: Point,
     scale: u32,

@@ -4,7 +4,7 @@ An original local vector and raster editing engine for agents. Cutbolt handles t
 
 **Engine scope: 161/167 independently verified checkpoints (96.41%).** Six checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
 
-Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; MCP preview format sends each PNG payload once. [Document checks and export preflight](docs/DOCUMENT_CHECKS.md) support explicit repairs. Visual difference review, durable jobs and larger raster workloads remain on that plan.
+Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; [visual revision comparisons](docs/VISUAL_COMPARISONS.md) add aligned images and change masks. MCP preview format sends each PNG payload once. [Document checks and export preflight](docs/DOCUMENT_CHECKS.md) support explicit repairs. Durable jobs, larger raster workloads and complete readiness evidence remain on that plan.
 
 ## Start locally
 

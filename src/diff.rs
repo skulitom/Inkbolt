@@ -131,8 +131,10 @@ pub fn compare(
     control.check()?;
     before_resources.validate()?;
     after_resources.validate()?;
-    crate::validate(before)?;
-    crate::validate(after)?;
+    control.check_resource_paths(before_resources)?;
+    control.check_resource_paths(after_resources)?;
+    crate::model::validate_controlled(before, control)?;
+    crate::model::validate_controlled(after, control)?;
     if before.id != after.id || before.kind != after.kind {
         return Err(Error::new(
             "INVALID_REQUEST",
@@ -246,25 +248,30 @@ pub fn compare(
                 "Rendered pixel comparison requires equal canvas dimensions; structural diff remains available",
             ));
         }
-        let a = crate::render::rasterize_with_resources(
+        let a = crate::render::rasterize_controlled(
             before,
             1,
             before_resources.asset_root.as_deref(),
             before_resources.font_root.as_deref(),
+            None,
+            control,
         )?;
         control.check()?;
-        let b = crate::render::rasterize_with_resources(
+        let b = crate::render::rasterize_controlled(
             after,
             1,
             after_resources.asset_root.as_deref(),
             after_resources.font_root.as_deref(),
+            None,
+            control,
         )?;
         control.check()?;
         Some(pixel_delta(&a.rgba, &b.rgba, a.width, a.height))
     } else {
         None
     };
+    control.check()?;
     Ok(
-        json!({"document_id":before.id,"from_revision":before.revision,"to_revision":after.revision,"before_sha256":hash(before),"after_sha256":hash(after),"changed":!metadata.is_empty()||!items.is_empty()||!resources.is_empty()||bindings_changed,"metadata":metadata,"items":items,"resources":resources,"resource_bindings_changed":bindings_changed,"rendered_pixels":pixels,"semantics":"Revision alone is not a content change. Bounds are unclipped geometry; pixel bounds are end-exclusive at scale 1. Derived changes include ancestor effects. This is a comparison, not an executable patch."}),
+        json!({"document_id":before.id,"from_revision":before.revision,"to_revision":after.revision,"before_sha256":hash(before),"after_sha256":hash(after),"changed":!metadata.is_empty()||!items.is_empty()||!resources.is_empty()||bindings_changed,"metadata":metadata,"items":items,"resources":resources,"resource_bindings_changed":bindings_changed,"rendered_pixels":pixels,"semantics":"Revision alone is not a content change. Bounds are unclipped geometry; pixel bounds are end-exclusive at scale 1. Rendered pixels compare working-sRGB RGBA8 array positions before output-profile conversion; origins are not world-aligned. Use document.diff.preview for explicit world-grid alignment and images. Derived changes include ancestor effects. This is a comparison, not an executable patch."}),
     )
 }

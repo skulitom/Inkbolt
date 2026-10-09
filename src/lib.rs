@@ -88,6 +88,7 @@ pub mod tracing;
 pub mod transfer;
 pub mod variants;
 pub mod vector_canvas;
+pub mod visual_diff;
 pub mod volumes;
 pub mod warps;
 mod work_paths;
@@ -392,6 +393,30 @@ pub enum Request {
         after_resources: sessions::Resources,
         #[serde(default)]
         compare_pixels: bool,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "document.diff.preview")]
+    DiffPreview {
+        before: Box<Document>,
+        after: Box<Document>,
+        #[serde(default)]
+        before_resources: sessions::Resources,
+        #[serde(default)]
+        after_resources: sessions::Resources,
+        #[serde(default)]
+        options: visual_diff::Options,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "session.diff.preview")]
+    SessionDiffPreview {
+        session_root: PathBuf,
+        session_id: String,
+        from_revision: u64,
+        to_revision: u64,
+        #[serde(default)]
+        options: visual_diff::Options,
         #[serde(default)]
         control: control::Options,
     },
@@ -1082,6 +1107,8 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "document.boolean",
                 "channel.export",
                 "document.diff",
+                "document.diff.preview",
+                "session.diff.preview",
                 "document.publish",
                 "session.diff",
                 "session.publish",
@@ -1504,8 +1531,9 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             capabilities["document_checks"] = json!({"command":"document.check","report_version":1,"checks":["structure","pinned_resource_registries","authored_text_and_story_layout","retained_nested_snapshots","instance_replacement_content"],"maximum_issues":checks::MAX_ISSUES,"maximum_report_bytes":checks::MAX_REPORT_BYTES,"default_issues":64,"font_axes":"validated_even_for_empty_text","incomplete":"explicit_for_skipped_layouts_or_stopped_work","errors":"located_original_codes_and_repair_guidance","external_object_links":"not_read_or_refreshed","delivery_certificate":false,"source_changed":false});
             capabilities["export_preflight"] = json!({"command":"document.preflight","preparation":"same_encoder_and_destination_checks_as_document.publish","success":"created_false_receipt_with_exact_bytes_sha256_and_actual_losses","failure":"ready_false_with_original_error_and_repair_guidance","cancellation":"normal_error_no_partial_report","writes_files":false,"reserves_output":false,"predicts_filesystem_write_success":false,"durable_receipt_ledger":false});
             capabilities["focused_previews"] = json!({"command":"document.preview","focus":["canvas","region","items","artboard"],"image":"PNG_with_existing_output_profile_and_loss_contract","region_and_items":"full_composition_crop;full_evaluation_limits_apply","item_bounds":"unclipped_geometry_without_strokes_or_effects;explicit_margin","artboard":"standalone_owned_subtree;existing_artboard_export_contract","coordinates":"explicit_document_world_to_pixel_and_inverse;pixel_edges_and_centers","quantization":"outward_to_original_render_grid_then_clip","source_identity":"canonical_document_sha256_and_revision","source_changed":false});
+            capabilities["visual_comparison"] = json!({"commands":["document.diff.preview","session.diff.preview"],"artifacts":["before","after","mask"],"color":"common_srgb_rgba8_view;original_output_profiles_recorded_but_not_applied","alignment":"world_grid_or_standalone_artboard_local;union_extents;transparent_missing_pixels;no_registration_or_resampling","fractional_grid_phase":"reject_unless_integer_at_requested_scale;1e-9_pixel_roundoff_tolerance","focus":["canvas","region","union_of_items_in_both_revisions","artboard"],"metrics":"exact_and_strictly_above_threshold_channel_deltas;end_exclusive_bounds;per_side_world_corners","maximum_output_pixels":visual_diff::MAX_PIXELS,"source_render_limits":"unchanged_full_render_limits","structural":"included_by_default;optional_omission_is_explicit_null","source_changed":false});
             capabilities["contact_sheets"] = json!({"command":"document.contact_sheet","maximum_views":contact_sheets::MAX_VIEWS,"maximum_aggregate_evaluation_pixels":contact_sheets::MAX_PIXELS,"maximum_sheet_pixels":contact_sheets::MAX_PIXELS,"maximum_cell_axis":512,"columns":[1,8],"gap":[0,64],"thumbnail_sampling":"nearest_center;no_enlargement;thin_details_can_disappear","coordinates":"per_view_world_to_sheet_and_inverse","color":"one_document_output_profile;transparent_gaps;96ppi_sheet","source_changed":false});
-            capabilities["mcp_preview"] = json!({"response_format":"preview","default":"json","image_bytes":"one_location_with_explicit_payload_ref","maximum_png_attachments":mcp_preview::MAX_IMAGES,"maximum_attached_base64_bytes":mcp_preview::MAX_IMAGE_BASE64_BYTES,"overflow":"one_inline_payload_in_structuredContent;duplicates_reference_it","text":"summary_only","supported_artifacts":["document.export","document.preview","document.contact_sheet","artboard.export","sequence.export","channel.export","document.proof","document.prepress","document.separations","session.dry_run"],"other_results":"complete_structuredContent_without_textual_duplication"});
+            capabilities["mcp_preview"] = json!({"response_format":"preview","default":"json","image_bytes":"one_location_with_explicit_payload_ref","maximum_png_attachments":mcp_preview::MAX_IMAGES,"maximum_attached_base64_bytes":mcp_preview::MAX_IMAGE_BASE64_BYTES,"overflow":"one_inline_payload_in_structuredContent;duplicates_reference_it","text":"summary_only","supported_artifacts":["document.export","document.preview","document.contact_sheet","document.diff.preview","session.diff.preview","artboard.export","sequence.export","channel.export","document.proof","document.prepress","document.separations","session.dry_run"],"other_results":"complete_structuredContent_without_textual_duplication"});
             capabilities["agent_inputs"] = json!({
                 "workspace_flag":"--workspace ABSOLUTE_DIRECTORY",
                 "workspace_position":"before_request_file_or_mcp",
@@ -1556,6 +1584,36 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             &before_resources,
             &after_resources,
             compare_pixels,
+            &context.scoped(&control)?,
+        ),
+        Request::DiffPreview {
+            before,
+            after,
+            before_resources,
+            after_resources,
+            options,
+            control,
+        } => visual_diff::compare(
+            &before,
+            &after,
+            &before_resources,
+            &after_resources,
+            &options,
+            &context.scoped(&control)?,
+        ),
+        Request::SessionDiffPreview {
+            session_root,
+            session_id,
+            from_revision,
+            to_revision,
+            options,
+            control,
+        } => sessions::compare_preview(
+            &session_root,
+            &session_id,
+            from_revision,
+            to_revision,
+            &options,
             &context.scoped(&control)?,
         ),
         Request::SessionDiff {

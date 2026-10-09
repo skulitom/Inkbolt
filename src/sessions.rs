@@ -737,17 +737,8 @@ pub fn compare(
     compare_pixels: bool,
     control: &Control,
 ) -> Result<Value, Error> {
-    control.check()?;
-    let mut db = open(root, session_id)?;
-    let tx = db.transaction().map_err(sql)?;
-    let meta = read_meta(&tx, session_id)?;
-    let before = revision_state(&tx, from_revision, &meta)?;
-    let after = revision_state(&tx, to_revision, &meta)?;
-    control.check_resource_paths(&before.resources)?;
-    control.check_resource_paths(&after.resources)?;
-    // Release the read lock before rendering; both captured states remain immutable.
-    drop(tx);
-    drop(db);
+    let (before, after, current_revision) =
+        capture_pair(root, session_id, from_revision, to_revision, control)?;
     let mut result = crate::diff::compare(
         &before.document,
         &after.document,
@@ -757,7 +748,51 @@ pub fn compare(
         control,
     )?;
     result["session_id"] = json!(session_id);
-    result["observed_current_revision"] = json!(meta.revision);
+    result["observed_current_revision"] = json!(current_revision);
+    Ok(result)
+}
+
+fn capture_pair(
+    root: &Path,
+    session_id: &str,
+    from_revision: u64,
+    to_revision: u64,
+    control: &Control,
+) -> Result<(State, State, u32), Error> {
+    control.check()?;
+    let mut db = open_mode(root, session_id, true)?;
+    let tx = db.transaction().map_err(sql)?;
+    let meta = read_meta(&tx, session_id)?;
+    let before = revision_state(&tx, from_revision, &meta)?;
+    let after = revision_state(&tx, to_revision, &meta)?;
+    control.check_resource_paths(&before.resources)?;
+    control.check_resource_paths(&after.resources)?;
+    // Release the read lock before rendering; both captured states remain immutable.
+    drop(tx);
+    drop(db);
+    Ok((before, after, meta.revision))
+}
+
+pub fn compare_preview(
+    root: &Path,
+    session_id: &str,
+    from_revision: u64,
+    to_revision: u64,
+    options: &crate::visual_diff::Options,
+    control: &Control,
+) -> Result<Value, Error> {
+    let (before, after, current_revision) =
+        capture_pair(root, session_id, from_revision, to_revision, control)?;
+    let mut result = crate::visual_diff::compare(
+        &before.document,
+        &after.document,
+        &before.resources,
+        &after.resources,
+        options,
+        control,
+    )?;
+    result["session_id"] = json!(session_id);
+    result["observed_current_revision"] = json!(current_revision);
     Ok(result)
 }
 pub fn publish(

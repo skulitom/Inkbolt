@@ -42,6 +42,7 @@ const CORE: &[&str] = &[
     "session.receipt",
     "session.history",
     "session.diff",
+    "session.diff.preview",
     "session.publish",
     "asset.import",
     "font.import",
@@ -287,6 +288,9 @@ fn description(command: &str) -> &'static str {
         }
         "document.publish" => {
             "Export a snapshot or one artboard into an existing explicit output root. Creates the chosen filename atomically and rejects every existing destination. Returns a byte/hash receipt and applied metadata policy."
+        }
+        "document.diff.preview" | "session.diff.preview" => {
+            "Review immutable revisions with aligned before/after PNGs, a change mask, exact and thresholded RGBA8 deltas, source hashes, structural differences and per-side world coordinate maps. Common sRGB display view; output ICC profiles are recorded but not applied. Supports canvas, region, union-of-items and standalone artboard focus. Rejects fractional grid shifts rather than resampling. Read-only; session form captures both saved revisions in one transaction."
         }
         "document.diff" => {
             "Compare two snapshots of the same document using stable IDs, geometry, appearance fields and resources. Optional scale-1 pixel differences require equal canvas sizes."
