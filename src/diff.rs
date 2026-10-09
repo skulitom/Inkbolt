@@ -131,8 +131,10 @@ pub fn compare(
     control.check()?;
     before_resources.validate()?;
     after_resources.validate()?;
-    control.check_resource_paths(before_resources)?;
-    control.check_resource_paths(after_resources)?;
+    if compare_pixels {
+        control.check_resource_paths(before_resources)?;
+        control.check_resource_paths(after_resources)?;
+    }
     crate::model::validate_controlled(before, control)?;
     crate::model::validate_controlled(after, control)?;
     if before.id != after.id || before.kind != after.kind {

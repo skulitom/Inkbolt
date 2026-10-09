@@ -313,6 +313,12 @@ fn description(command: &str) -> &'static str {
         "session.verify" => {
             "Verify bounded database integrity, state/receipt hashes and history references. Does not verify external image/font availability or repair files."
         }
+        "session.backup" => {
+            "Capture an expected session head in one read transaction, copy its entire history in bounded steps, verify the copy and create a new .sqlite3 backup without overwriting. Returns exact byte identity and history fingerprint. Retains undo/redo, named snapshots, resource bindings and retry receipts; external image/font bytes are not copied or read. Pending hot journals need ordinary session recovery first."
+        }
+        "session.recover" => {
+            "Restore an exact hash-pinned standalone session backup into an unused session destination. Verifies the whole history before create-only publication; preserves original session ID, revisions, undo/redo, named snapshots and retry receipts. Requires no existing destination or journal sidecars. Retains resource paths without accessing or rebinding them. No implicit migration or source modification."
+        }
         "session.diff" => {
             "Compare two committed session revisions including saved resource bindings. Rendering uses immutable captured states, releasing the database read lock first."
         }
@@ -407,6 +413,8 @@ pub fn catalog_in_workspace(
                 | "asset.import"
                 | "font.import"
                 | "session.create"
+                | "session.backup"
+                | "session.recover"
                 | "session.apply"
                 | "session.apply_proposal"
                 | "session.publish"

@@ -16,6 +16,8 @@ Use `document.diff.preview` or `session.diff.preview` for aligned before/after i
 
 Use `document.check` for bounded located structural/resource/typography diagnostics, and `document.preflight` for actual export preparation without writes. Inspect `status`/`complete` and `ready`; a successful diagnostic request can report problems. See [checks and repair workflows](DOCUMENT_CHECKS.md).
 
+Use `session.backup` for a checked copy of all session history and `session.recover` to restore its exact bytes into an unused destination. Resource stores remain external, versions are checked and no migration is implicit. See [backup and restoration](SESSION_BACKUPS.md).
+
 Native layered exchange now maps nested normal/pass-through folders to explicit parent references, validates balanced boundaries and keeps empty groups without manufacturing pixels. Native import/export, declared loss receipts and durable agent workflows share this contract. Extended interchange remains partial and uncredited; larger axes, masks, text and embedded objects are still required.
 
 Use `format:"layered_large"` for explicit version-two native publication with `.psb`; `layered.import` detects either supported container version. Discover both formats and current axis/storage limits through `capabilities.layered_interchange`. This partial extension does not complete the extended checkpoint.

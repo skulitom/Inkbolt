@@ -1,4 +1,5 @@
 //! Local transactional sessions with immutable content states, saved history and retry receipts.
+pub mod backup;
 use crate::{
     Document, Error, assets,
     control::Control,
@@ -1283,13 +1284,21 @@ pub fn verify(root: &Path, session_id: &str, control: &Control) -> Result<Value,
     control.check()?;
     let mut db = open(root, session_id)?;
     let tx = db.transaction().map_err(sql)?;
+    verify_connection(&tx, session_id, control)
+}
+
+fn verify_connection(tx: &Connection, session_id: &str, control: &Control) -> Result<Value, Error> {
+    use sha2::{Digest, Sha256};
+    control.check()?;
     let result: String = tx
         .pragma_query_value(None, "quick_check", |r| r.get(0))
         .map_err(sql)?;
     if result != "ok" {
         return Err(corrupt("SQLite integrity check failed"));
     }
-    let meta = read_meta(&tx, session_id)?;
+    let meta = read_meta(tx, session_id)?;
+    let mut digest = Sha256::new();
+    digest.update(encode(&meta)?);
     let mut stmt = tx
         .prepare("SELECT id FROM states ORDER BY id")
         .map_err(sql)?;
@@ -1299,15 +1308,21 @@ pub fn verify(root: &Path, session_id: &str, control: &Control) -> Result<Value,
         .collect::<Result<_, _>>()
         .map_err(sql)?;
     let mut hashes = BTreeMap::new();
-    let mut total = 0;
+    let total: i64 = tx
+        .query_row(
+            "SELECT COALESCE(SUM(length(payload)),0) FROM states",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(sql)?;
+    if total > MAX_HISTORY_BYTES {
+        return Err(corrupt("History exceeds its content storage budget"));
+    }
     for state_id in &ids {
         control.check()?;
-        let (state, hash) = load_state(&tx, *state_id)?;
-        total += encode(&state)?.len();
+        let (_, hash) = load_state(tx, *state_id)?;
+        digest.update(encode(&(state_id, &hash))?);
         hashes.insert(*state_id, hash);
-    }
-    if total as i64 > MAX_HISTORY_BYTES {
-        return Err(corrupt("History exceeds its content storage budget"));
     }
     let mut stmt = tx
         .prepare("SELECT request_id FROM requests ORDER BY revision")
@@ -1317,25 +1332,34 @@ pub fn verify(root: &Path, session_id: &str, control: &Control) -> Result<Value,
         .map_err(sql)?
         .collect::<Result<_, _>>()
         .map_err(sql)?;
+    let mut previous_state = 0;
+    let mut revision_states = Vec::new();
     for (revision, id) in ids.iter().enumerate() {
         control.check()?;
-        let (_, receipt) = request(&tx, id)?.unwrap();
+        let (fingerprint, receipt) = request(tx, id)?.unwrap();
         if receipt.revision != revision as u32
             || hashes.get(&receipt.state_id) != Some(&receipt.state_sha256)
-            || !hashes.contains_key(&receipt.from_state)
+            || receipt.from_state != previous_state
         {
             return Err(corrupt(
                 "Request history does not match saved content states",
             ));
         }
+        previous_state = receipt.state_id;
+        revision_states.push(receipt.state_id);
+        digest.update(encode(&(&fingerprint, &receipt))?);
     }
-    for snapshot in snapshots(&tx)? {
-        if !hashes.contains_key(&snapshot.state_id) || snapshot.revision > meta.revision {
+    let snapshots = snapshots(tx)?;
+    for snapshot in &snapshots {
+        control.check()?;
+        if revision_states.get(snapshot.revision as usize) != Some(&snapshot.state_id) {
             return Err(corrupt("Named snapshot references invalid history"));
         }
+        digest.update(encode(snapshot)?);
     }
+    control.check()?;
     Ok(
-        json!({"valid":true,"session_id":session_id,"revision":meta.revision,"states":hashes.len(),"requests":ids.len(),"state_bytes":total,"storage_version":STORE_VERSION,"sqlite_version":rusqlite::version(),"journal_mode":"delete","synchronous":"full"}),
+        json!({"valid":true,"session_id":session_id,"revision":meta.revision,"states":hashes.len(),"requests":ids.len(),"state_bytes":total,"storage_version":STORE_VERSION,"sqlite_version":rusqlite::version(),"journal_mode":"delete","synchronous":"full","head_state_sha256":hashes.get(&meta.current_state),"history_sha256":format!("{:x}",digest.finalize()),"undo_depth":meta.undo.len(),"redo_depth":meta.redo.len(),"snapshots":snapshots.len()}),
     )
 }
 #[cfg(test)]
@@ -1411,7 +1435,12 @@ mod tests {
     }
     fn spawn(root: &Path, point: &str, cancel: bool) -> Worker {
         let mut cmd = Command::new(std::env::current_exe().unwrap());
-        cmd.args(["--exact", "sessions::tests::crash_worker", "--nocapture"])
+        let worker = if point.starts_with("backup_") || point.starts_with("recovery_") {
+            "sessions::tests::history_worker"
+        } else {
+            "sessions::tests::crash_worker"
+        };
+        cmd.args(["--exact", worker, "--nocapture"])
             .env("INKBOLT_SESSION_FAULT", point)
             .env("INKBOLT_SESSION_FAULT_ROOT", root)
             .stdout(Stdio::null())
@@ -1433,6 +1462,324 @@ mod tests {
             std::thread::sleep(Duration::from_millis(5));
         }
         worker
+    }
+    fn history_fixture(root: &Path) -> Value {
+        initial(root);
+        mutate(
+            root,
+            "recovery",
+            "large",
+            0,
+            &large_action(),
+            &Control::default(),
+        )
+        .unwrap();
+        for (revision, opacity) in [(1, 0.75), (2, 0.5)] {
+            let action = serde_json::from_value(json!({"type":"edit","operations":[{"op":"properties","id":"pixels","opacity":opacity}]})).unwrap();
+            mutate(
+                root,
+                "recovery",
+                &format!("change-{revision}"),
+                revision,
+                &action,
+                &Control::default(),
+            )
+            .unwrap();
+        }
+        let result = backup::create(
+            root,
+            "recovery",
+            3,
+            &backup::Output {
+                output_root: root.to_owned(),
+                file_name: "snapshot.sqlite3".into(),
+            },
+            &Control::default(),
+        )
+        .unwrap();
+        fs::write(
+            root.join("identity.json"),
+            serde_json::to_vec(&result["backup"]).unwrap(),
+        )
+        .unwrap();
+        result["session"].clone()
+    }
+    fn history_source(root: &Path) -> backup::Source {
+        serde_json::from_slice(&fs::read(root.join("identity.json")).unwrap()).unwrap()
+    }
+    fn history_target(root: &Path, point: &str) -> PathBuf {
+        if point.starts_with("backup_") {
+            root.join("result.sqlite3")
+        } else {
+            store_path(&root.join("restored"), "recovery").unwrap()
+        }
+    }
+    fn finish(worker: &mut Worker) {
+        let start = Instant::now();
+        loop {
+            if let Some(status) = worker.0.try_wait().unwrap() {
+                assert!(status.success());
+                break;
+            }
+            assert!(start.elapsed() < Duration::from_secs(20));
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+    fn orphans(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
+        let mut result = BTreeMap::new();
+        for parent in [root.to_owned(), root.join("restored")] {
+            if !parent.exists() {
+                continue;
+            }
+            for entry in fs::read_dir(parent).unwrap() {
+                let path = entry.unwrap().path();
+                if path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with(".inkbolt-session-")
+                {
+                    result.insert(path.clone(), fs::read(path).unwrap());
+                }
+            }
+        }
+        result
+    }
+    #[test]
+    fn history_worker() {
+        let Some(root) = std::env::var_os("INKBOLT_SESSION_FAULT_ROOT") else {
+            return;
+        };
+        let root = PathBuf::from(root);
+        let point = std::env::var("INKBOLT_SESSION_FAULT").unwrap();
+        let cancelled = std::env::var_os("INKBOLT_SESSION_TEST_CANCEL").is_some();
+        let control = Control::new(&crate::control::Options {
+            timeout_ms: None,
+            cancel_file: cancelled.then(|| root.join("cancel")),
+        })
+        .unwrap();
+        let result = if point.starts_with("backup_") {
+            backup::create(
+                &root,
+                "recovery",
+                3,
+                &backup::Output {
+                    output_root: root.clone(),
+                    file_name: "result.sqlite3".into(),
+                },
+                &control,
+            )
+        } else {
+            backup::recover(
+                &root.join("restored"),
+                "recovery",
+                &history_source(&root),
+                &control,
+            )
+        };
+        if cancelled && !point.ends_with("after_publish") {
+            assert_eq!(result.unwrap_err().code, "CANCELLED");
+        } else {
+            assert_eq!(result.unwrap()["created"], true);
+        }
+    }
+    #[test]
+    fn history_copies_survive_actual_process_termination_at_each_boundary() {
+        for point in [
+            "backup_during_copy",
+            "backup_before_publish",
+            "backup_after_publish",
+            "recovery_during_copy",
+            "recovery_before_publish",
+            "recovery_after_publish",
+        ] {
+            let root = TestRoot::new();
+            let expected = history_fixture(&root.0);
+            let source = store_path(&root.0, "recovery").unwrap();
+            let original = fs::read(&source).unwrap();
+            let original_backup = fs::read(root.0.join("snapshot.sqlite3")).unwrap();
+            let mut worker = spawn(&root.0, point, false);
+            worker.0.kill().unwrap();
+            worker.0.wait().unwrap();
+            assert_eq!(fs::read(&source).unwrap(), original);
+            assert_eq!(
+                fs::read(root.0.join("snapshot.sqlite3")).unwrap(),
+                original_backup
+            );
+            let target = history_target(&root.0, point);
+            assert_eq!(target.exists(), point.ends_with("after_publish"));
+            let retained = orphans(&root.0);
+            assert!(!retained.is_empty());
+            if point.ends_with("after_publish") {
+                let db =
+                    Connection::open_with_flags(&target, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+                configure(&db).unwrap();
+                check_schema(&db).unwrap();
+                assert_eq!(
+                    verify_connection(&db, "recovery", &Control::default()).unwrap(),
+                    expected
+                );
+                if point.starts_with("recovery_") {
+                    assert_eq!(fs::read(&target).unwrap(), original_backup);
+                }
+            } else if point.starts_with("backup_") {
+                backup::create(
+                    &root.0,
+                    "recovery",
+                    3,
+                    &backup::Output {
+                        output_root: root.0.clone(),
+                        file_name: "result.sqlite3".into(),
+                    },
+                    &Control::default(),
+                )
+                .unwrap();
+            } else {
+                backup::recover(
+                    &root.0.join("restored"),
+                    "recovery",
+                    &history_source(&root.0),
+                    &Control::default(),
+                )
+                .unwrap();
+            }
+            assert_eq!(
+                orphans(&root.0),
+                retained,
+                "Retries must preserve orphan evidence owned by the killed process"
+            );
+        }
+    }
+    #[test]
+    fn history_cancellation_discards_unpublished_copies_but_keeps_committed_success() {
+        for point in [
+            "backup_during_copy",
+            "backup_before_publish",
+            "backup_after_publish",
+            "recovery_during_copy",
+            "recovery_before_publish",
+            "recovery_after_publish",
+        ] {
+            let root = TestRoot::new();
+            history_fixture(&root.0);
+            let path = store_path(&root.0, "recovery").unwrap();
+            let original = fs::read(&path).unwrap();
+            let original_backup = fs::read(root.0.join("snapshot.sqlite3")).unwrap();
+            let mut worker = spawn(&root.0, point, true);
+            fs::write(root.0.join("cancel"), b"stop").unwrap();
+            fs::write(root.0.join("release"), b"release").unwrap();
+            finish(&mut worker);
+            assert_eq!(
+                history_target(&root.0, point).exists(),
+                point.ends_with("after_publish")
+            );
+            assert_eq!(fs::read(path).unwrap(), original);
+            assert_eq!(
+                fs::read(root.0.join("snapshot.sqlite3")).unwrap(),
+                original_backup
+            );
+            assert!(orphans(&root.0).is_empty());
+        }
+    }
+    #[test]
+    fn pinned_backup_blocks_commit_then_writer_retries_without_changing_the_copy() {
+        let root = TestRoot::new();
+        let expected = history_fixture(&root.0);
+        let mut worker = spawn(&root.0, "backup_during_copy", false);
+        let action = serde_json::from_value(
+            json!({"type":"edit","operations":[{"op":"properties","id":"pixels","name":"new"}]}),
+        )
+        .unwrap();
+        assert_eq!(
+            mutate(
+                &root.0,
+                "recovery",
+                "writer",
+                3,
+                &action,
+                &Control::default()
+            )
+            .unwrap_err()
+            .code,
+            "SESSION_BUSY"
+        );
+        fs::write(root.0.join("release"), b"release").unwrap();
+        finish(&mut worker);
+        mutate(
+            &root.0,
+            "recovery",
+            "writer",
+            3,
+            &action,
+            &Control::default(),
+        )
+        .unwrap();
+        let target = root.0.join("result.sqlite3");
+        let db = Connection::open_with_flags(target, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        configure(&db).unwrap();
+        assert_eq!(
+            verify_connection(&db, "recovery", &Control::default()).unwrap(),
+            expected
+        );
+        assert_eq!(
+            verify(&root.0, "recovery", &Control::default()).unwrap()["revision"],
+            4
+        );
+    }
+    #[test]
+    fn read_only_backup_and_comparisons_preserve_hot_journal_until_explicit_recovery() {
+        let root = TestRoot::new();
+        initial(&root.0);
+        let mut worker = spawn(&root.0, "before_commit", false);
+        worker.0.kill().unwrap();
+        worker.0.wait().unwrap();
+        let path = store_path(&root.0, "recovery").unwrap();
+        let journal = PathBuf::from(format!("{}-journal", path.display()));
+        let bytes = fs::read(&path).unwrap();
+        let undo = fs::read(&journal).unwrap();
+        assert_ne!(&undo[..8], &[0; 8]);
+        assert!(
+            backup::create(
+                &root.0,
+                "recovery",
+                0,
+                &backup::Output {
+                    output_root: root.0.clone(),
+                    file_name: "result.sqlite3".into()
+                },
+                &Control::default()
+            )
+            .is_err()
+        );
+        assert!(compare(&root.0, "recovery", 0, 0, false, &Control::default()).is_err());
+        assert!(
+            compare_preview(
+                &root.0,
+                "recovery",
+                0,
+                0,
+                &Default::default(),
+                &Control::default()
+            )
+            .is_err()
+        );
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+        assert_eq!(fs::read(&journal).unwrap(), undo);
+        assert_eq!(
+            verify(&root.0, "recovery", &Control::default()).unwrap()["revision"],
+            0
+        );
+        backup::create(
+            &root.0,
+            "recovery",
+            0,
+            &backup::Output {
+                output_root: root.0.clone(),
+                file_name: "result.sqlite3".into(),
+            },
+            &Control::default(),
+        )
+        .unwrap();
     }
     #[test]
     fn crash_worker() {

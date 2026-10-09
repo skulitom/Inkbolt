@@ -16,6 +16,8 @@ Commands require `session_id`, directly or inside the reviewed proposal for `ses
 | session.receipt | request_id | Original committed result, even after later edits |
 | session.history | limit in 1..128; optional after_revision | Ordered receipt page with next_after_revision and has_more |
 | session.verify | optional control | Storage integrity, content/receipt/metadata checksums, references and bounded ledger validation |
+| session.backup | expected_revision, output; optional control | Verified standalone copy of complete history, exact byte identity and logical history fingerprint |
+| session.recover | source with file_path/bytes/sha256; optional control | Checked restoration into an unused session destination, preserving identity/history and external resource bindings |
 
 `resources` has optional absolute `asset_root` and `font_root`. They are runtime bindings saved with content. Image and font bytes remain in their external immutable stores; sessions are not self-contained resource archives. Structural persistence does not imply that stored resources are present. Rendering resolves and verifies them as usual.
 
@@ -77,7 +79,7 @@ Profile-specific document and whole-request limits also apply; see [LARGE_VECTOR
 
 The store uses schema version 1, SQLite rollback journal DELETE mode, 4096-byte pages and synchronous FULL. Content, head, undo/redo stacks and receipt commit together. Ordinary writable openings perform SQLite hot-journal recovery. Read-only dry runs and comparison captures do not repair a pending hot journal; first use `session.verify` or an ordinary session read to recover and inspect the store. Keep the database and its journal together. Tests terminate an owned process after actual dirty-page spill before commit and immediately after commit; the former restores the old state and the latter retains the new receipt. Cancellation after spill also rolls back.
 
-Creation flushes and closes its temporary database before create-only hard-link publication. An interrupted creation can leave an unpublished `.inkbolt-session-*.tmp` file and journal. No automatic sweep deletes these, because another process may own them. The final database and its `-journal` must stay together during recovery. Copy/backup only when all users of that session are closed; retain external image/font stores separately. There is no live backup or migration command yet.
+Creation flushes and closes its temporary database before create-only hard-link publication. An interrupted creation can leave an unpublished `.inkbolt-session-*.tmp` file and journal. No automatic sweep deletes these, because another process may own them. The final database and its `-journal` must stay together during recovery. Use [session.backup and session.recover](SESSION_BACKUPS.md) for checked copies of live committed history and exact-byte restoration; retain external image/font stores separately. An ad hoc file copy still requires all users of that session to be closed. Storage migrations and explicit continuation into a new session identity remain open.
 
 Durability relies on local filesystem locking and the operating system honoring flushes. Process interruption is tested; sudden power loss, failing hardware and malicious modification are not guaranteed by checksums. Stored paths are explicit local paths, not a filesystem sandbox or access-control boundary. Unsupported versions, changed schema, corrupt states/receipts or missing references fail explicitly and do not trigger destructive repair.
 
