@@ -21,6 +21,28 @@ class Accounting(ctypes.Structure):
         (name, w.DWORD) for name in ('faults', 'total', 'active', 'terminated')]
 
 
+def process_ids(query, record):
+    """Obtain a complete bounded list while owned processes can enter/exit.
+
+    Assigned and returned counts are separate Windows fields. Requery incomplete
+    observations; never count them as proof that every process was captured.
+    The independent final lifetime total still detects any missed process.
+    """
+    for attempt in range(4):
+        entries=(ctypes.c_size_t*258)()
+        success,error=query(entries)
+        header=ctypes.cast(entries,ctypes.POINTER(w.DWORD))
+        assigned,returned=header[0],header[1]
+        require(assigned<=256 and returned<=256, 'Owned process inventory exceeds its bound')
+        require(success or error==234, 'Cannot enumerate the owned process tree: '+str(error))
+        if success and assigned==returned:
+            pids=ctypes.cast(ctypes.byref(entries,8),ctypes.POINTER(ctypes.c_size_t))
+            return [pids[index] for index in range(returned)]
+        record('inventory-retry',attempt=attempt,assigned=assigned,returned=returned,error=0 if success else error)
+        if attempt<3:time.sleep(.001)
+    raise RuntimeError('Owned process inventory did not yield a complete observation')
+
+
 class RecoveryTrial(Trial):
     """Commands wait on stdin until assigned; descendants inherit the owned job.
 
@@ -37,6 +59,7 @@ class RecoveryTrial(Trial):
         self.lock = threading.RLock()
         self.workers = {}
         self.frontends = set()
+        self.frontend_processes = []
         self.events = []
         self.observer_error = None
         self.accounting = None
@@ -74,7 +97,11 @@ class RecoveryTrial(Trial):
         try:
             # CLI and MCP cannot start work until their first input request.
             with self.lock:
-                self.frontends.add(process.pid)
+                times=[w.FILETIME() for _ in range(4)]
+                require(self.api.GetProcessTimes(int(process._handle),*(ctypes.byref(v) for v in times)),
+                        'Cannot retain the command process identity')
+                self.frontends.add((process.pid,(times[0].dwHighDateTime<<32)|times[0].dwLowDateTime))
+                self.frontend_processes.append(process)
                 self.container.assign(process)
         except BaseException:
             process.kill();process.wait(timeout=5)
@@ -94,7 +121,6 @@ class RecoveryTrial(Trial):
                 process.kill();stdout,stderr=process.communicate(timeout=10)
             result=dict(exit_code=process.returncode,seconds=time.perf_counter()-started,
                         timed_out=timed_out,memory=process_memory(process))
-            with self.lock:self.frontends.discard(process.pid)
             return result,stdout,stderr
 
     def validate_command(self, command):
@@ -145,25 +171,25 @@ class RecoveryTrial(Trial):
     def capture_members(self):
         # Query only our job, never the system process list. Console hosts are
         # included in the lifetime count and measurements under their own role.
-        entries=(ctypes.c_size_t*258)()
         with self.lock:
-            require(self.api.QueryInformationJobObject(self.container.handle,3,ctypes.byref(entries),ctypes.sizeof(entries),None),
-                    'Cannot enumerate the bounded owned process tree')
-            header=ctypes.cast(entries,ctypes.POINTER(w.DWORD))
-            require(header[0]==header[1] and header[1]<=256, 'Owned process inventory exceeds its bound')
-            pids=ctypes.cast(ctypes.byref(entries,8),ctypes.POINTER(ctypes.c_size_t))
-            known=self.frontends|{key[0] for key in self.workers}
-            for index in range(header[1]):
-                pid=pids[index]
-                if pid in known:continue
+            def query(entries):
+                success=self.api.QueryInformationJobObject(self.container.handle,3,ctypes.byref(entries),ctypes.sizeof(entries),None)
+                return bool(success),0 if success else ctypes.get_last_error()
+            pids=process_ids(query,self.event)
+            for pid in pids:
                 handle=self.api.OpenProcess(0x1000,False,pid)
                 require(bool(handle), 'Owned process exited before identity capture')
                 try:
                     times=[w.FILETIME() for _ in range(4)]
                     require(self.api.GetProcessTimes(handle,*(ctypes.byref(v) for v in times)), 'Cannot read owned process identity')
+                    created=(times[0].dwHighDateTime<<32)|times[0].dwLowDateTime
+                    # A just-exited caller may still appear in the job's list.
+                    # Its retained identity/handle remain known until close;
+                    # image-path queries are unnecessary and can fail after exit.
+                    if (pid,created) in self.frontends or (pid,created) in self.workers:continue
                     size=w.DWORD(32768);path=ctypes.create_unicode_buffer(size.value)
                     require(self.api.QueryFullProcessImageNameW(handle,0,path,ctypes.byref(size)), 'Cannot read owned process image')
-                    identity=dict(pid=pid,created=(times[0].dwHighDateTime<<32)|times[0].dwLowDateTime)
+                    identity=dict(pid=pid,created=created)
                     role='console-host' if os.path.normcase(path.value)==self.console_path else 'engine-worker'
                     self.capture(identity,role)
                 finally:self.api.CloseHandle(handle)
@@ -295,6 +321,10 @@ class RecoveryTrial(Trial):
             for worker in self.workers.values():
                 worker['memory']=process_memory(SimpleNamespace(_handle=worker['handle']))
                 self.api.CloseHandle(worker.pop('handle'))
+            for process in self.frontend_processes:
+                process.wait(timeout=5)
+                process._handle.Close()
+            self.frontend_processes.clear()
             save_json(self.root/'recovery-evidence.json',dict(events=self.events,
                 processes=list(self.workers.values()),accounting=self.accounting,observer_error=self.observer_error))
 

@@ -37,6 +37,8 @@ CHECKS = {
     'B07': ('glyph-cluster-order', 'editable-text-and-font', 'typography-pixels', 'history-valid'),
     'B08': ('selection-coverage', 'retained-pixels', 'masked-pixels', 'historical-pixels', 'history-valid'),
     'B09': ('exact-local-repair', 'repaired-pixels', 'historical-pixels', 'history-valid'),
+    'B10': ('native-import', 'editable-exact-patch', 'photo-preview', 'edited-native-samples',
+            'historical-native-samples', 'undo-editability', 'redo-editability', 'immutable-tiles', 'history-valid', 'memory-budget'),
     'B11': ('composition-retained', 'resource-identity', 'mixed-pixels', 'historical-pixels', 'history-valid'),
     'B12': ('wide-pixels', 'square-pixels', 'tall-pixels', 'variant-bindings', 'base-preserved', 'outputs-preserved', 'history-valid'),
     'B13': ('transparent-pixels', 'screen-color', 'editable-source', 'no-overwrite'),

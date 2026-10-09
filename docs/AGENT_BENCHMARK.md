@@ -1,10 +1,10 @@
 # Reproducible agent task benchmark
 
 `tools/agent_benchmark.py` records scripted reference workflows for the fixed
-B01-B20 tasks in [the readiness plan](AGENT_READINESS.md). Eighteen
+B01-B20 tasks in [the readiness plan](AGENT_READINESS.md). Nineteen
 adapters exercise real CLI and compact MCP commands with independent output,
-structure, resource, history and source-preservation checks. The remaining two
-tasks stay explicit in every full report. This advances A1; it does not establish
+structure, resource, history and source-preservation checks. The remaining
+task stays explicit in every full report. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
 
 ## Running and preserving evidence
@@ -41,7 +41,7 @@ selected task failed or is not implemented, or inputs changed. Argument errors
 also return 2 with a diagnostic. Unexpected driver/build errors are failures,
 even when some earlier trial files exist. A selected subset cannot set
 `complete_scripted_suite`; only a successful complete twenty-task run can.
-The current default full run therefore returns 2 because two adapters remain
+The current default full run therefore returns 2 because one adapter remains
 unimplemented. `actual_model_benchmark_complete` and
 `matched_cutbolt_comparison` remain false for scripted runs.
 
@@ -56,6 +56,7 @@ unimplemented. `actual_model_benchmark_complete` and
 | B06 linked text | Exact overset location, reviewed multi-column repair, ordered source intervals, font/license identity, complete glyph pixels and original overflowing revision |
 | B07 multilingual typography | Authored glyph forms, visual order, logical clusters, mark anchors and exact pixels for Latin/Hebrew/numerals, Arabic joining, Han, Indic reordering and a Latin ligature |
 | B08 foreground mask; B09 retouch | Complete independent selection coverage, retained source pixels, exact local repair, unaffected pixels and historical output |
+| B10 native photograph | Original 1920x1080 synthetic studio image encoded directly at 16 bits, reviewed exact clone patch crossing four native blocks, every edited/historical TIFF sample, editable undo/redo, immutable tiles and a fixed 256 MiB engine commit budget |
 | B11 mixed masks/effects | Pinned raster under an isolated masked vector group, exact rational shadow/fill/group composition, offset-only edit, source identity and historical pixels |
 | B12 layout variants | Shared component with inherited text/image/position rows, three independently decoded output sizes, original resources, restored base and preserved earlier deliveries |
 | B13 screen delivery | All 1920x1080 pixels, straight alpha without matte, explicit sRGB/metadata policy, editable source and overwrite rejection |
@@ -65,12 +66,30 @@ unimplemented. `actual_model_benchmark_complete` and
 | B17 lost response; B18 conflicting writers | Original receipts, exact retry hashes, undo preservation, stale-proposal rejection and reviewed replacement preserving both edits |
 | B19 output recovery | Active cancellation, actual supervisor termination during rendering, contained runner exit, explicit restart of the pinned revision, complete independent image pixels, stable physical output/receipt and overwrite rejection |
 
-B10 multi-megapixel photograph and B20 linked Cutbolt
-revisions still need adapters and
-their complete independent judges. Separate existing contract tests or handoff
+B20 linked Cutbolt revisions still needs its adapter and complete independent
+judge. Separate existing contract tests or handoff
 evidence do not silently fill those benchmark slots. The ordinary synchronous
 transport still rejects background-job commands; B19 uses a separate contained
 recovery adapter with complete process accounting.
+
+B10's original analytic studio fixture includes smooth illumination, object
+edges, soft shadows, texture and grain. Linear-light values are encoded directly
+into RGBA16 sRGB samples; the source is not an 8-bit image expanded to 16 bits.
+The native TIFF judge compares every channel to the original generator bytes and
+an independently copied donor rectangle. Snapshot comparisons require exactly
+the reviewed native patch, unchanged base manifest and complete undo/redo state.
+All original tile files and source bytes must retain their identities. This
+bounded synthetic photographic study does not establish camera/RAW support,
+production-photo representativeness or full A5 acceptance.
+
+The B10 budget is fixed at **256 MiB peak committed memory** before measurement.
+It covers every engine call, including import, review, preview and full-size
+delivery; MCP uses its complete persistent-server lifetime. It excludes the
+Python fixture/judge and is not total system memory. Missing or zero observations
+and even a one-byte overrun fail. `memory-budget.json` records the unchanged
+ceiling, measurement scope and every observed process peak. The fixture generator
+may reuse its immutable bytes between repetitions; every engine workspace,
+import, session and delivery remains fresh, and generation precedes task timing.
 
 B19 uses the ordinary executable without test pause hooks or database writes by
 the harness. It observes the owned queue's checksummed rows, cancels an active
@@ -88,6 +107,10 @@ their first input. Recorded workers require matching PID, creation time,
 executable and container membership. Hidden Windows console hosts are recorded
 separately. Retained handles supply lifetime memory; the complete container count
 must match the measured command, supervisor, runner and console-host processes.
+Incomplete live process lists receive at most four bounded queries, with each
+retry recorded; the independent final lifetime count remains mandatory.
+Command handles and creation identities remain retained until the trial closes,
+so an exited caller is not mistaken for an unmeasured background process.
 Missing identities or leaked workers fail the trial. Cleanup stops only that
 owned tree. `recovery-evidence.json` retains ledger observations, interventions,
 process identities, final-file observations and accounting. CLI launch teardown

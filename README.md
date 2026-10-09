@@ -85,10 +85,12 @@ The verifier includes formatting, locked build, all-target Clippy, Rust tests an
 The separate [release workload measurements](docs/WORKLOAD_MEASUREMENT.md) exercise native edit/history fidelity and practical output sizes, retaining failed tasks alongside command time, response bytes and available Windows memory peaks. They guide the open scale work and do not count as model-driven task trials.
 
 The [agent task benchmark](docs/AGENT_BENCHMARK.md) keeps all twenty accepted
-workflows visible, with eighteen scripted CLI/MCP adapters and independent output
+workflows visible, with nineteen scripted CLI/MCP adapters and independent output
 checks. Release runs retain exact traffic, resource/history checks and per-task
 measurements. Active output cancellation and crash/restart include complete owned
-worker accounting. Two adapters, actual model trials and matched comparisons remain
+worker accounting. A two-megapixel native photo-editing fixture checks every
+16-bit output sample, editable history and a fixed memory ceiling. One adapter,
+actual model trials and matched comparisons remain
 open; selected passes cannot establish complete benchmark acceptance.
 
 The original source, contracts and synthetic fixture generators belong here. Application-specific research and evidence remain in the external private root. Configure each new checkout with its external research directory and private content policy using `tools/setup_private.py`; hooks and policies do not transfer through cloning. Both candidate and staged-byte repository checks remain mandatory before commits. They supplement provenance review and do not prove originality.

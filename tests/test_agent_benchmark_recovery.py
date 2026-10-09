@@ -7,16 +7,61 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from test_cli import EXE, ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
-from benchmark_recovery_runtime import RecoveryTrial
+from benchmark_recovery_runtime import RecoveryTrial,process_ids
 from benchmark_runtime import TaskFailure
 from benchmark_tasks import CHECKS
 
 
 class RecoveryBenchmarkTests(unittest.TestCase):
+    def test_exited_command_identity_survives_until_the_trial_closes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            trial=RecoveryTrial(EXE,Path(directory)/'case','B19',1,'cli',[])
+            try:
+                trial.begin('Retain a measured command during an exit-list observation')
+                trial.call('catalog','preset.list')
+                trial.stop.set();trial.observer.join(timeout=2)
+                process=trial.frontend_processes[0]
+                self.assertEqual(process.poll(),0)
+                self.assertFalse(process._handle.closed)
+                def inventory(handle,kind,buffer,length,returned):
+                    self.assertEqual(kind,3)
+                    header=ctypes.cast(buffer,ctypes.POINTER(w.DWORD));header[0]=header[1]=1
+                    ctypes.cast(ctypes.byref(buffer._obj,8),ctypes.POINTER(ctypes.c_size_t))[0]=process.pid
+                    return True
+                with patch.object(trial.api,'QueryInformationJobObject',side_effect=inventory),patch.object(
+                        trial.api,'QueryFullProcessImageNameW',side_effect=AssertionError('Exited caller image queried')):
+                    trial.capture_members()
+                self.assertEqual(trial.workers,{})
+                self.assertEqual(trial.finish()['status'],'passed')
+                self.assertTrue(process._handle.closed)
+            finally:trial.close()
+
+    def test_incomplete_process_lists_are_requeried_without_waiving_coverage_or_bounds(self):
+        def query(rows):
+            iterator=iter(rows)
+            def call(entries):
+                success,error,assigned,pids=next(iterator)
+                header=ctypes.cast(entries,ctypes.POINTER(w.DWORD))
+                header[0]=assigned;header[1]=len(pids)
+                values=ctypes.cast(ctypes.byref(entries,8),ctypes.POINTER(ctypes.c_size_t))
+                for index,pid in enumerate(pids):values[index]=pid
+                return success,error
+            return call
+        for first in [(True,0,2,[10]),(True,0,1,[10,20]),(False,234,2,[10])]:
+            events=[]
+            result=process_ids(query([first,(True,0,2,[10,20])]),lambda kind,**data:events.append((kind,data)))
+            self.assertEqual(result,[10,20]);self.assertEqual(len(events),1)
+            self.assertEqual(events[0][0],'inventory-retry')
+        for rows,message in [([(True,0,257,[])],'bound'),([(False,5,0,[])],'enumerate'),
+                             ([(True,0,2,[10])]*4,'complete observation')]:
+            with self.subTest(rows=rows),self.assertRaisesRegex(RuntimeError,message):
+                process_ids(query(rows),lambda *args,**kw:None)
+
     def test_active_cancel_crash_restart_and_replay_on_both_transports(self):
         with tempfile.TemporaryDirectory() as directory:
             for transport in ('cli','mcp'):

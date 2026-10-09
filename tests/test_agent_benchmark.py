@@ -38,7 +38,7 @@ class AgentBenchmarkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             for transport in ['cli','mcp']:
                 for task in ADAPTERS:
-                    if task=='B19':continue  # Separate recovery module keeps fault-loop feedback focused.
+                    if task in ('B10','B19'):continue  # Separate photo/recovery modules keep feedback focused.
                     with self.subTest(transport=transport,task=task):
                         root=Path(directory)/(transport+'-'+task)
                         row=run_task(EXE,root,task,1,transport)
