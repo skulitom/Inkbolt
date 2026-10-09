@@ -65,6 +65,8 @@ python tools/check_repo.py --staged
 
 `python tools/verify.py --jobs 4` optionally runs the same Python modules in isolated concurrent processes and checks the complete discovery count. Serial execution remains the default. Concurrent verification timings are not performance benchmarks.
 
+The separate [release workload measurements](docs/WORKLOAD_MEASUREMENT.md) exercise native edit/history fidelity and practical output sizes, retaining failed tasks alongside command time, response bytes and available Windows memory peaks. They guide the open scale work and do not count as model-driven task trials.
+
 The original source, contracts and synthetic fixture generators belong here. Application-specific research and evidence remain in the external private root. Configure each new checkout with its external research directory and private content policy using `tools/setup_private.py`; hooks and policies do not transfer through cloning. Both candidate and staged-byte repository checks remain mandatory before commits. They supplement provenance review and do not prove originality.
 
 Original Inkbolt code is [MIT licensed](LICENSE). Dependencies retain their licenses and notices; see [dependencies](docs/DEPENDENCIES.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Never commit third-party binaries, copied implementation, original application assets or raw private research.
