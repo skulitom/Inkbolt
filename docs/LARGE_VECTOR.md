@@ -10,7 +10,7 @@ Agents can opt into `resource_profile: "large_vector"` on `document.create`, `sv
 | SVG input bytes | 256 KiB | 8 MiB |
 | SVG XML nodes | 4,096 | 65,536 |
 
-Both profiles retain a 4,096-command limit on each individual path. Algorithm-specific generated geometry, text, paint, mask, image, nesting, rendering and output budgets remain independent. Increasing storage does not authorize a larger raster workload. Inline pixel storage remains 65,536 pixels, output is at most 1,048,576 pixels, and shared render evaluation is limited to 67,108,864 work units. Native layered exchange and retained-object source parsing keep their separate bounds.
+Both profiles retain a 4,096-command limit on each individual path. Algorithm-specific generated geometry, text, paint, mask, image, nesting, rendering and output budgets remain independent. Increasing storage does not authorize a larger raster workload. Inline pixel storage remains 65,536 pixels, default whole output is at most 1,048,576 pixels (explicit tiled evaluation has its separately bounded subset), and shared render evaluation is limited to 67,108,864 work units. Native layered exchange and retained-object source parsing keep their separate bounds.
 
 The CLI accepts at most 16 MiB per request; the stdio adapter allows an additional 16 KiB of framing. These transport limits apply to the complete request, including multiple documents and operations. A saved session state allows 8 MiB plus 16 KiB for resource roots; the document's own profile and the existing 64 MiB aggregate history ceiling still apply. History never silently evicts old states.
 

@@ -13,6 +13,9 @@ pub const MAX_DOCUMENT_BYTES: usize = 768 * 1024;
 pub const MAX_LARGE_VECTOR_ITEMS: usize = 8192;
 pub const MAX_LARGE_VECTOR_COMMANDS: usize = 131072;
 pub const MAX_LARGE_VECTOR_BYTES: usize = 8 * 1024 * 1024;
+pub const MAX_LARGE_RASTER_ITEMS: usize = 8192;
+pub const MAX_LARGE_RASTER_COMMANDS: usize = 131072;
+pub const MAX_LARGE_RASTER_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_COORDINATE: f64 = 32768.0;
 pub type Color = [u8; 4];
 pub type Point = [f64; 2];
@@ -54,6 +57,7 @@ pub enum ResourceProfile {
     #[default]
     Standard,
     LargeVector,
+    LargeRaster,
 }
 impl ResourceProfile {
     pub fn is_standard(&self) -> bool {
@@ -63,18 +67,21 @@ impl ResourceProfile {
         match self {
             Self::Standard => MAX_ITEMS,
             Self::LargeVector => MAX_LARGE_VECTOR_ITEMS,
+            Self::LargeRaster => MAX_LARGE_RASTER_ITEMS,
         }
     }
     pub fn commands(self) -> usize {
         match self {
             Self::Standard => MAX_SEGMENTS,
             Self::LargeVector => MAX_LARGE_VECTOR_COMMANDS,
+            Self::LargeRaster => MAX_LARGE_RASTER_COMMANDS,
         }
     }
     pub fn bytes(self) -> usize {
         match self {
             Self::Standard => MAX_DOCUMENT_BYTES,
             Self::LargeVector => MAX_LARGE_VECTOR_BYTES,
+            Self::LargeRaster => MAX_LARGE_RASTER_BYTES,
         }
     }
 }
@@ -493,9 +500,11 @@ pub fn validate_controlled(
 ) -> Result<(), Error> {
     control.check()?;
     let budget = document.resource_profile;
-    if !budget.is_standard() && document.kind != DocumentKind::Vector {
+    if (budget == ResourceProfile::LargeVector && document.kind != DocumentKind::Vector)
+        || (budget == ResourceProfile::LargeRaster && document.kind != DocumentKind::Raster)
+    {
         return Err(invalid(
-            "The large_vector resource profile requires a vector document",
+            "Resource profile must match document kind: large_vector for vector, large_raster for raster",
         ));
     }
     if ![1, 2].contains(&document.schema_version) {
@@ -821,6 +830,7 @@ pub fn validate_controlled(
                     ));
                 }
                 if document.kind != DocumentKind::Vector
+                    && budget != ResourceProfile::LargeRaster
                     && crate::artwork_masks::source_owner(document, i)?.is_none()
                 {
                     return Err(invalid(

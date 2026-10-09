@@ -835,6 +835,11 @@ pub fn import_controlled(
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
     control.check()?;
+    if resource_profile == ResourceProfile::LargeRaster {
+        return Err(crate::model::invalid(
+            "SVG import requires a vector resource profile",
+        ));
+    }
     let (max_bytes, max_nodes) = if resource_profile.is_standard() {
         (MAX_BYTES, MAX_NODES)
     } else {

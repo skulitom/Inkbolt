@@ -36,6 +36,21 @@ CONTRACTS = {
     'sparse-5000': ([('scene', 'document.publish')], ['scene', 'source-preservation']),
     'mixed-5001': ([('import', 'asset.import'), ('scene', 'document.publish')], ['scene', 'source-preservation']),
     'print-page': ([('page', 'document.publish'), ('preview', 'document.publish')], ['page', 'preview', 'source-preservation'])}
+WIDE_CASES = ('wide-mixed-native',)
+WIDE_HARNESS = HARNESS + ('tools/measure_extra.py', 'tools/measure_wide_native.py', 'tools/wide_native_workload.py')
+WIDE_CONTRACTS = {'wide-mixed-native': (
+    [('import', 'sample.import'), ('save', 'session.create'),
+     ('initial', 'document.publish'), ('edit', 'session.apply'),
+     ('edited', 'document.publish'), ('historical', 'document.publish'), ('verify', 'session.verify')],
+    ['initial', 'edited', 'historical', 'history-valid', 'revision-order', 'source-preservation'])}
+LAYOUT_CASES = ('mixed-native-5000',)
+LAYOUT_HARNESS = HARNESS + ('tools/measure_extra.py', 'tools/measure_native_layout.py', 'tools/native_layout_workload.py')
+LAYOUT_CONTRACTS = {'mixed-native-5000': WIDE_CONTRACTS['wide-mixed-native']}
+SUITES = {
+    'scale-v1': (CASES, HARNESS, CONTRACTS, ('native-tiled-v1', 'legacy-v1')),
+    'wide-native-v1': (WIDE_CASES, WIDE_HARNESS, WIDE_CONTRACTS, ('native-tiled-v1',)),
+    'native-layout-v1': (LAYOUT_CASES, LAYOUT_HARNESS, LAYOUT_CONTRACTS, ('native-tiled-v1',)),
+}
 
 
 def require(condition, message):
@@ -57,13 +72,14 @@ def hash_value(value):
 
 def summarize(report):
     """Recompute eligibility and metrics from every trial; ignore aggregate claims."""
-    require(report['schema_version'] == 1 and report['suite'] == 'scale-v1', 'Unknown measurement schema/suite')
-    require(report['adapter'] in ('native-tiled-v1', 'legacy-v1'), 'Unknown call adapter')
+    require(report['schema_version'] == 1 and report['suite'] in SUITES, 'Unknown measurement schema/suite')
+    cases, harness_files, contracts, adapters = SUITES[report['suite']]
+    require(report['adapter'] in adapters, 'Unknown call adapter for this suite')
     require(report['model_trials'] is False, 'Model trials need their own gate')
     require(all(report[k] is True for k in ('valid_inputs', 'source_unchanged',
             'candidate_files_unchanged', 'executable_unchanged', 'environment_unchanged')), 'Measurement inputs changed or are unverified')
     require(report['outcome'] == 'all_selected_workloads_passed', 'Measurement contains failed workloads')
-    require(report['selected_cases'] == list(CASES), 'Gate requires every fixed workload in canonical order')
+    require(report['selected_cases'] == list(cases), 'Gate requires every fixed workload in canonical order')
     repetitions = report['repetitions']
     require(type(repetitions) is int and 5 <= repetitions <= 10, 'At least five complete repetitions required')
     require(hash_value(report['source_sha256']), 'Missing measured source identity')
@@ -83,12 +99,12 @@ def summarize(report):
             and type(environment['logical_cpus']) is int and environment['logical_cpus'] > 0, 'Invalid machine dimensions')
     require(isinstance(report['conditions'], str) and report['conditions'].strip(), 'Missing measurement conditions')
     require(isinstance(report['toolchain'], str) and report['toolchain'], 'Missing compiler identity')
-    harness = {p: report['candidate_files'][p] for p in HARNESS}
+    harness = {p: report['candidate_files'][p] for p in harness_files}
     require(all(hash_value(v) for v in harness.values()), 'Missing fixture/oracle identity')
     rows = report['rows']
-    expected = {(name, n) for name in CASES for n in range(1, repetitions+1)}
+    expected = {(name, n) for name in cases for n in range(1, repetitions+1)}
     require(len(rows) == len(expected), 'Incomplete or duplicate trials')
-    seen, groups = set(), {name: [] for name in CASES}
+    seen, groups = set(), {name: [] for name in cases}
     for row in rows:
         key = (row['case'], row['repetition'])
         require(type(row['repetition']) is int and key in expected and key not in seen,
@@ -99,8 +115,8 @@ def summarize(report):
         require(row['memory_complete'] is True, 'Missing memory measurement')
         calls, checks = row['calls'], row['checks']
         require(calls and checks and row['process_calls'] == len(calls), 'Missing command/oracle records')
-        require([(c['step'], c['command']) for c in calls] == CONTRACTS[row['case']][0]
-                and [c['name'] for c in checks] == CONTRACTS[row['case']][1], 'Workload steps or correctness checks changed')
+        require([(c['step'], c['command']) for c in calls] == contracts[row['case']][0]
+                and [c['name'] for c in checks] == contracts[row['case']][1], 'Workload steps or correctness checks changed')
         require(all(c['status'] == 'pass' for c in checks)
                 and any(c['name'] == 'source-preservation' for c in checks), 'Failed/missing correctness or source check')
         for call in calls:
@@ -129,9 +145,10 @@ def summarize(report):
                          for name, values in groups.items()})
 
 
-def limits(metrics):
+def limits(metrics, cases=CASES):
+    require(set(metrics) == set(cases), 'Baseline metrics do not match the fixed suite')
     result = {}
-    for name in CASES:
+    for name in cases:
         row = metrics[name]
         require(all(positive(row[k]) for k in ('median_seconds', 'maximum_seconds', 'peak_commit_bytes')),
                 'Invalid baseline metric')
@@ -150,8 +167,8 @@ def create(report, report_sha256, reason):
                 baseline_report_sha256=report_sha256, baseline_source_sha256=report['source_sha256'],
                 baseline_executable_sha256=report['build']['executable_sha256'],
                 baseline_conditions=report['conditions'], selection_reason=reason,
-                baseline=summary, limits=limits(summary['metrics']),
-                scope='Fixed scale-v1 regression budgets on the recorded environment; not full A5 or model-task acceptance')
+                baseline=summary, limits=limits(summary['metrics'], SUITES[summary['suite']][0]),
+                scope=f"Fixed {summary['suite']} regression budgets on the recorded environment; not full A5 or model-task acceptance")
 
 
 def evaluate(gate, report):
@@ -160,13 +177,15 @@ def evaluate(gate, report):
     require(hash_value(gate['baseline_report_sha256']) and hash_value(gate['baseline_source_sha256'])
             and hash_value(gate['baseline_executable_sha256']), 'Missing baseline identity')
     baseline = gate['baseline']
-    require(baseline['suite'] == 'scale-v1' and 5 <= baseline['repetitions'] <= 10, 'Invalid gate baseline')
-    require(gate['limits'] == limits(baseline['metrics']), 'Budgets disagree with the recorded policy/baseline')
+    require(baseline['suite'] in SUITES and type(baseline['repetitions']) is int
+            and 5 <= baseline['repetitions'] <= 10, 'Invalid gate baseline')
+    cases = SUITES[baseline['suite']][0]
+    require(gate['limits'] == limits(baseline['metrics'], cases), 'Budgets disagree with the recorded policy/baseline')
     current = summarize(report)
     for key in ('suite', 'adapter', 'environment', 'toolchain', 'harness'):
         require(current[key] == baseline[key], f'Incomparable {key}; retain the result and review a new baseline')
     comparisons = []
-    for name in CASES:
+    for name in cases:
         observed, allowed = current['metrics'][name], gate['limits'][name]
         comparisons.append(dict(case=name, observed=observed, limits=allowed,
                                 exceeded=[k for k in allowed if observed[k] > allowed[k]]))
