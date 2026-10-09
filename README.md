@@ -4,7 +4,7 @@ An original local vector and raster editing engine for agents. Cutbolt handles t
 
 **Engine scope: 161/167 independently verified checkpoints (96.41%).** Six checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
 
-Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults and pinned saved-document references reduce repeated context. Compact results, durable jobs and larger raster workloads remain on that plan.
+Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references and optional compact session responses reduce repeated context. Paged inspection, focused previews, durable jobs and larger raster workloads remain on that plan.
 
 ## Start locally
 
@@ -20,6 +20,8 @@ cargo build --locked
 For an MCP client, use [the configuration example](examples/mcp-config.json) with your executable path. The compact catalog exposes everyday tools and a dispatcher for every engine command. Existing clients can keep `inkbolt mcp` or explicitly select `mcp --tools full`. See [discovery and schemas](docs/AGENT_DISCOVERY.md).
 
 Add `--workspace C:\Work\Graphics` before `mcp` or a request file to select an existing workspace with default session/resource stores. Snapshot arguments can reference an exact saved revision, for example `{"session_id":"poster","revision":3}`. See [workspaces and references](docs/AGENT_WORKSPACE.md) for path, resource and compatibility rules.
+
+Set `response_mode:"compact"` on session creation, reads, edits and receipt recovery to receive pinned references and summaries. Full responses remain the default; see [compact responses](docs/AGENT_RESPONSES.md).
 
 Send one JSON request on stdin, or pass one request file. Discover one operation without loading the complete schema:
 

@@ -1,6 +1,6 @@
 # Agent discovery
 
-Use `inkbolt mcp --tools core` for new agent connections. It lists fifteen everyday tools plus `inkbolt_run`, within a tested 96 KiB catalog budget. `inkbolt mcp` and `inkbolt mcp --tools full` retain the full per-command catalog for existing clients. Both modes use the same typed executor, editing semantics, output envelopes, images, cancellation and session receipts. The compact mode changes discovery only; it does not yet shorten command results.
+Use `inkbolt mcp --tools core` for new agent connections. It lists fifteen everyday tools plus `inkbolt_run`, within a tested 96 KiB catalog budget. `inkbolt mcp` and `inkbolt mcp --tools full` retain the full per-command catalog for existing clients. Both modes use the same typed executor, editing semantics, output envelopes, images, cancellation and session receipts. Catalog mode changes discovery only. Use the separate [response mode](AGENT_RESPONSES.md) to shorten durable session replies.
 
 The everyday tools cover document creation, inspection, object queries, edits and previews; session creation, reads, edits, receipts, history, comparisons and publication; image/font import; and focused schema lookup. Specialist commands remain available through `inkbolt_run`:
 
@@ -24,7 +24,7 @@ Both catalogs retain deterministic eight-tool pagination. Cursors belong to thei
 {"command":"schema.lookup","name":"document.edit","select":"Operation","full":true}
 ```
 
-`name` accepts any engine command or a shared type alias: `document`, `operation`, `action`, `item`, `content`, `geometry`, `paint`, `resources`. Command schemas contain arguments without the command tag; they do not include MCP presentation fields. Top-level snapshot arguments include a pinned saved-revision alternative. A configured workspace adjusts defaultable roots before outlines and sizes are calculated; see [workspaces and references](AGENT_WORKSPACE.md). Shared type aliases and the legacy full schema retain the typed inline-snapshot contract.
+`name` accepts any engine command or a shared type alias: `document`, `operation`, `action`, `item`, `content`, `geometry`, `paint`, `resources`. Command schemas describe the shared JSON interface without the command tag; they do not include MCP-specific text presentation fields. Top-level snapshot arguments include pinned saved-revision and hashed-file alternatives, and supported session commands include `response_mode`. A configured workspace adjusts defaultable roots before outlines and sizes are calculated; see [workspaces and references](AGENT_WORKSPACE.md). Shared type aliases and the legacy full schema retain the typed inline-snapshot contract.
 
 Results report `detail`, `name`, `select` and the serialized `schema_bytes`. Schemas through 12 KiB return `detail:"full"` and `schema`, including every referenced definition. Larger schemas return `detail:"outline"`, fields, tagged variants and reachable definition names. An outline is not a validation schema. `full:true` always requests the complete selected schema. The index is already complete and rejects `select` and `full:true`.
 

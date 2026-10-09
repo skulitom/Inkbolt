@@ -57,6 +57,7 @@ pub mod repair;
 pub mod repeats;
 pub mod request;
 mod resample;
+pub mod responses;
 pub mod retouch;
 pub mod sample_convert;
 pub mod sample_import;
@@ -1419,11 +1420,13 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "workspace_flag":"--workspace ABSOLUTE_DIRECTORY",
                 "workspace_position":"before_request_file_or_mcp",
                 "saved_document":{"fields":["session_id","revision","session_root"],"revision":"required_immutable_committed_revision","session_root":"required_without_workspace","placement":"top_level_document_before_after_arguments","resources":"inherit_saved_bindings_including_null_unless_explicitly_overridden","nested_transfer_source":false},
+                "document_file":{"fields":["file_path","sha256"],"sha256":"required_lowercase_hex_of_exact_bytes","source":"one_inline_snapshot_JSON","file_bytes":MAX_REQUEST_BYTES,"resources":"explicit_or_workspace_defaults","recursive_references":false,"create_only_output":"document.publish_or_session.publish_with_format_snapshot"},
                 "json_library_api":"request::execute",
                 "typed_library_api":"execute_and_execute_controlled_keep_inline_snapshots",
                 "request_bytes":MAX_REQUEST_BYTES,"expanded_request_bytes":MAX_REQUEST_BYTES,
                 "workspace_is_os_sandbox":false
             });
+            capabilities["agent_outputs"] = json!({"response_mode_default":"full","compact_commands":responses::COMMANDS,"compact_target_bytes":responses::COMPACT_TARGET_BYTES,"compact_target_scope":"ordinary_result_JSON;long_explicit_paths_can_exceed_target","compact_omissions":["document","receipt.changes","snapshots"],"compact_recovery":"pinned_document_ref_and_receipt_ref;request_response_mode_full","presentation_in_retry_fingerprint":false,"inline_snapshot_results":"full_only"});
             Ok(capabilities)
         }
         Request::Schema {} => Ok(schema::full().clone()),

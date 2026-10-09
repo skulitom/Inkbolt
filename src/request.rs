@@ -21,6 +21,78 @@ pub struct SavedDocument {
     pub session_root: Option<PathBuf>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DocumentFile {
+    /// A published snapshot JSON file; workspace-relative or otherwise absolute.
+    pub file_path: PathBuf,
+    /// SHA-256 of the exact file bytes, from a publication receipt or independent hash.
+    pub sha256: String,
+}
+
+pub fn file_schema() -> Value {
+    let mut schema = json!(schemars::schema_for!(DocumentFile));
+    schema["properties"]["sha256"]["pattern"] = json!("^[0-9a-f]{64}$");
+    schema
+}
+
+fn load_file(
+    reference: DocumentFile,
+    workspace: Option<&Workspace>,
+    control: &Control,
+    replayable: bool,
+) -> Result<Value, Error> {
+    if reference.sha256.len() != 64
+        || !reference
+            .sha256
+            .bytes()
+            .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+    {
+        return Err(invalid(
+            "Document file sha256 must contain 64 lowercase hexadecimal characters",
+        ));
+    }
+    let path = match workspace {
+        Some(workspace) => workspace.resolve(&reference.file_path)?,
+        None => {
+            crate::assets::absolute(&reference.file_path)?;
+            reference.file_path
+        }
+    };
+    if path.as_os_str().len() > 4096 {
+        return Err(Error::new(
+            "RESOURCE_LIMIT",
+            "Document file path exceeds 4096 characters",
+        ));
+    }
+    let bytes =
+        crate::assets::read_bounded(&path, crate::MAX_REQUEST_BYTES).map_err(|mut error| {
+            if error.code == "RESOURCE_LIMIT" {
+                error.message = "Document file exceeds 16 MiB".into();
+            }
+            error
+        })?;
+    // Do not restart deadlines or reread the file after checking its content identity.
+    if !replayable {
+        control.check()?;
+    }
+    if crate::assets::sha256(&bytes) != reference.sha256 {
+        return Err(Error::new(
+            "SOURCE_MISMATCH",
+            "Document file bytes differ from the pinned sha256; inspect the source and use its intended revision",
+        ));
+    }
+    let document = decode(&bytes).map_err(|_| {
+        Error::new(
+            "INVALID_DOCUMENT_FILE",
+            "Document file must contain one JSON snapshot without duplicate keys",
+        )
+    })?;
+    // References and response envelopes are never followed recursively from a file.
+    serde_json::from_value::<crate::Document>(document.clone()).map_err(|_| Error::new("INVALID_DOCUMENT_FILE", "Document file must contain an inline document snapshot, not a reference or response envelope"))?;
+    Ok(document)
+}
+
 pub fn reference_schema() -> Value {
     let mut schema = json!(schemars::schema_for!(SavedDocument));
     schema["properties"]["session_root"]["type"] = json!("string");
@@ -39,7 +111,7 @@ pub(crate) fn describe_arguments(schema: &mut Value) {
     if let Some(properties) = schema.get_mut("properties").and_then(Value::as_object_mut) {
         for property in properties.values_mut() {
             if property.get("$ref").and_then(Value::as_str) == Some("#/$defs/Document") {
-                *property = json!({"anyOf":[property.clone(),reference_schema()],"description":"Inline snapshot or an explicit saved session revision. Saved resource bindings are inherited unless overridden."});
+                *property = json!({"anyOf":[property.clone(),reference_schema(),file_schema()],"description":"Inline snapshot, exact saved session revision, or snapshot file pinned by SHA-256. Saved session resource bindings are inherited unless overridden; files use explicit or workspace roots."});
             }
         }
     }
@@ -91,17 +163,18 @@ pub fn execute(
             "Engine arguments exceed 16 MiB",
         ));
     }
+    let response_mode = crate::responses::take(&mut value)?;
     // Inline requests without a workspace need no generated schema or path preparation.
     let has_reference = value.as_object().is_some_and(|object| {
         object
             .values()
-            .any(|field| field.get("session_id").is_some())
+            .any(|field| field.get("session_id").is_some() || field.get("file_path").is_some())
     });
     if workspace.is_none() && !has_reference {
         let request = serde_json::from_value(value).map_err(|_| {
             invalid("Arguments must match the command schema; inspect schema.lookup")
         })?;
-        return crate::execute_controlled(request, context);
+        return crate::responses::execute(request, context, response_mode);
     }
     let command = value
         .get("command")
@@ -135,6 +208,17 @@ pub fn execute(
         .map(|(name, _)| name.clone())
         .collect();
     for field in document_fields {
+        if value
+            .get(&field)
+            .is_some_and(|d| d.get("file_path").is_some())
+        {
+            let reference: DocumentFile =
+                serde_json::from_value(value[&field].clone()).map_err(|_| {
+                    invalid("Document file requires file_path and sha256, without extra fields")
+                })?;
+            value[&field] = load_file(reference, workspace, &context, replayable)?;
+            continue;
+        }
         if !value
             .get(&field)
             .is_some_and(|d| d.get("session_id").is_some())
@@ -184,7 +268,7 @@ pub fn execute(
     }
     let request: Request = serde_json::from_value(value)
         .map_err(|_| invalid("Arguments must match the command schema; inspect schema.lookup"))?;
-    let mut result = crate::execute_controlled(request, &context)?;
+    let mut result = crate::responses::execute(request, &context, response_mode)?;
     if let Some(w) = workspace
         && command == "capabilities"
     {

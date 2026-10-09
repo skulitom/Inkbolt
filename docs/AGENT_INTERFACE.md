@@ -4,6 +4,8 @@ For compact MCP discovery and focused `schema.lookup` queries, see [agent discov
 
 Use an explicit [workspace](AGENT_WORKSPACE.md) for default resource/session roots and relative runtime paths. Top-level snapshot inputs also accept exact saved revision references; the same JSON preparation and typed execution serve CLI and MCP.
 
+Snapshot file references require a path and exact byte hash from create-only publication. Durable session commands accept optional [compact responses](AGENT_RESPONSES.md), retaining pinned recovery references while omitting repeated snapshot bodies. Full responses remain the default.
+
 Native layered exchange now maps nested normal/pass-through folders to explicit parent references, validates balanced boundaries and keeps empty groups without manufacturing pixels. Native import/export, declared loss receipts and durable agent workflows share this contract. Extended interchange remains partial and uncredited; larger axes, masks, text and embedded objects are still required.
 
 Use `format:"layered_large"` for explicit version-two native publication with `.psb`; `layered.import` detects either supported container version. Discover both formats and current axis/storage limits through `capabilities.layered_interchange`. This partial extension does not complete the extended checkpoint.

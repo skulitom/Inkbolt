@@ -130,6 +130,7 @@ pub(crate) fn request_variant(command: &str) -> Option<&'static Value> {
 pub fn arguments(command: &str, compact: bool) -> Option<Value> {
     let mut value = typed_arguments(command, false)?;
     crate::request::describe_arguments(&mut value);
+    crate::responses::describe(command, &mut value);
     Some(complete(value, compact))
 }
 

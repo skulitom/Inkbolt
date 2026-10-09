@@ -139,6 +139,7 @@ impl Workspace {
 }
 
 const PATH_FIELDS: &[&str] = &[
+    "file_path",
     "source_path",
     "recipe_path",
     "license_path",

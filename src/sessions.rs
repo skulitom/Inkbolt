@@ -494,7 +494,16 @@ pub fn create(
 ) -> Result<Value, Error> {
     id(request_id)?;
     let target = store_path(root, session_id)?;
-    model::validate_controlled(document, control)?;
+    let existed = target
+        .try_exists()
+        .map_err(|_| Error::new("IO_ERROR", "Unable to inspect session destination"))?;
+    // Validate typed input even on replay: optional NaN fields can serialize identically to null.
+    // A committed retry uses bounded validation without a newly cancelled/expired context.
+    if existed {
+        model::validate(document)?;
+    } else {
+        model::validate_controlled(document, control)?;
+    }
     resources.validate()?;
     let fingerprint = assets::sha256(&encode(
         &json!({"type":"create","document":document,"resources":resources}),
@@ -517,10 +526,7 @@ pub fn create(
         }
         response(&tx, &meta, receipt, true)
     };
-    if target
-        .try_exists()
-        .map_err(|_| Error::new("IO_ERROR", "Unable to inspect session destination"))?
-    {
+    if existed {
         return existing();
     }
     control.check()?;
