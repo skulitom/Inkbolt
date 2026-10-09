@@ -36,7 +36,7 @@ pub(super) fn checked_path(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-pub(super) fn no_sidecars(path: &Path) -> Result<(), Error> {
+pub(crate) fn no_sidecars(path: &Path) -> Result<(), Error> {
     for suffix in ["-journal", "-wal", "-shm"] {
         let mut name = path.as_os_str().to_owned();
         name.push(suffix);
@@ -147,6 +147,36 @@ pub(super) fn publish(temp: &Path, target: &Path, control: &Control) -> Result<(
     }
 }
 
+/// A fully checked, flushed history copy. The owning temporary is removed on drop.
+pub(crate) struct PreparedHistory {
+    temp: Temporary,
+    pub target: PathBuf,
+    pub identity: Source,
+    pub receipt: Value,
+}
+impl PreparedHistory {
+    pub(super) fn new(temp: Temporary, target: PathBuf, identity: Source, receipt: Value) -> Self {
+        Self {
+            temp,
+            target,
+            identity,
+            receipt,
+        }
+    }
+    pub(crate) fn staging_path(&self) -> &Path {
+        &self.temp.0
+    }
+    pub(super) fn publish(self, control: &Control, _fault_prefix: &str) -> Result<Value, Error> {
+        #[cfg(test)]
+        super::fault_point(&format!("{_fault_prefix}_before_publish"));
+        publish(&self.temp.0, &self.target, control)?;
+        #[cfg(test)]
+        super::fault_point(&format!("{_fault_prefix}_after_publish"));
+        // Publication is the commit point: no fallible work or cancellation afterwards.
+        Ok(self.receipt)
+    }
+}
+
 pub fn create(
     root: &Path,
     session_id: &str,
@@ -154,6 +184,16 @@ pub fn create(
     output: &Output,
     control: &Control,
 ) -> Result<Value, Error> {
+    prepare_backup(root, session_id, expected_revision, output, control)?.publish(control, "backup")
+}
+
+pub(crate) fn prepare_backup(
+    root: &Path,
+    session_id: &str,
+    expected_revision: u64,
+    output: &Output,
+    control: &Control,
+) -> Result<PreparedHistory, Error> {
     control.check()?;
     let target = output_path(output)?;
     // Pin a read snapshot so concurrent commits cannot restart the stepped copy.
@@ -212,13 +252,7 @@ pub fn create(
     let mut source = identity(&temp.0, control)?;
     source.file_path = target.clone();
     let result = json!({"created":true,"backup":source,"session":verified,"history_preserved":true,"resources_copied":false,"external_resources_verified":false,"source_changed":false,"migration_performed":false});
-    #[cfg(test)]
-    super::fault_point("backup_before_publish");
-    publish(&temp.0, &target, control)?;
-    #[cfg(test)]
-    super::fault_point("backup_after_publish");
-    // Publication is the commit point: no fallible work or cancellation afterwards.
-    Ok(result)
+    Ok(PreparedHistory::new(temp, target, source, result))
 }
 
 pub fn recover(
@@ -227,6 +261,15 @@ pub fn recover(
     source: &Source,
     control: &Control,
 ) -> Result<Value, Error> {
+    prepare_recovery(root, session_id, source, control)?.publish(control, "recovery")
+}
+
+pub(crate) fn prepare_recovery(
+    root: &Path,
+    session_id: &str,
+    source: &Source,
+    control: &Control,
+) -> Result<PreparedHistory, Error> {
     control.check()?;
     checked_path(root)?;
     validate_source(source)?;
@@ -237,12 +280,11 @@ pub fn recover(
     let temp = copy_source(root, source, control)?;
     let verified = inspect(&temp.0, session_id, control)?;
     let result = json!({"created":true,"session_id":session_id,"session_root":root,"database":target,"source":source,"session":verified,"history_preserved":true,"resources_copied":false,"external_resources_verified":false,"source_changed":false,"migration_performed":false});
-    #[cfg(test)]
-    super::fault_point("recovery_before_publish");
-    publish(&temp.0, &target, control)?;
-    #[cfg(test)]
-    super::fault_point("recovery_after_publish");
-    Ok(result)
+    let identity = Source {
+        file_path: target.clone(),
+        ..source.clone()
+    };
+    Ok(PreparedHistory::new(temp, target, identity, result))
 }
 
 pub(super) fn validate_source(source: &Source) -> Result<(), Error> {

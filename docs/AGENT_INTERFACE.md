@@ -376,3 +376,6 @@ Explicit large vector documents use the persisted `resource_profile` field and p
 Use `job.start` with a request ID, inline or pinned document, and existing publication options. `job.status` and bounded `job.wait` return compact progress; `job.result` returns the full historical receipt. Cancel explicitly with `job.cancel`, and resume stalled or interrupted work with `job.resume`. Defaults, pinned resources/builds, bounds and cancellation ordering are documented in [JOBS.md](JOBS.md). Ordinary publication remains synchronous.
 
 After losing request IDs, use `job.list` to rediscover retained work in the selected root. Follow its bounded pages with the same limit, then inspect a chosen job with `job.status`. Listing preserves its initial admission membership while saved progress may change between pages; it never starts or resumes work.
+
+
+Optional `receipt:{request_id,receipt_root}` is available on `session.backup`, `session.recover` and `session.migrate`, as on document/session publication. Inspect or finish lost responses with `publication.receipt`/`publication.recover`; workspace defaults and explicit roots share the same behavior. The receipt describes historical creation, so restoration recovery preserves any later edits. Use `session.verify` for current integrity. See [publication receipts](PUBLICATION_RECEIPTS.md).

@@ -1,5 +1,6 @@
 //! Durable prepared receipts and exact-file recovery for create-only publication.
 mod file_identity;
+pub mod history;
 mod store;
 #[cfg(all(test, windows))]
 mod tests;
@@ -79,6 +80,8 @@ enum Phase {
 #[serde(deny_unknown_fields)]
 struct Record {
     version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    history: Option<history::Kind>,
     request_id: String,
     fingerprint: String,
     phase: Phase,
@@ -93,21 +96,29 @@ impl Record {
     fn validate(&self, id: &str) -> Result<(), Error> {
         checked_path(&self.target).map_err(|_| corrupt("Invalid saved destination"))?;
         checked_path(&self.staging_path).map_err(|_| corrupt("Invalid saved staging path"))?;
-        if self.version != 1
+        let (version, maximum, identity_matches) = match self.history {
+            None => (
+                1,
+                publish::MAX_OUTPUT_BYTES as u64,
+                self.receipt["path"] == json!(self.target)
+                    && self.receipt["bytes"] == self.bytes
+                    && self.receipt["sha256"] == self.sha256,
+            ),
+            Some(kind) => (2, crate::sessions::MAX_DATABASE_BYTES, kind.matches(self)),
+        };
+        if self.version != version
+            || !identity_matches
             || self.request_id != id
             || !crate::model::valid_id(id)
             || !valid_hash(&self.fingerprint)
             || !valid_hash(&self.sha256)
-            || self.bytes > publish::MAX_OUTPUT_BYTES as u64
+            || self.bytes > maximum
             || self.target.parent() != self.staging_path.parent()
             || self.target == self.staging_path
             || !self.staging_path.file_name().is_some_and(|s| {
                 s.to_string_lossy().starts_with(".inkbolt-publication-")
                     && s.to_string_lossy().ends_with(".tmp")
             })
-            || self.receipt["path"] != json!(self.target)
-            || self.receipt["bytes"] != self.bytes
-            || self.receipt["sha256"] != self.sha256
             || self.receipt["created"] != true
         {
             return Err(corrupt(
@@ -245,17 +256,28 @@ fn resume_transaction(
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
         Err(_) => return Err(io("Unable to inspect publication destination")),
     };
-    // Already-published work wins late cancellation. Verification remains bounded.
-    let committed_control = Control::default();
-    verify_file(
-        &mut stage,
-        &record,
-        if target_exists {
-            &committed_control
-        } else {
-            control
-        },
-    )?;
+    // A restored database can legitimately change after the creation link. Its
+    // retained physical identity witnesses that creation, not its current contents.
+    if target_exists && record.history == Some(history::Kind::Restore) {
+        if file_identity::identify(&stage)? != record.file_identity {
+            return Err(Error::new(
+                "PUBLICATION_CONFLICT",
+                "Restoration staging identity differs from the prepared receipt",
+            ));
+        }
+    } else {
+        // Already-published work wins late cancellation. Verification remains bounded.
+        let committed_control = Control::default();
+        verify_file(
+            &mut stage,
+            &record,
+            if target_exists {
+                &committed_control
+            } else {
+                control
+            },
+        )?;
+    }
     if target_exists {
         let target = regular(&record.target)?;
         if file_identity::identify(&target)? != record.file_identity {
@@ -279,6 +301,9 @@ fn resume_transaction(
         #[cfg(test)]
         fault_point("before_publish");
         control.check()?;
+        if record.history.is_some() {
+            crate::sessions::backup::no_sidecars(&record.target)?;
+        }
         fs::hard_link(&record.staging_path, &record.target).map_err(|e| {
             if e.kind() == std::io::ErrorKind::AlreadyExists {
                 Error::new(
@@ -352,7 +377,7 @@ fn publish_prepared(
         }
         Err(error) => return Err(error),
     };
-    let mut stage = Stage::reserve(prepared.target.parent().unwrap(), ".inkbolt-publication-")?;
+    let stage = Stage::reserve(prepared.target.parent().unwrap(), ".inkbolt-publication-")?;
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -376,6 +401,7 @@ fn publish_prepared(
     prepared.receipt["created"] = json!(true);
     let record = Record {
         version: 1,
+        history: None,
         request_id: target.request_id.clone(),
         fingerprint: fingerprint.into(),
         phase: Phase::Prepared,
@@ -387,6 +413,15 @@ fn publish_prepared(
         receipt: prepared.receipt,
     };
     drop(file);
+    commit_prepared(target, fingerprint, record, stage, control)
+}
+fn commit_prepared(
+    target: &ReceiptTarget,
+    fingerprint: &str,
+    record: Record,
+    mut stage: Stage,
+    control: &Control,
+) -> Result<Value, Error> {
     record.validate(&target.request_id)?;
     encode(&record)?;
     #[cfg(test)]

@@ -1,4 +1,6 @@
 use super::*;
+#[path = "history_tests.rs"]
+mod history;
 use std::{
     process::{Child, Command, Stdio},
     time::{Duration, Instant},
@@ -93,6 +95,9 @@ fn target(root: &Path) -> ReceiptTarget {
     }
 }
 fn request(root: &Path) -> crate::Request {
+    if root.join("request.json").exists() {
+        return serde_json::from_slice(&fs::read(root.join("request.json")).unwrap()).unwrap();
+    }
     serde_json::from_value(json!({"command":"document.publish","document":{"schema_version":2,"id":"source","kind":"raster","width":2,"height":2,"color_space":"srgb"},
         "output":{"output_root":root,"file_name":"result.png","format":"png"},"receipt":target(root)})).unwrap()
 }

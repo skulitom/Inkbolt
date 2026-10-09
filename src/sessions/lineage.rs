@@ -219,6 +219,17 @@ pub fn migrate(
     output: &backup::Output,
     control: &Control,
 ) -> Result<Value, Error> {
+    prepare_migration(session_id, source, target_version, output, control)?
+        .publish(control, "migration")
+}
+
+pub(crate) fn prepare_migration(
+    session_id: &str,
+    source: &backup::Source,
+    target_version: i64,
+    output: &backup::Output,
+    control: &Control,
+) -> Result<backup::PreparedHistory, Error> {
     control.check()?;
     id(session_id)?;
     if target_version != STORE_VERSION {
@@ -262,10 +273,5 @@ pub fn migrate(
     let mut identity = backup::identity(&temp.0, control)?;
     identity.file_path = target.clone();
     let result = json!({"created":true,"source":source,"backup":identity,"from_storage_version":1,"session":verified,"history_preserved":true,"resources_copied":false,"external_resources_verified":false,"source_changed":false,"migration_performed":true});
-    #[cfg(test)]
-    fault_point("migration_before_publish");
-    backup::publish(&temp.0, &target, control)?;
-    #[cfg(test)]
-    fault_point("migration_after_publish");
-    Ok(result)
+    Ok(backup::PreparedHistory::new(temp, target, identity, result))
 }

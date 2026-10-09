@@ -244,7 +244,13 @@ pub(crate) fn describe(schema: &mut Value) {
                 required.retain(|name| {
                     !matches!(
                         name.as_str(),
-                        Some("session_root" | "store_root" | "output_root")
+                        Some(
+                            "session_root"
+                                | "store_root"
+                                | "output_root"
+                                | "receipt_root"
+                                | "job_root"
+                        )
                     )
                 });
             }
@@ -253,7 +259,7 @@ pub(crate) fn describe(schema: &mut Value) {
                     if PATH_FIELDS.contains(&field.as_str())
                         && let Some(d) = definition.as_object_mut()
                     {
-                        d.insert("description".into(), json!("Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."));
+                        d.insert("description".into(), json!("Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."));
                     }
                 }
             }

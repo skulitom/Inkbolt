@@ -1640,6 +1640,7 @@ mod tests {
                     output_root: root.clone(),
                     file_name: "result.sqlite3".into(),
                 },
+                receipt: None,
                 control: Default::default(),
             }
         } else {
@@ -1647,6 +1648,7 @@ mod tests {
                 session_root: root.join("restored"),
                 session_id: "recovery".into(),
                 source: history_source(&root),
+                receipt: None,
                 control: Default::default(),
             }
         };
@@ -1734,6 +1736,7 @@ mod tests {
                     output_root: root.to_owned(),
                     file_name: "migrated.sqlite3".into(),
                 },
+                receipt: None,
                 control: Default::default(),
             }
         } else {

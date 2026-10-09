@@ -199,6 +199,9 @@ pub fn execute(
         command.as_str(),
         "session.create"
             | "session.continue"
+            | "session.backup"
+            | "session.recover"
+            | "session.migrate"
             | "session.apply"
             | "session.apply_proposal"
             | "document.publish"

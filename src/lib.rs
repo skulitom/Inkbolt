@@ -586,6 +586,8 @@ pub enum Request {
         expected_revision: u64,
         output: sessions::backup::Output,
         #[serde(default)]
+        receipt: Option<publications::ReceiptTarget>,
+        #[serde(default)]
         control: control::Options,
     },
     #[serde(rename = "session.recover")]
@@ -593,6 +595,8 @@ pub enum Request {
         session_root: PathBuf,
         session_id: String,
         source: sessions::backup::Source,
+        #[serde(default)]
+        receipt: Option<publications::ReceiptTarget>,
         #[serde(default)]
         control: control::Options,
     },
@@ -602,6 +606,8 @@ pub enum Request {
         source: sessions::backup::Source,
         target_version: i64,
         output: sessions::backup::Output,
+        #[serde(default)]
+        receipt: Option<publications::ReceiptTarget>,
         #[serde(default)]
         control: control::Options,
     },
@@ -1420,9 +1426,9 @@ fn capability_report() -> Value {
     capabilities["session_proposals"] = json!({"dry_run":"session.dry_run","apply":"session.apply_proposal","version":1,"actions":"all_session_actions","database_dry_run_access":"read_only","history_changed_by_dry_run":false,"bound_inputs":["session_id","request_id","expected_revision","request_fingerprint","base_state_sha256","result_state_sha256"],"comparison":"structural_with_optional_pixels","preview":"optional_full_canvas_PNG_at_scale_one","persistent_proposal_store":false,"proposal_is_authorization":false,"history_storage_and_receipt_limits":"shared_with_real_apply;filesystem_commit_can_still_fail"});
     capabilities["paged_inspection"] = json!({"command":"document.inspect.page","collections":["items","assets","fonts","anchors"],"maximum_records":inspection::MAX_PAGE_ITEMS,"maximum_result_bytes":inspection::MAX_PAGE_BYTES,"cursor":"document_content_and_view_and_limit_bound","order":"document_storage_for_items;id_for_resources;component_then_command_for_anchors","field_selection":true,"legacy_inspection":"unchanged","external_resources_verified":false});
     capabilities["document_checks"] = json!({"command":"document.check","report_version":1,"checks":["structure","pinned_resource_registries","authored_text_and_story_layout","retained_nested_snapshots","instance_replacement_content"],"maximum_issues":checks::MAX_ISSUES,"maximum_report_bytes":checks::MAX_REPORT_BYTES,"default_issues":64,"font_axes":"validated_even_for_empty_text","incomplete":"explicit_for_skipped_layouts_or_stopped_work","errors":"located_original_codes_and_repair_guidance","external_object_links":"not_read_or_refreshed","delivery_certificate":false,"source_changed":false});
-    capabilities["session_backups"] = json!({"commands":["session.backup","session.recover","session.migrate"],"storage_version":sessions::STORE_VERSION,"supported_storage_versions":sessions::SUPPORTED_STORE_VERSIONS,"maximum_database_bytes":sessions::MAX_DATABASE_BYTES,"capture":"expected_head_read_transaction;bounded_256_page_steps;writers_may_receive_SESSION_BUSY","verification":"whole_history_checksums_and_links;exact_head_and_history_identity;validated_copy_before_publication","publication":"create_only_hard_link;no_existing_destination_or_sidecars;late_cancellation_keeps_success","restore_identity":"exact_byte_length_and_sha256;original_session_id_preserved","retains":["immutable_states","undo_redo","named_snapshots","resource_bindings","retry_receipts"],"resources_copied":false,"external_resources_verified":false,"implicit_migration":false,"durable_publication_ledger":false,"hot_journal":"read_only_backup_requires_ordinary_session_recovery_first","orphans":"retained_after_crash;only_owned_live_temporary_files_cleaned"});
+    capabilities["session_backups"] = json!({"commands":["session.backup","session.recover","session.migrate"],"storage_version":sessions::STORE_VERSION,"supported_storage_versions":sessions::SUPPORTED_STORE_VERSIONS,"maximum_database_bytes":sessions::MAX_DATABASE_BYTES,"capture":"expected_head_read_transaction;bounded_256_page_steps;writers_may_receive_SESSION_BUSY","verification":"whole_history_checksums_and_links;exact_head_and_history_identity;validated_copy_before_publication","publication":"create_only_hard_link;no_existing_destination_or_sidecars;late_cancellation_keeps_success","restore_identity":"exact_byte_length_and_sha256;original_session_id_preserved","retains":["immutable_states","undo_redo","named_snapshots","resource_bindings","retry_receipts"],"resources_copied":false,"external_resources_verified":false,"implicit_migration":false,"durable_publication_ledger":true,"receipt_optional":true,"hot_journal":"read_only_backup_requires_ordinary_session_recovery_first","orphans":"retained_after_crash;only_owned_live_temporary_files_cleaned"});
     capabilities["session_continuation"] = json!({"command":"session.continue","parent":"exact_revision_in_hash_pinned_whole_history_backup","new_identity":true,"new_revision":0,"old_history":"preserved_in_parent_backup;not_copied_or_evicted","new_undo_redo_and_snapshots":"empty","resources":"original_bindings_retained;explicit_rebinding;no_external_resource_reads","lineage":"version_1_checksums_and_initial_receipt_link;returned_by_read_receipt_verify_and_compact_results","retry":"same_request_id_and_parent_identity;committed_receipt_survives_missing_parent","automatic_parent_traversal":false,"authentication":false});
-    capabilities["durable_publication"] = json!({"commands":["document.publish","session.publish"],"optional_argument":"receipt:{receipt_root,request_id}","inspection":"publication.receipt","recovery":"publication.recover","backend":"Windows_local_file_identity_and_SQLite_rollback_FULL","supported_here":cfg!(windows),"states":["prepared","complete"],"recovery_proof":"retained_staging_link;exact_bytes_sha256;volume_and_128bit_file_identity;identical_unrelated_bytes_rejected","request_identity":"normalized_typed_inputs_without_control","completed_retry":"original_receipt_without_reopening_sources_or_output","prepared_recovery":"publish_validated_staging_bytes;no_rerender","postpublication_store_failure":"successful_created_output_with_completion_pending_and_recovery_required","maximum_receipts":publications::MAX_RECORDS,"maximum_receipt_bytes":publications::MAX_RECEIPT_BYTES,"maximum_ledger_payload_bytes":publications::MAX_LEDGER_BYTES,"maximum_output_bytes":publish::MAX_OUTPUT_BYTES,"cleanup":"identified_owned_staging_after_completed_record;crash_or_uncertain_commit_evidence_retained","implicit_job_queue":false,"power_loss_guarantee":false});
+    capabilities["durable_publication"] = json!({"commands":["document.publish","session.publish","session.backup","session.recover","session.migrate"],"optional_argument":"receipt:{receipt_root,request_id}","inspection":"publication.receipt","recovery":"publication.recover","backend":"Windows_local_file_identity_and_SQLite_rollback_FULL","supported_here":cfg!(windows),"states":["prepared","complete"],"recovery_proof":"retained_staging_link;exact_bytes_sha256;volume_and_128bit_file_identity;identical_unrelated_bytes_rejected","request_identity":"normalized_typed_inputs_without_control","completed_retry":"original_receipt_without_reopening_sources_or_output","prepared_recovery":"publish_validated_staging_bytes;no_rerender","postpublication_store_failure":"successful_created_output_with_completion_pending_and_recovery_required","maximum_receipts":publications::MAX_RECORDS,"maximum_receipt_bytes":publications::MAX_RECEIPT_BYTES,"maximum_ledger_payload_bytes":publications::MAX_LEDGER_BYTES,"maximum_output_bytes":publish::MAX_OUTPUT_BYTES,"maximum_history_bytes":sessions::MAX_DATABASE_BYTES,"payload_versions":{"output":1,"history":2},"published_restoration":"historical_creation_proved_by_retained_and_destination_file_identity;new_edits_preserved;current_integrity_requires_session.verify","cleanup":"identified_owned_staging_after_completed_record;crash_or_uncertain_commit_evidence_retained","implicit_job_queue":false,"power_loss_guarantee":false});
     capabilities["session_migration"] = json!({"command":"session.migrate","supported":[{"from":1,"to":2}],"publication":"new_backup_only;no_in_place_or_implicit_upgrade","adds":"empty_checked_lineage_table","preserves":"all_original_rows_and_logical_history_sha256","restore":"session.recover_with_returned_backup_identity","downgrade":false});
     capabilities["jobs"] = jobs::capabilities();
     capabilities["job_process"] = json!({"interface":"Rust_library_worker_containment;used_by_durable_jobs","supported_here":cfg!(windows),"backend":"Windows_owned_job_object","cooperating_child_start_gate":true,"hidden":true,"active_processes":1,"default_lifetime_ms":job_process::Limits::default().lifetime_ms,"maximum_lifetime_ms":job_process::MAX_LIFETIME_MS,"default_committed_memory_mib":job_process::Limits::default().memory_mib,"maximum_committed_memory_mib":job_process::MAX_MEMORY_MIB,"deadline":"watchdog_independent_of_caller_polling","owner_process_death":"kill_on_job_close;before_assignment_startup_pipe_EOF","executable_identity":"exact_bytes_sha256;held_against_write_and_delete","process_identity":"PID_and_creation_time;unknown_access_never_assumed_dead","peak_memory":"OS_peak_committed_bytes;not_resident_set","elapsed":"launch_to_first_observed_exit;not_a_controlled_runtime_benchmark","durable_queue":false,"publication_reconciliation":false,"security_sandbox":false});
@@ -1471,6 +1477,9 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
         request,
         Request::SessionCreate { .. }
             | Request::SessionContinue { .. }
+            | Request::SessionBackup { .. }
+            | Request::SessionRecover { .. }
+            | Request::SessionMigrate { .. }
             | Request::Publish { .. }
             | Request::SessionPublish { .. }
             | Request::PublicationRecover { .. }
@@ -1964,38 +1973,74 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             session_id,
             expected_revision,
             output,
+            receipt,
             control,
-        } => sessions::backup::create(
-            &session_root,
-            &session_id,
-            expected_revision,
-            &output,
-            &context.scoped(&control)?,
-        ),
+        } => {
+            let control = context.scoped(&control)?;
+            match receipt {
+                Some(target) => publications::history::backup(
+                    &session_root,
+                    &session_id,
+                    expected_revision,
+                    &output,
+                    &target,
+                    &control,
+                ),
+                None => sessions::backup::create(
+                    &session_root,
+                    &session_id,
+                    expected_revision,
+                    &output,
+                    &control,
+                ),
+            }
+        }
         Request::SessionRecover {
             session_root,
             session_id,
             source,
+            receipt,
             control,
-        } => sessions::backup::recover(
-            &session_root,
-            &session_id,
-            &source,
-            &context.scoped(&control)?,
-        ),
+        } => {
+            let control = context.scoped(&control)?;
+            match receipt {
+                Some(target) => publications::history::restore(
+                    &session_root,
+                    &session_id,
+                    &source,
+                    &target,
+                    &control,
+                ),
+                None => sessions::backup::recover(&session_root, &session_id, &source, &control),
+            }
+        }
         Request::SessionMigrate {
             session_id,
             source,
             target_version,
             output,
+            receipt,
             control,
-        } => sessions::lineage::migrate(
-            &session_id,
-            &source,
-            target_version,
-            &output,
-            &context.scoped(&control)?,
-        ),
+        } => {
+            let control = context.scoped(&control)?;
+            match receipt {
+                Some(target) => publications::history::migrate(
+                    &session_id,
+                    &source,
+                    target_version,
+                    &output,
+                    &target,
+                    &control,
+                ),
+                None => sessions::lineage::migrate(
+                    &session_id,
+                    &source,
+                    target_version,
+                    &output,
+                    &control,
+                ),
+            }
+        }
         Request::SessionContinue {
             session_root,
             session_id,
