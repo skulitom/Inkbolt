@@ -337,6 +337,24 @@ fn description(command: &str) -> &'static str {
         "publication.recover" => {
             "Recover a prepared publication without rendering again. Verifies retained staging bytes and Windows file identity; publishes only to an absent destination, or recognizes the same already-published file. An unrelated destination with identical bytes is a conflict. Completed requests return their historical receipt even after output removal or timeout. Preserves altered/missing evidence and existing outputs."
         }
+        "job.start" => {
+            "Queue a durable create-only document export. Captures inline or pinned saved/file document inputs and validates resource identities. Returns a compact job ticket; the local Windows worker survives caller exit. Queue and resources remain local. Reuse the same request ID for retries; inspect job.status and job.result. Worker build is pinned per queue."
+        }
+        "job.status" => {
+            "Inspect bounded job progress, cancellation and output summary. Reconciles stopped workers with durable publication proof without creating an absent output. A queued job with no live supervisor needs explicit job.resume; inspection does not launch work."
+        }
+        "job.result" => {
+            "Return the full original publication result of a completed job, including actual format and loss receipts. Completion is historical; deleted outputs are not recreated."
+        }
+        "job.wait" => {
+            "Wait at most 30000 ms for job progress to reach a terminal or interrupted state. Cancelling this observation does not cancel the background job. Use job.cancel for that."
+        }
+        "job.cancel" => {
+            "Persist cancellation for this job. Queued work becomes cancelled; running work stops cooperatively with a bounded forced-stop grace. Publication wins when its atomic commit precedes cancellation. Inspect status until terminal."
+        }
+        "job.resume" => {
+            "Explicitly requeue interrupted or failed work using its original pinned inputs and build, within eight attempts. Also starts a queued job whose supervisor died. Completed and cancelled jobs are never rerun. Prepared output resumes from exact staged bytes."
+        }
         "artboard.export" => {
             "Return independent PNG/JPEG/TIFF/BMP/TGA/SVG exports for all artboards, ordered IDs or an end-exclusive range, optionally with bleed and format-specific image options. Returns no partial batch on failure."
         }
@@ -434,8 +452,14 @@ pub fn catalog_in_workspace(
                 | "session.publish"
                 | "document.publish"
                 | "publication.recover"
+                | "job.start"
+                | "job.status"
+                | "job.result"
+                | "job.wait"
+                | "job.cancel"
+                | "job.resume"
         );
-        let tool = json!({"name":name,"description":description(command),"inputSchema":input,"outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},"annotations":{"readOnlyHint":!mutable,"destructiveHint":matches!(command,"session.apply"|"session.apply_proposal"),"idempotentHint":true,"openWorldHint":false},"execution":{"taskSupport":"forbidden"}});
+        let tool = json!({"name":name,"description":description(command),"inputSchema":input,"outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},"annotations":{"readOnlyHint":!mutable,"destructiveHint":matches!(command,"session.apply"|"session.apply_proposal"),"idempotentHint":command!="job.resume","openWorldHint":false},"execution":{"taskSupport":"forbidden"}});
         tools.insert(name, (command.to_owned(), tool));
     }
     if mode == CatalogMode::Core {

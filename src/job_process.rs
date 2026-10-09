@@ -27,6 +27,14 @@ pub const MAX_EXECUTABLE_BYTES: u64 = 512 * 1024 * 1024;
 pub const MAX_LIFETIME_MS: u64 = 3_600_000;
 pub const MAX_MEMORY_MIB: u32 = 2048;
 const START_BYTE: u8 = 0xa7;
+pub(crate) fn release_start(mut output: impl std::io::Write) -> Result<(), Error> {
+    output.write_all(&[START_BYTE]).map_err(|_| {
+        failure(
+            "JOB_START_ABORTED",
+            "Worker exited before its start gate was released",
+        )
+    })
+}
 
 fn failure(code: &'static str, message: &str) -> Error {
     Error::new(code, message)
@@ -62,7 +70,7 @@ impl Executable {
             sha256,
         })
     }
-    fn verify(&self, control: &Control) -> Result<File, Error> {
+    pub(crate) fn verify(&self, control: &Control) -> Result<File, Error> {
         path(&self.path)?;
         if self.bytes == 0
             || self.bytes > MAX_EXECUTABLE_BYTES
@@ -187,13 +195,14 @@ pub enum ProcessState {
     NotRunning,
     Unknown,
 }
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StopReason {
     Cancelled,
     Deadline,
 }
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Report {
     pub process: ProcessIdentity,
     pub exit_code: Option<i32>,
@@ -237,6 +246,20 @@ pub fn spawn(
 #[cfg(windows)]
 pub fn process_state(identity: ProcessIdentity) -> Result<ProcessState, Error> {
     windows::process_state(identity)
+}
+#[cfg(windows)]
+pub(crate) fn child_identity(child: &std::process::Child) -> Result<ProcessIdentity, Error> {
+    use std::os::windows::io::AsRawHandle;
+    Ok(ProcessIdentity {
+        pid: child.id(),
+        created: windows::created(child.as_raw_handle())?,
+    })
+}
+#[cfg(all(test, windows))]
+pub(crate) fn identity_creation_for_test(
+    handle: std::os::windows::io::RawHandle,
+) -> Result<u64, Error> {
+    windows::created(handle)
 }
 
 // Keep platform availability explicit rather than silently weakening the same API.

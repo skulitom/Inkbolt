@@ -41,7 +41,36 @@ fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error>
 }
 
 fn start() -> Result<Option<Value>, Error> {
+    inkbolt::jobs::configure_cli_executable(
+        std::env::current_exe().map_err(|_| {
+            Error::new("IO_ERROR", "Unable to locate the current engine executable")
+        })?,
+    );
     let args: Vec<_> = std::env::args_os().skip(1).collect();
+    match args.as_slice() {
+        [flag, root, generation] if flag == "--job-worker" => {
+            let generation = generation
+                .to_str()
+                .and_then(|s| s.parse().ok())
+                .ok_or_else(|| Error::new("INVALID_REQUEST", "Invalid worker generation"))?;
+            inkbolt::job_process::await_start(std::io::stdin().lock())?;
+            inkbolt::jobs::run_worker(Path::new(root), generation)?;
+            return Ok(None);
+        }
+        [flag, root, id, attempt] if flag == "--job-run" => {
+            let id = id
+                .to_str()
+                .ok_or_else(|| Error::new("INVALID_REQUEST", "Invalid job ID"))?;
+            let attempt = attempt
+                .to_str()
+                .and_then(|s| s.parse().ok())
+                .ok_or_else(|| Error::new("INVALID_REQUEST", "Invalid attempt number"))?;
+            inkbolt::job_process::await_start(std::io::stdin().lock())?;
+            inkbolt::jobs::run_attempt(Path::new(root), id, attempt)?;
+            return Ok(None);
+        }
+        _ => {}
+    }
     let (workspace, args) = match args.as_slice() {
         [flag, root, rest @ ..] if flag == "--workspace" => {
             (Some(Workspace::open(Path::new(root))?), rest)

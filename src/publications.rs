@@ -270,6 +270,11 @@ fn resume_transaction(
     encode(&completed)?; // No new serialization/size decisions after publication.
     let complete_result = completed.result(root, replayed, true);
     let pending_result = completed.result(root, replayed, false);
+    #[cfg(all(test, windows))]
+    crate::jobs::test_checkpoint("publication_ready");
+    let mut permit = control.publication_permit(target_exists)?;
+    #[cfg(all(test, windows))]
+    crate::jobs::test_checkpoint("publication_locked");
     if !target_exists {
         #[cfg(test)]
         fault_point("before_publish");
@@ -287,9 +292,17 @@ fn resume_transaction(
     }
     #[cfg(test)]
     fault_point("after_publish");
+    #[cfg(all(test, windows))]
+    crate::jobs::test_checkpoint("published");
     // A completion-write failure cannot relabel published output as uncommitted.
     if store::complete(tx, &completed).is_err() {
+        if let Some(permit) = &mut permit {
+            let _ = permit.committed(&pending_result);
+        }
         return Ok(pending_result);
+    }
+    if let Some(permit) = &mut permit {
+        let _ = permit.committed(&complete_result);
     }
     record.phase = Phase::Complete;
     #[cfg(test)]
@@ -331,6 +344,7 @@ fn publish_prepared(
         return Ok(result);
     }
     control.check()?;
+    control.progress("rendering_and_encoding", 0, None);
     let mut prepared = match prepare() {
         Ok(prepared) => prepared,
         Err(error) if error.code == "OUTPUT_EXISTS" => {
@@ -344,10 +358,16 @@ fn publish_prepared(
         .write(true)
         .open(&stage.path)
         .map_err(|_| io("Unable to open publication staging file"))?;
-    for chunk in prepared.bytes.chunks(65536) {
+    control.progress("staging", 0, Some(prepared.bytes.len() as u64));
+    for (index, chunk) in prepared.bytes.chunks(65536).enumerate() {
         control.check()?;
         file.write_all(chunk)
             .map_err(|_| io("Unable to write publication staging file"))?;
+        control.progress(
+            "staging",
+            ((index + 1) * 65536).min(prepared.bytes.len()) as u64,
+            Some(prepared.bytes.len() as u64),
+        );
         #[cfg(test)]
         fault_point("during_write");
     }
@@ -480,6 +500,31 @@ pub fn recover(target: &ReceiptTarget, control: &Control) -> Result<Value, Error
         )
     })?;
     resume_transaction(tx, &target.receipt_root, record, true, control)
+}
+/// Reconcile a stopped worker without creating an output it never published.
+pub(crate) fn recover_published_only(
+    target: &ReceiptTarget,
+    control: &Control,
+) -> Result<Option<Value>, Error> {
+    validate_target(target, control)?;
+    let Some(mut db) = store::open(&target.receipt_root, false)? else {
+        return Ok(None);
+    };
+    let tx = db
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(store::sql)?;
+    let Some(record) = store::read(&tx, &target.request_id)? else {
+        return Ok(None);
+    };
+    if record.phase == Phase::Prepared {
+        control.check_path(&record.target)?;
+        match fs::symlink_metadata(&record.target) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(_) => return Err(io("Unable to inspect job publication")),
+            Ok(_) => {}
+        }
+    }
+    resume_transaction(tx, &target.receipt_root, record, true, control).map(Some)
 }
 #[cfg(test)]
 fn fault_point(stage: &str) {

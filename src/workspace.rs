@@ -123,6 +123,7 @@ impl Workspace {
         let relative = match field {
             "session_root" => ".inkbolt/sessions",
             "receipt_root" => ".inkbolt/publications",
+            "job_root" => ".inkbolt/jobs",
             "asset_root" => ".inkbolt/assets",
             "font_root" => ".inkbolt/fonts",
             "store_root" if command == "font.import" => ".inkbolt/fonts",
@@ -134,7 +135,7 @@ impl Workspace {
     }
 
     pub fn description(&self) -> Value {
-        json!({"root":self.root, "defaults":{"session_root":".inkbolt/sessions", "receipt_root":".inkbolt/publications", "asset_root":".inkbolt/assets", "font_root":".inkbolt/fonts", "image_store_root":".inkbolt/assets", "font_store_root":".inkbolt/fonts", "output_root":"."},
+        json!({"root":self.root, "defaults":{"session_root":".inkbolt/sessions", "receipt_root":".inkbolt/publications", "job_root":".inkbolt/jobs", "asset_root":".inkbolt/assets", "font_root":".inkbolt/fonts", "image_store_root":".inkbolt/assets", "font_store_root":".inkbolt/fonts", "output_root":"."},
             "relative_paths":true, "outside_paths":"rejected_after_link_resolution", "creates_directories":"only_when_the_underlying_write_command_requires_them", "sandbox":false})
     }
 }
@@ -147,6 +148,7 @@ const PATH_FIELDS: &[&str] = &[
     "cancel_file",
     "session_root",
     "receipt_root",
+    "job_root",
     "store_root",
     "asset_root",
     "font_root",

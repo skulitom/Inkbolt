@@ -23,8 +23,48 @@ pub struct Control {
     deadline: Option<Instant>,
     cancel_files: Vec<PathBuf>,
     workspace: Option<crate::workspace::Workspace>,
+    hooks: Option<Arc<dyn JobHooks>>,
+}
+pub(crate) trait PublicationPermit {
+    fn committed(&mut self, result: &serde_json::Value) -> Result<(), Error>;
+}
+pub(crate) trait JobHooks: Send + Sync {
+    fn progress(&self, phase: &'static str, completed: u64, total: Option<u64>);
+    fn before_publication(
+        &self,
+        already_published: bool,
+    ) -> Result<Box<dyn PublicationPermit>, Error>;
 }
 impl Control {
+    pub(crate) fn workspace_root(&self) -> Option<PathBuf> {
+        self.workspace.as_ref().map(|w| w.root().to_owned())
+    }
+    pub(crate) fn for_job(
+        timeout_ms: u64,
+        workspace: Option<&crate::workspace::Workspace>,
+        hooks: Arc<dyn JobHooks>,
+    ) -> Self {
+        Self {
+            deadline: Some(Instant::now() + Duration::from_millis(timeout_ms)),
+            workspace: workspace.cloned(),
+            hooks: Some(hooks),
+            ..Default::default()
+        }
+    }
+    pub(crate) fn progress(&self, phase: &'static str, completed: u64, total: Option<u64>) {
+        if let Some(hooks) = &self.hooks {
+            hooks.progress(phase, completed, total);
+        }
+    }
+    pub(crate) fn publication_permit(
+        &self,
+        already_published: bool,
+    ) -> Result<Option<Box<dyn PublicationPermit>>, Error> {
+        self.hooks
+            .as_ref()
+            .map(|h| h.before_publication(already_published))
+            .transpose()
+    }
     pub(crate) fn check_path(&self, path: &std::path::Path) -> Result<(), Error> {
         if let Some(workspace) = &self.workspace {
             workspace.resolve(path)?;
@@ -101,6 +141,7 @@ impl Control {
             deadline,
             cancel_files,
             workspace: self.workspace.clone(),
+            hooks: self.hooks.clone(),
         })
     }
 

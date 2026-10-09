@@ -204,6 +204,9 @@ pub fn execute(
             | "document.publish"
             | "session.publish"
             | "publication.recover"
+            | "job.start"
+            | "job.cancel"
+            | "job.resume"
     );
     if !replayable {
         context.check()?;

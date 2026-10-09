@@ -370,3 +370,7 @@ Use `font.inspect` with a pinned descriptor, explicit `font_root` and optional `
 Additional image formats: `bmp` and `tga` share document/artboard export and publication. `gif` exports a still or every sequence frame. `sequence.import` accepts `{type:"gif",source_path,background:"transparent"}` with explicit `assume_srgb`. TIFF RGBA8 delivery accepts `image_options.alpha` as `unassociated` or `associated`. Read [EXTENDED_IMAGE_IO.md](EXTENDED_IMAGE_IO.md) for exact palette/timing, alpha, profile and metadata boundaries.
 
 Explicit large vector documents use the persisted `resource_profile` field and profile edit. Discover both budgets in `capabilities.resource_profiles`; see [LARGE_VECTOR.md](LARGE_VECTOR.md). Rendering and export requests accept cooperative `control` settings.
+
+## Durable export jobs
+
+Use `job.start` with a request ID, inline or pinned document, and existing publication options. `job.status` and bounded `job.wait` return compact progress; `job.result` returns the full historical receipt. Cancel explicitly with `job.cancel`, and resume stalled or interrupted work with `job.resume`. Defaults, pinned resources/builds, bounds and cancellation ordering are documented in [JOBS.md](JOBS.md). Ordinary publication remains synchronous.
