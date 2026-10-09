@@ -28,6 +28,7 @@ const CORE: &[&str] = &[
     "schema.lookup",
     "document.create",
     "document.inspect",
+    "document.inspect.page",
     "document.query",
     "document.edit",
     "document.render",
@@ -117,6 +118,9 @@ pub(crate) fn strict_value(text: &str) -> Result<Value, Error> {
 }
 fn description(command: &str) -> &'static str {
     match command {
+        "document.inspect.page" => {
+            "Read bounded pages of selected item fields, asset/font inventories or path anchors. Cursor binds exact document content, view and page limit. Hidden/locked items are included; resources are structural inventories. Use pinned saved references to avoid resending documents."
+        }
         "schema.lookup" => {
             "Discover command arguments and shared graphics types. Use name index for available names. Large schemas return an outline; select a listed variant or definition, or use full:true for all reachable definitions. Read-only. The original schema command still returns the entire engine schema."
         }
@@ -368,7 +372,7 @@ pub fn catalog_in_workspace(
         if workspace {
             crate::workspace::describe(&mut input);
         }
-        input["properties"]["response_format"] = json!({"type":"string","enum":["json","markdown"],"default":"json","description":"Text presentation; structuredContent always preserves the complete JSON envelope."});
+        input["properties"]["response_format"] = json!({"type":"string","enum":["json","markdown","preview"],"default":"json","description":"JSON/Markdown preserve the full envelope in text and structuredContent. Preview uses summary text and one PNG payload location with explicit references; metadata stays in structuredContent."});
         portable_schema(&mut input);
         let name = format!("inkbolt_{}", command.replace('.', "_"));
         let mutable = matches!(
@@ -391,7 +395,7 @@ pub fn catalog_in_workspace(
             "inputSchema":{"type":"object","additionalProperties":false,"required":["command","arguments"],"properties":{
                 "command":{"type":"string","enum":crate::schema::commands().collect::<Vec<_>>()},
                 "arguments":{"type":"object","additionalProperties":true,"description":"Command fields from schema.lookup, without command or response_format."},
-                "response_format":{"type":"string","enum":["json","markdown"],"default":"json"}
+                "response_format":{"type":"string","enum":["json","markdown","preview"],"default":"json"}
             }},
             "outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},
             "annotations":{"readOnlyHint":false,"destructiveHint":true,"idempotentHint":false,"openWorldHint":false},
@@ -505,16 +509,25 @@ struct Job {
     key: String,
     request: Value,
     control: Control,
-    markdown: bool,
+    format: ResponseFormat,
+}
+#[derive(Clone, Copy)]
+enum ResponseFormat {
+    Json,
+    Markdown,
+    Preview,
 }
 type Active = Arc<Mutex<BTreeMap<String, Control>>>;
-fn tool_result(result: Result<Value, Error>, markdown: bool) -> Value {
+fn tool_result(result: Result<Value, Error>, format: ResponseFormat, command: &str) -> Value {
     let failed = result.is_err();
     let envelope = match result {
         Ok(result) => json!({"ok":true,"result":result}),
         Err(error) => json!({"ok":false,"error":error}),
     };
-    let text = if markdown {
+    if matches!(format, ResponseFormat::Preview) {
+        return crate::mcp_preview::present(envelope, command);
+    }
+    let text = if matches!(format, ResponseFormat::Markdown) {
         format!(
             "{}\n\n```json\n{}\n```",
             if failed {
@@ -570,11 +583,11 @@ pub fn run_in_workspace(
     let worker_workspace = workspace.clone();
     let worker = thread::spawn(move || {
         for job in rx {
+            let command = job.request["command"].as_str().unwrap_or("").to_owned();
             let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||crate::request::execute(job.request,worker_workspace.as_ref(),&job.control))).unwrap_or_else(|_|Err(Error::new("INTERNAL_ERROR","Engine request failed unexpectedly; inspect any persistent request receipt before retrying")));
             // Notifications are fire-and-forget; persistent outcome remains available by receipt.
             if !job.control.is_cancelled() {
-                let response =
-                    json!({"jsonrpc":"2.0","id":job.id,"result":tool_result(result,job.markdown)});
+                let response = json!({"jsonrpc":"2.0","id":job.id,"result":tool_result(result,job.format,&command)});
                 if send(&worker_output, &response).is_err() {
                     for c in worker_active.lock().unwrap().values() {
                         c.cancel();
@@ -808,14 +821,15 @@ pub fn run_in_workspace(
                             continue;
                         }
                     };
-                    let markdown = match args.remove("response_format") {
-                        None => false,
-                        Some(Value::String(s)) if s == "json" => false,
-                        Some(Value::String(s)) if s == "markdown" => true,
+                    let format = match args.remove("response_format") {
+                        None => ResponseFormat::Json,
+                        Some(Value::String(s)) if s == "json" => ResponseFormat::Json,
+                        Some(Value::String(s)) if s == "markdown" => ResponseFormat::Markdown,
+                        Some(Value::String(s)) if s == "preview" => ResponseFormat::Preview,
                         _ => {
                             send(
                                 &output,
-                                &json!({"jsonrpc":"2.0","id":id,"result":tool_result(Err(Error::new("INVALID_REQUEST","response_format must be json or markdown")),false)}),
+                                &json!({"jsonrpc":"2.0","id":id,"result":tool_result(Err(Error::new("INVALID_REQUEST","response_format must be json, markdown or preview")),ResponseFormat::Json,"")}),
                             )?;
                             continue;
                         }
@@ -825,7 +839,7 @@ pub fn run_in_workspace(
                         Err(e) => {
                             send(
                                 &output,
-                                &json!({"jsonrpc":"2.0","id":id,"result":tool_result(Err(e),markdown)}),
+                                &json!({"jsonrpc":"2.0","id":id,"result":tool_result(Err(e),format,"")}),
                             )?;
                             continue;
                         }
@@ -855,7 +869,7 @@ pub fn run_in_workspace(
                             key: key.clone(),
                             request,
                             control,
-                            markdown,
+                            format,
                         })
                         .is_err()
                     {

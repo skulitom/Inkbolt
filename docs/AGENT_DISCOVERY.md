@@ -1,6 +1,6 @@
 # Agent discovery
 
-Use `inkbolt mcp --tools core` for new agent connections. It lists fifteen everyday tools plus `inkbolt_run`, within a tested 96 KiB catalog budget. `inkbolt mcp` and `inkbolt mcp --tools full` retain the full per-command catalog for existing clients. Both modes use the same typed executor, editing semantics, output envelopes, images, cancellation and session receipts. Catalog mode changes discovery only. Use the separate [response mode](AGENT_RESPONSES.md) to shorten durable session replies.
+Use `inkbolt mcp --tools core` for new agent connections. It lists sixteen everyday tools plus `inkbolt_run`, within a tested 96 KiB catalog budget. `inkbolt mcp` and `inkbolt mcp --tools full` retain the full per-command catalog for existing clients. Both modes use the same typed executor, editing semantics, output envelopes, images, cancellation and session receipts. Catalog mode changes discovery only. Use the separate [response mode](AGENT_RESPONSES.md) to shorten durable session replies and [paged inspection/preview format](AGENT_INSPECTION.md) for focused reads and image delivery.
 
 The everyday tools cover document creation, inspection, object queries, edits and previews; session creation, reads, edits, receipts, history, comparisons and publication; image/font import; and focused schema lookup. Specialist commands remain available through `inkbolt_run`:
 

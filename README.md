@@ -4,7 +4,7 @@ An original local vector and raster editing engine for agents. Cutbolt handles t
 
 **Engine scope: 161/167 independently verified checkpoints (96.41%).** Six checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
 
-Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references and optional compact session responses reduce repeated context. Paged inspection, focused previews, durable jobs and larger raster workloads remain on that plan.
+Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. MCP preview format sends each PNG payload once. Focused previews, durable jobs and larger raster workloads remain on that plan.
 
 ## Start locally
 
@@ -61,6 +61,8 @@ cargo test --locked
 python tools/verify.py
 python tools/check_repo.py --staged
 ```
+
+`python tools/verify.py --jobs 4` optionally runs the same Python modules in isolated concurrent processes and checks the complete discovery count. Serial execution remains the default. Concurrent verification timings are not performance benchmarks.
 
 The original source, contracts and synthetic fixture generators belong here. Application-specific research and evidence remain in the external private root. Configure each new checkout with its external research directory and private content policy using `tools/setup_private.py`; hooks and policies do not transfer through cloning. Both candidate and staged-byte repository checks remain mandatory before commits. They supplement provenance review and do not prove originality.
 

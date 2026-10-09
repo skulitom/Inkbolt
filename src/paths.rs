@@ -472,17 +472,28 @@ pub(crate) fn anchors(document: &Document, index: usize) -> Result<Vec<Value>, E
     Ok(geometry_anchors(commands, world))
 }
 pub(crate) fn geometry_anchors(commands: &[PathCommand], world: Matrix) -> Vec<Value> {
+    geometry_anchors_from(commands, world, 0).collect()
+}
+pub(crate) fn geometry_anchors_from(
+    commands: &[PathCommand],
+    world: Matrix,
+    mut skip: usize,
+) -> impl Iterator<Item = Value> + '_ {
     let mut contour = 0usize;
     let mut count = 0;
-    let mut result = Vec::new();
-    for (i, c) in commands.iter().enumerate() {
+    let mut started = false;
+    commands.iter().enumerate().filter_map(move |(i, c)| {
         if matches!(c, PathCommand::Move { .. }) {
-            if !result.is_empty() {
+            if started {
                 contour += 1;
             }
             count = 0;
         }
         if let Some(to) = endpoint(c) {
+            started = true;
+            let anchor_index = count;
+            count += 1;
+            if skip > 0 { skip -= 1; return None; }
             let controls = if let PathCommand::Cubic {
                 control1, control2, ..
             } = c
@@ -493,9 +504,9 @@ pub(crate) fn geometry_anchors(commands: &[PathCommand], world: Matrix) -> Vec<V
             } else {
                 None
             };
-            result.push(json!({"command_index":i,"contour_index":contour,"anchor_index":count,"local":to,"world":geometry::map(world,to),"incoming_segment_handles":controls}));
-            count += 1;
+            Some(json!({"command_index":i,"contour_index":contour,"anchor_index":anchor_index,"local":to,"world":geometry::map(world,to),"incoming_segment_handles":controls}))
+        } else {
+            None
         }
-    }
-    result
+    })
 }

@@ -25,6 +25,7 @@ pub mod hdr;
 pub mod hyphenation;
 pub mod image_io;
 pub mod ink_recipes;
+pub mod inspection;
 pub mod instances;
 pub mod interpolation;
 mod knockout;
@@ -33,6 +34,7 @@ pub mod layered;
 pub mod layout;
 pub mod masks;
 pub mod mcp;
+mod mcp_preview;
 pub mod measurements;
 pub mod meshes;
 pub mod metadata;
@@ -548,6 +550,14 @@ pub enum Request {
     Validate { document: Document },
     #[serde(rename = "document.inspect")]
     Inspect { document: Document },
+    #[serde(rename = "document.inspect.page")]
+    InspectPage {
+        document: Document,
+        #[serde(default)]
+        options: inspection::Options,
+        #[serde(default)]
+        control: control::Options,
+    },
     #[serde(rename = "document.query")]
     Query {
         document: Document,
@@ -1042,6 +1052,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "document.create",
                 "document.validate",
                 "document.inspect",
+                "document.inspect.page",
                 "document.query",
                 "document.measure",
                 "document.select",
@@ -1416,6 +1427,8 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 "mcp_compact_budget_bytes":mcp::CORE_CATALOG_BYTES,
                 "mcp_dispatcher":"inkbolt_run", "execution_validation":"complete_typed_request"
             });
+            capabilities["paged_inspection"] = json!({"command":"document.inspect.page","collections":["items","assets","fonts","anchors"],"maximum_records":inspection::MAX_PAGE_ITEMS,"maximum_result_bytes":inspection::MAX_PAGE_BYTES,"cursor":"document_content_and_view_and_limit_bound","order":"document_storage_for_items;id_for_resources;component_then_command_for_anchors","field_selection":true,"legacy_inspection":"unchanged","external_resources_verified":false});
+            capabilities["mcp_preview"] = json!({"response_format":"preview","default":"json","image_bytes":"one_location_with_explicit_payload_ref","maximum_png_attachments":mcp_preview::MAX_IMAGES,"maximum_attached_base64_bytes":mcp_preview::MAX_IMAGE_BASE64_BYTES,"overflow":"one_inline_payload_in_structuredContent;duplicates_reference_it","text":"summary_only","supported_artifacts":["document.export","artboard.export","sequence.export","channel.export","document.proof","document.prepress","document.separations"],"other_results":"complete_structuredContent_without_textual_duplication"});
             capabilities["agent_inputs"] = json!({
                 "workspace_flag":"--workspace ABSOLUTE_DIRECTORY",
                 "workspace_position":"before_request_file_or_mcp",
@@ -1725,6 +1738,11 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 json!({"stories":document.stories,"swatches":swatches::inspect(&document)?,"background":backgrounds::inspect(&document),"metadata":document.metadata,"resource_manifest":metadata::manifest(&document),"id":document.id,"revision":document.revision,"kind":document.kind,"width":document.width,"height":document.height,"canvas_bounds":if document.vector_canvas.is_some(){json!(vector_canvas::bounds(&document))}else{json!([0,0,document.width,document.height])},"vector_canvas":document.vector_canvas.map(|c|c.receipt(document.resolution_ppi)).transpose()?,"output_profile":document.output_profile.as_ref().map(profiles::summary).transpose()?,"global_light":document.global_light,"resolution_ppi":document.resolution_ppi,"variants":document.variants,"selection":selections::inspect(document.selection.as_ref()),"channels":channels::inspect(&document),"ink_recipe":ink_recipes::inspect(&document),"items":items,"assets":assets,"fonts":fonts,"artboards":boards::inspect(&document)?,"resource_profile":document.resource_profile,"bounds_semantics":"Unclipped geometry only; excludes strokes, visibility and opacity. Text uses its frame here; text.inspect reports glyph ink. Resource inventories are structural; use asset.verify/font.verify to check stored bytes."}),
             )
         }
+        Request::InspectPage {
+            document,
+            options,
+            control,
+        } => inspection::page(&document, &options, &context.scoped(&control)?),
         Request::Query { document, query } => query::execute(&document, &query),
         Request::Measure {
             document,

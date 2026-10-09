@@ -6,6 +6,8 @@ Use an explicit [workspace](AGENT_WORKSPACE.md) for default resource/session roo
 
 Snapshot file references require a path and exact byte hash from create-only publication. Durable session commands accept optional [compact responses](AGENT_RESPONSES.md), retaining pinned recovery references while omitting repeated snapshot bodies. Full responses remain the default.
 
+Use `document.inspect.page` for content-bound pages of selected fields, resource inventories and path anchors. MCP `response_format:"preview"` sends image bytes once with explicit references and preserves all metadata. See [inspection and preview delivery](AGENT_INSPECTION.md).
+
 Native layered exchange now maps nested normal/pass-through folders to explicit parent references, validates balanced boundaries and keeps empty groups without manufacturing pixels. Native import/export, declared loss receipts and durable agent workflows share this contract. Extended interchange remains partial and uncredited; larger axes, masks, text and embedded objects are still required.
 
 Use `format:"layered_large"` for explicit version-two native publication with `.psb`; `layered.import` detects either supported container version. Discover both formats and current axis/storage limits through `capabilities.layered_interchange`. This partial extension does not complete the extended checkpoint.
