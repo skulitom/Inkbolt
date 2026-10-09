@@ -50,10 +50,8 @@ where
 {
     let [width, height] = prepared.sampling.output;
     let row_values = width as usize * channels.count();
-    let rows = (MAX_STRIP_BYTES / (row_values * std::mem::size_of::<C::Inner>()))
-        .max(1)
-        .min((prepared.tile_edge() / prepared.sampling.options.antialias.factor()) as usize)
-        as u32;
+    let rows = prepared
+        .band_rows((MAX_STRIP_BYTES / (row_values * std::mem::size_of::<C::Inner>())) as u32);
     let method = match compression {
         Compression::None => 1u16,
         Compression::Lzw => 5,
@@ -118,8 +116,10 @@ where
         let mut counts = Vec::new();
         let mut strip = Vec::new();
         prepared.visit_rows(rows, |origin, size, samples| {
-            if origin[0] == 0 {
-                strip.resize(row_values * size[1] as usize, C::Inner::default());
+            let band_y = origin[1] / rows * rows;
+            let band_height = rows.min(height - band_y);
+            if strip.is_empty() {
+                strip.resize(row_values * band_height as usize, C::Inner::default());
             }
             for (i, v) in samples.as_chunks::<4>().0.iter().enumerate() {
                 if v.iter()
@@ -138,7 +138,7 @@ where
                 }
                 let q = v.map(|x| depth.quantize(x));
                 let q = if q[3] == 0.0 { [0.0; 4] } else { q };
-                let at = (i / size[0] as usize * width as usize
+                let at = (((origin[1] - band_y) as usize + i / size[0] as usize) * width as usize
                     + origin[0] as usize
                     + i % size[0] as usize)
                     * channels.count();
@@ -151,7 +151,7 @@ where
                     }
                 }
             }
-            if origin[0] + size[0] == width {
+            if origin[0] + size[0] == width && origin[1] + size[1] == band_y + band_height {
                 let raw = strip[..].data();
                 let mut compressed = Output(Cursor::new(Vec::new()));
                 let bytes = match compression {

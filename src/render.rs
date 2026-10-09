@@ -10,6 +10,7 @@ pub(crate) mod prepared;
 mod sparse;
 mod spatial;
 pub(crate) mod tiled;
+pub(crate) mod traversal;
 
 pub const MAX_RENDER_PIXELS: u64 = 1_048_576;
 pub const MAX_RENDER_WORK: u64 = 67_108_864;

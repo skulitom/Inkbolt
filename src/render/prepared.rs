@@ -21,6 +21,17 @@ impl Prepared {
             super::tiled::EDGE
         }
     }
+    fn traversal(&self, max_rows: u32) -> super::traversal::Plan {
+        super::traversal::Plan::new(
+            self.sampling.output,
+            self.tile_edge() / self.sampling.options.antialias.factor(),
+            self.sampling.scale,
+            max_rows,
+        )
+    }
+    pub(crate) fn band_rows(&self, max_rows: u32) -> u32 {
+        self.traversal(max_rows).rows
+    }
     pub fn new(
         document: &Document,
         scale: u32,
@@ -479,8 +490,8 @@ impl Prepared {
         }
         Ok(accum)
     }
-    /// Output tiles arrive in row-major tile order. Samples are straight and
-    /// already finished with the document's exact averaging/view policy.
+    /// Output bands arrive top-to-bottom; small tiles within each band visit
+    /// neighboring regions together. Samples retain exact global coordinates.
     pub(crate) fn visit(
         &self,
         consume: impl FnMut([u32; 2], [u32; 2], &[f64]) -> Result<(), Error>,
@@ -497,60 +508,55 @@ impl Prepared {
             return consume([0; 2], [result.width, result.height], &result.rgba);
         }
         let factor = self.sampling.options.antialias.factor();
-        let edge = self.tile_edge() / factor;
-        let rows = edge.min(max_rows.max(1));
-        let [width, height] = self.sampling.output;
+        let traversal = self.traversal(max_rows);
         let empty_masks = BTreeMap::new();
-        let total = u64::from(width.div_ceil(edge)) * u64::from(height.div_ceil(rows));
+        let total = traversal.total;
         let mut completed = 0;
         self.resources
             .control
             .progress("render_tiles", completed, Some(total));
-        for y in (0..height).step_by(rows as usize) {
-            for x in (0..width).step_by(edge as usize) {
-                self.resources.control.check()?;
-                let output_size = [edge.min(width - x), rows.min(height - y)];
-                let size = [
-                    output_size[0] * factor,
-                    output_size[1] * factor,
-                    self.sampling.internal_scale,
-                ];
-                let origin = [
-                    self.sampling.offset + x * factor,
-                    self.sampling.offset + y * factor,
-                ];
-                let tile = self
-                    .resources
-                    .spatial
-                    .as_ref()
-                    .map(|p| p.tile(origin, [size[0], size[1]]));
-                let resources = ResourcesView {
-                    tile: tile.as_ref(),
-                    base: &self.resources,
-                    artwork_masks: &empty_masks,
-                    control: &self.resources.control,
-                    origin,
-                };
-                let mut accum = vec![0.0; size[0] as usize * size[1] as usize * 4];
-                draw_items(&self.document, None, &mut accum, None, size, &resources)?;
-                if accum.iter().any(|v| !v.is_finite()) {
-                    return Err(Error::new(
-                        "NONFINITE_RENDER",
-                        "Compositing exceeded finite working precision",
-                    ));
-                }
-                let mut samples =
-                    Vec::with_capacity(output_size[0] as usize * output_size[1] as usize * 4);
-                self.sampling
-                    .visit_region(&accum, size[0], origin, [x, y], output_size, |p| {
-                        samples.extend_from_slice(&p)
-                    });
-                consume([x, y], output_size, &samples)?;
-                completed += 1;
-                self.resources
-                    .control
-                    .progress("render_tiles", completed, Some(total));
+        for ([x, y], output_size) in traversal.tiles() {
+            self.resources.control.check()?;
+            let size = [
+                output_size[0] * factor,
+                output_size[1] * factor,
+                self.sampling.internal_scale,
+            ];
+            let origin = [
+                self.sampling.offset + x * factor,
+                self.sampling.offset + y * factor,
+            ];
+            let tile = self
+                .resources
+                .spatial
+                .as_ref()
+                .map(|p| p.tile(origin, [size[0], size[1]]));
+            let resources = ResourcesView {
+                tile: tile.as_ref(),
+                base: &self.resources,
+                artwork_masks: &empty_masks,
+                control: &self.resources.control,
+                origin,
+            };
+            let mut accum = vec![0.0; size[0] as usize * size[1] as usize * 4];
+            draw_items(&self.document, None, &mut accum, None, size, &resources)?;
+            if accum.iter().any(|v| !v.is_finite()) {
+                return Err(Error::new(
+                    "NONFINITE_RENDER",
+                    "Compositing exceeded finite working precision",
+                ));
             }
+            let mut samples =
+                Vec::with_capacity(output_size[0] as usize * output_size[1] as usize * 4);
+            self.sampling
+                .visit_region(&accum, size[0], origin, [x, y], output_size, |p| {
+                    samples.extend_from_slice(&p)
+                });
+            consume([x, y], output_size, &samples)?;
+            completed += 1;
+            self.resources
+                .control
+                .progress("render_tiles", completed, Some(total));
         }
         self.resources.control.check()
     }
