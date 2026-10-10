@@ -672,6 +672,7 @@ pub fn export_controlled(
                 metadata_policy: options.metadata_policy,
                 render_options: options.render_options,
                 pdf_options: None,
+                layered_options: None,
             },
         )
         .map_err(|e| e.at_artboard(&item.id))?;

@@ -66,3 +66,5 @@ change. A regression check exercises these boundaries against the real checkout,
 including shared-helper edits and universal Rust-change invalidation.
 
 The candidate material guard always runs and is never cached. The staged guard reads actual indexed blobs in bounded Git batches, preserving path/type/size/encoding/private-content and forced-ignore checks. It does not substitute working-copy bytes, waive the private policy or bypass the commit hook.
+
+Console failure excerpts preserve the selected output encoding and escape characters it cannot represent. Raw per-check logs remain UTF-8. A failing test with Unicode output still produces its failure report and retry state; `--last-failed` reruns that check normally.

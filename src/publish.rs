@@ -23,6 +23,8 @@ pub struct Options {
     pub image_options: Option<crate::image_io::Options>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pdf_options: Option<crate::pdf::Options>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layered_options: Option<crate::layered::ExportOptions>,
     pub output_root: PathBuf,
     pub file_name: String,
     pub format: ExportFormat,
@@ -140,6 +142,7 @@ pub struct FormatOptions<'a> {
     pub control: Option<&'a Control>,
     pub image_options: Option<&'a crate::image_io::Options>,
     pub pdf_options: Option<&'a crate::pdf::Options>,
+    pub layered_options: Option<&'a crate::layered::ExportOptions>,
     pub render_options: Option<&'a crate::render_quality::Options>,
     pub metadata_policy: Option<crate::metadata::Policy>,
 }
@@ -162,6 +165,7 @@ pub fn export_with_format_options(
             image_options,
             metadata_policy,
             pdf_options,
+            layered_options: None,
             render_options: None,
         },
     )
@@ -178,8 +182,17 @@ pub fn export_with_render_options(
         image_options,
         metadata_policy,
         pdf_options,
+        layered_options,
         render_options,
     } = options;
+    if layered_options.is_some()
+        && !matches!(format, ExportFormat::Layered | ExportFormat::LayeredLarge)
+    {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            "layered_options requires layered or layered_large format",
+        ));
+    }
     crate::render_quality::validate_format(format, render_options)?;
     crate::model::validate_controlled(document, control.unwrap_or(&Control::default()))?;
     crate::image_io::validate_options(format, image_options)?;
@@ -235,7 +248,7 @@ pub fn export_with_render_options(
                     "Layered delivery requires scale 1 and explicit stripped descriptive metadata",
                 ));
             }
-            crate::layered::export_versioned(
+            crate::layered::export_with_options(
                 document,
                 crate::layered::Compression::Rle,
                 if matches!(format, ExportFormat::LayeredLarge) {
@@ -243,6 +256,7 @@ pub fn export_with_render_options(
                 } else {
                     crate::layered::Version::Standard
                 },
+                layered_options.unwrap_or(&crate::layered::ExportOptions::default()),
                 control.unwrap_or(&Control::default()),
             )
         }
@@ -399,6 +413,7 @@ pub(crate) fn prepare_publication(
             image_options: options.image_options.as_ref(),
             metadata_policy: options.metadata_policy,
             pdf_options: pdf_options.as_ref(),
+            layered_options: options.layered_options.as_ref(),
             render_options: options.render_options.as_ref(),
         },
     )?;
@@ -599,6 +614,7 @@ mod tests {
         Options {
             render_options: None,
             pdf_options: None,
+            layered_options: None,
             metadata_policy: None,
             output_root: root.to_owned(),
             file_name: "result.png".into(),

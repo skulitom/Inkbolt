@@ -182,6 +182,12 @@ def execute(args):
 
 
 def verify(args, state, started, deadline):
+    # A legacy Windows pipe may not encode a failing fixture's Unicode text.
+    # Preserve the stream's chosen encoding, escape only unrepresentable console
+    # characters, and keep complete UTF-8 logs plus the failure/retry report.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(errors='backslashreplace')
     print('Planning checks from current file contents and previous results...', flush=True)
     baseline = snapshot(ROOT)
     environment = environment_identity(ROOT)

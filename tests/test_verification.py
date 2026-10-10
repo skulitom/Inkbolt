@@ -171,14 +171,37 @@ class VerificationTests(unittest.TestCase):
         again = verify.Lease(path)
         again.close()
 
-    def mini_run(self, args, fake, state):
+    def mini_run(self, args, fake, state, stdout=None):
         with patch.object(verify, 'ROOT', self.root), patch.object(verify, 'EXE', self.root/'engine.exe'), \
              patch.object(verify, 'environment_identity', return_value='test-environment'), \
              patch.object(verify, 'snapshot', side_effect=lambda r: {p:v for p,v in self.files().items() if not p.startswith('state/')}), \
              patch.object(verify, 'python_counts', return_value={'test_one': 1, 'test_two': 1}), \
-             patch.object(verify, 'run', side_effect=fake), redirect_stdout(io.StringIO()):
+             patch.object(verify, 'run', side_effect=fake), redirect_stdout(stdout if stdout is not None else io.StringIO()):
             started = time.monotonic()
             return verify.verify(verify.parse_args(args), state, started, None)
+
+    def test_unicode_failure_on_legacy_pipe_keeps_exact_log_report_and_retry(self):
+        for name in ('one', 'two'):self.write(f'tests/test_{name}.py', 'value=1')
+        self.write('engine.exe', 'test-binary')
+        state=self.root/'state';state.mkdir()
+        failed=[True];commands=[];text='Original fixture \u0394 \U0001f3a8 failed'
+        def fake(argv,*args):
+            commands.append(argv)
+            output='test result: ok. 2 passed; 0 failed;' if argv[:2]==['cargo','test'] else 'Ran 1 test in 0.01s\nOK\n'
+            bad=failed[0] and 'test_two.py' in argv
+            return dict(status='failed' if bad else 'passed',seconds=.01,exit_code=int(bad),output=text if bad else output)
+        buffer=io.BytesIO();stream=io.TextIOWrapper(buffer,encoding='cp1252',errors='strict')
+        self.addCleanup(stream.close)
+        self.assertEqual(self.mini_run([],fake,state,stream),1)
+        stream.flush();console=buffer.getvalue().decode('cp1252')
+        self.assertIn('\\u0394 \\U0001f3a8',console)
+        saved=verify.load_state(state/'state.json');report=json.loads(Path(saved['latest_report']).read_text())
+        self.assertEqual(report['failed'],['test_two'])
+        self.assertEqual(Path(report['checks']['test_two']['log']).read_text(encoding='utf-8'),text)
+        self.assertEqual(saved['checks']['test_two']['status'],'failed')
+        failed[0]=False;commands.clear()
+        self.assertEqual(self.mini_run(['--last-failed'],fake,state,stream),0)
+        self.assertEqual(len(commands),2)
 
     def test_resume_failure_selection_and_thorough_never_reuse(self):
         self.write('tests/test_one.py', 'value=1')

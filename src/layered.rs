@@ -3,6 +3,7 @@ mod binary;
 mod descriptor;
 mod mask;
 mod metadata;
+mod object_write;
 mod objects;
 mod read;
 mod write;
@@ -30,11 +31,37 @@ pub enum ObjectSharing {
     IndependentCopies,
 }
 
+/// Explicit acceptance of reconstruction differences in the receiving consumer.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ObjectDelivery {
+    NativeReconstruction,
+}
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExportOptions {
+    pub embedded_objects: Option<ObjectDelivery>,
+}
+
 #[derive(Default)]
 struct DecodeBudget {
     pixels: usize,
     items: usize,
     snapshot_bytes: usize,
+}
+
+#[derive(Default)]
+struct EncodeBudget {
+    pixels: usize,
+    items: usize,
+    source_bytes: usize,
+}
+struct Encoding<'a> {
+    options: &'a ExportOptions,
+    control: &'a Control,
+    budget: &'a mut EncodeBudget,
+    depth: usize,
+    scope: String,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -177,5 +204,32 @@ pub fn export_versioned(
     version: Version,
     control: &Control,
 ) -> Result<Value, Error> {
-    write::document(document, compression, version, control)
+    export_with_options(
+        document,
+        compression,
+        version,
+        &ExportOptions::default(),
+        control,
+    )
+}
+
+pub fn export_with_options(
+    document: &Document,
+    compression: Compression,
+    version: Version,
+    options: &ExportOptions,
+    control: &Control,
+) -> Result<Value, Error> {
+    write::document(
+        document,
+        compression,
+        version,
+        &mut Encoding {
+            options,
+            control,
+            budget: &mut EncodeBudget::default(),
+            depth: 0,
+            scope: "root".into(),
+        },
+    )
 }

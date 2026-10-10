@@ -924,6 +924,8 @@ pub enum Request {
         image_options: Option<image_io::Options>,
         #[serde(default)]
         pdf_options: Option<pdf::Options>,
+        #[serde(default)]
+        layered_options: Option<layered::ExportOptions>,
         format: ExportFormat,
         #[serde(default = "scale")]
         scale: u32,
@@ -1515,9 +1517,13 @@ fn capability_report() -> Value {
         .as_array_mut()
         .unwrap()
         .extend([json!("layered"), json!("layered_large")]);
-    capabilities["layered_interchange"] = json!({"status":"basic_interchange_verified","import":"layered.import","export_format":"layered","file_version":1,"additional_file_versions":[2],"large_export_format":"layered_large","dimensions_by_version":{"standard":30000,"large":32768},"extended_status":"partial_uncredited","mode":"rgb8","layer_order":"bottom_to_top","layer_sources":["inline_raster","encoded_srgb_rgba8_samples"],"import_compression":["raw","rle","zip","zip_prediction"],"export_compression":"rle;raw_available_in_Rust_library","preserved":["original_layer_pixels_including_hidden_RGB","integer_extents","names","visibility","byte_opacity","byte_fill_opacity","whole_layer_lock"],"source_changed":false,"canvas_pixels":layered::MAX_CANVAS_PIXELS,"stored_pixels":model::MAX_STORED_PIXELS,"file_bytes":layered::MAX_FILE_BYTES,"maximum_layers":model::MAX_ITEMS,"profile_policy":"exact_builtin_srgb;explicit_convert_srgb_for_other_profiles;explicit_assume_srgb_for_untagged","merged_preview":"white_matted_RGB_with_separate_alpha;8bit_unmatting_loss;layers_remain_original","metadata":"explicit_strip_if_descriptive_metadata_present","incoming_metadata":"strict_known_inactive_records_with_omission_receipts","descriptor_limits":{"bytes":65536,"depth":8,"values":512,"container_entries":128},"density_units":"fixed_values_always_ppi;unit_selectors_are_display_only","groups":{"modes":["normal_isolated","normal_pass_through"],"empty":true,"ancestor_levels":16,"serialized_records":512,"transforms":"absolute_integer_source_placements;imported_groups_identity","open_state":"omitted_UI_metadata","unsupported":["non_normal_group_blends","group_fill_opacity","knockout","cached_group_pixel_extents","layer_role_containers"]},"masks":{"authored_gray8":true,"independent_bounds":true,"constant_empty_planes":true,"controls":["linked","enabled","outside_black_or_white","exact_byte_density"],"sampling":"nearest_integer_translation","unsupported":["nonzero_native_feather","obsolete_invert_flag","derived_masks","combined_real_vector_masks","implicit_resampling"]},"empty_layer_names":"encoded_exactly;native_consumers_may_generate_names;receipt_lists_empty_name_source_ids","unsupported":["large_axes_above_32768","empty_pixel_layers","native_mask_feather","derived_or_combined_masks","text","embedded_object_export","non_normal_blends","extra_channels","nonempty_guides","unknown_appearance_records"],"checkpoint":"raster.interchange.basic"});
+    capabilities["layered_interchange"] = json!({"status":"basic_interchange_verified","import":"layered.import","export_format":"layered","file_version":1,"additional_file_versions":[2],"large_export_format":"layered_large","dimensions_by_version":{"standard":30000,"large":32768},"extended_status":"partial_uncredited","mode":"rgb8","layer_order":"bottom_to_top","layer_sources":["inline_raster","encoded_srgb_rgba8_samples"],"import_compression":["raw","rle","zip","zip_prediction"],"export_compression":"rle;raw_available_in_Rust_library","preserved":["original_layer_pixels_including_hidden_RGB","integer_extents","names","visibility","byte_opacity","byte_fill_opacity","whole_layer_lock"],"source_changed":false,"canvas_pixels":layered::MAX_CANVAS_PIXELS,"stored_pixels":model::MAX_STORED_PIXELS,"file_bytes":layered::MAX_FILE_BYTES,"maximum_layers":model::MAX_ITEMS,"profile_policy":"exact_builtin_srgb;explicit_convert_srgb_for_other_profiles;explicit_assume_srgb_for_untagged","merged_preview":"white_matted_RGB_with_separate_alpha;8bit_unmatting_loss;layers_remain_original","metadata":"explicit_strip_if_descriptive_metadata_present","incoming_metadata":"strict_known_inactive_records_with_omission_receipts","descriptor_limits":{"bytes":65536,"depth":8,"values":512,"container_entries":128},"density_units":"fixed_values_always_ppi;unit_selectors_are_display_only","groups":{"modes":["normal_isolated","normal_pass_through"],"empty":true,"ancestor_levels":16,"serialized_records":512,"transforms":"absolute_integer_source_placements;imported_groups_identity","open_state":"omitted_UI_metadata","unsupported":["non_normal_group_blends","group_fill_opacity","knockout","cached_group_pixel_extents","layer_role_containers"]},"masks":{"authored_gray8":true,"independent_bounds":true,"constant_empty_planes":true,"controls":["linked","enabled","outside_black_or_white","exact_byte_density"],"sampling":"nearest_integer_translation","unsupported":["nonzero_native_feather","obsolete_invert_flag","derived_masks","combined_real_vector_masks","implicit_resampling"]},"empty_layer_names":"encoded_exactly;native_consumers_may_generate_names;receipt_lists_empty_name_source_ids","unsupported":["large_axes_above_32768","empty_pixel_layers","native_mask_feather","derived_or_combined_masks","text","unsupported_embedded_source_semantics","non_normal_blends","extra_channels","nonempty_guides","unknown_appearance_records"],"checkpoint":"raster.interchange.basic"});
     capabilities["layered_interchange"]["embedded_objects"] = json!({
-        "import":"explicit_policy_required","export":false,
+        "import":"explicit_policy_required","export":"explicit_policy_required",
+        "export_policy":{"layered_options":{"embedded_objects":"native_reconstruction"}},
+        "export_source":"independent_native_rgb8_large_container_per_placement;affine_corners;original_source_unchanged",
+        "export_reconstruction":"native_consumer_controls_sampling_and_coverage;source_sampling_and_surface_scale_are_receipt_only",
+        "export_source_record_version":7,
         "policy":{"sampling":["nearest","bilinear","area","bicubic","lanczos3"],"sharing":["independent_copies"]},
         "source":"retained_normalized_editable_rgb8_layered_document","native_source_bytes":"remain_in_original_input;sha256_in_receipt",
         "placement":"validated_affine_corners_and_source_size_density","cached_pixels":"validated_and_hashed;never_used_as_editable_source",
@@ -2574,6 +2580,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             document,
             image_options,
             pdf_options,
+            layered_options,
             format,
             scale,
             asset_root,
@@ -2591,6 +2598,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 image_options: image_options.as_ref(),
                 metadata_policy,
                 pdf_options: pdf_options.as_ref(),
+                layered_options: layered_options.as_ref(),
                 render_options: render_options.as_ref(),
             },
         ),

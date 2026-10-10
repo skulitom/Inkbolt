@@ -204,7 +204,10 @@ pub(super) fn sources<'a>(
             identifier(d.field("contentID")?.text()?)?;
             d.finish("null")?;
         }
-        entry.end()?;
+        if entry.left() != 0 && entry.left() != (4 - entry.at % 4) % 4 {
+            return Err(malformed());
+        }
+        entry.zero_padding(3)?;
         if sources
             .insert(
                 id,

@@ -135,6 +135,13 @@ class LayeredObjectTests(unittest.TestCase):
         duplicate=[o.cache(),o.cache(identity=2)]
         self.assertEqual(self.load(o.outer(layers=duplicate),1)['code'],'INVALID_LAYERED_FILE')
 
+    def test_source_record_padding_is_exact_zero_alignment_only(self):
+        for version in range(1,9):
+            entry=o.entry(o.source(),version=version);payload=entry[8:];padding=-len(payload)%4
+            self.load(o.outer(entries=[f.large_section(payload+bytes(padding))]))
+            for extra in [b'\1'*max(1,padding),bytes(padding+4),bytes(padding+1)]:
+                self.assertEqual(self.load(o.outer(entries=[f.large_section(payload+extra)]),1)['code'],'INVALID_LAYERED_FILE')
+
     def test_active_warp_comp_animation_perspective_unknown_and_conflicting_metadata_fail(self):
         changes=[{'warp':m.obj('warp',o.warp(1))},{'comp':m.integer(1)},
                  {'compInfo':m.obj('null',o.comp(0))},{'frameCount':m.integer(2)},
@@ -186,10 +193,10 @@ class LayeredObjectTests(unittest.TestCase):
             try:
                 cap=c.success('capabilities')['layered_interchange']
                 self.assertEqual(cap['embedded_objects']['import'],'explicit_policy_required')
-                self.assertFalse(cap['embedded_objects']['export'])
+                self.assertEqual(cap['embedded_objects']['export'],'explicit_policy_required')
                 self.assertFalse(cap['embedded_objects']['native_composite_equality'])
                 self.assertEqual(cap['extended_status'],'partial_uncredited')
-                self.assertIn('embedded_object_export',cap['unsupported'])
+                self.assertEqual(cap['embedded_objects']['export_policy']['layered_options']['embedded_objects'],'native_reconstruction')
                 d=c.success('layered.import',source_path=str(path),id='objects',expected_sha256=source_hash,
                             color_policy='assume_srgb',embedded_objects=o.POLICY)['document']
                 c.success('session.create',**session,request_id='create',document=d)

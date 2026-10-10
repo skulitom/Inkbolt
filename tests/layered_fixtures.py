@@ -80,5 +80,8 @@ def parse(b):
             else:planes[c]=decode(info.take(length),right-x,bottom-y,version)
         l['mask_gray']=planes.get(-2)
         l['rgba']=bytes(v for i in range((bottom-y)*(right-x)) for v in [planes[0][i],planes[1][i],planes[2][i],planes.get(-1,bytes([255])*((bottom-y)*(right-x)))[i]])
-    assert info.take(info.left()) in [b'',b'\0'];assert not ls.section().left() and not ls.left()
-    merged=decode(r.take(r.left()),w,h*n,version);return dict(version=version,width=w,height=h,channels=n,layers=layers,resources=values,merged=merged)
+    assert info.take(info.left()) in [b'',b'\0'];assert not ls.section().left();globals={}
+    while ls.left():
+        assert ls.take(4)==b'8BIM';key=ls.take(4);data=ls.section(version==2 and key==b'lnk2').b
+        assert key not in globals;globals[key]=data;assert ls.take(-len(data)%4)==bytes(-len(data)%4)
+    merged=decode(r.take(r.left()),w,h*n,version);return dict(version=version,width=w,height=h,channels=n,layers=layers,resources=values,merged=merged,global_tags=globals)

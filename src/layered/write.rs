@@ -8,7 +8,7 @@ fn native_byte(value: f64) -> Result<u8, Error> {
     }
     Ok(byte)
 }
-fn original(item: &Item, world: Matrix) -> Result<(u32, u32, Vec<u8>), Error> {
+pub(super) fn controls(item: &Item) -> Result<(), Error> {
     if item.blend != BlendMode::Normal
         || item.clip_to.is_some()
         || item.clip.is_some()
@@ -21,15 +21,36 @@ fn original(item: &Item, world: Matrix) -> Result<(u32, u32, Vec<u8>), Error> {
     {
         return Err(unsupported("Layered delivery needs normal pixel layers or normal/pass-through folders without effects, filters or clipping; no implicit flattening is performed").at_item(&item.id));
     }
+    if item.name.encode_utf16().count() > 1024 {
+        return Err(limit("Layer name exceeds 1024 UTF-16 units"));
+    }
+    Ok(())
+}
+fn original(
+    item: &Item,
+    world: Matrix,
+    native_objects: bool,
+) -> Result<(u32, u32, Vec<u8>), Error> {
+    controls(item)?;
+    if native_objects
+        && matches!(
+            item.content,
+            Content::Group {
+                knockout: false,
+                role: GroupRole::Group,
+                ..
+            }
+        )
+        && item.fill_opacity == 1.0
+    {
+        return Ok((0, 0, Vec::new()));
+    }
     let [a, b, c, d, x, y] = world;
     if [a, b, c, d] != [1.0, 0.0, 0.0, 1.0] || x.fract() != 0.0 || y.fract() != 0.0 {
         return Err(unsupported(
             "Layered native pixels require an integer translation without resampling",
         )
         .at_item(&item.id));
-    }
-    if item.name.encode_utf16().count() > 1024 {
-        return Err(limit("Layer name exceeds 1024 UTF-16 units"));
     }
     match &item.content {
         Content::Group { knockout:false,role:GroupRole::Group,.. } if item.fill_opacity == 1.0 => Ok((0,0,Vec::new())),
@@ -53,8 +74,14 @@ pub(super) fn document(
     document: &Document,
     compression: Compression,
     version: Version,
-    control: &Control,
+    context: &mut Encoding<'_>,
 ) -> Result<Value, Error> {
+    let control = context.control;
+    if context.depth > crate::objects::MAX_NESTING {
+        return Err(limit(
+            "Embedded layered delivery exceeds four nesting levels",
+        ));
+    }
     control.check()?;
     crate::validate(document)?;
     if document.kind != DocumentKind::Raster
@@ -74,7 +101,14 @@ pub(super) fn document(
             "Layered basic delivery preserves working-sRGB pixel layers; other document resources and output interpretations require explicit interchange mapping",
         ));
     }
-    size(document.width, document.height, MAX_CANVAS_PIXELS, version)?;
+    let canvas = size(document.width, document.height, MAX_CANVAS_PIXELS, version)?;
+    context.budget.pixels += canvas;
+    context.budget.items += document.items.len();
+    if context.budget.pixels > MAX_DECODED_BYTES / 4 || context.budget.items > 1024 {
+        return Err(limit(
+            "Nested layered delivery exceeds 8 MiB decoded samples or 1024 editable items",
+        ));
+    }
     if document.items.is_empty() {
         return Err(unsupported(
             "Layered delivery requires at least one editable pixel layer",
@@ -84,19 +118,45 @@ pub(super) fn document(
     let mut channel_data = Vec::new();
     let mut receipts = Vec::new();
     let mut ordered = Vec::new();
+    let mut embedded_sources = Vec::new();
+    let mut embedded_receipts = Vec::new();
+    let mut stored_pixels = 0;
     order(document, None, &mut ordered);
     short(&mut records, (-(ordered.len() as i16)) as u16);
     for &(index, boundary) in &ordered {
         let item = &document.items[index];
         control.check()?;
         let world = crate::scene::world_transform(document, index)?;
-        let (w, h, rgba) = original(item, world)?;
+        let object = matches!(item.content, Content::Object { .. });
+        let mut placed = if object {
+            if context.options.embedded_objects.is_none() {
+                return Err(unsupported("Object delivery requires explicit layered_options.embedded_objects: native_reconstruction; native sampling can differ from the engine preview").at_item(&item.id));
+            }
+            Some(super::object_write::prepare(
+                item,
+                world,
+                index,
+                compression,
+                context,
+            )?)
+        } else {
+            None
+        };
+        let (w, h, rgba) = if let Some(p) = &mut placed {
+            (p.width, p.height, std::mem::take(&mut p.rgba))
+        } else {
+            original(item, world, context.options.embedded_objects.is_some())?
+        };
         let group = matches!(item.content, Content::Group { .. });
         if !group {
             size(w, h, MAX_STORED_PIXELS, version)?;
         }
-        let left = if group { 0 } else { world[4] as i32 };
-        let top = if group { 0 } else { world[5] as i32 };
+        let left = placed
+            .as_ref()
+            .map_or(if group { 0 } else { world[4] as i32 }, |p| p.origin[0]);
+        let top = placed
+            .as_ref()
+            .map_or(if group { 0 } else { world[5] as i32 }, |p| p.origin[1]);
         let bounds = [top, left, top + h as i32, left + w as i32];
         if bounds
             .iter()
@@ -117,6 +177,24 @@ pub(super) fn document(
                 .map(|mask| super::mask::encode_mask(mask, world, version, compression))
                 .transpose()?
         };
+        let item_pixels = w as usize * h as usize
+            + if !boundary {
+                item.mask
+                    .as_ref()
+                    .map_or(0, |m| m.width as usize * m.height as usize)
+            } else {
+                0
+            };
+        stored_pixels += item_pixels;
+        if stored_pixels > MAX_STORED_PIXELS {
+            return Err(limit("Retained layer caches and masks exceed 65536 pixels"));
+        }
+        context.budget.pixels += item_pixels;
+        if context.budget.pixels > MAX_DECODED_BYTES / 4 {
+            return Err(limit(
+                "Nested layered delivery sources, caches and masks exceed 8 MiB decoded samples",
+            ));
+        }
         short(&mut records, 4 + u16::from(mask.is_some()));
         for channel in [-1_i16, 0, 1, 2] {
             let c = if channel == -1 { 3 } else { channel as usize };
@@ -189,9 +267,14 @@ pub(super) fn document(
             }
             tagged(&mut extra, b"lsct", &divider);
         }
+        if let Some(p) = placed {
+            tagged(&mut extra, b"SoLd", &p.placement);
+            embedded_sources.extend_from_slice(&p.source);
+            embedded_receipts.push(p.receipt);
+        }
         section(&mut records, &extra);
         if !boundary {
-            receipts.push(json!({"source_id":item.id,"file_id":file_id,"parent_source_id":item.parent,"kind":if group{"group"}else{"pixel"},"bounds":[top,left,top+h as i32,left+w as i32],"rgba_sha256":if group{None}else{Some(assets::sha256(&rgba))},"mask":mask.map(|mask|mask.receipt)}));
+            receipts.push(json!({"source_id":item.id,"file_id":file_id,"parent_source_id":item.parent,"kind":if group{"group"}else if object{"object"}else{"pixel"},"bounds":[top,left,top+h as i32,left+w as i32],"rgba_sha256":if group{None}else{Some(assets::sha256(&rgba))},"mask":mask.map(|mask|mask.receipt)}));
         }
     }
     records.extend(channel_data);
@@ -201,6 +284,11 @@ pub(super) fn document(
     let mut layers = Vec::new();
     framed_section(&mut layers, &records, version);
     word(&mut layers, 0);
+    if !embedded_sources.is_empty() {
+        layers.extend(b"8BIMlnk2");
+        framed_section(&mut layers, &embedded_sources, version);
+        layers.extend(std::iter::repeat_n(0, (4 - embedded_sources.len() % 4) % 4));
+    }
     let profile = crate::profiles::resolve(&crate::profiles::Profile::Builtin {
         name: crate::profiles::Builtin::Srgb,
     })?
@@ -234,7 +322,7 @@ pub(super) fn document(
     section(&mut bytes, &resources);
     framed_section(&mut bytes, &layers, version);
     control.check()?;
-    let raster = crate::render::rasterize(document, 1)?;
+    let raster = crate::render::rasterize_controlled(document, 1, None, None, None, control)?;
     let mut composite = Vec::with_capacity(raster.rgba.len());
     for c in 0..4 {
         composite.extend(raster.rgba.as_chunks::<4>().0.iter().map(|p| {
@@ -256,7 +344,10 @@ pub(super) fn document(
     if bytes.len() > MAX_FILE_BYTES {
         return Err(limit("Layered export exceeds 32 MiB"));
     }
-    Ok(
-        json!({"media_type":"application/octet-stream","encoding":"base64","data":STANDARD.encode(&bytes),"layered":{"version":version.number(),"mode":"rgb8","compression":compression,"layers":receipts,"empty_name_source_ids":document.items.iter().filter(|i|i.name.is_empty()).map(|i|&i.id).collect::<Vec<_>>(),"serialized_records":ordered.len(),"order":"bottom_to_top","source_composite_rgba_sha256":assets::sha256(&raster.rgba),"merged_planes_sha256":assets::sha256(&composite),"merged_color":"white_matted_rgb_plus_straight_alpha","profile_sha256":assets::sha256(&profile),"resolution_ppi":density as f64/65536.0,"source_changed":false},"losses":["Native pixel bytes, extents, names, visibility, exact byte opacity and normal/pass-through folder hierarchy are retained. Folder transforms are resolved to absolute pixel placements; imported folder transforms are identity, and source documents are unchanged. File layer IDs are independently generated; source IDs appear only in the delivery receipt. Empty names are encoded exactly, but native consumers may generate names for them; empty_name_source_ids identifies those items. Name items explicitly for stable external names.","The merged cache stores RGB composited against white plus a separate alpha plane. Unmatting this 8-bit cache can lose straight RGB precision at low alpha. Editable source pixels remain separate; consumer compositing and rounding can differ.","Physical density rounds to unsigned 16.16 pixels per inch. Engine history, variants and private metadata are not embedded as an editable engine snapshot."]}),
-    )
+    let mut result = json!({"media_type":"application/octet-stream","encoding":"base64","data":STANDARD.encode(&bytes),"layered":{"version":version.number(),"mode":"rgb8","compression":compression,"layers":receipts,"empty_name_source_ids":document.items.iter().filter(|i|i.name.is_empty()).map(|i|&i.id).collect::<Vec<_>>(),"serialized_records":ordered.len(),"order":"bottom_to_top","source_composite_rgba_sha256":assets::sha256(&raster.rgba),"merged_planes_sha256":assets::sha256(&composite),"merged_color":"white_matted_rgb_plus_straight_alpha","profile_sha256":assets::sha256(&profile),"resolution_ppi":density as f64/65536.0,"source_changed":false},"losses":["Native pixel bytes, extents, names, visibility, exact byte opacity and normal/pass-through folder hierarchy are retained. Folder transforms are resolved to absolute pixel placements; imported folder transforms are identity, and source documents are unchanged. File layer IDs are independently generated; source IDs appear only in the delivery receipt. Empty names are encoded exactly, but native consumers may generate names for them; empty_name_source_ids identifies those items. Name items explicitly for stable external names.","The merged cache stores RGB composited against white plus a separate alpha plane. Unmatting this 8-bit cache can lose straight RGB precision at low alpha. Editable source pixels remain separate; consumer compositing and rounding can differ.","Physical density rounds to unsigned 16.16 pixels per inch. Engine history, variants and private metadata are not embedded as an editable engine snapshot."]});
+    result["layered"]["embedded_objects"] = json!(embedded_receipts);
+    if !embedded_sources.is_empty() {
+        result["losses"].as_array_mut().unwrap().push(json!("Explicit native reconstruction keeps editable RGB8 sources and affine placement as independent native embedded sources. The receiving consumer controls resampling and edge coverage; source sampling and surface-scale settings are not native controls and are listed in the receipt. Layer caches and the merged preview are engine reconstructions and can differ after native recomposition or editing. Source files and engine snapshots remain unchanged."));
+    }
+    Ok(result)
 }
