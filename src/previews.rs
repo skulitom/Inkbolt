@@ -73,14 +73,17 @@ pub(crate) fn mapping(
     dimensions: [u32; 2],
 ) -> Result<Value, Error> {
     let s = scale as f64;
-    let world_to_pixel = geometry::multiply(
-        [s, 0.0, 0.0, s, -origin[0] * s, -origin[1] * s],
-        geometry::inverse(local_to_world)?,
-    );
-    let pixel_to_world = geometry::multiply(
-        local_to_world,
-        [1.0 / s, 0.0, 0.0, 1.0 / s, origin[0], origin[1]],
-    );
+    use geometry::TransformFactor::{Forward, Inverse};
+    let world_to_pixel = geometry::transform_expression(&[
+        Forward([s, 0.0, 0.0, s, 0.0, 0.0]),
+        Forward([1.0, 0.0, 0.0, 1.0, -origin[0], -origin[1]]),
+        Inverse(local_to_world),
+    ])?;
+    let pixel_to_world = geometry::transform_expression(&[
+        Forward(local_to_world),
+        Forward([1.0, 0.0, 0.0, 1.0, origin[0], origin[1]]),
+        Inverse([s, 0.0, 0.0, s, 0.0, 0.0]),
+    ])?;
     let [w, h] = dimensions.map(|v| v as f64);
     let corners =
         [[0.0, 0.0], [w, 0.0], [w, h], [0.0, h]].map(|p| geometry::map(pixel_to_world, p));

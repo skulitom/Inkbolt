@@ -2,7 +2,8 @@ use crate::{Error, model::*};
 
 mod affine;
 pub(crate) use affine::{
-    MAX_FAST_POINT_ERROR as MAX_FAST_INVERSE_POINT_ERROR, MAX_RELATIVE_FACTORS, MIN_DETERMINANT,
+    MAX_FAST_POINT_ERROR as MAX_FAST_INVERSE_POINT_ERROR, MAX_RELATIVE_FACTORS,
+    MAX_TRANSFORM_FACTORS, MIN_DETERMINANT, TransformFactor,
 };
 
 pub type Bounds = [f64; 4]; // min x, min y, max x, max y; geometry only
@@ -34,6 +35,33 @@ pub fn inverse(m: Matrix) -> Result<Matrix, Error> {
 pub(crate) fn relative_transform(parent: Matrix, factors: &[Matrix]) -> Result<Matrix, Error> {
     validate_matrix(parent)?;
     affine::relative_transform(parent, factors)
+}
+/// Compose forward and inverse factors, preserving the complete expression for
+/// the exact fallback. Inverted inputs keep the ordinary matrix admission rules.
+pub(crate) fn transform_expression(factors: &[TransformFactor]) -> Result<Matrix, Error> {
+    for factor in factors {
+        if let TransformFactor::Inverse(matrix) = factor {
+            validate_matrix(*matrix)?;
+        }
+    }
+    affine::transform_expression(factors)
+}
+pub(crate) fn inverse_point(matrix: Matrix, point: Point) -> Result<Point, Error> {
+    let out = relative_transform(matrix, &[[1.0, 0.0, 0.0, 1.0, point[0], point[1]]])?;
+    Ok([out[4], out[5]])
+}
+pub(crate) fn translated_local(
+    parent: Matrix,
+    local: Matrix,
+    delta: Point,
+) -> Result<Matrix, Error> {
+    let mut result = relative_transform(
+        parent,
+        &[[1.0, 0.0, 0.0, 1.0, delta[0], delta[1]], parent, local],
+    )?;
+    // A world translation cannot change the local linear part.
+    result[..4].copy_from_slice(&local[..4]);
+    Ok(result)
 }
 pub(crate) fn validate_matrix(m: Matrix) -> Result<(), Error> {
     if m.iter().any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE) {

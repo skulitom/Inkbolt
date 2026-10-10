@@ -664,10 +664,10 @@ pub fn export_controlled(
         let local = if mask.linked {
             mask.transform
         } else {
-            crate::geometry::multiply(
-                crate::geometry::inverse(scene::world_transform(document, i)?)?,
-                mask.transform,
-            )
+            crate::geometry::relative_transform(
+                scene::world_transform(document, i)?,
+                &[mask.transform],
+            )?
         };
         let mode = match mask.mode {
             crate::artwork_masks::Mode::Alpha => "alpha",
@@ -863,7 +863,6 @@ fn mask_definition(
     mask: &crate::masks::Mask,
 ) -> Result<(), Error> {
     let world = scene::world_transform(document, i)?;
-    let inverse = crate::geometry::inverse(world)?;
     let prepared = crate::masks::prepare(mask, world)?;
     let mut bounds = [
         f64::INFINITY,
@@ -877,7 +876,7 @@ fn mask_definition(
         [0.0, document.height as f64],
         [document.width as f64, document.height as f64],
     ] {
-        let p = crate::geometry::map(inverse, p);
+        let p = crate::geometry::inverse_point(world, p)?;
         bounds[0] = bounds[0].min(p[0]);
         bounds[1] = bounds[1].min(p[1]);
         bounds[2] = bounds[2].max(p[0]);
@@ -886,7 +885,7 @@ fn mask_definition(
     let local = if mask.linked {
         mask.transform
     } else {
-        crate::geometry::multiply(inverse, mask.transform)
+        crate::geometry::relative_transform(world, &[mask.transform])?
     };
     let byte = |v: f64| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
     let pixels: Vec<_> = prepared

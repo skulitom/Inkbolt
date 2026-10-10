@@ -90,17 +90,35 @@ coefficient error is bounded by `1e-9` logical units per axis when applied exact
 to points within 65536 on each axis. Otherwise the complete expression is
 calculated rationally from its binary64 inputs and only its final coefficients
 are rounded to certified nearest binary64 values. At most eight factors are
-accepted by this internal evaluator. The fallback's guarantee is nearest
+accepted after the parent inverse by this internal evaluator. The fallback's guarantee is nearest
 coefficients, not a universal absolute point bound.
 
 Independent Fraction fixtures reproduce previously rejected valid reparenting
 and identity edits, translations aligned to ill-conditioned parents, anchored
 reflections, scalar/artwork mask linking and visible no-op artwork. Saved CLI/MCP
 retries, undo and rejected edits retain their history contracts. See
-`tests/test_relative_transforms_cli.py`. This scope does not cover every inverse
-consumer: other coordinate conversions, world recomposition, final point
-arithmetic and raster sampling retain their separate contracts. No source geometry
-or original checkpoint criterion changes.
+`tests/test_relative_transforms_cli.py`.
+
+The shared evaluator also accepts up to nine ordered forward or inverse factors,
+including inverses inside an expression. Transfers, copied clips, selection and
+applied-mask placement, appearance bake placement, world-space path points,
+alignment/distribution/layout/snap moves, dimensional edits, artboard mask
+placement, focused-preview mappings and SVG mask/clip coordinate conversions use
+this complete-expression contract. Input inverses keep the existing admission
+rules. Translation-only edits preserve the original local linear coefficients.
+Preview scale, origin and inverse placement participate before final rounding;
+the reverse map also retains the exact reciprocal scale until that final step.
+
+Independent Fraction fixtures check cancellation, both preview directions at
+multiple scales and bleed origins, dimensions, anchors/handles, and translated
+layouts. Masked artboard exports match an independently placed local scene in SVG
+and visible PNG pixels; CLI/MCP transfer retries, conflicts and undo retain history.
+See `tests/test_coordinate_conversions_cli.py` and
+`capabilities.coordinate_precision.coordinate_conversions`. The ordinary bound and
+nearest-coefficient fallback remain distinct. Previously computed input matrices,
+world recomposition, final point arithmetic, raster sampling and external syntax
+normalization retain their separate contracts. No source geometry or original
+checkpoint criterion changes; this does not certify every numerical consumer.
 
 Import normalizes external SVG syntax. For example, relative controls add to the
 current point, smooth controls reflect their predecessor, and quadratics become

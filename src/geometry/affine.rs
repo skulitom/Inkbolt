@@ -8,6 +8,42 @@ pub(crate) const MIN_DETERMINANT: f64 = 1e-8;
 // This does not include subsequent point arithmetic or renderer quantization.
 pub(crate) const MAX_FAST_POINT_ERROR: f64 = 1e-9;
 pub(crate) const MAX_RELATIVE_FACTORS: usize = 8;
+pub(crate) const MAX_TRANSFORM_FACTORS: usize = MAX_RELATIVE_FACTORS + 1;
+
+#[derive(Clone, Copy)]
+pub(crate) enum TransformFactor {
+    Forward(Matrix),
+    Inverse(Matrix),
+}
+impl TransformFactor {
+    fn matrix(self) -> Matrix {
+        match self {
+            Self::Forward(m) | Self::Inverse(m) => m,
+        }
+    }
+    fn estimate(self) -> [Estimate; 6] {
+        match self {
+            Self::Forward(m) => m.map(|value| Estimate { value, error: 0.0 }),
+            Self::Inverse(m) => inverse_estimates(m),
+        }
+    }
+    fn exact(self) -> [R; 6] {
+        let m = self.matrix().map(rational);
+        if matches!(self, Self::Forward(_)) {
+            return m;
+        }
+        let d = determinant(&m);
+        [
+            m[3].clone(),
+            -&m[1],
+            -&m[2],
+            m[0].clone(),
+            &m[2] * &m[5] - &m[3] * &m[4],
+            &m[1] * &m[4] - &m[0] * &m[5],
+        ]
+        .map(|v| v / &d)
+    }
+}
 
 #[derive(Clone, Copy)]
 struct Estimate {
@@ -235,9 +271,25 @@ pub(super) fn relative_transform(parent: Matrix, factors: &[Matrix]) -> Result<M
             "Relative transforms require one to eight finite matrix factors",
         ));
     }
-    let mut estimate = inverse_estimates(parent);
-    for factor in factors {
-        estimate = estimated_product(estimate, factor.map(|value| Estimate { value, error: 0.0 }));
+    let expression: Vec<_> = std::iter::once(TransformFactor::Inverse(parent))
+        .chain(factors.iter().copied().map(TransformFactor::Forward))
+        .collect();
+    transform_expression(&expression)
+}
+pub(super) fn transform_expression(factors: &[TransformFactor]) -> Result<Matrix, Error> {
+    if factors.is_empty()
+        || factors.len() > MAX_TRANSFORM_FACTORS
+        || factors
+            .iter()
+            .any(|f| f.matrix().iter().any(|v| !v.is_finite()))
+    {
+        return Err(invalid(
+            "Transform expressions require one to nine finite factors",
+        ));
+    }
+    let mut estimate = factors[0].estimate();
+    for factor in &factors[1..] {
+        estimate = estimated_product(estimate, factor.estimate());
     }
     if estimate
         .iter()
@@ -248,19 +300,9 @@ pub(super) fn relative_transform(parent: Matrix, factors: &[Matrix]) -> Result<M
     }
     // Compute the complete expression from the stored binary64 inputs. Rounding
     // either the inverse or a cancelling intermediate product loses information.
-    let p = parent.map(rational);
-    let d = determinant(&p);
-    let mut result = [
-        p[3].clone(),
-        -&p[1],
-        -&p[2],
-        p[0].clone(),
-        &p[2] * &p[5] - &p[3] * &p[4],
-        &p[1] * &p[4] - &p[0] * &p[5],
-    ]
-    .map(|v| v / &d);
-    for factor in factors {
-        result = exact_product(&result, &factor.map(rational));
+    let mut result = factors[0].exact();
+    for factor in &factors[1..] {
+        result = exact_product(&result, &factor.exact());
     }
     let mut out = [0.0; 6];
     for (v, exact) in out.iter_mut().zip(&result) {
@@ -477,5 +519,51 @@ mod tests {
         let result = relative_transform(identity(), &[large, large, small, small]).unwrap();
         let expected = rounded(&(rational(1e200).pow(2) * rational(1e-200).pow(2))).unwrap();
         assert_eq!(result, [expected, 0., 0., expected, 0., 0.]);
+    }
+
+    #[test]
+    fn ordered_expression_retains_interior_inverses_and_complete_cancellation() {
+        use TransformFactor::{Forward, Inverse};
+        let parent = [
+            28082.236328125,
+            19869.3466796875,
+            21177.486328125,
+            14983.94973752266,
+            12345.25,
+            -23456.5,
+        ];
+        let prefix = [2., 0., 0., 3., 4., 5.];
+        let local = [1.25, 0.125, -0.25, 0.75, 0.03125, -0.015625];
+        let actual = crate::geometry::transform_expression(&[
+            Forward(prefix),
+            Inverse(parent),
+            Forward(parent),
+            Forward(local),
+        ])
+        .unwrap();
+        assert_eq!(actual, [2.5, 0.375, -0.5, 2.25, 4.0625, 4.953125]);
+        assert_eq!(
+            crate::geometry::transform_expression(&[
+                Inverse(parent),
+                Inverse(prefix),
+                Forward(prefix),
+                Forward(parent),
+                Forward(local)
+            ])
+            .unwrap(),
+            local
+        );
+        assert_eq!(
+            crate::geometry::inverse_point(parent, [parent[4], parent[5]]).unwrap(),
+            [0., 0.]
+        );
+        assert!(crate::geometry::transform_expression(&[Inverse([0.; 6])]).is_err());
+        assert!(
+            crate::geometry::transform_expression(
+                &[Forward(identity()); MAX_TRANSFORM_FACTORS + 1]
+            )
+            .is_err()
+        );
+        assert!(crate::geometry::transform_expression(&[Forward([f64::NAN; 6])]).is_err());
     }
 }

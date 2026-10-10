@@ -24,7 +24,13 @@ The same affine module evaluates complete inverse-parent expressions for item
 transforms, reparenting and scalar/artwork mask placement edits. Interval estimates
 include intermediate products and anchor translations; uncertain expressions are
 computed rationally before final coefficient rounding. The evaluator has a fixed
-eight-factor limit and preserves the existing document validation boundaries.
+eight-factor limit after the parent inverse and preserves the existing document
+validation boundaries. The underlying ordered evaluator accepts up to nine
+forward/inverse factors, including interior inverses. Coordinate conversions for
+transfers, clips, masks, world path points, layout moves, dimensions, artboard
+exports, focused previews and SVG definitions use that shared evaluator. Exact
+fallback retains every original factor until final coefficient rounding; input
+normalization, world recomposition and raster sampling remain separate stages.
 
 `scene::hierarchy` bounds ordinary composition error using fused product
 residuals, error-free sum residuals and upward-rounded error propagation. An exact

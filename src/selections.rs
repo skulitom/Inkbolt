@@ -280,10 +280,7 @@ pub fn to_mask(
     }
     let position = [1.0, 0.0, 0.0, 1.0, b[0] as f64, b[1] as f64];
     let transform = if linked {
-        geometry::multiply(
-            geometry::inverse(scene::world_transform(document, index)?)?,
-            position,
-        )
+        geometry::relative_transform(scene::world_transform(document, index)?, &[position])?
     } else {
         position
     };

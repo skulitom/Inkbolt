@@ -324,7 +324,7 @@ pub fn standalone(document: &Document, id: &str, include_bleed: bool) -> Result<
         .collect();
     let offset = [1.0, 0.0, 0.0, 1.0, pad.left as f64, pad.top as f64];
     let board_world = scene::world_transform(document, i)?;
-    let to_export = geometry::multiply(offset, geometry::inverse(board_world)?);
+    use geometry::TransformFactor::{Forward, Inverse};
     for item in &mut result.items {
         // Unlinked masks in a definition use component coordinates. Instances
         // rebase those after placement, so do not treat them as document masks.
@@ -332,7 +332,11 @@ pub fn standalone(document: &Document, id: &str, include_bleed: bool) -> Result<
             crate::instances::source_owner(document, scene::index(document, &item.id)?)?.is_some();
         if let Some(mask) = item.artwork_mask.as_mut() {
             if !mask.linked && !component {
-                mask.transform = geometry::multiply(to_export, mask.transform);
+                mask.transform = geometry::transform_expression(&[
+                    Forward(offset),
+                    Inverse(board_world),
+                    Forward(mask.transform),
+                ])?;
             } else if item.id == id {
                 mask.transform = geometry::multiply(offset, mask.transform);
             }
@@ -343,7 +347,11 @@ pub fn standalone(document: &Document, id: &str, include_bleed: bool) -> Result<
             .chain(item.filters.iter_mut().filter_map(|f| f.mask.as_mut()))
         {
             if !mask.linked && !component {
-                mask.transform = geometry::multiply(to_export, mask.transform);
+                mask.transform = geometry::transform_expression(&[
+                    Forward(offset),
+                    Inverse(board_world),
+                    Forward(mask.transform),
+                ])?;
             } else if item.id == id {
                 mask.transform = geometry::multiply(offset, mask.transform);
             }

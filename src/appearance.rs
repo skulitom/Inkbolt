@@ -305,10 +305,10 @@ pub(crate) fn bake(
     let world = scene::world_transform(d, index)?;
     let window = [1.0, 0.0, 0.0, 1.0, -region.origin[0], -region.origin[1]];
     let capture = geometry::multiply(window, world);
-    let placement = geometry::multiply(
-        geometry::inverse(world)?,
-        [1.0, 0.0, 0.0, 1.0, region.origin[0], region.origin[1]],
-    );
+    let placement = geometry::relative_transform(
+        world,
+        &[[1.0, 0.0, 0.0, 1.0, region.origin[0], region.origin[1]]],
+    )?;
     let mut source = d.clone();
     source.vector_canvas = None;
     source.width = region.width;

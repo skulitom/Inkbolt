@@ -19,7 +19,14 @@ certified, exact rational arithmetic computes the complete expression from its
 binary64 inputs and rounds only the final coefficients to nearest binary64.
 This avoids losing a small local result to cancellation between large intermediate
 transforms. Reparenting and scalar/artwork mask linking and transforms use the same
-bounded expression evaluator, with at most eight factors.
+bounded expression evaluator, with at most eight factors after the parent inverse.
+
+Other coordinate conversions share an ordered evaluator with at most nine forward
+or inverse factors. This includes transfers, copied clips, mask and artboard
+placement, dimensional edits, world path points and preview mappings. Alignment,
+distribution, assisted layout and snapping retain the original local linear part
+when applying world translations. The complete input expression is evaluated
+before rounding; previously calculated input bounds and matrices remain separate.
 
 The exact fallback promises nearest final coefficients, not the ordinary path's
 absolute point bound. Source geometry is retained; world recomposition, final

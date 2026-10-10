@@ -34,6 +34,14 @@ Every result contains `document_id`, `revision`, a SHA-256 of the canonical type
 
 Matrices use `[a,b,c,d,e,f]`, mapping `(x,y)` to `(a*x+c*y+e,b*x+d*y+f)`. Pixel coordinates describe edges; pixel `(x,y)` is sampled at center `(x+0.5,y+0.5)`. A rotated artboard needs the full matrix, not an axis-aligned translation. Coordinates and identities belong to this exact document revision/content; re-inspect after a topology or placement change. External resources are content-checked when read by rendering, under ordinary resource rules.
 
+Both map directions evaluate scale, origin and placement as complete ordered
+expressions, including the inverse or reciprocal scale before final coefficient
+rounding. Unstable expressions use exact rational arithmetic over their binary64
+inputs. This prevents cancellation from an independently rounded inverse; final
+corner/point arithmetic and pixel sampling remain separate. See the
+[coordinate precision contract](COORDINATE_PRECISION.md) and independent rational
+mapping fixtures in `tests/test_coordinate_conversions_cli.py`.
+
 For a proposed edit, request `include_document:true` from [session dry run](SESSION_PROPOSALS.md), preview its returned `proposed_document`, and commit the unchanged action/ticket through `session.apply_proposal`. The proposed document is not a saved revision reference until commit succeeds. Tests compare its preview to the eventual saved revision and prove the old saved view remains unchanged.
 
 ## Contact sheets

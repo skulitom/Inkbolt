@@ -131,13 +131,13 @@ pub(crate) fn apply(
             "Transfer prefix requires 1..32 valid ID characters",
         ));
     }
-    let parent_inverse = if let Some(parent) = &transfer.parent {
+    let parent_world = if let Some(parent) = &transfer.parent {
         let i = scene::index(destination, parent)?;
         if !destination.items[i].content.is_container() {
             return Err(invalid("Transfer parent must be a container"));
         }
         scene::check_unlocked(destination, i, false)?;
-        geometry::inverse(scene::world_transform(destination, i)?)?
+        scene::world_transform(destination, i)?
     } else {
         identity()
     };
@@ -257,7 +257,7 @@ pub(crate) fn apply(
             Content::MaskSource {} | Content::ComponentSource {}
         ) {
             item.parent = transfer.parent.clone();
-            item.transform = geometry::multiply(parent_inverse, item.transform);
+            item.transform = geometry::relative_transform(parent_world, &[item.transform])?;
         }
         if let Some(base) = &mut item.clip_to {
             *base = ids[base].clone();

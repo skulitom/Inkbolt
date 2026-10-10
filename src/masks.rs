@@ -376,7 +376,7 @@ pub(crate) fn apply_pixels(
     let item = &mut document.items[index];
     item.transform = geometry::multiply(item.transform, grid);
     if let Some(clip) = &mut item.clip {
-        clip.transform = geometry::multiply(geometry::inverse(grid)?, clip.transform);
+        clip.transform = geometry::relative_transform(grid, &[clip.transform])?;
     }
     item.content = Content::Raster {
         width,

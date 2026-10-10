@@ -200,7 +200,7 @@ pub(crate) fn edit(
         }
         Ok(match space {
             Space::Local => point,
-            Space::World => geometry::map(geometry::inverse(world)?, point),
+            Space::World => geometry::inverse_point(world, point)?,
         })
     };
     match action {

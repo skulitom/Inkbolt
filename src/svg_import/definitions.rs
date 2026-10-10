@@ -511,8 +511,7 @@ impl Definitions {
                     Field::Linear { transform, .. } | Field::Radial { transform, .. },
                 ) = &mut frame.style.fill
                 {
-                    *transform =
-                        geometry::multiply(geometry::inverse(b.text_placement)?, *transform);
+                    *transform = geometry::relative_transform(b.text_placement, &[*transform])?;
                 }
             }
             if let Content::Vector { fill, stroke, .. } = &mut document.items[b.index].content {
@@ -544,15 +543,18 @@ impl Definitions {
                 let clip = self.clips.get(id).ok_or_else(|| {
                     invalid(format!("Missing or wrong-type clip reference: {id}"))
                 })?;
-                let unit = if clip.bounding_box && !clip.empty {
-                    bbox_matrix(bounds)?
+                let transform = if clip.bounding_box && !clip.empty {
+                    geometry::relative_transform(
+                        identity(),
+                        &[bbox_matrix(bounds)?, clip.transform],
+                    )?
                 } else {
-                    geometry::inverse(b.text_placement)?
+                    geometry::relative_transform(b.text_placement, &[clip.transform])?
                 };
                 document.items[b.index].clip = Some(Clip {
                     geometry: clip.geometry.clone(),
                     fill_rule: clip.rule,
-                    transform: geometry::multiply(unit, clip.transform),
+                    transform,
                     enabled: true,
                 });
             }

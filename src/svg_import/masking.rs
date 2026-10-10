@@ -239,7 +239,7 @@ pub(super) fn apply(
             clip_region,
             mode: b.style.mask_mode.unwrap_or(template.style.mask_type),
             transform: content,
-            region_transform: geometry::multiply(geometry::inverse(content)?, region_to_owner),
+            region_transform: geometry::relative_transform(content, &[region_to_owner])?,
             linked: true,
             enabled: true,
         }));

@@ -202,10 +202,11 @@ fn plan(document: &Document, options: &Layout, control: &Control) -> Result<Plan
             let target = [&x, &top, &(&x + &sizes[k][0]), &(&top + &sizes[k][1])].map(number);
             let dx = number(&(&x - exact(bounds[k][0])));
             let dy = number(&(&top - exact(bounds[k][1])));
-            let inverse = geometry::inverse(scene::parent_transform(document, i)?)?;
-            let mut matrix = document.items[i].transform;
-            matrix[4] += inverse[0] * dx + inverse[2] * dy;
-            matrix[5] += inverse[1] * dx + inverse[3] * dy;
+            let matrix = geometry::translated_local(
+                scene::parent_transform(document, i)?,
+                document.items[i].transform,
+                [dx, dy],
+            )?;
             geometry::validate_matrix(matrix)?;
             candidate.items[i].transform = matrix;
             let actual = scene::bounds(&candidate, i)?

@@ -108,14 +108,14 @@ fn fixed_guide(
     Ok(())
 }
 fn move_world(document: &mut Document, i: usize, axis: usize, delta: f64) -> Result<(), Error> {
-    let inverse = geometry::inverse(scene::parent_transform(document, i)?)?;
+    let parent = scene::parent_transform(document, i)?;
     let direction = if axis == 0 {
         [delta, 0.0]
     } else {
         [0.0, delta]
     };
-    document.items[i].transform[4] += inverse[0] * direction[0] + inverse[2] * direction[1];
-    document.items[i].transform[5] += inverse[1] * direction[0] + inverse[3] * direction[1];
+    document.items[i].transform =
+        geometry::translated_local(parent, document.items[i].transform, direction)?;
     Ok(())
 }
 pub fn align(

@@ -269,10 +269,8 @@ pub(crate) fn clip_from_path(
     let (geometry, fill_rule, world) = source(document, path_id)?;
     // Copy geometry, retaining its current world placement. Later edits to the
     // source path do not affect this independently editable item-local clip.
-    let transform = geometry::multiply(
-        geometry::inverse(scene::world_transform(document, target)?)?,
-        world,
-    );
+    let transform =
+        geometry::relative_transform(scene::world_transform(document, target)?, &[world])?;
     document.items[target].clip = Some(Clip {
         geometry,
         fill_rule,

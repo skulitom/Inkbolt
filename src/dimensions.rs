@@ -346,15 +346,20 @@ pub(crate) fn resize(d: &mut Document, id: &str, options: &Resize) -> Result<Val
         p[0] * (1.0 - scales[0]),
         p[1] * (1.0 - scales[1]),
     ];
-    let world = geometry::multiply(geometry::inverse(axes)?, geometry::multiply(local, axes));
+    let world = geometry::relative_transform(axes, &[local, axes])?;
     geometry::validate_matrix(world)?;
     let parent = scene::parent_transform(d, i)?;
-    d.items[i].transform = geometry::multiply(
-        geometry::inverse(parent)?,
-        geometry::multiply(world, scene::world_transform(d, i)?),
-    );
+    use geometry::TransformFactor::{Forward, Inverse};
+    d.items[i].transform = geometry::transform_expression(&[
+        Inverse(parent),
+        Inverse(axes),
+        Forward(local),
+        Forward(axes),
+        Forward(parent),
+        Forward(d.items[i].transform),
+    ])?;
     Ok(
         json!({"unit":options.unit,"angle":options.angle,"before_dimensions":size.map(|v|v/f),"requested_width":options.width,"requested_height":options.height,
-        "scale":scales,"anchor_document":geometry::map(geometry::inverse(axes)?,p),"world_transform":world,"source_geometry_retained":true}),
+        "scale":scales,"anchor_document":geometry::inverse_point(axes,p)?,"world_transform":world,"source_geometry_retained":true}),
     )
 }

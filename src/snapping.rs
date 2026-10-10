@@ -303,9 +303,11 @@ pub(crate) fn apply(
         if let Some((_, distance, key, target, description)) = candidates.first() {
             let delta = minus(*target, source);
             for i in members {
-                let inverse = geometry::inverse(scene::parent_transform(document, i)?)?;
-                document.items[i].transform[4] += inverse[0] * delta[0] + inverse[2] * delta[1];
-                document.items[i].transform[5] += inverse[1] * delta[0] + inverse[3] * delta[1];
+                document.items[i].transform = geometry::translated_local(
+                    scene::parent_transform(document, i)?,
+                    document.items[i].transform,
+                    delta,
+                )?;
             }
             changes.push(json!({"ids":member_ids,"matched":true,"source_document":source,"target_document":target,"delta_document":delta,"distance":distance.sqrt()/f,"target_index":key[0],"target":description}));
         } else {

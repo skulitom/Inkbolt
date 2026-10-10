@@ -36,8 +36,12 @@ require the complete resource/precision review.
 Parent-relative editing now certifies complete transform expressions, including
 anchors, reparenting and scalar/artwork mask placement. Independent rational
 fixtures cover previously rejected valid edits, visible retained artwork and
-durable history. Other inverse consumers and final sampling remain part of the
-full resource/precision audit; this fix does not complete the original checkpoint.
+durable history. Transfers, clips, mask/artboard placement, path points, layout
+moves, dimensions, preview maps and SVG coordinate conversions now share ordered
+forward/inverse expression evaluation. Independent rational and visible export
+fixtures cover the additional cancellation fixes. Input normalization, world
+recomposition and final sampling remain part of the full resource/precision audit;
+these fixes do not complete the original checkpoint.
 
 Deep transform hierarchies now use a bounded-error ordinary path and exact
 composition when large nearly inverse matrices make that necessary. Independent
