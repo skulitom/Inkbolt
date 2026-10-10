@@ -41,7 +41,11 @@ struct DecodedSource {
     height: u32,
     depth: Depth,
     channels: Channels,
-    bytes: Vec<u8>,
+    pixels: DecodedPixels,
+}
+enum DecodedPixels {
+    Bytes(Vec<u8>),
+    Tiles(crate::sample_store::Candidate),
 }
 
 fn malformed() -> Error {
@@ -73,6 +77,8 @@ fn png(
     bytes: &[u8],
     policy: ColorPolicy,
     max_pixels: usize,
+    native_store: bool,
+    control: &crate::control::Control,
 ) -> Result<(DecodedSource, Interpretation, Value), Error> {
     let interpretation = assets::preflight_samples(bytes, policy, max_pixels)?;
     let mut decoder = png::Decoder::new_with_limits(
@@ -91,16 +97,15 @@ fn png(
         .output_buffer_size()
         .filter(|n| *n <= max_pixels.saturating_mul(8).min(MAX_NATIVE_DECODED_BYTES))
         .ok_or_else(|| limit("Sample PNG exceeds decoded byte limit"))?;
-    let mut data = vec![0; count];
-    let info = reader.next_frame(&mut data).map_err(|_| malformed())?;
-    reader.finish().map_err(|_| malformed())?;
-    data.truncate(info.buffer_size());
-    let depth = match info.bit_depth {
+    let width = reader.info().width;
+    let height = reader.info().height;
+    let (color, bit_depth) = reader.output_color_type();
+    let depth = match bit_depth {
         png::BitDepth::Eight => Depth::U8,
         png::BitDepth::Sixteen => Depth::U16,
         _ => return Err(unsupported("Expanded PNG requires 8-bit or 16-bit samples")),
     };
-    let n = match info.color_type {
+    let n = match color {
         png::ColorType::Grayscale => 1,
         png::ColorType::GrayscaleAlpha => 2,
         png::ColorType::Rgb => 3,
@@ -112,36 +117,84 @@ fn png(
     } else {
         Channels::Rgba
     };
-    let native_size = info.width as usize * info.height as usize * channels.count() * depth.bytes();
+    let native_size = width as usize * height as usize * channels.count() * depth.bytes();
     if native_size > MAX_NATIVE_DECODED_BYTES {
         return Err(limit(
             "Native image channels exceed the 64 MiB decoded byte budget",
         ));
     }
-    let mut native = Vec::with_capacity(native_size);
-    for p in data.chunks_exact(n * depth.bytes()) {
-        for c in p.chunks_exact(depth.bytes()) {
+    let rows = native_store && !reader.info().interlaced;
+    let pixels = if rows {
+        let spec = crate::sample_store::Spec {
+            width,
+            height,
+            depth,
+            channels,
+            encoding: crate::hdr::Encoding::EncodedSrgb,
+        };
+        let candidate =
+            crate::sample_store::Candidate::from_rows(spec, control, |_, destination| {
+                let row = reader
+                    .next_row()
+                    .map_err(|_| malformed())?
+                    .ok_or_else(malformed)?;
+                normalize_png(row.data(), destination, depth, n)
+            })?;
+        if reader.next_row().map_err(|_| malformed())?.is_some() {
+            return Err(malformed());
+        }
+        DecodedPixels::Tiles(candidate)
+    } else {
+        let mut data = vec![0; count];
+        let info = reader.next_frame(&mut data).map_err(|_| malformed())?;
+        data.truncate(info.buffer_size());
+        let mut native = vec![0; native_size];
+        normalize_png(&data, &mut native, depth, n)?;
+        DecodedPixels::Bytes(native)
+    };
+    reader.finish().map_err(|_| malformed())?;
+    control.check()?;
+    Ok((
+        DecodedSource {
+            width,
+            height,
+            depth,
+            channels,
+            pixels,
+        },
+        interpretation,
+        json!({"input_depth":input_depth,"input_color":input_color,"decode_storage":if rows {"rows_to_native_blocks"} else {"complete_decoded_frame"},"normalization":"big_endian_to_little_endian;palette_and_low_bits_expanded;missing_alpha_opaque"}),
+    ))
+}
+fn normalize_png(
+    source: &[u8],
+    destination: &mut [u8],
+    depth: Depth,
+    n: usize,
+) -> Result<(), Error> {
+    let unit = depth.bytes();
+    let output_channels = if n <= 2 { 2 } else { 4 };
+    if !source.len().is_multiple_of(n * unit)
+        || source.len() / (n * unit) * output_channels * unit != destination.len()
+    {
+        return Err(malformed());
+    }
+    for (src, dst) in source
+        .chunks_exact(n * unit)
+        .zip(destination.chunks_exact_mut(output_channels * unit))
+    {
+        for (a, b) in src.chunks_exact(unit).zip(dst.chunks_exact_mut(unit)) {
             if depth == Depth::U16 {
-                native.extend([c[1], c[0]]);
+                b.copy_from_slice(&[a[1], a[0]]);
             } else {
-                native.push(c[0]);
+                b[0] = a[0];
             }
         }
         if n == 1 || n == 3 {
-            native.extend(std::iter::repeat_n(255, depth.bytes()));
+            dst[n * unit..].fill(255);
         }
     }
-    Ok((
-        DecodedSource {
-            width: info.width,
-            height: info.height,
-            depth,
-            channels,
-            bytes: native,
-        },
-        interpretation,
-        json!({"input_depth":input_depth,"input_color":input_color,"normalization":"big_endian_to_little_endian;palette_and_low_bits_expanded;missing_alpha_opaque"}),
-    ))
+    Ok(())
 }
 fn tiff(
     bytes: &[u8],
@@ -344,7 +397,7 @@ fn tiff(
             height: h,
             depth,
             channels,
-            bytes: native,
+            pixels: DecodedPixels::Bytes(native),
         },
         Interpretation::AssumedSrgb,
         json!({"compression":compression,"planar_configuration":planar,"input_photometric":photo,"normalization":"native_decoded_endian_to_little_endian;planes_interleaved;white_zero_inverted_by_codec;missing_alpha_opaque"}),
@@ -404,7 +457,7 @@ pub fn import_with_storage(
                     "Linear HDR sample import requires an explicit binary32 TIFF source",
                 ));
             }
-            let (g, i, n) = png(&bytes, policy, max_pixels)?;
+            let (g, i, n) = png(&bytes, policy, max_pixels, storage.is_some(), control)?;
             (g, i, n, "png")
         } else if bytes.starts_with(b"II") || bytes.starts_with(b"MM") {
             let (g, i, n) = tiff(&bytes, policy, max_pixels)?;
@@ -425,13 +478,15 @@ pub fn import_with_storage(
         channels: decoded.channels,
         encoding,
     };
+    let decoded_bytes = spec.byte_len()?;
     let candidate;
     let content = if storage.is_some() {
-        candidate = Some(crate::sample_store::Candidate::from_bytes(
-            spec,
-            &decoded.bytes,
-            control,
-        )?);
+        candidate = Some(match decoded.pixels {
+            DecodedPixels::Tiles(candidate) => candidate,
+            DecodedPixels::Bytes(bytes) => {
+                crate::sample_store::Candidate::from_bytes(spec, &bytes, control)?
+            }
+        });
         Content::StoredSamples {
             grid: Box::new(crate::stored_samples::Grid {
                 base: candidate.as_ref().unwrap().manifest().clone(),
@@ -442,6 +497,9 @@ pub fn import_with_storage(
         }
     } else {
         candidate = None;
+        let DecodedPixels::Bytes(bytes) = decoded.pixels else {
+            return Err(malformed());
+        };
         let grid = Grid {
             profile: None,
             encoding,
@@ -449,7 +507,7 @@ pub fn import_with_storage(
             height: decoded.height,
             depth: decoded.depth,
             channels: decoded.channels,
-            data_hex: crate::render::hex(&decoded.bytes),
+            data_hex: crate::render::hex(&bytes),
             sampling: Default::default(),
         };
         grid.validate()?;
@@ -470,7 +528,7 @@ pub fn import_with_storage(
     if let (Some(storage), Some(candidate)) = (storage, candidate) {
         let publication = candidate.publish(&storage.store_root, control)?;
         result["storage"] = json!({"kind":"native_tiles","store_root":storage.store_root,"manifest_sha256":publication.manifest.sha256,
-            "created_tiles":publication.created_tiles,"existing_tiles":publication.existing_tiles,"decoded_bytes":decoded.bytes.len()});
+            "created_tiles":publication.created_tiles,"existing_tiles":publication.existing_tiles,"decoded_bytes":decoded_bytes});
         result["losses"][0] = json!(
             "Returns a new native stored-sample document with immutable base blocks and exact retained patch edits. Original source bytes are unchanged. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported. Metadata remains separate; explicit resolution governs document size."
         );

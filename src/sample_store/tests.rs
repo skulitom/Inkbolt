@@ -280,6 +280,113 @@ fn canonical_files_and_ordered_manifest_have_independent_byte_identities() {
 }
 
 #[test]
+fn row_constructor_preserves_native_bits_edges_order_and_canonical_files() {
+    for depth in [Depth::U8, Depth::U16, Depth::F32] {
+        for channels in [Channels::Rgba, Channels::GrayAlpha] {
+            let s = Spec {
+                depth,
+                channels,
+                ..spec(131, 133)
+            };
+            let bytes = fixture(s);
+            let stride = s.width as usize * s.stride();
+            let mut rows = Vec::new();
+            let candidate = Candidate::from_rows(s, &Control::default(), |y, row| {
+                rows.push(y);
+                assert_eq!(row.len(), stride);
+                row.copy_from_slice(&bytes[y as usize * stride..(y as usize + 1) * stride]);
+                Ok(())
+            })
+            .unwrap();
+            assert_eq!(rows, (0..s.height).collect::<Vec<_>>());
+            check_every_sample(&candidate, None, &bytes);
+            for (i, id) in candidate.manifest().tiles.iter().enumerate() {
+                let blob = independent_blob(s, &bytes, s.tile(i));
+                assert_eq!(*id, assets::sha256(&blob));
+                assert_eq!(candidate.pending[id].as_ref(), blob);
+            }
+            assert_eq!(
+                candidate.manifest(),
+                Candidate::from_bytes(s, &bytes, &Control::default())
+                    .unwrap()
+                    .manifest()
+            );
+        }
+    }
+}
+
+#[test]
+fn row_constructor_deduplicates_and_preserves_signed_zero_and_subnormal_bits() {
+    let s = Spec {
+        depth: Depth::F32,
+        encoding: Encoding::LinearSrgb,
+        ..spec(256, 256)
+    };
+    let pixel: Vec<_> = [0x80000000u32, 1, 0xff7fffff, 0x3f800000]
+        .into_iter()
+        .flat_map(u32::to_le_bytes)
+        .collect();
+    let expected = pixel.repeat(256 * 256);
+    let candidate = Candidate::from_rows(s, &Control::default(), |_, row| {
+        for chunk in row.as_chunks_mut::<16>().0 {
+            chunk.copy_from_slice(&pixel);
+        }
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(candidate.pending_tiles(), 1);
+    assert_eq!(candidate.pending_bytes(), 128 * 128 * 16 + HEADER_BYTES);
+    check_every_sample(&candidate, None, &expected);
+}
+
+#[test]
+fn row_constructor_rejects_bad_values_errors_and_midstream_cancellation_without_publication() {
+    let dir = Directory::new();
+    let s = Spec {
+        depth: Depth::F32,
+        ..spec(129, 129)
+    };
+    for failure in 0..3 {
+        let control = Control::default();
+        let mut rows = 0;
+        let result = Candidate::from_rows(s, &control, |y, row| {
+            rows += 1;
+            row.fill(0);
+            if y == 128 {
+                match failure {
+                    0 => row[..4].copy_from_slice(&f32::NAN.to_le_bytes()),
+                    1 => return Err(Error::new("ORIGINAL_ROW_ERROR", "Fixture decoder failure")),
+                    _ => control.cancel(),
+                }
+            }
+            Ok(())
+        });
+        let error = result.err().unwrap();
+        assert_eq!(rows, 129);
+        assert_eq!(
+            error.code,
+            [
+                "UNSUPPORTED_SAMPLE_RANGE",
+                "ORIGINAL_ROW_ERROR",
+                "CANCELLED"
+            ][failure]
+        );
+        assert!(!dir.store().exists());
+    }
+    let control = Control::default();
+    control.cancel();
+    assert!(
+        Candidate::from_rows(s, &control, |_, _| panic!("Cancelled producer was called")).is_err()
+    );
+    assert!(
+        Candidate::from_rows(spec(0, 1), &Control::default(), |_, _| panic!(
+            "Invalid dimensions reached producer"
+        ))
+        .is_err()
+    );
+}
+
+#[test]
 fn multi_megapixel_local_changes_share_blocks_and_keep_old_revisions_exact() {
     let s = spec(1920, 1080);
     let bytes = fixture(s);

@@ -256,6 +256,67 @@ impl Candidate {
         Ok(candidate)
     }
 
+    /// Read exact native rows directly into the immutable block candidate.
+    /// The producer fills one reusable row in ascending order. Only one tile
+    /// band is unfinished at once; completed unique blocks remain in memory
+    /// until explicit publication. Failure/cancellation writes no files.
+    pub fn from_rows(
+        spec: Spec,
+        control: &Control,
+        mut read_row: impl FnMut(u32, &mut [u8]) -> Result<(), Error>,
+    ) -> Result<Self, Error> {
+        control.check()?;
+        spec.validate()?;
+        let mut candidate = Self {
+            manifest: Manifest {
+                version: 1,
+                spec,
+                tiles: Vec::with_capacity(spec.tile_count()),
+                sha256: String::new(),
+            },
+            pending: BTreeMap::new(),
+        };
+        let mut row = vec![0; spec.width as usize * spec.stride()];
+        let columns = spec.columns() as usize;
+        for first in (0..spec.tile_count()).step_by(columns) {
+            control.check()?;
+            let regions: Vec<_> = (first..first + columns).map(|i| spec.tile(i)).collect();
+            let mut band: Vec<_> = regions
+                .iter()
+                .map(|r| {
+                    let mut blob = Vec::with_capacity(
+                        HEADER_BYTES + r.width as usize * r.height as usize * spec.stride(),
+                    );
+                    blob.extend_from_slice(&spec.header(r.width, r.height));
+                    blob
+                })
+                .collect();
+            for y in regions[0].y..regions[0].y + regions[0].height {
+                control.check()?;
+                read_row(y, &mut row)?;
+                control.check()?;
+                validate_samples(&row, spec)?;
+                for (region, blob) in regions.iter().zip(&mut band) {
+                    let start = region.x as usize * spec.stride();
+                    let end = start + region.width as usize * spec.stride();
+                    blob.extend_from_slice(&row[start..end]);
+                }
+            }
+            for blob in band {
+                control.check()?;
+                let id = assets::sha256(&blob);
+                candidate
+                    .pending
+                    .entry(id.clone())
+                    .or_insert_with(|| blob.into());
+                candidate.manifest.tiles.push(id);
+            }
+        }
+        candidate.manifest.sha256 = candidate.manifest.identity();
+        control.check()?;
+        Ok(candidate)
+    }
+
     fn load(&self, index: usize, root: Option<&Path>) -> Result<Arc<[u8]>, Error> {
         let id = &self.manifest.tiles[index];
         let spec = self.manifest.spec;
