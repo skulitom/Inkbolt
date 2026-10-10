@@ -16,7 +16,7 @@ HARNESS = ('tests/pdf_reader.py', 'tests/test_boards_cli.py', 'tests/test_cli.py
            'tests/test_editing_cli.py', 'tests/test_image_io_cli.py',
            'tests/test_images_cli.py', 'tests/test_layout_cli.py', 'tests/test_mcp.py',
            'tests/test_sessions_cli.py', 'tools/measure_discovery.py',
-           'tools/measure_workloads.py', 'tools/measurement_host.py')
+           'tools/measure_workloads.py', 'tools/workload_cases.py', 'tools/measurement_host.py')
 POLICY = dict(version='scale-regression-v1', minimum_repetitions=5,
               median_seconds_factor=1.5, maximum_seconds_factor=2,
               peak_commit_factor=1.5, seconds_quantum=.001,

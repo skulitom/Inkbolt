@@ -1,7 +1,7 @@
 """Original two-megapixel native blur, patch revision and historical output."""
 import array
 import sys
-import measure_workloads as measure
+import workload_cases as measure
 
 SUITE = 'native-filter-v1'
 CASE = 'native-box-blur'

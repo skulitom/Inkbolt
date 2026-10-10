@@ -1,6 +1,6 @@
 """Original native image with 5,000 independently editable clipped annotations."""
 import struct
-import measure_workloads as measure
+import workload_cases as measure
 
 CASE = 'mixed-native-5000'
 SUITE = 'native-layout-v1'

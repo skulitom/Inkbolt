@@ -7,6 +7,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from external_workspace import files as workspace_files
 import test_editing_cli as editing
 from test_layer_clipping_cli import layer, group
 from test_artwork_masks_cli import rect, source
@@ -140,7 +141,7 @@ class CanvasTests(unittest.TestCase):
             asset=self.invoke(dict(command='asset.import',source_path=str(path),store_root=str(store)))['asset']
             d=self.invoke(dict(command='document.create',id='placed',kind='raster',width=4,height=2))
             d=self.edit(d,[dict(op='asset_put',id='original',asset=asset),dict(op='add',item=dict(id='placed',content=dict(type='image',asset_id='original',width=4,height=2,crop=dict(x=1,y=1,width=4,height=2))))])
-            hashes={f:hashlib.sha256(f.read_bytes()).hexdigest() for f in root.rglob('*') if f.is_file()}
+            hashes={f:hashlib.sha256(f.read_bytes()).hexdigest() for f in workspace_files(root) if f.is_file()}
             original=self.crop_bytes(raw,6,4,1,1,4,2)
             for w,h in [(8,6),(2,1),(7,5)]:
                 c=self.canvas(d,'scale',width=w,height=h,sampling='nearest')
@@ -155,7 +156,7 @@ class CanvasTests(unittest.TestCase):
             root=Path(root);font=root/'original.ttf';font.write_bytes(geometric_font());license=root/'LICENSE';license.write_bytes((Path(__file__).resolve().parents[1]/'LICENSE').read_bytes());store=root/'fonts'
             desc=self.invoke(dict(command='font.import',source_path=str(font),license_path=str(license),store_root=str(store)))
             imported=self.invoke(dict(command='svg.import',id='labels',source=dict(kind='text',text='<svg width="32" height="24"><text x="3.5" y="12" font-size="10" font-family="Geometry" fill="#205080">AA</text></svg>'),font_bindings=[dict(family='Geometry',font_id='original',font=desc)],font_root=str(store)))
-            d=imported['document'];d['kind']='raster';hashes={f:hashlib.sha256(f.read_bytes()).hexdigest() for f in root.rglob('*') if f.is_file()}
+            d=imported['document'];d['kind']='raster';hashes={f:hashlib.sha256(f.read_bytes()).hexdigest() for f in workspace_files(root) if f.is_file()}
             c=self.canvas(d,'scale',width=96,height=72,sampling='nearest')
             p=self.pixels(c,font_root=str(store))[2]
             expected=bytes(v for y in range(72) for x in range(96) for v in ([32,80,128,255] if 15<=y<36 and (12<=x<24 or 30<=x<42) else [0]*4))

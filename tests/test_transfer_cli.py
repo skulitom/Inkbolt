@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from external_workspace import files as workspace_files
 import test_editing_cli as editing
 from test_mcp import Client
 from synthetic_font import geometric_font
@@ -89,11 +90,11 @@ class TransferTests(unittest.TestCase):
             source=self.create('source');source['fonts']={'font':font,'unused':font};source['assets']={'image':asset,'unused':asset}
             frame=dict(text='AA',width=30,height=20,style=dict(font_id='font',size=10,fill=[40,100,220,255]),ranges=[dict(start=1,end=2,style=dict(font_id='font',size=10,fill=[30,180,100,255]))])
             source['items']=[dict(id='source',content=dict(type='component_source')),rect('slot','source'),instance('copy','source',overrides={'slot':dict(content=dict(type='image',asset_id='image',width=4,height=4))}),dict(id='text',transform=[1,0,0,1,8,8],content=dict(type='text',frame=frame))]
-            destination=self.create();destination['assets']={'image':asset};destination['fonts']={'font':font};before={p:p.read_bytes() for p in root.rglob('*') if p.is_file()};resources=dict(font_root=str(root/'fonts'),asset_root=str(root/'assets'))
+            destination=self.create();destination['assets']={'image':asset};destination['fonts']={'font':font};before={p:p.read_bytes() for p in workspace_files(root) if p.is_file()};resources=dict(font_root=str(root/'fonts'),asset_root=str(root/'assets'))
             result=self.transfer(destination,source,['copy','text'],verify_resources=True,resources=resources);out=result['document'];details=result['changes'][0]['details']
             self.assertEqual(details['asset_ids'],dict(image='copy-image'));self.assertEqual(details['font_ids'],dict(font='copy-font'));self.assertEqual(len(out['assets']),2);self.assertEqual(len(out['fonts']),2)
             self.assertEqual(byid(out,'copy-text')['content']['frame']['ranges'][0]['style']['font_id'],'copy-font');self.assertEqual(byid(out,'copy-copy')['content']['instance']['overrides']['copy-slot']['content']['asset_id'],'copy-image')
-            self.assertEqual(self.pixels(out,2,**resources),self.pixels(source,2,**resources));self.assertEqual(before,{p:p.read_bytes() for p in root.rglob('*') if p.is_file()})
+            self.assertEqual(self.pixels(out,2,**resources),self.pixels(source,2,**resources));self.assertEqual(before,{p:p.read_bytes() for p in workspace_files(root) if p.is_file()})
             self.assertEqual(self.transfer(self.create(),source,['copy'],verify_resources=True,expected=1)['code'],'ASSET_ROOT_REQUIRED')
             self.assertEqual(self.transfer(self.create(),source,['text'],verify_resources=True,expected=1)['code'],'FONT_ROOT_REQUIRED')
             refs=self.transfer(self.create(),source,['text'])['document'];self.assertIn('copy-font',refs['fonts']);self.invoke(dict(command='document.export',document=refs,format='png'),1)

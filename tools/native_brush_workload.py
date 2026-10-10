@@ -1,7 +1,7 @@
 """Original native texture with four local brush modes and immutable history."""
 from fractions import Fraction as F
 import struct
-import measure_workloads as measure
+import workload_cases as measure
 
 SUITE = 'native-brush-v1'
 CASE = 'native-brush-history'

@@ -7,6 +7,7 @@ from pathlib import Path
 import struct
 import sys
 import unittest
+from external_workspace import files as workspace_files
 import test_agent_workspace as workspace
 import test_retouch_cli as legacy
 from test_cli import EXE
@@ -14,7 +15,7 @@ from test_mcp import Client
 from test_sample_conversion_cli import tiff
 from test_samples_cli import packed
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-import measure_workloads as measure
+import workload_cases as measure
 import native_retouch_workload as workload
 
 
@@ -98,7 +99,7 @@ class NativeRetouchTests(unittest.TestCase):
         return bytes(data)
 
     def files(self):
-        return {str(p.relative_to(self.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in self.root.rglob('*') if p.is_file()}
+        return {str(p.relative_to(self.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in workspace_files(self.root) if p.is_file()}
 
     def apply(self,d,options,**kwargs):
         return self.cli('document.edit',document=d,expected_revision=d['revision'],operations=[dict(op='retouch',id='pixels',options=options)],**kwargs)

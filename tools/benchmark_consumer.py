@@ -8,7 +8,7 @@ import subprocess
 import time
 
 from benchmark_runtime import MAX_RESPONSE, require, safe_name, strict_json
-from measure_workloads import run_process, save, save_json, sha
+from workload_cases import run_process, save, save_json, sha
 from verify_process import WindowsJob
 
 

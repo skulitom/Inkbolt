@@ -4,6 +4,7 @@ import base64
 import copy
 import hashlib
 import unittest
+from external_workspace import files as workspace_files
 
 import test_agent_workspace as workspace
 from test_editing_cli import png_pixels
@@ -32,7 +33,7 @@ class VisualDiffTests(unittest.TestCase):
         return self.cli('document.diff.preview',before=a,after=b,options=options)
 
     def files(self):
-        return {str(p.relative_to(self.root)):(p.stat().st_mtime_ns,hashlib.sha256(p.read_bytes()).hexdigest()) for p in self.root.rglob('*') if p.is_file()}
+        return {str(p.relative_to(self.root)):(p.stat().st_mtime_ns,hashlib.sha256(p.read_bytes()).hexdigest()) for p in workspace_files(self.root) if p.is_file()}
 
     def pixels(self,result,key):
         artifact=result['artifacts'][key];data=base64.b64decode(artifact['data'])

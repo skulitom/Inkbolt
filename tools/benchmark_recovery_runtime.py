@@ -12,7 +12,7 @@ import time
 from types import SimpleNamespace
 
 from benchmark_runtime import Trial, require
-from measure_workloads import process_memory, save_json, sha
+from workload_cases import process_memory, save_json, sha
 from verify_process import WindowsJob
 
 

@@ -14,7 +14,7 @@ from test_render_quality_cli import rect
 from test_samples_cli import decode
 from test_image_io_cli import tiff_tags
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-import measure_workloads as measure
+import workload_cases as measure
 import native_filter_workload as workload
 
 

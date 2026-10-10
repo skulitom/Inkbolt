@@ -9,7 +9,7 @@ import subprocess
 import threading
 import time
 
-from measure_workloads import process_memory, run_process, save, save_json, sha
+from workload_cases import process_memory, run_process, save, save_json, sha
 from test_mcp_preview import restore
 
 MAX_RESPONSE = 96*1024*1024

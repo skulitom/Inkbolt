@@ -151,29 +151,6 @@ class EditingCliTests(unittest.TestCase):
         reopened=self.invoke(dict(command="document.validate",document=json.loads(snapshot["data"])))
         self.assertEqual(d,reopened)
 
-    def test_implementation_registry(self):
-        registry=json.loads((ROOT/"docs/features.json").read_text(encoding="utf8"))
-        self.assertEqual(self.invoke(dict(command="implementation.status")),registry)
-        self.assertEqual(registry["target"],167)
-        self.assertEqual(len(registry["features"]),167)
-        self.assertEqual(len({f["id"] for f in registry["features"]}),167)
-        verified=[f for f in registry["features"] if f["status"]=="verified"]
-        self.assertEqual(registry["verified"],len(verified))
-        self.assertAlmostEqual(registry["percent"],len(verified)/167*100,places=6)
-        for feature in registry["features"]:
-            self.assertIn(feature["status"],("planned","in_progress","verified"))
-            self.assertTrue(feature["acceptance"])
-        for feature in verified:
-            self.assertTrue(feature["evidence"])
-            for evidence in feature["evidence"]:
-                path,test=evidence.split("::")
-                self.assertIn(test,(ROOT/path).read_text(encoding="utf8"))
-        import importlib.util
-        spec=importlib.util.spec_from_file_location("implementation_report",ROOT/"tools/update_report.py")
-        module=importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        self.assertEqual((ROOT/"docs/IMPLEMENTATION.md").read_text(encoding="utf8"),module.report(registry))
-
     def test_example_client_exports_and_rejects_existing_destination(self):
         import sys
         with tempfile.TemporaryDirectory() as directory:

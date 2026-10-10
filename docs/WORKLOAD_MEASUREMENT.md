@@ -54,6 +54,16 @@ Each gate covers exactly one versioned suite, including its fixed case names. A 
 
 ## Identity and acceptance
 
+Shared workload construction, independent pixel/native-channel oracles and owned
+process accounting are defined in `tools/workload_cases.py`. The measurement
+entry points retain complete candidate inventory and release-build recording.
+Ordinary tests import the shared calculations directly, avoiding a dependency on
+repository-wide evidence collection. The gate's explicit helper closure includes
+the new module. Historical reports and gates retain their original helper hashes;
+moving unchanged calculations is still a harness identity change and requires
+review before a new baseline can be used. It does not silently migrate or loosen
+an existing budget, and unit-test success is not a new performance measurement.
+
 The report records the source fingerprint, complete candidate-file hashes including fixture/oracle code, Git state, toolchain, optimized Cargo artifact and executable hash. Cargo's actual binary path is used. Inputs are rechecked after measurement; changed source, executable or candidate files invalidate the report. Raw evidence stays externally, and a later commit can be associated only after the exact tested bytes are checked again. Editing implementation, generators or oracles makes earlier evidence stale.
 
 Windows architecture is observed through [`GetNativeSystemInfo` and its public `SYSTEM_INFO` structure](https://learn.microsoft.com/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info); CPU model/vendor/identifier come from the local hardware registry. Optional environment variables are insufficient, and older reports with missing machine/processor fields remain ineligible for machine-bound budgets. The driver captures identity before and after execution; a change invalidates the run. An unavailable hardware read is explicit missing evidence. No computer name, device serial, user identity or network lookup is collected.

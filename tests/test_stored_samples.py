@@ -5,6 +5,7 @@ import hashlib
 import json
 import struct
 import unittest
+from external_workspace import files as workspace_files
 import zlib
 from contextlib import closing
 
@@ -53,7 +54,7 @@ class StoredSampleTests(unittest.TestCase):
 
     def files(self):
         return {str(p.relative_to(self.root)): (p.stat().st_mtime_ns, hashlib.sha256(p.read_bytes()).hexdigest())
-                for p in self.root.rglob('*') if p.is_file()}
+                for p in workspace_files(self.root) if p.is_file()}
 
     def blocks(self):
         return {p.name: p.read_bytes() for p in (self.root / '.inkbolt/assets').glob('*.native-tile')}

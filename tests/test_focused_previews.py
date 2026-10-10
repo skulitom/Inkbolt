@@ -6,6 +6,7 @@ import hashlib
 import itertools
 import math
 import unittest
+from external_workspace import files as workspace_files
 
 import test_agent_workspace as workspace
 from test_mcp import Client
@@ -38,7 +39,7 @@ class FocusedPreviewTests(unittest.TestCase):
         return png_pixels(base64.b64decode(view['artifact']['data']))[:3]
 
     def files(self):
-        return {str(p.relative_to(self.root)):(p.stat().st_mtime_ns,hashlib.sha256(p.read_bytes()).hexdigest()) for p in self.root.rglob('*') if p.is_file()}
+        return {str(p.relative_to(self.root)):(p.stat().st_mtime_ns,hashlib.sha256(p.read_bytes()).hexdigest()) for p in workspace_files(self.root) if p.is_file()}
 
     def test_region_preserves_full_scene_filters_and_exact_grid(self):
         d=self.document([rect(x=-1,y=1,w=8,h=7,color=[30,100,210,128],effects=[effect('shadow','shadow',[200,40,10,173],sigma=.75,offset=[2.5,1.25])]),rect('foreground',x=4,y=3,w=3,h=2,color=[240,20,10,255])])

@@ -8,7 +8,7 @@ from pathlib import Path
 from benchmark_consumer import Consumer
 from benchmark_graphics import ref, source_snapshot, store, verify_history, view, png_check
 from benchmark_runtime import Trial, require, safe_name
-from measure_workloads import save, save_json, sha
+from workload_cases import save, save_json, sha
 
 
 WIDTH,HEIGHT=32,16

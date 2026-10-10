@@ -10,7 +10,7 @@ import test_samples_cli as samples
 from test_mcp import Client
 
 sys.path.insert(0, str(ROOT/'tools'))
-import measure_workloads as measure
+import workload_cases as measure
 import native_layout_workload as layout
 
 

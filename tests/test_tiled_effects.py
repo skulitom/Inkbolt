@@ -16,7 +16,7 @@ from test_render_quality_cli import rect
 from test_samples_cli import decode
 from test_sample_conversion_cli import tiff
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
-import measure_workloads as measure
+import workload_cases as measure
 import native_shadow_workload as workload
 
 

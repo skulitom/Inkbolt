@@ -11,7 +11,7 @@ from test_editing_cli import png_pixels
 from test_image_io_cli import tiff_tags
 
 sys.path.insert(0,str(ROOT/'tools'))
-import measure_workloads as measure
+import workload_cases as measure
 import wide_native_workload as wide
 
 

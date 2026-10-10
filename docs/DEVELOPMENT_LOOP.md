@@ -14,6 +14,12 @@ The routine target is **2-3 minutes after implementing a change**. Run focused c
 | Complete milestone acceptance | `python tools/verify.py --thorough` |
 | Staged publication check | `python tools/check_repo.py --staged` |
 
+After changing `docs/features.json`, run `python tools/update_report.py` before
+verification. The dedicated `test_implementation_registry` module checks the
+compiled registry, evidence references and generated report together.
+Its source inventory also binds cached results to the evidence-test files, so
+renamed or removed test functions cannot leave a stale registry pass.
+
 Do not separately repeat formatting, Clippy, build and full Rust tests after the verifier has already covered them on unchanged inputs. It owns those stages. Use targeted checks after a small correction; rerun broad checks only for new relevant changes, failures or unresolved concerns. Do not run thorough acceptance for each intermediate edit.
 
 ## Budget, execution and results
@@ -41,5 +47,22 @@ Local state and logs live under the checkout's Git directory in `inkbolt-verify/
 Pass reuse binds to raw candidate bytes, local Python import closures and referenced fixture files, verifier implementation, toolchain versions, Python/platform identity, the environment digest, checkout path and the executable hash for CLI tests. Environment values are hashed, not written to reports. Added/deleted files participate in invalidation. Literal file-based imports bind the referenced local module; glob patterns bind matching candidate files across every directory. Unresolved dynamic imports/patterns, complete repository enumeration and unparseable Python conservatively depend on the entire candidate. Unclassified non-Markdown inputs invalidate engine checks. A failure invalidates the old pass; a later timeout cannot hide an unresolved failure. Changes observed between initial and final identities discard the run's reusable results.
 
 Every Rust source change conservatively invalidates the full Rust stage and all Python engine checks. There is no claim that an unmeasured function-level impact map can prove other fixtures irrelevant. For a small engine edit use the relevant `--rust` and `--only` selectors, then complete broad acceptance at the milestone. Python/helper-only edits automatically invalidate dependent modules through their transitive imports. Ordinary unrelated Markdown edits keep engine passes, except for fixtures that read those files or enumerate the repository. `--force` is available when investigating external conditions the fingerprint cannot observe.
+
+Keep shared test helpers separate from repository-wide checks. The generated
+report check lives outside the commonly imported PNG/CLI helper module. Shared
+workloads, native-sample oracles and process accounting live in
+`tools/workload_cases.py`; complete candidate inventory and release orchestration
+remain in `tools/measure_workloads.py`. Helper consumers therefore do not inherit
+the measurement driver's repository inventory dependency. Driver entry points
+remain compatible and still bind release evidence to the complete candidate.
+
+Generated-workspace file comparisons use `tests/external_workspace.py`, which
+rejects the checkout, its descendants and ancestors, and files resolving into
+the checkout. It does not traverse directory links. This keeps temporary output
+inventories distinct from source-file dependencies without changing the verifier's
+conservative import, wildcard or unknown-input rules. Tests that actually inspect
+the repository or record its complete identity still rerun when those inputs
+change. A regression check exercises these boundaries against the real checkout,
+including shared-helper edits and universal Rust-change invalidation.
 
 The candidate material guard always runs and is never cached. The staged guard reads actual indexed blobs in bounded Git batches, preserving path/type/size/encoding/private-content and forced-ignore checks. It does not substitute working-copy bytes, waive the private policy or bypass the commit hook.

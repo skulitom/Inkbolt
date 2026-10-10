@@ -1,6 +1,6 @@
 """Original wide native composition, retained edits and exact arithmetic channels."""
 import struct
-import measure_workloads as measure
+import workload_cases as measure
 
 CASE = 'wide-mixed-native'
 SUITE = 'wide-native-v1'

@@ -5,7 +5,7 @@ import json
 import xml.etree.ElementTree as ET
 
 from benchmark_runtime import require
-from measure_workloads import document, rectangle, save, sha
+from workload_cases import document, rectangle, save, sha
 from test_editing_cli import png_pixels
 from synthetic_font import geometric_font
 from test_images_cli import png, canonical

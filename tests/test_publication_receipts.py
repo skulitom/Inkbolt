@@ -8,6 +8,7 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import unittest
+from external_workspace import files as workspace_files
 import test_agent_workspace as workspace
 from test_cli import EXE
 from test_images_cli import png
@@ -32,7 +33,7 @@ class PublicationReceiptTests(unittest.TestCase):
     def ledger(self):return self.root/'.inkbolt/publications/publications.sqlite3'
 
     def files(self):
-        return {str(p.relative_to(self.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in self.root.rglob('*') if p.is_file()}
+        return {str(p.relative_to(self.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in workspace_files(self.root) if p.is_file()}
 
     def change(self,fn):
         with closing(sqlite3.connect(self.ledger())) as db:

@@ -8,7 +8,7 @@ import sys
 
 from benchmark_graphics import store, ref, source_snapshot, view, verify_history
 from benchmark_runtime import require
-from measure_workloads import native_png, check_tiff, save_json, sha
+from workload_cases import native_png, check_tiff, save_json, sha
 
 WIDTH, HEIGHT = 1920, 1080
 REGION = dict(x=1150, y=766, width=12, height=14)

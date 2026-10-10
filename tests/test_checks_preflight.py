@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 import unittest
+from external_workspace import files as workspace_files
 
 import test_agent_workspace as workspace
 from synthetic_font import geometric_font
@@ -27,7 +28,7 @@ class CheckPreflightTests(unittest.TestCase):
         return d
 
     def files(self):
-        return {str(p.relative_to(self.root)):(p.stat().st_mtime_ns,hashlib.sha256(p.read_bytes()).hexdigest()) for p in self.root.rglob('*') if p.is_file()}
+        return {str(p.relative_to(self.root)):(p.stat().st_mtime_ns,hashlib.sha256(p.read_bytes()).hexdigest()) for p in workspace_files(self.root) if p.is_file()}
 
     def font(self,store_root='fonts'):
         source=self.root/'original.ttf';license=self.root/'original-license.txt'

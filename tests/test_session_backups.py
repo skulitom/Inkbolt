@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sqlite3
 import unittest
+from external_workspace import files as workspace_files
 
 import test_agent_workspace as workspace
 from test_images_cli import png
@@ -29,7 +30,7 @@ class SessionBackupTests(unittest.TestCase):
         return self.cli('session.recover',session_id='work',session_root=root,source=source,**kw)
 
     def files(self):
-        return {str(p.relative_to(self.root)):(p.stat().st_mtime_ns,hashlib.sha256(p.read_bytes()).hexdigest()) for p in self.root.rglob('*') if p.is_file()}
+        return {str(p.relative_to(self.root)):(p.stat().st_mtime_ns,hashlib.sha256(p.read_bytes()).hexdigest()) for p in workspace_files(self.root) if p.is_file()}
 
     def dbpath(self,root='.inkbolt/sessions'):
         return self.root/root/(hashlib.sha256(b'work').hexdigest()+'.sqlite3')

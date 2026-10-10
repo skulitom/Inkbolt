@@ -88,6 +88,34 @@ class VerificationTests(unittest.TestCase):
         self.assertFalse(verify.reusable(dict(status='passed', fingerprint='old'), 'new'))
         self.assertTrue(verify.reusable(dict(status='passed', fingerprint='same'), 'same'))
 
+    def test_real_helper_boundaries_keep_report_edits_out_of_rendering_checks(self):
+        root=verify.ROOT
+        files=inputs.snapshot(root)
+        modules=sorted(p.stem for p in (root/'tests').glob('test_*.py'))
+        before=inputs.fingerprints(root,files,'fixture-environment',modules)
+        changed=dict(files);changed['docs/IMPLEMENTATION.md']='original-doc-change'
+        after=inputs.fingerprints(root,changed,'fixture-environment',modules)
+        affected={name for name in before if before[name]!=after[name]}
+        self.assertEqual(affected,{
+            'test_implementation_registry','test_repo_guard','test_verification',
+            'test_verification_runner','test_workload_gates','test_wide_workload_gates',
+            'test_agent_benchmark','test_agent_benchmark_handoff',
+            'test_agent_benchmark_photo','test_agent_benchmark_recovery',
+        })
+        # Refactoring must still invalidate actual shared helper consumers and
+        # must not weaken the conservative Rust/unknown-input boundary.
+        changed=dict(files);changed['tools/workload_cases.py']='original-helper-change'
+        after=inputs.fingerprints(root,changed,'fixture-environment',modules)
+        for name in ['test_workload_measurement','test_native_locality','test_large_raster',
+                     'test_tiled_filters','test_tiled_effects','test_native_retouch']:
+            self.assertNotEqual(before[name],after[name],name)
+        changed=dict(files);changed['tests/test_affine_inverse_cli.py']='original-evidence-change'
+        after=inputs.fingerprints(root,changed,'fixture-environment',modules)
+        self.assertNotEqual(before['test_implementation_registry'],after['test_implementation_registry'])
+        changed=dict(files);changed['src/geometry.rs']='original-engine-change'
+        after=inputs.fingerprints(root,changed,'fixture-environment',modules)
+        self.assertTrue(all(before[name]!=after[name] for name in before))
+
     def test_selection_errors_thorough_conflicts_and_zero_test_runs_fail(self):
         with redirect_stderr(io.StringIO()):
             for args in (['--thorough', '--only', 'test_one'], ['--thorough', '--rust', 'missing'],

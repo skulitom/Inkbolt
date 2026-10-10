@@ -2,7 +2,7 @@
 import array
 import sys
 import struct
-import measure_workloads as measure
+import workload_cases as measure
 
 SUITE = 'native-shadow-v1'
 CASE = 'native-shadow-history'

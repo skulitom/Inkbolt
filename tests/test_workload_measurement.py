@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from test_cli import EXE, ROOT
 sys.path.insert(0, str(ROOT / 'tools'))
-import measure_workloads as measure
+import workload_cases as measure
 
 
 class WorkloadMeasurementTests(unittest.TestCase):

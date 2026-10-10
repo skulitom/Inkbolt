@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from external_workspace import files as workspace_files
 
 from test_cli import EXE
 from test_editing_cli import png_pixels
@@ -211,9 +212,9 @@ class HandoffTests(unittest.TestCase):
             self.assertTrue(all(r['inspection']['files_verified'] for r in receipts))
             self.assertEqual(receipts[1]['handoff']['manifest']['previous']['sha256'],receipts[0]['handoff']['sha256'])
             self.assertEqual(receipts[2]['handoff']['manifest']['previous']['sha256'],receipts[1]['handoff']['sha256'])
-            hashes={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}
+            hashes={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in workspace_files(root) if p.is_file()}
             self.assertNotEqual(subprocess.run(cmd,capture_output=True,timeout=10).returncode,0)
-            self.assertEqual(hashes,{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()})
+            self.assertEqual(hashes,{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in workspace_files(root) if p.is_file()})
 
 
 if __name__=='__main__':unittest.main()

@@ -1,6 +1,6 @@
 """Original native texture with a local blemish, clone edit and healed history."""
 import struct
-import measure_workloads as measure
+import workload_cases as measure
 
 SUITE = 'native-retouch-v1'
 CASE = 'native-retouch-history'
