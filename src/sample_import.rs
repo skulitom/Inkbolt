@@ -13,6 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use tiff::tags::Tag;
+mod tiff_rows;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Policy {
@@ -200,6 +201,8 @@ fn tiff(
     bytes: &[u8],
     policy: ColorPolicy,
     max_pixels: usize,
+    native_encoding: Option<crate::hdr::Encoding>,
+    control: &crate::control::Control,
 ) -> Result<(DecodedSource, Interpretation, Value), Error> {
     let mut limits = tiff::decoder::Limits::default();
     limits.decoding_buffer_size = decoder_limit(max_pixels);
@@ -316,6 +319,29 @@ fn tiff(
             "Native image channels exceed the 64 MiB decoded byte budget",
         ));
     }
+    if let Some(encoding) = native_encoding {
+        let spec = crate::sample_store::Spec {
+            width: w,
+            height: h,
+            depth,
+            channels,
+            encoding,
+        };
+        let pixels = tiff_rows::decode(&mut decoder, spec, n, planar == 2, control)?;
+        return Ok((
+            DecodedSource {
+                width: w,
+                height: h,
+                depth,
+                channels,
+                pixels: DecodedPixels::Tiles(pixels),
+            },
+            Interpretation::AssumedSrgb,
+            json!({"compression":compression,"planar_configuration":planar,"input_photometric":photo,
+                "decode_storage":"chunk_bands_to_native_blocks",
+                "normalization":"native_decoded_endian_to_little_endian;planes_interleaved;white_zero_inverted_by_codec;missing_alpha_opaque"}),
+        ));
+    }
     let mut data = vec![0; count * n * unit];
     if decoder.get_chunk_type() == tiff::decoder::ChunkType::Tile {
         let (cw, ch) = decoder.chunk_dimensions();
@@ -400,7 +426,7 @@ fn tiff(
             pixels: DecodedPixels::Bytes(native),
         },
         Interpretation::AssumedSrgb,
-        json!({"compression":compression,"planar_configuration":planar,"input_photometric":photo,"normalization":"native_decoded_endian_to_little_endian;planes_interleaved;white_zero_inverted_by_codec;missing_alpha_opaque"}),
+        json!({"compression":compression,"planar_configuration":planar,"input_photometric":photo,"decode_storage":"complete_decoded_frame","normalization":"native_decoded_endian_to_little_endian;planes_interleaved;white_zero_inverted_by_codec;missing_alpha_opaque"}),
     ))
 }
 pub fn import(
@@ -438,6 +464,11 @@ pub fn import_with_storage(
         MAX_STORED_PIXELS
     };
     let linear = matches!(selected, Policy::AssumeLinearSrgb);
+    let encoding = if linear {
+        crate::hdr::Encoding::LinearSrgb
+    } else {
+        crate::hdr::Encoding::EncodedSrgb
+    };
     let policy = match selected {
         Policy::RequireSrgb => ColorPolicy::RequireSrgb,
         Policy::AssumeSrgb | Policy::AssumeLinearSrgb => ColorPolicy::AssumeSrgb,
@@ -460,17 +491,18 @@ pub fn import_with_storage(
             let (g, i, n) = png(&bytes, policy, max_pixels, storage.is_some(), control)?;
             (g, i, n, "png")
         } else if bytes.starts_with(b"II") || bytes.starts_with(b"MM") {
-            let (g, i, n) = tiff(&bytes, policy, max_pixels)?;
+            let (g, i, n) = tiff(
+                &bytes,
+                policy,
+                max_pixels,
+                storage.map(|_| encoding),
+                control,
+            )?;
             (g, i, n, "tiff")
         } else {
             return Err(unsupported("Sample import requires PNG or TIFF"));
         };
     control.check()?;
-    let encoding = if linear {
-        crate::hdr::Encoding::LinearSrgb
-    } else {
-        crate::hdr::Encoding::EncodedSrgb
-    };
     let spec = crate::sample_store::Spec {
         width: decoded.width,
         height: decoded.height,

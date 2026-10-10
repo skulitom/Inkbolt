@@ -21,7 +21,7 @@ def values(d):
     return list(struct.unpack('<'+{'u8':'B','u16':'H','f32':'f'}[g['depth']]*(len(raw)//size),raw))
 
 
-def tiff(w,h,components,depth='u16',n=4,endian='<',planar=False,compression=1,photo=None,extra=None,tags=None,tile=None):
+def tiff(w,h,components,depth='u16',n=4,endian='<',planar=False,compression=1,photo=None,extra=None,tags=None,tile=None,strip_rows=None):
     """Minimal original classic-TIFF fixture writer; data supplied as native numbers."""
     fmt={'u8':'B','u16':'H','f32':'f'}[depth];bits={'u8':8,'u16':16,'f32':32}[depth]
     p=lambda f,*v:struct.pack(endian+f,*v)
@@ -29,8 +29,14 @@ def tiff(w,h,components,depth='u16',n=4,endian='<',planar=False,compression=1,ph
     if tile:
         nc=1 if planar else n;tw,th=tile
         planes=[[plane[(y*w+x)*nc+c] if x<w and y<h else 0 for y in range(y0,y0+th) for x in range(x0,x0+tw) for c in range(nc)] for plane in planes for y0 in range(0,h,th) for x0 in range(0,w,tw)]
+    elif strip_rows:
+        nc=1 if planar else n
+        planes=[plane[y*w*nc:min(y+strip_rows,h)*w*nc] for plane in planes for y in range(0,h,strip_rows)]
     raw=[p(fmt*len(a),*a) for a in planes]
-    if compression==8:raw=[zlib.compress(a) for a in raw]
+    if compression in (8,32946):raw=[zlib.compress(a) for a in raw]
+    if compression==32773:
+        # Original PackBits literal packets, independent of the engine encoder.
+        raw=[b''.join(bytes([len(a[i:i+128])-1])+a[i:i+128] for i in range(0,len(a),128)) for a in raw]
     if compression==5:
         def lzw(data):
             # Original literal/clear code stream, plus a repeated-code fixture.
@@ -39,7 +45,7 @@ def tiff(w,h,components,depth='u16',n=4,endian='<',planar=False,compression=1,ph
             bits=''.join(format(c,'09b') for c in codes);bits+='0'*(-len(bits)%8)
             return bytes(int(bits[i:i+8],2) for i in range(0,len(bits),8))
         raw=[lzw(a) for a in raw]
-    entries={256:(4,[w]),257:(4,[h]),258:(3,[bits]*n),259:(3,[compression]),262:(3,[1 if n<3 else 2] if photo is None else [photo]),273:(4,[0]*len(raw)),277:(3,[n]),278:(4,[h]),279:(4,[len(a) for a in raw]),284:(3,[2 if planar else 1]),339:(3,[3 if depth=='f32' else 1]*n)}
+    entries={256:(4,[w]),257:(4,[h]),258:(3,[bits]*n),259:(3,[compression]),262:(3,[1 if n<3 else 2] if photo is None else [photo]),273:(4,[0]*len(raw)),277:(3,[n]),278:(4,[strip_rows or h]),279:(4,[len(a) for a in raw]),284:(3,[2 if planar else 1]),339:(3,[3 if depth=='f32' else 1]*n)}
     if n in [2,4]:entries[338]=(3,[2] if extra is None else extra)
     if tile:
         for tag in [273,278,279]:del entries[tag]
@@ -48,7 +54,7 @@ def tiff(w,h,components,depth='u16',n=4,endian='<',planar=False,compression=1,ph
     def header():
         tail=bytearray();rows=[];start=8+2+len(entries)*12+4
         for tag,(kind,vs) in sorted(entries.items()):
-            data=p({1:'B',3:'H',4:'I'}[kind]*len(vs),*vs)
+            data=p({1:'B',2:'B',3:'H',4:'I'}[kind]*len(vs),*vs)
             if len(data)>4:
                 at=p('I',start+len(tail));tail.extend(data);tail.extend(bytes(len(tail)%2))
             else:at=data.ljust(4,b'\0')

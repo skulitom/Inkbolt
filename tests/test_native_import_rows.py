@@ -33,20 +33,22 @@ class NativeImportRowTests(unittest.TestCase):
             self.assertFalse(result['source_changed'])
         return result
 
-    def check_blocks(self, result, width, height, depth, n, expected):
+    def check_blocks(self, result, width, height, depth, n, expected, encoding='encoded_srgb'):
         manifest = result['document']['items'][0]['content']['grid']['base']
-        unit = depth // 8
+        unit = 4 if depth == 'f32' else depth // 8
+        storage_depth = 'f32' if depth == 'f32' else f'u{depth}'
+        encoding_byte = 1 if encoding == 'linear_srgb' else 0
         self.assertEqual(manifest['spec'], dict(width=width, height=height,
-                         depth=f'u{depth}', channels='rgba' if n == 4 else 'gray_alpha',
-                         encoding='encoded_srgb'))
+                         depth=storage_depth, channels='rgba' if n == 4 else 'gray_alpha',
+                         encoding=encoding))
         self.assertEqual(result['storage']['decoded_bytes'], width * height * n * unit)
         row_bytes = width * n * unit
-        raw = struct.pack('<' + ('H' if depth == 16 else 'B') * len(expected), *expected)
+        raw = struct.pack('<' + ('f' if depth == 'f32' else 'H' if depth == 16 else 'B') * len(expected), *expected)
         hashes = []
         for y in range(0, height, 128):
             for x in range(0, width, 128):
                 w, h = min(128, width-x), min(128, height-y)
-                header = b'INKTILE1' + struct.pack('<IIBBBB', w, h, unit, n, 0, 0)
+                header = b'INKTILE1' + struct.pack('<IIBBBB', w, h, unit, n, encoding_byte, 0)
                 payload = b''.join(raw[j*row_bytes+x*n*unit:j*row_bytes+(x+w)*n*unit]
                                    for j in range(y, y+h))
                 digest = hashlib.sha256(header + payload).hexdigest()
@@ -54,7 +56,7 @@ class NativeImportRowTests(unittest.TestCase):
                 self.assertEqual((self.root / '.inkbolt/assets' / (digest+'.native-tile')).read_bytes(),
                                  header + payload)
         self.assertEqual(manifest['tiles'], hashes)
-        identity = (b'INKGRID1INKTILE1' + struct.pack('<IIBBBBI', width, height, unit, n, 0, 0, 128)
+        identity = (b'INKGRID1INKTILE1' + struct.pack('<IIBBBBI', width, height, unit, n, encoding_byte, 0, 128)
                     + b''.join(bytes.fromhex(h) for h in hashes))
         self.assertEqual(manifest['sha256'], hashlib.sha256(identity).hexdigest())
         self.assertEqual(result['storage']['manifest_sha256'], manifest['sha256'])
@@ -93,7 +95,7 @@ class NativeImportRowTests(unittest.TestCase):
                 self.assertEqual(result['normalization']['decode_storage'], 'rows_to_native_blocks')
                 self.check_blocks(result, w, h, depth, n, expected)
 
-    def test_interlaced_tiff_and_inline_fallbacks_keep_identical_sample_meaning(self):
+    def test_interlaced_and_inline_fallbacks_and_tiff_keep_identical_sample_meaning(self):
         w, h = 129, 131
         for depth, n in ((8, 2), (16, 4)):
             values = [(i*7919) % (1 << depth) for i in range(w*h*n)]
@@ -103,6 +105,7 @@ class NativeImportRowTests(unittest.TestCase):
             self.assertEqual(interlaced['normalization']['decode_storage'], 'complete_decoded_frame')
             self.assertEqual(self.check_blocks(interlaced, w, h, depth, n, values), expected)
             buffered = self.imported(tiff(w, h, values, n=n, depth=f'u{depth}'), color_policy='assume_srgb')
+            self.assertEqual(buffered['normalization']['decode_storage'], 'chunk_bands_to_native_blocks')
             self.assertEqual(self.check_blocks(buffered, w, h, depth, n, values), expected)
             self.assertEqual(interlaced['storage']['created_tiles'], 0)
             self.assertEqual(buffered['storage']['created_tiles'], 0)
