@@ -49,7 +49,12 @@ fn runs<'a>(engine: &'a Value, key: &str, text: &str) -> Result<&'a Vec<Value>, 
     }
     Ok(values)
 }
-pub(super) fn diagnose(input: &mut Reader<'_>, control: &Control) -> Result<Value, Error> {
+pub(super) struct Record {
+    details: Value,
+    source: String,
+    story_index: i32,
+}
+pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Record, Error> {
     if input.left() > 65536 {
         return Err(limit("Native text record exceeds 64 KiB"));
     }
@@ -83,7 +88,15 @@ pub(super) fn diagnose(input: &mut Reader<'_>, control: &Control) -> Result<Valu
         }
     }
     d.field("TxMP")?.boolean()?;
-    d.field("TextIndex")?.integer()?;
+    let story_index = d.field("TextIndex")?.integer()?;
+    let old_text = d.optional("oldText").map(Datum::boolean).transpose()?;
+    let age = match d.optional("oldTextAge") {
+        Some(Datum::Enum(kind, value)) => Some(json!({"kind":kind,"value":value})),
+        Some(_) => return Err(malformed()),
+        None => None,
+    };
+    let compatibility = json!({"present":old_text.is_some() || age.is_some(),"old_text":old_text,
+        "age":age,"semantics_validated":false,"trusted":false});
     for key in ["bounds", "boundingBox"] {
         if let Some(value) = d.optional(key) {
             let mut bounds = value.object()?;
@@ -171,15 +184,30 @@ pub(super) fn diagnose(input: &mut Reader<'_>, control: &Control) -> Result<Valu
     }
     let owners_truncated = owners.len() > 8;
     let owners = owners.into_iter().take(8).collect::<Vec<_>>();
-    Ok(
-        json!({"kind":"native_text_requirements","editable_import_supported":false,
-        "diagnostic_scope":"this_text_record_framing_and_run_references_only",
+    Ok(Record {
+        source: source.to_owned(),
+        story_index,
+        details: json!({"kind":"native_text_requirements","editable_import_supported":false,
+        "diagnostic_scope":"local_record_and_selected_global_story_framing_and_references_only",
+        "reported_text_source":"local_record","native_story_index":story_index,
+        "compatibility_markers":compatibility,
         "whole_file_validated":false,"layout_semantics_validated":false,
         "text_characters":text.chars().count(),"text_utf16_units":text.encode_utf16().count(),
         "style_runs":style_runs.len(),"paragraph_runs":paragraph_runs.len(),
         "font_face_names":referenced_fonts,"font_file_identity_declared":false,
         "shape_owner_labels":owners,"shape_owner_labels_truncated":owners_truncated,"shape_owner_labels_trusted":false,
         "transform":transform,"text_data_sha256":assets::sha256(&payload),
-        "cached_pixels_used":false,"required_mapping":["explicit_content_pinned_font_bindings","editable_text_layout_reconstruction","declared_native_layout_and_rendering_differences"]}),
-    )
+        "cached_pixels_used":false,"required_mapping":["explicit_content_pinned_font_bindings","global_story_and_local_style_reconciliation","editable_text_layout_reconstruction","declared_native_layout_and_rendering_differences"]}),
+    })
+}
+pub(super) fn diagnose(
+    input: &mut Reader<'_>,
+    tail: &Reader<'_>,
+    version: Version,
+    control: &Control,
+) -> Result<Value, Error> {
+    let mut record = inspect(input, control)?;
+    record.details["global_story"] =
+        super::text_story::diagnose(tail, version, record.story_index, &record.source, control)?;
+    Ok(record.details)
 }

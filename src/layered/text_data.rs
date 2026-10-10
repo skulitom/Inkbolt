@@ -1,18 +1,90 @@
 //! Original bounded parser for dictionary-based text data. Parsing grants no
 //! permission to discard unknown layout semantics or use a cached image.
 use super::*;
-use serde_json::{Map, Number};
+use serde_json::Number;
+use std::collections::BTreeMap;
 
 const MAX_NODES: usize = 4096;
 const MAX_CONTAINER: usize = 512;
 const MAX_DEPTH: usize = 16;
 const MAX_STRING_BYTES: usize = 16388;
 
+// Names and opaque strings must remain distinct from Unicode text. In
+// particular, a named value cannot impersonate a story or a font face.
+pub(super) enum Node {
+    Dictionary(BTreeMap<String, Node>),
+    Array(Vec<Node>),
+    Text(String),
+    Bytes(Vec<u8>),
+    Name(String),
+    Scalar(Value),
+}
+impl Node {
+    pub fn field(&self, key: &str) -> Result<&Self, Error> {
+        match self {
+            Self::Dictionary(d) => d.get(key).ok_or_else(malformed),
+            _ => Err(malformed()),
+        }
+    }
+    pub fn array(&self) -> Result<&[Self], Error> {
+        match self {
+            Self::Array(v) => Ok(v),
+            _ => Err(malformed()),
+        }
+    }
+    pub fn text(&self) -> Result<&str, Error> {
+        match self {
+            Self::Text(v) => Ok(v),
+            _ => Err(malformed()),
+        }
+    }
+    pub fn unsigned(&self) -> Result<usize, Error> {
+        match self {
+            Self::Scalar(v) => v
+                .as_u64()
+                .and_then(|n| usize::try_from(n).ok())
+                .ok_or_else(malformed),
+            _ => Err(malformed()),
+        }
+    }
+    fn into_json(self) -> Result<Value, Error> {
+        Ok(match self {
+            Self::Dictionary(d) => Value::Object(
+                d.into_iter()
+                    .map(|(k, v)| Ok((k, v.into_json()?)))
+                    .collect::<Result<_, Error>>()?,
+            ),
+            Self::Array(a) => Value::Array(
+                a.into_iter()
+                    .map(Self::into_json)
+                    .collect::<Result<_, _>>()?,
+            ),
+            Self::Text(t) => Value::String(t),
+            Self::Scalar(v) => v,
+            // These forms are framed only by the global parser, not admitted to
+            // the local dictionary contract or interpreted as Unicode strings.
+            Self::Bytes(bytes) => {
+                return Err(unsupported(&format!(
+                    "Opaque text-data string ({} bytes) has no local mapping",
+                    bytes.len()
+                )));
+            }
+            Self::Name(name) => {
+                return Err(unsupported(&format!(
+                    "Named text-data value ({} bytes) has no local mapping",
+                    name.len()
+                )));
+            }
+        })
+    }
+}
+
 struct Parser<'a> {
     bytes: &'a [u8],
     at: usize,
     nodes: usize,
     control: &'a Control,
+    global: bool,
 }
 impl Parser<'_> {
     fn space(&mut self) {
@@ -56,7 +128,7 @@ impl Parser<'_> {
         }
         String::from_utf8(token.to_vec()).map_err(|_| malformed())
     }
-    fn string(&mut self) -> Result<String, Error> {
+    fn string(&mut self) -> Result<Node, Error> {
         let mut bytes = Vec::new();
         loop {
             let b = *self.bytes.get(self.at).ok_or_else(malformed)?;
@@ -80,6 +152,9 @@ impl Parser<'_> {
                 return Err(limit("Text-data string exceeds 16388 bytes"));
             }
         }
+        if self.global && !bytes.starts_with(&[254, 255]) {
+            return Ok(Node::Bytes(bytes));
+        }
         if !bytes.starts_with(&[254, 255]) || !bytes.len().is_multiple_of(2) {
             return Err(malformed());
         }
@@ -89,32 +164,45 @@ impl Parser<'_> {
             .iter()
             .map(|b| u16::from_be_bytes(*b))
             .collect::<Vec<_>>();
-        String::from_utf16(&words).map_err(|_| malformed())
+        String::from_utf16(&words)
+            .map(Node::Text)
+            .map_err(|_| malformed())
     }
-    fn value(&mut self, depth: usize) -> Result<Value, Error> {
+    fn container_limit(&self) -> usize {
+        if self.global { 4096 } else { MAX_CONTAINER }
+    }
+    fn dictionary(&mut self, depth: usize, implicit: bool) -> Result<Node, Error> {
+        let mut fields = BTreeMap::new();
+        loop {
+            self.space();
+            if (implicit && self.at == self.bytes.len()) || (!implicit && self.accept(b">>")) {
+                break;
+            }
+            if fields.len() >= self.container_limit() {
+                return Err(limit("Text-data dictionary exceeds its entry budget"));
+            }
+            let key = self.key()?;
+            let value = self.value(depth + 1)?;
+            if fields.insert(key, value).is_some() {
+                return Err(malformed());
+            }
+        }
+        Ok(Node::Dictionary(fields))
+    }
+    fn value(&mut self, depth: usize) -> Result<Node, Error> {
         self.control.check()?;
         self.nodes += 1;
-        if self.nodes > MAX_NODES || depth > MAX_DEPTH {
-            return Err(limit("Text data exceeds 4096 values or depth 16"));
+        let (nodes, levels) = if self.global {
+            (32768, 32)
+        } else {
+            (MAX_NODES, MAX_DEPTH)
+        };
+        if self.nodes > nodes || depth > levels {
+            return Err(limit("Text data exceeds its value or depth budget"));
         }
         self.space();
         if self.accept(b"<<") {
-            let mut fields = Map::new();
-            loop {
-                self.space();
-                if self.accept(b">>") {
-                    break;
-                }
-                if fields.len() >= MAX_CONTAINER {
-                    return Err(limit("Text-data dictionary exceeds 512 entries"));
-                }
-                let key = self.key()?;
-                let value = self.value(depth + 1)?;
-                if fields.insert(key, value).is_some() {
-                    return Err(malformed());
-                }
-            }
-            Ok(Value::Object(fields))
+            self.dictionary(depth, false)
         } else if self.accept(b"[") {
             let mut values = Vec::new();
             loop {
@@ -122,19 +210,21 @@ impl Parser<'_> {
                 if self.accept(b"]") {
                     break;
                 }
-                if values.len() >= MAX_CONTAINER {
-                    return Err(limit("Text-data array exceeds 512 entries"));
+                if values.len() >= self.container_limit() {
+                    return Err(limit("Text-data array exceeds its entry budget"));
                 }
                 values.push(self.value(depth + 1)?);
             }
-            Ok(Value::Array(values))
+            Ok(Node::Array(values))
         } else if self.accept(b"(") {
-            Ok(Value::String(self.string()?))
+            self.string()
+        } else if self.global && self.bytes.get(self.at) == Some(&b'/') {
+            Ok(Node::Name(self.key()?))
         } else {
             let token = self.token()?;
             match token {
-                b"true" => Ok(Value::Bool(true)),
-                b"false" => Ok(Value::Bool(false)),
+                b"true" => Ok(Node::Scalar(Value::Bool(true))),
+                b"false" => Ok(Node::Scalar(Value::Bool(false))),
                 _ => {
                     let s = std::str::from_utf8(token).map_err(|_| malformed())?;
                     let digits = s.strip_prefix(['+', '-']).unwrap_or(s);
@@ -150,7 +240,7 @@ impl Parser<'_> {
                     } else {
                         Number::from(s.parse::<i64>().map_err(|_| malformed())?)
                     };
-                    Ok(Value::Number(number))
+                    Ok(Node::Scalar(Value::Number(number)))
                 }
             }
         }
@@ -165,11 +255,28 @@ pub(super) fn parse(bytes: &[u8], control: &Control) -> Result<Value, Error> {
         at: 0,
         nodes: 0,
         control,
+        global: false,
     };
-    let result = parser.value(0)?;
+    let result = parser.value(0)?.into_json()?;
     parser.space();
     if parser.at != bytes.len() || !result.is_object() {
         return Err(malformed());
     }
     Ok(result)
+}
+
+pub(super) fn parse_global(bytes: &[u8], control: &Control) -> Result<Node, Error> {
+    if bytes.len() > 262144 {
+        return Err(limit("Global text data exceeds 256 KiB"));
+    }
+    let mut parser = Parser {
+        bytes,
+        at: 0,
+        nodes: 1,
+        control,
+        global: true,
+    };
+    // The global stream is a sequence of root dictionary entries without an
+    // outer delimiter pair. It is not the local dictionary's grammar.
+    parser.dictionary(0, true)
 }

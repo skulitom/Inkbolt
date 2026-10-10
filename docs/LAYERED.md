@@ -8,11 +8,33 @@ text-data hash. It never returns a document or substitutes cached text pixels.
 It also reports up to eight `shape_owner_labels` from the geometry extensions,
 with truncation and trust flags. These are untrusted identifiers from the file,
 not a validation of the geometry or a promise that a consumer recognizes them.
+Optional `compatibility_markers` retain typed Boolean/enum metadata as untrusted
+data with `semantics_validated:false`; they do not establish compatibility or
+authorize ignoring legacy layout behavior.
 
-These diagnostics check this record's framing, matching text sources, complete
+Top-level counts and face names describe the local record, explicitly labelled
+`reported_text_source:"local_record"`. `native_story_index` is the descriptor's
+reference, independent of layer order or ID. When global text data exists,
+`global_story` describes the selected authoritative story: character/UTF-16 and
+run counts, referenced face names, source-text and global-data hashes, and
+`local_text_matches`. A disagreement is reported rather than silently choosing
+the local copy. Missing or invalid references never fall back to cached pixels or
+local text. Without global text data, the local record is identified as the text
+source; an absent table does not prove layout support.
+
+These diagnostics check this local record's framing, matching local text sources, complete
 UTF-16 run coverage without splitting surrogate pairs, and explicit per-run font
 references. They do not validate layout semantics, later records or the whole
-file. Inherited styles and unknown descriptor framing can prevent diagnostics.
+file. The global extension checks tagged-section framing and, for the recognized
+version, the selected story's UTF-16 coverage and explicit font references.
+`other_stories_validated`, `other_layer_references_validated`,
+`style_semantics_validated`, `local_style_consistency_validated` and
+`layout_semantics_validated` remain false. Parsing unknown dictionary fields does
+not establish their meaning or permit discarding them. Global text can be
+authoritative while local text or layout is stale. Editable reconstruction must
+reconcile styles and geometry as well as characters; removing global layout can
+change paragraph placement even when the characters match.
+Inherited styles and unknown descriptor framing can prevent diagnostics.
 Font names come from untrusted source data and do not identify exact font bytes.
 Editable reconstruction still needs explicit content-pinned font bindings and
 declared layout/rendering differences; no import option currently enables it.
@@ -22,6 +44,13 @@ container, 16,388 decoded bytes per string, 65 runs per run table and eight
 referenced faces. It rejects duplicate keys, invalid Unicode, inconsistent runs,
 nonfinite numbers and trailing data. Malformed/over-budget records return the
 ordinary invalid-file/resource-limit errors without a requirements receipt.
+Global text data has its own bounded implicit dictionary grammar: named values,
+opaque byte strings and Unicode strings remain distinct. Only Unicode strings
+can supply story text or font names. Its separate limits are 256 KiB, depth 32,
+32,768 values, 4,096 entries per container, 512 global tagged records and 256
+stories, with the same string, character, run and referenced-face bounds. Only
+global version 14 is recognized. These bounds do not enlarge editable documents
+or relax the local text-data grammar.
 CLI and MCP preserve the same optional structured error details. This diagnostic
 unit adds no engine-checkpoint credit.
 

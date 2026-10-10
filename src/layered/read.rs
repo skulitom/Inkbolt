@@ -34,6 +34,7 @@ fn record(
     control: &Control,
     version: Version,
     embedded_objects: Option<EmbeddedObjects>,
+    global_tail: &Reader<'_>,
 ) -> Result<Layer, Error> {
     let bounds = [
         input.signed()?,
@@ -133,9 +134,10 @@ fn record(
         let count = data.left();
         match &key {
             b"TySh" => {
-                let details = super::text_record::diagnose(&mut data, control)?;
+                let details =
+                    super::text_record::diagnose(&mut data, global_tail, version, control)?;
                 let mut error = unsupported(
-                    "Editable native text requires a font-binding and layout reconstruction mapping that is not yet implemented. Preserve the source; cached text pixels are not substituted for editable text. Text-record diagnostics are in details; the rest of the file has not been validated.",
+                    "Editable native text requires font binding, authoritative story reconciliation and layout reconstruction that are not yet implemented. Preserve the source; cached text pixels are not substituted for editable text. Details describe local and selected global story framing and references, not whole-file or layout validation.",
                 );
                 error.details = Some(Box::new(details));
                 return Err(error);
@@ -558,6 +560,7 @@ pub(super) fn document(
             control,
             version,
             embedded_objects,
+            &section,
         )
         .map_err(|e| context(e, "Layer record"))?;
         if r.kind != Kind::Boundary && r.id.is_some_and(|id| !ids.insert(id)) {

@@ -9,7 +9,12 @@ optional details. Explicit native text delivery writes original bounded text,
 style, font-reference and point/paragraph geometry records. Content-pinned fonts
 render separate caches; the receiving consumer resolves external face names and
 controls layout. A shared nested-delivery budget rejects conflicting native face
-names. Incoming editable text and global story reconstruction remain open.
+names. Global text diagnostics use a separate bounded implicit dictionary grammar
+with typed Unicode, byte and named values. The descriptor's explicit story index
+selects canonical source text and per-run font references; local/global text
+differences remain visible. Only the selected story's structural references are
+checked, not style/layout semantics, other stories or the complete file.
+Incoming editable text and global story reconstruction remain open.
 
 `presets` provides pure versioned screen and physical-page recipes over the
 existing document, artboard, logical-canvas and publication contracts. Explicit

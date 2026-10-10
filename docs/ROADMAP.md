@@ -1,5 +1,11 @@
 # Roadmap and verified scope
 
+Incoming text diagnostics now include the selected global story's authoritative
+characters, run/font references and comparison with the local record. Story
+indices are independent of layer order. Structural agreement does not establish
+editable style or layout reconstruction; incoming text remains unsupported and
+the original six checkpoints remain open.
+
 The [agent task benchmark](AGENT_BENCHMARK.md) now has twenty independently
 judged scripted CLI/MCP adapters within the unchanged twenty-task inventory.
 Release identity, exact traffic and per-task measurements are retained; missing

@@ -333,7 +333,7 @@ pub(super) fn prepare(
         ],
     ));
     record.extend([0; 16]);
-    super::text_record::diagnose(&mut Reader::new(&record), context.control)?;
+    super::text_record::inspect(&mut Reader::new(&record), context.control)?;
     let local = layout.ink_bounds.unwrap_or([0.0, 0.0, 1.0, 1.0]);
     let mapped = crate::geometry::bounds(
         &Geometry::Rect {

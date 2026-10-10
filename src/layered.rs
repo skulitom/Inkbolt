@@ -8,6 +8,7 @@ mod objects;
 mod read;
 mod text_data;
 mod text_record;
+mod text_story;
 mod text_write;
 mod write;
 use crate::{Document, Error, assets, control::Control, model::*};
