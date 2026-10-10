@@ -3,6 +3,7 @@ mod binary;
 mod descriptor;
 mod mask;
 mod metadata;
+mod objects;
 mod read;
 mod write;
 use crate::{Document, Error, assets, control::Control, model::*};
@@ -14,6 +15,27 @@ use std::path::Path;
 pub const MAX_FILE_BYTES: usize = 32 * 1024 * 1024;
 pub const MAX_DECODED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_CANVAS_PIXELS: usize = 1_048_576;
+
+/// Explicit conversion of native embedded placements to retained engine objects.
+/// Reconstruction and source sharing can differ from the originating consumer.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EmbeddedObjects {
+    pub sampling: assets::Sampling,
+    pub sharing: ObjectSharing,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ObjectSharing {
+    IndependentCopies,
+}
+
+#[derive(Default)]
+struct DecodeBudget {
+    pixels: usize,
+    items: usize,
+    snapshot_bytes: usize,
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -86,6 +108,16 @@ pub fn import(
     color_policy: assets::ColorPolicy,
     control: &Control,
 ) -> Result<Value, Error> {
+    import_with_objects(source, expected_sha256, id, color_policy, None, control)
+}
+pub fn import_with_objects(
+    source: &Path,
+    expected_sha256: Option<&str>,
+    id: String,
+    color_policy: assets::ColorPolicy,
+    embedded_objects: Option<EmbeddedObjects>,
+    control: &Control,
+) -> Result<Value, Error> {
     control.check()?;
     assets::absolute(source)?;
     let bytes = assets::read_bounded(source, MAX_FILE_BYTES as u64)?;
@@ -96,7 +128,7 @@ pub fn import(
             "Layered source bytes do not match the declared SHA-256",
         ));
     }
-    let mut result = read::document(&bytes, id, color_policy, control)?;
+    let mut result = decode_with_objects(&bytes, id, color_policy, embedded_objects, control)?;
     result["source_sha256"] = json!(hash);
     result["source_bytes"] = json!(bytes.len());
     result["source_changed"] = json!(false);
@@ -108,11 +140,28 @@ pub fn decode(
     color_policy: assets::ColorPolicy,
     control: &Control,
 ) -> Result<Value, Error> {
+    decode_with_objects(bytes, id, color_policy, None, control)
+}
+pub fn decode_with_objects(
+    bytes: &[u8],
+    id: String,
+    color_policy: assets::ColorPolicy,
+    embedded_objects: Option<EmbeddedObjects>,
+    control: &Control,
+) -> Result<Value, Error> {
     if bytes.len() > MAX_FILE_BYTES {
         return Err(limit("Layered input exceeds 32 MiB"));
     }
     control.check()?;
-    read::document(bytes, id, color_policy, control)
+    read::document(
+        bytes,
+        id,
+        color_policy,
+        embedded_objects,
+        control,
+        0,
+        &mut DecodeBudget::default(),
+    )
 }
 pub fn export(
     document: &Document,

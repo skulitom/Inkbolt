@@ -2916,7 +2916,8 @@
         "tests/test_layered_groups_cli.py::GroupLayeredTests",
         "tests/layered_api.rs::nested_library_folders_use_raw_and_rle_without_changing_original_samples",
         "tests/test_layered_masks_cli.py::LayeredMaskTests",
-        "tests/layered_api.rs::authored_and_constant_mask_planes_retain_controls_independently_of_color"
+        "tests/layered_api.rs::authored_and_constant_mask_planes_retain_controls_independently_of_color",
+        "tests/test_layered_objects_cli.py::LayeredObjectTests"
       ]
     },
     {

@@ -177,6 +177,8 @@ pub enum Request {
         #[serde(default)]
         color_policy: assets::ColorPolicy,
         #[serde(default)]
+        embedded_objects: Option<layered::EmbeddedObjects>,
+        #[serde(default)]
         control: control::Options,
     },
     #[serde(rename = "assist.segment")]
@@ -1513,7 +1515,18 @@ fn capability_report() -> Value {
         .as_array_mut()
         .unwrap()
         .extend([json!("layered"), json!("layered_large")]);
-    capabilities["layered_interchange"] = json!({"status":"basic_interchange_verified","import":"layered.import","export_format":"layered","file_version":1,"additional_file_versions":[2],"large_export_format":"layered_large","dimensions_by_version":{"standard":30000,"large":32768},"extended_status":"partial_uncredited","mode":"rgb8","layer_order":"bottom_to_top","layer_sources":["inline_raster","encoded_srgb_rgba8_samples"],"import_compression":["raw","rle","zip","zip_prediction"],"export_compression":"rle;raw_available_in_Rust_library","preserved":["original_layer_pixels_including_hidden_RGB","integer_extents","names","visibility","byte_opacity","byte_fill_opacity","whole_layer_lock"],"source_changed":false,"canvas_pixels":layered::MAX_CANVAS_PIXELS,"stored_pixels":model::MAX_STORED_PIXELS,"file_bytes":layered::MAX_FILE_BYTES,"maximum_layers":model::MAX_ITEMS,"profile_policy":"exact_builtin_srgb;explicit_convert_srgb_for_other_profiles;explicit_assume_srgb_for_untagged","merged_preview":"white_matted_RGB_with_separate_alpha;8bit_unmatting_loss;layers_remain_original","metadata":"explicit_strip_if_descriptive_metadata_present","incoming_metadata":"strict_known_inactive_records_with_omission_receipts","descriptor_limits":{"bytes":65536,"depth":8,"values":512,"container_entries":128},"density_units":"fixed_values_always_ppi;unit_selectors_are_display_only","groups":{"modes":["normal_isolated","normal_pass_through"],"empty":true,"ancestor_levels":16,"serialized_records":512,"transforms":"absolute_integer_source_placements;imported_groups_identity","open_state":"omitted_UI_metadata","unsupported":["non_normal_group_blends","group_fill_opacity","knockout","cached_group_pixel_extents","layer_role_containers"]},"masks":{"authored_gray8":true,"independent_bounds":true,"constant_empty_planes":true,"controls":["linked","enabled","outside_black_or_white","exact_byte_density"],"sampling":"nearest_integer_translation","unsupported":["nonzero_native_feather","obsolete_invert_flag","derived_masks","combined_real_vector_masks","implicit_resampling"]},"empty_layer_names":"encoded_exactly;native_consumers_may_generate_names;receipt_lists_empty_name_source_ids","unsupported":["large_axes_above_32768","empty_pixel_layers","native_mask_feather","derived_or_combined_masks","text","embedded_objects","non_normal_blends","extra_channels","nonempty_guides","unknown_appearance_records"],"checkpoint":"raster.interchange.basic"});
+    capabilities["layered_interchange"] = json!({"status":"basic_interchange_verified","import":"layered.import","export_format":"layered","file_version":1,"additional_file_versions":[2],"large_export_format":"layered_large","dimensions_by_version":{"standard":30000,"large":32768},"extended_status":"partial_uncredited","mode":"rgb8","layer_order":"bottom_to_top","layer_sources":["inline_raster","encoded_srgb_rgba8_samples"],"import_compression":["raw","rle","zip","zip_prediction"],"export_compression":"rle;raw_available_in_Rust_library","preserved":["original_layer_pixels_including_hidden_RGB","integer_extents","names","visibility","byte_opacity","byte_fill_opacity","whole_layer_lock"],"source_changed":false,"canvas_pixels":layered::MAX_CANVAS_PIXELS,"stored_pixels":model::MAX_STORED_PIXELS,"file_bytes":layered::MAX_FILE_BYTES,"maximum_layers":model::MAX_ITEMS,"profile_policy":"exact_builtin_srgb;explicit_convert_srgb_for_other_profiles;explicit_assume_srgb_for_untagged","merged_preview":"white_matted_RGB_with_separate_alpha;8bit_unmatting_loss;layers_remain_original","metadata":"explicit_strip_if_descriptive_metadata_present","incoming_metadata":"strict_known_inactive_records_with_omission_receipts","descriptor_limits":{"bytes":65536,"depth":8,"values":512,"container_entries":128},"density_units":"fixed_values_always_ppi;unit_selectors_are_display_only","groups":{"modes":["normal_isolated","normal_pass_through"],"empty":true,"ancestor_levels":16,"serialized_records":512,"transforms":"absolute_integer_source_placements;imported_groups_identity","open_state":"omitted_UI_metadata","unsupported":["non_normal_group_blends","group_fill_opacity","knockout","cached_group_pixel_extents","layer_role_containers"]},"masks":{"authored_gray8":true,"independent_bounds":true,"constant_empty_planes":true,"controls":["linked","enabled","outside_black_or_white","exact_byte_density"],"sampling":"nearest_integer_translation","unsupported":["nonzero_native_feather","obsolete_invert_flag","derived_masks","combined_real_vector_masks","implicit_resampling"]},"empty_layer_names":"encoded_exactly;native_consumers_may_generate_names;receipt_lists_empty_name_source_ids","unsupported":["large_axes_above_32768","empty_pixel_layers","native_mask_feather","derived_or_combined_masks","text","embedded_object_export","non_normal_blends","extra_channels","nonempty_guides","unknown_appearance_records"],"checkpoint":"raster.interchange.basic"});
+    capabilities["layered_interchange"]["embedded_objects"] = json!({
+        "import":"explicit_policy_required","export":false,
+        "policy":{"sampling":["nearest","bilinear","area","bicubic","lanczos3"],"sharing":["independent_copies"]},
+        "source":"retained_normalized_editable_rgb8_layered_document","native_source_bytes":"remain_in_original_input;sha256_in_receipt",
+        "placement":"validated_affine_corners_and_source_size_density","cached_pixels":"validated_and_hashed;never_used_as_editable_source",
+        "native_composite_equality":false,"profile_policy":"applies_to_every_nested_document",
+        "source_record_versions":[1,2,3,4,5,6,7,8],"empty_external_link_list":"omitted_with_receipt;nonempty_unsupported",
+        "limits":{"nesting":objects::MAX_NESTING,"decoded_items":1024,"decoded_sample_bytes":layered::MAX_DECODED_BYTES,
+            "source_snapshot_bytes":model::MAX_DOCUMENT_BYTES,"aggregate_snapshot_allocation_bytes":layered::MAX_DECODED_BYTES},
+        "unsupported":["external_links","aliases","selected_layer_comps","animation","active_warps","perspective","non_layered_sources","unknown_descriptor_fields"]
+    });
     capabilities["native_sample_store_library"] = json!({
         "status":"integrated_native_import_local_patch_edits_and_bounded_view_rendering;scale_gate_open",
         "module":"sample_store", "manifest_version":1,
@@ -1651,12 +1664,14 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             expected_sha256,
             id,
             color_policy,
+            embedded_objects,
             control,
-        } => layered::import(
+        } => layered::import_with_objects(
             &source_path,
             expected_sha256.as_deref(),
             id,
             color_policy,
+            embedded_objects,
             &context.scoped(&control)?,
         ),
         Request::PresetList {} => Ok(presets::catalog()),

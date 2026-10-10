@@ -4,7 +4,7 @@
 
 `format:"layered_large"` publishes `.psb` with version-two framing. The importer selects framing from the file header. Layer-section, layer-info and channel lengths are unsigned 64-bit values; row-compression counts are 32-bit values. Only the format-defined tagged records use 64-bit lengths; all other sections retain their specified widths. The Rust library exposes `export_versioned` with `Version::Standard` or `Version::Large`.
 
-This is partial extended interchange and adds no checkpoint credit. Version two currently supports axes through the existing engine limit of 32,768, including thin canvases wider or taller than the standard format's 30,000 limit. The 32 MiB file, 1,048,576 canvas-pixel and 65,536 stored-pixel limits remain. Larger engine axes, remaining group semantics, masks, text and native embedded objects remain required; selecting a large container does not imply those semantics are supported.
+This is partial extended interchange and adds no checkpoint credit. Version two currently supports axes through the existing engine limit of 32,768, including thin canvases wider or taller than the standard format's 30,000 limit. The 32 MiB file, 1,048,576 canvas-pixel and 65,536 stored-pixel limits remain. Larger engine axes, remaining group/mask semantics, text and full embedded-object exchange remain required; selecting a large container does not imply those semantics are supported.
 
 ```json
 {"command":"layered.import","source_path":"C:/work/input.psd","id":"editable","color_policy":"assume_srgb"}
@@ -37,7 +37,7 @@ Native pixel positions are absolute. Export evaluates integer translations throu
 
 Empty names are stored exactly in the file, but native consumers can generate names on opening or saving. The delivery receipt lists `empty_name_source_ids`, and its losses explain this behavior. Assign explicit names when stable external names matter. Original file bytes and engine source documents remain unchanged.
 
-This completes a verified unit of extended interchange, not the entire checkpoint. Masks, editable text, embedded objects, larger axes and the remaining group semantics retain their original acceptance requirements.
+This completes a verified unit of extended interchange, not the entire checkpoint. Remaining mask controls, editable text, full embedded-object exchange, larger axes and the remaining group semantics retain their original acceptance requirements.
 
 ## Authored scalar masks
 
@@ -46,3 +46,19 @@ The current reader/writer retains gray8 mask planes independently of original la
 Nonzero native feather, obsolete inversion flags, derived/combined masks, vector parameters, noninteger placement and implicit resampling fail explicitly. The engine triangular feather control is a different operation. Display-overlay metadata and inactive mask/effect ordering are listed in omission receipts; effects remain unsupported in this interchange subset. Masks count toward the same retained-pixel budget even while disabled.
 
 Independent native import and return checks retain source RGBA, authored gray samples, bounds, linking, disabled state and density, with matching visible samples for the synthetic fixtures. This partial unit adds no completed checkpoint: **161/167 (96.41%)** remains the verified total. Feather and combined-mask controls, editable text, embedded objects, larger axes and remaining group semantics still require implementation and verification.
+
+## Explicit embedded-source import
+
+Embedded native RGB8 layered sources can be imported as retained editable objects with an explicit reconstruction and sharing policy:
+
+```json
+{"command":"layered.import","source_path":"C:/work/placed.psd","id":"editable","color_policy":"convert_srgb","embedded_objects":{"sampling":"nearest","sharing":"independent_copies"}}
+```
+
+`sampling` must select `nearest`, `bilinear`, `area`, `bicubic` or `lanczos3`. `independent_copies` explicitly converts native shared-source placements into independently replaceable engine objects. Source IDs and placed IDs remain in receipts so this change is visible. Omitting the policy rejects placed objects with an actionable error. Use `object.open`, edit the returned source and apply `object_replace`; ordinary session revision, retry and undo contracts apply. Engine snapshot delivery retains this editability. Native layered **export of objects remains unsupported**, so this incoming mapping does not complete the extended checkpoint.
+
+The importer validates modern placement descriptors, any matching legacy record, affine corners, source size/density, still-frame state, unwarped state and the unique referenced source table. It recursively decodes the editable source, including supported groups and masks, and applies the selected profile policy to each document. The source file is never modified. Placed and merged caches are decoded and hashed but never substitute for editable sources. Native interpolation and edge coverage can differ from the selected engine reconstruction, including scaled opaque sources; losses report this explicitly. This is not a claim of native composite equality.
+
+Receipts include original source byte hashes, filenames, record versions, normalized snapshot hashes, source interpretations, omitted metadata, placement matrices and cache hashes. Native payload bytes remain in the original input; an imported object contains a normalized engine snapshot. Filenames are descriptive only and never opened. External links, aliases, non-layered payloads, selected layer comps, animation, active warps, perspective and unknown descriptor fields fail. Exactly empty annotation and external-link lists are admitted and listed as omitted nonappearance records.
+
+Both container versions and the four input compressions use the same bounds. Embedded sources can have an all-zero allocation tail of at most 1 MiB only after a completely decoded merged stream and only when the entire embedded payload is a multiple of 1 MiB; ordinary top-level files still reject all trailing bytes. Maximum nesting is four, with 1,024 decoded editable items, 8 MiB of decoded source/mask/merged samples, 768 KiB per normalized source snapshot and an 8 MiB conservative snapshot-allocation budget including unique sources and independent placement copies. Per-document limits above still apply, as do ordinary engine rendering limits.

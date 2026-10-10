@@ -18,6 +18,7 @@ struct Layer {
     locked: bool,
     kind: Kind,
     mask: Option<super::mask::Record>,
+    placement: Option<super::objects::Placement>,
 }
 impl Layer {
     fn identity(&self, index: usize) -> String {
@@ -32,6 +33,7 @@ fn record(
     ignored: &mut BTreeSet<String>,
     control: &Control,
     version: Version,
+    embedded_objects: Option<EmbeddedObjects>,
 ) -> Result<Layer, Error> {
     let bounds = [
         input.signed()?,
@@ -108,9 +110,11 @@ fn record(
         locked: false,
         kind: Kind::Pixel,
         mask,
+        placement: None,
     };
     let mut unicode_name = None;
     let mut keys = BTreeSet::new();
+    let mut legacy = None;
     while extra.left() > 0 {
         if extra.left() < 12 {
             extra.zero_padding(3)?;
@@ -128,6 +132,24 @@ fn record(
         let mut data = extra.tagged_section(&key, version)?;
         let count = data.left();
         match &key {
+            b"PlLd" | b"plLd" | b"SoLd" | b"SoLE" => {
+                if embedded_objects.is_none() {
+                    return Err(unsupported(
+                        "Embedded objects require explicit embedded_objects sampling and independent_copies sharing; native cached appearance is not editable source",
+                    ));
+                }
+                if matches!(&key, b"PlLd" | b"plLd") {
+                    if legacy.is_some() {
+                        return Err(malformed());
+                    }
+                    legacy = Some(super::objects::legacy(&mut data, control)?);
+                } else {
+                    if layer.placement.is_some() {
+                        return Err(malformed());
+                    }
+                    layer.placement = Some(super::objects::placement(&mut data, control)?);
+                }
+            }
             b"luni" => {
                 unicode_name = Some(data.unicode()?);
                 data.zero_padding(3)?;
@@ -244,6 +266,17 @@ fn record(
         }
         String::from_utf8(fallback_name).map_err(|_| malformed())?
     };
+    if let Some((source, points)) = legacy {
+        let p = layer.placement.as_ref().ok_or_else(|| {
+            unsupported("Legacy-only placed records do not declare supported source dimensions")
+        })?;
+        if source != p.source || points != p.points {
+            return Err(malformed());
+        }
+    }
+    if layer.placement.is_some() && layer.kind != Kind::Pixel {
+        return Err(malformed());
+    }
     if flags & 1 != 0 && !layer.locked {
         return Err(unsupported(
             "Transparency-only locking has no whole-item lock equivalent",
@@ -322,8 +355,15 @@ pub(super) fn document(
     bytes: &[u8],
     id: String,
     policy: assets::ColorPolicy,
+    embedded_objects: Option<EmbeddedObjects>,
     control: &Control,
+    depth: usize,
+    budget: &mut DecodeBudget,
 ) -> Result<Value, Error> {
+    if depth > crate::objects::MAX_NESTING {
+        return Err(limit("Embedded layered sources exceed four levels"));
+    }
+    control.check()?;
     let mut input = Reader::new(bytes);
     if input.take(4)? != b"8BPS" {
         return Err(malformed());
@@ -501,11 +541,23 @@ pub(super) fn document(
     let mut records = Vec::new();
     let mut total = 0;
     let mut ids = BTreeSet::new();
+    let mut placement_ids = BTreeSet::new();
     for _ in 0..count.unsigned_abs() {
         control.check()?;
-        let r = record(&mut layers, &mut ignored, control, version)
-            .map_err(|e| context(e, "Layer record"))?;
+        let r = record(
+            &mut layers,
+            &mut ignored,
+            control,
+            version,
+            embedded_objects,
+        )
+        .map_err(|e| context(e, "Layer record"))?;
         if r.kind != Kind::Boundary && r.id.is_some_and(|id| !ids.insert(id)) {
+            return Err(malformed());
+        }
+        if let Some(p) = &r.placement
+            && !placement_ids.insert(p.identity.clone())
+        {
             return Err(malformed());
         }
         total += (r.bounds[3] - r.bounds[1]) as usize * (r.bounds[2] - r.bounds[0]) as usize;
@@ -515,12 +567,25 @@ pub(super) fn document(
         }
         records.push(r);
     }
+    budget.pixels += total + canvas;
+    if budget.pixels > MAX_DECODED_BYTES / 4 {
+        return Err(limit(
+            "Nested layered source, mask and merged cache samples exceed 8 MiB",
+        ));
+    }
     let parents = hierarchy(&records)?;
     let editable = records.iter().filter(|r| r.kind != Kind::Boundary).count();
+    budget.items += editable;
+    if budget.items > 1024 {
+        return Err(limit(
+            "Nested layered documents exceed 1024 decoded editable items",
+        ));
+    }
     if editable > MAX_ITEMS {
         return Err(limit("Layered input exceeds 256 editable items"));
     }
     let mut items = Vec::new();
+    let mut cache_hashes = std::collections::BTreeMap::new();
     for (index, r) in records.iter().enumerate() {
         control.check()?;
         let w = (r.bounds[3] - r.bounds[1]) as usize;
@@ -550,6 +615,9 @@ pub(super) fn document(
         }
         if r.kind == Kind::Boundary {
             continue;
+        }
+        if r.placement.is_some() {
+            cache_hashes.insert(r.identity(index), assets::sha256(&rgba));
         }
         if convert && r.kind == Kind::Pixel {
             let mut values = rgba.iter().map(|v| *v as f64 / 255.0).collect::<Vec<_>>();
@@ -593,24 +661,127 @@ pub(super) fn document(
         overlay.zero_padding(3)?;
         ignored.insert("global_mask:per_layer_display_overlay".into());
     }
-    super::metadata::global(&mut section, &mut ignored, control, version)?;
-    let merged = binary::decode(
+    let sources = super::metadata::global(&mut section, &mut ignored, control, version)?;
+    let (merged, padding) = binary::decode_padded(
         input.take(input.left())?,
         width as usize,
         height as usize * channels as usize,
         version,
         control,
+        depth > 0,
     )
     .map_err(|e| context(e, "Merged samples"))?;
     if merged.len() != canvas * channels as usize {
         return Err(malformed());
     }
+    if padding != 0 && !bytes.len().is_multiple_of(1024 * 1024) {
+        return Err(malformed());
+    }
+    let requested = records
+        .iter()
+        .filter_map(|r| r.placement.as_ref().map(|p| p.source.clone()))
+        .collect::<BTreeSet<_>>();
+    if requested != sources.keys().cloned().collect::<BTreeSet<_>>() {
+        return Err(unsupported(
+            "Embedded source references must exactly match the unique source table; missing and unreferenced sources cannot be discarded",
+        ));
+    }
+    let mut snapshots = std::collections::BTreeMap::new();
+    let mut source_receipts = Vec::new();
+    for (source_id, source) in &sources {
+        control.check()?;
+        let imported = document(
+            source.bytes,
+            format!("embedded-{}", source_receipts.len() + 1),
+            policy,
+            embedded_objects,
+            control,
+            depth + 1,
+            budget,
+        )?;
+        let d: Document =
+            serde_json::from_value(imported["document"].clone()).map_err(|_| malformed())?;
+        let snapshot = serde_json::to_string(&d).map_err(|_| malformed())?;
+        if snapshot.len() > MAX_DOCUMENT_BYTES {
+            return Err(limit("Embedded editable snapshot exceeds 768 KiB"));
+        }
+        budget.snapshot_bytes += snapshot.len();
+        if budget.snapshot_bytes > MAX_DECODED_BYTES {
+            return Err(limit("Nested editable snapshots exceed 8 MiB"));
+        }
+        source_receipts.push(json!({"source_id":source_id,"filename":source.filename,"record_version":source.version,
+            "native_source_sha256":assets::sha256(source.bytes),"native_source_bytes":source.bytes.len(),
+            "snapshot_sha256":assets::sha256(snapshot.as_bytes()),"width":d.width,"height":d.height,
+            "resolution_ppi":d.resolution_ppi,"interpretation":imported["interpretation"],
+            "omitted_nonappearance_records":imported["omitted_nonappearance_records"],"embedded_zero_padding":imported["embedded_zero_padding"],
+            "nested_sources":imported["embedded_sources"]}));
+        snapshots.insert(
+            source_id.clone(),
+            (snapshot, d.width, d.height, d.resolution_ppi),
+        );
+    }
+    let mut placement_receipts = Vec::new();
+    for (index, r) in records.iter().enumerate() {
+        let Some(p) = &r.placement else {
+            continue;
+        };
+        control.check()?;
+        let options = embedded_objects.ok_or_else(|| {
+            unsupported("Embedded objects require an explicit reconstruction policy")
+        })?;
+        let (snapshot, width, height, resolution) =
+            snapshots.get(&p.source).ok_or_else(malformed)?;
+        if p.size != [*width as f64, *height as f64]
+            || (p.resolution - resolution).abs() > 1.0 / 65536.0
+        {
+            return Err(unsupported(
+                "Placed source size or density disagrees with its embedded document",
+            ));
+        }
+        budget.snapshot_bytes += snapshot.len();
+        if budget.snapshot_bytes > MAX_DECODED_BYTES {
+            return Err(limit("Independent embedded source copies exceed 8 MiB"));
+        }
+        let item = items
+            .iter_mut()
+            .find(|item| item.id == r.identity(index))
+            .ok_or_else(malformed)?;
+        let matrix = p.matrix()?;
+        if let Some(mask) = &mut item.mask
+            && mask.linked
+        {
+            mask.transform =
+                crate::geometry::relative_transform(matrix, &[item.transform, mask.transform])?;
+        }
+        let object = crate::objects::Object {
+            snapshot: snapshot.clone(),
+            sha256: assets::sha256(snapshot.as_bytes()),
+            width: *width as f64,
+            height: *height as f64,
+            sampling: options.sampling,
+            surface_scale: 1,
+            view: None,
+            link: None,
+        };
+        item.transform = matrix;
+        item.content = Content::Object {
+            object: Box::new(object),
+        };
+        placement_receipts.push(json!({"item_id":item.id,"source_id":p.source,"placed_id":p.identity,"matrix":matrix,
+            "cached_rgba_sha256":cache_hashes.get(&item.id),"cache_used_for_editable_reconstruction":false,
+            "sampling":options.sampling,"sharing":options.sharing}));
+    }
     let document:Document=serde_json::from_value(json!({"schema_version":2,"id":id,"kind":"raster","width":width,"height":height,"resolution_ppi":resolution,"color_space":"srgb","items":items})).map_err(|_|malformed())?;
     crate::validate(&document)?;
     control.check()?;
-    Ok(
-        json!({"document":document,"format":if version==Version::Large{"layered_rgb_v2"}else{"layered_rgb_v1"},"file_version":version.number(),"layers":editable,"serialized_records":records.len(),"masked_items":records.iter().filter(|r|r.mask.is_some()).count(),"groups":records.iter().filter(|r|matches!(r.kind,Kind::Group{..})).count(),"source_profile_sha256":profile.as_ref().map(|v|assets::sha256(v)),"interpretation":if convert{"converted_srgb_per_layer"}else if profile.is_some(){"declared_working_srgb"}else{"assumed_srgb"},"merged_cache":{"sample_sha256":assets::sha256(&merged),"used_for_editable_reconstruction":false},"resolution_declared":density_declared,"omitted_nonappearance_records":ignored,"losses":["Creates new layer identities from numeric file IDs; preserves native pixel extents, sibling order, folder hierarchy, Unicode names, visibility, opacity and supported full locks. Folder expansion state is listed as omitted UI metadata. No file is overwritten.","The merged cache is decoded and validated but editable appearance is recomputed from layers. Descriptive/UI/thumbnail records listed in the receipt are not imported as trusted document metadata.","Explicit conversion to working sRGB changes layer RGB before compositing, preserves alpha and can change profile-space blending. It is not a promise of cross-consumer composite equality."]}),
-    )
+    let mut result = json!({"document":document,"format":if version==Version::Large{"layered_rgb_v2"}else{"layered_rgb_v1"},"file_version":version.number(),"layers":editable,"serialized_records":records.len(),"masked_items":records.iter().filter(|r|r.mask.is_some()).count(),"groups":records.iter().filter(|r|matches!(r.kind,Kind::Group{..})).count(),"source_profile_sha256":profile.as_ref().map(|v|assets::sha256(v)),"interpretation":if convert{"converted_srgb_per_layer"}else if profile.is_some(){"declared_working_srgb"}else{"assumed_srgb"},"merged_cache":{"sample_sha256":assets::sha256(&merged),"used_for_editable_reconstruction":false},"resolution_declared":density_declared,"omitted_nonappearance_records":ignored,"losses":["Creates new layer identities from numeric file IDs; preserves native pixel extents, sibling order, folder hierarchy, Unicode names, visibility, opacity and supported full locks. Folder expansion state is listed as omitted UI metadata. No file is overwritten.","The merged cache is decoded and validated but editable appearance is recomputed from layers. Descriptive/UI/thumbnail records listed in the receipt are not imported as trusted document metadata.","Explicit conversion to working sRGB changes layer RGB before compositing, preserves alpha and can change profile-space blending. It is not a promise of cross-consumer composite equality."]});
+    result["embedded_zero_padding"] = json!(padding);
+    result["embedded_sources"] = json!(source_receipts);
+    result["embedded_placements"] = json!(placement_receipts);
+    if !sources.is_empty() {
+        result["losses"].as_array_mut().unwrap().push(json!("Embedded layered documents are reconstructed from editable sources with the explicitly selected engine sampling. Native cached edge coverage and reconstruction can differ. Shared native sources become independent retained copies; their identities remain in this receipt. External links, active warps, selected layer comps, animation and unknown metadata are unsupported."));
+    }
+    Ok(result)
 }
 
 fn context(mut error: Error, location: &str) -> Error {

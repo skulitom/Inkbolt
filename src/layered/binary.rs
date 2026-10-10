@@ -173,6 +173,16 @@ pub(super) fn decode(
     version: Version,
     control: &Control,
 ) -> Result<Vec<u8>, Error> {
+    Ok(decode_padded(bytes, width, rows, version, control, false)?.0)
+}
+pub(super) fn decode_padded(
+    bytes: &[u8],
+    width: usize,
+    rows: usize,
+    version: Version,
+    control: &Control,
+    embedded: bool,
+) -> Result<(Vec<u8>, usize), Error> {
     let expected = width
         .checked_mul(rows)
         .filter(|&n| n <= MAX_DECODED_BYTES)
@@ -226,16 +236,14 @@ pub(super) fn decode(
             // A fixed output buffer bounds both decompression and prediction work.
             let mut decoded = vec![0; expected + 1];
             let mut decoder = flate2::Decompress::new(true);
-            let data = input.take(input.left())?;
+            let data = &input.data[input.at..];
             let status = decoder
                 .decompress(data, &mut decoded, flate2::FlushDecompress::Finish)
                 .map_err(|_| malformed())?;
-            if status != flate2::Status::StreamEnd
-                || decoder.total_out() != expected as u64
-                || decoder.total_in() != data.len() as u64
-            {
+            if status != flate2::Status::StreamEnd || decoder.total_out() != expected as u64 {
                 return Err(malformed());
             }
+            input.take(decoder.total_in() as usize)?;
             decoded.truncate(expected);
             if compression == 3 && width != 0 {
                 for row in decoded.chunks_exact_mut(width) {
@@ -249,9 +257,14 @@ pub(super) fn decode(
         }
         _ => return Err(unsupported("Unknown layered channel compression")),
     }
-    input.end()?;
+    let padding = input.left();
+    if embedded {
+        input.zero_padding(1024 * 1024)?;
+    } else {
+        input.end()?;
+    }
     control.check()?;
-    Ok(output)
+    Ok((output, padding))
 }
 
 pub(super) fn encode(

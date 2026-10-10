@@ -67,8 +67,11 @@ fn backend(mut d: Descriptor) -> Result<(), Error> {
 }
 fn global_record(key: &[u8; 4], data: &mut Reader<'_>, control: &Control) -> Result<(), Error> {
     match key {
-        b"Patt" => {
+        b"Patt" | b"lnkE" => {
             require(data.left() == 0)?;
+        }
+        b"Anno" => {
+            require(data.short()? == 2 && data.short()? == 1 && data.word()? == 0)?;
         }
         b"CAI " => {
             require(data.word()? == 3)?;
@@ -112,17 +115,19 @@ fn global_record(key: &[u8; 4], data: &mut Reader<'_>, control: &Control) -> Res
     }
     data.end()
 }
-pub(super) fn global(
-    input: &mut Reader<'_>,
+pub(super) fn global<'a>(
+    input: &mut Reader<'a>,
     ignored: &mut BTreeSet<String>,
     control: &Control,
     version: Version,
-) -> Result<(), Error> {
+) -> Result<std::collections::BTreeMap<String, super::objects::Source<'a>>, Error> {
     let mut keys = BTreeSet::new();
+    let mut sources = std::collections::BTreeMap::new();
     while input.left() != 0 {
         control.check()?;
         if input.left() < 12 {
-            return input.zero_padding(3);
+            input.zero_padding(3)?;
+            break;
         }
         let signature = input.take(4)?;
         if signature != b"8BIM" && !(version == Version::Large && signature == b"8B64") {
@@ -135,20 +140,35 @@ pub(super) fn global(
         }
         let mut data = input.tagged_section(&key, version)?;
         let count = data.left();
-        global_record(&key, &mut data, control).map_err(|mut error| {
-            error.message = format!(
-                "Global {}: {}",
-                String::from_utf8_lossy(&key),
-                error.message
-            );
-            error
-        })?;
+        if matches!(&key, b"lnkD" | b"lnk2" | b"lnk3") {
+            if count == 0 {
+                return Err(unsupported(
+                    "Empty embedded source tables have no referenced placement",
+                ));
+            }
+            for (id, source) in super::objects::sources(&mut data, control)? {
+                if sources.insert(id, source).is_some() {
+                    return Err(malformed());
+                }
+            }
+        } else {
+            global_record(&key, &mut data, control).map_err(|mut error| {
+                error.message = format!(
+                    "Global {}: {}",
+                    String::from_utf8_lossy(&key),
+                    error.message
+                );
+                error
+            })?;
+        }
         if input.take((4 - count % 4) % 4)?.iter().any(|&b| b != 0) {
             return Err(malformed());
         }
-        ignored.insert(format!("global:{}", String::from_utf8_lossy(&key)));
+        if !matches!(&key, b"lnkD" | b"lnk2" | b"lnk3") {
+            ignored.insert(format!("global:{}", String::from_utf8_lossy(&key)));
+        }
     }
-    Ok(())
+    Ok(sources)
 }
 
 pub(super) fn alpha(key: u16, data: &mut Reader<'_>, channels: u16) -> Result<(), Error> {

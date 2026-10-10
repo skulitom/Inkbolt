@@ -10,12 +10,16 @@ pub(super) enum Datum {
     Bool(bool),
     Integer(i32),
     Number(f64),
+    Unit(String, f64),
     Text(String),
     Enum(String, String),
     Object(Descriptor),
     List(Vec<Datum>),
 }
 impl Descriptor {
+    pub fn optional(&mut self, key: &str) -> Option<Datum> {
+        self.fields.remove(key)
+    }
     pub fn field(&mut self, key: &str) -> Result<Datum, Error> {
         self.fields
             .remove(key)
@@ -31,6 +35,18 @@ impl Descriptor {
     }
 }
 impl Datum {
+    pub fn number(self) -> Result<f64, Error> {
+        match self {
+            Self::Number(n) => Ok(n),
+            _ => Err(malformed()),
+        }
+    }
+    pub fn list(self) -> Result<Vec<Datum>, Error> {
+        match self {
+            Self::List(v) => Ok(v),
+            _ => Err(malformed()),
+        }
+    }
     pub fn object(self) -> Result<Descriptor, Error> {
         match self {
             Self::Object(d) => Ok(d),
@@ -126,6 +142,14 @@ impl Budget<'_> {
                 }
                 Datum::Number(n)
             }
+            b"UntF" => {
+                let unit = String::from_utf8(input.take(4)?.to_vec()).map_err(|_| malformed())?;
+                let n = f64::from_be_bytes(input.take(8)?.try_into().unwrap());
+                if !n.is_finite() {
+                    return Err(malformed());
+                }
+                Datum::Unit(unit, n)
+            }
             b"TEXT" => Datum::Text(text(input)?),
             b"enum" => Datum::Enum(identifier(input)?, identifier(input)?),
             b"Objc" | b"GlbO" => Datum::Object(self.object(input, depth)?),
@@ -149,4 +173,12 @@ pub(super) fn versioned(input: &mut Reader<'_>, control: &Control) -> Result<Des
         return Err(unsupported("Unknown descriptor version"));
     }
     Budget { nodes: 0, control }.object(input, 0)
+}
+
+pub(super) fn prefix(input: &mut Reader<'_>, control: &Control) -> Result<Descriptor, Error> {
+    let bytes = &input.data[input.at..];
+    let mut bounded = Reader::new(&bytes[..bytes.len().min(65536)]);
+    let result = versioned(&mut bounded, control)?;
+    input.take(bounded.at)?;
+    Ok(result)
 }
