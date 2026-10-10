@@ -160,6 +160,136 @@ class WorkloadGateTests(unittest.TestCase):
         self.assertEqual(gates.POLICY['maximum_seconds_factor'],2)
         self.assertEqual(gates.check(self.gate,self.report)['status'],'ineligible')
 
+    def changed_harness_report(self, factor=1):
+        r=copy.deepcopy(self.report)
+        r['candidate_files']['tools/workload_cases.py']='a'*64
+        for row in r['rows']:
+            for call in row['calls']:call['seconds']*=factor
+            row['engine_seconds']=sum(call['seconds'] for call in row['calls'])
+        return r
+
+    def test_refresh_preserves_original_absolute_budgets_and_records_helper_review(self):
+        report=self.changed_harness_report(1.25)
+        before=copy.deepcopy(self.gate)
+        refreshed=gates.refresh(self.gate,'5'*64,report,'6'*64,'Reviewed unchanged calculations after helper extraction')
+        self.assertEqual(self.gate,before)
+        self.assertEqual(refreshed['schema_version'],2)
+        self.assertEqual(refreshed['limits'],self.gate['limits'])
+        self.assertNotEqual(refreshed['limits'],gates.create(report,'6'*64,'A new budget')['limits'])
+        self.assertEqual(refreshed['budget_origin'],self.gate)
+        self.assertEqual(refreshed['refresh']['previous_gate_sha256'],'5'*64)
+        self.assertEqual(refreshed['refresh']['changed_helpers'],[
+            dict(path='tools/workload_cases.py',before='3'*64,after='a'*64)])
+        self.assertEqual(gates.check(refreshed,report)['status'],'passed')
+        self.assertEqual(gates.check(self.gate,report)['status'],'ineligible')
+        # A slower new baseline must not permit a later regression that would
+        # have failed the original median budget.
+        for row in report['rows']:
+            for call in row['calls']:call['seconds']=.48
+            row['engine_seconds']=sum(call['seconds'] for call in row['calls'])
+        self.assertEqual(gates.check(refreshed,report)['status'],'failed')
+
+    def test_refresh_cannot_hide_a_failed_or_over_budget_fresh_reference(self):
+        for kind in ('median','maximum','memory','failed'):
+            with self.subTest(kind=kind):
+                report=self.changed_harness_report()
+                if kind=='failed':report['rows'][0]['success']=False
+                elif kind=='maximum':
+                    row=report['rows'][0];row['calls'][0]['seconds']=100
+                    row['engine_seconds']=sum(c['seconds'] for c in row['calls'])
+                elif kind=='memory':
+                    row=report['rows'][0]
+                    row['calls'][0]['memory']['peak_commit_bytes']=row['peak_commit_bytes']=100*1024*1024
+                else:
+                    for row in report['rows']:
+                        for c in row['calls']:c['seconds']=.6
+                        row['engine_seconds']=sum(c['seconds'] for c in row['calls'])
+                with self.assertRaises(ValueError):gates.refresh(self.gate,'5'*64,report,'6'*64,'Review')
+
+    def test_refresh_rejects_unchanged_helpers_missing_review_and_incomparable_environment(self):
+        for change in ('same_helpers','review','gate_hash','report_hash','environment','compiler','adapter'):
+            with self.subTest(change=change):
+                report=self.changed_harness_report();reason='Review';gate_hash='5'*64;report_hash='6'*64
+                if change=='same_helpers':report=copy.deepcopy(self.report)
+                elif change=='review':reason=' '
+                elif change=='gate_hash':gate_hash='missing'
+                elif change=='report_hash':report_hash=self.gate['baseline_report_sha256']
+                elif change=='environment':report['environment']['processor']='different-cpu'
+                elif change=='compiler':report['toolchain']='different-rustc'
+                else:
+                    report['adapter']='legacy-v1'
+                    for row in report['rows']:row['adapter']='legacy-v1'
+                with self.assertRaises(ValueError):gates.refresh(self.gate,gate_hash,report,report_hash,reason)
+
+    def test_repeated_refreshes_keep_one_original_budget_origin_without_ratchets(self):
+        report=self.changed_harness_report(1.2)
+        first=gates.refresh(self.gate,'5'*64,report,'6'*64,'First reviewed extraction')
+        report['candidate_files']['tools/workload_cases.py']='b'*64
+        second=gates.refresh(first,'7'*64,report,'8'*64,'Second reviewed extraction')
+        self.assertEqual(second['budget_origin'],self.gate)
+        self.assertEqual(second['limits'],self.gate['limits'])
+        self.assertEqual(second['refresh']['previous_harness'],first['baseline']['harness'])
+        self.assertEqual(second['refresh']['previous_gate_sha256'],'7'*64)
+        self.assertEqual(gates.check(second,report)['status'],'passed')
+        second['budget_origin']['limits']['native-control']['maximum_seconds']=999
+        self.assertEqual(first['budget_origin'],self.gate)
+        self.assertEqual(gates.check(second,report)['status'],'ineligible')
+
+    def test_refreshed_gate_rejects_tampered_budgets_origins_and_review_records(self):
+        report=self.changed_harness_report()
+        good=gates.refresh(self.gate,'5'*64,report,'6'*64,'Reviewed helper split')
+        for change in ('limits','origin_limit','origin_policy','origin_version','review','changes','previous','baseline','origin_host'):
+            with self.subTest(change=change):
+                gate=copy.deepcopy(good)
+                if change=='limits':gate['limits']['social-square']['median_seconds']=999
+                elif change=='origin_limit':gate['budget_origin']['limits']['social-square']['median_seconds']=999
+                elif change=='origin_policy':gate['budget_origin']['policy']['median_seconds_factor']=999
+                elif change=='origin_version':gate['budget_origin']['schema_version']=2
+                elif change=='review':gate['refresh']['reason']='unmatched review'
+                elif change=='changes':gate['refresh']['changed_helpers']=[]
+                elif change=='previous':gate['refresh']['previous_harness']['tools/workload_cases.py']='not-a-hash'
+                elif change=='baseline':gate['baseline']['metrics']['social-square']['median_seconds']=999
+                else:gate['budget_origin']['baseline']['environment']['processor']='different-cpu'
+                self.assertEqual(gates.check(gate,report)['status'],'ineligible')
+
+    def test_cli_refresh_is_create_only_and_still_requires_a_distinct_comparison(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);old=root/'old.json';baseline=root/'baseline.json';out=root/'refreshed.json'
+            old.write_text(json.dumps(self.gate));report=self.changed_harness_report()
+            baseline.write_text(json.dumps(report));originals=(old.read_bytes(),baseline.read_bytes())
+            command=[sys.executable,str(ROOT/'tools/workload_gates.py'),'refresh','--gate',str(old),
+                     '--baseline',str(baseline),'--output',str(out),'--reason','Reviewed original helpers']
+            first=subprocess.run(command,capture_output=True,timeout=15)
+            self.assertEqual(first.returncode,0,first.stderr)
+            saved=out.read_bytes();gate=json.loads(saved)
+            self.assertEqual(gate['limits'],self.gate['limits'])
+            self.assertEqual(gate['refresh']['previous_gate_sha256'],gates.digest(originals[0]))
+            self.assertEqual(subprocess.run(command,capture_output=True,timeout=15).returncode,2)
+            self.assertEqual(out.read_bytes(),saved)
+            same=root/'same-result.json'
+            check=[sys.executable,str(ROOT/'tools/workload_gates.py'),'check','--gate',str(out),
+                   '--report',str(baseline),'--output',str(same)]
+            self.assertEqual(subprocess.run(check,capture_output=True,timeout=15).returncode,2)
+            self.assertEqual(json.loads(same.read_bytes())['status'],'ineligible')
+            report['conditions']='Separate original synthetic comparison'
+            current=root/'current.json';current.write_text(json.dumps(report));result=root/'result.json'
+            check[-3]=str(current);check[-1]=str(result)
+            self.assertEqual(subprocess.run(check,capture_output=True,timeout=15).returncode,0)
+            self.assertEqual(json.loads(result.read_bytes())['status'],'passed')
+            self.assertEqual((old.read_bytes(),baseline.read_bytes()),originals)
+
+    def test_failed_refresh_leaves_no_output_and_preserves_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);old=root/'old.json';baseline=root/'bad.json';out=root/'never-created.json'
+            old.write_text(json.dumps(self.gate));report=self.changed_harness_report(10)
+            baseline.write_text(json.dumps(report));originals=(old.read_bytes(),baseline.read_bytes())
+            result=subprocess.run([sys.executable,str(ROOT/'tools/workload_gates.py'),'refresh',
+                '--gate',str(old),'--baseline',str(baseline),'--output',str(out),'--reason','Review'],
+                capture_output=True,timeout=15)
+            self.assertEqual(result.returncode,2)
+            self.assertFalse(out.exists())
+            self.assertEqual((old.read_bytes(),baseline.read_bytes()),originals)
+
     def test_pinned_helpers_cover_the_actual_local_driver_import_closure(self):
         modules={}
         for directory in ('tests','tools'):

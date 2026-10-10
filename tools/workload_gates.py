@@ -1,5 +1,6 @@
-"""Create and check local performance budgets from complete successful measurements."""
+"""Create, refresh and check local budgets from complete successful measurements."""
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -187,8 +188,28 @@ def create(report, report_sha256, reason):
                 scope=f"Fixed {summary['suite']} regression budgets on the recorded environment; not full A5 or model-task acceptance")
 
 
-def evaluate(gate, report):
-    require(gate['schema_version'] == 1 and gate['kind'] == 'inkbolt_local_workload_gate', 'Unknown gate format')
+def changed_helpers(previous, current):
+    for harness in (previous, current):
+        require(isinstance(harness, dict) and harness
+                and all(isinstance(p, str) and p and hash_value(h) for p, h in harness.items()),
+                'Missing or invalid helper identities')
+    return [dict(path=p, before=previous.get(p), after=current.get(p))
+            for p in sorted(previous.keys() | current.keys()) if previous.get(p) != current.get(p)]
+
+
+def compare_metrics(summary, allowed):
+    comparisons = []
+    for name in SUITES[summary['suite']][0]:
+        observed = summary['metrics'][name]
+        comparisons.append(dict(case=name, observed=observed, limits=allowed[name],
+                                exceeded=[k for k in allowed[name] if observed[k] > allowed[name][k]]))
+    return dict(status='failed' if any(row['exceeded'] for row in comparisons) else 'passed',
+                eligible=True, comparisons=comparisons, repetitions=summary['repetitions'])
+
+
+def validate_gate(gate):
+    require(type(gate['schema_version']) is int and gate['schema_version'] in (1, 2)
+            and gate['kind'] == 'inkbolt_local_workload_gate', 'Unknown gate format')
     require(gate['policy'] == POLICY, 'Unknown or modified budget policy')
     require(hash_value(gate['baseline_report_sha256']) and hash_value(gate['baseline_source_sha256'])
             and hash_value(gate['baseline_executable_sha256']), 'Missing baseline identity')
@@ -196,17 +217,56 @@ def evaluate(gate, report):
     require(baseline['suite'] in SUITES and type(baseline['repetitions']) is int
             and 5 <= baseline['repetitions'] <= 10, 'Invalid gate baseline')
     cases = SUITES[baseline['suite']][0]
-    require(gate['limits'] == limits(baseline['metrics'], cases), 'Budgets disagree with the recorded policy/baseline')
+    derived = limits(baseline['metrics'], cases)
+    changed_helpers(baseline['harness'], baseline['harness'])
+    if gate['schema_version'] == 1:
+        require(gate['limits'] == derived, 'Budgets disagree with the recorded policy/baseline')
+    else:
+        origin = gate['budget_origin']
+        require(origin['schema_version'] == 1, 'Budget origin must be an original version-1 gate')
+        original = validate_gate(origin)
+        require(gate['limits'] == origin['limits'], 'A harness refresh cannot change the original budgets')
+        for key in ('suite', 'adapter', 'environment', 'toolchain'):
+            require(baseline[key] == original[key], f'Incomparable budget origin {key}')
+        review = gate['refresh']
+        require(hash_value(review['previous_gate_sha256']), 'Missing predecessor gate identity')
+        require(isinstance(review['reason'], str) and 0 < len(review['reason'].strip()) <= 4096
+                and review['reason'] == gate['selection_reason'], 'Missing or inconsistent harness review')
+        changes = changed_helpers(review['previous_harness'], baseline['harness'])
+        require(changes and changes == review['changed_helpers'], 'Missing or inconsistent helper changes')
+        require(compare_metrics(baseline, gate['limits'])['status'] == 'passed',
+                'The refreshed baseline exceeds the original budgets')
+    return baseline
+
+
+def refresh(gate, gate_sha256, report, report_sha256, reason):
+    """Review a changed harness without resetting or ratcheting its budgets."""
+    previous = validate_gate(gate)
+    require(hash_value(gate_sha256), 'Missing predecessor gate identity')
+    require(report_sha256 != gate['baseline_report_sha256'], 'A refresh requires a fresh baseline report')
+    require(isinstance(reason, str) and 0 < len(reason.strip()) <= 4096, 'Record a bounded harness review')
+    result = create(report, report_sha256, reason)
+    current = result['baseline']
+    for key in ('suite', 'adapter', 'environment', 'toolchain'):
+        require(current[key] == previous[key], f'Incomparable refresh {key}')
+    changes = changed_helpers(previous['harness'], current['harness'])
+    require(changes, 'A harness refresh requires changed helper identities')
+    require(compare_metrics(current, gate['limits'])['status'] == 'passed',
+            'The fresh baseline exceeds the original budgets; retain the failed evidence')
+    result.update(schema_version=2, limits=copy.deepcopy(gate['limits']),
+                  budget_origin=copy.deepcopy(gate if gate['schema_version'] == 1 else gate['budget_origin']),
+                  refresh=dict(previous_gate_sha256=gate_sha256, reason=reason,
+                               previous_harness=copy.deepcopy(previous['harness']), changed_helpers=changes))
+    validate_gate(result)
+    return result
+
+
+def evaluate(gate, report):
+    baseline = validate_gate(gate)
     current = summarize(report)
     for key in ('suite', 'adapter', 'environment', 'toolchain', 'harness'):
         require(current[key] == baseline[key], f'Incomparable {key}; retain the result and review a new baseline')
-    comparisons = []
-    for name in cases:
-        observed, allowed = current['metrics'][name], gate['limits'][name]
-        comparisons.append(dict(case=name, observed=observed, limits=allowed,
-                                exceeded=[k for k in allowed if observed[k] > allowed[k]]))
-    return dict(status='failed' if any(row['exceeded'] for row in comparisons) else 'passed',
-                eligible=True, comparisons=comparisons, repetitions=current['repetitions'])
+    return compare_metrics(current, gate['limits'])
 
 
 def check(gate, report):
@@ -240,6 +300,11 @@ def main():
     make.add_argument('--baseline', type=Path, required=True)
     make.add_argument('--output', type=Path, required=True)
     make.add_argument('--reason', required=True)
+    renew = commands.add_parser('refresh', help='Review a changed harness with a fresh baseline and unchanged original budgets')
+    renew.add_argument('--gate', type=Path, required=True)
+    renew.add_argument('--baseline', type=Path, required=True)
+    renew.add_argument('--output', type=Path, required=True)
+    renew.add_argument('--reason', required=True)
     compare = commands.add_parser('check', help='Compare a new full measurement against existing budgets')
     compare.add_argument('--gate', type=Path, required=True)
     compare.add_argument('--report', type=Path, required=True)
@@ -249,6 +314,10 @@ def main():
         if args.command == 'create':
             report, identity = load(args.baseline)
             result = create(report, identity, args.reason)
+        elif args.command == 'refresh':
+            gate, gate_hash = load(args.gate)
+            report, identity = load(args.baseline)
+            result = refresh(gate, gate_hash, report, identity, args.reason)
         else:
             gate, gate_hash = load(args.gate)
             report, report_hash = load(args.report)
@@ -262,7 +331,7 @@ def main():
         print(f'No passing gate evidence: {error}', file=sys.stderr)
         return 2
     print(json.dumps(dict(output=str(args.output.resolve()), status=result.get('status', 'created'))))
-    return 0 if args.command == 'create' or result['status'] == 'passed' else 2
+    return 0 if args.command in ('create', 'refresh') or result['status'] == 'passed' else 2
 
 
 if __name__ == '__main__':

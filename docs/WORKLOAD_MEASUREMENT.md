@@ -50,6 +50,31 @@ The `scale-regression-v1` policy allows each case a median command-time sum of a
 
 The gate pins the adapter, exact bytes of the fixture/measurement driver and its local helper import closure, machine/OS/Python identity, compiler and baseline report/source/executable identities. Engine revisions may change; changed workload oracles, adapters, machines or compilers require explicit review and a new baseline. Missing/incomparable data is `ineligible`, never a pass. A fresh result is bound to both report and gate hashes, and the baseline report itself cannot count as a new regression measurement. Outputs are create-only and external. The tool does not authenticate reports or prevent deliberate fabrication; retain the original trusted raw evidence, conditions and previous failed comparisons. It never automatically loosens budgets or substitutes faster failures.
 
+When helpers move or change, review their workload and oracle semantics before
+refreshing their identities. Keep the original absolute budgets with `refresh`:
+
+```powershell
+python tools/workload_gates.py refresh --gate C:\Work\Evidence\scale-gate.json --baseline C:\Work\Evidence\refreshed-baseline\report.json --output C:\Work\Evidence\refreshed-scale-gate.json --reason "Reviewed helper extraction; fixture calculations, workload steps and independent oracles are unchanged"
+```
+
+The fresh baseline must meet the complete measurement contract and fit every old
+budget. Its suite, adapter, host and compiler must match the previous gate, and
+at least one pinned helper identity must have changed. A nonempty review reason
+is required; recording a reason does not itself prove semantic equivalence. A
+failed or over-budget baseline cannot refresh the gate. Changes to the workload
+contract, adapter, host or compiler need separate reviewed baselines and must not
+be presented as comparable performance evidence.
+
+The version-2 gate records the previous gate hash, changed helper hashes and
+review, and embeds the original version-1 gate as its budget origin. It preserves
+that origin's exact absolute time and memory limits, including across repeated
+refreshes; it never recalculates headroom from the newer baseline. Validation
+rejects inconsistent limits, origins and review records. Keep both original
+files unchanged, then measure a separate full comparison run and use `check`
+against the refreshed gate. The refresh baseline itself remains ineligible as a
+new regression comparison. Historical gates continue to reject reports with
+different helper identities.
+
 Each gate covers exactly one versioned suite, including its fixed case names. A wide report cannot replace the seven-workload suite or use its budgets, and the reverse also rejects. Each additional native gate pins its own driver and fixture generator together with the shared measurement module and complete helper closure. Its seven calls and six independent correctness/history/source checks must all be present; the checker never infers them from a success summary. Broader production compositions, streaming native operations, actual model trials and matched sister-project results remain separate A5/A1 requirements. Small synthetic record-validation tests belong to the normal quick suite; full release measurements stay separate and sequential so concurrent test load does not distort engine timings.
 
 ## Identity and acceptance
