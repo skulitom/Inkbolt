@@ -1,5 +1,27 @@
 # Layered pixel interchange
 
+Native editable text remains unsupported for import and export. When `layered.import`
+encounters a recognized text record, its `UNSUPPORTED_LAYERED_SEMANTICS` error can
+include `details.kind:"native_text_requirements"`. This reports character/UTF-16
+counts, style/paragraph run counts, referenced face names, affine placement and a
+text-data hash. It never returns a document or substitutes cached text pixels.
+
+These diagnostics check this record's framing, matching text sources, complete
+UTF-16 run coverage without splitting surrogate pairs, and explicit per-run font
+references. They do not validate layout semantics, later records or the whole
+file. Inherited styles and unknown descriptor framing can prevent diagnostics.
+Font names come from untrusted source data and do not identify exact font bytes.
+Editable reconstruction still needs explicit content-pinned font bindings and
+declared layout/rendering differences; no import option currently enables it.
+
+The text-data parser allows at most 64 KiB, depth 16, 4,096 values, 512 entries per
+container, 16,388 decoded bytes per string, 65 runs per run table and eight
+referenced faces. It rejects duplicate keys, invalid Unicode, inconsistent runs,
+nonfinite numbers and trailing data. Malformed/over-budget records return the
+ordinary invalid-file/resource-limit errors without a requirements receipt.
+CLI and MCP preserve the same optional structured error details. This diagnostic
+unit adds no engine-checkpoint credit.
+
 `layered.import` and `document.export` with `format:"layered"` exchange a bounded native RGB8 pixel-layer subset. Publication uses `.psd`. The basic interchange checkpoint is **verified**, bringing the total to **161/167 (96.41%)**. Independent native application round trips preserve layer structure, original samples and visible composite pixels. The extended requirement for large-document structures, masks, text, groups and embedded objects remains required and uncredited.
 
 `format:"layered_large"` publishes `.psb` with version-two framing. The importer selects framing from the file header. Layer-section, layer-info and channel lengths are unsigned 64-bit values; row-compression counts are 32-bit values. Only the format-defined tagged records use 64-bit lengths; all other sections retain their specified widths. The Rust library exposes `export_versioned` with `Version::Standard` or `Version::Large`.

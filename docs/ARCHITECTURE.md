@@ -1,5 +1,12 @@
 # Architecture
 
+Layered text records have a bounded original dictionary-data parser and structural
+refusal diagnostics. Text caches are never promoted to editable content. Optional
+error `details` carry counts, referenced font names and scope flags through the
+shared CLI/MCP path; syntax/run consistency does not establish layout support.
+The Rust error message uses `Box<str>` to keep the error value compact with these
+optional details. Editable layered text reconstruction and delivery remain open.
+
 `presets` provides pure versioned screen and physical-page recipes over the
 existing document, artboard, logical-canvas and publication contracts. Explicit
 background/color choices, typed delivery settings and specification identities

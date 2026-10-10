@@ -157,7 +157,8 @@ pub(super) fn global<'a>(
                     "Global {}: {}",
                     String::from_utf8_lossy(&key),
                     error.message
-                );
+                )
+                .into();
                 error
             })?;
         }

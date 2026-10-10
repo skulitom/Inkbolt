@@ -132,6 +132,14 @@ fn record(
         let mut data = extra.tagged_section(&key, version)?;
         let count = data.left();
         match &key {
+            b"TySh" => {
+                let details = super::text_record::diagnose(&mut data, control)?;
+                let mut error = unsupported(
+                    "Editable native text requires a font-binding and layout reconstruction mapping that is not yet implemented. Preserve the source; cached text pixels are not substituted for editable text. Text-record diagnostics are in details; the rest of the file has not been validated.",
+                );
+                error.details = Some(Box::new(details));
+                return Err(error);
+            }
             b"PlLd" | b"plLd" | b"SoLd" | b"SoLE" => {
                 if embedded_objects.is_none() {
                     return Err(unsupported(
@@ -785,6 +793,6 @@ pub(super) fn document(
 }
 
 fn context(mut error: Error, location: &str) -> Error {
-    error.message = format!("{location}: {}", error.message);
+    error.message = format!("{location}: {}", error.message).into();
     error
 }

@@ -6,6 +6,8 @@ mod metadata;
 mod object_write;
 mod objects;
 mod read;
+mod text_data;
+mod text_record;
 mod write;
 use crate::{Document, Error, assets, control::Control, model::*};
 use base64::{Engine, engine::general_purpose::STANDARD};

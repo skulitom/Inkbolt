@@ -937,7 +937,7 @@ pub enum Request {
 #[derive(Debug, Serialize)]
 pub struct Error {
     pub code: &'static str,
-    pub message: String,
+    pub message: Box<str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operation_index: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -948,17 +948,20 @@ pub struct Error {
     pub artboard_id: Option<Box<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub item_id: Option<Box<str>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<Box<Value>>,
 }
 impl Error {
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             code,
-            message: message.into(),
+            message: message.into().into_boxed_str(),
             operation_index: None,
             asset_id: None,
             font_id: None,
             artboard_id: None,
             item_id: None,
+            details: None,
         }
     }
     pub fn at_operation(mut self, index: usize) -> Self {
@@ -1532,6 +1535,14 @@ fn capability_report() -> Value {
         "limits":{"nesting":objects::MAX_NESTING,"decoded_items":1024,"decoded_sample_bytes":layered::MAX_DECODED_BYTES,
             "source_snapshot_bytes":model::MAX_DOCUMENT_BYTES,"aggregate_snapshot_allocation_bytes":layered::MAX_DECODED_BYTES},
         "unsupported":["external_links","aliases","selected_layer_comps","animation","active_warps","perspective","non_layered_sources","unknown_descriptor_fields"]
+    });
+    capabilities["layered_interchange"]["text_diagnostics"] = json!({
+        "status":"unsupported_import_with_structural_diagnostics",
+        "error_details":"native_text_requirements;first_encountered_supported_text_record_framing",
+        "checks":["descriptor_framing","bounded_text_data_syntax","matching_text_sources","utf16_run_boundaries","explicit_run_font_references"],
+        "limits":{"record_bytes":65536,"data_values":4096,"data_depth":16,"container_entries":512,"string_bytes":16388,"runs":65,"referenced_fonts":8},
+        "layout_semantics_validated":false,"whole_file_validated":false,"cached_pixel_fallback":false,
+        "editable_text_import":false,"editable_text_export":false
     });
     capabilities["native_sample_store_library"] = json!({
         "status":"integrated_native_import_local_patch_edits_and_bounded_view_rendering;scale_gate_open",

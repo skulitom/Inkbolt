@@ -88,7 +88,8 @@ fn spine_error(mut error: Error) -> Error {
         .message
         .replace("Text baseline", "Interpolation spine")
         .replace("A glyph midpoint", "An interpolation sample")
-        .replace("baseline tangent", "spine tangent");
+        .replace("baseline tangent", "spine tangent")
+        .into();
     error
 }
 fn mix(a: f64, b: f64, t: f64) -> f64 {

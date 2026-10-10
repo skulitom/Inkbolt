@@ -282,7 +282,7 @@ pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Resul
         candidate.variants = None;
         apply_values(&mut candidate, state, &values(state, selected)?, false)?;
         crate::model::validate_controlled(&candidate, control).map_err(|mut e| {
-            e.message = format!("Variant {}: {}", selected.unwrap_or("<base>"), e.message);
+            e.message = format!("Variant {}: {}", selected.unwrap_or("<base>"), e.message).into();
             e
         })?;
     }

@@ -220,7 +220,7 @@ pub(crate) fn normalize(
                 }
                 if let Some(Value::String(path)) = object.get(name) {
                     let resolved = workspace.resolve(Path::new(path)).map_err(|mut e| {
-                        e.message = format!("{name}: {}", e.message);
+                        e.message = format!("{name}: {}", e.message).into();
                         e
                     })?;
                     object.insert(name.clone(), json!(resolved));

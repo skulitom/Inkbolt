@@ -66,9 +66,12 @@ impl<'a> Reader<'a> {
         Ok(())
     }
     pub fn unicode(&mut self) -> Result<String, Error> {
+        self.unicode_limit(1024)
+    }
+    pub fn unicode_limit(&mut self, maximum: usize) -> Result<String, Error> {
         let n = self.word()? as usize;
-        if n > 1024 {
-            return Err(limit("Layer name exceeds 1024 UTF-16 units"));
+        if n > maximum {
+            return Err(limit("Unicode record exceeds its UTF-16 unit limit"));
         }
         let words = self
             .take(n * 2)?

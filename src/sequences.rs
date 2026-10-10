@@ -230,7 +230,7 @@ impl Write for Bounded<'_> {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         self.1
             .check()
-            .map_err(|e| std::io::Error::other(e.message))?;
+            .map_err(|e| std::io::Error::other(String::from(e.message)))?;
         if self.0.len().saturating_add(bytes.len()) > crate::publish::MAX_OUTPUT_BYTES {
             return Err(std::io::Error::other("Sequence output exceeds byte limit"));
         }

@@ -15,6 +15,7 @@ pub(super) enum Datum {
     Enum(String, String),
     Object(Descriptor),
     List(Vec<Datum>),
+    Raw(Vec<u8>),
 }
 impl Descriptor {
     pub fn optional(&mut self, key: &str) -> Option<Datum> {
@@ -83,8 +84,8 @@ fn identifier(input: &mut Reader<'_>) -> Result<String, Error> {
     }
     String::from_utf8(bytes.to_vec()).map_err(|_| malformed())
 }
-fn text(input: &mut Reader<'_>) -> Result<String, Error> {
-    let s = input.unicode()?;
+fn text(input: &mut Reader<'_>, maximum: usize) -> Result<String, Error> {
+    let s = input.unicode_limit(maximum)?;
     let s = s.strip_suffix('\0').unwrap_or(&s);
     if s.contains('\0') {
         return Err(malformed());
@@ -94,6 +95,7 @@ fn text(input: &mut Reader<'_>) -> Result<String, Error> {
 struct Budget<'a> {
     nodes: usize,
     control: &'a Control,
+    text_units: usize,
 }
 impl Budget<'_> {
     fn charge(&mut self, depth: usize) -> Result<(), Error> {
@@ -113,7 +115,7 @@ impl Budget<'_> {
     }
     fn object(&mut self, input: &mut Reader<'_>, depth: usize) -> Result<Descriptor, Error> {
         self.charge(depth)?;
-        text(input)?;
+        text(input, 1024)?;
         let class = identifier(input)?;
         let count = Self::count(input)?;
         let mut fields = BTreeMap::new();
@@ -150,7 +152,14 @@ impl Budget<'_> {
                 }
                 Datum::Unit(unit, n)
             }
-            b"TEXT" => Datum::Text(text(input)?),
+            b"TEXT" => Datum::Text(text(input, self.text_units)?),
+            b"tdta" => {
+                let count = input.word()? as usize;
+                if count > 65536 {
+                    return Err(limit("Raw descriptor data exceeds 64 KiB"));
+                }
+                Datum::Raw(input.take(count)?.to_vec())
+            }
             b"enum" => Datum::Enum(identifier(input)?, identifier(input)?),
             b"Objc" | b"GlbO" => Datum::Object(self.object(input, depth)?),
             b"VlLs" => {
@@ -166,13 +175,31 @@ impl Budget<'_> {
     }
 }
 pub(super) fn versioned(input: &mut Reader<'_>, control: &Control) -> Result<Descriptor, Error> {
+    with_text_limit(input, control, 1024)
+}
+pub(super) fn text_versioned(
+    input: &mut Reader<'_>,
+    control: &Control,
+) -> Result<Descriptor, Error> {
+    with_text_limit(input, control, 8193)
+}
+fn with_text_limit(
+    input: &mut Reader<'_>,
+    control: &Control,
+    text_units: usize,
+) -> Result<Descriptor, Error> {
     if input.left() > 65536 {
         return Err(limit("Descriptor record exceeds 64 KiB"));
     }
     if input.word()? != 16 {
         return Err(unsupported("Unknown descriptor version"));
     }
-    Budget { nodes: 0, control }.object(input, 0)
+    Budget {
+        nodes: 0,
+        control,
+        text_units,
+    }
+    .object(input, 0)
 }
 
 pub(super) fn prefix(input: &mut Reader<'_>, control: &Control) -> Result<Descriptor, Error> {
