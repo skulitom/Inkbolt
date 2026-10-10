@@ -14,6 +14,12 @@ sampling, independent of playback. Content-derived flat names and bounded file
 inspection verify complete deliveries; predecessor pins require the same link and
 document with a newer source revision. No destination project is modified.
 
+`geometry::affine` certifies determinant decisions against the unchanged minimum
+and bounds inverse coefficient error. Uncertain determinant decisions and
+unstable inverses use exact rational arithmetic, with checked nearest binary64
+coefficients. Final point arithmetic, inverse composition and renderer sampling
+remain separate numerical stages; source matrices and controls are unchanged.
+
 `scene::hierarchy` bounds ordinary composition error using fused product
 residuals, error-free sum residuals and upward-rounded error propagation. An exact
 rational chain product with certified final binary64 rounding handles unstable

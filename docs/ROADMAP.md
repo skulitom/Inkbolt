@@ -27,6 +27,12 @@ inspection and a runnable source-revision workflow. This advances A7 without
 awarding any of the six remaining engine checkpoints or implying model-task
 acceptance; see [the handoff contract](HANDOFF.md).
 
+Affine determinant decisions now preserve the existing exact binary64 cutoff
+under product cancellation. Inverses use bounded ordinary coefficients or an
+exact rational fallback with checked rounding. Independent boundary and saved
+history tests cover this fix; arbitrary inverse composition and sampling still
+require the complete resource/precision review.
+
 Deep transform hierarchies now use a bounded-error ordinary path and exact
 composition when large nearly inverse matrices make that necessary. Independent
 rational and pixel fixtures include a 5,000-object shared hierarchy, bounded

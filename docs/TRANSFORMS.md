@@ -10,7 +10,7 @@ The atomic `transform` edit takes `id`, `matrix`, optional `space` and optional 
 - `world`: store inverse(P)*M*P*L.
 - `replace`: store M in parent coordinates.
 
-An anchor wraps M as translate(anchor)*M*translate(-anchor) before that operation. Thus an anchor is in item-local coordinates for `local`, document coordinates for `world`, and parent coordinates for `replace`. A matrix with translation can move the anchor; only its linear part is pivoted. The library's `geometry::inverse` returns the ordinary affine inverse; applying an inverse composition restores the preceding transform up to f64 roundoff.
+An anchor wraps M as translate(anchor)*M*translate(-anchor) before that operation. Thus an anchor is in item-local coordinates for `local`, document coordinates for `world`, and parent coordinates for `replace`. A matrix with translation can move the anchor; only its linear part is pivoted. The library's `geometry::inverse` uses a certified ordinary calculation or an exact rational fallback with nearest binary64 coefficients. Applying an inverse composition still introduces f64 roundoff.
 
 ```json
 {"op":"transform","id":"connector","space":"world","matrix":[3,0,0,2,0,0],"anchor":[8,40]}
@@ -58,5 +58,12 @@ large-layout, numerical, coverage and history fixtures.
 Affine geometry and stroke evaluation use original f64 calculations. Raster coverage uses f32 coordinates and quantized antialiasing. Inverse mapping for editable expansion or SVG adds normal floating-point roundoff, so arbitrary ill-conditioned transforms do not carry a universal byte-identical edge-pixel guarantee. Stored and world coordinates, matrices and generated outlines must pass their existing bounds. A matrix must be finite, each entry at most 32768 in magnitude, absolute determinant at least 1e-8, and nonsingular at renderer precision. Singular or unrepresentable semantics fail explicitly.
 
 The limits in [STROKES.md](STROKES.md) apply in the declared evaluation space. Hidden items still consume work. Mask copies and independent artboard outputs are checked at their actual transforms before output. Expansion also checks ordinary stored path/item/coordinate limits and may fail even when a live outline can render. Such failures leave the source document and existing outputs unchanged.
+
+Determinant decisions compare exact stored binary64 values against the unchanged
+binary64 minimum, so cancellation cannot move a matrix across that threshold.
+The inverse's ordinary coefficient error is bounded before use; unstable cases
+compute all inverse coefficients rationally. See the [inverse precision
+contract](COORDINATE_PRECISION.md) for the fast-path bound and the separate limits
+of final point arithmetic, inverse composition and sampling.
 
 Independent rational matrix algebra, analytic segment normals/areas, complete expected pixel grids, explicitly mapped cubic controls, placement-specific masks/artboards, limits and durable MCP history are covered by `tests/test_transform_policies_cli.py`. The original `examples/transform_workflow.py` publishes a diagram comparison using both policies.

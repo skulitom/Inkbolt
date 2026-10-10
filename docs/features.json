@@ -1747,6 +1747,9 @@
       "acceptance": "Support documented large-canvas/object workloads, resource limits, cancellation and bounded error at extreme scales.",
       "status": "in_progress",
       "evidence": [
+        "tests/test_affine_inverse_cli.py::test_cancelled_determinants_respect_the_exact_existing_boundary",
+        "tests/test_affine_inverse_cli.py::test_boundary_neighbors_and_seeded_cancellation_match_independent_fraction",
+        "tests/test_affine_inverse_cli.py::test_cli_and_mcp_failures_preserve_history_then_allow_edit_retry_and_undo",
         "tests/test_large_vector_cli.py::test_profile_is_explicit_persisted_and_reversible_without_changing_artwork",
         "tests/test_large_vector_cli.py::test_5000_objects_keep_exact_source_snapshot_svg_pdf_and_all_visible_pixels",
         "tests/test_large_vector_cli.py::test_large_svg_file_import_preserves_source_and_requires_the_profile",

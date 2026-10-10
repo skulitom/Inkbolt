@@ -52,4 +52,11 @@ unchanged; see the [hierarchy precision contract](COORDINATE_PRECISION.md).
 
 Curved strokes now refine for their composed placement, anticipating all supported raster scales while retaining saved controls. Rendering, expansion, outlined SVG/PDF delivery, mask sources and native ink planes share the refined outline. Generated geometry limits include hidden content before regional planning; limit or cancellation failures leave no partial published artifact. Analytic arc-length/area fixtures and extreme-scale delivery tests cover this bounded fix. See [stroke precision](STROKES.md#evaluation-precision-and-limits).
 
+Affine determinant validation and inverse calculation now certify their ordinary
+arithmetic or use exact rational fallback. Cancellation no longer crosses the
+existing determinant cutoff. Exact-boundary, inverse-coefficient and saved-history
+fixtures cover this additional numerical boundary; the [precision
+contract](COORDINATE_PRECISION.md) distinguishes these guarantees from subsequent
+inverse composition, point arithmetic and raster sampling.
+
 This remains partial implementation of `vector.resources.extended`. Complete independent resource and extreme-scale acceptance review is still required before the checkpoint earns credit. The total remains **161/167 (96.41%)**.

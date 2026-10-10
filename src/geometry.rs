@@ -1,5 +1,8 @@
 use crate::{Error, model::*};
 
+mod affine;
+pub(crate) use affine::{MAX_FAST_POINT_ERROR as MAX_FAST_INVERSE_POINT_ERROR, MIN_DETERMINANT};
+
 pub type Bounds = [f64; 4]; // min x, min y, max x, max y; geometry only
 pub fn map(m: Matrix, p: Point) -> Point {
     [
@@ -22,19 +25,7 @@ pub fn multiply(left: Matrix, right: Matrix) -> Matrix {
 }
 pub fn inverse(m: Matrix) -> Result<Matrix, Error> {
     validate_matrix(m)?;
-    let d = m[0] * m[3] - m[1] * m[2];
-    let out = [
-        m[3] / d,
-        -m[1] / d,
-        -m[2] / d,
-        m[0] / d,
-        (m[2] * m[5] - m[3] * m[4]) / d,
-        (m[1] * m[4] - m[0] * m[5]) / d,
-    ];
-    if out.iter().any(|v| !v.is_finite()) {
-        return Err(invalid("Inverse transform is not finite"));
-    }
-    Ok(out)
+    affine::inverse(m)
 }
 pub(crate) fn validate_matrix(m: Matrix) -> Result<(), Error> {
     if m.iter().any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE) {
@@ -42,7 +33,7 @@ pub(crate) fn validate_matrix(m: Matrix) -> Result<(), Error> {
             "Transform values must be finite and within coordinate limits",
         ));
     }
-    if (m[0] * m[3] - m[1] * m[2]).abs() < 1e-8 {
+    if !affine::determinant_supported(m) {
         return Err(Error::new(
             "UNSUPPORTED",
             "Singular or near-singular transforms are not supported",

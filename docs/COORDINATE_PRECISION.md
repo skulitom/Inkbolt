@@ -62,6 +62,27 @@ output density 16, a 5,000-object shared hierarchy, cache-capacity overflow and
 durable revision/undo/retry behavior are checked in
 `tests/test_hierarchy_precision_cli.py`.
 
+Affine determinant validation now uses certified intervals, with exact rational
+fallback whenever rounding could cross the existing `1e-8` cutoff. Both the
+stored coefficients and cutoff are interpreted as their exact binary64 values.
+Finite component limits and the separate renderer-precision nonsingularity check
+still apply. This rejects below-cutoff matrices even when rounded product
+subtraction appears larger, and accepts supported matrices whose rounded
+determinant previously became zero.
+
+Inverse calculation bounds determinant, numerator and division error. The ordinary
+inverse is retained only when its coefficient error, applied exactly to any point
+within 65536 on each axis, is at most `1e-9` logical units per axis. Otherwise the
+complete inverse is calculated rationally and each coefficient is rounded once
+to binary64 with a checked nearest-rounding interval. The fallback promises
+nearest coefficients, not the fast path's absolute point bound. Final point
+arithmetic, inverse composition and sampling remain separate; ill-conditioned
+matrices can still magnify their rounding. This does not promise an arbitrary
+inverse round trip or exact pixel area. Original Fraction boundary fixtures,
+independent inverse bit patterns, interval-corner tests and CLI/MCP atomic history
+checks cover this contract in `geometry::affine::tests` and
+`tests/test_affine_inverse_cli.py`.
+
 Import normalizes external SVG syntax. For example, relative controls add to the
 current point, smooth controls reflect their predecessor, and quadratics become
 cubic controls. Unit conversion and viewBox placement also perform arithmetic.
