@@ -13,6 +13,8 @@ def value(r):
     if kind==b'Objc':return descriptor(r)
     if kind==b'doub':return r.number('d')
     if kind==b'long':return r.number('i')
+    if kind==b'bool':return bool(r.number('B'))
+    if kind==b'tdta':return r.take(r.number('I'))
     if kind==b'TEXT':return text(r)
     if kind==b'enum':return (key(r),key(r))
     if kind==b'UntF':return (r.take(4).decode('ascii'),r.number('d'))

@@ -8,6 +8,7 @@ mod objects;
 mod read;
 mod text_data;
 mod text_record;
+mod text_write;
 mod write;
 use crate::{Document, Error, assets, control::Control, model::*};
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -39,10 +40,23 @@ pub enum ObjectSharing {
 pub enum ObjectDelivery {
     NativeReconstruction,
 }
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TextDelivery {
+    pub reconstruction: TextReconstruction,
+    /// Consumer's geometry-extension identifier, supplied explicitly as data.
+    pub shape_owner: String,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TextReconstruction {
+    NativeLayout,
+}
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ExportOptions {
     pub embedded_objects: Option<ObjectDelivery>,
+    pub text: Option<TextDelivery>,
 }
 
 #[derive(Default)]
@@ -57,6 +71,7 @@ struct EncodeBudget {
     pixels: usize,
     items: usize,
     source_bytes: usize,
+    native_fonts: std::collections::BTreeMap<String, (String, u32)>,
 }
 struct Encoding<'a> {
     options: &'a ExportOptions,
@@ -64,6 +79,7 @@ struct Encoding<'a> {
     budget: &'a mut EncodeBudget,
     depth: usize,
     scope: String,
+    font_root: Option<&'a Path>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -222,6 +238,16 @@ pub fn export_with_options(
     options: &ExportOptions,
     control: &Control,
 ) -> Result<Value, Error> {
+    export_with_fonts(document, compression, version, options, None, control)
+}
+pub fn export_with_fonts(
+    document: &Document,
+    compression: Compression,
+    version: Version,
+    options: &ExportOptions,
+    font_root: Option<&Path>,
+    control: &Control,
+) -> Result<Value, Error> {
     write::document(
         document,
         compression,
@@ -232,6 +258,7 @@ pub fn export_with_options(
             budget: &mut EncodeBudget::default(),
             depth: 0,
             scope: "root".into(),
+            font_root,
         },
     )
 }

@@ -22,7 +22,7 @@ fn key(out: &mut Vec<u8>, value: &str) {
     );
     out.extend(value.as_bytes());
 }
-fn descriptor(class: &str, fields: Vec<(&str, Vec<u8>)>) -> Vec<u8> {
+pub(super) fn descriptor(class: &str, fields: Vec<(&str, Vec<u8>)>) -> Vec<u8> {
     let mut out = unicode("");
     key(&mut out, class);
     word(&mut out, fields.len() as u32);
@@ -32,27 +32,27 @@ fn descriptor(class: &str, fields: Vec<(&str, Vec<u8>)>) -> Vec<u8> {
     }
     out
 }
-fn object(class: &str, fields: Vec<(&str, Vec<u8>)>) -> Vec<u8> {
+pub(super) fn object(class: &str, fields: Vec<(&str, Vec<u8>)>) -> Vec<u8> {
     let mut out = b"Objc".to_vec();
     out.extend(descriptor(class, fields));
     out
 }
-fn number(value: f64) -> Vec<u8> {
+pub(super) fn number(value: f64) -> Vec<u8> {
     let mut out = b"doub".to_vec();
     out.extend(value.to_be_bytes());
     out
 }
-fn integer(value: i32) -> Vec<u8> {
+pub(super) fn integer(value: i32) -> Vec<u8> {
     let mut out = b"long".to_vec();
     out.extend(value.to_be_bytes());
     out
 }
-fn text(value: &str) -> Vec<u8> {
+pub(super) fn text(value: &str) -> Vec<u8> {
     let mut out = b"TEXT".to_vec();
     out.extend(unicode(&format!("{value}\0")));
     out
 }
-fn enumeration(class: &str, value: &str) -> Vec<u8> {
+pub(super) fn enumeration(class: &str, value: &str) -> Vec<u8> {
     let mut out = b"enum".to_vec();
     key(&mut out, class);
     key(&mut out, value);
@@ -190,6 +190,7 @@ pub(super) fn prepare(
             budget: context.budget,
             depth: context.depth + 1,
             scope,
+            font_root: context.font_root,
         },
     )?;
     let bytes = STANDARD
@@ -275,8 +276,14 @@ pub(super) fn prepare(
     )?;
     let cache_document:Document=serde_json::from_value(json!({"schema_version":2,"id":"placed-cache","kind":"raster",
         "width":width,"height":height,"color_space":"srgb","items":[{"id":"source","transform":translated,"content":item.content}]})).map_err(|_|malformed())?;
-    let raster =
-        crate::render::rasterize_controlled(&cache_document, 1, None, None, None, context.control)?;
+    let raster = crate::render::rasterize_controlled(
+        &cache_document,
+        1,
+        None,
+        context.font_root,
+        None,
+        context.control,
+    )?;
     let mut entry = b"liFD".to_vec();
     word(&mut entry, 7);
     entry.push(source_id.len() as u8);
@@ -326,6 +333,7 @@ mod tests {
                     version,
                     &ExportOptions {
                         embedded_objects: Some(ObjectDelivery::NativeReconstruction),
+                        text: None,
                     },
                     &Control::default(),
                 )

@@ -92,7 +92,7 @@ pub(super) fn document(
         || document.ink_recipe.is_some()
         || !document.stories.is_empty()
         || !document.assets.is_empty()
-        || !document.fonts.is_empty()
+        || (!document.fonts.is_empty() && context.options.text.is_none())
         || !document.swatches.is_empty()
         || document.selection.is_some()
         || !document.channels.is_empty()
@@ -101,6 +101,10 @@ pub(super) fn document(
             "Layered basic delivery preserves working-sRGB pixel layers; other document resources and output interpretations require explicit interchange mapping",
         ));
     }
+    if let Some(options) = &context.options.text {
+        super::text_write::policy(options)?;
+    }
+    let font_cache = crate::fonts::resolve(document, context.font_root)?;
     let canvas = size(document.width, document.height, MAX_CANVAS_PIXELS, version)?;
     context.budget.pixels += canvas;
     context.budget.items += document.items.len();
@@ -120,6 +124,7 @@ pub(super) fn document(
     let mut ordered = Vec::new();
     let mut embedded_sources = Vec::new();
     let mut embedded_receipts = Vec::new();
+    let mut text_receipts = Vec::new();
     let mut stored_pixels = 0;
     order(document, None, &mut ordered);
     short(&mut records, (-(ordered.len() as i16)) as u16);
@@ -128,6 +133,18 @@ pub(super) fn document(
         control.check()?;
         let world = crate::scene::world_transform(document, index)?;
         let object = matches!(item.content, Content::Object { .. });
+        let text = matches!(item.content, Content::Text { .. });
+        let mut typed = if text {
+            Some(super::text_write::prepare(
+                document,
+                item,
+                world,
+                &font_cache,
+                context,
+            )?)
+        } else {
+            None
+        };
         let mut placed = if object {
             if context.options.embedded_objects.is_none() {
                 return Err(unsupported("Object delivery requires explicit layered_options.embedded_objects: native_reconstruction; native sampling can differ from the engine preview").at_item(&item.id));
@@ -144,19 +161,29 @@ pub(super) fn document(
         };
         let (w, h, rgba) = if let Some(p) = &mut placed {
             (p.width, p.height, std::mem::take(&mut p.rgba))
+        } else if let Some(p) = &mut typed {
+            (p.width, p.height, std::mem::take(&mut p.rgba))
         } else {
-            original(item, world, context.options.embedded_objects.is_some())?
+            original(
+                item,
+                world,
+                context.options.embedded_objects.is_some() || context.options.text.is_some(),
+            )?
         };
         let group = matches!(item.content, Content::Group { .. });
         if !group {
             size(w, h, MAX_STORED_PIXELS, version)?;
         }
-        let left = placed
+        let origin = placed
             .as_ref()
-            .map_or(if group { 0 } else { world[4] as i32 }, |p| p.origin[0]);
-        let top = placed
-            .as_ref()
-            .map_or(if group { 0 } else { world[5] as i32 }, |p| p.origin[1]);
+            .map(|p| p.origin)
+            .or_else(|| typed.as_ref().map(|p| p.origin))
+            .unwrap_or(if group {
+                [0, 0]
+            } else {
+                [world[4] as i32, world[5] as i32]
+            });
+        let [left, top] = origin;
         let bounds = [top, left, top + h as i32, left + w as i32];
         if bounds
             .iter()
@@ -272,9 +299,13 @@ pub(super) fn document(
             embedded_sources.extend_from_slice(&p.source);
             embedded_receipts.push(p.receipt);
         }
+        if let Some(p) = typed {
+            tagged(&mut extra, b"TySh", &p.record);
+            text_receipts.push(p.receipt);
+        }
         section(&mut records, &extra);
         if !boundary {
-            receipts.push(json!({"source_id":item.id,"file_id":file_id,"parent_source_id":item.parent,"kind":if group{"group"}else if object{"object"}else{"pixel"},"bounds":[top,left,top+h as i32,left+w as i32],"rgba_sha256":if group{None}else{Some(assets::sha256(&rgba))},"mask":mask.map(|mask|mask.receipt)}));
+            receipts.push(json!({"source_id":item.id,"file_id":file_id,"parent_source_id":item.parent,"kind":if group{"group"}else if object{"object"}else if text{"text"}else{"pixel"},"bounds":[top,left,top+h as i32,left+w as i32],"rgba_sha256":if group{None}else{Some(assets::sha256(&rgba))},"mask":mask.map(|mask|mask.receipt)}));
         }
     }
     records.extend(channel_data);
@@ -322,7 +353,8 @@ pub(super) fn document(
     section(&mut bytes, &resources);
     framed_section(&mut bytes, &layers, version);
     control.check()?;
-    let raster = crate::render::rasterize_controlled(document, 1, None, None, None, control)?;
+    let raster =
+        crate::render::rasterize_controlled(document, 1, None, context.font_root, None, control)?;
     let mut composite = Vec::with_capacity(raster.rgba.len());
     for c in 0..4 {
         composite.extend(raster.rgba.as_chunks::<4>().0.iter().map(|p| {
@@ -346,6 +378,10 @@ pub(super) fn document(
     }
     let mut result = json!({"media_type":"application/octet-stream","encoding":"base64","data":STANDARD.encode(&bytes),"layered":{"version":version.number(),"mode":"rgb8","compression":compression,"layers":receipts,"empty_name_source_ids":document.items.iter().filter(|i|i.name.is_empty()).map(|i|&i.id).collect::<Vec<_>>(),"serialized_records":ordered.len(),"order":"bottom_to_top","source_composite_rgba_sha256":assets::sha256(&raster.rgba),"merged_planes_sha256":assets::sha256(&composite),"merged_color":"white_matted_rgb_plus_straight_alpha","profile_sha256":assets::sha256(&profile),"resolution_ppi":density as f64/65536.0,"source_changed":false},"losses":["Native pixel bytes, extents, names, visibility, exact byte opacity and normal/pass-through folder hierarchy are retained. Folder transforms are resolved to absolute pixel placements; imported folder transforms are identity, and source documents are unchanged. File layer IDs are independently generated; source IDs appear only in the delivery receipt. Empty names are encoded exactly, but native consumers may generate names for them; empty_name_source_ids identifies those items. Name items explicitly for stable external names.","The merged cache stores RGB composited against white plus a separate alpha plane. Unmatting this 8-bit cache can lose straight RGB precision at low alpha. Editable source pixels remain separate; consumer compositing and rounding can differ.","Physical density rounds to unsigned 16.16 pixels per inch. Engine history, variants and private metadata are not embedded as an editable engine snapshot."]});
     result["layered"]["embedded_objects"] = json!(embedded_receipts);
+    result["layered"]["text"] = json!(text_receipts);
+    if !text_receipts.is_empty() {
+        result["losses"].as_array_mut().unwrap().push(json!("Explicit native text reconstruction retains text, character ranges, font face references and point/paragraph geometry. Font binaries and licenses remain external; the receiving consumer must resolve the face names and may use different bytes. Native shaping, kerning, line breaking, baselines, hinting and antialiasing can differ after recomposition or editing. Automatic engine leading becomes explicit per-style values. Tracking rounds to integral thousandths of em (nearest, ties away from zero); receipts record each changed source and delivered value. Point text does not retain the engine's nominal frame bounds. The supplied geometry-extension owner is consumer-specific data; an unrecognized owner may prevent native paragraph geometry from being reconstructed. Caches are separate engine previews, never editable text sources."));
+    }
     if !embedded_sources.is_empty() {
         result["losses"].as_array_mut().unwrap().push(json!("Explicit native reconstruction keeps editable RGB8 sources and affine placement as independent native embedded sources. The receiving consumer controls resampling and edge coverage; source sampling and surface-scale settings are not native controls and are listed in the receipt. Layer caches and the merged preview are engine reconstructions and can differ after native recomposition or editing. Source files and engine snapshots remain unchanged."));
     }

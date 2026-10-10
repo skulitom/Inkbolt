@@ -5,7 +5,11 @@ refusal diagnostics. Text caches are never promoted to editable content. Optiona
 error `details` carry counts, referenced font names and scope flags through the
 shared CLI/MCP path; syntax/run consistency does not establish layout support.
 The Rust error message uses `Box<str>` to keep the error value compact with these
-optional details. Editable layered text reconstruction and delivery remain open.
+optional details. Explicit native text delivery writes original bounded text,
+style, font-reference and point/paragraph geometry records. Content-pinned fonts
+render separate caches; the receiving consumer resolves external face names and
+controls layout. A shared nested-delivery budget rejects conflicting native face
+names. Incoming editable text and global story reconstruction remain open.
 
 `presets` provides pure versioned screen and physical-page recipes over the
 existing document, artboard, logical-canvas and publication contracts. Explicit

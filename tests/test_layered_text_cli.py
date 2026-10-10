@@ -26,7 +26,7 @@ class LayeredTextTests(unittest.TestCase):
             self.assertFalse(d[k])
         self.assertNotIn('document',error);self.assertLess(len(json.dumps(error).encode()),8192)
         capability=self.invoke(dict(command='capabilities'))['layered_interchange']['text_diagnostics']
-        self.assertFalse(capability['editable_text_import']);self.assertFalse(capability['editable_text_export'])
+        self.assertFalse(capability['editable_text_import']);self.assertTrue(capability['editable_text_export'])
         self.assertEqual(capability['limits']['runs'],65)
 
     def test_font_references_and_unicode_run_units_are_checked(self):
@@ -98,6 +98,11 @@ class LayeredTextTests(unittest.TestCase):
         self.assertEqual(self.load(engine=t.data(p))['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
         p=t.payload();del p['EngineDict']['StyleRun']['RunArray'][0]['StyleSheet']['StyleSheetData']['Font']
         error=self.load(engine=t.data(p));self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS');self.assertNotIn('details',error)
+
+    def test_geometry_owner_labels_are_bounded_untrusted_diagnostic_data(self):
+        p=t.payload();p['EngineDict']['Rendered']={'Shapes':{'Children':[{'Cookie':{f'Owner{i}':{} for i in range(10)}}]}}
+        d=self.load(engine=t.data(p))['details'];self.assertEqual(d['shape_owner_labels'],[f'Owner{i}' for i in range(8)])
+        self.assertTrue(d['shape_owner_labels_truncated']);self.assertFalse(d['shape_owner_labels_trusted']);self.assertFalse(d['layout_semantics_validated'])
 
     def test_cli_mcp_parity_source_hash_cancellation_and_no_output(self):
         raw=t.source()

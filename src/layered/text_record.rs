@@ -149,6 +149,28 @@ pub(super) fn diagnose(input: &mut Reader<'_>, control: &Control) -> Result<Valu
     if referenced_fonts.len() > crate::fonts::MAX_FONTS {
         return Err(limit("Native text references more than eight font faces"));
     }
+    // Report bounded identifiers as untrusted source data. This does not certify
+    // their geometry, select an application, or make an unknown layout editable.
+    let mut owners = BTreeSet::new();
+    if let Some(children) = engine
+        .pointer("/Rendered/Shapes/Children")
+        .and_then(Value::as_array)
+    {
+        for child in children {
+            if let Some(cookie) = child.get("Cookie").and_then(Value::as_object) {
+                for key in cookie.keys() {
+                    if !key.is_empty()
+                        && key.len() <= 128
+                        && key.bytes().all(|b| b.is_ascii_alphanumeric())
+                    {
+                        owners.insert(key.clone());
+                    }
+                }
+            }
+        }
+    }
+    let owners_truncated = owners.len() > 8;
+    let owners = owners.into_iter().take(8).collect::<Vec<_>>();
     Ok(
         json!({"kind":"native_text_requirements","editable_import_supported":false,
         "diagnostic_scope":"this_text_record_framing_and_run_references_only",
@@ -156,6 +178,7 @@ pub(super) fn diagnose(input: &mut Reader<'_>, control: &Control) -> Result<Valu
         "text_characters":text.chars().count(),"text_utf16_units":text.encode_utf16().count(),
         "style_runs":style_runs.len(),"paragraph_runs":paragraph_runs.len(),
         "font_face_names":referenced_fonts,"font_file_identity_declared":false,
+        "shape_owner_labels":owners,"shape_owner_labels_truncated":owners_truncated,"shape_owner_labels_trusted":false,
         "transform":transform,"text_data_sha256":assets::sha256(&payload),
         "cached_pixels_used":false,"required_mapping":["explicit_content_pinned_font_bindings","editable_text_layout_reconstruction","declared_native_layout_and_rendering_differences"]}),
     )
