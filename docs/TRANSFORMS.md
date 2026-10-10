@@ -10,7 +10,23 @@ The atomic `transform` edit takes `id`, `matrix`, optional `space` and optional 
 - `world`: store inverse(P)*M*P*L.
 - `replace`: store M in parent coordinates.
 
-An anchor wraps M as translate(anchor)*M*translate(-anchor) before that operation. Thus an anchor is in item-local coordinates for `local`, document coordinates for `world`, and parent coordinates for `replace`. A matrix with translation can move the anchor; only its linear part is pivoted. The library's `geometry::inverse` uses a certified ordinary calculation or an exact rational fallback with nearest binary64 coefficients. Applying an inverse composition still introduces f64 roundoff.
+An anchor wraps M as translate(anchor)*M*translate(-anchor) before that operation. Thus an anchor is in item-local coordinates for `local`, document coordinates for `world`, and parent coordinates for `replace`. A matrix with translation can move the anchor; only its linear part is pivoted.
+
+These edits evaluate the complete ordered expression, including anchors and the
+parent inverse. The ordinary path bounds coefficient error applied to any point
+within 65536 on each axis by `1e-9` logical units per axis. If that bound cannot be
+certified, exact rational arithmetic computes the complete expression from its
+binary64 inputs and rounds only the final coefficients to nearest binary64.
+This avoids losing a small local result to cancellation between large intermediate
+transforms. Reparenting and scalar/artwork mask linking and transforms use the same
+bounded expression evaluator, with at most eight factors.
+
+The exact fallback promises nearest final coefficients, not the ordinary path's
+absolute point bound. Source geometry is retained; world recomposition, final
+point arithmetic and sampling remain separate numerical stages. Existing matrix,
+geometry, hierarchy and resource limits still apply after an edit. The standalone
+library `geometry::inverse` has its own coefficient contract and does not by itself
+certify later compositions. See [coordinate precision](COORDINATE_PRECISION.md).
 
 ```json
 {"op":"transform","id":"connector","space":"world","matrix":[3,0,0,2,0,0],"anchor":[8,40]}

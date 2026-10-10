@@ -59,4 +59,10 @@ fixtures cover this additional numerical boundary; the [precision
 contract](COORDINATE_PRECISION.md) distinguishes these guarantees from subsequent
 inverse composition, point arithmetic and raster sampling.
 
+Item transforms, reparenting and scalar/artwork mask placement now evaluate their
+complete inverse-parent expressions with bounded ordinary arithmetic or exact
+rational fallback. This preserves valid cancelling edits without changing source
+geometry or raising resource limits. Other coordinate conversions and sampling
+still require the complete precision audit.
+
 This remains partial implementation of `vector.resources.extended`. Complete independent resource and extreme-scale acceptance review is still required before the checkpoint earns credit. The total remains **161/167 (96.41%)**.

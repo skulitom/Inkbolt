@@ -83,6 +83,25 @@ independent inverse bit patterns, interval-corner tests and CLI/MCP atomic histo
 checks cover this contract in `geometry::affine::tests` and
 `tests/test_affine_inverse_cli.py`.
 
+Reparenting, item transforms and scalar/artwork mask linking and transforms now
+certify the complete inverse-parent expression. Anchor translations and all
+ordered factors participate before the final saved matrix is produced. The fast
+coefficient error is bounded by `1e-9` logical units per axis when applied exactly
+to points within 65536 on each axis. Otherwise the complete expression is
+calculated rationally from its binary64 inputs and only its final coefficients
+are rounded to certified nearest binary64 values. At most eight factors are
+accepted by this internal evaluator. The fallback's guarantee is nearest
+coefficients, not a universal absolute point bound.
+
+Independent Fraction fixtures reproduce previously rejected valid reparenting
+and identity edits, translations aligned to ill-conditioned parents, anchored
+reflections, scalar/artwork mask linking and visible no-op artwork. Saved CLI/MCP
+retries, undo and rejected edits retain their history contracts. See
+`tests/test_relative_transforms_cli.py`. This scope does not cover every inverse
+consumer: other coordinate conversions, world recomposition, final point
+arithmetic and raster sampling retain their separate contracts. No source geometry
+or original checkpoint criterion changes.
+
 Import normalizes external SVG syntax. For example, relative controls add to the
 current point, smooth controls reflect their predecessor, and quadratics become
 cubic controls. Unit conversion and viewBox placement also perform arithmetic.

@@ -1747,6 +1747,11 @@
       "acceptance": "Support documented large-canvas/object workloads, resource limits, cancellation and bounded error at extreme scales.",
       "status": "in_progress",
       "evidence": [
+        "tests/test_relative_transforms_cli.py::test_reparent_and_identity_world_edits_preserve_exact_local_identity",
+        "tests/test_relative_transforms_cli.py::test_world_translation_and_anchored_reflection_match_complete_rational_expression",
+        "tests/test_relative_transforms_cli.py::test_scalar_and_artwork_mask_linking_preserve_cancelling_world_placement",
+        "tests/test_relative_transforms_cli.py::test_visible_parented_artwork_keeps_pixels_and_controls_across_no_op_edits",
+        "tests/test_relative_transforms_cli.py::test_cli_and_mcp_reparent_retry_undo_and_failed_edit_preserve_history",
         "tests/test_affine_inverse_cli.py::test_cancelled_determinants_respect_the_exact_existing_boundary",
         "tests/test_affine_inverse_cli.py::test_boundary_neighbors_and_seeded_cancellation_match_independent_fraction",
         "tests/test_affine_inverse_cli.py::test_cli_and_mcp_failures_preserve_history_then_allow_edit_retry_and_undo",

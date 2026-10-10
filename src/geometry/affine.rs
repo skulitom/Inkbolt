@@ -7,6 +7,7 @@ pub(crate) const MIN_DETERMINANT: f64 = 1e-8;
 // Coefficient error applied to any point in the accepted world-coordinate box.
 // This does not include subsequent point arithmetic or renderer quantization.
 pub(crate) const MAX_FAST_POINT_ERROR: f64 = 1e-9;
+pub(crate) const MAX_RELATIVE_FACTORS: usize = 8;
 
 #[derive(Clone, Copy)]
 struct Estimate {
@@ -91,7 +92,7 @@ fn quotient(n: Estimate, d: Estimate) -> Estimate {
         error: (numerator / lower).next_up(),
     }
 }
-fn fast_inverse(m: Matrix) -> Option<Matrix> {
+fn inverse_estimates(m: Matrix) -> [Estimate; 6] {
     let d = difference(m[0], m[3], m[1], m[2]);
     let numerators = [
         Estimate {
@@ -113,7 +114,9 @@ fn fast_inverse(m: Matrix) -> Option<Matrix> {
         difference(m[2], m[5], m[3], m[4]),
         difference(m[1], m[4], m[0], m[5]),
     ];
-    let result = numerators.map(|n| quotient(n, d));
+    numerators.map(|n| quotient(n, d))
+}
+fn certified(result: [Estimate; 6]) -> Option<Matrix> {
     for axis in 0..2 {
         let error = add_bound(
             product_bound(
@@ -127,6 +130,9 @@ fn fast_inverse(m: Matrix) -> Option<Matrix> {
         }
     }
     Some(result.map(|v| v.value))
+}
+fn fast_inverse(m: Matrix) -> Option<Matrix> {
+    certified(inverse_estimates(m))
 }
 fn rounded(value: &R) -> Result<f64, Error> {
     let out = value
@@ -170,6 +176,97 @@ pub(super) fn inverse(m: Matrix) -> Result<Matrix, Error> {
         *out = rounded(&(numerator / &d))?;
     }
     Ok(result)
+}
+
+fn sum(a: Estimate, b: Estimate) -> Estimate {
+    let value = a.value + b.value;
+    let b_part = value - a.value;
+    let residual = ((a.value - (value - b_part)) + (b.value - b_part)).abs();
+    Estimate {
+        value,
+        error: add_bound(add_bound(a.error, b.error), residual),
+    }
+}
+fn product(a: Estimate, b: Estimate) -> Estimate {
+    let value = a.value * b.value;
+    let error = [
+        product_error(a.value, b.value, value),
+        product_bound(a.value.abs(), b.error),
+        product_bound(b.value.abs(), a.error),
+        product_bound(a.error, b.error),
+    ]
+    .into_iter()
+    .fold(0.0, add_bound);
+    Estimate { value, error }
+}
+fn estimated_product(a: [Estimate; 6], b: [Estimate; 6]) -> [Estimate; 6] {
+    std::array::from_fn(|i| {
+        let column = i / 2;
+        let row = i % 2;
+        let value = sum(
+            product(a[row], b[column * 2]),
+            product(a[row + 2], b[column * 2 + 1]),
+        );
+        if column == 2 {
+            sum(value, a[row + 4])
+        } else {
+            value
+        }
+    })
+}
+fn exact_product(a: &[R; 6], b: &[R; 6]) -> [R; 6] {
+    std::array::from_fn(|i| {
+        let column = i / 2;
+        let row = i % 2;
+        let value = &a[row] * &b[column * 2] + &a[row + 2] * &b[column * 2 + 1];
+        if column == 2 {
+            value + &a[row + 4]
+        } else {
+            value
+        }
+    })
+}
+pub(super) fn relative_transform(parent: Matrix, factors: &[Matrix]) -> Result<Matrix, Error> {
+    if factors.is_empty()
+        || factors.len() > MAX_RELATIVE_FACTORS
+        || factors.iter().flatten().any(|v| !v.is_finite())
+    {
+        return Err(invalid(
+            "Relative transforms require one to eight finite matrix factors",
+        ));
+    }
+    let mut estimate = inverse_estimates(parent);
+    for factor in factors {
+        estimate = estimated_product(estimate, factor.map(|value| Estimate { value, error: 0.0 }));
+    }
+    if estimate
+        .iter()
+        .all(|v| v.value.is_finite() && v.error.is_finite())
+        && let Some(result) = certified(estimate)
+    {
+        return Ok(result);
+    }
+    // Compute the complete expression from the stored binary64 inputs. Rounding
+    // either the inverse or a cancelling intermediate product loses information.
+    let p = parent.map(rational);
+    let d = determinant(&p);
+    let mut result = [
+        p[3].clone(),
+        -&p[1],
+        -&p[2],
+        p[0].clone(),
+        &p[2] * &p[5] - &p[3] * &p[4],
+        &p[1] * &p[4] - &p[0] * &p[5],
+    ]
+    .map(|v| v / &d);
+    for factor in factors {
+        result = exact_product(&result, &factor.map(rational));
+    }
+    let mut out = [0.0; 6];
+    for (v, exact) in out.iter_mut().zip(&result) {
+        *v = rounded(exact)?;
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -321,5 +418,64 @@ mod tests {
             assert_eq!(rounded(&midpoint).unwrap(), expected);
             assert_eq!(rounded(&-midpoint).unwrap(), -expected);
         }
+    }
+
+    #[test]
+    fn estimated_arithmetic_encloses_independent_interval_corners() {
+        for a in [-32768., -0.1, -f64::from_bits(1), 0., 0.3, 32768.] {
+            for b in [-32768., -0.1, f64::from_bits(1), 0., 0.3, 32768.] {
+                let a = Estimate {
+                    value: a,
+                    error: 1e-18,
+                };
+                let b = Estimate {
+                    value: b,
+                    error: 2e-18,
+                };
+                for sa in [-1, 1] {
+                    for sb in [-1, 1] {
+                        let x = rational(a.value) + rational(a.error) * R::from_integer(sa.into());
+                        let y = rational(b.value) + rational(b.error) * R::from_integer(sb.into());
+                        for (actual, exact) in [(sum(a, b), &x + &y), (product(a, b), &x * &y)] {
+                            assert!(
+                                (rational(actual.value) - exact).abs() <= rational(actual.error)
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn relative_expression_cancels_before_rounding_and_bounds_factor_count() {
+        let parent = [
+            28082.236328125,
+            19869.3466796875,
+            21177.486328125,
+            14983.94973752266,
+            12345.25,
+            -23456.5,
+        ];
+        let local = [1.25, 0.125, -0.25, 0.75, 0.03125, -0.015625];
+        assert_eq!(relative_transform(parent, &[parent]).unwrap(), identity());
+        assert_eq!(relative_transform(parent, &[parent, local]).unwrap(), local);
+        assert_eq!(
+            relative_transform(parent, &[identity(), parent, local]).unwrap(),
+            local
+        );
+        assert!(relative_transform(parent, &[]).is_err());
+        assert!(relative_transform(parent, &[identity(); 9]).is_err());
+        assert!(relative_transform(parent, &[[f64::INFINITY; 6]]).is_err());
+        assert!(crate::geometry::relative_transform([0.; 6], &[identity()]).is_err());
+    }
+
+    #[test]
+    fn finite_relative_expression_survives_nonfinite_intermediate_estimates() {
+        let large = [1e200, 0., 0., 1e200, 0., 0.];
+        let small = [1e-200, 0., 0., 1e-200, 0., 0.];
+        let result = relative_transform(identity(), &[large, large, small, small]).unwrap();
+        let expected = rounded(&(rational(1e200).pow(2) * rational(1e-200).pow(2))).unwrap();
+        assert_eq!(result, [expected, 0., 0., expected, 0., 0.]);
     }
 }

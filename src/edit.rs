@@ -1606,7 +1606,7 @@ fn apply_one(
             };
             let mut item = document.items.remove(i);
             item.parent = parent.clone();
-            item.transform = geometry::multiply(geometry::inverse(parent_world)?, world);
+            item.transform = geometry::relative_transform(parent_world, &[world])?;
             add(document, item, *at)?;
             Ok((id.clone(), "reparented"))
         }
@@ -1755,9 +1755,9 @@ fn apply_one(
                 .ok_or_else(|| Error::new("INVALID_OPERATION", "Item has no artwork mask"))?;
             if mask.linked != *linked {
                 mask.transform = if *linked {
-                    geometry::multiply(geometry::inverse(world)?, mask.transform)
+                    geometry::relative_transform(world, &[mask.transform])?
                 } else {
-                    geometry::multiply(world, mask.transform)
+                    geometry::relative_transform(identity(), &[world, mask.transform])?
                 };
                 mask.linked = *linked;
             }
@@ -1774,13 +1774,14 @@ fn apply_one(
                 .ok_or_else(|| Error::new("INVALID_OPERATION", "Item has no artwork mask"))?;
             mask.transform = match space {
                 TransformSpace::Replace => *matrix,
-                TransformSpace::Local => geometry::multiply(mask.transform, *matrix),
+                TransformSpace::Local => {
+                    geometry::relative_transform(identity(), &[mask.transform, *matrix])?
+                }
                 TransformSpace::World => {
-                    let next = geometry::multiply(*matrix, mask.world_transform(world));
                     if mask.linked {
-                        geometry::multiply(geometry::inverse(world)?, next)
+                        geometry::relative_transform(world, &[*matrix, world, mask.transform])?
                     } else {
-                        next
+                        geometry::relative_transform(identity(), &[*matrix, mask.transform])?
                     }
                 }
             };
@@ -1802,9 +1803,9 @@ fn apply_one(
                 .ok_or_else(|| Error::new("INVALID_OPERATION", "Item has no opacity mask"))?;
             if mask.linked != *linked {
                 mask.transform = if *linked {
-                    geometry::multiply(geometry::inverse(world)?, mask.transform)
+                    geometry::relative_transform(world, &[mask.transform])?
                 } else {
-                    geometry::multiply(world, mask.transform)
+                    geometry::relative_transform(identity(), &[world, mask.transform])?
                 };
                 mask.linked = *linked;
             }
@@ -1821,13 +1822,14 @@ fn apply_one(
                 .ok_or_else(|| Error::new("INVALID_OPERATION", "Item has no opacity mask"))?;
             mask.transform = match space {
                 TransformSpace::Replace => *matrix,
-                TransformSpace::Local => geometry::multiply(mask.transform, *matrix),
+                TransformSpace::Local => {
+                    geometry::relative_transform(identity(), &[mask.transform, *matrix])?
+                }
                 TransformSpace::World => {
-                    let next = geometry::multiply(*matrix, mask.world_transform(world));
                     if mask.linked {
-                        geometry::multiply(geometry::inverse(world)?, next)
+                        geometry::relative_transform(world, &[*matrix, world, mask.transform])?
                     } else {
-                        next
+                        geometry::relative_transform(identity(), &[*matrix, mask.transform])?
                     }
                 }
             };
@@ -1996,7 +1998,7 @@ fn apply_one(
             let i = index(document, id)?;
             unlocked(document, i)?;
             geometry::validate_matrix(*matrix)?;
-            let matrix = if let Some([x, y]) = anchor {
+            let mut factors = if let Some([x, y]) = anchor {
                 if !x.is_finite()
                     || !y.is_finite()
                     || x.abs() > MAX_COORDINATE
@@ -2006,24 +2008,26 @@ fn apply_one(
                         "Transform anchor must be finite and within coordinate limits",
                     ));
                 }
-                geometry::multiply(
+                vec![
                     [1.0, 0.0, 0.0, 1.0, *x, *y],
-                    geometry::multiply(*matrix, [1.0, 0.0, 0.0, 1.0, -x, -y]),
-                )
+                    *matrix,
+                    [1.0, 0.0, 0.0, 1.0, -x, -y],
+                ]
             } else {
-                *matrix
+                vec![*matrix]
             };
             let old = document.items[i].transform;
             document.items[i].transform = match space {
-                TransformSpace::Replace => matrix,
+                TransformSpace::Replace => geometry::relative_transform(identity(), &factors)?,
                 TransformSpace::World => {
                     let parent = scene::parent_transform(document, i)?;
-                    geometry::multiply(
-                        geometry::inverse(parent)?,
-                        geometry::multiply(matrix, geometry::multiply(parent, old)),
-                    )
+                    factors.extend([parent, old]);
+                    geometry::relative_transform(parent, &factors)?
                 }
-                TransformSpace::Local => geometry::multiply(old, matrix),
+                TransformSpace::Local => {
+                    factors.insert(0, old);
+                    geometry::relative_transform(identity(), &factors)?
+                }
             };
             Ok((id.clone(), "transformed"))
         }

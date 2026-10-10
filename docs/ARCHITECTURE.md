@@ -20,6 +20,12 @@ unstable inverses use exact rational arithmetic, with checked nearest binary64
 coefficients. Final point arithmetic, inverse composition and renderer sampling
 remain separate numerical stages; source matrices and controls are unchanged.
 
+The same affine module evaluates complete inverse-parent expressions for item
+transforms, reparenting and scalar/artwork mask placement edits. Interval estimates
+include intermediate products and anchor translations; uncertain expressions are
+computed rationally before final coefficient rounding. The evaluator has a fixed
+eight-factor limit and preserves the existing document validation boundaries.
+
 `scene::hierarchy` bounds ordinary composition error using fused product
 residuals, error-free sum residuals and upward-rounded error propagation. An exact
 rational chain product with certified final binary64 rounding handles unstable

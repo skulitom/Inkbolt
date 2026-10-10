@@ -33,6 +33,12 @@ exact rational fallback with checked rounding. Independent boundary and saved
 history tests cover this fix; arbitrary inverse composition and sampling still
 require the complete resource/precision review.
 
+Parent-relative editing now certifies complete transform expressions, including
+anchors, reparenting and scalar/artwork mask placement. Independent rational
+fixtures cover previously rejected valid edits, visible retained artwork and
+durable history. Other inverse consumers and final sampling remain part of the
+full resource/precision audit; this fix does not complete the original checkpoint.
+
 Deep transform hierarchies now use a bounded-error ordinary path and exact
 composition when large nearly inverse matrices make that necessary. Independent
 rational and pixel fixtures include a 5,000-object shared hierarchy, bounded

@@ -1,7 +1,9 @@
 use crate::{Error, model::*};
 
 mod affine;
-pub(crate) use affine::{MAX_FAST_POINT_ERROR as MAX_FAST_INVERSE_POINT_ERROR, MIN_DETERMINANT};
+pub(crate) use affine::{
+    MAX_FAST_POINT_ERROR as MAX_FAST_INVERSE_POINT_ERROR, MAX_RELATIVE_FACTORS, MIN_DETERMINANT,
+};
 
 pub type Bounds = [f64; 4]; // min x, min y, max x, max y; geometry only
 pub fn map(m: Matrix, p: Point) -> Point {
@@ -26,6 +28,12 @@ pub fn multiply(left: Matrix, right: Matrix) -> Matrix {
 pub fn inverse(m: Matrix) -> Result<Matrix, Error> {
     validate_matrix(m)?;
     affine::inverse(m)
+}
+/// Certify the complete inverse-parent product, including intermediate roundoff.
+/// The exact fallback rounds only its final coefficients.
+pub(crate) fn relative_transform(parent: Matrix, factors: &[Matrix]) -> Result<Matrix, Error> {
+    validate_matrix(parent)?;
+    affine::relative_transform(parent, factors)
 }
 pub(crate) fn validate_matrix(m: Matrix) -> Result<(), Error> {
     if m.iter().any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE) {
