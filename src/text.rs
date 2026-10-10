@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use unicode_segmentation::UnicodeSegmentation;
 pub mod bidi;
+mod first_baseline;
+pub use first_baseline::{FirstBaseline, FirstBaselineMetric};
 pub mod flow;
 mod shaping;
 use shaping::{Analysis, shape};
@@ -141,6 +143,8 @@ pub struct Frame {
     pub wrap: bool,
     #[serde(default)]
     pub leading: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_baseline: Option<FirstBaseline>,
     #[serde(default)]
     pub overflow: Overflow,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -165,10 +169,14 @@ pub fn validate(
 ) -> Result<(usize, usize, usize), Error> {
     if let Some(path) = &frame.path {
         crate::path_text::validate(path)?;
-        if frame.wrap || frame.leading.is_some() || frame.text.contains('\n') {
+        if frame.wrap
+            || frame.leading.is_some()
+            || frame.first_baseline.is_some()
+            || frame.text.contains('\n')
+        {
             return Err(Error::new(
                 "UNSUPPORTED",
-                "Path text requires one line, wrap:false and no paragraph leading",
+                "Path text requires one line, wrap:false and no paragraph leading or first-baseline setting",
             ));
         }
     }
@@ -195,6 +203,9 @@ pub fn validate(
         if !v.is_finite() || !(0.001..=MAX_COORDINATE).contains(&v) {
             return Err(invalid("Text frame extent must be in 0.001..=32768"));
         }
+    }
+    if let Some(first) = frame.first_baseline {
+        first.validate()?;
     }
     if frame
         .leading
@@ -556,6 +567,8 @@ pub fn layout(frame: &Frame, document: &Document, cache: &fonts::Cache) -> Resul
         let (glyphs, advance) = shape(frame, &analysis, start, end, document, cache, &mut work)?;
         let mut ascent = 0.0f64;
         let mut natural = 0.0f64;
+        let first = frame.first_baseline.filter(|_| result.lines.is_empty());
+        let mut first_height = 0.0f64;
         let ids: BTreeSet<_> = glyphs
             .iter()
             .map(|g| (g.style, g.font_id.as_str()))
@@ -569,8 +582,18 @@ pub fn layout(frame: &Frame, document: &Document, cache: &fonts::Cache) -> Resul
             natural = natural.max(
                 (face.ascender() as f64 - face.descender() as f64 + face.line_gap() as f64) * scale,
             );
+            if let Some(first) = first {
+                first_height = first_height.max(
+                    first
+                        .font_height(&face, s.size)
+                        .map_err(|e| e.at_font(font_id))?,
+                );
+            }
         }
         let leading = frame.leading.unwrap_or(natural.max(0.001));
+        if let Some(first) = first {
+            top = first.offset(ascent, leading, first_height) - ascent;
+        }
         let baseline = top + ascent;
         let direction = analysis.direction(frame, start);
         let x = frame.align.offset(frame.width, advance, direction);

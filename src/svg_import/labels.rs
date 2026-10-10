@@ -361,6 +361,7 @@ pub(super) fn content(
         bidi: text::Bidi::SingleRun,
         wrap: false,
         leading: None,
+        first_baseline: None,
         overflow: text::Overflow::Visible,
         path: None,
     };

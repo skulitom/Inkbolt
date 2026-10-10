@@ -1,5 +1,12 @@
 # Architecture
 
+Ordinary text frames retain optional [first-line placement](FIRST_BASELINE.md).
+Pinned first-line font-instance metrics select ascent, cap height or x-height;
+explicit/natural leading and fixed offsets share the same bounded minimum rule.
+The resulting translation moves glyphs and lines without moving the frame clip.
+Missing metrics fail explicitly. Shared layout drives inspection, rendering and
+outlines; path text and unmapped native delivery reject the new control.
+
 Layered text records have a bounded original dictionary-data parser and structural
 refusal diagnostics. Text caches are never promoted to editable content. Optional
 error `details` carry counts, referenced font names and scope flags through the

@@ -1548,6 +1548,7 @@ fn capability_report() -> Value {
         "compatibility_markers":"optional_boolean_and_bounded_enum_source_data;untrusted;semantics_not_validated",
         "editable_text_import":false,"editable_text_export":true
     });
+    capabilities["text_first_baseline"] = json!({"option":"text.frame.first_baseline","metrics":["ascent","cap_height","x_height","leading","fixed"],"minimum":"finite_0_to_32768_local_pixels","default":"existing_font_ascent_placement","font_metrics":"contributing_first_line_instances_and_base_style;cap_and_x_height_require_positive_font_metrics;no_fallback_guess","placement":"uniform_translation_of_all_lines;frame_origin_and_clip_unchanged","retained":true,"unsupported":["path_text","linked_story_controls","native_layered_delivery"]});
     capabilities["layered_interchange"]["text_delivery"] = json!({
         "status":"explicit_native_layout_reconstruction;bounded_subset",
         "option":"layered_options.text",
@@ -1561,7 +1562,7 @@ fn capability_report() -> Value {
         "caches":"separate_engine_rendered_pixels;never_editable_source",
         "native_layout_equality":false,"recipient_font_file_identity_pinned":false,"editable_import":false,
         "limits":{"characters":text::MAX_TEXT_CHARS,"runs":65,"paragraphs":65,"font_faces_across_nested_sources":fonts::MAX_FONTS,"text_record_bytes":65536},
-        "unsupported":["font_fallback","variable_fonts","non_TrueType_outlines","language_controls","text_paths","unicode_bidi","non_left_alignment","character_alpha_or_non_solid_paint","other_features","point_clipping","paragraph_visible_overflow"]
+        "unsupported":["font_fallback","variable_fonts","non_TrueType_outlines","language_controls","text_paths","unicode_bidi","non_left_alignment","character_alpha_or_non_solid_paint","other_features","point_clipping","paragraph_visible_overflow","explicit_first_baseline_controls"]
     });
     capabilities["native_sample_store_library"] = json!({
         "status":"integrated_native_import_local_patch_edits_and_bounded_view_rendering;scale_gate_open",

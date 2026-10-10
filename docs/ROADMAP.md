@@ -1,5 +1,10 @@
 # Roadmap and verified scope
 
+Ordinary frames now have explicit [first-baseline controls](FIRST_BASELINE.md),
+using pinned font metrics or fixed offsets without changing the frame clip.
+This prepares the geometry mapping required by editable native text import;
+global style reconciliation and the import contract remain unfinished.
+
 Incoming text diagnostics now include the selected global story's authoritative
 characters, run/font references and comparison with the local record. Story
 indices are independent of layer order. Structural agreement does not establish

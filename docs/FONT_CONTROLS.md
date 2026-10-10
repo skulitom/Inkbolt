@@ -1,5 +1,9 @@
 # Editable font instances and OpenType controls
 
+Ordinary frames can also select [first-line placement](FIRST_BASELINE.md) from
+the contributing font instances' ascent, cap height or x-height, or from leading
+or a fixed offset. Missing cap/x-height metrics fail explicitly.
+
 Text styles in vector and raster documents retain explicit per-font variation
 coordinates and OpenType feature values. These controls apply to ordinary labels,
 paragraphs and path text before item/parent transforms and compositing.

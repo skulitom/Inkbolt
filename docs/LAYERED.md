@@ -131,6 +131,10 @@ Delivery keeps the per-document canvas, item and stored-pixel limits, including 
 
 ## Explicit editable text delivery
 
+Explicit `frame.first_baseline` controls currently require an additional native
+authoring mapping and are rejected for this delivery format. Retain them in an
+engine snapshot or use an output that renders the shared frame layout.
+
 For either layered format, supply `layered_options.text` with `reconstruction:"native_layout"` and an explicit `shape_owner`. The latter is the receiving consumer's geometry-extension identifier: 1..128 ASCII letters or digits. Obtain it from a compatible original reference file's structural diagnostics or the consumer's contract, and verify delivery there. Inkbolt carries this identifier as data; it does not select an application or execute it. An arbitrary or unrecognized identifier can prevent paragraph geometry from reopening correctly.
 
 Use `font_root` for direct export, or `resources.font_root` for document publication, preflight and jobs; sessions use their saved resources. Rust callers use `layered::export_with_fonts`. The source font files and their retained licenses must match the document's pinned identities. Each static TrueType outline face needs one unambiguous Unicode PostScript name. Other outline formats require a separate verified mapping. Different files or face indices with the same name are rejected across the complete delivery, including nested objects. At most eight face names are admitted. Fonts and licenses stay external: the receiving consumer resolves names and may use different font bytes. No installed-font lookup, substitution or font embedding occurs in Inkbolt.

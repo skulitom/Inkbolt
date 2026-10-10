@@ -67,6 +67,7 @@ impl Paragraph {
             bidi: self.bidi,
             wrap: true,
             leading: self.leading,
+            first_baseline: None,
             overflow: Overflow::Visible,
             path: None,
         }
