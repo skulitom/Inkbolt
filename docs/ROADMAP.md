@@ -1,6 +1,6 @@
 # Roadmap and verified scope
 
-The [agent task benchmark](AGENT_BENCHMARK.md) now has nineteen independently
+The [agent task benchmark](AGENT_BENCHMARK.md) now has twenty independently
 judged scripted CLI/MCP adapters within the unchanged twenty-task inventory.
 Release identity, exact traffic and per-task measurements are retained; missing
 adapters and failures prevent complete-suite acceptance. Linked text, mixed-script
@@ -9,7 +9,9 @@ now have complete declared task oracles. Output cancellation and supervisor
 interruption/restart retain pinned pixels, one publication and complete owned
 process accounting. A two-megapixel synthetic photographic fixture checks a
 reviewed native clone patch, complete 16-bit output/history, unchanged resources
-and a fixed 256 MiB engine commit budget. One adapter, actual
+and a fixed 256 MiB engine commit budget. Linked animated graphics verify an
+explicit saved Cutbolt revision, unchanged historical deliveries, decoded
+alpha/color/timing and consumer process-tree memory. Actual
 model trials and matched Cutbolt comparisons remain required. The engine registry
 stays at 161/167.
 

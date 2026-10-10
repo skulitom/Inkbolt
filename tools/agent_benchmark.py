@@ -10,12 +10,14 @@ from benchmark_tasks import SUITE, TASKS, CHECKS
 from benchmark_adapters import ADAPTERS
 from benchmark_runtime import Trial
 from benchmark_recovery_runtime import RecoveryTrial
+from benchmark_handoff import HandoffTrial
+from benchmark_consumer import tool_identities
 from measure_workloads import (ROOT, candidate_identity, release_build, save_json,
                                sha, statistics_of)
 import measurement_host
 
 
-def run_task(executable, root, task, repetition, transport):
+def run_task(executable, root, task, repetition, transport, consumer_tools=None):
     if task not in ADAPTERS:
         root.mkdir()
         row=dict(task=task,repetition=repetition,transport=transport,status='not_implemented',
@@ -23,8 +25,9 @@ def run_task(executable, root, task, repetition, transport):
             calls=[],checks=[],token_usage=None,model_calls=None,agent_seconds=None,model_trials=False)
         save_json(root/'result.json',row)
         return row
-    factory=RecoveryTrial if task=='B19' else Trial
-    trial=factory(executable,root,task,repetition,transport,CHECKS[task])
+    factory=RecoveryTrial if task=='B19' else HandoffTrial if task=='B20' else Trial
+    options=dict(consumer_tools=consumer_tools) if task=='B20' else {}
+    trial=factory(executable,root,task,repetition,transport,CHECKS[task],**options)
     try:
         ADAPTERS[task](trial)
     except Exception as error:
@@ -49,7 +52,9 @@ def aggregate(rows):
             observations={key:distribution([row[key] for row in measured if row.get(key) is not None])
                 for key in ('engine_commands','request_bytes','response_bytes','retries',
                             'engine_roundtrip_seconds','scripted_wall_seconds',
-                            'first_verified_preview_seconds','peak_commit_bytes','peak_working_set_bytes')}))
+                            'first_verified_preview_seconds','peak_commit_bytes','peak_working_set_bytes',
+                            'total_engine_commands','total_engine_retries','total_request_bytes','total_response_bytes',
+                            'total_engine_roundtrip_seconds','consumer_peak_tree_commit_bytes')}))
     return result
 
 
@@ -60,10 +65,15 @@ def main(argv=None):
     parser.add_argument('--repetitions',type=int,choices=range(1,11),default=5)
     parser.add_argument('--transport',choices=['cli','mcp'],default='mcp')
     parser.add_argument('--task',action='append',choices=list(TASKS),dest='tasks')
+    for name in ('cutbolt','ffmpeg','ffprobe'):
+        parser.add_argument('--'+name,type=Path,help='Explicit local consumer executable for B20')
     args=parser.parse_args(argv)
     if sys.flags.optimize: parser.error('Independent oracles require assertions; do not use -O')
     if not args.conditions.strip() or len(args.conditions)>4096: parser.error('Provide bounded nonempty conditions')
     if args.tasks and len(set(args.tasks))!=len(args.tasks): parser.error('Task selections must be distinct')
+    consumer_tools={name:getattr(args,name).resolve() for name in ('cutbolt','ffmpeg','ffprobe') if getattr(args,name)}
+    if consumer_tools and len(consumer_tools)!=3:parser.error('Supply all three consumer executables together')
+    consumer_identity=tool_identities(consumer_tools) if consumer_tools else None
     output=args.output_root.resolve()
     if output.is_relative_to(ROOT.resolve()) or not output.parent.is_dir() or output.exists():
         parser.error('Use a new external directory under an existing parent')
@@ -75,7 +85,7 @@ def main(argv=None):
     provenance=dict(schema_version=1,suite=SUITE,transport=args.transport,
         selected_tasks=list(selected),repetitions=args.repetitions,
         candidate_files=candidates,candidate_sha256=sha(json.dumps(candidates,sort_keys=True,separators=(',',':')).encode()),
-        build=build,environment=environment,conditions=args.conditions,
+        build=build,environment=environment,conditions=args.conditions,consumer_tools=consumer_identity,
         git_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
         git_status=subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True),
         toolchain=subprocess.check_output(['rustc','--version'],text=True).strip())
@@ -88,12 +98,13 @@ def main(argv=None):
     for repetition in range(1,args.repetitions+1):
         offset=(repetition-1)%len(selected)
         for task in selected[offset:]+selected[:offset]:
-            row=run_task(executable,output/f'{repetition:02d}-{task}',task,repetition,args.transport)
+            row=run_task(executable,output/f'{repetition:02d}-{task}',task,repetition,args.transport,consumer_tools)
             rows.append(row)
             print(json.dumps(dict(task=task,repetition=repetition,status=row['status'],
                 commands=row.get('engine_commands'),seconds=row.get('engine_roundtrip_seconds'))),flush=True)
     unchanged=(candidates==candidate_identity() and sha(executable.read_bytes())==build['executable_sha256']
-               and environment==measurement_host.identity())
+               and environment==measurement_host.identity()
+               and (not consumer_tools or consumer_identity==tool_identities(consumer_tools)))
     full=set(selected)==set(TASKS)
     successful=all(row['status']=='passed' for row in rows)
     status='all_tasks_passed' if full and successful else 'selected_tasks_passed' if successful else 'incomplete_or_failed'
@@ -106,10 +117,10 @@ def main(argv=None):
         candidate_files=candidates,candidate_sha256=provenance['candidate_sha256'],
         inputs_unchanged=unchanged,build=build,
         git_commit=provenance['git_commit'],git_status=provenance['git_status'],toolchain=provenance['toolchain'],
-        environment=environment,conditions=args.conditions,
+        environment=environment,conditions=args.conditions,consumer_tools=consumer_identity,
         rows=rows,aggregates=aggregate(rows),outcome=status,
-        timing='Round trips include local process/stdio/JSON costs. B19 can overlap a CLI launch caller with its independent cancellation caller; summed round trips are not wall time. Scripted wall and retrospective verified-preview times include discovery and prior oracle work; fixture generation precedes begin. No autonomous agent time is inferred.',
-        memory='CLI uses the maximum observed individual-process lifetime peaks; MCP uses the persistent server lifetime. B19 also retains every supervisor/runner and owned console-host handle and requires complete contained-process counts. Peaks are individual-process maxima, not concurrent sums. Neither includes the Python driver. Missing observations stay null.',
+        timing='Round trips include local process/stdio/JSON costs. B19 can overlap a CLI launch caller with its independent cancellation caller; summed round trips are not wall time. Scripted wall and retrospective verified-preview times include discovery and prior oracle work; fixture generation precedes begin. B20 consumer calls/bytes/time are separately recorded in each row.consumer, with total_engine_commands and total_engine_retries covering both engines; wall time includes consumer and independent decoding. No autonomous agent time is inferred.',
+        memory='Inkbolt CLI uses the maximum observed individual-process lifetime peaks; MCP uses the persistent server lifetime. B19 also retains every supervisor/runner and owned console-host handle and requires complete contained-process counts. B20 separately reports the OS job commit peak of each Cutbolt caller and all inherited encoder/probe children; it is not mixed with individual Inkbolt peaks. Neither includes the Python driver or independent decoder judge. Missing observations stay null.',
         cache_conditions='Fresh workspace and server per trial; CLI process per call. OS caches may be warm. Repetition order rotates deterministically.',
         evidence='Raw CLI/MCP request/response bytes, stderr, original fixtures, delivered artifacts, exact source/executable and explicit required-check results retained. A lost-response injection retains the hidden response for the judge and marks it unobserved by the solver.',
         token_usage=None,model_calls=None,agent_seconds=None,

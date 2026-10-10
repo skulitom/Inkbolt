@@ -6,9 +6,10 @@ from benchmark_typography import linked_overflow, multilingual
 from benchmark_layout_delivery import mixed_composition, layout_variants, physical_print
 from benchmark_recovery import recovery
 from benchmark_photo import photograph
+from benchmark_handoff import linked_graphic
 
 ADAPTERS = {'B01':diagram,'B02':icons,'B03':large_layout,'B04':svg_artwork,
     'B05':palette,'B06':linked_overflow,'B07':multilingual,'B08':foreground_mask,
     'B09':local_retouch,'B10':photograph,'B11':mixed_composition,'B12':layout_variants,
     'B13':transparent_delivery,'B14':physical_print,'B15':resource_repair,
-    'B16':seeded_repair,'B17':lost_response,'B18':conflicting_writers,'B19':recovery}
+    'B16':seeded_repair,'B17':lost_response,'B18':conflicting_writers,'B19':recovery,'B20':linked_graphic}

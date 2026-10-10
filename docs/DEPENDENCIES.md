@@ -32,6 +32,14 @@ Cargo.lock records exact versions and checksums. Packages remain in Cargo's exte
 
 Rust/Cargo, Python 3.11+ and Git are development tools. Python checks use only the standard library. Ghidra, Java and Anode are optional external research tools; exact local installations and verification receipts belong in the private research root. They are not runtime dependencies.
 
+The B20 release benchmark additionally requires explicitly selected local
+Cutbolt, FFmpeg and ffprobe executables. These are external development tools;
+they are not downloaded, bundled or required by Inkbolt's engine or normal
+Python contract tests. Complete benchmark acceptance requires running B20 with
+them. Reports bind all three executable hashes before and after the suite;
+retain their licenses with the external installations. See
+[the benchmark contract](AGENT_BENCHMARK.md).
+
 The coverage backend provides a bounded low-level path renderer; the project owns document semantics, editing, geometry inspection and compositing. Scalar coverage keeps this first implementation simple and reproducible within the tested environment. Its f32 geometry and RGBA8 coverage do not establish high-depth or extreme-scale fidelity. PNG encoding is independent of scene geometry; tests decode its chunks and filters using a separate standard-library implementation.
 
 References: [tiny-skia 0.12.0 API](https://docs.rs/tiny-skia/0.12.0/tiny_skia/), [PNG encoder API](https://docs.rs/png/0.18.1/png/), [W3C compositing equations](https://www.w3.org/TR/compositing-1/), [SVG geometry](https://www.w3.org/TR/SVG2/paths.html). Only public interfaces and original algorithms/fixtures inform project code.

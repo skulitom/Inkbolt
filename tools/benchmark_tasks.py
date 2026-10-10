@@ -49,4 +49,8 @@ CHECKS = {
     'B18': ('stale-rejected', 'both-intents-preserved', 'conflict-pixels', 'historical-pixels', 'history-valid'),
     'B19': ('review-pixels', 'active-cancellation', 'interrupted-unpublished', 'recovered-pixels',
             'revision-resource-pinning', 'single-publication-no-overwrite', 'no-partial-final', 'history-valid'),
+    'B20': ('delivery-0-pixels-clock', 'reviewed-source-only', 'revised-preview', 'delivery-1-pixels-clock',
+            'pinned-successor', 'no-implicit-relink', 'explicit-consumer-revision', 'consumer-undo-retry',
+            'original-timeline', 'revised-timeline', 'undone-timeline', 'old-source-history',
+            'immutable-deliveries', 'history-valid', 'consumer-processes'),
 }

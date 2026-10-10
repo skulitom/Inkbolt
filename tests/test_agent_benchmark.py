@@ -8,6 +8,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from test_cli import EXE, ROOT
 sys.path.insert(0,str(ROOT/'tools'))
@@ -27,7 +28,8 @@ class AgentBenchmarkTests(unittest.TestCase):
         for task,(title,outcome) in TASKS.items():
             self.assertIn(f'| {task} | {title} | {outcome} |',text)
         with tempfile.TemporaryDirectory() as directory:
-            row=run_task(EXE,Path(directory)/'open','B20',1,'cli')
+            with patch.dict(ADAPTERS,{k:v for k,v in ADAPTERS.items() if k!='B20'},clear=True):
+                row=run_task(EXE,Path(directory)/'open','B20',1,'cli')
             self.assertEqual(row['status'],'not_implemented')
             summary=aggregate([row])
             self.assertEqual(len(summary),20)
@@ -38,7 +40,7 @@ class AgentBenchmarkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             for transport in ['cli','mcp']:
                 for task in ADAPTERS:
-                    if task in ('B10','B19'):continue  # Separate photo/recovery modules keep feedback focused.
+                    if task in ('B10','B19','B20'):continue  # Photo/recovery are focused modules; B20 requires explicit external release tools.
                     with self.subTest(transport=transport,task=task):
                         root=Path(directory)/(transport+'-'+task)
                         row=run_task(EXE,root,task,1,transport)
