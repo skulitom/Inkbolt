@@ -158,6 +158,13 @@ its own tile-count cache policy. Capability bindings also cover native print,
 pixel warps and compound regions; unchanged numeric thresholds do not establish
 the larger scale targets. Windows and Linux focused checks continue for each slice.
 
+Boolean contact subdivision and coefficient limits, stroke subdivision, warp
+grids, hyphenation minima and publication/job staging budgets now use the catalog.
+Publication write chunks and recovery read buffers share a bounded I/O setting.
+Every root resource ceiling in `capabilities.limits` has a compiled-constant
+binding check; identity-scale semantics remain separate. The remaining parameter
+and diagnostic audit still precedes W0's fresh thorough gate.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

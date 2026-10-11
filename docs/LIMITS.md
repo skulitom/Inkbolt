@@ -40,9 +40,12 @@ capability literals and diagnostic messages remains in progress.
 | `booleans.MAX_ATOMS` | `usize` | 4096 | `4096` |
 | `booleans.MAX_EDGES` | `usize` | 512 | `512` |
 | `booleans.MAX_INPUTS` | `usize` | 16 | `16` |
+| `booleans.MAX_TOPOLOGY_DEPTH` | `usize` | 20 | `20` |
 | `booleans.MAX_WORK` | `usize` | 2000000 | `2_000_000` |
 | `booleans_topology_algebraic_roots.MAX_COEFFICIENT_BITS` | `u64` | 4096 | `4096` |
+| `booleans_topology_algebraic_roots.MAX_POLYNOMIAL_DEGREE` | `usize` | 18 | `18` |
 | `booleans_topology_algebraic_roots.MAX_ROOT_DEPTH` | `usize` | 96 | `96` |
+| `booleans_topology_quadratic.MAX_COEFFICIENT_BITS` | `u64` | 4096 | `4096` |
 | `booleans_topology_quadratic.MAX_PARAMETER_BITS` | `usize` | 4096 | `4096` |
 | `channels.MAX_CHANNELS` | `usize` | 16 | `16` |
 | `channels.MAX_SAMPLES` | `usize` | 262144 | `262_144` |
@@ -90,6 +93,7 @@ capability literals and diagnostic messages remains in progress.
 | `hdr.MAX_SAMPLES` | `usize` | 256 | `256` |
 | `hyphenation.MAX_EXCEPTIONS` | `usize` | 4096 | `4_096` |
 | `hyphenation.MAX_EXCEPTION_CHARS` | `usize` | 65536 | `65_536` |
+| `hyphenation.MAX_MINIMUM_GRAPHEMES` | `usize` | 128 | `128` |
 | `hyphenation.MAX_PATTERNS` | `usize` | 32768 | `32_768` |
 | `hyphenation.MAX_PATTERN_CHARS` | `usize` | 64 | `64` |
 | `hyphenation.MAX_TOTAL_PATTERN_CHARS` | `usize` | 262144 | `262_144` |
@@ -134,12 +138,15 @@ capability literals and diagnostic messages remains in progress.
 | `jobs.MAX_WORKER_PATH_LENGTH` | `usize` | 4096 | `super::paths::MAX_PATH_UNITS` |
 | `jobs_listing.DEFAULT_PAGE_RECORDS` | `usize` | 8 | `8` |
 | `jobs_listing.MAX_CURSOR_BYTES` | `usize` | 1024 | `1024` |
+| `jobs_listing.MAX_FINGERPRINT_BYTES` | `usize` | 32768 | `32768` |
 | `jobs_listing.MAX_PAGE_BYTES` | `usize` | 32768 | `32 * 1024` |
 | `jobs_listing.MAX_PAGE_RECORDS` | `usize` | 32 | `32` |
+| `jobs_listing.RECORD_ENVELOPE_RESERVE` | `usize` | 32 | `32` |
 | `jobs_store.DATABASE_BYTES` | `u64` | 536870912 | `512 * 1024 * 1024` |
 | `jobs_store.MAX_RUNTIME_BYTES` | `usize` | 16384 | `16 * 1024` |
 | `jobs_store.MAX_SCHEMA_RECORDS` | `usize` | 4 | `4` |
 | `jobs_store.MAX_SQL_ROW_BYTES` | `usize` | 17907712 | `super::jobs::MAX_INPUT_BYTES + super::jobs::MAX_STATE_BYTES + 16384` |
+| `jobs_store.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `layered.MAX_CANVAS_PIXELS` | `usize` | 1048576 | `1_048_576` |
 | `layered.MAX_DECODED_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `layered.MAX_DECODED_ITEMS` | `usize` | 1024 | `1024` |
@@ -279,10 +286,13 @@ capability literals and diagnostic messages remains in progress.
 | `publications.MAX_LEDGER_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
 | `publications.MAX_RECEIPT_BYTES` | `usize` | 1048576 | `1024 * 1024` |
 | `publications.MAX_RECORDS` | `usize` | 1024 | `1024` |
+| `publications.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `publications_store.DATABASE_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
 | `publications_store.MAX_SCHEMA_RECORDS` | `usize` | 3 | `3` |
 | `publications_store.MAX_SQL_ROW_BYTES` | `usize` | 1064960 | `super::publications::MAX_RECEIPT_BYTES + 16384` |
+| `publish.IO_CHUNK_BYTES` | `usize` | 65536 | `65536` |
 | `publish.MAX_OUTPUT_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
+| `publish.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `query.MAX_SHAPES` | `usize` | 8 | `8` |
 | `query.MAX_TYPES` | `usize` | 12 | `12` |
 | `raster.MAX_PIXELS` | `u64` | 16777216 | `16_777_216` |
@@ -384,6 +394,7 @@ capability literals and diagnostic messages remains in progress.
 | `strokes_brush.MAX_PLACEMENTS` | `usize` | 8192 | `8192` |
 | `strokes_outline.MAX_OUTLINE_COMMANDS` | `usize` | 65536 | `65_536` |
 | `strokes_outline.MAX_POINTS` | `usize` | 16384 | `16_384` |
+| `strokes_outline.MAX_SUBDIVISION_DEPTH` | `usize` | 24 | `24` |
 | `svg_import.MAX_BYTES` | `usize` | 262144 | `256 * 1024` |
 | `svg_import.MAX_FONT_FAMILY_BYTES` | `usize` | 256 | `256` |
 | `svg_import.MAX_LARGE_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
@@ -441,6 +452,7 @@ capability literals and diagnostic messages remains in progress.
 | `warps.MAX_BITS` | `u64` | 8192 | `8192` |
 | `warps.MAX_DEGREE` | `usize` | 128 | `128` |
 | `warps.MAX_DEPTH` | `usize` | 24 | `24` |
+| `warps.MAX_GRID_AXIS` | `usize` | 16 | `16` |
 | `warps.MAX_INPUT_EDGES` | `usize` | 256 | `256` |
 | `warps.MAX_MAPS` | `usize` | 8 | `8` |
 | `warps.MAX_SAMPLES` | `usize` | 256 | `256` |

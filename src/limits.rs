@@ -95,6 +95,8 @@ pub mod boards {
 
 /// Limits for `src/booleans/topology/algebraic/roots.rs`.
 pub mod booleans_topology_algebraic_roots {
+    /// Maximum degree admitted to bounded contact root discovery.
+    pub const MAX_POLYNOMIAL_DEGREE: usize = 18;
     /// Max root depth (booleans topology algebraic roots).
     pub const MAX_ROOT_DEPTH: usize = 96;
     /// Max coefficient bits (booleans topology algebraic roots).
@@ -103,6 +105,8 @@ pub mod booleans_topology_algebraic_roots {
 
 /// Limits for `src/booleans.rs`.
 pub mod booleans {
+    /// Maximum geometric subdivision depth shared by topology refinement and exact contact synchronization.
+    pub const MAX_TOPOLOGY_DEPTH: usize = 20;
     /// Max inputs (booleans).
     pub const MAX_INPUTS: usize = 16;
     /// Max edges (booleans).
@@ -259,6 +263,8 @@ pub mod hdr {
 
 /// Limits for `src/hyphenation.rs`.
 pub mod hyphenation {
+    /// Maximum caller-selected minimum grapheme count on either side of a break.
+    pub const MAX_MINIMUM_GRAPHEMES: usize = 128;
     /// Max patterns (hyphenation).
     pub const MAX_PATTERNS: usize = 32_768;
     /// Max pattern chars (hyphenation).
@@ -345,6 +351,10 @@ pub mod job_process {
 
 /// Limits for `src/jobs/listing.rs`.
 pub mod jobs_listing {
+    /// Maximum encoded scope or member inventory bytes used to bind a listing cursor.
+    pub const MAX_FINGERPRINT_BYTES: usize = 32768;
+    /// Additional JSON envelope reserve before admitting each job listing row.
+    pub const RECORD_ENVELOPE_RESERVE: usize = 32;
     /// Default number of records requested from retained jobs.
     pub const DEFAULT_PAGE_RECORDS: usize = 8;
     /// Max page records (jobs listing).
@@ -357,6 +367,8 @@ pub mod jobs_listing {
 
 /// Limits for `src/jobs/store.rs`.
 pub mod jobs_store {
+    /// Maximum temporary-name reservation attempts for a new job database.
+    pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Maximum stored process/runtime description bytes.
     pub const MAX_RUNTIME_BYTES: usize = 16 * 1024;
     /// SQLite row allowance for job input, state and record overhead.
@@ -841,6 +853,8 @@ pub mod publications_store {
 
 /// Limits for `src/publications.rs`.
 pub mod publications {
+    /// Maximum temporary-name attempts for staged output and history receipt publication.
+    pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Max receipt bytes (publications).
     pub const MAX_RECEIPT_BYTES: usize = 1024 * 1024;
     /// Max ledger bytes (publications).
@@ -851,6 +865,10 @@ pub mod publications {
 
 /// Limits for `src/publish.rs`.
 pub mod publish {
+    /// Maximum temporary-file reservation attempts for direct output publication.
+    pub const MAX_STAGE_ATTEMPTS: usize = 64;
+    /// Maximum bytes per checked staging write or receipt-verification read; cancellation is checked between chunks.
+    pub const IO_CHUNK_BYTES: usize = 65536;
     /// Max output bytes (publish).
     pub const MAX_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
 }
@@ -1109,6 +1127,8 @@ pub mod snapping {
 
 /// Limits for exact quadratic parameter separation.
 pub mod booleans_topology_quadratic {
+    /// Maximum numerator or denominator bits in one quadratic contact coefficient; independent of dyadic cut search.
+    pub const MAX_COEFFICIENT_BITS: u64 = 4096;
     /// Maximum dyadic parameter bits while seeking a certified interior cut.
     pub const MAX_PARAMETER_BITS: usize = 4096;
 }
@@ -1137,6 +1157,8 @@ pub mod strokes_brush {
 
 /// Limits for `src/strokes/outline.rs`.
 pub mod strokes_outline {
+    /// Maximum cubic subdivision depth while preparing stroke centerlines.
+    pub const MAX_SUBDIVISION_DEPTH: usize = 24;
     /// Max outline commands (strokes outline).
     pub const MAX_OUTLINE_COMMANDS: usize = 65_536;
     /// Max points (strokes outline).
@@ -1329,6 +1351,8 @@ pub mod volumes {
 
 /// Limits for `src/warps.rs`.
 pub mod warps {
+    /// Maximum intervals on each axis of an inspected deformation grid.
+    pub const MAX_GRID_AXIS: usize = 16;
     /// Max maps (warps).
     pub const MAX_MAPS: usize = 8;
     /// Max degree (warps).

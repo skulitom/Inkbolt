@@ -377,7 +377,9 @@ pub(super) fn flatten(
             let error = certificate(&c, a, b, self.budget)?;
             if error <= self.tolerance {
                 if self.out.len() == MAX_SEGMENTS {
-                    return Err(limit("Warp expansion exceeds 4096 certified segments"));
+                    return Err(limit(&format!(
+                        "Warp expansion exceeds {MAX_SEGMENTS} certified segments"
+                    )));
                 }
                 let segment = Segment {
                     contour: self.contour,

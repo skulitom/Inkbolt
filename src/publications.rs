@@ -141,7 +141,7 @@ struct Stage {
 }
 impl Stage {
     fn reserve(root: &Path, prefix: &str) -> Result<Self, Error> {
-        for _ in 0..64 {
+        for _ in 0..crate::limits::publications::MAX_STAGE_ATTEMPTS {
             let path = root.join(format!(
                 "{prefix}{}-{}.tmp",
                 std::process::id(),
@@ -199,7 +199,7 @@ fn verify_file(file: &mut fs::File, record: &Record, control: &Control) -> Resul
             "File identity or length differs from the prepared publication; preserve the file and investigate",
         ));
     }
-    let mut buffer = [0u8; 65536];
+    let mut buffer = [0u8; crate::limits::publish::IO_CHUNK_BYTES];
     let mut digest = Sha256::new();
     let mut bytes = 0;
     loop {
@@ -385,13 +385,17 @@ fn publish_prepared(
         .open(&stage.path)
         .map_err(|_| io("Unable to open publication staging file"))?;
     control.progress("staging", 0, Some(prepared.bytes.len() as u64));
-    for (index, chunk) in prepared.bytes.chunks(65536).enumerate() {
+    for (index, chunk) in prepared
+        .bytes
+        .chunks(crate::limits::publish::IO_CHUNK_BYTES)
+        .enumerate()
+    {
         control.check()?;
         file.write_all(chunk)
             .map_err(|_| io("Unable to write publication staging file"))?;
         control.progress(
             "staging",
-            ((index + 1) * 65536).min(prepared.bytes.len()) as u64,
+            ((index + 1) * crate::limits::publish::IO_CHUNK_BYTES).min(prepared.bytes.len()) as u64,
             Some(prepared.bytes.len() as u64),
         );
         #[cfg(test)]

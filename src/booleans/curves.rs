@@ -79,7 +79,9 @@ pub(super) fn evaluate(
         .sum::<usize>()
         > MAX_EDGES
     {
-        return Err(limit("Boolean inputs exceed 512 aggregate source edges"));
+        return Err(limit(&format!(
+            "Boolean inputs exceed {MAX_EDGES} aggregate source edges"
+        )));
     }
     let count = inputs.len();
     let mut arcs = Vec::new();

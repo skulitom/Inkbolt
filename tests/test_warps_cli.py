@@ -7,6 +7,7 @@ import math
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import xml.etree.ElementTree as ET
 import test_editing_cli as editing
 import test_boards_cli as boards
@@ -218,8 +219,8 @@ class WarpTests(unittest.TestCase):
         e=envelope();e['domain']=[0,0,36,36];s=spec([e,e,e],path([[3,5],[21,19]],False));s['fill']=None;self.assertEqual(self.inspect(s,expected=1)['code'],'RESOURCE_LIMIT')
         s=spec();s['maps']=[];self.assertEqual(self.inspect(s,expected=1)['code'],'RESOURCE_LIMIT')
         self.assertEqual(self.inspect(spec([affine()]*9),expected=1)['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.inspect(spec([affine()]),expected=1,samples=[[1,1]]*257)['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.inspect(spec([affine()]),expected=1,grid=dict(domain=[0,0,24,24],columns=17,rows=2))['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.inspect(spec([affine()]),expected=1,samples=[[1,1]]*(capabilities()['warps']['samples']+1))['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.inspect(spec([affine()]),expected=1,grid=dict(domain=[0,0,24,24],columns=capabilities()['warps']['grid_intervals'][1]+1,rows=2))['code'],'RESOURCE_LIMIT')
         self.assertEqual(self.inspect(spec([affine([1,0,0,1,32768,0])]),expected=1)['code'],'INVALID_WARP')
         for tolerance in [0,1.1]:self.assertEqual(self.inspect(spec([affine()],tolerance=tolerance),expected=1)['code'],'INVALID_WARP')
     def test_hidden_aggregate_generated_commands_and_input_edge_budget(self):

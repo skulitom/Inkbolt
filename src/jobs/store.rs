@@ -59,7 +59,7 @@ fn connection(path: &Path) -> Result<Connection, Error> {
 struct Temp(PathBuf);
 impl Temp {
     fn new(root: &Path) -> Result<Self, Error> {
-        for _ in 0..64 {
+        for _ in 0..crate::limits::jobs_store::MAX_STAGE_ATTEMPTS {
             let path = root.join(format!(
                 ".inkbolt-jobs-{}-{}.tmp",
                 std::process::id(),

@@ -57,7 +57,7 @@ fn publish(
     // no second database copy or whole-file allocation; dropping preparation
     // releases its original name while this independently owned link survives.
     let mut stage = None;
-    for _ in 0..64 {
+    for _ in 0..crate::limits::publications::MAX_STAGE_ATTEMPTS {
         let path = prepared.target.parent().unwrap().join(format!(
             ".inkbolt-publication-{}-{}.tmp",
             std::process::id(),

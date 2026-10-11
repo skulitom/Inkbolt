@@ -106,14 +106,20 @@ pub fn list(root: &Path, options: &ListOptions, control: &Control) -> Result<Val
     let runtime = store::runtime(&tx)?;
     let canonical_root = std::fs::canonicalize(root)
         .map_err(|_| err("IO_ERROR", "Unable to identify job listing root"))?;
-    let scope = assets::sha256(&encode(&(canonical_root, &runtime.executable), 32768)?);
+    let scope = assets::sha256(&encode(
+        &(canonical_root, &runtime.executable),
+        crate::limits::jobs_listing::MAX_FINGERPRINT_BYTES,
+    )?);
     let inventory = store::inventory(&tx)?;
     let through = cursor.as_ref().map_or(inventory.len(), |c| c.through);
     let after = cursor.as_ref().map_or(0, |c| c.after);
     if through > inventory.len() {
         return Err(changed_cursor());
     }
-    let members = assets::sha256(&encode(&&inventory[..through], 32768)?);
+    let members = assets::sha256(&encode(
+        &&inventory[..through],
+        crate::limits::jobs_listing::MAX_FINGERPRINT_BYTES,
+    )?);
     if let Some(cursor) = &cursor
         && (cursor.scope != scope || cursor.members != members)
     {
@@ -142,11 +148,11 @@ pub fn list(root: &Path, options: &ListOptions, control: &Control) -> Result<Val
         let state = store::state(&tx, id)?;
         let row = json!({"request_id":id,"input_sha256":input_sha256,"document":{"id":input.document.id,"revision":input.document.revision},"destination":publish::destination(&input.output)?,"format":input.output.format,"state":state.phase,"attempt":state.attempt,"cancel_requested":state.cancel_requested,"progress":state.progress,"submitted_ms":state.submitted_ms,"updated_ms":state.updated_ms,"error_code":state.error.as_ref().map(|e|&e.code),"next_action":if state.phase==Phase::Completed {Some("job.result")} else if state.phase==Phase::Cancelled {None} else {Some("job.status")}});
         let size = serde_json::to_vec(&row).unwrap().len() + 1;
-        if bytes + size + 32 > MAX_PAGE_BYTES {
+        if bytes + size + crate::limits::jobs_listing::RECORD_ENVELOPE_RESERVE > MAX_PAGE_BYTES {
             if records.is_empty() {
                 return Err(err(
                     "JOB_LIMIT",
-                    "Job listing metadata and one record exceed 32 KiB",
+                    &format!("Job listing metadata and one record exceed {MAX_PAGE_BYTES} bytes"),
                 ));
             }
             break;

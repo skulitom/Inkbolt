@@ -98,8 +98,13 @@ impl Q {
 }
 
 pub(super) fn bounded(v: &R) -> Result<(), Error> {
-    if v.numer().bits() > 4096 || v.denom().bits() > 4096 {
-        Err(limit("Quadratic contact coefficients exceed 4096 bits"))
+    if v.numer().bits() > crate::limits::booleans_topology_quadratic::MAX_COEFFICIENT_BITS
+        || v.denom().bits() > crate::limits::booleans_topology_quadratic::MAX_COEFFICIENT_BITS
+    {
+        Err(limit(&format!(
+            "Quadratic contact coefficients exceed {} bits",
+            crate::limits::booleans_topology_quadratic::MAX_COEFFICIENT_BITS
+        )))
     } else {
         Ok(())
     }

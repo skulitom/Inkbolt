@@ -75,7 +75,7 @@ fn flatten(
     {
         return push(points, c[3]);
     }
-    if depth == 24 {
+    if usize::from(depth) == crate::limits::strokes_outline::MAX_SUBDIVISION_DEPTH {
         return Err(limit());
     }
     let a = midpoint(c[0], c[1]);

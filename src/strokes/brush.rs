@@ -148,7 +148,7 @@ pub(super) fn work(g: &Geometry, s: &Stroke, b: &Brush) -> Result<u64, Error> {
         if placements > MAX_PLACEMENTS as u64 {
             return Err(Error::new(
                 "LIMIT_EXCEEDED",
-                "Brush exceeds conservative 8192 placement limit",
+                format!("Brush exceeds conservative {MAX_PLACEMENTS} placement limit"),
             ));
         }
         work = work

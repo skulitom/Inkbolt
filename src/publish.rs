@@ -521,7 +521,7 @@ pub fn publish(
         mut receipt,
     } = prepare_publication(document, resources, options, control)?;
     let mut reserved = None;
-    for _ in 0..64 {
+    for _ in 0..crate::limits::publish::MAX_STAGE_ATTEMPTS {
         let path = options.output_root.join(format!(
             ".inkbolt-output-{}-{}.tmp",
             std::process::id(),
@@ -543,7 +543,7 @@ pub fn publish(
     }
     let (temp, mut file) = reserved
         .ok_or_else(|| Error::new("IO_ERROR", "Output temporary-name retry limit exceeded"))?;
-    for chunk in bytes.chunks(65536) {
+    for chunk in bytes.chunks(crate::limits::publish::IO_CHUNK_BYTES) {
         control.check()?;
         file.write_all(chunk)
             .map_err(|_| Error::new("IO_ERROR", "Unable to write export temporary file"))?;

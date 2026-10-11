@@ -73,7 +73,9 @@ fn limit(message: &str) -> Error {
 }
 fn finite_point(p: Point) -> Result<(), Error> {
     if p.iter().any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE) {
-        return Err(invalid("Warp coordinates must be finite within +/-32768"));
+        return Err(invalid(&format!(
+            "Warp coordinates must be finite within +/-{MAX_COORDINATE}"
+        )));
     }
     Ok(())
 }
@@ -83,13 +85,15 @@ fn domain(d: [f64; 4]) -> Result<(), Error> {
         .iter()
         .any(|v| !v.is_finite() || !(0.001..=MAX_COORDINATE).contains(v))
     {
-        return Err(invalid("Warp domain dimensions must be in 0.001..=32768"));
+        return Err(invalid(&format!(
+            "Warp domain dimensions must be in 0.001..={MAX_COORDINATE}"
+        )));
     }
     finite_point([d[0] + d[2], d[1] + d[3]])
 }
 pub(crate) fn stored(spec: &Spec) -> Result<usize, Error> {
     if spec.maps.is_empty() || spec.maps.len() > MAX_MAPS {
-        return Err(limit("Warps require 1..8 ordered maps"));
+        return Err(limit(&format!("Warps require 1..{MAX_MAPS} ordered maps")));
     }
     if !spec.tolerance.is_finite() || !(0.000001..=1.0).contains(&spec.tolerance) {
         return Err(invalid(
@@ -285,8 +289,13 @@ pub(crate) fn validate(
 }
 fn grid(spec: &Spec, grid: &Grid, budget: &mut exact::Budget) -> Result<Plan, Error> {
     domain(grid.domain)?;
-    if !(1..=16).contains(&grid.columns) || !(1..=16).contains(&grid.rows) {
-        return Err(limit("Warp grid requires 1..16 intervals per axis"));
+    if !(1..=crate::limits::warps::MAX_GRID_AXIS).contains(&grid.columns)
+        || !(1..=crate::limits::warps::MAX_GRID_AXIS).contains(&grid.rows)
+    {
+        return Err(limit(&format!(
+            "Warp grid requires 1..{} intervals per axis",
+            crate::limits::warps::MAX_GRID_AXIS
+        )));
     }
     let [x, y, w, h] = grid.domain;
     let mut commands = vec![];

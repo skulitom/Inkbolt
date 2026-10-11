@@ -241,10 +241,13 @@ fn apply(arcs: Vec<Arc>, cuts: Vec<BTreeSet<R>>) -> Result<Vec<Arc>, Error> {
         if times.len() == 2 {
             out.push(arc);
         } else {
-            if arc.curved && arc.depth == 20 {
+            if arc.curved && arc.depth == crate::limits::booleans::MAX_TOPOLOGY_DEPTH {
                 return Err(Error::new(
                     "CURVE_TOPOLOGY_UNRESOLVED",
-                    "Algebraic contact synchronization exceeds subdivision depth 20",
+                    format!(
+                        "Algebraic contact synchronization exceeds subdivision depth {}",
+                        crate::limits::booleans::MAX_TOPOLOGY_DEPTH
+                    ),
                 ));
             }
             let p = curves::coefficients(arc.rational().expect("rational contact preparation"));
@@ -257,12 +260,16 @@ fn apply(arcs: Vec<Arc>, cuts: Vec<BTreeSet<R>>) -> Result<Vec<Arc>, Error> {
                     curved: arc.curved,
                 });
                 if out.len() > MAX_EDGES {
-                    return Err(limit("Algebraic contacts exceed 512 evaluated edges"));
+                    return Err(limit(&format!(
+                        "Algebraic contacts exceed {MAX_EDGES} evaluated edges"
+                    )));
                 }
             }
         }
         if out.len() > MAX_EDGES {
-            return Err(limit("Algebraic contacts exceed 512 evaluated edges"));
+            return Err(limit(&format!(
+                "Algebraic contacts exceed {MAX_EDGES} evaluated edges"
+            )));
         }
     }
     Ok(out)
@@ -362,9 +369,9 @@ pub(super) fn prepare(
                     let scale = direction[axis].clone();
                     quadratic_directions.insert(direction.map(|v| v / &scale));
                     if quadratic_directions.len() > MAX_EDGES {
-                        return Err(limit(
-                            "Quadratic contact synchronization exceeds 512 projections",
-                        ));
+                        return Err(limit(&format!(
+                            "Quadratic contact synchronization exceeds {MAX_EDGES} projections"
+                        )));
                     }
                 }
                 candidates.extend(resultant::contacts(ac, bc, budget)?);

@@ -248,14 +248,19 @@ pub(super) fn prepare(arcs: Vec<Arc>, budget: &mut Budget) -> Result<(Vec<Arc>, 
         if times.len() == 2 {
             out.push(arc);
             if out.len() > MAX_EDGES {
-                return Err(limit("Quadratic contacts exceed 512 evaluated arcs"));
+                return Err(limit(&format!(
+                    "Quadratic contacts exceed {MAX_EDGES} evaluated arcs"
+                )));
             }
             continue;
         }
-        if arc.depth == 20 {
+        if arc.depth == crate::limits::booleans::MAX_TOPOLOGY_DEPTH {
             return Err(Error::new(
                 "CURVE_TOPOLOGY_UNRESOLVED",
-                "Quadratic contact cuts exceed geometric depth 20",
+                format!(
+                    "Quadratic contact cuts exceed geometric depth {}",
+                    crate::limits::booleans::MAX_TOPOLOGY_DEPTH
+                ),
             ));
         }
         split_count += times.len() - 2;
@@ -275,7 +280,9 @@ pub(super) fn prepare(arcs: Vec<Arc>, budget: &mut Budget) -> Result<(Vec<Arc>, 
                 curved: arc.curved,
             });
             if out.len() > MAX_EDGES {
-                return Err(limit("Quadratic contacts exceed 512 evaluated arcs"));
+                return Err(limit(&format!(
+                    "Quadratic contacts exceed {MAX_EDGES} evaluated arcs"
+                )));
             }
         }
     }

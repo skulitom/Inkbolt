@@ -126,8 +126,13 @@ fn token(text: &str, max: usize) -> Result<usize, Error> {
 impl Compiled {
     pub fn new(rules: &Rules, control: &Control) -> Result<Self, Error> {
         control.check()?;
-        if !(1..=128).contains(&rules.min_left) || !(1..=128).contains(&rules.min_right) {
-            return Err(invalid("Hyphenation minima must be in 1..=128 graphemes"));
+        if !(1..=crate::limits::hyphenation::MAX_MINIMUM_GRAPHEMES).contains(&rules.min_left)
+            || !(1..=crate::limits::hyphenation::MAX_MINIMUM_GRAPHEMES).contains(&rules.min_right)
+        {
+            return Err(invalid(&format!(
+                "Hyphenation minima must be in 1..={} graphemes",
+                crate::limits::hyphenation::MAX_MINIMUM_GRAPHEMES
+            )));
         }
         if rules.patterns.len() > MAX_PATTERNS || rules.exceptions.len() > MAX_EXCEPTIONS {
             return Err(limit("Too many hyphenation patterns or exceptions"));
