@@ -24,8 +24,9 @@ physical page sizes, all pixels of a 5,000-object overview, profiles, text,
 images, clips, masks and saved/MCP/contact-sheet workflows. See the admitted
 subset and explicit restrictions in [focused previews](FOCUSED_PREVIEWS.md).
 This closes the full-canvas review gap without changing renderer budgets.
-Complete resource acceptance and the broader practical-scale gate still require
-their independent audits; this change alone earns no checkpoint credit.
+The complete original resource acceptance now has its own
+[independent audit](VECTOR_RESOURCE_ACCEPTANCE.md). The broader practical-scale
+gate remains open; the overview path alone does not establish that gate.
 
 SVG import, validation, edits, SVG/PDF serialization and PNG/preview drawing check the caller's cancellation token during work. `document.export` and `document.render` accept the shared optional `control` object; timeouts and cancellation propagate through the same local engine. Publication remains create-only and exposes no partial output. Blocking filesystem reads and individual codec calls are not forcefully interrupted.
 
@@ -82,4 +83,9 @@ precision audit. Shared point application now has its own absolute-roundoff or
 nearest-binary64 contract, including cancellation and intermediate overflow; see
 the point-placement section of [coordinate fidelity](COORDINATE_PRECISION.md).
 
-This remains partial implementation of `vector.resources.extended`. Complete independent resource and extreme-scale acceptance review is still required before the checkpoint earns credit. Current totals are tracked in the [implementation report](IMPLEMENTATION.md).
+The original `vector.resources.extended` checkpoint is independently verified. Its
+[acceptance audit](VECTOR_RESOURCE_ACCEPTANCE.md) covers the original complete
+large squares, 5,000-object geometry/persistence, measured construction and memory,
+explicit limits, active cancellation and declared precision contracts. Broader
+agent scale readiness remains separate. Current totals are tracked in the
+[implementation report](IMPLEMENTATION.md).
