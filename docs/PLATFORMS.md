@@ -9,6 +9,20 @@ return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 The Unix file-identity implementation is shared source, but macOS remains
 unverified. This does not establish full W1, distribution or scale acceptance.
 
+The fresh WSL acceptance run on 11 October 2026 passed all 213 verification
+stages: **172 Rust tests and 2,229 executed Python tests** across 208 Python
+modules. Formatting, the locked build and all-target Clippy with warnings denied
+also passed. The 34 explicit Python skips comprise 28 job-dependent tests and
+six Windows memory/host-measurement tests. The run used Ubuntu 22.04 x86-64,
+Rust/Cargo 1.98.1 and Python 3.11.13, with a native Linux ELF executable.
+
+That run caught and repaired a missing shared-limit helper in the benchmark
+dependency manifests. All workload suites now pin `tests/advertised_limits.py`
+through their common manifest; historical budgets remain unchanged and changed
+helpers still require reviewed comparison evidence. The focused repair checks
+took 8.5 seconds on Linux and 14.1 seconds on Windows. The final fresh thorough
+run took 381.3 seconds; routine verification retains the quick budget below.
+
 Use native Linux storage for sources, builds and generated fixtures. The WSL
 runner snapshots current candidate bytes, including uncommitted changes, into
 an owned checkout under `~/.cache/inkbolt/wsl/`. It keeps Cargo and test caches

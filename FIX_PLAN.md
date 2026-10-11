@@ -287,7 +287,16 @@ for this slice (170 Rust plus 2,190 executed Python tests on Linux; 202 Rust plu
 2,224 Python tests on Windows). Linux retains 34 explicit Python skips. The public CI guard, approved CI activation, macOS evidence and
 distribution remain separate open work; local WSL coverage does not complete W1.
 
-**Problem.** Only Windows has evidence. The engine is portable Rust, but:
+**Linux verification refresh, 11 October 2026.** After the shared-limit refactors,
+a fresh WSL thorough run passed 172 Rust and 2,229 Python tests, with the same
+34 explicit platform skips. It caught a missing shared helper in the benchmark
+dependency manifests; the fix passed focused checks on Linux and Windows before
+the full Linux rerun. See [the platform record](docs/PLATFORMS.md) for scope and
+timings. The remaining W0 audit and W1 work below stay open.
+
+**Original findings (before implementation).** Only Windows had evidence. The
+initial audit identified these gaps; the updates above record the Linux tier-1
+work already completed:
 
 - **Receipts.** `src/publications/file_identity.rs:55-61` is a non-Windows stub,
   so any `receipt:{...}` publish, backup, recover or migrate fails off Windows.
