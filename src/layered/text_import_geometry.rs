@@ -194,9 +194,15 @@ pub(super) fn local(parsed: &Value) -> Result<(), Error> {
 pub(super) fn global(global: &Node, story: &Node) -> Result<(usize, usize), Error> {
     node_keys_at(global, &["98", "0", "1"], "global root /")?;
     node_keys_at(global.field("98")?, &["0"], "global version /98")?;
-    node_keys_at(global.field("1")?, &["1"], "global authoring /1")?;
+    node_keys_at(global.field("1")?, &["1", "2", "3"], "global authoring /1")?;
     let resources = global.field("0")?;
-    node_keys_at(resources, &["1", "8"], "global resources /0")?;
+    node_keys_at(resources, &["1", "5", "6", "8"], "global resources /0")?;
+    for key in ["5", "6"] {
+        if let Some(table) = resources.optional(key)? {
+            // Auxiliary table arrays have not been admitted as editable data.
+            node_keys_at(table, &["0"], "named text style table")?;
+        }
+    }
     node_keys(story, &["0", "1"])?;
     node_keys_at(
         story.field("0")?,

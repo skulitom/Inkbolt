@@ -1,5 +1,5 @@
 //! Observed character controls only. Equal local caches do not establish complete
-//! style semantics, font identity, inheritance, paragraph layout or editability.
+//! style semantics, font identity, paragraph layout or editability.
 use super::{text_data::Node, *};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -235,13 +235,19 @@ impl Styles {
                 .pointer("/StyleSheet/StyleSheetData")
                 .and_then(Value::as_object)
                 .ok_or_else(malformed)?;
-            let index = properties.get("Font").ok_or_else(|| unsupported("Native text diagnostics require explicit per-run font references; inherited styles need a layout mapping"))?.as_u64().and_then(|n|usize::try_from(n).ok()).ok_or_else(malformed)?;
-            let name = fonts
-                .get(index)
-                .and_then(|v| v.get("Name"))
-                .and_then(Value::as_str)
-                .ok_or_else(malformed)?;
-            let mut controls = BTreeMap::from([("font_face_name", face_name(name)?)]);
+            let mut controls = BTreeMap::new();
+            if let Some(index) = properties.get("Font") {
+                let index = index
+                    .as_u64()
+                    .and_then(|n| usize::try_from(n).ok())
+                    .ok_or_else(malformed)?;
+                let name = fonts
+                    .get(index)
+                    .and_then(|v| v.get("Name"))
+                    .and_then(Value::as_str)
+                    .ok_or_else(malformed)?;
+                controls.insert("font_face_name", face_name(name)?);
+            }
             for &(_, local, name, kind) in CONTROLS {
                 if let Some(v) = local.and_then(|key| properties.get(key)) {
                     controls.insert(name, kind.read(v)?);
@@ -276,7 +282,11 @@ impl Styles {
         Ok(out)
     }
 
-    pub fn global(runs: &[Node], fonts: &[Node], control: &Control) -> Result<Self, Error> {
+    pub fn global(
+        runs: &[super::text_inheritance::Run<'_>],
+        fonts: &[Node],
+        control: &Control,
+    ) -> Result<Self, Error> {
         let mut out = Self {
             runs: Vec::new(),
             unknown: BTreeSet::new(),
@@ -284,9 +294,9 @@ impl Styles {
         let mut end = 0;
         for run in runs {
             control.check()?;
-            end += run.field("1")?.unsigned()?;
-            let style = run.field("0")?.field("0")?.field("6")?;
-            let index = style.field("0")?.unsigned()?;
+            end += run.length;
+            let style = run.fields.as_ref().ok_or_else(malformed)?;
+            let index = style.get("0").ok_or_else(malformed)?.unsigned()?;
             let name = fonts
                 .get(index)
                 .ok_or_else(malformed)?
@@ -297,34 +307,29 @@ impl Styles {
             let mut controls = BTreeMap::from([("font_face_name", face_name(name)?)]);
             for &(key, _, name, kind) in CONTROLS {
                 if let Some(key) = key
-                    && let Some(v) = style.optional(key)?
+                    && let Some(v) = style.get(key)
                 {
                     controls.insert(name, kind.read_node(v)?);
                 }
             }
             for &(global, _, name) in super::text_paint::FIELDS {
-                if let Some(value) = style.optional(global)?
+                if let Some(value) = style.get(global)
                     && let Some(value) = super::text_paint::global(value, global, &mut out.unknown)?
                 {
                     controls.insert(name, value);
                 }
             }
-            let Node::Dictionary(properties) = style else {
-                return Err(malformed());
-            };
             out.unknown.extend(
-                properties
+                style
                     .keys()
                     .filter(|k| {
-                        k.as_str() != "0"
+                        **k != "0"
                             && !super::text_paint::FIELDS
                                 .iter()
-                                .any(|(global, _, _)| *global == k.as_str())
-                            && !CONTROLS
-                                .iter()
-                                .any(|(key, _, _, _)| *key == Some(k.as_str()))
+                                .any(|(global, _, _)| *global == **k)
+                            && !CONTROLS.iter().any(|(key, _, _, _)| *key == Some(**k))
                     })
-                    .cloned(),
+                    .map(|k| (*k).to_owned()),
             );
             out.runs.push(Run {
                 end_utf16: end,
@@ -334,11 +339,18 @@ impl Styles {
         Ok(out)
     }
 
+    pub fn missing_fonts(&self) -> usize {
+        self.runs
+            .iter()
+            .filter(|r| !r.controls.contains_key("font_face_name"))
+            .count()
+    }
+
     pub fn faces(&self) -> Result<BTreeSet<&str>, Error> {
         let faces = self
             .runs
             .iter()
-            .map(|r| r.controls["font_face_name"].as_str().unwrap())
+            .filter_map(|r| r.controls.get("font_face_name").and_then(Value::as_str))
             .collect::<BTreeSet<_>>();
         if faces.len() > crate::fonts::MAX_FONTS {
             return Err(limit(

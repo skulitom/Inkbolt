@@ -24,8 +24,8 @@ evidence; the engine percentage does not measure completion of that goal.
 
 An explicit [editable point-text import](LAYERED_TEXT_IMPORT.md) now reconstructs
 the admitted local/global authoring subset with pinned fonts, retained baselines,
-groups, masks and nested sources. Unknown native tables and inherited styles
-still fail; the original extended raster checkpoint is unchanged.
+groups, masks and nested sources. Source-defined named styles now resolve within
+the declared subset; unmapped native tables and inheritance still fail; the original extended raster checkpoint is unchanged.
 
 ## Earlier implementation milestones
 

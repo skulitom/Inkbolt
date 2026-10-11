@@ -1,4 +1,4 @@
-//! Explicit point-text conversion. No inherited values or native defaults.
+//! Point-text conversion after source-defined resolution; no invented defaults.
 use super::{text_style::Styles, *};
 use crate::{fonts, text};
 use std::collections::BTreeMap;

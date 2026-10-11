@@ -12,6 +12,7 @@ mod text_frame;
 mod text_import;
 mod text_import_geometry;
 mod text_import_style;
+mod text_inheritance;
 mod text_language;
 mod text_paint;
 mod text_paragraph;

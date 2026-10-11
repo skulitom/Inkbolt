@@ -29,7 +29,7 @@ pub(super) fn prepare(
         }
         let mut story_reference = None;
         let global = super::text_story::payload(tail, version, control)?;
-        let (source, mut styles, paragraphs, rendering) = if let Some(bytes) = global {
+        let (source, mut styles, paragraphs, rendering, inheritance) = if let Some(bytes) = global {
             let global = super::text_data::parse_global(bytes, control)?;
             let stories = global.field("1")?.field("1")?.array()?;
             let index = usize::try_from(record.story_index).map_err(|_| malformed())?;
@@ -48,16 +48,25 @@ pub(super) fn prepare(
                 units += c.len_utf16();
                 boundaries.insert(units);
             }
-            for (key, field) in [("6", "6"), ("5", "5")] {
+            for key in ["6", "5"] {
                 super::text_import_geometry::node_keys(authoring.field(key)?, &["0"])?;
-                for run in authoring.field(key)?.field("0")?.array()? {
-                    super::text_import_geometry::node_keys(run, &["0", "1"])?;
-                    super::text_import_geometry::node_keys(run.field("0")?, &["0"])?;
-                    super::text_import_geometry::node_keys(run.field("0")?.field("0")?, &[field])?;
-                }
             }
             let style_runs = super::text_story::runs(authoring, "6", &boundaries, units)?;
             let paragraph_runs = super::text_story::runs(authoring, "5", &boundaries, units)?;
+            let resolved =
+                super::text_inheritance::resolve(&global, style_runs, paragraph_runs, control)?;
+            for (key, used) in [
+                ("2", "character_style_indices"),
+                ("3", "paragraph_style_indices"),
+            ] {
+                if global.field("1")?.optional(key)?.is_some()
+                    && resolved.report[used].as_array().is_some_and(Vec::is_empty)
+                {
+                    return Err(unsupported(
+                        "Unreferenced source style defaults cannot be discarded",
+                    ));
+                }
+            }
             let font_table = global.field("0")?.field("1")?;
             super::text_import_geometry::node_keys(font_table, &["0"])?;
             for font in font_table.field("0")?.array()? {
@@ -66,13 +75,13 @@ pub(super) fn prepare(
                 super::text_import_geometry::node_keys(font.field("0")?.field("0")?, &["0"])?;
             }
             let styles = super::text_style::Styles::global(
-                style_runs,
+                &resolved.characters,
                 font_table.field("0")?.array()?,
                 control,
             )?;
             let paragraphs =
-                super::text_paragraph::Paragraphs::global(paragraph_runs, &source, control)?;
-            (source, styles, paragraphs, rendering)
+                super::text_paragraph::Paragraphs::global(&resolved.paragraphs, &source, control)?;
+            (source, styles, paragraphs, rendering, Some(resolved.report))
         } else {
             let rendering = record
                 .rendering
@@ -100,6 +109,7 @@ pub(super) fn prepare(
                 record.styles,
                 record.paragraphs,
                 rendering,
+                None,
             )
         };
         if let Some(bytes) = source_profile {
@@ -138,6 +148,10 @@ pub(super) fn prepare(
             "nominal_frame":[1,1],"font_bindings":binding_report,"cached_pixels_used":false,"native_layout_equality":false,
             "color_quantization":"opaque RGB components rounded to eight bits","missing_values_inherited":false});
         receipt["rendering"] = rendering;
+        if let Some(inheritance) = inheritance {
+            receipt["missing_values_inherited"] = inheritance["source_defined_inheritance"].clone();
+            receipt["inheritance"] = inheritance;
+        }
         receipt["color_interpretation"] = json!(if source_profile.is_some() {
             "converted_srgb_before_quantization"
         } else {

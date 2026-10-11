@@ -85,13 +85,17 @@ Columns, arbitrary shapes, other properties and complete reconstruction remain
 unimplemented. Named geometry-extension owners are still untrusted.
 
 `global_story.character_styles` checks types for individually mapped character
-controls and compares their explicit values with the local cache. It resolves
+controls after explicit source-style resolution and compares them with the local cache. It resolves
 font names through each independent font table, then compares intersecting UTF-16
 spans, including the terminal marker; different run partitions are allowed.
 Numbers use a common numeric representation, while Boolean and integral controls
 are never coerced. If the source characters differ, comparison is explicitly
 skipped. The report counts differing spans and names conflicting or missing
-controls. A missing value stays missing; it is never replaced with a default.
+controls. Values still absent after source resolution remain absent; no application
+defaults are invented. `global_story.inheritance` identifies followed character
+and paragraph references, source-declared roots and run intersections. See
+[editable point-text import](LAYERED_TEXT_IMPORT.md) for its bounded precedence
+and the conversion of named styles into independent editable ranges.
 
 Known controls include size, faux styles, automatic/explicit leading, horizontal
 and vertical scales, tracking, baseline shift, capitalization/baseline codes, no-break
@@ -106,7 +110,7 @@ observed/enabled controls, the number of unmapped fields and at most sixteen of
 their untrusted names. `run_controls_sha256` binds only mapped values and run
 boundaries; it is not an identity for the complete style. The existing complete
 text-data hashes also bind unknown fields. Full style, font-file and rendering
-validation remain false. Inherited controls, other fields and paragraph semantics
+validation remain false. Unmapped inherited controls, other fields and paragraph semantics
 still require complete reconstruction.
 
 Explicit type-1 fill and stroke colors compare four finite source components.
@@ -134,7 +138,8 @@ line-breaking order, list tier and joining width retain their explicit codes.
 Global hanging-punctuation codes stay separate from the local Boolean cache.
 Numeric triples require exactly three
 finite numbers. Values remain in their source units; no layout algorithm, enum
-translation, inherited value or default is inferred. Missing property containers
+translation or application default is inferred. Explicit source references can
+supply inherited properties. Missing property containers after resolution
 are counted separately from present containers with missing controls.
 
 The global hyphen limit and `local_consecutive_hyphens_code` remain distinct
@@ -147,12 +152,14 @@ Run ends that do not follow an encoded carriage return are counted; structural
 UTF-16 coverage does not validate paragraph boundaries or paragraph layout.
 `paragraph_boundaries_semantically_validated` and
 `legacy_hyphen_limit_conversion_validated` remain false. These diagnostics still
-refuse editable import; unknown styles, inheritance, native layout algorithms,
+refuse editable import without the separate reconstruction choice; unmapped styles
+and inheritance, native layout algorithms,
 font bindings and complete reconstruction remain required.
 
 These diagnostics check this local record's framing, matching local text sources, complete
-UTF-16 run coverage without splitting surrogate pairs, and explicit per-run font
-references. They do not validate layout semantics, later records or the whole
+UTF-16 run coverage without splitting surrogate pairs, and present font
+references. Sparse local font references are reported and require an authoritative
+global source; local-only inherited fonts remain unsupported. They do not validate layout semantics, later records or the whole
 file. The global extension checks tagged-section framing and, for the recognized
 version, the selected story's UTF-16 coverage and explicit font references.
 `other_stories_validated`, `other_layer_references_validated`,

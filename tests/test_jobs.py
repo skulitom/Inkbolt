@@ -61,15 +61,31 @@ class JobTests(unittest.TestCase):
             finally:kernel.CloseHandle(handle)
 
     @contextmanager
-    def blocked_queue(self):
+    def blocked_queue(self,lock_name='worker.lock'):
         root=self.root/'.inkbolt/jobs';root.mkdir(parents=True,exist_ok=True)
-        with (root/'worker.lock').open('a+b') as lease:
+        with (root/lock_name).open('a+b') as lease:
             lease.seek(0);msvcrt.locking(lease.fileno(),msvcrt.LK_NBLCK,1)
             try:yield
             finally:lease.seek(0);msvcrt.locking(lease.fileno(),msvcrt.LK_UNLCK,1)
 
     def start(self,doc=None,rid='one',name=None,**kw):
         return self.cli('job.start',request_id=rid,document=doc or self.document(),output=dict(file_name=name or rid+'.png',format='png'),**kw)
+
+    def start_retry_busy(self,doc):
+        # Contention has a bounded wait, not a promise of immediate admission.
+        # Retry exactly the same request; all other errors remain test failures.
+        request=json.dumps(dict(command='job.start',request_id='one',document=doc,output=dict(file_name='one.png',format='png'))).encode()
+        deadline=time.monotonic()+20
+        while True:
+            process=subprocess.run([str(EXE),'--workspace',str(self.root)],input=request,capture_output=True,timeout=20)
+            self.assertEqual(process.stderr,b'');reply=json.loads(process.stdout)
+            if reply['ok']:
+                self.assertEqual(process.returncode,0,reply)
+                return reply['result']
+            self.assertEqual(process.returncode,1,reply)
+            self.assertEqual(reply['error']['code'],'JOB_BUSY',reply)
+            self.assertLess(time.monotonic(),deadline,reply)
+            time.sleep(.02)
 
     def finish(self,rid='one',expected='completed'):
         deadline=time.monotonic()+20
@@ -152,12 +168,28 @@ class JobTests(unittest.TestCase):
     def test_concurrent_identical_submissions_produce_one_attempt_and_output(self):
         doc=self.document()
         with ThreadPoolExecutor(max_workers=4) as pool:
-            tickets=list(pool.map(lambda _:self.start(doc),range(4)))
-        self.assertTrue(any(not r['replayed'] for r in tickets));self.finish();self.idle()
+            tickets=list(pool.map(lambda _:self.start_retry_busy(doc),range(4)))
+        # A busy response after admission can hide the original ticket. The
+        # durable rows and attempt count below prove exactly one execution.
+        self.assertLessEqual(sum(not r['replayed'] for r in tickets),1);self.finish();self.idle()
         with closing(sqlite3.connect(self.ledger())) as db:
             self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],1)
             state=json.loads(db.execute('SELECT state FROM jobs').fetchone()[0]);self.assertEqual(state['attempt'],1)
         self.assertEqual(len(list(self.root.glob('one.png'))),1)
+
+    def test_busy_launcher_rejects_admission_then_same_request_runs_once(self):
+        doc=self.document()
+        with self.blocked_queue('launch.lock'):
+            error=self.start(doc,error='JOB_BUSY')
+            self.assertIn('Another launcher owns',error['message'])
+            self.assertFalse(self.ledger().exists());self.assertFalse((self.root/'one.png').exists())
+        self.assertFalse(self.start_retry_busy(doc)['replayed'])
+        self.assertTrue(self.start_retry_busy(doc)['replayed']);self.finish();self.idle()
+        with closing(sqlite3.connect(self.ledger())) as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM inputs').fetchone()[0],1)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],1)
+            state=json.loads(db.execute('SELECT state FROM jobs').fetchone()[0]);self.assertEqual(state['attempt'],1)
+        self.assertEqual(png_pixels((self.root/'one.png').read_bytes())[:3],(2,2,bytes(16)))
 
     def test_mcp_eof_leaves_background_work_and_cli_result_matches(self):
         doc=self.document()

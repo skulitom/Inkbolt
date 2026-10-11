@@ -98,7 +98,7 @@ class LayeredRenderingTests(unittest.TestCase):
         self.assertEqual(self.load(self.encoded(payload=payload),1,text_fonts=self.policy())['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
         g=p.global_data();g['1']['2']={'0':0}
         error=self.load(self.encoded(g=g),1,text_fonts=self.policy())
-        self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS');self.assertIn('global authoring /1: ["2"] (1 total)',error['message'])
+        self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS');self.assertIn('Unreferenced source style defaults',error['message'])
         self.assertEqual(error['details']['rendering']['descriptor']['antialias_mode'],'crisp')
         for policies in [dict(self.bindings(),rendering='engine'),dict(self.policy(),rendering='native')]:
             self.assertEqual(self.load(self.encoded(),1,text_fonts=policies)['code'],'INVALID_REQUEST')

@@ -194,7 +194,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         "whole_file_validated":false,"layout_semantics_validated":false,
         "text_characters":text.chars().count(),"text_utf16_units":text.encode_utf16().count(),
         "style_runs":style_runs.len(),"paragraph_runs":paragraph_runs.len(),
-        "font_face_names":referenced_fonts,"font_file_identity_declared":false,
+        "font_face_names":referenced_fonts,"font_file_identity_declared":false,"local_font_reference_runs_missing":styles.missing_fonts(),
         "shape_owner_labels":owners,"shape_owner_labels_truncated":owners_truncated,"shape_owner_labels_trusted":false,
         "transform":transform,"text_data_sha256":assets::sha256(&payload),
         "cached_pixels_used":false,"required_mapping":["explicit_content_pinned_font_bindings","global_story_and_local_style_reconciliation","editable_text_layout_reconstruction","declared_native_layout_and_rendering_differences"]}),
@@ -232,6 +232,11 @@ impl Record {
             &self.paragraphs,
             control,
         )?;
+        if self.details["global_story"]["present"] == false && self.styles.missing_fonts() != 0 {
+            return Err(unsupported(
+                "Local-only text needs explicit font references; inherited local styles are not mapped",
+            ));
+        }
         Ok(())
     }
 }

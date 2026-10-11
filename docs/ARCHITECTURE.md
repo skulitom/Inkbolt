@@ -1,5 +1,13 @@
 # Architecture
 
+`layered::text_inheritance` resolves bounded explicit source style references
+before interpreting character and paragraph controls. Referenced roots must equal
+the document's own declarations. Borrowed property maps apply paragraph, named
+character and local overrides without copying native defaults or using caches.
+Run intersections preserve UTF-16 boundaries; cycles, deeper chains and expansion
+budgets fail explicitly. Receipts declare that named links become independent
+editable ranges. Unmapped layout and authoring semantics still reject import.
+
 Bounded vector overviews reuse the renderer through an immutable projected
 evaluation copy. `previews::Options.max_size` fits the complete canvas to a
 bounded grid before pixel planning; stored geometry and source identities stay

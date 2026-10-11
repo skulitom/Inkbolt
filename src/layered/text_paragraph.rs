@@ -1,6 +1,5 @@
-//! Explicit observed paragraph controls; no inherited values or layout defaults.
+//! Observed paragraph controls after explicit source resolution; no invented defaults.
 use super::{
-    text_data::Node,
     text_style::{Kind, Run, Styles},
     *,
 };
@@ -193,19 +192,19 @@ impl Paragraphs {
         out.endings(source);
         Ok(out)
     }
-    pub fn global(runs: &[Node], source: &str, control: &Control) -> Result<Self, Error> {
+    pub fn global(
+        runs: &[super::text_inheritance::Run<'_>],
+        source: &str,
+        control: &Control,
+    ) -> Result<Self, Error> {
         let mut out = Self::new();
         let mut end = 0;
         for run in runs {
             control.check()?;
-            end += run.field("1")?.unsigned()?;
-            let sheet = run.field("0")?.optional("0")?;
-            let properties = sheet.map(|v| v.optional("5")).transpose()?.flatten();
+            end += run.length;
+            let properties = run.fields.as_ref();
             let mut controls = BTreeMap::new();
             if let Some(properties) = properties {
-                let Node::Dictionary(properties) = properties else {
-                    return Err(malformed());
-                };
                 for &(global, _, name, kind) in CONTROLS {
                     if let Some(value) = global.and_then(|key| properties.get(key)) {
                         controls.insert(name, kind.read_node(value)?);
@@ -217,9 +216,9 @@ impl Paragraphs {
                         .filter(|k| {
                             !CONTROLS
                                 .iter()
-                                .any(|(global, _, _, _)| *global == Some(k.as_str()))
+                                .any(|(global, _, _, _)| *global == Some(**k))
                         })
-                        .cloned(),
+                        .map(|k| (*k).to_owned()),
                 );
             } else {
                 out.absent_properties += 1;

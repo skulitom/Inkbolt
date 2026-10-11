@@ -38,7 +38,7 @@ tags; regional guesses and aliases are unsupported. UTF-16 run boundaries conver
 to engine character indices without splitting
 surrogates; normal engine grapheme and range validation still applies. Global
 kerning admits font metrics only. Manual and optical modes fail. Other native
-features, inherited/default styles, distinct terminal insertion styles, unknown controls,
+features, unmapped inherited controls, distinct terminal insertion styles, unknown controls,
 warps, paragraph/linked frames and variable fonts
 require additional mappings and fail explicitly.
 
@@ -67,6 +67,27 @@ fill components to working sRGB before eight-bit rounding. This includes every
 style range and uses each nested source's own profile. It does not convert text
 through its cached pixels. The existing explicit-profile and untagged-source
 policies apply; assumptions never replace a conflicting embedded profile.
+
+Global named character and paragraph styles can resolve from explicit source
+references. A named style may refer directly to a root whose properties exactly
+match the document's declared root; deeper chains remain unsupported. Source
+root values supply the fallback, paragraph character attributes override it,
+character styles override those attributes, and local authoring overrides win.
+No application defaults, names or table positions are assumed. Broken or cyclic
+references, conflicting roots, unknown controls and unmapped auxiliary style
+tables fail. Unreferenced default declarations are not silently discarded.
+
+Resolution splits character runs at paragraph boundaries without changing UTF-16
+coverage, with at most 65 resulting spans and 8,192 property references. The
+admitted paragraph/layout restrictions still apply. Sparse local caches may omit
+font or size when the authoritative global source supplies them. A local-only
+file still needs explicit font/style controls; caches never supply global values.
+
+Imported styles become independent editable ranges. Native named-style links are
+not retained, so a later change to one range does not update other ranges that
+shared a source style. The inheritance receipt identifies used source indices,
+matched roots and this reconstruction difference. Structural diagnostics can
+resolve references even where other native authoring fields prevent import.
 
 Without a global table, complete local authoring and geometry are required.
 With a global table, the explicit story index selects source text and styles;
