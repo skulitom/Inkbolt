@@ -1,5 +1,10 @@
 # Architecture
 
+Selected global text-frame diagnostics retain explicit row/column counts, their
+gaps and spacing as typed source values. Missing controls stay absent; numeric
+validity does not establish a usable grid or allow editable conversion. Unknown
+frame fields and cached geometry remain unvalidated.
+
 Paragraph diagnostics resolve selected line-breaking, spacing and list-style
 references to bounded source record slots and names. Auxiliary ordering does
 not remap those slots; names join the partial control fingerprint. A compact

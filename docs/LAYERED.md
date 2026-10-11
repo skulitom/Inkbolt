@@ -81,7 +81,15 @@ the outer layer transform remain separate. No density conversion or matrix
 composition is applied in the diagnostic. `other_frames_validated`,
 `remaining_frame_properties_validated`, `local_geometry_consistency_validated`
 and `layout_semantics_validated` stay false, including for a singular matrix.
-Columns, arbitrary shapes, other properties and complete reconstruction remain
+`layout_controls` reports explicit integer `row_count` and `column_count`, and
+finite numeric `row_gap`, `column_gap` and `spacing`, in source coordinate units.
+Absent controls stay absent; zero, negative and large numeric values are retained
+as diagnostics without certifying their layout meaning or acceptable ranges.
+Boolean, string, named and fractional-count substitutes fail. Only the selected
+frame is inspected; neither other frames nor local caches provide defaults.
+`layout_control_types_validated` is true and `layout_controls_defaulted` is false.
+These controls do not admit editable import, even for one row/column or zero gaps.
+Grid layout, arbitrary shapes, other properties and complete reconstruction remain
 unimplemented. Named geometry-extension owners are still untrusted.
 
 `global_story.character_styles` checks types for individually mapped character
