@@ -223,13 +223,16 @@ pub(super) fn document(
             };
         stored_pixels += item_pixels;
         if stored_pixels > MAX_STORED_PIXELS {
-            return Err(limit("Retained layer caches and masks exceed 65536 pixels"));
+            return Err(limit(&format!(
+                "Retained layer caches and masks exceed {MAX_STORED_PIXELS} pixels"
+            )));
         }
         context.budget.pixels += item_pixels;
         if context.budget.pixels > MAX_DECODED_BYTES / 4 {
-            return Err(limit(
-                "Nested layered delivery sources, caches and masks exceed 8 MiB decoded samples",
-            ));
+            return Err(limit(&format!(
+                "Nested layered delivery sources, caches and masks exceed {} MiB decoded samples",
+                MAX_DECODED_BYTES as f64 / 1_048_576.0
+            )));
         }
         short(&mut records, 4 + u16::from(mask.is_some()));
         for channel in [-1_i16, 0, 1, 2] {

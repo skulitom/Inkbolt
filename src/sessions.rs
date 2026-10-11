@@ -1008,7 +1008,7 @@ fn prepare_action(
             if *steps == 0 || *steps > MAX_STATES {
                 return Err(Error::new(
                     "INVALID_REQUEST",
-                    "History movement requires 1 through 256 steps",
+                    format!("History movement requires 1 through {MAX_STATES} steps"),
                 ));
             }
             let undo = matches!(action, Action::Undo { .. });

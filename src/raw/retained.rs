@@ -51,7 +51,10 @@ impl Spec {
     pub fn validate(&self) -> Result<usize, Error> {
         self.recipe.validate()?;
         if self.source_hex.len() > MAX_SOURCE_BYTES * 2 {
-            return Err(limit("Retained raw source exceeds 128 KiB"));
+            return Err(limit(&format!(
+                "Retained raw source exceeds {} KiB",
+                MAX_SOURCE_BYTES as f64 / 1024.0
+            )));
         }
         if self.source_hex.len() != self.recipe.capture.validate()? * 2
             || !self.source_hex.bytes().all(|c| c.is_ascii_hexdigit())

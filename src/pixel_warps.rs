@@ -212,7 +212,8 @@ impl Plan {
             .any(|v| *v < crate::limits::pixel_warps::MIN_FRAME_EXTENT)
         {
             return Err(invalid(&format!(
-                "Pixel warp source dimensions require .001..{MAX_COORDINATE}"
+                "Pixel warp source dimensions require {}..{MAX_COORDINATE}",
+                crate::limits::pixel_warps::MIN_FRAME_EXTENT
             )));
         }
         let mut projective = None;

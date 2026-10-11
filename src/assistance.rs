@@ -72,7 +72,7 @@ fn plan(document: &Document, options: &Layout, control: &Control) -> Result<Plan
     if options.ids.is_empty() || options.ids.len() > MAX_ITEMS {
         return Err(Error::new(
             "RESOURCE_LIMIT",
-            "Automatic layout requires 1..64 IDs",
+            format!("Automatic layout requires 1..{MAX_ITEMS} IDs"),
         ));
     }
     let area = options.bounds;

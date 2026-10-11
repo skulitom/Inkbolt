@@ -14,6 +14,7 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'objects/minimum_extent': 'objects.MIN_EXTENT',
     'geometry_limits/primitives/minimum_extent': 'primitives.MIN_EXTENT',
     'geometry_limits/primitives/rotation_degrees/1': 'primitives.MAX_ROTATION_DEGREES',
     'geometry_limits/minimum_placed_image_extent': 'model.MIN_PLACED_IMAGE_EXTENT',

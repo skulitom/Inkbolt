@@ -559,7 +559,10 @@ pub(crate) fn export_with_metadata(
                 || p.height > u16::MAX as u32
                 || ppi.round() > u16::MAX as f64
             {
-                return Err(limit("JPEG dimensions or rounded density exceed 65535"));
+                return Err(limit(&format!(
+                    "JPEG dimensions or rounded density exceed {}",
+                    u16::MAX
+                )));
             }
             let quality = options.quality.unwrap_or(limits::DEFAULT_JPEG_QUALITY);
             let chroma = options.chroma.unwrap_or(Chroma::Full);

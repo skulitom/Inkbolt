@@ -77,7 +77,9 @@ pub(crate) fn validate(document: &Document) -> Result<(), Error> {
         .count()
         > MAX_MASKS
     {
-        return Err(limit("Document exceeds 32 artwork-mask references"));
+        return Err(limit(&format!(
+            "Document exceeds {MAX_MASKS} artwork-mask references"
+        )));
     }
     for (i, item) in document.items.iter().enumerate() {
         if let Some(source) = source_owner(document, i)? {

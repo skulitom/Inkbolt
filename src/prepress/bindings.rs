@@ -48,9 +48,9 @@ impl Resolved {
     ) -> Result<Self, Error> {
         control.check()?;
         if bindings.len() > MAX_BINDINGS {
-            return Err(limit(
-                "Native print preparation supports at most 1024 ink bindings",
-            ));
+            return Err(limit(&format!(
+                "Native print preparation supports at most {MAX_BINDINGS} ink bindings"
+            )));
         }
         let mut result = Self::default();
         if bindings.is_empty() {

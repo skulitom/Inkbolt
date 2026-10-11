@@ -39,7 +39,9 @@ pub fn ancestors(document: &Document, i: usize) -> Result<Vec<usize>, Error> {
         }
         result.push(p);
         if result.len() > MAX_DEPTH {
-            return Err(limit("Hierarchy exceeds 16 ancestor levels"));
+            return Err(limit(&format!(
+                "Hierarchy exceeds {MAX_DEPTH} ancestor levels"
+            )));
         }
         next = document.items[p].parent.as_deref();
     }

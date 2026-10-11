@@ -73,7 +73,7 @@ fn size(width: u32, height: u32) -> Result<(), Error> {
     if width == 0 || height == 0 || width > MAX_DIMENSION || height > MAX_DIMENSION {
         Err(Error::new(
             "INVALID_OPERATION",
-            "Canvas dimensions must be in 1..=32768",
+            format!("Canvas dimensions must be in 1..={MAX_DIMENSION}"),
         ))
     } else {
         Ok(())

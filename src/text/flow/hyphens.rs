@@ -66,7 +66,9 @@ pub(crate) fn validate_resources<'a>(
     let mut exception_chars = 0;
     for story in stories {
         if story.hyphenation_rules.len() > MAX_RULE_SETS {
-            return Err(limit("Story exceeds 16 hyphenation rule sets"));
+            return Err(limit(&format!(
+                "Story exceeds {MAX_RULE_SETS} hyphenation rule sets"
+            )));
         }
         for rules in story.hyphenation_rules.values() {
             patterns += rules.patterns.len();

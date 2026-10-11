@@ -627,7 +627,7 @@ pub fn apply_with_resources(
     if operations.is_empty() || operations.len() > MAX_OPERATIONS {
         return Err(Error::new(
             "INVALID_OPERATION",
-            "A batch must contain 1 through 64 operations",
+            format!("A batch must contain 1 through {MAX_OPERATIONS} operations"),
         ));
     }
     let next = document

@@ -302,7 +302,9 @@ impl Mesh {
         if contraction > MAX_CONTRACTION {
             return Err(Error::new(
                 "MESH_GEOMETRY_LIMIT",
-                "Mesh displacement derivative exceeds the certified contraction bound of 0.75; reduce interior offsets",
+                format!(
+                    "Mesh displacement derivative exceeds the certified contraction bound of {MAX_CONTRACTION}; reduce interior offsets"
+                ),
             ));
         }
         for patch in &colors {
@@ -408,7 +410,9 @@ impl Prepared {
 pub fn inspect(mesh: &Mesh, space: Interpolation, parameters: &[Point]) -> Result<Value, Error> {
     let p = mesh.prepare(space)?;
     if parameters.len() > MAX_SAMPLES {
-        return Err(limit("Mesh inspection exceeds 1024 parameter samples"));
+        return Err(limit(&format!(
+            "Mesh inspection exceeds {MAX_SAMPLES} parameter samples"
+        )));
     }
     if parameters.iter().any(|v| {
         !v[0].is_finite()
@@ -539,7 +543,9 @@ pub fn svg_texture_pixels(document: &Document) -> Result<usize, Error> {
         }
     }
     if total > MAX_SVG_TEXTURE_PIXELS {
-        return Err(limit("SVG mesh textures exceed 131072 aggregate samples"));
+        return Err(limit(&format!(
+            "SVG mesh textures exceed {MAX_SVG_TEXTURE_PIXELS} aggregate samples"
+        )));
     }
     Ok(total)
 }

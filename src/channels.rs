@@ -83,7 +83,9 @@ pub enum Display {
 
 pub fn validate(document: &Document) -> Result<(), Error> {
     if document.channels.len() > MAX_CHANNELS {
-        return Err(limit("Document exceeds 16 saved channels"));
+        return Err(limit(&format!(
+            "Document exceeds {MAX_CHANNELS} saved channels"
+        )));
     }
     let mut count = 0;
     let mut inks = HashSet::new();
@@ -108,7 +110,9 @@ pub fn validate(document: &Document) -> Result<(), Error> {
         }
     }
     if count > MAX_SAMPLES {
-        return Err(limit("Saved channels exceed 262144 scalar samples"));
+        return Err(limit(&format!(
+            "Saved channels exceed {MAX_SAMPLES} scalar samples"
+        )));
     }
     Ok(())
 }

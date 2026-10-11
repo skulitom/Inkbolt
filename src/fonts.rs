@@ -283,7 +283,9 @@ pub fn tag(value: &str) -> Result<rustybuzz::ttf_parser::Tag, Error> {
 
 pub fn validate_coordinates(values: &Coordinates) -> Result<(), Error> {
     if values.len() > MAX_AXES {
-        return Err(limit("Font instance exceeds 16 axis controls"));
+        return Err(limit(&format!(
+            "Font instance exceeds {MAX_AXES} axis controls"
+        )));
     }
     for (key, value) in values {
         tag(key)?;
@@ -324,7 +326,9 @@ pub fn instance<'a>(
             }
         }
         if !values.is_empty() && face.variation_axes().len() as usize > MAX_AXES {
-            return Err(limit("Controlled variable fonts may have at most 16 axes"));
+            return Err(limit(&format!(
+                "Controlled variable fonts may have at most {MAX_AXES} axes"
+            )));
         }
         for (key, value) in values {
             let tag = tag(key)?;

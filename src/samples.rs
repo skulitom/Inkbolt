@@ -87,11 +87,15 @@ impl Grid {
         }
         if !(1..=MAX_DIMENSION).contains(&self.width) || !(1..=MAX_DIMENSION).contains(&self.height)
         {
-            return Err(invalid("Sample grid dimensions must be in 1..=32768"));
+            return Err(invalid(&format!(
+                "Sample grid dimensions must be in 1..={MAX_DIMENSION}"
+            )));
         }
         let count = self.width as usize * self.height as usize;
         if count > MAX_STORED_PIXELS {
-            return Err(limit("Sample grid exceeds 65536 inline pixels"));
+            return Err(limit(&format!(
+                "Sample grid exceeds {MAX_STORED_PIXELS} inline pixels"
+            )));
         }
         validate_data(
             &self.data_hex,

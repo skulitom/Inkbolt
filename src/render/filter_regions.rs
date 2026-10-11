@@ -269,7 +269,9 @@ impl Plan {
                 if let Operator::Radial { samples, .. } = filter.operator {
                     sample_count += samples as usize;
                     if sample_count > MAX_REFERENCES {
-                        return Err(limit("Filter source mappings exceed 131072 samples"));
+                        return Err(limit(&format!(
+                            "Filter source mappings exceed {MAX_REFERENCES} samples"
+                        )));
                     }
                 }
                 refs.push(steps.len());
@@ -297,7 +299,9 @@ impl Plan {
             }
             references += path.len();
             if references > MAX_REFERENCES {
-                return Err(limit("Filter dependency paths exceed 131072 references"));
+                return Err(limit(&format!(
+                    "Filter dependency paths exceed {MAX_REFERENCES} references"
+                )));
             }
             work += path.iter().map(|&i| steps[i].cost()).sum::<u64>();
             paths.push(path);

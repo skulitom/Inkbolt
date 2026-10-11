@@ -195,7 +195,9 @@ impl<'a> Builder<'a> {
                 return Err(invalid("Component references contain a cycle"));
             }
             if stack.len() == MAX_NESTING {
-                return Err(limit("Component references exceed 8 nested definitions"));
+                return Err(limit(&format!(
+                    "Component references exceed {MAX_NESTING} nested definitions"
+                )));
             }
             let mut next = stack.to_vec();
             next.push(instance.source.clone());
@@ -297,7 +299,9 @@ pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Resul
         .filter_map(|(i, v)| matches!(v.content, Content::ComponentSource {}).then_some(i))
         .collect();
     if definitions.len() > MAX_DEFINITIONS {
-        return Err(limit("Document exceeds 32 component definitions"));
+        return Err(limit(&format!(
+            "Document exceeds {MAX_DEFINITIONS} component definitions"
+        )));
     }
     if definitions.is_empty()
         && !d
@@ -371,7 +375,9 @@ pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Resul
 pub(crate) fn include_sources(d: &Document, members: &mut HashSet<usize>) -> Result<(), Error> {
     fn references(instance: &Instance, depth: usize, ids: &mut Vec<String>) -> Result<(), Error> {
         if depth > MAX_NESTING {
-            return Err(limit("Nested instance override data exceeds 8 levels"));
+            return Err(limit(&format!(
+                "Nested instance override data exceeds {MAX_NESTING} levels"
+            )));
         }
         ids.push(instance.source.clone());
         for patch in instance.overrides.values() {

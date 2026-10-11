@@ -81,7 +81,10 @@ pub struct Decoded {
 /// Validate framing before interpreting editable artwork. Preview streams are never interpreted.
 pub fn decode(bytes: &[u8], control: &Control) -> Result<Decoded, Error> {
     if bytes.len() > MAX_SOURCE_BYTES {
-        return Err(limit("Native vector source exceeds 16 MiB"));
+        return Err(limit(&format!(
+            "Native vector source exceeds {} MiB",
+            MAX_SOURCE_BYTES as f64 / 1_048_576.0
+        )));
     }
     control.check()?;
     if bytes.starts_with(b"%!PS-") {
@@ -186,7 +189,10 @@ pub fn decode(bytes: &[u8], control: &Control) -> Result<Decoded, Error> {
         .map_err(|_| invalid("Invalid native compression frame"))?;
         let declared_size = (source[4] & 0xe0 != 0).then(|| decoder.decoder.content_size());
         if declared_size.is_some_and(|n| n > MAX_DECODED_BYTES as u64) {
-            return Err(limit("Declared native frame size exceeds 16 MiB"));
+            return Err(limit(&format!(
+                "Declared native frame size exceeds {} MiB",
+                MAX_DECODED_BYTES as f64 / 1_048_576.0
+            )));
         }
         let mut data = Vec::new();
         let mut buffer = [0u8; 16384];
@@ -199,7 +205,10 @@ pub fn decode(bytes: &[u8], control: &Control) -> Result<Decoded, Error> {
                 break;
             }
             if data.len() + n > MAX_DECODED_BYTES {
-                return Err(limit("Decoded native vector exceeds 16 MiB"));
+                return Err(limit(&format!(
+                    "Decoded native vector exceeds {} MiB",
+                    MAX_DECODED_BYTES as f64 / 1_048_576.0
+                )));
             }
             data.extend_from_slice(&buffer[..n]);
         }

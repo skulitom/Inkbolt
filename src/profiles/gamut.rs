@@ -297,7 +297,9 @@ pub fn inspect(
 ) -> Result<Value, Error> {
     control.check()?;
     if xyz.len() > MAX_SAMPLES {
-        return Err(limit("Gamut inspection exceeds 4096 samples"));
+        return Err(limit(&format!(
+            "Gamut inspection exceeds {MAX_SAMPLES} samples"
+        )));
     }
     let bytes = cmyk::read_source(profile)?;
     let gamut = Gamut::new(&bytes, intent)?.ok_or_else(|| {

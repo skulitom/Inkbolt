@@ -206,7 +206,9 @@ pub fn validate(paint: &Paint) -> Result<(usize, usize), Error> {
         } => {
             let count = *width as u64 * *height as u64;
             if *width == 0 || *height == 0 || count > MAX_PATTERN_PIXELS as u64 {
-                return Err(limit("Pattern tiles require 1 through 4096 pixels"));
+                return Err(limit(&format!(
+                    "Pattern tiles require 1 through {MAX_PATTERN_PIXELS} pixels"
+                )));
             }
             if rgba_hex.len() != count as usize * 8
                 || !rgba_hex.bytes().all(|c| c.is_ascii_hexdigit())
@@ -219,7 +221,9 @@ pub fn validate(paint: &Paint) -> Result<(usize, usize), Error> {
         }
     };
     if !(2..=MAX_STOPS).contains(&stops.len()) {
-        return Err(limit("Gradients require 2 through 64 stops"));
+        return Err(limit(&format!(
+            "Gradients require 2 through {MAX_STOPS} stops"
+        )));
     }
     if stops
         .iter()

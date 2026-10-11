@@ -141,9 +141,10 @@ pub(crate) fn from_layers(
         || ids.len() > variants::MAX_DATASETS
         || ids.iter().collect::<HashSet<_>>().len() != ids.len()
     {
-        return Err(error(
-            "Layer conversion requires 1..32 unique root item IDs in frame order",
-        ));
+        return Err(error(&format!(
+            "Layer conversion requires 1..{} unique root item IDs in frame order",
+            variants::MAX_DATASETS
+        )));
     }
     for id in ids {
         let i = crate::scene::index(d, id)?;

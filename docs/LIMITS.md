@@ -297,6 +297,7 @@ capability literals and diagnostic messages remains in progress.
 | `native_pixels.CACHE_TILES` | `usize` | 16 | `16` |
 | `objects.MAX_NESTING` | `usize` | 4 | `4` |
 | `objects.MAX_RENDERED_OBJECTS` | `usize` | 32 | `32` |
+| `objects.MIN_EXTENT` | `f64` | 0.001 | `0.001` |
 | `paint.MAX_PAINT_SAMPLES` | `usize` | 4096 | `4096` |
 | `paint.MAX_PAINT_WORK` | `u64` | 134217728 | `134_217_728` |
 | `paint.MAX_PATTERN_PIXELS` | `usize` | 4096 | `4096` |

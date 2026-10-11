@@ -160,7 +160,7 @@ impl Definitions {
         if self.gradients.len() + self.clips.len() + self.masks.len() >= MAX_DEFINITIONS {
             return Err(Error::new(
                 "RESOURCE_LIMIT",
-                "SVG exceeds 64 gradient/clip/mask definitions",
+                format!("SVG exceeds {MAX_DEFINITIONS} gradient/clip/mask definitions"),
             ));
         }
         let name = id(node)?;
@@ -287,7 +287,7 @@ impl Definitions {
             if stops.len() > crate::paint::MAX_STOPS {
                 return Err(Error::new(
                     "RESOURCE_LIMIT",
-                    "SVG gradient exceeds 64 stops",
+                    format!("SVG gradient exceeds {} stops", crate::paint::MAX_STOPS),
                 ));
             }
         }
@@ -372,7 +372,7 @@ impl Definitions {
         if stack.len() >= MAX_REFERENCE_DEPTH {
             return Err(Error::new(
                 "RESOURCE_LIMIT",
-                "SVG gradient reference chain exceeds 16 definitions",
+                format!("SVG gradient reference chain exceeds {MAX_REFERENCE_DEPTH} definitions"),
             ));
         }
         let mut g = self

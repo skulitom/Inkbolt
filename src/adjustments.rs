@@ -70,7 +70,9 @@ fn range(x: f64, low: f64, high: f64) -> bool {
 impl Layer {
     pub fn validate(&self) -> Result<(), Error> {
         if self.operators.is_empty() || self.operators.len() > MAX_OPERATORS {
-            return Err(invalid("Adjustment layers require 1..=16 operators"));
+            return Err(invalid(&format!(
+                "Adjustment layers require 1..={MAX_OPERATORS} operators"
+            )));
         }
         for operator in &self.operators {
             let valid = match operator {
@@ -177,10 +179,15 @@ pub(crate) fn validate_document(document: &Document) -> Result<(), Error> {
         }
     }
     if count > MAX_DOCUMENT_OPERATORS {
-        return Err(limit("Document exceeds 256 adjustment operators"));
+        return Err(limit(&format!(
+            "Document exceeds {MAX_DOCUMENT_OPERATORS} adjustment operators"
+        )));
     }
     if lut_entries > crate::color_adjustments::MAX_DOCUMENT_LUT_ENTRIES {
-        return Err(limit("Document exceeds 65536 color lookup entries"));
+        return Err(limit(&format!(
+            "Document exceeds {} color lookup entries",
+            crate::color_adjustments::MAX_DOCUMENT_LUT_ENTRIES
+        )));
     }
     Ok(())
 }

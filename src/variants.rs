@@ -155,7 +155,9 @@ fn resolved<'a>(
             return Err(error("Dataset inheritance contains a cycle"));
         }
         if chain.len() == MAX_INHERITANCE {
-            return Err(limit("Dataset inheritance exceeds 8 levels"));
+            return Err(limit(&format!(
+                "Dataset inheritance exceeds {MAX_INHERITANCE} levels"
+            )));
         }
         let (id, data) = definition
             .datasets
@@ -225,7 +227,9 @@ pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Resul
         || def.datasets.is_empty()
         || def.datasets.len() > MAX_DATASETS
     {
-        return Err(limit("Variants require 1..64 bindings and 1..32 datasets"));
+        return Err(limit(&format!(
+            "Variants require 1..{MAX_BINDINGS} bindings and 1..{MAX_DATASETS} datasets"
+        )));
     }
     if state.base.len() != def.bindings.len() {
         return Err(error("Variant baseline must match every binding"));
@@ -294,7 +298,9 @@ pub(crate) fn define(d: &mut Document, definition: Definition) -> Result<serde_j
         || definition.datasets.is_empty()
         || definition.datasets.len() > MAX_DATASETS
     {
-        return Err(limit("Variants require 1..64 bindings and 1..32 datasets"));
+        return Err(limit(&format!(
+            "Variants require 1..{MAX_BINDINGS} bindings and 1..{MAX_DATASETS} datasets"
+        )));
     }
     let mut restored = vec![];
     if let Some(old) = d.variants.clone() {

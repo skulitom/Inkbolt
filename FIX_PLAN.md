@@ -243,6 +243,14 @@ staging attempts and tiled receipt descriptions also use catalog definitions.
 Existing values remain unchanged. The remaining diagnostic audit and W0's final
 fresh thorough gate are still required.
 
+The diagnostic follow-up formats request, authoring, parser, hierarchy and
+export ceilings from the enforced constants, retaining error codes and ordinary
+message values. Directional-text diagnostics now report the actual entry-point
+limit, including the permitted generated scalar. Retained-object placement has
+an independently named and advertised minimum extent. Focused tests cover these
+boundaries on Windows and Linux; the remaining inline audit and final fresh W0
+thorough acceptance are still open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

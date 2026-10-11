@@ -159,9 +159,10 @@ fn add(files: &mut BTreeMap<String, Vec<u8>>, file: &File, data: Vec<u8>) -> Res
         files.insert(file.path.clone(), data);
     }
     if files.values().map(Vec::len).sum::<usize>() > MAX_BYTES {
-        return Err(model::limit(
-            "Handoff files exceed the 32 MiB aggregate byte budget",
-        ));
+        return Err(model::limit(&format!(
+            "Handoff files exceed the {} MiB aggregate byte budget",
+            MAX_BYTES as f64 / 1_048_576.0
+        )));
     }
     Ok(())
 }

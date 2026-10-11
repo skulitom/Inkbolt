@@ -68,7 +68,10 @@ pub(crate) fn read_source(source: &Source) -> Result<Vec<u8>, Error> {
                 ));
             }
             if metadata.len() > MAX_PROFILE_BYTES as u64 {
-                return Err(limit("CMYK ICC profile exceeds 4 MiB"));
+                return Err(limit(&format!(
+                    "CMYK ICC profile exceeds {} MiB",
+                    MAX_PROFILE_BYTES as f64 / 1_048_576.0
+                )));
             }
             let mut bytes = Vec::new();
             file.take(MAX_PROFILE_BYTES as u64 + 1)
@@ -77,7 +80,10 @@ pub(crate) fn read_source(source: &Source) -> Result<Vec<u8>, Error> {
                     Error::new("PROFILE_IO", "Unable to read the declared CMYK profile")
                 })?;
             if bytes.len() > MAX_PROFILE_BYTES {
-                return Err(limit("CMYK ICC profile exceeds 4 MiB"));
+                return Err(limit(&format!(
+                    "CMYK ICC profile exceeds {} MiB",
+                    MAX_PROFILE_BYTES as f64 / 1_048_576.0
+                )));
             }
             if assets::sha256(&bytes) != *sha256 {
                 return Err(Error::new(

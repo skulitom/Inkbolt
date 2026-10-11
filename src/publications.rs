@@ -54,9 +54,10 @@ fn encode(value: &impl Serialize) -> Result<Vec<u8>, Error> {
     let bytes =
         serde_json::to_vec(value).map_err(|_| corrupt("Unable to encode publication receipt"))?;
     if bytes.len() > MAX_RECEIPT_BYTES {
-        return Err(crate::model::limit(
-            "Durable publication receipt exceeds 1 MiB",
-        ));
+        return Err(crate::model::limit(&format!(
+            "Durable publication receipt exceeds {} MiB",
+            MAX_RECEIPT_BYTES as f64 / 1_048_576.0
+        )));
     }
     Ok(bytes)
 }

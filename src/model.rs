@@ -534,9 +534,10 @@ pub fn validate_controlled(
         ));
     }
     if !valid_id(&document.id) {
-        return Err(invalid(
-            "ID must contain 1-128 ASCII letters, digits, dots, hyphens or underscores",
-        ));
+        return Err(invalid(&format!(
+            "ID must contain 1-{} ASCII letters, digits, dots, hyphens or underscores",
+            bounds::MAX_ID_BYTES
+        )));
     }
     if !(1..=MAX_DIMENSION).contains(&document.width)
         || !(1..=MAX_DIMENSION).contains(&document.height)
@@ -605,7 +606,10 @@ pub fn validate_controlled(
     let mut pixels = 0usize;
     let mut native_pixels = 0u64;
     if document.assets.len() > assets::MAX_ASSETS {
-        return Err(limit("Document exceeds 64 image assets"));
+        return Err(limit(&format!(
+            "Document exceeds {} image assets",
+            assets::MAX_ASSETS
+        )));
     }
     let mut asset_pixels = 0u64;
     for (id, asset) in &document.assets {
@@ -625,7 +629,10 @@ pub fn validate_controlled(
         return Err(limit("Embedded assets exceed inline pixel limit"));
     }
     if document.fonts.len() > crate::fonts::MAX_FONTS {
-        return Err(limit("Document exceeds 8 pinned fonts"));
+        return Err(limit(&format!(
+            "Document exceeds {} pinned fonts",
+            crate::fonts::MAX_FONTS
+        )));
     }
     for (id, font) in &document.fonts {
         if !valid_id(id) {

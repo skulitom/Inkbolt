@@ -119,7 +119,9 @@ fn parse_model(bytes: &[u8], space: DataColorSpace, printing: bool) -> Result<Co
     }
     let count = word(bytes, 128)?;
     if count > MAX_PROFILE_TAGS {
-        return Err(limit("ICC profile exceeds 128 tags"));
+        return Err(limit(&format!(
+            "ICC profile exceeds {MAX_PROFILE_TAGS} tags"
+        )));
     }
     let end = 132 + count * 12;
     if end > bytes.len() {

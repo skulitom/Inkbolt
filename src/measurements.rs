@@ -58,7 +58,9 @@ pub fn measure(
     {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Measurement samples require at most 256 pixel coordinates inside the region",
+            format!(
+                "Measurement samples require at most {MAX_SAMPLES} pixel coordinates inside the region"
+            ),
         ));
     }
     let selection = if options.use_selection {

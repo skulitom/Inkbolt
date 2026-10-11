@@ -783,6 +783,8 @@ pub mod model {
 
 /// Limits for `src/objects.rs`.
 pub mod objects {
+    /// Minimum retained-object placement width or height in document units.
+    pub const MIN_EXTENT: f64 = 0.001;
     /// Max nesting (objects).
     pub const MAX_NESTING: usize = 4;
     /// Max rendered objects (objects).

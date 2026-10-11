@@ -1858,6 +1858,7 @@ fn capability_report() -> Value {
     });
     capabilities["agent_outputs"] = json!({"response_mode_default":"full","compact_commands":responses::COMMANDS,"compact_target_bytes":responses::COMPACT_TARGET_BYTES,"compact_target_scope":"ordinary_result_JSON;long_explicit_paths_can_exceed_target","compact_omissions":["document","receipt.changes","snapshots"],"compact_recovery":"pinned_document_ref_and_receipt_ref;request_response_mode_full","presentation_in_retry_fingerprint":false,"inline_snapshot_results":"full_only"});
     capabilities["geometry_limits"]["primitives"] = json!({"minimum_extent":limits::primitives::MIN_EXTENT,"rotation_degrees":[-i64::from(limits::primitives::MAX_ROTATION_DEGREES),limits::primitives::MAX_ROTATION_DEGREES]});
+    capabilities["objects"]["minimum_extent"] = json!(limits::objects::MIN_EXTENT);
     capabilities["geometry_limits"]["minimum_placed_image_extent"] =
         json!(limits::model::MIN_PLACED_IMAGE_EXTENT);
     capabilities["paint_limits"] = json!({"minimum_linear_span":limits::paint::MIN_LINEAR_SPAN,"minimum_radial_radius":limits::paint::MIN_RADIAL_RADIUS,"maximum_radial_radius":model::MAX_COORDINATE,"minimum_anchor_separation":limits::paint::MIN_ANCHOR_SEPARATION});

@@ -1254,9 +1254,11 @@ fn native_plan(
             if level >= crate::objects::MAX_NESTING
                 || budget.objects >= crate::objects::MAX_RENDERED_OBJECTS
             {
-                return Err(limit(
-                    "Native retained objects exceed four levels or 32 visible sources",
-                ));
+                return Err(limit(&format!(
+                    "Native retained objects exceed {} levels or {} visible sources",
+                    crate::objects::MAX_NESTING,
+                    crate::objects::MAX_RENDERED_OBJECTS
+                )));
             }
             if object.view.is_some() {
                 let mut child_path = path.to_vec();
@@ -1281,9 +1283,9 @@ fn native_plan(
                     .source_profiles
                     .extend(child.source_profiles.iter().cloned());
                 if budget.source_profiles.len() > MAX_SOURCE_PROFILES {
-                    return Err(limit(
-                        "Native preparation exceeds 16 source profiles across projected and native objects",
-                    ));
+                    return Err(limit(&format!(
+                        "Native preparation exceeds {MAX_SOURCE_PROFILES} source profiles across projected and native objects"
+                    )));
                 }
                 if budget.objects > crate::objects::MAX_RENDERED_OBJECTS
                     || level + 1 + child.depth > crate::objects::MAX_NESTING
@@ -1358,9 +1360,9 @@ fn native_plan(
                     .source_profiles
                     .insert(assets::sha256(&profiles::resolve(profile)?.0));
                 if budget.source_profiles.len() > MAX_SOURCE_PROFILES {
-                    return Err(limit(
-                        "Native preparation supports at most 16 distinct source profiles across retained objects",
-                    ));
+                    return Err(limit(&format!(
+                        "Native preparation supports at most {MAX_SOURCE_PROFILES} distinct source profiles across retained objects"
+                    )));
                 }
             }
         }
@@ -1413,9 +1415,9 @@ fn native_plan(
         }
     }
     if spot_definitions.len() > MAX_SPOTS {
-        return Err(limit(
-            "Native ink composition supports at most 28 printed spot identities",
-        ));
+        return Err(limit(&format!(
+            "Native ink composition supports at most {MAX_SPOTS} printed spot identities"
+        )));
     }
     let n = 4 + spot_definitions.len();
     let reconstruction_work = crate::resample::document_work(document, plan.internal_scale)?;

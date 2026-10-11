@@ -117,7 +117,10 @@ pub(super) fn schedule(
 ) -> Result<Vec<Option<usize>>, Error> {
     let count = self::options(options)?;
     if holds.is_empty() || holds.len() > crate::sequences::MAX_FRAMES {
-        return Err(invalid("Expected 1..256 frame holds"));
+        return Err(invalid(&format!(
+            "Expected 1..{} frame holds",
+            crate::sequences::MAX_FRAMES
+        )));
     }
     if matches!(options.selection, Selection::Still { .. })
         && (holds.len() != 1 || holds[0] != options.duration)

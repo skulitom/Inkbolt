@@ -198,7 +198,10 @@ pub(super) fn prepare(
         .map_err(|_| malformed())?;
     context.budget.source_bytes += bytes.len();
     if context.budget.source_bytes > MAX_FILE_BYTES {
-        return Err(limit("Embedded delivery source payloads exceed 32 MiB"));
+        return Err(limit(&format!(
+            "Embedded delivery source payloads exceed {} MiB",
+            MAX_FILE_BYTES as f64 / 1_048_576.0
+        )));
     }
     let mut corners = [0.0; 8];
     for (i, point) in [

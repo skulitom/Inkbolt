@@ -86,7 +86,9 @@ pub fn evaluate(
     let work = match method {
         Method::ColorRange { colors, .. } => {
             if !(1..=MAX_TARGETS).contains(&colors.len()) {
-                return Err(invalid("Color range requires 1..=32 colors"));
+                return Err(invalid(&format!(
+                    "Color range requires 1..={MAX_TARGETS} colors"
+                )));
             }
             n as u64 * colors.len() as u64 * 4
         }
@@ -96,9 +98,9 @@ pub fn evaluate(
                     .iter()
                     .any(|p| p[0] >= document.width || p[1] >= document.height)
             {
-                return Err(invalid(
-                    "Connected selection requires 1..=32 canvas pixel seeds",
-                ));
+                return Err(invalid(&format!(
+                    "Connected selection requires 1..={MAX_TARGETS} canvas pixel seeds"
+                )));
             }
             n as u64 * (seeds.len() as u64 * 4 + 8)
         }
@@ -109,9 +111,9 @@ pub fn evaluate(
             ..
         } => {
             if *radius > MAX_EDGE_RADIUS || black >= white {
-                return Err(invalid(
-                    "Edge radius must be in 0..=8 and black below white",
-                ));
+                return Err(invalid(&format!(
+                    "Edge radius must be in 0..={MAX_EDGE_RADIUS} and black below white"
+                )));
             }
             if document.selection.is_none() {
                 return Err(Error::new(

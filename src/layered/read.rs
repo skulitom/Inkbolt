@@ -405,7 +405,10 @@ pub(super) fn document(
 ) -> Result<Value, Error> {
     let embedded_objects = options.embedded_objects;
     if depth > crate::objects::MAX_NESTING {
-        return Err(limit("Embedded layered sources exceed four levels"));
+        return Err(limit(&format!(
+            "Embedded layered sources exceed {} levels",
+            crate::objects::MAX_NESTING
+        )));
     }
     control.check()?;
     let mut input = Reader::new(bytes);
@@ -613,7 +616,9 @@ pub(super) fn document(
         total += (r.bounds[3] - r.bounds[1]) as usize * (r.bounds[2] - r.bounds[0]) as usize;
         total += r.mask.as_ref().map_or(0, super::mask::Record::pixels);
         if total > MAX_STORED_PIXELS {
-            return Err(limit("Retained layer and mask pixels exceed 65536"));
+            return Err(limit(&format!(
+                "Retained layer and mask pixels exceed {MAX_STORED_PIXELS}"
+            )));
         }
         records.push(r);
     }
@@ -793,7 +798,10 @@ pub(super) fn document(
         }
         budget.snapshot_bytes += snapshot.len();
         if budget.snapshot_bytes > MAX_DECODED_BYTES {
-            return Err(limit("Nested editable snapshots exceed 8 MiB"));
+            return Err(limit(&format!(
+                "Nested editable snapshots exceed {} MiB",
+                MAX_DECODED_BYTES as f64 / 1_048_576.0
+            )));
         }
         source_receipts.push(json!({"source_id":source_id,"filename":source.filename,"record_version":source.version,
             "native_source_sha256":assets::sha256(source.bytes),"native_source_bytes":source.bytes.len(),
@@ -826,7 +834,10 @@ pub(super) fn document(
         }
         budget.snapshot_bytes += snapshot.len();
         if budget.snapshot_bytes > MAX_DECODED_BYTES {
-            return Err(limit("Independent embedded source copies exceed 8 MiB"));
+            return Err(limit(&format!(
+                "Independent embedded source copies exceed {} MiB",
+                MAX_DECODED_BYTES as f64 / 1_048_576.0
+            )));
         }
         let item = items
             .iter_mut()

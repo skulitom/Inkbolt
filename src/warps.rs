@@ -177,7 +177,9 @@ impl Plan {
             }
             edges += contour.edges.len();
             if edges > MAX_INPUT_EDGES {
-                return Err(limit("Warp source exceeds 256 curve/line edges"));
+                return Err(limit(&format!(
+                    "Warp source exceeds {MAX_INPUT_EDGES} curve/line edges"
+                )));
             }
             for (ei, edge) in contour.edges.iter().enumerate() {
                 let start = segments.len();
@@ -345,7 +347,9 @@ pub fn inspect(
 ) -> Result<serde_json::Value, Error> {
     control.check()?;
     if samples.len() > MAX_SAMPLES {
-        return Err(limit("Warp inspection exceeds 256 sample points"));
+        return Err(limit(&format!(
+            "Warp inspection exceeds {MAX_SAMPLES} sample points"
+        )));
     }
     for p in samples {
         finite_point(*p)?;

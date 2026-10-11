@@ -67,7 +67,9 @@ fn invalid(message: &str) -> Error {
 fn dimensions(w: u32, h: u32) -> Result<usize, Error> {
     let count = assets::dimensions(w, h)? as usize;
     if count > MAX_PIXELS {
-        return Err(limit("Tracing exceeds 1048576 source pixels"));
+        return Err(limit(&format!(
+            "Tracing exceeds {MAX_PIXELS} source pixels"
+        )));
     }
     Ok(count)
 }
@@ -119,7 +121,7 @@ fn validate_options(o: &Options) -> Result<(), Error> {
         }
         Mode::Palette { colors } => {
             if colors.is_empty() || colors.len() > MAX_COLORS {
-                return Err(invalid("Palette requires 1..64 colors"));
+                return Err(invalid(&format!("Palette requires 1..{MAX_COLORS} colors")));
             }
             for (i, c) in colors.iter().enumerate() {
                 if (c[3] == 0 && *c != [0; 4]) || colors[..i].contains(c) {
@@ -291,9 +293,9 @@ fn contours(
             }
             *counts.entry(c).or_default() += 1;
             if counts.len() > MAX_COLORS {
-                return Err(limit(
-                    "Trace exceeds 64 resulting colors; use an explicit palette or quantization",
-                ));
+                return Err(limit(&format!(
+                    "Trace exceeds {MAX_COLORS} resulting colors; use an explicit palette or quantization"
+                )));
             }
             let x = x as u32;
             let y = y as u32;
@@ -328,7 +330,9 @@ fn contours(
                 }
                 edges += 1;
                 if edges > MAX_EDGES {
-                    return Err(limit("Trace exceeds 262144 unit boundary edges"));
+                    return Err(limit(&format!(
+                        "Trace exceeds {MAX_EDGES} unit boundary edges"
+                    )));
                 }
                 let entry = graph.entry((c, ex, ey)).or_insert(Vertex {
                     all: 0,
@@ -397,9 +401,9 @@ fn contours(
             }
             command_count += corners.len() + 1;
             if command_count > MAX_SEGMENTS {
-                return Err(limit(
-                    "Trace output exceeds 4096 editable path commands; adjust classification or noise controls",
-                ));
+                return Err(limit(&format!(
+                    "Trace output exceeds {MAX_SEGMENTS} editable path commands; adjust classification or noise controls"
+                )));
             }
             let path = paths.entry(c).or_default();
             path.push(PathCommand::Move { to: corners[0] });

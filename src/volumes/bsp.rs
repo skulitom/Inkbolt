@@ -81,7 +81,9 @@ fn recurse(
             (true, true) => {
                 *budget += 1;
                 if *budget > MAX_FACES {
-                    return Err(limit("Volume partition exceeds 192 faces"));
+                    return Err(limit(&format!(
+                        "Volume partition exceeds {MAX_FACES} faces"
+                    )));
                 }
                 let a = split(&f, n, d, true, eps)
                     .ok_or_else(|| numeric("Volume split lost its front face"))?;
@@ -117,7 +119,7 @@ pub(super) fn ordered(
 ) -> Result<Vec<Face>, Error> {
     let mut budget = faces.len();
     if budget > MAX_FACES {
-        return Err(limit("Volume exceeds 192 faces"));
+        return Err(limit(&format!("Volume exceeds {MAX_FACES} faces")));
     }
     recurse(faces, camera, 0, &mut budget, control)
 }

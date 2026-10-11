@@ -53,9 +53,9 @@ pub(super) fn prepare(
                     let hash = assets::sha256(&bytes);
                     if !result.converters.contains_key(&hash) {
                         if result.converters.len() >= MAX_SOURCE_PROFILES {
-                            return Err(limit(
-                                "Native image preparation supports at most 16 distinct source profiles",
-                            ));
+                            return Err(limit(&format!(
+                                "Native image preparation supports at most {MAX_SOURCE_PROFILES} distinct source profiles"
+                            )));
                         }
                         result
                             .converters

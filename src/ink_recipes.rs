@@ -133,7 +133,9 @@ pub fn combine<'a>(
 impl Recipe {
     pub fn validate(&self, document: &Document) -> Result<(), Error> {
         if self.inks.is_empty() || self.inks.len() > MAX_INKS {
-            return Err(limit("An ink recipe requires 1..=8 independent named inks"));
+            return Err(limit(&format!(
+                "An ink recipe requires 1..={MAX_INKS} independent named inks"
+            )));
         }
         let mut ids = HashSet::new();
         for ink in &self.inks {
@@ -148,7 +150,10 @@ impl Recipe {
             {
                 return Err(Error::new(
                     "INVALID_DOCUMENT",
-                    "Recipe ink IDs must be unique and portable; names must contain 1..256 valid UTF-8 bytes",
+                    format!(
+                        "Recipe ink IDs must be unique and portable; names must contain 1..{} valid UTF-8 bytes",
+                        crate::limits::ink_recipes::MAX_NAME_BYTES
+                    ),
                 ));
             }
             crate::channels::get(document, &ink.channel)?;
@@ -167,7 +172,9 @@ impl Recipe {
             {
                 return Err(Error::new(
                     "INVALID_DOCUMENT",
-                    "Ink curves need 2..64 finite normalized knots with increasing inputs and endpoints 0 and 1",
+                    format!(
+                        "Ink curves need 2..{MAX_KNOTS} finite normalized knots with increasing inputs and endpoints 0 and 1"
+                    ),
                 ));
             }
         }

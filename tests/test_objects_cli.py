@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 import test_images_cli as images
 import test_samples_cli as samples
@@ -125,6 +126,19 @@ class ObjectTests(unittest.TestCase):
         result = self.edit(d, [op, dict(op='remove', id='missing')], 1)
         self.assertEqual(result['operation_index'], 1); self.assertEqual(d, before)
 
+    def test_retained_extent_admission_and_diagnostic_match_discovery(self):
+        minimum = capabilities()['objects']['minimum_extent']
+        obj = self.object(self.source()); document = self.placed(obj)
+        for axis in ('width', 'height'):
+            for factor, expected in ((1, 0), (.5, 1)):
+                candidate = copy.deepcopy(document)
+                candidate['items'][0]['content']['object'][axis] = minimum*factor
+                response = self.invoke(dict(command='document.validate', document=candidate), expected)
+                if expected:
+                    self.assertEqual(response['code'], 'INVALID_OBJECT')
+                    self.assertIn(f'{minimum:g}', response['message'])
+        self.assertEqual(document, self.placed(obj))
+
     def test_hash_tampering_strict_json_dimensions_and_mode_errors(self):
         obj = self.object(self.source())
         for bad in [dict(obj, sha256='0'*64), dict(obj, snapshot=obj['snapshot']+' '), dict(obj, width=0), dict(obj, surface_scale=5)]:
@@ -136,10 +150,10 @@ class ObjectTests(unittest.TestCase):
 
     def test_nested_sources_are_retained_with_bounded_depth_and_evaluation_count(self):
         source = self.source()
-        for _ in range(4): source = self.placed(self.object(source))
+        for _ in range(capabilities()['objects']['max_nesting']): source = self.placed(self.object(source))
         self.assertEqual(self.pixels(source), bytes([23, 71, 149, 255])*4)
         self.assertEqual(self.invoke(dict(command='object.import', snapshot=json.dumps(source)), 1)['code'], 'RESOURCE_LIMIT')
-        obj = self.object(self.source()); d = self.doc([dict(id='o'+str(i), content=dict(type='object', object=obj)) for i in range(33)])
+        obj = self.object(self.source()); d = self.doc([dict(id='o'+str(i), content=dict(type='object', object=obj)) for i in range(capabilities()['objects']['max_rendered_objects']+1)])
         self.assertEqual(self.invoke(dict(command='document.render', document=d), 1)['code'], 'RESOURCE_LIMIT')
 
     def test_nested_metadata_privacy_strips_private_records_and_detaches_links(self):
