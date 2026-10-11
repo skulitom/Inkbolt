@@ -781,6 +781,7 @@ pub fn validate_controlled(
                     ));
                 }
                 crate::boards::validate(frame)?;
+                crate::boards::validate_item(document, item)?;
                 guides += frame.guides.len();
                 boards += usize::from(frame.role == crate::boards::Role::Artboard);
                 if guides > crate::boards::MAX_GUIDES || boards > crate::boards::MAX_ARTBOARDS {

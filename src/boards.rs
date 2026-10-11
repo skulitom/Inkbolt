@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::HashSet, path::Path};
+mod scene_view;
 pub const MAX_ARTBOARDS: usize = 32;
 pub const MAX_GUIDES: usize = 512;
 pub const MAX_FRAME_GUIDES: usize = 64;
@@ -18,6 +19,18 @@ pub enum Role {
     #[default]
     Frame,
     Artboard,
+}
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Scope {
+    #[default]
+    Subtree,
+    Scene,
+}
+impl Scope {
+    fn is_subtree(&self) -> bool {
+        *self == Self::Subtree
+    }
 }
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(default, deny_unknown_fields)]
@@ -37,6 +50,9 @@ pub struct Guide {
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Frame {
+    /// Subtree owns artwork; scene selects a view of the shared vector layer tree.
+    #[serde(default, skip_serializing_if = "Scope::is_subtree")]
+    pub scope: Scope,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logical_size: Option<Point>,
     #[serde(default)]
@@ -73,6 +89,11 @@ impl Frame {
     }
 }
 pub fn validate(frame: &Frame) -> Result<(), Error> {
+    if frame.scope == Scope::Scene && (frame.role != Role::Artboard || frame.background.is_some()) {
+        return Err(invalid(
+            "Scene scope requires an artboard without a background",
+        ));
+    }
     if let Some(size) = frame.logical_size {
         let canvas = crate::vector_canvas::Canvas {
             origin_px: [0.0; 2],
@@ -120,6 +141,22 @@ pub fn validate(frame: &Frame) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+pub(crate) use scene_view::validate_item;
+fn members(document: &Document, i: usize) -> Result<HashSet<usize>, Error> {
+    let mut members = if scene_view::is_view(&document.items[i]) {
+        document
+            .items
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| !scene_view::is_view(item))
+            .map(|(i, _)| i)
+            .collect()
+    } else {
+        scene::subtree(document, i).into_iter().collect()
+    };
+    crate::artwork_masks::include_sources(document, &mut members)?;
+    Ok(members)
 }
 pub fn order(document: &Document) -> Vec<usize> {
     fn visit(document: &Document, parent: Option<&str>, out: &mut Vec<usize>) {
@@ -267,7 +304,7 @@ fn dimensions(frame: &Frame, pad: Insets) -> Result<[u32; 2], Error> {
     }
     Ok([width, height])
 }
-/// An isolated local-coordinate subtree. Only a clone is shifted; the source is immutable.
+/// A local-coordinate subtree or shared-scene view. The source stays immutable.
 pub fn standalone(document: &Document, id: &str, include_bleed: bool) -> Result<Document, Error> {
     crate::validate(document)?;
     let i = scene::index(document, id)?;
@@ -285,8 +322,10 @@ pub fn standalone(document: &Document, id: &str, include_bleed: bool) -> Result<
     }
     let pad = padding(frame, include_bleed);
     let [width, height] = dimensions(frame, pad)?;
-    let mut members: HashSet<_> = scene::subtree(document, i).into_iter().collect();
-    crate::artwork_masks::include_sources(document, &mut members)?;
+    if frame.scope == Scope::Scene {
+        return scene_view::standalone(document, i, frame, pad, [width, height]);
+    }
+    let members = members(document, i)?;
     let mut result = document.clone();
     if result.background.as_ref().is_some_and(|b| b.item_id != id) {
         result.background = None;
@@ -499,8 +538,7 @@ pub fn export_controlled(
         let scale = plan.as_ref().map_or(options.scale, |p| p.internal_scale);
         let [width, height] = plan.as_ref().map_or([width, height], |p| p.evaluation);
         let area = width as u64 * height as u64 * scale as u64 * scale as u64;
-        let mut members: HashSet<_> = scene::subtree(document, i).into_iter().collect();
-        crate::artwork_masks::include_sources(document, &mut members)?;
+        let members = members(document, i)?;
         let stroke_view = standalone(document, &item.id, options.include_bleed)
             .map_err(|e| e.at_artboard(&item.id))?;
         if matches!(
@@ -640,6 +678,9 @@ pub fn export_controlled(
             }
         }
     }
+    let has_scene = chosen
+        .iter()
+        .any(|&i| scene_view::is_view(&document.items[i]));
     let mut artifacts = Vec::new();
     let mut bytes = 0;
     for i in chosen {
@@ -696,10 +737,10 @@ pub fn export_controlled(
                     .at_artboard(&item.id),
             );
         }
-        artifacts.push(json!({"id":item.id,"name":item.name,"logical_size":crate::vector_canvas::logical_size(&standalone),"scale":options.scale,"source_bounds":[-(pad.left as f64),-(pad.top as f64),frame.size()[0]+pad.right as f64,frame.size()[1]+pad.bottom as f64],"trim_box":[pad.left as f64,pad.top as f64,pad.left as f64+frame.size()[0],pad.top as f64+frame.size()[1]],"artifact":artifact}));
+        artifacts.push(json!({"id":item.id,"name":item.name,"scope":frame.scope,"logical_size":crate::vector_canvas::logical_size(&standalone),"scale":options.scale,"source_bounds":[-(pad.left as f64),-(pad.top as f64),frame.size()[0]+pad.right as f64,frame.size()[1]+pad.bottom as f64],"trim_box":[pad.left as f64,pad.top as f64,pad.left as f64+frame.size()[0],pad.top as f64+frame.size()[1]],"artifact":artifact}));
     }
     control.check()?;
     Ok(
-        json!({"document_id":document.id,"revision":document.revision,"scope":"artboard_subtree_local","include_bleed":options.include_bleed,"coordinate_contract":"Each selected artboard exports its owned subtree in local coordinates. Its placement transform and all ancestor transforms, visibility, clipping and effects are excluded. Its own visibility, opacity, blending, explicit clip and opacity mask remain. Owned unlinked masks convert into the board export coordinate system. Guides do not render. Background extends into requested bleed.","artifacts":artifacts}),
+        json!({"document_id":document.id,"revision":document.revision,"scope":if has_scene {"artboard_per_item_local"} else {"artboard_subtree_local"},"include_bleed":options.include_bleed,"coordinate_contract":if has_scene {"Each artifact declares its scope. Scene artboards select a translated viewport of the shared vector artwork, preserving layer hierarchy, visibility, locks and compositing. They own no artwork and all scene artboard markers are omitted from output. Subtree artboards export only their owned children and own appearance, excluding ancestor context. Both scopes use local coordinates, rebase unlinked masks, retain off-board source artwork, omit guides and include only requested bleed. Viewport filters evaluate in each output viewport."} else {"Each selected artboard exports its owned subtree in local coordinates. Its placement transform and all ancestor transforms, visibility, clipping and effects are excluded. Its own visibility, opacity, blending, explicit clip and opacity mask remain. Owned unlinked masks convert into the board export coordinate system. Guides do not render. Background extends into requested bleed."},"artifacts":artifacts}),
     )
 }

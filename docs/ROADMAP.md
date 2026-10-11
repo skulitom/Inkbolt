@@ -1,5 +1,12 @@
 # Roadmap and verified scope
 
+Shared scene artboards now retain one editable vector layer tree across multiple
+views, with independent placement, bleed, saved history and image/SVG/PDF
+delivery. Existing owned-subtree artboards retain their behavior. This removes a
+model limitation for native interchange; native editable stream import/delivery
+and both original interchange checkpoints remain open. See
+[scene artboards](SCENE_ARTBOARDS.md).
+
 Shared point placement now bounds arithmetic after matrix construction, recovering
 small residuals from cancelling products without changing source coordinates.
 Independent rational placement, visible geometry and 5,000-object checks cover

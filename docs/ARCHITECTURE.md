@@ -1,5 +1,12 @@
 # Architecture
 
+Artboards can select an owned subtree or a shared vector scene. Scene scope is a
+nonpainting root viewport with translation-only placement and no children. The
+shared standalone path translates a temporary scene copy, rebases world masks
+and removes viewport markers; source layers and identities are never split among
+views. Range accounting includes all shared artwork per view. See
+[scene artboards](SCENE_ARTBOARDS.md).
+
 `geometry::point` keeps ordinary small point products and certifies larger
 expressions using recovered product/addition residuals. Uncertain final rounding
 or overflowing intermediates use exact rational evaluation. Each finite input

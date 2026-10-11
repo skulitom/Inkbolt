@@ -15,13 +15,13 @@ The example uses an existing workspace session; provide the reference's explicit
 | `canvas` | None | Complete ordinary rendered canvas, including explicit uncropped render padding |
 | `region` | `bounds:[min_x,min_y,max_x,max_y]` | Document-world rectangle cropped from the complete composition |
 | `items` | Nonempty unique `ids`, optional nonnegative `margin` | Union of selected unclipped world geometry, expanded by the margin; text uses its frame |
-| `artboard` | `id`, optional `include_bleed` | Existing standalone artboard export, including owned content in local coordinates |
+| `artboard` | `id`, optional `include_bleed` | Standalone owned subtree or shared scene viewport in local coordinates, selected by `frame.scope` |
 
 Item focus includes hidden items in its geometric bounds and excludes strokes/effects. Margin is explicit; no heuristic claims to find every painted pixel. Other artwork within the region stays visible. Bounds must be finite, within document coordinate limits, and have positive area. Empty geometric selections return `EMPTY_PREVIEW`; add a margin for a zero-height/width path or supply a region. A region with no rendered intersection returns `FOCUS_OUTSIDE_CANVAS`. Unknown/duplicate IDs and unsupported semantics fail explicitly.
 
 Region and item views crop completed full-scene pixels outward to the original output grid, then clip to the rendered extent. This preserves filters, backgrounds, masks and canvas-relative operators. Full render pixel/work limits and evaluation cost still apply; a tiny crop does not enable an otherwise oversized render. The PNG uses the existing RGBA8 view, source-depth/ink losses, output-profile conversion and exact embedded ICC profile. Source precision and editable controls remain intact.
 
-Artboard views use the existing standalone export contract: owned subtree only, excluding placement and all ancestor appearance, while retaining the artboard's own appearance. Asymmetric bleed, fractional logical sizes, masks and retained content share the ordinary exporter. Ancestor transforms still participate in the map back to document-world coordinates. Artboard export now carries the active cancellation context into preparation loops and rendering.
+Artboard views use the standalone export contract. Default subtree scope excludes placement and ancestor appearance, retaining the artboard's own appearance. Explicit [scene scope](SCENE_ARTBOARDS.md) selects a translated viewport of the shared layer tree. Asymmetric bleed, fractional logical sizes, masks and retained content share the ordinary exporter. Placement still participates in the map back to document-world coordinates. Artboard export carries the active cancellation context into preparation loops and rendering.
 
 ## Reading coordinates and identity
 

@@ -23,8 +23,10 @@ Omit `pdf_options` to export the canvas as one page. To export artboards as page
 Use these fields with a document export request, or inside publication `output`.
 `all` follows hierarchy order; `range` uses zero-based, end-exclusive indices;
 `ids` retains explicit order and rejects missing or duplicate artboards. A selected
-artboard exports its owned subtree in local coordinates, independent of its
-placement on the canvas. Bleed extends that viewport using the saved per-edge
+artboard defaults to its owned subtree in local coordinates, independent of its
+placement on the canvas. A vector artboard with `frame.scope:"scene"` instead
+selects the shared artwork through its translated viewport; see
+[scene artboards](SCENE_ARTBOARDS.md). Bleed extends that viewport using the saved per-edge
 insets. Publication's existing `artboard_id` and `include_bleed` can select a single
 page instead; combining `artboard_id` with `pdf_options` is an error.
 
@@ -63,8 +65,9 @@ antialiasing and image reconstruction may differ from engine previews. Exact
 consumer pixels and print-profile fidelity are not promised. Non-normal blending, knockout, effects, filters, dissolve, pixel warps, layer
 clipping, active opacity/artwork masks, adjustment layers, ordered dither and
 other paint/sampling semantics return explicit errors. Hidden referenced fonts
-and resources are still validated. Unsupported items outside selected artboards
-do not enter the selected export view.
+and resources are still validated. Unsupported items outside selected owned
+subtrees do not enter those exports. A scene view prepares all shared artwork,
+including off-view resources and unsupported items.
 
 ## Calibrated page colour
 

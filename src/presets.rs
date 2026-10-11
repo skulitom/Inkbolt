@@ -264,6 +264,7 @@ pub fn create(id: String, version: u32, spec: Spec, control: &Control) -> Result
         }
     };
     let frame = boards::Frame {
+        scope: boards::Scope::Subtree,
         role: boards::Role::Artboard,
         width: document.width,
         height: document.height,
