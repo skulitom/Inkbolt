@@ -338,13 +338,13 @@ pub(super) fn evaluate(
     }
     let mut base = lines(inputs, budget)?;
     base.append(&mut arcs);
-    let (prepared, algebraic) = algebraic::prepare(base, budget)?;
+    let (prepared, algebraic, quadratic_directions) = algebraic::prepare(base, budget)?;
     arcs = prepared;
     let mut refinements = 0;
     let mut aligned_splits = 0;
     loop {
         let before = arcs.len();
-        arcs = algebraic::synchronize(arcs, budget)?;
+        arcs = algebraic::synchronize(arcs, &quadratic_directions, budget)?;
         aligned_splits += arcs.len() - before;
         if arcs.len() > MAX_EDGES {
             return Err(limit(

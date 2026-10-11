@@ -1,5 +1,12 @@
 # Roadmap and verified scope
 
+Certified curve combinations now locate rational contacts between general cubic
+pairs, align shared quadratic projections, and preserve non-dyadic nodes and
+cusps. Independent filled-region and area checks cover all four combinations,
+source subdivision, reversal and affine placement. Irrational fixed contacts
+and broader deformation certificates remain open; the advanced boolean
+checkpoint stays in progress and the registry remains 161/167.
+
 Native text import requirements now accept explicit content-pinned font choices
 and verify their retained licenses and exact face names. Global story references
 take precedence over stale local font caches. This completes the font-selection

@@ -1,5 +1,7 @@
 //! Exact rational contact discovery and synchronization before topology certificates.
 use super::*;
+mod resultant;
+mod roots;
 
 type Poly = Vec<R>;
 fn trim(mut p: Poly) -> Poly {
@@ -19,6 +21,8 @@ fn derivative(p: &[R]) -> Poly {
         .collect()
 }
 fn remainder(mut a: Poly, b: &[R], budget: &mut Budget) -> Result<Poly, Error> {
+    roots::bounded(&a)?;
+    roots::bounded(b)?;
     while !a.is_empty() && a.len() >= b.len() {
         budget.spend(b.len())?;
         let offset = a.len() - b.len();
@@ -27,6 +31,7 @@ fn remainder(mut a: Poly, b: &[R], budget: &mut Budget) -> Result<Poly, Error> {
             a[offset + i] -= v * &scale;
         }
         a = trim(a);
+        roots::bounded(&a)?;
     }
     Ok(a)
 }
@@ -39,6 +44,8 @@ fn monic(mut p: Poly) -> Poly {
     p
 }
 fn gcd(a: Poly, b: Poly, budget: &mut Budget) -> Result<Poly, Error> {
+    roots::bounded(&a)?;
+    roots::bounded(&b)?;
     let (mut a, mut b) = (monic(trim(a)), monic(trim(b)));
     while !b.is_empty() {
         let next = monic(remainder(a, &b, budget)?);
@@ -59,12 +66,12 @@ fn square_root(v: &R) -> Option<R> {
         None
     }
 }
-// These are verified rational roots, not an assertion that irrational roots are absent.
-// A repeated root of a rational cubic is rational; its gcd with the derivative
-// has degree one, or degree two for a triple root.
+// Low-degree roots have direct exact formulas; higher degrees use bounded
+// rational reconstruction in [0,1]. Missing roots never imply disjoint curves.
 fn rational_roots(p: &[R], budget: &mut Budget) -> Result<Vec<R>, Error> {
     budget.spend(32)?;
     let p = trim(p.to_vec());
+    roots::bounded(&p)?;
     let mut out = Vec::new();
     match p.len() {
         2 => out.push(-&p[0] / &p[1]),
@@ -74,12 +81,7 @@ fn rational_roots(p: &[R], budget: &mut Budget) -> Result<Vec<R>, Error> {
                 out.push((-&p[1] + d) / (n(2) * &p[2]));
             }
         }
-        4 => {
-            let g = gcd(p.clone(), derivative(&p), budget)?;
-            if g.len() > 1 {
-                out.extend(rational_roots(&g, budget)?);
-            }
-        }
+        4.. => out.extend(roots::in_unit_interval(&p, budget)?),
         _ => {}
     }
     out.sort();
@@ -140,6 +142,61 @@ fn compose(p: &[R], a: &R, b: &R) -> Poly {
     }
     trim(out)
 }
+// A shared quadratic coordinate can have different parameter origins, scales
+// or traversal directions. Match complete coefficients, never sampled values.
+fn quadratic_coordinate(
+    a: &Cubic,
+    b: &Cubic,
+    known: &[P],
+    budget: &mut Budget,
+) -> Result<Option<(P, R, R)>, Error> {
+    let ap = curves::coefficients(a);
+    let bp = curves::coefficients(b);
+    if !cross(&ap[3], &bp[3]).is_zero() {
+        return Ok(None);
+    }
+    let mut directions = vec![[n(1), n(0)], [n(0), n(1)]];
+    directions.extend_from_slice(known);
+    for p in [&ap[3], &bp[3]] {
+        if *p != [n(0), n(0)] {
+            directions.push([-p[1].clone(), p[0].clone()]);
+        }
+    }
+    for a in endpoints(a) {
+        for b in endpoints(b) {
+            let p = sub(a, b);
+            if p != [n(0), n(0)] {
+                directions.push([-p[1].clone(), p[0].clone()]);
+            }
+        }
+    }
+    for direction in directions {
+        budget.spend(32)?;
+        let av = trim(ap.iter().map(|p| dot(p, &direction)).collect());
+        let bv = trim(bp.iter().map(|p| dot(p, &direction)).collect());
+        roots::bounded(&av)?;
+        roots::bounded(&bv)?;
+        if av.len() != 3 || bv.len() != 3 {
+            continue;
+        }
+        let Some(scale) = square_root(&(&av[2] / &bv[2])) else {
+            continue;
+        };
+        for scale in [scale.clone(), -scale] {
+            let offset = (&av[1] / &scale - &bv[1]) / (n(2) * &bv[2]);
+            let end = &offset + &scale;
+            let composed = compose(&bv, &offset, &scale);
+            roots::bounded(&composed)?;
+            if offset.clone().max(end.clone()) >= n(0)
+                && offset.clone().min(end) <= n(1)
+                && composed == av
+            {
+                return Ok(Some((direction, offset, scale)));
+            }
+        }
+    }
+    Ok(None)
+}
 fn graph_contacts(
     a: &Cubic,
     b: &Cubic,
@@ -150,10 +207,22 @@ fn graph_contacts(
     let bp = curves::coefficients(b);
     let offset = (dot(&ap[0], direction) - dot(&bp[0], direction)) / dot(&bp[1], direction);
     let scale = dot(&ap[1], direction) / dot(&bp[1], direction);
+    coordinate_contacts(a, b, direction, &offset, &scale, budget)
+}
+fn coordinate_contacts(
+    a: &Cubic,
+    b: &Cubic,
+    direction: &P,
+    offset: &R,
+    scale: &R,
+    budget: &mut Budget,
+) -> Result<Vec<(R, R)>, Error> {
+    let ap = curves::coefficients(a);
+    let bp = curves::coefficients(b);
     let normal = [-direction[1].clone(), direction[0].clone()];
     let av: Poly = ap.iter().map(|p| dot(p, &normal)).collect();
     let bv: Poly = bp.iter().map(|p| dot(p, &normal)).collect();
-    let mut difference = compose(&bv, &offset, &scale);
+    let mut difference = compose(&bv, offset, scale);
     difference.resize(4, n(0));
     for (v, a) in difference.iter_mut().zip(av) {
         *v -= a;
@@ -161,7 +230,7 @@ fn graph_contacts(
     Ok(rational_roots(&difference, budget)?
         .into_iter()
         .map(|t| {
-            let u = &offset + &scale * &t;
+            let u = offset + scale * &t;
             (t, u)
         })
         .collect())
@@ -198,9 +267,46 @@ fn apply(arcs: Vec<Arc>, cuts: Vec<BTreeSet<R>>) -> Result<Vec<Arc>, Error> {
     }
     Ok(out)
 }
-pub(super) fn prepare(arcs: Vec<Arc>, budget: &mut Budget) -> Result<(Vec<Arc>, Value), Error> {
+pub(super) fn prepare(
+    arcs: Vec<Arc>,
+    budget: &mut Budget,
+) -> Result<(Vec<Arc>, Value, Vec<P>), Error> {
     let mut cuts = vec![BTreeSet::from([n(0), n(1)]); arcs.len()];
     let mut points = BTreeSet::new();
+    let mut self_points = BTreeSet::new();
+    let mut stationary_points = BTreeSet::new();
+    let mut quadratic_directions = BTreeSet::new();
+    for (i, arc) in arcs.iter().enumerate().filter(|(_, a)| a.curved) {
+        budget.spend(32)?;
+        let p = curves::coefficients(&arc.c);
+        let x: Poly = p.iter().map(|v| v[0].clone()).collect();
+        let y: Poly = p.iter().map(|v| v[1].clone()).collect();
+        for t in rational_roots(&gcd(derivative(&x), derivative(&y), budget)?, budget)? {
+            if t > n(0) && t < n(1) {
+                stationary_points.insert(at(&arc.c, &t));
+                cuts[i].insert(t);
+            }
+        }
+        // P(t)-P(u)=(t-u)[p1+p2(t+u)+p3((t+u)^2-tu)].
+        // The two vector equations determine the sum and product exactly.
+        let determinant = cross(&p[2], &p[3]);
+        if !determinant.is_zero() {
+            let sum = -cross(&p[1], &p[3]) / &determinant;
+            let product = &sum * &sum - cross(&p[1], &p[2]) / determinant;
+            let roots = rational_roots(&[product, -sum, n(1)], budget)?;
+            if roots.len() == 2
+                && roots.iter().all(unit)
+                && at(&arc.c, &roots[0]) == at(&arc.c, &roots[1])
+            {
+                if roots.iter().any(|t| *t > n(0) && *t < n(1)) {
+                    self_points.insert(at(&arc.c, &roots[0]));
+                }
+                cuts[i].extend(roots);
+            }
+        }
+    }
+    points.extend(self_points.iter().cloned());
+    points.extend(stationary_points.iter().cloned());
     for i in 0..arcs.len() {
         for j in i + 1..arcs.len() {
             let a = &arcs[i];
@@ -235,6 +341,18 @@ pub(super) fn prepare(arcs: Vec<Arc>, budget: &mut Budget) -> Result<(Vec<Arc>, 
                 }
             } else if let Some(direction) = linear_coordinate(&a.c, &b.c) {
                 candidates.extend(graph_contacts(&a.c, &b.c, &direction, budget)?);
+            } else {
+                if let Some((direction, _, _)) = quadratic_coordinate(&a.c, &b.c, &[], budget)? {
+                    let axis = usize::from(direction[0].is_zero());
+                    let scale = direction[axis].clone();
+                    quadratic_directions.insert(direction.map(|v| v / &scale));
+                    if quadratic_directions.len() > MAX_EDGES {
+                        return Err(limit(
+                            "Quadratic contact synchronization exceeds 512 projections",
+                        ));
+                    }
+                }
+                candidates.extend(resultant::contacts(&a.c, &b.c, budget)?);
             }
             for (t, u) in candidates {
                 if unit(&t) && unit(&u) && at(&a.c, &t) == at(&b.c, &u) {
@@ -250,10 +368,15 @@ pub(super) fn prepare(arcs: Vec<Arc>, budget: &mut Budget) -> Result<(Vec<Arc>, 
     let split_count: usize = cuts.iter().map(|c| c.len() - 2).sum();
     Ok((
         apply(arcs, cuts)?,
-        json!({"method":"exact_polynomial_gcd_and_verified_rational_roots","contact_points":points.len(),"parameter_splits":split_count}),
+        json!({"method":"exact_resultants_gcd_and_verified_rational_roots","contact_points":points.len(),"self_contact_points":self_points.len(),"stationary_points":stationary_points.len(),"parameter_splits":split_count,"root_isolation_maximum_depth":roots::MAX_ROOT_DEPTH,"coefficient_maximum_bits":roots::MAX_COEFFICIENT_BITS,"all_algebraic_contacts_located":false}),
+        quadratic_directions.into_iter().collect(),
     ))
 }
-pub(super) fn synchronize(arcs: Vec<Arc>, budget: &mut Budget) -> Result<Vec<Arc>, Error> {
+pub(super) fn synchronize(
+    arcs: Vec<Arc>,
+    quadratic_directions: &[P],
+    budget: &mut Budget,
+) -> Result<Vec<Arc>, Error> {
     let mut cuts = vec![BTreeSet::from([n(0), n(1)]); arcs.len()];
     for i in 0..arcs.len() {
         for j in i + 1..arcs.len() {
@@ -275,6 +398,20 @@ pub(super) fn synchronize(arcs: Vec<Arc>, budget: &mut Budget) -> Result<Vec<Arc
                         }
                     }
                 }
+            } else if let Some((_, offset, scale)) =
+                quadratic_coordinate(&a.c, &b.c, quadratic_directions, budget)?
+            {
+                budget.spend(64)?;
+                for t in [n(0), n(1)] {
+                    let u = &offset + &scale * &t;
+                    if unit(&u) {
+                        cuts[j].insert(u);
+                    }
+                    let u = (&t - &offset) / &scale;
+                    if unit(&u) {
+                        cuts[i].insert(u);
+                    }
+                }
             }
         }
     }
@@ -284,6 +421,17 @@ pub(super) fn synchronize(arcs: Vec<Arc>, budget: &mut Budget) -> Result<Vec<Arc
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn low_degree_root_entry_has_the_same_coefficient_limit() {
+        let huge = R::from_integer(n(1).numer() << 4097usize);
+        let mut budget = Budget::default();
+        for p in [vec![-n(1), huge.clone()], vec![-n(1), n(0), huge]] {
+            assert_eq!(
+                rational_roots(&p, &mut budget).unwrap_err().code,
+                "RESOURCE_LIMIT"
+            );
+        }
+    }
     #[test]
     fn repeated_and_rational_quadratic_roots_are_exact() {
         let mut b = Budget::default();
