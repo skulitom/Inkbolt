@@ -1,0 +1,194 @@
+name: Publish to MCP Registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish, in the form vX.Y.Z'
+        required: true
+        type: string
+      metadata_only:
+        description: "Publish this tag's server.json without its bundle. That version can never get its bundle afterwards."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-registry-publish
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.repository == 'skulitom/Inkbolt'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      ref: ${{ steps.plan.outputs.ref }}
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - name: Decide what to publish
+        id: plan
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+          METADATA_ONLY: ${{ inputs.metadata_only }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+          [[ "$INPUT_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'Release tag must have the form vX.Y.Z.'
+          tag=$INPUT_TAG
+          version=${tag#v}
+          release=$(gh release view "$tag" -R "$GITHUB_REPOSITORY" --json assets,tagName) || fail "No GitHub release for $tag."
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" > /dev/null || fail "No git tag $tag."
+          action=none
+          reason='already published; skipped'
+          finish() {
+            {
+              echo "action=$action"
+              echo "ref=refs/tags/$tag"
+              echo "tag=$tag"
+              echo "version=$version"
+            } >> "$GITHUB_OUTPUT"
+            printf '%s: io.github.skulitom/inkbolt %s. %s\n' "$action" "$version" "$reason" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
+          versions_url='https://registry.modelcontextprotocol.io/v0.1/servers/io.github.skulitom%2Finkbolt/versions'
+          response=$(mktemp)
+          trap 'rm -f "$response"' EXIT
+          cursor=''
+          while :; do
+            status=$(curl -sS --max-time 30 --retry 3 --retry-all-errors --get --data-urlencode "cursor=$cursor" -o "$response" -w '%{http_code}' "$versions_url")
+            case "$status" in
+              200)
+                if jq -e --arg version "$version" '.servers | any(.server.version == $version)' "$response" > /dev/null; then finish; fi
+                next=$(jq -r '.metadata.nextCursor // empty' "$response")
+                [[ -n "$next" ]] || break
+                [[ "$next" != "$cursor" ]] || fail 'Registry pagination did not advance.'
+                cursor=$next
+                ;;
+              404) break ;;
+              *) fail "Registry versions request failed (HTTP $status)." ;;
+            esac
+          done
+          if jq -e '.assets | any(.name == "inkbolt-windows-x64.mcpb")' <<< "$release" > /dev/null; then
+            action=mcpb
+            reason='release bundle selected; its attestation will be verified before publication'
+          elif [[ "$METADATA_ONLY" == true ]]; then
+            action=metadata
+            reason='WARNING: metadata-only publication permanently prevents this version from getting its bundle.'
+          else
+            fail 'attach the bundle (mcpb/PUBLISHING.md) or use metadata_only'
+          fi
+          finish
+
+  publish:
+    needs: plan
+    if: github.repository == 'skulitom/Inkbolt' && needs.plan.outputs.action != 'none'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # GitHub OIDC; no registry account or stored secret.
+      attestations: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.plan.outputs.ref }}
+          persist-credentials: false
+      # Older tags can use the publishing helpers from the commit that supplied this workflow.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: artifacts/registry-workflow
+          sparse-checkout: mcpb
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Check versions and prepare entry
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENTRY_TYPE: ${{ needs.plan.outputs.action }}
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p mcpb artifacts/registry
+          cp artifacts/registry-workflow/mcpb/build.mjs mcpb/build.mjs
+          cp artifacts/registry-workflow/mcpb/zip.mjs mcpb/zip.mjs
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { cargoVersion } from './mcpb/build.mjs';
+          const server = JSON.parse(readFileSync('server.json'));
+          if (await cargoVersion() !== process.env.VERSION || process.env.RELEASE_TAG !== `v${process.env.VERSION}`) {
+            throw new Error('Cargo.toml must match the planned release version.');
+          }
+          if (server.name !== 'io.github.skulitom/inkbolt' || Object.hasOwn(server, 'packages')) {
+            throw new Error('Expected metadata-only server.json for io.github.skulitom/inkbolt.');
+          }
+          NODE
+          if [[ "$ENTRY_TYPE" == mcpb ]]; then
+            bundle=artifacts/registry/inkbolt-windows-x64.mcpb
+            gh release download "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" -p inkbolt-windows-x64.mcpb -D artifacts/registry
+            gh attestation verify "$bundle" --repo skulitom/Inkbolt --signer-workflow skulitom/Inkbolt/.github/workflows/release.yml
+            node mcpb/build.mjs --registry-entry --tag "$RELEASE_TAG" --bundle "$bundle" --out artifacts/registry/server.registry.json
+          else
+            node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const server = JSON.parse(readFileSync('server.json'));
+          server.version = process.env.VERSION;
+          writeFileSync('artifacts/registry/server.registry.json', JSON.stringify(server, null, 2) + '\n', { flag: 'wx' });
+          NODE
+          fi
+      - name: Validate, publish and verify registry entry
+        shell: bash
+        env:
+          ENTRY_TYPE: ${{ needs.plan.outputs.action }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+          cd artifacts/registry
+          curl -fLSs --max-time 120 --retry 3 --retry-all-errors -o publisher.tar.gz \
+            https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz
+          echo 'a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc  publisher.tar.gz' | sha256sum --check --strict
+          tar -xzf publisher.tar.gz mcp-publisher
+          chmod +x mcp-publisher
+          ./mcp-publisher validate server.registry.json
+          version_url="https://registry.modelcontextprotocol.io/v0.1/servers/io.github.skulitom%2Finkbolt/versions/$VERSION"
+          get_version() {
+            status=$(curl -sS --max-time 30 --retry 3 --retry-all-errors -o published.json -w '%{http_code}' "$version_url")
+            [[ "$status" == 200 || "$status" == 404 ]] || fail "Registry version request failed (HTTP $status)."
+          }
+          summary() {
+            printf '%s: io.github.skulitom/inkbolt %s (%s). Registry URL: %s\n' "$1" "$VERSION" "$ENTRY_TYPE" "$version_url" >> "$GITHUB_STEP_SUMMARY"
+          }
+          verify_published() {
+            jq -e --arg version "$VERSION" '.server.name == "io.github.skulitom/inkbolt" and .server.version == $version' published.json > /dev/null || fail 'Published identity does not match the entry.'
+            if [[ "$ENTRY_TYPE" == mcpb ]]; then
+              expected=$(jq -er '.packages[0].fileSha256' server.registry.json)
+              actual=$(jq -er '.server.packages[0].fileSha256' published.json)
+              [[ "$actual" == "$expected" ]] || fail 'Published MCPB SHA-256 does not match the entry.'
+            fi
+          }
+          get_version
+          if [[ "$status" == 200 ]]; then summary 'Already published; skipped'; exit 0; fi
+          ./mcp-publisher login github-oidc
+          if ! ./mcp-publisher publish server.registry.json; then
+            get_version
+            [[ "$status" == 200 ]] || fail 'MCP Registry publication failed.'
+            verify_published
+            summary 'Already published concurrently; skipped'
+            exit 0
+          fi
+          get_version
+          [[ "$status" == 200 ]] || fail 'Published version could not be read back.'
+          verify_published
+          summary 'Published and verified'

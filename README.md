@@ -33,6 +33,23 @@ Send one JSON request on stdin, or pass one request file. Discover one operation
 
 Success is `{"ok":true,"result":...}` with exit code 0; failure is `{"ok":false,"error":{"code":"...","message":"..."}}` with exit code 1. `capabilities` reports detailed limits; `schema` retains the complete request schema; `implementation.status` returns the checkpoint registry.
 
+## Use with Claude Code, Codex and Claude Desktop
+
+Download the Windows x64 archive from [Releases](https://github.com/skulitom/Inkbolt/releases), compare its `Get-FileHash -Algorithm SHA256` value with `SHA256SUMS`, and extract it to `C:\Tools\Inkbolt`. Create your workspace folder first.
+
+Claude Code:
+```powershell
+claude mcp add inkbolt -- C:\Tools\Inkbolt\inkbolt.exe --workspace C:\Work\Graphics mcp --tools core
+```
+Codex (`~/.codex/config.toml`):
+```toml
+[mcp_servers.inkbolt]
+command = 'C:\Tools\Inkbolt\inkbolt.exe'
+args = ['--workspace', 'C:\Work\Graphics', 'mcp', '--tools', 'core']
+```
+Claude Desktop: install `inkbolt-windows-x64.mcpb` from the release through Settings > Extensions > Install from file, then pick an existing workspace.
+Maintainers: see [Publishing](mcpb/PUBLISHING.md).
+
 ## Editing workflow
 
 [Versioned presets](docs/PRESETS.md) create editable screen/social artwork and
