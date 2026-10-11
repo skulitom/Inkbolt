@@ -61,6 +61,10 @@ the source:
   180 s budget), `--only`, `--rust` and `--last-failed`. Before any milestone or
   feature claim, run `python tools/verify.py --thorough`. Before every commit,
   run `python tools/check_repo.py` and `--staged`. Never disable the guard or the hook.
+  Quick scheduling uses saved durations to start long checks early and leave
+  known overruns pending before launch, preserving time for checks that fit.
+  Failed/pending results never become passes; focused feedback and fresh thorough
+  milestone acceptance retain their separate scopes.
 - **Dependencies.** Lock exact versions in `Cargo.toml`/`Cargo.lock` and record
   each one in `docs/DEPENDENCIES.md` and `THIRD_PARTY_NOTICES.md`.
 - **Fixtures are original and synthetic.** Never commit downloaded icon sets,

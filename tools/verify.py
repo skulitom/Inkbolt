@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -135,13 +136,37 @@ def select(args, modules, history):
     return names
 
 
+def positive_seconds(value):
+    return value if type(value) in (int, float) and math.isfinite(value) and value > 0 else None
+
+
+def duration_hint(row):
+    """A completed duration or a retained lower bound, never a fast failure."""
+    hint = positive_seconds(row.get('duration_hint_seconds'))
+    if hint is None and row.get('status') in ('passed', 'deferred'):
+        hint = positive_seconds(row.get('seconds'))
+    return hint
+
+
+def retain_duration(row, previous):
+    """Pending/failing results must not erase the last useful timing evidence."""
+    hint = duration_hint(previous)
+    measured = positive_seconds(row.get('seconds'))
+    if row['status'] == 'passed' and measured is not None:
+        hint = measured
+    elif row['status'] == 'deferred' and measured is not None:
+        hint = max(hint or 0, measured)
+    if hint is not None:
+        row['duration_hint_seconds'] = hint
+
+
 def schedule(names, worker, jobs, deadline, previous, changed):
-    """Longest known checks first; failures and edited fixtures have priority."""
+    """Start long checks early; don't spend a quick window on a known overrun."""
     def priority(name):
         old = previous.get(name, {})
         direct = name.startswith('test_') and f'tests/{name}.py' in changed
-        seconds = old.get('seconds', 90 if name == 'rust' or name == 'test_jobs' else 5)
-        return (old.get('status') != 'failed', not direct, -seconds, name)
+        seconds = duration_hint(old) or (90 if name == 'rust' or name.startswith('rust:') or name == 'test_jobs' else 5)
+        return (-seconds, old.get('status') != 'failed', not direct, name)
     pending = sorted(names, key=priority)
     result = {}
     with ThreadPoolExecutor(max_workers=jobs) as pool:
@@ -149,8 +174,16 @@ def schedule(names, worker, jobs, deadline, previous, changed):
         while pending or running:
             while pending and len(running) < jobs:
                 name = pending.pop(0)
-                if deadline is not None and time.monotonic() >= deadline:
-                    result[name] = dict(status='deferred', seconds=0, exit_code=None)
+                remaining = None if deadline is None else deadline - time.monotonic()
+                estimate = duration_hint(previous.get(name, {}))
+                if remaining is not None and remaining <= 0:
+                    result[name] = dict(status='deferred', seconds=0, exit_code=None,
+                                        reason='Quick budget exhausted before launch')
+                elif remaining is not None and estimate is not None and estimate * 1.1 > remaining:
+                    result[name] = dict(status='deferred', seconds=0, exit_code=None,
+                                        reason='Saved duration plus 10% reserve exceeds remaining quick budget',
+                                        duration_hint_seconds=estimate, remaining_seconds=max(0, remaining))
+                    print(f'{name}: pending without launch (estimated {estimate:.1f}s; {remaining:.1f}s left)', flush=True)
                 else:
                     running[pool.submit(worker, name)] = name
             if running:
@@ -284,7 +317,9 @@ def verify(args, state, started, deadline):
             if reused_count:
                 print(f'Reusing {reused_count} checks with identical passing inputs.', flush=True)
             work -= rows.keys()
-        rows.update(schedule(work, worker, args.jobs, deadline, history, changed))
+        # Explicit force permits a new timing measurement, still under the hard
+        # quick deadline. Thorough mode has no deadline and never defers by hint.
+        rows.update(schedule(work, worker, args.jobs, deadline, {} if args.force else history, changed))
         # Job containment has stopped this run's workers; remove only our copy.
         try:
             engine_copy.unlink()
@@ -294,6 +329,9 @@ def verify(args, state, started, deadline):
             retained_engine = str(engine_copy)
     for name in selected - rows.keys():
         rows[name] = dict(status='deferred', seconds=0, reason='Prerequisite did not pass')
+    for name, row in rows.items():
+        if row['status'] != 'reused':
+            retain_duration(row, history.get(name, {}))
     stable = snapshot(ROOT) == baseline and file_hash(EXE) == binary and environment_identity(ROOT) == environment
     failures = sorted(n for n, row in rows.items() if row['status'] == 'failed')
     deferred = sorted(n for n, row in rows.items() if row['status'] == 'deferred')
