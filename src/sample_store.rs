@@ -30,6 +30,7 @@ pub const MAX_REGION_PIXELS: u64 = 65_536;
 const HEADER_BYTES: usize = 20;
 const MAGIC: &[u8; 8] = b"INKTILE1";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+pub(crate) mod scatter;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]

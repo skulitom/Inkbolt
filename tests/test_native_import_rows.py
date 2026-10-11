@@ -1,4 +1,4 @@
-"""Independent native-block bytes for row-decoded PNG and buffered fallbacks."""
+"""Independent native-block bytes for row/pass-decoded PNG and native TIFF."""
 from contextlib import closing
 import hashlib
 import struct
@@ -95,14 +95,14 @@ class NativeImportRowTests(unittest.TestCase):
                 self.assertEqual(result['normalization']['decode_storage'], 'rows_to_native_blocks')
                 self.check_blocks(result, w, h, depth, n, expected)
 
-    def test_interlaced_and_inline_fallbacks_and_tiff_keep_identical_sample_meaning(self):
+    def test_interlaced_and_inline_png_and_tiff_keep_identical_sample_meaning(self):
         w, h = 129, 131
         for depth, n in ((8, 2), (16, 4)):
             values = [(i*7919) % (1 << depth) for i in range(w*h*n)]
             row_result = self.imported(png(w, h, values, n=n, depth=depth))
             expected = self.check_blocks(row_result, w, h, depth, n, values)
             interlaced = self.imported(png(w, h, values, n=n, depth=depth, interlaced=True))
-            self.assertEqual(interlaced['normalization']['decode_storage'], 'complete_decoded_frame')
+            self.assertEqual(interlaced['normalization']['decode_storage'], 'adam7_passes_to_native_blocks')
             self.assertEqual(self.check_blocks(interlaced, w, h, depth, n, values), expected)
             buffered = self.imported(tiff(w, h, values, n=n, depth=f'u{depth}'), color_policy='assume_srgb')
             self.assertEqual(buffered['normalization']['decode_storage'], 'chunk_bands_to_native_blocks')

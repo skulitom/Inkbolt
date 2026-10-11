@@ -13,6 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use tiff::tags::Tag;
+mod png_passes;
 mod tiff_rows;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -88,6 +89,7 @@ fn png(
             bytes: decoder_limit(max_pixels),
         },
     );
+    decoder.ignore_checksums(false);
     decoder.set_ignore_text_chunk(true);
     decoder.set_transformations(png::Transformations::EXPAND);
     let mut reader = decoder.read_info().map_err(|_| malformed())?;
@@ -124,8 +126,8 @@ fn png(
             "Native image channels exceed the 64 MiB decoded byte budget",
         ));
     }
-    let rows = native_store && !reader.info().interlaced;
-    let pixels = if rows {
+    let interlaced = reader.info().interlaced;
+    let pixels = if native_store {
         let spec = crate::sample_store::Spec {
             width,
             height,
@@ -133,15 +135,18 @@ fn png(
             channels,
             encoding: crate::hdr::Encoding::EncodedSrgb,
         };
-        let candidate =
+        let candidate = if interlaced {
+            png_passes::decode(&mut reader, spec, n, control)?
+        } else {
             crate::sample_store::Candidate::from_rows(spec, control, |_, destination| {
                 let row = reader
                     .next_row()
                     .map_err(|_| malformed())?
                     .ok_or_else(malformed)?;
                 normalize_png(row.data(), destination, depth, n)
-            })?;
-        if reader.next_row().map_err(|_| malformed())?.is_some() {
+            })?
+        };
+        if !interlaced && reader.next_row().map_err(|_| malformed())?.is_some() {
             return Err(malformed());
         }
         DecodedPixels::Tiles(candidate)
@@ -164,7 +169,7 @@ fn png(
             pixels,
         },
         interpretation,
-        json!({"input_depth":input_depth,"input_color":input_color,"decode_storage":if rows {"rows_to_native_blocks"} else {"complete_decoded_frame"},"normalization":"big_endian_to_little_endian;palette_and_low_bits_expanded;missing_alpha_opaque"}),
+        json!({"input_depth":input_depth,"input_color":input_color,"decode_storage":if !native_store {"complete_decoded_frame"} else if interlaced {"adam7_passes_to_native_blocks"} else {"rows_to_native_blocks"},"normalization":"big_endian_to_little_endian;palette_and_low_bits_expanded;missing_alpha_opaque"}),
     ))
 }
 fn normalize_png(

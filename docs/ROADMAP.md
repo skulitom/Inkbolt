@@ -1,5 +1,13 @@
 # Roadmap and verified scope
 
+Native PNG import now decodes Adam7 pass rows directly into final block buffers.
+Exact coverage checks preserve every sample across all seven passes, with no
+separate complete decoded or normalized frame. PNG sample imports also require
+the zlib checksum before publication. Independent filtered-stream fixtures cover
+all channel/depth combinations, transparency, empty passes and late failures.
+Encoded input and unfinished blocks remain resident; broader A5 scale acceptance
+and all six original unfinished checkpoints remain open.
+
 Curve combinations now preserve rational crossing points whose positions along
 the source cubic are quadratic irrationals. Exact controls and comparisons across
 two quadratic fields retain small loops, shared junctions and source geometry;
