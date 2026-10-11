@@ -1,5 +1,7 @@
 # Render quality and effect bounds
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 HDR working-space rendering and explicit views follow [HDR.md](HDR.md). Linear radiance is averaged before tone mapping.
 
 Explicit-depth TIFF output uses the same completed f64 samples before projecting to 8-bit, 16-bit or binary32 output. Ordinary PNG/JPEG/previews and TIFF without depth/channel options retain their RGBA8 behavior. See [SAMPLES.md](SAMPLES.md); output-profile conversion remains unavailable on the explicit-depth path.

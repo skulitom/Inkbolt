@@ -3,9 +3,9 @@ use crate::{Error, geometry, model::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_COMMANDS: usize = 1024;
-pub const MAX_LEAVES: usize = 32768;
-pub const MAX_DOCUMENT_LEAVES: usize = 65536;
+pub use crate::limits::path_text::MAX_COMMANDS;
+pub use crate::limits::path_text::MAX_DOCUMENT_LEAVES;
+pub use crate::limits::path_text::MAX_LEAVES;
 fn tolerance() -> f64 {
     0.001
 }

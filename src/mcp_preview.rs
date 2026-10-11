@@ -3,8 +3,8 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
-pub const MAX_IMAGES: usize = 4;
-pub const MAX_IMAGE_BASE64_BYTES: usize = 8 * 1024 * 1024;
+pub use crate::limits::mcp_preview::MAX_IMAGE_BASE64_BYTES;
+pub use crate::limits::mcp_preview::MAX_IMAGES;
 
 fn array_paths(result: &Value, key: &str, suffix: &str, paths: &mut Vec<String>) {
     if let Some(entries) = result[key].as_array() {

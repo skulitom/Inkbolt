@@ -11,8 +11,8 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 pub mod device;
 
-pub const MAX_SWATCHES: usize = 256;
-pub const MAX_DEPTH: usize = 8;
+pub use crate::limits::swatches::MAX_DEPTH;
+pub use crate::limits::swatches::MAX_SWATCHES;
 fn one() -> f64 {
     1.0
 }

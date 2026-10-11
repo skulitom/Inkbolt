@@ -3,9 +3,9 @@ use crate::{Error, model::*, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_OPERATORS: usize = 16;
-pub const MAX_DOCUMENT_OPERATORS: usize = 256;
-pub const MAX_CURVE_POINTS: usize = 64;
+pub use crate::limits::adjustments::MAX_CURVE_POINTS;
+pub use crate::limits::adjustments::MAX_DOCUMENT_OPERATORS;
+pub use crate::limits::adjustments::MAX_OPERATORS;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Channel {

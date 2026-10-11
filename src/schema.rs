@@ -3,7 +3,7 @@ use crate::{Error, Request};
 use serde_json::{Map, Value, json};
 use std::{collections::BTreeSet, sync::OnceLock};
 
-pub const OUTLINE_BYTES: usize = 12 * 1024;
+pub use crate::limits::schema::OUTLINE_BYTES;
 const TYPES: &[(&str, &str)] = &[
     ("document", "Document"),
     ("operation", "Operation"),

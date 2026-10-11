@@ -4,10 +4,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub const MAX_FEATHER: u32 = 32;
-pub const MAX_PREPARED_PIXELS: u64 = 262_144;
-pub const MAX_DOCUMENT_PIXELS: u64 = 1_048_576;
-pub const MAX_FEATHER_WORK: u64 = 67_108_864;
+pub use crate::limits::masks::MAX_DOCUMENT_PIXELS;
+pub use crate::limits::masks::MAX_FEATHER;
+pub use crate::limits::masks::MAX_FEATHER_WORK;
+pub use crate::limits::masks::MAX_PREPARED_PIXELS;
 fn yes() -> bool {
     true
 }

@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{io::Cursor, path::Path};
 
-pub const MAX_VIEWS: usize = 16;
-pub const MAX_PIXELS: u64 = 4_194_304;
+pub use crate::limits::contact_sheets::MAX_PIXELS;
+pub use crate::limits::contact_sheets::MAX_VIEWS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]

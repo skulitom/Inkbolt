@@ -1,4 +1,9 @@
 //! Explicit pinned local font resources and their retained license text.
+pub use crate::limits::fonts::MAX_AXES;
+pub use crate::limits::fonts::MAX_FEATURES;
+pub use crate::limits::fonts::MAX_FONT_BYTES;
+pub use crate::limits::fonts::MAX_FONTS;
+pub use crate::limits::fonts::MAX_LICENSE_BYTES;
 use crate::{
     Error, assets,
     model::{invalid, limit},
@@ -12,11 +17,6 @@ use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
-pub const MAX_FONT_BYTES: u64 = 8 * 1024 * 1024;
-pub const MAX_FONTS: usize = 8;
-pub const MAX_LICENSE_BYTES: u64 = 65536;
-pub const MAX_AXES: usize = 16;
-pub const MAX_FEATURES: usize = 64;
 pub type Coordinates = BTreeMap<String, f64>;
 static TEMP: AtomicU64 = AtomicU64::new(0);
 

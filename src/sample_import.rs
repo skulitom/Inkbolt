@@ -25,12 +25,12 @@ pub enum Policy {
     AssumeLinearSrgb,
 }
 
-pub const MAX_NATIVE_DECODED_BYTES: usize = 64 * 1024 * 1024;
+pub use crate::limits::sample_import::MAX_NATIVE_DECODED_BYTES;
 fn decoder_limit(max_pixels: usize) -> usize {
     if max_pixels > MAX_STORED_PIXELS {
         MAX_NATIVE_DECODED_BYTES
     } else {
-        16 * 1024 * 1024
+        crate::limits::sample_import::MAX_INLINE_DECODER_BYTES
     }
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
@@ -122,9 +122,10 @@ fn png(
     };
     let native_size = width as usize * height as usize * channels.count() * depth.bytes();
     if native_size > MAX_NATIVE_DECODED_BYTES {
-        return Err(limit(
-            "Native image channels exceed the 64 MiB decoded byte budget",
-        ));
+        return Err(limit(&format!(
+            "Native image channels exceed the {} MiB decoded byte budget",
+            MAX_NATIVE_DECODED_BYTES / (1024 * 1024)
+        )));
     }
     let interlaced = reader.info().interlaced;
     let pixels = if native_store {
@@ -320,9 +321,10 @@ fn tiff(
     let count = w as usize * h as usize;
     let unit = depth.bytes();
     if count * channels.count() * unit > MAX_NATIVE_DECODED_BYTES {
-        return Err(limit(
-            "Native image channels exceed the 64 MiB decoded byte budget",
-        ));
+        return Err(limit(&format!(
+            "Native image channels exceed the {} MiB decoded byte budget",
+            MAX_NATIVE_DECODED_BYTES / (1024 * 1024)
+        )));
     }
     if let Some(encoding) = native_encoding {
         let spec = crate::sample_store::Spec {
@@ -366,8 +368,11 @@ fn tiff(
             .checked_mul(ch as u64)
             .and_then(|v| v.checked_mul(tiles as u64))
             .ok_or_else(|| limit("Sample TIFF padded tile work exceeds limit"))?;
-        if padded > 64 * 1024 * 1024 {
-            return Err(limit("Sample TIFF padded tile work exceeds 64 MiB"));
+        if padded > crate::limits::sample_import::MAX_TIFF_PADDED_BYTES {
+            return Err(limit(&format!(
+                "Sample TIFF padded tile work exceeds {} MiB",
+                crate::limits::sample_import::MAX_TIFF_PADDED_BYTES / (1024 * 1024)
+            )));
         }
         let stride = stride as usize;
         let mut tile = tiff::decoder::DecodingResult::U8(Vec::new());

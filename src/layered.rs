@@ -24,6 +24,9 @@ mod text_story;
 mod text_style;
 mod text_write;
 mod write;
+pub use crate::limits::layered::MAX_CANVAS_PIXELS;
+pub use crate::limits::layered::MAX_DECODED_BYTES;
+pub use crate::limits::layered::MAX_FILE_BYTES;
 use crate::{Document, Error, assets, control::Control, model::*};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use schemars::JsonSchema;
@@ -31,9 +34,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
 pub use text_fonts::{TextFontBinding, TextFonts, TextImportReconstruction, TextImportRendering};
-pub const MAX_FILE_BYTES: usize = 32 * 1024 * 1024;
-pub const MAX_DECODED_BYTES: usize = 8 * 1024 * 1024;
-pub const MAX_CANVAS_PIXELS: usize = 1_048_576;
 
 /// Explicit conversion of native embedded placements to retained engine objects.
 /// Reconstruction and source sharing can differ from the originating consumer.
@@ -113,7 +113,7 @@ impl Version {
     }
     pub fn maximum_dimension(self) -> u32 {
         match self {
-            Self::Standard => 30000,
+            Self::Standard => crate::limits::layered::MAX_STANDARD_DIMENSION,
             Self::Large => MAX_DIMENSION,
         }
     }

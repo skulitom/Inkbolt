@@ -54,6 +54,10 @@ Snapshot edits and ordinary exports return data. `document.publish` and `session
 
 ## Current boundaries
 
+The generated [resource limit reference](docs/LIMITS.md) indexes the centralized
+budgets used by validation, rendering, storage and jobs. Consolidation of remaining
+inline bounds is in progress; the current numeric limits are unchanged.
+
 [Native vector import](docs/NATIVE_VECTOR_IMPORT.md) supports an admitted subset
 of flat layers, closed RGB paths and shared artboards, with explicit color
 interpretation and loss reporting. [Editable native delivery](docs/NATIVE_VECTOR_DELIVERY.md)

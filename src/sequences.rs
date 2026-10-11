@@ -9,9 +9,9 @@ use std::{collections::HashSet, io::Write};
 
 mod import;
 pub use crate::image_io::gif::Background as GifBackground;
+pub use crate::limits::sequences::MAX_FRAMES;
+pub use crate::limits::sequences::MAX_PIXELS;
 pub use import::{CompositingSpace, Source, import};
-pub const MAX_FRAMES: usize = 256;
-pub const MAX_PIXELS: u64 = 16_777_216;
 pub const LOSS: &str = "Animation frames retain order, delay fractions and play count, but are flattened RGBA8 views. Keep the snapshot and resource stores for editable layers, text, variants and sequence controls. Transparent display colors may normalize to zero. A retained separate poster is not exported; the first animation frame is the default image.";
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::HashSet, io::Cursor};
 
-pub const MAX_PIXELS: u64 = render::MAX_RENDER_PIXELS;
+pub use crate::limits::visual_diff::MAX_PIXELS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]

@@ -23,9 +23,9 @@ mod windows;
 #[cfg(windows)]
 pub use windows::{FileLease, PendingRunner, Runner};
 
-pub const MAX_EXECUTABLE_BYTES: u64 = 512 * 1024 * 1024;
-pub const MAX_LIFETIME_MS: u64 = 3_600_000;
-pub const MAX_MEMORY_MIB: u32 = 2048;
+pub use crate::limits::job_process::MAX_EXECUTABLE_BYTES;
+pub use crate::limits::job_process::MAX_LIFETIME_MS;
+pub use crate::limits::job_process::MAX_MEMORY_MIB;
 const START_BYTE: u8 = 0xa7;
 pub(crate) fn release_start(mut output: impl std::io::Write) -> Result<(), Error> {
     output.write_all(&[START_BYTE]).map_err(|_| {
@@ -41,10 +41,13 @@ fn failure(code: &'static str, message: &str) -> Error {
 }
 fn path(path: &Path) -> Result<(), Error> {
     assets::absolute(path)?;
-    if path.as_os_str().len() > 4096 {
+    if path.as_os_str().len() > crate::limits::jobs::MAX_WORKER_PATH_LENGTH {
         return Err(failure(
             "INVALID_PATH",
-            "Worker path exceeds 4096 characters",
+            &format!(
+                "Worker path exceeds {} characters",
+                crate::limits::jobs::MAX_WORKER_PATH_LENGTH
+            ),
         ));
     }
     Ok(())
@@ -122,7 +125,10 @@ fn open_executable(path: &Path) -> Result<File, Error> {
     {
         return Err(failure(
             "JOB_EXECUTABLE_IDENTITY",
-            "Worker executable must be a nonempty regular file within 512 MiB",
+            &format!(
+                "Worker executable must be a nonempty regular file within {} MiB",
+                MAX_EXECUTABLE_BYTES / (1024 * 1024)
+            ),
         ));
     }
     Ok(file)
@@ -143,7 +149,10 @@ fn digest(file: &mut File, control: &Control) -> Result<(u64, String), Error> {
         if count > MAX_EXECUTABLE_BYTES {
             return Err(failure(
                 "RESOURCE_LIMIT",
-                "Worker executable exceeds 512 MiB",
+                &format!(
+                    "Worker executable exceeds {} MiB",
+                    MAX_EXECUTABLE_BYTES / (1024 * 1024)
+                ),
             ));
         }
         hash.update(&buffer[..size]);
@@ -162,8 +171,8 @@ pub struct Limits {
 impl Default for Limits {
     fn default() -> Self {
         Self {
-            lifetime_ms: 300_000,
-            memory_mib: 512,
+            lifetime_ms: crate::limits::job_process::DEFAULT_LIFETIME_MS,
+            memory_mib: crate::limits::job_process::DEFAULT_MEMORY_MIB,
         }
     }
 }
@@ -171,11 +180,17 @@ impl Limits {
     fn validate(self) -> Result<(), Error> {
         if self.lifetime_ms == 0
             || self.lifetime_ms > MAX_LIFETIME_MS
-            || !(64..=MAX_MEMORY_MIB).contains(&self.memory_mib)
+            || !(crate::limits::job_process::MIN_MEMORY_MIB..=MAX_MEMORY_MIB)
+                .contains(&self.memory_mib)
         {
             return Err(failure(
                 "INVALID_REQUEST",
-                "Worker limits require 1..3600000 ms and 64..2048 MiB committed memory",
+                &format!(
+                    "Worker limits require 1..{} ms and {}..{} MiB committed memory",
+                    MAX_LIFETIME_MS,
+                    crate::limits::job_process::MIN_MEMORY_MIB,
+                    MAX_MEMORY_MIB
+                ),
             ));
         }
         Ok(())

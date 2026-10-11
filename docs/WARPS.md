@@ -1,5 +1,7 @@
 # Retained vector deformation
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `content.type:"warp"` stores original geometry, fill/stroke, fill rule, an ordered
 `maps` array and a local error `tolerance`. Agents can update the whole spec with
 the `warp` edit and inspect source/control positions before producing ordinary

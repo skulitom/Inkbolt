@@ -1,5 +1,7 @@
 # Explicit RGB color profiles
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 For explicit CMYK page output, use [PRINT_CMYK.md](PRINT_CMYK.md). Its supplied four-channel printing profile is separate from document RGB output association.
 
 Inkbolt defaults to encoded sRGB and also supports an explicit linear working space. At image boundaries, agents can convert profiled RGB input into encoded working values and associate an output profile with a document. This association changes delivery settings; it does not reinterpret or rewrite existing artwork values. Retained source-profile assignment/conversion, all four intents and native 8/16/float inputs are described in [SAMPLE_PROFILES.md](SAMPLE_PROFILES.md), including the version 0.73 builtin white-point correction. Document working-space changes, CMYK/Lab/grayscale device paints, proofing and supplied gamut diagnostics have explicit separate contracts in [DEVICE_COLOR.md](DEVICE_COLOR.md) and [PRINT_PROOF.md](PRINT_PROOF.md).

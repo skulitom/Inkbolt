@@ -143,16 +143,16 @@ pub(crate) fn validate_geometry(g: &Geometry) -> Result<usize, Error> {
     if let Geometry::Path { commands } = g
         && commands.len() > MAX_SEGMENTS
     {
-        return Err(limit("Path exceeds 4096 commands"));
+        return Err(limit(&format!("Path exceeds {MAX_SEGMENTS} commands")));
     }
     if control_points(g)
         .iter()
         .flatten()
         .any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE)
     {
-        return Err(invalid(
-            "Geometry coordinates must be finite and within +/-32768",
-        ));
+        return Err(invalid(&format!(
+            "Geometry coordinates must be finite and within +/-{MAX_COORDINATE}"
+        )));
     }
     match g {
         Geometry::Rect { width, height, .. }

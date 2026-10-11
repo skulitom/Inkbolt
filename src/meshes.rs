@@ -8,12 +8,12 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-pub const MAX_AXIS: usize = 8;
-pub const MAX_SAMPLES: usize = 1024;
+pub use crate::limits::meshes::MAX_AXIS;
+pub use crate::limits::meshes::MAX_SAMPLES;
 pub const INVERSE_STEPS: usize = 128;
-pub const MAX_CONTRACTION: f64 = 0.75;
-pub const MAX_TEXTURE_PIXELS: usize = 65536;
-pub const MAX_SVG_TEXTURE_PIXELS: usize = 131072;
+pub use crate::limits::meshes::MAX_CONTRACTION;
+pub use crate::limits::meshes::MAX_SVG_TEXTURE_PIXELS;
+pub use crate::limits::meshes::MAX_TEXTURE_PIXELS;
 fn texture_samples() -> u32 {
     16
 }

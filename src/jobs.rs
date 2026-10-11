@@ -6,6 +6,7 @@ pub use listing::{ListOptions, list};
 mod tests;
 #[cfg(windows)]
 mod worker;
+use crate::limits::{job_process as runner_bounds, jobs as bounds};
 use crate::{
     Document, Error, assets, control::Control, job_process, model, publications, publish,
     sessions::Resources,
@@ -19,14 +20,14 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
-pub const MAX_JOBS: usize = 128;
-pub const MAX_ACTIVE: usize = 32;
-pub const MAX_ATTEMPTS: u32 = 8;
-pub const MAX_INPUT_BYTES: usize = 16 * 1024 * 1024;
-pub const MAX_STATE_BYTES: usize = publications::MAX_RECEIPT_BYTES + 65536;
-pub const MAX_STORE_BYTES: usize = 256 * 1024 * 1024;
+pub use crate::limits::jobs::MAX_ACTIVE;
+pub use crate::limits::jobs::MAX_ATTEMPTS;
+pub use crate::limits::jobs::MAX_INPUT_BYTES;
+pub use crate::limits::jobs::MAX_JOBS;
+pub use crate::limits::jobs::MAX_STATE_BYTES;
+pub use crate::limits::jobs::MAX_STORE_BYTES;
 pub fn capabilities() -> Value {
-    let mut value = json!({"commands":["job.start","job.status","job.list","job.result","job.wait","job.cancel","job.resume"],"supported_here":cfg!(windows),"storage_version":1,"queue":"local_SQLite_FULL_rollback;checksummed_immutable_inputs_and_state","active_jobs":MAX_ACTIVE,"maximum_jobs":MAX_JOBS,"workers_per_root":1,"attempts":MAX_ATTEMPTS,"maximum_input_bytes":MAX_INPUT_BYTES,"maximum_state_bytes":MAX_STATE_BYTES,"maximum_reserved_store_bytes":MAX_STORE_BYTES,"maximum_database_bytes":512*1024*1024,"maximum_wait_ms":30000,"cancel_grace_ms":2000,"inputs":"submitted_document_revision;content_addressed_resources_and_font_licenses;exact_worker_executable_per_root","resources_copied":false,"resource_validation":"submission_and_before_new_encoding;prepared_outputs_resume_from_verified_bytes","progress":["queued","starting","validating_resources","rendering_and_encoding","staging","publishing","completed","cancelled","failed","interrupted"],"publication":"create_only_with_durable_receipt;job_transaction_serializes_cancel_with_link_and_result","inspection":"never_starts_worker_or_publishes_absent_output;may_reconcile_saved_outcome","recovery":"explicit_job.resume;no_automatic_retries;completed_and_cancelled_are_terminal","result":"job.status_compact_output_summary;job.result_full_historical_receipt","memory_measure":"OS_peak_committed_bytes_for_observed_runner_exits","platform":"Windows_trusted_local_filesystem","listener":false,"telemetry":false,"power_loss_guarantee":false});
+    let mut value = json!({"commands":["job.start","job.status","job.list","job.result","job.wait","job.cancel","job.resume"],"supported_here":cfg!(windows),"storage_version":1,"queue":"local_SQLite_FULL_rollback;checksummed_immutable_inputs_and_state","active_jobs":MAX_ACTIVE,"maximum_jobs":MAX_JOBS,"workers_per_root":1,"attempts":MAX_ATTEMPTS,"maximum_input_bytes":MAX_INPUT_BYTES,"maximum_state_bytes":MAX_STATE_BYTES,"maximum_reserved_store_bytes":MAX_STORE_BYTES,"maximum_database_bytes":crate::limits::jobs_store::DATABASE_BYTES,"maximum_wait_ms":bounds::MAX_WAIT_MS,"cancel_grace_ms":bounds::CANCEL_GRACE_MS,"inputs":"submitted_document_revision;content_addressed_resources_and_font_licenses;exact_worker_executable_per_root","resources_copied":false,"resource_validation":"submission_and_before_new_encoding;prepared_outputs_resume_from_verified_bytes","progress":["queued","starting","validating_resources","rendering_and_encoding","staging","publishing","completed","cancelled","failed","interrupted"],"publication":"create_only_with_durable_receipt;job_transaction_serializes_cancel_with_link_and_result","inspection":"never_starts_worker_or_publishes_absent_output;may_reconcile_saved_outcome","recovery":"explicit_job.resume;no_automatic_retries;completed_and_cancelled_are_terminal","result":"job.status_compact_output_summary;job.result_full_historical_receipt","memory_measure":"OS_peak_committed_bytes_for_observed_runner_exits","platform":"Windows_trusted_local_filesystem","listener":false,"telemetry":false,"power_loss_guarantee":false});
     value["listing"] = json!({"command":"job.list","default_records":8,"maximum_records":listing::MAX_PAGE_RECORDS,"maximum_result_bytes":listing::MAX_PAGE_BYTES,"order":"admission","cursor":"root_build_and_initial_input_membership_bound;limit_preserved","later_submissions":"excluded_until_fresh_listing","progress":"saved_values_at_each_page_read;use_job.status_to_reconcile","resource_files_reopened":false,"starts_workers":false,"publishes_outputs":false});
     value
 }
@@ -55,8 +56,11 @@ fn now() -> u64 {
 }
 fn checked_root(root: &Path, control: &Control) -> Result<(), Error> {
     assets::absolute(root)?;
-    if root.as_os_str().len() > 4000 {
-        return Err(err("INVALID_PATH", "Job root exceeds 4000 characters"));
+    if root.as_os_str().len() > bounds::MAX_ROOT_LENGTH {
+        return Err(err(
+            "INVALID_PATH",
+            &format!("Job root exceeds {} characters", bounds::MAX_ROOT_LENGTH),
+        ));
     }
     control.check_path(root)?;
     if !cfg!(windows) {
@@ -97,8 +101,8 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            lifetime_ms: 300000,
-            memory_mib: 512,
+            lifetime_ms: runner_bounds::DEFAULT_LIFETIME_MS,
+            memory_mib: runner_bounds::DEFAULT_MEMORY_MIB,
             worker_executable: None,
         }
     }
@@ -107,16 +111,22 @@ impl Options {
     fn validate(&self) -> Result<(), Error> {
         if self.lifetime_ms == 0
             || self.lifetime_ms > job_process::MAX_LIFETIME_MS
-            || !(64..=job_process::MAX_MEMORY_MIB).contains(&self.memory_mib)
+            || !(runner_bounds::MIN_MEMORY_MIB..=job_process::MAX_MEMORY_MIB)
+                .contains(&self.memory_mib)
         {
             return Err(err(
                 "INVALID_REQUEST",
-                "Job limits require 1..3600000 ms and 64..2048 MiB committed memory",
+                &format!(
+                    "Job limits require 1..{} ms and {}..{} MiB committed memory",
+                    job_process::MAX_LIFETIME_MS,
+                    runner_bounds::MIN_MEMORY_MIB,
+                    job_process::MAX_MEMORY_MIB
+                ),
             ));
         }
         if let Some(path) = &self.worker_executable {
             assets::absolute(path)?;
-            if path.as_os_str().len() > 4096 {
+            if path.as_os_str().len() > bounds::MAX_WORKER_PATH_LENGTH {
                 return Err(err("INVALID_PATH", "Worker executable path is too long"));
             }
         }
@@ -272,10 +282,13 @@ fn verify_resources(
     visited: &mut usize,
 ) -> Result<(), Error> {
     *visited += 1;
-    if *visited > 512 {
+    if *visited > bounds::MAX_RESOURCE_DOCUMENTS {
         return Err(err(
             "JOB_LIMIT",
-            "Job nested resource verification exceeds 512 documents",
+            &format!(
+                "Job nested resource verification exceeds {} documents",
+                bounds::MAX_RESOURCE_DOCUMENTS
+            ),
         ));
     }
     control.check_resource_paths(resources)?;
@@ -463,8 +476,11 @@ pub fn result(root: &Path, id: &str, control: &Control) -> Result<Value, Error> 
     })
 }
 pub fn wait(root: &Path, id: &str, wait_ms: u64, control: &Control) -> Result<Value, Error> {
-    if wait_ms > 30000 {
-        return Err(err("INVALID_REQUEST", "Job wait is bounded to 30000 ms"));
+    if wait_ms > bounds::MAX_WAIT_MS {
+        return Err(err(
+            "INVALID_REQUEST",
+            &format!("Job wait is bounded to {} ms", bounds::MAX_WAIT_MS),
+        ));
     }
     let until = Instant::now() + Duration::from_millis(wait_ms);
     loop {

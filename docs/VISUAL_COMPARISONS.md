@@ -1,5 +1,7 @@
 # Visual revision comparisons
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `document.diff.preview` compares `before` and `after` snapshots of the same document ID and kind. Each input may be inline, an exact saved revision or a hash-pinned snapshot file. `before_resources` and `after_resources` independently inherit saved bindings or accept explicit roots. Workspace defaults and containment follow the ordinary request contract.
 
 `session.diff.preview` accepts `session_root`, `session_id`, `from_revision`, `to_revision`, optional `options` and `control`. Workspace sessions can omit the root. Both immutable revisions and their saved resources are captured in one read-only transaction, released before rendering. `observed_current_revision` is separate from the compared revisions. Neither command changes documents, history, request receipts, sources or output files.

@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
-pub const MAX_INKS: usize = 8;
-pub const MAX_KNOTS: usize = 64;
-pub const MAX_WORK: u64 = 67_108_864;
+pub use crate::limits::ink_recipes::MAX_INKS;
+pub use crate::limits::ink_recipes::MAX_KNOTS;
+pub use crate::limits::ink_recipes::MAX_WORK;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -320,10 +320,13 @@ pub fn prepare<'a>(
             "Explicit named-ink delivery requires a retained ink_recipe",
         )
     })?;
-    if !(1..=4).contains(&scale) {
+    if !(1..=crate::limits::render_quality::MAX_SCALE).contains(&scale) {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Ink separation scale must be in 1..=4",
+            format!(
+                "Ink separation scale must be in 1..={}",
+                crate::limits::render_quality::MAX_SCALE
+            ),
         ));
     }
     let [width, height] =

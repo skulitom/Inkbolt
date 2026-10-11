@@ -1,5 +1,7 @@
 # Combined ink delivery and gamut diagnostics
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Agents can deliver calibrated process artwork together with independent named spot or duotone plates, inspect reference proofs and query a supplied profile's gamut table. All work stays local. The engine preserves editable sources and never sends a print job.
 
 ## Process plus named plates

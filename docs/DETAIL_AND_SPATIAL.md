@@ -1,5 +1,7 @@
 # Detail and spatial filters
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 These operators use the editable [filter stack](FILTERS.md), with its masks, opacity, blending, border rules, viewport evaluation, preserved sources and undo history. Wrap detail controls as `{"type":"detail","operator":{...}}` and spatial controls as `{"type":"spatial","operator":{...}}`. They work in both document kinds on drawable items and isolated containers. Backdrop adjustment items, pass-through groups, high-depth inputs and SVG filter interchange remain explicitly unsupported.
 
 ```json

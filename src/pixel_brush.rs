@@ -8,11 +8,11 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
-pub const MAX_POINTS: usize = 1024;
-pub const MAX_DABS: usize = 8192;
-pub const MAX_WORK: u64 = 67_108_864;
-pub const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
-pub const MAX_TEXTURE_PIXELS: usize = 4096;
+pub use crate::limits::pixel_brush::MAX_DABS;
+pub use crate::limits::pixel_brush::MAX_MEMORY_BYTES;
+pub use crate::limits::pixel_brush::MAX_POINTS;
+pub use crate::limits::pixel_brush::MAX_TEXTURE_PIXELS;
+pub use crate::limits::pixel_brush::MAX_WORK;
 pub const COVERAGE_TOLERANCE: f64 = 0.0000001;
 const ALGORITHM: &str = "inkbolt-pixel-brush-v1";
 fn one() -> f64 {
@@ -156,7 +156,9 @@ fn validate_stroke(s: &Stroke) -> Result<(), Error> {
     if let Some(t) = &s.texture {
         let n = t.width as u64 * t.height as u64;
         if t.width == 0 || t.height == 0 || n > MAX_TEXTURE_PIXELS as u64 {
-            return Err(limit("Brush texture requires 1..4096 grayscale pixels"));
+            return Err(limit(&format!(
+                "Brush texture requires 1..{MAX_TEXTURE_PIXELS} grayscale pixels"
+            )));
         }
         if t.gray_hex.len() != n as usize * 2
             || !t.gray_hex.bytes().all(|v| v.is_ascii_hexdigit())
@@ -292,7 +294,9 @@ impl Work<'_> {
         let old = self.count;
         self.count = self.count.saturating_add(n);
         if self.count > MAX_WORK {
-            return Err(limit("Brush evaluation exceeds 67108864 work units"));
+            return Err(limit(&format!(
+                "Brush evaluation exceeds {MAX_WORK} work units"
+            )));
         }
         if old / 1024 != self.count / 1024 {
             self.control.check()?;
@@ -541,9 +545,9 @@ pub(crate) fn apply(
         let area = (b[0] - a[0]) as u64 * (b[1] - a[1]) as u64;
         minimum_work += area;
         if minimum_work > MAX_WORK {
-            return Err(limit(
-                "Brush footprint preflight exceeds 67108864 work units",
-            ));
+            return Err(limit(&format!(
+                "Brush footprint preflight exceeds {MAX_WORK} work units"
+            )));
         }
         if area > 0 {
             low = [low[0].min(a[0]), low[1].min(a[1])];
@@ -561,9 +565,10 @@ pub(crate) fn apply(
     };
     let count = region.width as u64 * region.height as u64;
     if count > crate::sample_store::MAX_REGION_PIXELS {
-        return Err(limit(
-            "Brush deposition bounds exceed the 65536-pixel local edit window",
-        ));
+        return Err(limit(&format!(
+            "Brush deposition bounds exceed the {}-pixel local edit window",
+            crate::sample_store::MAX_REGION_PIXELS
+        )));
     }
     // Include original/working/frozen-dab/output windows, weights, exact hex
     // patches, source preparation/cache and complete replacement blocks.

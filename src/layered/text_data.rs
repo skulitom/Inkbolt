@@ -4,10 +4,10 @@ use super::*;
 use serde_json::Number;
 use std::collections::BTreeMap;
 
-const MAX_NODES: usize = 4096;
-const MAX_CONTAINER: usize = 512;
-const MAX_DEPTH: usize = 16;
-const MAX_STRING_BYTES: usize = 16388;
+use crate::limits::layered_text_data::MAX_CONTAINER;
+use crate::limits::layered_text_data::MAX_DEPTH;
+use crate::limits::layered_text_data::MAX_NODES;
+use crate::limits::layered_text_data::MAX_STRING_BYTES;
 
 // Names and opaque strings must remain distinct from Unicode text. In
 // particular, a named value cannot impersonate a story or a font face.

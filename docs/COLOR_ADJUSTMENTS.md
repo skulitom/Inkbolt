@@ -1,5 +1,7 @@
 # Editable color controls
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Color adjustments run inside the existing raster adjustment-layer pipeline:
 
 ```json

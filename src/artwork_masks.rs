@@ -4,9 +4,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-pub const MAX_MASKS: usize = 32;
-pub const MAX_COVERAGE_PIXELS: u64 = 1_048_576;
-pub const MAX_SVG_ITEMS: usize = 4096;
+pub use crate::limits::artwork_masks::MAX_COVERAGE_PIXELS;
+pub use crate::limits::artwork_masks::MAX_MASKS;
+pub use crate::limits::artwork_masks::MAX_SVG_ITEMS;
 fn yes() -> bool {
     true
 }

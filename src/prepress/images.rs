@@ -1,7 +1,7 @@
 //! Native process-image sources: reconstruct retained RGB, then separate it.
 use super::*;
 
-pub const MAX_SOURCE_PROFILES: usize = 16;
+pub use crate::limits::prepress_images::MAX_SOURCE_PROFILES;
 pub(super) struct Sources {
     assets: BTreeMap<String, assets::Pixels>,
     converters: BTreeMap<String, profiles::cmyk::SourceConverter>,

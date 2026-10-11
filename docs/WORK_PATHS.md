@@ -1,5 +1,7 @@
 # Reusable paths and pixel regions
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Work paths store named, nonprinting geometry in either document kind. Agents can keep an editable outline while deriving pixel selections or independently editable vector masks. They use ordinary stable item IDs, parents, transforms, locks, duplication, query, snapshots and session undo/redo.
 
 Add an item with `content:{type:"work_path",geometry,fill_rule}`. All existing geometry kinds are accepted; `fill_rule` defaults to `nonzero`, with `even_odd` also available. Work paths never paint pixels and are omitted from SVG with a loss diagnostic. Retain the snapshot for path persistence. Their geometry contributes to ordinary item/container bounds and alignment; these bounds describe geometry, not painted pixels.

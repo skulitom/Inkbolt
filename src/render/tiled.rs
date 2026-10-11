@@ -1,7 +1,7 @@
 //! Bounded regional composition over one prepared scene and immutable sources.
 use super::*;
-pub const MAX_PIXELS: u64 = 16_777_216;
-pub const EDGE: u32 = 128;
+pub use crate::limits::render_tiled::EDGE;
+pub use crate::limits::render_tiled::MAX_PIXELS;
 
 /// Rebuilding/scanning a coverage path is paid again in every tile column.
 /// This remains conservative until paths and regional object indices are cached.

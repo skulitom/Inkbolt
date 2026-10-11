@@ -1,5 +1,7 @@
 # Deterministic pixel brushes
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `brush_stroke` paints, erases, smudges or mixes color in a legacy `raster`, inline `samples` or immutable-block `stored_samples` layer through the ordinary atomic edit API. `brush.inspect` returns normalized settings, a reproducible settings hash, dab count, path length, bounds and optionally every dab. All coordinates refer to the target's **native pixel grid**, before its scene transform. No tablet, driver, font, model, network or external brush asset is required.
 
 ```json

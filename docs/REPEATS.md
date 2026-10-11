@@ -1,5 +1,7 @@
 # Editable motif layouts
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 A repeat item retains original closed vector geometry, a fill and structured placement controls. Use it for pattern fields, tiled backgrounds, repeated icons and radial diagram markers:
 
 ```json

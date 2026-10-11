@@ -6,10 +6,10 @@ use crate::{
 };
 use std::collections::HashSet;
 mod hierarchy;
+pub(crate) use crate::limits::scene::MAX_CACHED_CHAINS;
 pub(crate) use hierarchy::MAX_FAST_POINT_ERROR;
-pub(crate) const MAX_CACHED_CHAINS: usize = 128;
 
-pub const MAX_DEPTH: usize = 16;
+pub use crate::limits::scene::MAX_DEPTH;
 pub fn index(document: &Document, id: &str) -> Result<usize, Error> {
     document
         .items

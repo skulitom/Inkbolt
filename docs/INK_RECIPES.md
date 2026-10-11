@@ -1,5 +1,7 @@
 # Editable ink recipes
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 A retained `ink_recipe` maps saved grayscale source channels to one through eight named ink plates. It supports monotones, duotones and multitone graphics, or unrelated spot artwork on separate channels. Curves and optional scalar masks stay editable, and the original sources stay unchanged. The recipe is nonprinting until an agent explicitly requests separation or recipe PDF delivery.
 
 Use `document.edit` with `{"op":"ink_recipe","recipe":{...}}`; set `recipe:null` to clear it. Each ink has a unique portable `id`, a descriptive `name`, a source `channel`, an `alternate_srgb` colour and a `curve`. An optional `mask_channel` controls the final amount. Names can repeat; IDs determine plate identity. Source channels may have alpha or spot roles: this explicit recipe supplies output identity and interpretation instead of inheriting that metadata. Existing channel removal fails with `CHANNEL_IN_USE` while a recipe references it. A batch can clear or replace the recipe before removing a channel.

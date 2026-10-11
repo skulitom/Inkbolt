@@ -107,7 +107,7 @@ pub(crate) fn work_placed(g: &Geometry, s: &Stroke, world: Matrix) -> Result<u64
 }
 
 /// Shared outline accuracy anticipates the maximum supported raster density.
-pub const OUTLINE_RESOLUTION: u32 = 16;
+pub use crate::limits::strokes::OUTLINE_RESOLUTION;
 pub fn default_tolerance() -> f64 {
     1.0 / 64.0
 }
@@ -176,12 +176,12 @@ pub(crate) fn validate_controls(stroke: &Stroke) -> Result<(), Error> {
     Ok(())
 }
 
-pub const MAX_INTERVALS: usize = 64;
-pub const MAX_DOCUMENT_WORK: u64 = 32_768;
-pub const MAX_INSTANCE_WORK: u64 = 131_072;
-pub const MAX_RANGE_WORK: u64 = 524_288;
-pub const MAX_SVG_COMMANDS: u64 = 131_072;
-pub const MAX_SVG_RANGE_COMMANDS: u64 = 262_144;
+pub use crate::limits::strokes::MAX_DOCUMENT_WORK;
+pub use crate::limits::strokes::MAX_INSTANCE_WORK;
+pub use crate::limits::strokes::MAX_INTERVALS;
+pub use crate::limits::strokes::MAX_RANGE_WORK;
+pub use crate::limits::strokes::MAX_SVG_COMMANDS;
+pub use crate::limits::strokes::MAX_SVG_RANGE_COMMANDS;
 
 pub(crate) fn svg_item_work(item: &Item, world: Matrix) -> Result<u64, Error> {
     if let Content::Vector {

@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::HashSet, path::Path};
 mod scene_view;
-pub const MAX_ARTBOARDS: usize = 32;
-pub const MAX_GUIDES: usize = 512;
-pub const MAX_FRAME_GUIDES: usize = 64;
-pub const MAX_BLEED: u32 = 4096;
-pub const MAX_BATCH_PIXELS: u64 = 4_194_304;
-pub const MAX_BATCH_BYTES: usize = 32 * 1024 * 1024;
-pub const MAX_BATCH_WORK: u64 = 134_217_728;
+pub use crate::limits::boards::MAX_ARTBOARDS;
+pub use crate::limits::boards::MAX_BATCH_BYTES;
+pub use crate::limits::boards::MAX_BATCH_PIXELS;
+pub use crate::limits::boards::MAX_BATCH_WORK;
+pub use crate::limits::boards::MAX_BLEED;
+pub use crate::limits::boards::MAX_FRAME_GUIDES;
+pub use crate::limits::boards::MAX_GUIDES;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -489,10 +489,13 @@ pub fn export_controlled(
     let document = repeated.as_ref().unwrap_or(document);
     let interpolated = crate::interpolation::evaluate(document)?;
     let document = interpolated.as_ref().unwrap_or(document);
-    if !(1..=4).contains(&options.scale) {
+    if !(1..=crate::limits::render_quality::MAX_SCALE).contains(&options.scale) {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Export scale must be an integer in 1..=4",
+            format!(
+                "Export scale must be an integer in 1..={}",
+                crate::limits::render_quality::MAX_SCALE
+            ),
         ));
     }
     if matches!(options.format, Format::Svg)

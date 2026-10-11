@@ -4,8 +4,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-pub const MAX_ISSUES: usize = 256;
-pub const MAX_REPORT_BYTES: usize = 128 * 1024;
+pub use crate::limits::checks::MAX_ISSUES;
+pub use crate::limits::checks::MAX_REPORT_BYTES;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]

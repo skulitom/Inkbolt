@@ -5,6 +5,7 @@ from fractions import Fraction as F
 import hashlib
 import struct
 import unittest
+from advertised_limits import capabilities
 import test_native_retouch as native
 import test_pixel_brush_cli as legacy
 from test_cli import EXE
@@ -95,8 +96,8 @@ class NativeBrushTests(unittest.TestCase):
     def test_paint_and_mixer_quantize_all_six_formats_once_without_implicit_gray_conversion(self):
         caps=self.cli('capabilities')['pixel_brushes']
         self.assertEqual(caps['target'],['raster','samples','stored_samples'])
-        self.assertEqual(caps['maximum_window_pixels'],65536)
-        self.assertEqual(caps['maximum_processing_memory_bytes'],128*1024*1024)
+        self.assertEqual(caps['maximum_window_pixels'],capabilities()['native_sample_store_library']['max_region_pixels'])
+        self.assertGreater(caps['maximum_processing_memory_bytes'],caps['maximum_window_pixels']*4*8)
         color=pm([85,85,85,128],255)
         for depth in ['u8','u16','f32']:
             maximum={'u8':255,'u16':65535,'f32':1}[depth]

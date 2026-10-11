@@ -11,13 +11,13 @@ pub(crate) fn projective_coefficients(
     }
     exact::homography(corners)
 }
-pub const MAX_MAPS: usize = 8;
-pub const MAX_DEGREE: usize = 128;
-pub const MAX_WORK: usize = 2_000_000;
-pub const MAX_BITS: u64 = 8192;
-pub const MAX_DEPTH: usize = 24;
-pub const MAX_INPUT_EDGES: usize = 256;
-pub const MAX_SAMPLES: usize = 256;
+pub use crate::limits::warps::MAX_BITS;
+pub use crate::limits::warps::MAX_DEGREE;
+pub use crate::limits::warps::MAX_DEPTH;
+pub use crate::limits::warps::MAX_INPUT_EDGES;
+pub use crate::limits::warps::MAX_MAPS;
+pub use crate::limits::warps::MAX_SAMPLES;
+pub use crate::limits::warps::MAX_WORK;
 fn tolerance() -> f64 {
     0.01
 }

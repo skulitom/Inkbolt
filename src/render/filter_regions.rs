@@ -3,7 +3,7 @@
 use super::*;
 use crate::{control::Control, filters::Operator};
 
-const MAX_REFERENCES: usize = 131_072;
+use crate::limits::render_filter_regions::MAX_REFERENCES;
 type Region = [u32; 4];
 
 pub(super) enum Step {

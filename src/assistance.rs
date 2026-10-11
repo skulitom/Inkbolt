@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-pub const MAX_ITEMS: usize = 64;
+pub use crate::limits::assistance::MAX_ITEMS;
 pub const PLACEMENT_ERROR: f64 = 1e-7;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]

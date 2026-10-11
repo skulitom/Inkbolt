@@ -1,12 +1,12 @@
 //! Nonprinting scalar planes with explicit selection, component and named-ink semantics.
+pub use crate::limits::channels::MAX_CHANNELS;
+pub use crate::limits::channels::MAX_SAMPLES;
 use crate::{Error, model::*, render, selections};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::HashSet, path::Path};
-pub const MAX_CHANNELS: usize = 16;
-pub const MAX_SAMPLES: usize = 262_144;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]

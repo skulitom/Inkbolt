@@ -9,7 +9,7 @@ use crate::{
 use serde_json::{Value, json};
 use std::fmt::Write;
 
-pub const MAX_COORDINATE: f64 = 16383.0;
+pub use crate::limits::vector_native_write::MAX_COORDINATE;
 
 fn text(value: &str) -> Result<String, Error> {
     if value.is_empty() || !value.bytes().all(|b| (32..=126).contains(&b)) {

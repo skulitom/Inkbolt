@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
-pub const MAX_PAGE_ITEMS: usize = 128;
-pub const MAX_PAGE_BYTES: usize = 32 * 1024;
-const RECORD_BYTES: usize = MAX_PAGE_BYTES - 4096;
+pub use crate::limits::inspection::MAX_PAGE_BYTES;
+pub use crate::limits::inspection::MAX_PAGE_ITEMS;
+use crate::limits::inspection::RECORD_BYTES;
 type Records<'a> = Box<dyn Iterator<Item = Result<Value, Error>> + 'a>;
 fn page_size() -> usize {
     32

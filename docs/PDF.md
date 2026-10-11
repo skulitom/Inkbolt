@@ -1,5 +1,7 @@
 # PDF appearance and page delivery
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Explicit `pdf_options.print` instead produces flattened calibrated CMYK image pages using a supplied output profile, matte and sample density. See [PRINT_CMYK.md](PRINT_CMYK.md). The native path contracts and restrictions below apply when print settings are omitted.
 
 `document.export` accepts `format:"pdf"`. It returns a deterministic PDF 1.7 file (PDF 2.0 for explicit managed colours or a calibrated page profile)

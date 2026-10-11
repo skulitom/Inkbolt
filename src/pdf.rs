@@ -20,9 +20,9 @@ pub use prepress::{PrepressOptions, SpotFallback};
 pub use print::PrintOptions;
 pub use recipe::InkOptions;
 
-pub const MAX_COMMANDS: usize = 262_144;
-pub const MAX_OBJECTS: usize = 32_768;
-pub const MAX_IMAGE_PIXELS: u64 = 4_194_304;
+pub use crate::limits::pdf::MAX_COMMANDS;
+pub use crate::limits::pdf::MAX_IMAGE_PIXELS;
+pub use crate::limits::pdf::MAX_OBJECTS;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]

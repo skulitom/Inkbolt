@@ -3,8 +3,8 @@ use super::*;
 use crate::paths::{Contour, Edge};
 use std::f64::consts::{PI, TAU};
 
-pub const MAX_OUTLINE_COMMANDS: usize = 65_536;
-const MAX_POINTS: usize = 16_384;
+pub use crate::limits::strokes_outline::MAX_OUTLINE_COMMANDS;
+use crate::limits::strokes_outline::MAX_POINTS;
 fn limit() -> Error {
     Error::new(
         "LIMIT_EXCEEDED",

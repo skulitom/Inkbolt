@@ -1,5 +1,7 @@
 # Retained pixel deformation
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 An image or inline pixel item can carry an optional `pixel_warp`. Original
 pixel bytes, asset identity and crop remain unchanged. The `pixel_warp` edit
 replaces these controls, or clears them with `warp:null`. Snapshots, duplicate

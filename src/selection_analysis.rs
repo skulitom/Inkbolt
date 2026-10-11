@@ -1,10 +1,10 @@
 //! Original color-distance selections, bounded connectivity and image-guided edge refinement.
+pub use crate::limits::selection_analysis::MAX_EDGE_RADIUS;
+pub use crate::limits::selection_analysis::MAX_TARGETS;
 use crate::{Error, model::*, render, selections};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::VecDeque, path::Path};
-pub const MAX_TARGETS: usize = 32;
-pub const MAX_EDGE_RADIUS: u32 = 8;
 fn white() -> u8 {
     255
 }

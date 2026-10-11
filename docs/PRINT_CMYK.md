@@ -1,5 +1,7 @@
 # Profile-driven CMYK image pages
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Agents can deliver a flattened PDF page with four calibrated ink channels while
 retaining the editable source. Use `document.export`, `document.publish` or
 `session.publish` with `format:"pdf"` and explicit print settings:

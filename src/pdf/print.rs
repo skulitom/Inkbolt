@@ -30,12 +30,15 @@ impl PrintOptions {
                 "Clear the document RGB output association before selecting a CMYK print profile",
             ));
         }
-        if !(1..=4).contains(&self.raster_scale)
+        if !(1..=crate::limits::render_quality::MAX_SCALE).contains(&self.raster_scale)
             || self.render_options.is_some_and(|o| !o.crop_to_canvas)
         {
             return Err(Error::new(
                 "INVALID_REQUEST",
-                "CMYK pages require raster_scale 1..=4 and crop_to_canvas:true",
+                format!(
+                    "CMYK pages require raster_scale 1..={} and crop_to_canvas:true",
+                    crate::limits::render_quality::MAX_SCALE
+                ),
             ));
         }
         Ok(())

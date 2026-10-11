@@ -9,8 +9,8 @@ use num_traits::{ToPrimitive, Zero};
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
-pub const MAX_SPAN: usize = 32;
-pub const MAX_WORK: usize = 400_000;
+pub use crate::limits::simplify::MAX_SPAN;
+pub use crate::limits::simplify::MAX_WORK;
 pub fn default_span() -> usize {
     8
 }

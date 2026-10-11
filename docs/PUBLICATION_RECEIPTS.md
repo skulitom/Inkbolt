@@ -1,5 +1,7 @@
 # Durable publication receipts
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Add `receipt:{receipt_root,request_id}` to `document.publish`, `session.publish`, `session.backup`, `session.recover` or `session.migrate` to retain a prepared output record before create-only publication. The original synchronous commands and formats stay available without this option. Durable publication currently uses the verified Windows local-filesystem backend. It is shared by the Rust library, JSON CLI and MCP executor; it does not start a background worker.
 
 With a workspace, `receipt_root` defaults to `.inkbolt/publications`. Without one, provide an absolute root. New receipt directories are created only after output preparation succeeds. Output directories must already exist. The receipt ledger is separate from document sessions and does not add an undo revision.

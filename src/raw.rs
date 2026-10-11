@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 pub const ALGORITHM: &str = "inkbolt-bayer-bilinear-v1";
-pub const MAX_PIXELS: usize = 16384;
+pub use crate::limits::raw::MAX_PIXELS;
 mod corrections;
 pub mod retained;
 pub use corrections::{Border, Corrections, Denoise, Detail, Lens};

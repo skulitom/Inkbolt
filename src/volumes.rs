@@ -7,8 +7,8 @@ use std::collections::HashSet;
 mod bsp;
 mod profile;
 
-pub const MAX_EDGES: usize = 128;
-pub const MAX_FACES: usize = 192;
+pub use crate::limits::volumes::MAX_EDGES;
+pub use crate::limits::volumes::MAX_FACES;
 pub type Point3 = [f64; 3];
 fn tolerance() -> f64 {
     0.1

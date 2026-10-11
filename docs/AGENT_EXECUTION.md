@@ -1,5 +1,7 @@
 # Agent execution, comparisons and output publication
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `volume.inspect` reads original dimensional controls and projected faces. Atomic `volume` and `volume_expand` edits share revision checks, safe retries and durable undo. Built-in CPU materials require no model or network service; isolated offline results are independently verified. See [VOLUMES.md](VOLUMES.md).
 
 `appearance.inspect` is read-only. Appearance editing, independent expansion and explicit pixel baking use ordinary `document.edit` or `session.apply` with revision checks, retry receipts and undo. Baking returns a new embedded resource; create-only publication is a separate explicit action. See [APPEARANCE.md](APPEARANCE.md).

@@ -5,18 +5,18 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
-pub const MAX_DIMENSION: u32 = 32768;
-pub const MAX_ITEMS: usize = 256;
-pub const MAX_SEGMENTS: usize = 4096;
-pub const MAX_STORED_PIXELS: usize = 65536;
-pub const MAX_DOCUMENT_BYTES: usize = 768 * 1024;
-pub const MAX_LARGE_VECTOR_ITEMS: usize = 8192;
-pub const MAX_LARGE_VECTOR_COMMANDS: usize = 131072;
-pub const MAX_LARGE_VECTOR_BYTES: usize = 8 * 1024 * 1024;
-pub const MAX_LARGE_RASTER_ITEMS: usize = 8192;
-pub const MAX_LARGE_RASTER_COMMANDS: usize = 131072;
-pub const MAX_LARGE_RASTER_BYTES: usize = 8 * 1024 * 1024;
-pub const MAX_COORDINATE: f64 = 32768.0;
+pub use crate::limits::model::MAX_COORDINATE;
+pub use crate::limits::model::MAX_DIMENSION;
+pub use crate::limits::model::MAX_DOCUMENT_BYTES;
+pub use crate::limits::model::MAX_ITEMS;
+pub use crate::limits::model::MAX_LARGE_RASTER_BYTES;
+pub use crate::limits::model::MAX_LARGE_RASTER_COMMANDS;
+pub use crate::limits::model::MAX_LARGE_RASTER_ITEMS;
+pub use crate::limits::model::MAX_LARGE_VECTOR_BYTES;
+pub use crate::limits::model::MAX_LARGE_VECTOR_COMMANDS;
+pub use crate::limits::model::MAX_LARGE_VECTOR_ITEMS;
+pub use crate::limits::model::MAX_SEGMENTS;
+pub use crate::limits::model::MAX_STORED_PIXELS;
 pub type Color = [u8; 4];
 pub type Point = [f64; 2];
 pub type Matrix = [f64; 6];
@@ -540,7 +540,9 @@ pub fn validate_controlled(
     if !(1..=MAX_DIMENSION).contains(&document.width)
         || !(1..=MAX_DIMENSION).contains(&document.height)
     {
-        return Err(invalid("Width and height must each be in 1..=32768 pixels"));
+        return Err(invalid(&format!(
+            "Width and height must each be in 1..={MAX_DIMENSION} pixels"
+        )));
     }
     if !document.resolution_ppi.is_finite() || !(1.0..=9600.0).contains(&document.resolution_ppi) {
         return Err(invalid("Resolution must be finite and in 1..=9600 ppi"));
@@ -605,7 +607,10 @@ pub fn validate_controlled(
         pixels += assets::validate(asset)?;
         asset_pixels += asset.width as u64 * asset.height as u64;
         if asset_pixels > assets::MAX_ASSET_PIXELS {
-            return Err(limit("Document assets exceed 16777216 decoded pixels"));
+            return Err(limit(&format!(
+                "Document assets exceed {} decoded pixels",
+                assets::MAX_ASSET_PIXELS
+            )));
         }
     }
     if pixels > MAX_STORED_PIXELS {
@@ -896,7 +901,9 @@ pub fn validate_controlled(
                     return Err(invalid("Procedural fill layers require a raster document"));
                 }
                 if !(1..=MAX_DIMENSION).contains(width) || !(1..=MAX_DIMENSION).contains(height) {
-                    return Err(invalid("Fill layer dimensions must be in 1..=32768"));
+                    return Err(invalid(&format!(
+                        "Fill layer dimensions must be in 1..={MAX_DIMENSION}"
+                    )));
                 }
                 validate_world_geometry(
                     &Geometry::Rect {
@@ -934,7 +941,9 @@ pub fn validate_controlled(
                 }
                 pixels += grid.validate()?;
                 if pixels > MAX_STORED_PIXELS {
-                    return Err(limit("Inline pixel storage exceeds 65536 pixels"));
+                    return Err(limit(&format!(
+                        "Inline pixel storage exceeds {MAX_STORED_PIXELS} pixels"
+                    )));
                 }
                 validate_world_geometry(&grid.geometry(), world)?;
             }
@@ -944,7 +953,9 @@ pub fn validate_controlled(
                 }
                 pixels += raw.validate()?;
                 if pixels > MAX_STORED_PIXELS {
-                    return Err(limit("Inline pixel storage exceeds 65536 pixels"));
+                    return Err(limit(&format!(
+                        "Inline pixel storage exceeds {MAX_STORED_PIXELS} pixels"
+                    )));
                 }
                 validate_world_geometry(&raw.geometry(), world)?;
             }
@@ -959,11 +970,15 @@ pub fn validate_controlled(
                 }
                 if *width == 0 || *height == 0 || *width > MAX_DIMENSION || *height > MAX_DIMENSION
                 {
-                    return Err(invalid("Pixel layer dimensions must be in 1..=32768"));
+                    return Err(invalid(&format!(
+                        "Pixel layer dimensions must be in 1..={MAX_DIMENSION}"
+                    )));
                 }
                 pixels += *width as usize * *height as usize;
                 if pixels > MAX_STORED_PIXELS {
-                    return Err(limit("Inline pixel storage exceeds 65536 pixels"));
+                    return Err(limit(&format!(
+                        "Inline pixel storage exceeds {MAX_STORED_PIXELS} pixels"
+                    )));
                 }
                 if rgba_hex.len() != *width as usize * *height as usize * 8
                     || !rgba_hex.bytes().all(|c| c.is_ascii_hexdigit())
@@ -995,7 +1010,9 @@ pub fn validate_controlled(
                     .ok_or_else(|| invalid("Image refers to an undefined asset"))?;
                 for value in [width, height] {
                     if !value.is_finite() || !(0.001..=MAX_COORDINATE).contains(value) {
-                        return Err(invalid("Placed image dimensions must be in 0.001..=32768"));
+                        return Err(invalid(&format!(
+                            "Placed image dimensions must be in 0.001..={MAX_COORDINATE}"
+                        )));
                     }
                 }
                 assets::crop(asset.width, asset.height, *crop)?;
@@ -1016,10 +1033,15 @@ pub fn validate_controlled(
             ));
         }
         if pixels > MAX_STORED_PIXELS {
-            return Err(limit("Inline pixel storage exceeds 65536 pixels"));
+            return Err(limit(&format!(
+                "Inline pixel storage exceeds {MAX_STORED_PIXELS} pixels"
+            )));
         }
         if paint_samples > crate::paint::MAX_PAINT_SAMPLES {
-            return Err(limit("Document exceeds 4096 gradient stops and anchors"));
+            return Err(limit(&format!(
+                "Document exceeds {} gradient stops and anchors",
+                crate::paint::MAX_PAINT_SAMPLES
+            )));
         }
     }
     drop(worlds);

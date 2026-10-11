@@ -1,5 +1,7 @@
 # Editable color meshes
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 A `mesh` paint describes an original rectangular field of shared bicubic patches. Agents can use it for smooth icon shading, backgrounds and controlled transparent color transitions. The same field works in vector fills and strokes, procedural raster fills and other shared-paint consumers. Geometry coverage and layer composition remain separate.
 
 ```json

@@ -1,6 +1,6 @@
 //! Prepare shape coverage once, independently of small compositor tile edges.
 use super::*;
-pub const MAX_PIXELS: u64 = 16_777_216;
+pub use crate::limits::render_coverage_cache::MAX_PIXELS;
 #[derive(Default)]
 pub(super) struct Coverage {
     origin: [u32; 2],

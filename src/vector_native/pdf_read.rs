@@ -3,9 +3,9 @@ use super::{invalid, unsupported};
 use crate::{Error, control::Control};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const MAX_OBJECTS: usize = 4096;
-const MAX_NODES: usize = 131072;
-const MAX_DEPTH: usize = 32;
+use crate::limits::vector_native_pdf_read::MAX_DEPTH;
+use crate::limits::vector_native_pdf_read::MAX_NODES;
+pub use crate::limits::vector_native_pdf_read::MAX_OBJECTS;
 type Id = (u32, u16);
 #[derive(Debug)]
 pub enum Value {

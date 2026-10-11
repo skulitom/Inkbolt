@@ -1,5 +1,7 @@
 # Content-sensitive region repair
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 The atomic `repair` operation adds patch placement, local exemplar fill, content-sensitive move and guided edge correction to native pixel layers. Explicit source/guide IDs refer to inline raster items in the same document. Every operation freezes its input grids, preserves input snapshots and supports durable undo/redo and safe retries. No model, network service, application or device is required.
 
 ```json

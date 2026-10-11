@@ -1,5 +1,7 @@
 # Sessions, history and recovery
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 A session stores one vector or raster document under an explicit absolute `session_root`. The CLI remains a one-request process; reopen the same session in later calls. The root must be a writable local directory supporting file locks and create-only hard links. Network filesystems and synchronization across computers are outside this storage contract.
 
 ## Commands

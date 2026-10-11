@@ -23,13 +23,13 @@ use std::{
 pub const STORE_VERSION: i64 = 2;
 pub const SUPPORTED_STORE_VERSIONS: &[i64] = &[1, 2];
 pub const APPLICATION_ID: i64 = 0x494e4b53;
-pub const MAX_STATES: usize = 256;
-pub const MAX_REQUESTS: usize = 2048;
-pub const MAX_SNAPSHOTS: usize = 32;
-pub const MAX_STATE_BYTES: usize = model::MAX_LARGE_VECTOR_BYTES + 16384;
-pub const MAX_HISTORY_BYTES: i64 = 64 * 1024 * 1024;
-pub const MAX_DATABASE_BYTES: u64 = 128 * 1024 * 1024;
-pub const MAX_RECEIPT_BYTES: usize = 65536;
+pub use crate::limits::sessions::MAX_DATABASE_BYTES;
+pub use crate::limits::sessions::MAX_HISTORY_BYTES;
+pub use crate::limits::sessions::MAX_RECEIPT_BYTES;
+pub use crate::limits::sessions::MAX_REQUESTS;
+pub use crate::limits::sessions::MAX_SNAPSHOTS;
+pub use crate::limits::sessions::MAX_STATE_BYTES;
+pub use crate::limits::sessions::MAX_STATES;
 static TEMP: AtomicU64 = AtomicU64::new(0);
 const SCHEMA: &[(&str, &str)] = &[
     (

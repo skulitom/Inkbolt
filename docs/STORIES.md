@@ -1,5 +1,7 @@
 # Shared paragraph flow
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Stories retain original rich paragraphs and an ordered list of flow slots. Independent `story_frame` items place those slots in a vector or raster document. Moving or transforming a placement leaves source flow order unchanged. Editing a shared story updates all its placements; copying a story under another ID creates an independent source.
 
 This implementation covers threading, columns, spacing, structural lists, visible rule-driven hyphenation, named paints, source mapping and persistence. Independent counter, layout, pixel and history evidence covers the unchanged `vector.paragraphs.extended` acceptance. The separate [hyphenation inspection](HYPHENATION.md) operation exposes the same explicit weighted-rule semantics without layout.

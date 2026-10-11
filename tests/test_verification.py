@@ -82,6 +82,21 @@ class VerificationTests(unittest.TestCase):
         self.write('examples/fixture.rgba8', 'fixture')
         self.assertIn('examples/fixture.rgba8', inputs.python_closure(self.root, 'tests/test_one.py', self.files()))
 
+    def test_generated_limits_reference_invalidates_compiled_tests(self):
+        self.write('src/limits.rs', 'include_str!("../docs/LIMITS.md")')
+        self.write('docs/LIMITS.md', 'original reference')
+        self.write('tests/test_one.py', "reference=ROOT/'docs/LIMITS.md'")
+        self.write('tests/test_two.py', 'value=1')
+        names = ['test_one', 'test_two']
+        before = inputs.fingerprints(self.root, self.files(), 'same', names)
+        self.write('docs/LIMITS.md', 'changed reference')
+        after = inputs.fingerprints(self.root, self.files(), 'same', names)
+        self.assertEqual({n for n in before if before[n] != after[n]},
+                         {'build', 'fmt', 'clippy', 'rust', 'test_one'})
+        (self.root/'docs/LIMITS.md').unlink()
+        missing = inputs.fingerprints(self.root, self.files(), 'same', names)
+        self.assertNotEqual(after['rust'], missing['rust'])
+
     def test_failed_deferred_and_different_inputs_never_reuse(self):
         for status in ('failed', 'deferred', 'reused'):
             self.assertFalse(verify.reusable(dict(status=status, fingerprint='same'), 'same'))

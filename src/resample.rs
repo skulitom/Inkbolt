@@ -6,8 +6,8 @@ use crate::{
     model::*,
 };
 
-pub const MAX_AXIS_TAPS: u64 = 65_536;
-pub const MAX_WORK: u64 = 67_108_864;
+pub use crate::limits::resample::MAX_AXIS_TAPS;
+pub use crate::limits::resample::MAX_WORK;
 
 #[derive(Clone, Copy)]
 pub(crate) struct Plan {

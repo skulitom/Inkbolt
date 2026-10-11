@@ -8,7 +8,7 @@ fn isolated() -> bool {
     true
 }
 
-pub const MAX_OPERATIONS: usize = 64;
+pub use crate::limits::edit::MAX_OPERATIONS;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TransformSpace {

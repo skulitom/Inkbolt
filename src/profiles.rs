@@ -14,9 +14,9 @@ pub mod device;
 pub mod gamut;
 pub mod proof;
 
-pub const MAX_PROFILE_BYTES: usize = 256 * 1024;
-pub const MAX_PROFILE_TAGS: usize = 128;
-pub const TRANSFORM_STACK_BYTES: usize = 32 * 1024 * 1024;
+pub use crate::limits::profiles::MAX_PROFILE_BYTES;
+pub use crate::limits::profiles::MAX_PROFILE_TAGS;
+pub use crate::limits::profiles::TRANSFORM_STACK_BYTES;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Intent {

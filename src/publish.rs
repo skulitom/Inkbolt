@@ -11,7 +11,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-pub const MAX_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
+pub use crate::limits::publish::MAX_OUTPUT_BYTES;
 static TEMP: AtomicU64 = AtomicU64::new(0);
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -19,10 +19,10 @@ use std::{
     path::PathBuf,
 };
 
-pub const MAX_BYTES: usize = 256 * 1024;
-pub const MAX_NODES: u32 = 4096;
-pub const MAX_LARGE_BYTES: usize = 8 * 1024 * 1024;
-pub const MAX_LARGE_NODES: u32 = 65536;
+pub use crate::limits::svg_import::MAX_BYTES;
+pub use crate::limits::svg_import::MAX_LARGE_BYTES;
+pub use crate::limits::svg_import::MAX_LARGE_NODES;
+pub use crate::limits::svg_import::MAX_NODES;
 const NS: &str = "http://www.w3.org/2000/svg";
 const PROPERTIES: &[&str] = &[
     "fill",

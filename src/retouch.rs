@@ -6,9 +6,9 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
-pub const MAX_WORK: u64 = 67_108_864;
-pub const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
-pub const MAX_ITERATIONS: u32 = 4096;
+pub use crate::limits::retouch::MAX_ITERATIONS;
+pub use crate::limits::retouch::MAX_MEMORY_BYTES;
+pub use crate::limits::retouch::MAX_WORK;
 const ALGORITHM: &str = "inkbolt-region-retouch-v1";
 fn one() -> f64 {
     1.0
@@ -85,7 +85,7 @@ impl Work<'_> {
     fn add(&mut self, n: usize) -> Result<(), Error> {
         self.count += n as u64;
         if self.count > MAX_WORK {
-            return Err(limit("Retouch exceeds 67108864 work units"));
+            return Err(limit(&format!("Retouch exceeds {MAX_WORK} work units")));
         }
         self.control.check()
     }
@@ -294,7 +294,10 @@ pub(crate) fn apply(
         ));
     }
     if r.width as u64 * r.height as u64 > crate::sample_store::MAX_REGION_PIXELS {
-        return Err(limit("Retouch exceeds the 65536-pixel local edit region"));
+        return Err(limit(&format!(
+            "Retouch exceeds the {}-pixel local edit region",
+            crate::sample_store::MAX_REGION_PIXELS
+        )));
     }
     // Every selected cell has its actual in-image neighbors in this window.
     // No solver/storage buffer scales with the complete source image.

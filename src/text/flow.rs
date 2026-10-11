@@ -3,10 +3,10 @@ use super::*;
 pub mod hyphens;
 pub mod lists;
 
-pub const MAX_STORIES: usize = 32;
-pub const MAX_PARAGRAPHS: usize = 256;
-pub const MAX_SLOTS: usize = 64;
-pub const MAX_COLUMNS: usize = 16;
+pub use crate::limits::text_flow::MAX_COLUMNS;
+pub use crate::limits::text_flow::MAX_PARAGRAPHS;
+pub use crate::limits::text_flow::MAX_SLOTS;
+pub use crate::limits::text_flow::MAX_STORIES;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Overset {

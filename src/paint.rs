@@ -6,10 +6,10 @@ use crate::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_PAINT_SAMPLES: usize = 4096;
-pub const MAX_STOPS: usize = 64;
-pub const MAX_PATTERN_PIXELS: usize = 4096;
-pub const MAX_PAINT_WORK: u64 = 134_217_728;
+pub use crate::limits::paint::MAX_PAINT_SAMPLES;
+pub use crate::limits::paint::MAX_PAINT_WORK;
+pub use crate::limits::paint::MAX_PATTERN_PIXELS;
+pub use crate::limits::paint::MAX_STOPS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(untagged)]

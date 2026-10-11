@@ -15,9 +15,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-pub const MAX_ASSETS: usize = 64;
-pub const MAX_ASSET_PIXELS: u64 = 16_777_216;
-pub const MAX_IMPORT_BYTES: u64 = 32 * 1024 * 1024;
+pub use crate::limits::assets::MAX_ASSET_PIXELS;
+pub use crate::limits::assets::MAX_ASSETS;
+pub use crate::limits::assets::MAX_IMPORT_BYTES;
 const MAGIC: &[u8; 8] = b"INKRGBA1";
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 

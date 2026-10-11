@@ -4,9 +4,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
-pub const MAX_BINDINGS: usize = 64;
-pub const MAX_DATASETS: usize = 32;
-pub const MAX_INHERITANCE: usize = 8;
+pub use crate::limits::variants::MAX_BINDINGS;
+pub use crate::limits::variants::MAX_DATASETS;
+pub use crate::limits::variants::MAX_INHERITANCE;
 pub const EXPORT_LOSS: &str = "Only the selected variant is exported. Retain snapshots for dataset bindings, inherited values and captured base properties.";
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq, Hash)]

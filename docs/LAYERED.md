@@ -1,5 +1,7 @@
 # Layered pixel interchange
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Native delivery retains explicit character scale factors and baseline shifts;
 tracking conversion compensates for horizontal scaling. Decimal values use the
 shortest exact fixed spelling, with an explicit refusal when a literal exceeds

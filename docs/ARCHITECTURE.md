@@ -1,5 +1,12 @@
 # Architecture
 
+`limits` centralizes existing named resource and bounded-evaluation constants,
+preserving their old Rust module paths as re-exports. Shared native pixel and tile
+geometry definitions feed storage, tiled rendering and capability reporting;
+independent tile-entry, byte, processing and work budgets remain separate.
+The generated [limit reference](LIMITS.md) is checked against every compiled
+catalog value. Inline-limit consolidation remains in progress under W0.
+
 Tiled radial and twist filters use bounded source-dependency paths through filter
 stacks, parent containers and clipped siblings. Radial sample offsets are bounded
 over each requested region; twist bounds include its finite rotation radius and

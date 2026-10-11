@@ -5,12 +5,12 @@ mod names;
 mod pdf_read;
 mod tokens;
 mod write;
+pub use crate::limits::vector_native::MAX_BLOCKS;
+pub use crate::limits::vector_native::MAX_DECODED_BYTES;
+pub use crate::limits::vector_native::MAX_SOURCE_BYTES;
 use crate::{Error, control::Control};
 use std::io::Read;
 pub use write::export;
-pub const MAX_SOURCE_BYTES: usize = 16 * 1024 * 1024;
-pub const MAX_DECODED_BYTES: usize = 16 * 1024 * 1024;
-pub const MAX_BLOCKS: usize = 256;
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ColorPolicy {

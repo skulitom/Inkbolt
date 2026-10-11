@@ -1,6 +1,6 @@
 //! Bounded data tokens only. No program execution, includes or file operators.
 use super::*;
-const MAX_TOKENS: usize = 262144;
+use crate::limits::vector_native_tokens::MAX_TOKENS;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Word(String),

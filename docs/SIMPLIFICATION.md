@@ -1,5 +1,7 @@
 # Curve simplification with checked geometry
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `{op:"path",id,action:{type:"simplify",tolerance,space:"local",max_span:8,contours:[]}}` reduces the number of line/cubic segments or replaces a sufficiently straight cubic with a line. It operates on explicit vector paths; convert primitives first. `tolerance` is a finite distance in 0..32768. `space` is local (default) or world. `max_span` is 2..32 (default 8). Empty/omitted `contours` means every contour; explicit indices must be distinct and valid.
 
 The operation preserves item identity, style, transforms, masks, clips, contour order, starting anchors, open/closed state and unselected contours. Source-edge indices in its report refer to the input path's zero-based edges within each contour, excluding move/close commands. Ordinary anchor indices change after a reduction; query them again. The complete edit batch remains atomic, locked paths reject edits, and session undo restores the original commands exactly.

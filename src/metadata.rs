@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, HashSet};
 
-pub const MAX_RECORD_BYTES: usize = 16 * 1024;
-pub const MAX_DOCUMENT_BYTES: usize = 64 * 1024;
-pub const MAX_PACKET_BYTES: usize = 256 * 1024;
+pub use crate::limits::metadata::MAX_DOCUMENT_BYTES;
+pub use crate::limits::metadata::MAX_PACKET_BYTES;
+pub use crate::limits::metadata::MAX_RECORD_BYTES;
 pub const PNG_KEY: &[u8] = b"Inkbolt Metadata";
 pub const TEXT_PREFIX: &str = "Inkbolt metadata v1\n";
 pub const JPEG_PREFIX: &[u8] = b"INKBOLT-META\0";

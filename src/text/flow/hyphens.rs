@@ -5,7 +5,7 @@ use crate::{
     hyphenation::{self, Compiled},
 };
 
-pub const MAX_RULE_SETS: usize = 16;
+pub use crate::limits::text_flow_hyphens::MAX_RULE_SETS;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Mark {

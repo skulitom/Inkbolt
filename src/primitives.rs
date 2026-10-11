@@ -1,8 +1,8 @@
 //! Project-owned parametric shapes and explicit cubic/linear expansion.
+pub use crate::limits::primitives::MAX_POLYGON_POINTS;
+pub use crate::limits::primitives::MAX_SIDES;
+pub use crate::limits::primitives::MAX_STAR_POINTS;
 use crate::{Error, model::*};
-pub const MAX_POLYGON_POINTS: usize = 1024;
-pub const MAX_SIDES: u32 = 256;
-pub const MAX_STAR_POINTS: u32 = 128;
 pub fn parametric(g: &Geometry) -> bool {
     matches!(
         g,

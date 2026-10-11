@@ -1,5 +1,7 @@
 # Contained job processes
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 The Windows Rust library provides `job_process` as the process-lifetime foundation for durable background exports. The [durable export queue](JOBS.md) now supplies CLI/MCP submission and recovery. Ordinary engine requests keep their existing synchronous behavior. This process library earns no original engine-checkpoint credit. Its evidence participates in the complete [A4 recovery audit](RECOVERY_CONTRACTS.md).
 
 ## Lifetime and startup contract

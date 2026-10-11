@@ -35,6 +35,15 @@ and all original delivery gates have current acceptance evidence.
 
 ## Delivery gates
 
+W0 is in progress: the central catalog holds 311 existing resource ceilings and
+bounded-evaluation settings, including shared native pixel/tile geometry and
+core document, decoder, delivery and job bounds. Existing Rust module paths are
+preserved. The generated [limit reference](LIMITS.md), compiled-value check,
+65 selected capability bindings and boundary fixtures guard this first migration.
+Remaining inline/parser limits, additional capability literals and diagnostics
+still require the W0 audit; this consolidation raises no limits and establishes
+no new engine or readiness completion credit.
+
 | Gate | Required behavior and evidence | Current state |
 | --- | --- | --- |
 | A1 Accurate baseline | Reconcile documentation/capabilities; reproducible approximately 20-task benchmark; exact-build scripted correctness and separate actual model-driven trials; report success, calls, bytes/tokens, retries, first preview, runtime and memory | In progress: discovery/receipt-volume measurements and a [fixed twenty-task benchmark](AGENT_BENCHMARK.md) with twenty independently judged CLI/MCP adapters, raw traffic, release identity and explicit failed rows. Linked graphics require identified local consumer tools and complete decoded-output checks. Actual model trials, matched comparisons and the complete reconciliation audit remain |

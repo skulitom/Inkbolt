@@ -1,5 +1,7 @@
 # Focused previews and contact sheets
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `document.preview` returns one PNG, exact document identity and explicit coordinate maps without changing a document or writing a file. It accepts inline snapshots, pinned saved revisions and hashed snapshot files through the shared JSON interface. Use the core MCP tool or JSON CLI; Rust callers use `previews::preview`. Ordinary resource roots and cancellation controls apply.
 
 ```json

@@ -4,8 +4,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-pub const MAX_DEFINITIONS: usize = 32;
-pub const MAX_NESTING: usize = 8;
+pub use crate::limits::instances::MAX_DEFINITIONS;
+pub use crate::limits::instances::MAX_NESTING;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]

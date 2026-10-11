@@ -2,8 +2,8 @@
 use super::*;
 use crate::paint::{Field, Interpolation, Spread, Stop};
 
-pub const MAX_DEFINITIONS: usize = 64;
-pub const MAX_REFERENCE_DEPTH: usize = 16;
+pub use crate::limits::svg_import_definitions::MAX_DEFINITIONS;
+pub use crate::limits::svg_import_definitions::MAX_REFERENCE_DEPTH;
 
 pub(super) fn reference(value: &str) -> Result<Option<&str>, Error> {
     if !value.starts_with("url(") {

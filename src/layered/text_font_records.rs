@@ -2,9 +2,9 @@
 use super::{text_data::Node, text_inheritance::Run, *};
 use std::collections::BTreeSet;
 
-pub(super) const MAX_RECORDS: usize = 256;
-pub(super) const MAX_SELECTED: usize = 8;
-pub(super) const MAX_VERSION_BYTES: usize = 512;
+pub(super) use crate::limits::layered_text_font_records::MAX_RECORDS;
+pub(super) use crate::limits::layered_text_font_records::MAX_SELECTED;
+pub(super) use crate::limits::layered_text_font_records::MAX_VERSION_BYTES;
 
 fn known(node: &Node, keys: &[&str]) -> Result<bool, Error> {
     let Node::Dictionary(values) = node else {

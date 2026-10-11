@@ -1,5 +1,7 @@
 # Large raster layouts
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `resource_profile:"large_raster"` explicitly enables larger raster documents and ordinary vector overlays over retained pixel sources. Use it on `document.create`, a raster snapshot, or the atomic `resource_profile` edit. `sample.import` still creates a standard document; change its profile before adding a large layout. This option combines the existing immutable native blocks, bounded spatial renderer and neighboring-tile traversal. It does not increase their work, pixel, cache or memory budgets.
 
 | Storage bound | Standard raster | Large raster |

@@ -1,5 +1,5 @@
 //! Visit neighboring small tiles together without allocating a larger surface.
-pub const NEIGHBORHOOD_UNITS: u32 = 256;
+pub use crate::limits::render_traversal::NEIGHBORHOOD_UNITS;
 pub(super) struct Plan {
     size: [u32; 2],
     edge: u32,

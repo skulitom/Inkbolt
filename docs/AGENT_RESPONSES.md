@@ -1,5 +1,7 @@
 # Compact session responses
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Set `response_mode:"compact"` on `session.create`, `session.continue`, `session.read`, `session.apply`, `session.apply_proposal` or `session.receipt` to avoid receiving the entire saved document on each call. CLI and MCP use the same projection. Omission or `response_mode:"full"` retains the original full response.
 
 ```json

@@ -2,9 +2,9 @@
 use super::*;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 
-pub const MAX_PAGE_RECORDS: usize = 32;
-pub const MAX_PAGE_BYTES: usize = 32 * 1024;
-const MAX_CURSOR_BYTES: usize = 1024;
+use crate::limits::jobs_listing::MAX_CURSOR_BYTES;
+pub use crate::limits::jobs_listing::MAX_PAGE_BYTES;
+pub use crate::limits::jobs_listing::MAX_PAGE_RECORDS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]

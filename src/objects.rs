@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{cell::Cell, fs::File, io::Read, path::Path};
 
-pub const MAX_NESTING: usize = 4;
-pub const MAX_RENDERED_OBJECTS: usize = 32;
+pub use crate::limits::objects::MAX_NESTING;
+pub use crate::limits::objects::MAX_RENDERED_OBJECTS;
 thread_local! { static PARSE_DEPTH: Cell<usize> = const { Cell::new(0) }; }
 struct ParseGuard;
 impl Drop for ParseGuard {
@@ -85,11 +85,12 @@ impl Object {
         if [self.width, self.height]
             .iter()
             .any(|v| !v.is_finite() || !(0.001..=MAX_COORDINATE).contains(v))
-            || !(1..=4).contains(&self.surface_scale)
+            || !(1..=crate::limits::render_quality::MAX_SCALE).contains(&self.surface_scale)
         {
-            return Err(invalid(
-                "Object dimensions require 0.001..=32768; surface scale requires 1..=4",
-            ));
+            return Err(invalid(&format!(
+                "Object dimensions require 0.001..={MAX_COORDINATE}; surface scale requires 1..={}",
+                crate::limits::render_quality::MAX_SCALE
+            )));
         }
         if let Some(view) = self.view {
             view.validate()?;

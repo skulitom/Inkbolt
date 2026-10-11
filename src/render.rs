@@ -13,9 +13,9 @@ mod spatial;
 pub(crate) mod tiled;
 pub(crate) mod traversal;
 
-pub const MAX_RENDER_PIXELS: u64 = 1_048_576;
-pub const MAX_RENDER_WORK: u64 = 67_108_864;
-pub const MAX_BUFFER_PIXELS: u64 = 4_194_304;
+pub use crate::limits::render::MAX_BUFFER_PIXELS;
+pub use crate::limits::render::MAX_RENDER_PIXELS;
+pub use crate::limits::render::MAX_RENDER_WORK;
 pub fn hex(bytes: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);

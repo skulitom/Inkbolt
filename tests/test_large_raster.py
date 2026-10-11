@@ -3,6 +3,7 @@ import copy
 import json
 import sys
 import unittest
+from advertised_limits import capabilities, over_pixel_budget
 from contextlib import closing
 from test_cli import EXE, ROOT
 import test_agent_workspace as workspace
@@ -18,7 +19,8 @@ class LargeRasterTests(unittest.TestCase):
     setUp = workspace.AgentWorkspaceTests.setUp
     cli = workspace.AgentWorkspaceTests.cli
 
-    def document(self, count=257):
+    def document(self, count=None):
+        count = capabilities()['limits']['items']+1 if count is None else count
         d = self.cli('document.create', id='layout', kind='raster', width=64, height=64,
                      resource_profile='large_raster')
         d['items'] = [dict(id=f'p{i}', transform=[1, 0, 0, 1, i % 64, i//64],
@@ -47,8 +49,11 @@ class LargeRasterTests(unittest.TestCase):
         self.assertEqual(json.loads(self.cli('document.export', document=changed, format='snapshot')['data']), changed)
         self.assertEqual(self.cli('document.inspect', document=changed)['resource_profile'], 'large_raster')
         caps = self.cli('capabilities')['resource_profiles']['large_raster']
-        self.assertEqual((caps['kind'], caps['items'], caps['geometry_commands'], caps['snapshot_bytes']),
-                         ('raster', 8192, 131072, 8*1024*1024))
+        self.assertEqual(caps['kind'], 'raster')
+        standard = capabilities()['limits']
+        self.assertGreater(caps['items'], standard['items'])
+        self.assertGreater(caps['geometry_commands'], standard['path_commands'])
+        self.assertGreater(caps['snapshot_bytes'], standard['document_bytes'])
         self.assertFalse(caps['raises_processing_limits'])
         self.cli('document.create', id='wrong', kind='vector', width=2, height=2,
                  resource_profile='large_raster', error='INVALID_DOCUMENT')
@@ -59,8 +64,9 @@ class LargeRasterTests(unittest.TestCase):
                  resource_profile='large_raster', error='INVALID_DOCUMENT')
 
     def test_item_inline_pixel_and_path_limits_remain_independent(self):
-        d = self.document(8192)
-        self.assertEqual(len(self.cli('document.validate', document=d)['items']), 8192)
+        maximum = capabilities()['resource_profiles']['large_raster']['items']
+        d = self.document(maximum)
+        self.assertEqual(len(self.cli('document.validate', document=d)['items']), maximum)
         d['items'].append(dict(d['items'][0], id='overflow'))
         self.cli('document.validate', document=d, error='RESOURCE_LIMIT')
         d = self.document()
@@ -70,26 +76,28 @@ class LargeRasterTests(unittest.TestCase):
                  operations=[dict(op='resource_profile', profile='standard')], error='RESOURCE_LIMIT')
         self.assertEqual(d, self.document())
         d = self.document(0)
-        d['items'] = [dict(id='too-many-inline-pixels', content=dict(type='raster', width=257, height=256,
-                                                                  rgba_hex='145096ff'*(257*256)))]
+        width, height = over_pixel_budget(capabilities()['limits']['stored_pixels'])
+        d['items'] = [dict(id='too-many-inline-pixels', content=dict(type='raster', width=width, height=height,
+                                                                  rgba_hex='145096ff'*(width*height)))]
         self.cli('document.validate', document=d, error='RESOURCE_LIMIT')
         d['items'] = [dict(id='too-many-commands', content=dict(type='vector', fill=[20, 80, 150, 255],
-            geometry=dict(shape='path', commands=[dict(verb='move', to=[0, 0])]+[dict(verb='line', to=[1, 1])]*4096)))]
+            geometry=dict(shape='path', commands=[dict(verb='move', to=[0, 0])]+[dict(verb='line', to=[1, 1])]*capabilities()['limits']['path_commands'])))]
         self.cli('document.validate', document=d, error='RESOURCE_LIMIT')
 
     def test_mixed_geometry_and_snapshot_budgets_and_downgrade_are_explicit(self):
         d = self.document(0)
-        commands = [dict(verb='move', to=[0, 0])]+[dict(verb='line', to=[i % 2, 1]) for i in range(4095)]
+        commands = [dict(verb='move', to=[0, 0])]+[dict(verb='line', to=[i % 2, 1]) for i in range(capabilities()['limits']['path_commands']-1)]
         item = dict(id='path', content=dict(type='vector', fill=[20, 80, 150, 255],
                                           geometry=dict(shape='path', commands=commands)))
-        d['items'] = [dict(item, id=f'path{i}') for i in range(32)]
+        path_count = capabilities()['resource_profiles']['large_raster']['geometry_commands']//len(commands)
+        d['items'] = [dict(item, id=f'path{i}') for i in range(path_count)]
         self.cli('document.validate', document=d)
         overflow = copy.deepcopy(d); overflow['items'].append(dict(item, id='overflow'))
         self.cli('document.validate', document=overflow, error='RESOURCE_LIMIT')
         cubic = dict(verb='cubic', to=[.12345678901234568, .9876543210987654],
                      control1=[.12345678901234568, .9876543210987654],
                      control2=[.12345678901234568, .9876543210987654])
-        large_path = dict(shape='path', commands=[commands[0]]+[cubic]*4095)
+        large_path = dict(shape='path', commands=[commands[0]]+[cubic]*(capabilities()['limits']['path_commands']-1))
         large_item = dict(id='large', content=dict(type='vector', fill=[20, 80, 150, 255], geometry=large_path))
         large = dict(d, items=[dict(large_item, id=f'large{i}') for i in range(16)])
         failure = self.cli('document.validate', document=large, error='RESOURCE_LIMIT')

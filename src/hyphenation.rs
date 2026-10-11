@@ -6,15 +6,15 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
-pub const MAX_PATTERNS: usize = 32_768;
-pub const MAX_PATTERN_CHARS: usize = 64;
-pub const MAX_TOTAL_PATTERN_CHARS: usize = 262_144;
-pub const MAX_EXCEPTIONS: usize = 4_096;
-pub const MAX_EXCEPTION_CHARS: usize = 65_536;
-pub const MAX_WORD_CHARS: usize = 256;
-pub const MAX_WORDS: usize = 256;
-pub const MAX_TOTAL_WORD_CHARS: usize = 4_096;
-pub const MAX_WORK: usize = 4_194_304;
+pub use crate::limits::hyphenation::MAX_EXCEPTION_CHARS;
+pub use crate::limits::hyphenation::MAX_EXCEPTIONS;
+pub use crate::limits::hyphenation::MAX_PATTERN_CHARS;
+pub use crate::limits::hyphenation::MAX_PATTERNS;
+pub use crate::limits::hyphenation::MAX_TOTAL_PATTERN_CHARS;
+pub use crate::limits::hyphenation::MAX_TOTAL_WORD_CHARS;
+pub use crate::limits::hyphenation::MAX_WORD_CHARS;
+pub use crate::limits::hyphenation::MAX_WORDS;
+pub use crate::limits::hyphenation::MAX_WORK;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

@@ -3,7 +3,7 @@ use crate::{Error, geometry as geo, model::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_COPIES: usize = 128;
+pub use crate::limits::repeats::MAX_COPIES;
 fn half() -> f64 {
     0.5
 }

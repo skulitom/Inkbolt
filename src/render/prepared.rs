@@ -92,7 +92,7 @@ impl Prepared {
         }
         let fonts = crate::fonts::resolve(document, font_root)?;
         let texts = crate::text::prepare(document, &fonts)?;
-        let spatial = if tiled && document.items.len() >= 128 {
+        let spatial = if tiled && document.items.len() >= crate::limits::render_spatial::MIN_ITEMS {
             Some(super::spatial::Plan::new(
                 document,
                 &texts,

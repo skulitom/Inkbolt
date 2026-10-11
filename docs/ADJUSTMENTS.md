@@ -1,5 +1,7 @@
 # Tone adjustment layers and pixel measurements
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Raster documents accept editable tone layers. A layer modifies colors while retaining the underlying pixels, asset identities, alpha and source files. Normal document edits, snapshots, session undo/redo, conflict checks, diffs and create-only PNG publication apply. Vector documents reject adjustment content; broader effects, profile-managed color, filter stacks and high-depth storage remain separate requirements.
 
 ## Layer model and clipping

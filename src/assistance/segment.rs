@@ -8,9 +8,9 @@ use std::{
     path::Path,
 };
 
-pub const MAX_PIXELS: usize = 65_536;
-pub const MAX_SEEDS: usize = 32;
-pub const MAX_WORK: u64 = 67_108_864;
+pub use crate::limits::assistance_segment::MAX_PIXELS;
+pub use crate::limits::assistance_segment::MAX_SEEDS;
+pub use crate::limits::assistance_segment::MAX_WORK;
 fn default_weight() -> u32 {
     4096
 }
@@ -41,7 +41,7 @@ impl Work<'_> {
         if self.count > MAX_WORK {
             return Err(Error::new(
                 "RESOURCE_LIMIT",
-                "Local selection exceeds 67108864 work units",
+                format!("Local selection exceeds {MAX_WORK} work units"),
             ));
         }
         if self.count >> 11 != before >> 11 {
@@ -145,7 +145,7 @@ fn size(width: u32, height: u32) -> Result<(), Error> {
     if width == 0 || height == 0 || width as u64 * height as u64 > MAX_PIXELS as u64 {
         return Err(Error::new(
             "RESOURCE_LIMIT",
-            "Local selection requires 1..65536 native pixels",
+            format!("Local selection requires 1..{MAX_PIXELS} native pixels"),
         ));
     }
     Ok(())

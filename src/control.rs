@@ -1,5 +1,6 @@
 //! Cooperative cancellation and deadlines, shared by CLI and future agent adapters.
 use crate::Error;
+pub use crate::limits::control::MAX_TIMEOUT_MS;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -10,7 +11,6 @@ use std::{
     },
     time::{Duration, Instant},
 };
-pub const MAX_TIMEOUT_MS: u64 = 60_000;
 #[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Options {

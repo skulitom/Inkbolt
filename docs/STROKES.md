@@ -1,5 +1,7 @@
 # Editable vector strokes
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Optional `stroke.brush` replaces the ordinary ribbon with original rigid filled motifs along the path, including width profiles, editable spacing, custom endpoints/corners and both scaling policies. See [VECTOR_BRUSHES.md](VECTOR_BRUSHES.md). Brush expansion may retain cubic motif commands. Default cap/join/miter settings are required and dash/arrow combinations fail explicitly.
 
 Vector content has an optional `stroke` with a shared `color` paint, `width`, `cap`, `join` and `miter_limit`. Width is 0.001..1024; caps are `butt`, `round` or `square`; joins are `miter`, `round` or `bevel`; miter limits are 1..16 (default 4). `scaling:"object"` (default) transforms the entire locally evaluated stroke with the item and ancestors. `scaling:"document"` evaluates width, dashes, arrows and tolerance in document logical units after transforming the centerline. Paints remain item-local. See [TRANSFORMS.md](TRANSFORMS.md) for composition, pivots, independent placements and fixed-width behavior. Geometry bounds and alignment exclude the live stroke; expanded outlines are ordinary filled geometry and contribute their own bounds.

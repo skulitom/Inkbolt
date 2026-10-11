@@ -1,5 +1,7 @@
 # Retained embedded and linked objects
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Raster documents can place a complete editable vector or raster snapshot as `content:{"type":"object","object":...}`. The object retains the exact UTF-8 source string and its SHA-256, including original pixels, hidden transparent color, layers, fonts, geometry, metadata and nested sources. The parent placement has its own identity, transform, opacity, masks, clipping, effects and supported pixel deformation. Editing a placement does not rewrite its retained source.
 
 ## Import, reopen and replace

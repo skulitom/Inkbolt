@@ -1,5 +1,7 @@
 # Editable text on a path
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Text frames in either document kind can retain an optional `path` baseline. Agents can place curved labels and badge text, edit the original baseline or characters, inspect every glyph, and publish outlines while keeping an editable snapshot.
 
 ```json

@@ -2,8 +2,8 @@
 use super::*;
 use crate::{assets::Sampling, scene};
 pub const ALGORITHM: &str = "inkbolt-raw-linear-v2";
-pub const MAX_SOURCE_BYTES: usize = 131072;
-pub const MAX_RECIPE_BYTES: u64 = 16384;
+pub use crate::limits::raw_retained::MAX_RECIPE_BYTES;
+pub use crate::limits::raw_retained::MAX_SOURCE_BYTES;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]

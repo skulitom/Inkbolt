@@ -1,5 +1,7 @@
 # Retained vector appearance
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 An appearance object gives one editable source geometry several ordered fills and strokes. Agents can build outlined icons, layered diagram nodes and offset paint treatments without maintaining duplicate source paths. Each pass has a stable ID, and the document snapshot retains every source control.
 
 ## Create and inspect

@@ -9,6 +9,7 @@ import sqlite3
 import subprocess
 import tempfile
 import unittest
+from advertised_limits import capabilities, over_pixel_budget
 import xml.etree.ElementTree as ET
 
 from test_cli import EXE
@@ -114,16 +115,16 @@ class LargeVectorTests(unittest.TestCase):
             self.assertEqual(source.read_bytes(), raw)
 
     def test_item_command_and_snapshot_limits_are_independent_and_defaults_stay_bounded(self):
-        d = workload(257)
+        d = workload(capabilities()['limits']['items']+1)
         standard = dict(d)
         standard.pop('resource_profile')
         self.invoke(dict(command='document.validate', document=standard), 'RESOURCE_LIMIT')
         self.invoke(dict(command='document.validate', document=d))
-        self.invoke(dict(command='document.validate', document=workload(8193)), 'RESOURCE_LIMIT')
-        d = workload(8192)
+        self.invoke(dict(command='document.validate', document=workload(capabilities()['resource_profiles']['large_vector']['items']+1)), 'RESOURCE_LIMIT')
+        d = workload(capabilities()['resource_profiles']['large_vector']['items'])
         self.invoke(dict(command='document.validate', document=d))
-        commands = [dict(verb='move', to=[0, 0])] + [dict(verb='line', to=[i % 2, 1]) for i in range(4095)]
-        d = workload(32)
+        commands = [dict(verb='move', to=[0, 0])] + [dict(verb='line', to=[i % 2, 1]) for i in range(capabilities()['limits']['path_commands']-1)]
+        d = workload(capabilities()['resource_profiles']['large_vector']['geometry_commands']//len(commands))
         for item in d['items']:
             item['content']['geometry'] = dict(shape='path', commands=commands)
         self.invoke(dict(command='document.validate', document=d))
@@ -136,7 +137,7 @@ class LargeVectorTests(unittest.TestCase):
         d['items'] = d['items'][:16]
         cubic = dict(verb='cubic', to=[.12345678901234568, .9876543210987654], control1=[.12345678901234568, .9876543210987654], control2=[.12345678901234568, .9876543210987654])
         for item in d['items']:
-            item['content']['geometry'] = dict(shape='path', commands=[commands[0]] + [cubic] * 4095)
+            item['content']['geometry'] = dict(shape='path', commands=[commands[0]] + [cubic] * (capabilities()['limits']['path_commands']-1))
         error = self.invoke(dict(command='document.validate', document=d), 'RESOURCE_LIMIT')
         self.assertIn('Snapshot', error['message'])
 
@@ -175,7 +176,7 @@ class LargeVectorTests(unittest.TestCase):
             with closing(sqlite3.connect(db_path)) as db:
                 self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
                 for payload, digest in db.execute('SELECT payload,sha256 FROM states'):
-                    self.assertGreater(len(payload), 768 * 1024)
+                    self.assertGreater(len(payload), capabilities()['limits']['document_bytes'])
                     self.assertEqual(hashlib.sha256(payload).hexdigest(), digest)
                     self.assertEqual(json.loads(payload)['document']['resource_profile'], 'large_vector')
 
@@ -216,7 +217,7 @@ class LargeVectorTests(unittest.TestCase):
         self.invoke(dict(command='document.export', document=d, format='svg', control=dict(timeout_ms=1)), 'TIMEOUT')
         self.invoke(dict(command='document.render', document=d, control=dict(timeout_ms=1)), 'TIMEOUT')
         # Regional evaluation admits sparse scenes without raising either cap.
-        self.invoke(dict(command='document.export', document=dict(d, width=1025, height=1024), format='png'), 'RESOURCE_LIMIT')
+        self.invoke(dict(command='document.export', document=dict(d, **dict(zip(('width','height'), over_pixel_budget(capabilities()['limits']['render_pixels'])))), format='png'), 'RESOURCE_LIMIT')
         dense = workload(100)
         dense.update(width=1000, height=1000)
         for item in dense['items']:

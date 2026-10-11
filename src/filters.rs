@@ -5,9 +5,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-pub const MAX_STACK: usize = 8;
-pub const MAX_DOCUMENT_FILTERS: usize = 64;
-pub const MAX_WORK: u64 = 67_108_864;
+pub use crate::limits::filters::MAX_DOCUMENT_FILTERS;
+pub use crate::limits::filters::MAX_STACK;
+pub use crate::limits::filters::MAX_WORK;
 fn yes() -> bool {
     true
 }

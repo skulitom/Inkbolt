@@ -1,7 +1,7 @@
 //! Original bounded evaluation of ICC gamut tables, independent of round trips.
 use super::*;
 
-pub const MAX_SAMPLES: usize = 4096;
+pub use crate::limits::profiles_gamut::MAX_SAMPLES;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {

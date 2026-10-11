@@ -25,9 +25,9 @@ pub use images::MAX_SOURCE_PROFILES;
 pub(crate) use objects::receipt as objects_receipt;
 pub(crate) use raw::receipt as raw_receipt;
 
-pub const MAX_SPOTS: usize = 28;
-pub const MAX_BUFFER_VALUES: u64 = 16_777_216;
-pub const MAX_WORK: u64 = 134_217_728;
+pub use crate::limits::prepress::MAX_BUFFER_VALUES;
+pub use crate::limits::prepress::MAX_SPOTS;
+pub use crate::limits::prepress::MAX_WORK;
 
 pub(crate) fn blending_receipt() -> Value {
     json!({"modes":crate::blending::MODES,"process":"subtractive_complements;CMY_nonseparable_with_K_backdrop_except_luminosity_source","whole_color":"select_complete_CMYK_by_total_ink;backdrop_wins_ties","spots":"separable_white_preserving_modes;otherwise_normal","overprint":"implicit_nonisolated_group_before_requested_blend","clipping":"blend_conditional_base_color_without_increasing_base_alpha","fill_stroke":"separate_normal_paints_then_combined_item_blend","arithmetic":"binary64;no_intermediate_byte_projection"})

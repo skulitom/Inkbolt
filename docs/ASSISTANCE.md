@@ -1,5 +1,7 @@
 # Local layout assistance
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `assist.layout` automatically arranges explicit artwork IDs into horizontal rows inside an explicit area. It chooses row breaks for the smallest total height while preserving input order and object sizes. This is useful for icon sheets, ordered diagram panels and asset layouts. It is an original deterministic CPU algorithm, with no learned model, model cache, GPU, account or network dependency. It does not generate semantic artwork.
 
 ```json

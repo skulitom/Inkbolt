@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashSet;
 
-pub const MAX_STACK: usize = 8;
-pub const MAX_DOCUMENT_EFFECTS: usize = 64;
-pub const MAX_WORK: u64 = 67_108_864;
+pub use crate::limits::effects::MAX_DOCUMENT_EFFECTS;
+pub use crate::limits::effects::MAX_STACK;
+pub use crate::limits::effects::MAX_WORK;
 fn yes() -> bool {
     true
 }

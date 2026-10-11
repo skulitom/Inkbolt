@@ -2,8 +2,8 @@
 use super::*;
 use num_traits::Signed;
 
-pub(super) const MAX_ROOT_DEPTH: usize = 96;
-pub(super) const MAX_COEFFICIENT_BITS: u64 = 4096;
+pub(super) use crate::limits::booleans_topology_algebraic_roots::MAX_COEFFICIENT_BITS;
+pub(super) use crate::limits::booleans_topology_algebraic_roots::MAX_ROOT_DEPTH;
 
 pub(super) fn bounded(p: &[R]) -> Result<(), Error> {
     if p.len() > 19

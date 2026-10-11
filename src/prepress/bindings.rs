@@ -1,7 +1,7 @@
 //! Explicit interpretation of retained source spots as declared destination inks.
 use super::*;
 
-pub const MAX_BINDINGS: usize = 1024;
+pub use crate::limits::prepress_bindings::MAX_BINDINGS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

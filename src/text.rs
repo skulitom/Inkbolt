@@ -13,12 +13,12 @@ mod first_baseline;
 pub use first_baseline::{FirstBaseline, FirstBaselineMetric};
 pub mod flow;
 mod shaping;
+pub use crate::limits::text::MAX_GLYPHS;
+pub use crate::limits::text::MAX_OUTLINE_COMMANDS;
+use crate::limits::text::MAX_SHAPING_WORK;
+pub use crate::limits::text::MAX_TEXT_CHARS;
+pub use crate::limits::text::MAX_TEXT_RANGES;
 use shaping::{Analysis, shape};
-pub const MAX_TEXT_CHARS: usize = 4096;
-pub const MAX_TEXT_RANGES: usize = 64;
-pub const MAX_GLYPHS: usize = 8192;
-pub const MAX_OUTLINE_COMMANDS: usize = 131072;
-const MAX_SHAPING_WORK: usize = 1_048_576;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

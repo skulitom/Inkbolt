@@ -1,5 +1,7 @@
 # Local pixel assistance
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Agents can select an object from explicit foreground/background seeds, apply an editable mask, remove the selected pixels with local texture repair, reduce noise with a self-guided median, and enlarge a document with explicit reconstruction. These are original CPU operations. They need no learned model, model cache, GPU, account or network service. There is no semantic recognition, generative completion or invented high-frequency detail.
 
 ## Select and inspect

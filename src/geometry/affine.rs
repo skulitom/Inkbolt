@@ -3,12 +3,12 @@ use crate::{Error, model::*};
 use num_rational::BigRational as R;
 use num_traits::{Signed, ToPrimitive};
 
-pub(crate) const MIN_DETERMINANT: f64 = 1e-8;
+pub(crate) use crate::limits::geometry_affine::MIN_DETERMINANT;
 // Coefficient error applied to any point in the accepted world-coordinate box.
 // This does not include subsequent point arithmetic or renderer quantization.
-pub(crate) const MAX_FAST_POINT_ERROR: f64 = 1e-9;
-pub(crate) const MAX_RELATIVE_FACTORS: usize = 8;
-pub(crate) const MAX_TRANSFORM_FACTORS: usize = MAX_RELATIVE_FACTORS + 1;
+pub(crate) use crate::limits::geometry_affine::MAX_FAST_POINT_ERROR;
+pub(crate) use crate::limits::geometry_affine::MAX_RELATIVE_FACTORS;
+pub(crate) use crate::limits::geometry_affine::MAX_TRANSFORM_FACTORS;
 
 #[derive(Clone, Copy)]
 pub(crate) enum TransformFactor {

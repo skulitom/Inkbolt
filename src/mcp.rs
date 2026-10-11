@@ -17,13 +17,13 @@ use std::{
 };
 
 pub const PROTOCOL: &str = "2025-11-25";
-pub const MAX_MESSAGE_BYTES: usize = crate::MAX_REQUEST_BYTES as usize + 16384;
-pub const MAX_RESPONSE_BYTES: usize = 96 * 1024 * 1024;
-pub const MAX_PENDING: usize = 8;
-pub const MAX_REQUEST_IDS: usize = 4096;
+pub use crate::limits::mcp::MAX_MESSAGE_BYTES;
+pub use crate::limits::mcp::MAX_PENDING;
+pub use crate::limits::mcp::MAX_REQUEST_IDS;
+pub use crate::limits::mcp::MAX_RESPONSE_BYTES;
 const PAGE: usize = 8;
 
-pub const CORE_CATALOG_BYTES: usize = 96 * 1024;
+pub use crate::limits::mcp::CORE_CATALOG_BYTES;
 const CORE: &[&str] = &[
     "schema.lookup",
     "document.create",

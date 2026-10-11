@@ -2,9 +2,9 @@
 use super::{text_data::Node, *};
 use std::collections::BTreeMap;
 
-pub(super) const MAX_RECORDS: usize = 256;
-pub(super) const MAX_NAME_BYTES: usize = 128;
-const MAX_REPORTED: usize = 4;
+pub(super) use crate::limits::layered_text_preset_records::MAX_NAME_BYTES;
+pub(super) use crate::limits::layered_text_preset_records::MAX_RECORDS;
+use crate::limits::layered_text_preset_records::MAX_REPORTED;
 const PREVIEW_CHARACTERS: usize = 16;
 
 #[derive(Default)]

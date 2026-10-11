@@ -1,5 +1,7 @@
 # Source profile assignment and conversion
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Agents can preserve an image's native values while changing its interpretation,
 or explicitly convert those values to another RGB profile. `sample_profile`
 works on retained normalized `samples` grids and promotes inline RGBA8 content

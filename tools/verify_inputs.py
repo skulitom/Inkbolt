@@ -124,6 +124,9 @@ def fingerprints(root, files, environment, modules):
     # engine checks. Markdown is selected through fixture references instead.
     engine = {p for p in files if not p.startswith(('tests/', 'tools/')) and not p.endswith('.md')}
     rust = engine | {p for p in files if p.startswith('tests/') and p.endswith('.rs')}
+    # The limit unit test embeds this generated reference with include_str!.
+    # Its bytes must invalidate Cargo checks even when no Rust file changed.
+    rust |= {p for p in files if p == 'docs/LIMITS.md'}
     def key(name, selected):
         return digest([name, environment, {p: files[p] for p in sorted(selected | infrastructure)}])
     result = {name: key(name, rust) for name in ('build', 'fmt', 'clippy', 'rust')}

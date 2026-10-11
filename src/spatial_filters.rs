@@ -3,7 +3,7 @@ use crate::{Error, assets::Sampling, geometry, model::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_MAP_PIXELS: usize = 4096;
+pub use crate::limits::spatial_filters::MAX_MAP_PIXELS;
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Map {

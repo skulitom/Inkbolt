@@ -5,6 +5,7 @@ import hashlib
 import json
 import struct
 import unittest
+from advertised_limits import capabilities, over_pixel_budget
 from external_workspace import files as workspace_files
 import zlib
 from contextlib import closing
@@ -251,12 +252,12 @@ class StoredSampleTests(unittest.TestCase):
         # Stored patches remain bounded and do not hide corrupt inherited data.
         too_many = copy.deepcopy(d)
         op = self.patch(0,0,1,1)
-        self.grid(too_many)['patches'] = [dict(region=op['region'],data_hex=op['data_hex'])]*257
+        self.grid(too_many)['patches'] = [dict(region=op['region'],data_hex=op['data_hex'])]*(caps['native_sample_store_library']['retained_edits']['max_patches']+1)
         self.cli('document.validate',document=too_many,error='RESOURCE_LIMIT')
         self.cli('document.edit',document=d,expected_revision=0,operations=[op],control=dict(timeout_ms=0),error='TIMEOUT')
         # Source byte cap is independent of admitted document dimensions. The
         # declared native size rejects before allocating or reading pixel data.
-        (self.root/'oversize.tif').write_bytes(tiff(4096,1025,[],depth='f32'))
+        (self.root/'oversize.tif').write_bytes(tiff(*over_pixel_budget(caps['native_sample_store_library']['import']['max_decoded_bytes']//16),[],depth='f32'))
         before = self.files()
         self.cli('sample.import',source_path='oversize.tif',id='too-big',color_policy='assume_srgb',storage={},error='RESOURCE_LIMIT')
         self.assertEqual(self.files(),before)

@@ -1,12 +1,12 @@
 //! Original color controls and bounded lookup evaluation for the adjustment pipeline.
+pub use crate::limits::color_adjustments::MAX_DOCUMENT_LUT_ENTRIES;
+pub use crate::limits::color_adjustments::MAX_LUT_1D;
+pub use crate::limits::color_adjustments::MAX_LUT_3D_SIDE;
+pub use crate::limits::color_adjustments::MAX_MAP_STOPS;
 use crate::{Error, model::*, paint::Interpolation};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-pub const MAX_LUT_1D: usize = 4096;
-pub const MAX_LUT_3D_SIDE: u32 = 33;
-pub const MAX_DOCUMENT_LUT_ENTRIES: usize = 65536;
-pub const MAX_MAP_STOPS: usize = 64;
 pub type Rgb = [f64; 3];
 pub fn domain() -> [Rgb; 2] {
     [[0.0; 3], [1.0; 3]]

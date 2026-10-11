@@ -365,7 +365,7 @@ fn execute(root: &Path, runtime: &Runtime, input: &Input, state: &State) -> Resu
         match store::required(root).and_then(|db| store::state(&db, &input.id)) {
             Ok(current) if current.phase == Phase::Running && current.cancel_requested => {
                 let since = cancelling.get_or_insert_with(Instant::now);
-                if since.elapsed() >= Duration::from_secs(2) {
+                if since.elapsed() >= Duration::from_millis(crate::limits::jobs::CANCEL_GRACE_MS) {
                     runner.stop()?;
                 }
             }

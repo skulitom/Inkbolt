@@ -3,7 +3,7 @@ use super::*;
 use crate::control::Control;
 
 /// Four-dimensional output-device tables need a separate bounded allowance.
-pub const MAX_PROFILE_BYTES: usize = 4 * 1024 * 1024;
+pub use crate::limits::profiles_cmyk::MAX_PROFILE_BYTES;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]

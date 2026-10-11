@@ -1,5 +1,7 @@
 # Paged inspection and preview transport
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `document.inspect.page` reads a bounded selection without returning a complete document or inventory. It is available through Rust, JSON CLI, the core MCP catalog and the dispatcher. Legacy `document.inspect`, `document.query` and `document.select` retain their existing behavior.
 
 ```json

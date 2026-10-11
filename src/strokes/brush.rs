@@ -2,7 +2,7 @@
 use super::outline::{Centerline, radius};
 use super::*;
 
-pub const MAX_PLACEMENTS: usize = 8192;
+pub use crate::limits::strokes_brush::MAX_PLACEMENTS;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Fit {

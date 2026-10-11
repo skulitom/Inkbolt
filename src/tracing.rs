@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, path::Path};
 
-pub const MAX_PIXELS: usize = 1_048_576;
-pub const MAX_COLORS: usize = 64;
-pub const MAX_EDGES: usize = 262_144;
+pub use crate::limits::tracing::MAX_COLORS;
+pub use crate::limits::tracing::MAX_EDGES;
+pub use crate::limits::tracing::MAX_PIXELS;
 const ALGORITHM: &str = "inkbolt-cell-contours-v1";
 
 #[derive(Clone, Debug, Deserialize, JsonSchema)]

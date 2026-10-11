@@ -1,5 +1,7 @@
 # Unicode shaping and explicit font fallback
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Both document kinds shape horizontal Unicode text using pinned monochrome local
 fonts. The source text stays in logical Unicode order. Scripts, glyph substitutions,
 mark placement, kerning and the selected language feed shaping before layout,

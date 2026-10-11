@@ -1,15 +1,15 @@
 //! Retained image-plane deformation with unique inverse sampling.
+pub use crate::limits::pixel_warps::MAX_AXIS;
+pub use crate::limits::pixel_warps::MAX_JOINTS;
+pub use crate::limits::pixel_warps::MAX_SAMPLES;
+pub use crate::limits::pixel_warps::MAX_WORK;
+use crate::limits::pixel_warps::MIN_ALTITUDE;
+use crate::limits::pixel_warps::MIN_RELATIVE_AREA;
 use crate::{Error, geometry as geo, model::*};
 use num_rational::BigRational as R;
 use num_traits::{Signed, ToPrimitive, Zero};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-pub const MAX_AXIS: usize = 16;
-pub const MAX_JOINTS: usize = 16;
-pub const MAX_SAMPLES: usize = 256;
-pub const MAX_WORK: u64 = 67_108_864;
-const MIN_ALTITUDE: f64 = 1. / 1024.;
-const MIN_RELATIVE_AREA: f64 = 1. / 1_048_576.;
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Joint {

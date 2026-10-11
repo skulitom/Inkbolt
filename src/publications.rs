@@ -17,9 +17,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-pub const MAX_RECEIPT_BYTES: usize = 1024 * 1024;
-pub const MAX_LEDGER_BYTES: usize = 64 * 1024 * 1024;
-pub const MAX_RECORDS: usize = 1024;
+pub use crate::limits::publications::MAX_LEDGER_BYTES;
+pub use crate::limits::publications::MAX_RECEIPT_BYTES;
+pub use crate::limits::publications::MAX_RECORDS;
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]

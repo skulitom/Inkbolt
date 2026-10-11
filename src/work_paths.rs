@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 pub(crate) mod coverage;
 
-pub const MAX_COMPONENTS: usize = 64;
-pub const MAX_COMPONENT_DEPTH: usize = 8;
+pub use crate::limits::work_paths::MAX_COMPONENT_DEPTH;
+pub use crate::limits::work_paths::MAX_COMPONENTS;
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Operand {

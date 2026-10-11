@@ -20,6 +20,12 @@ compiled registry, evidence references and generated report together.
 Its source inventory also binds cached results to the evidence-test files, so
 renamed or removed test functions cannot leave a stale registry pass.
 
+After changing centralized resource constants, run `python tools/update_limits.py`.
+The generated [limit reference](LIMITS.md) is checked against compiled Rust values
+and the selected discovery/admission contracts in `test_resource_limits`.
+Changes to this embedded reference invalidate Cargo checks as well as its Python
+consumers; ordinary unrelated Markdown still preserves identical engine passes.
+
 Do not separately repeat formatting, Clippy, build and full Rust tests after the verifier has already covered them on unchanged inputs. It owns those stages. Use targeted checks after a small correction; rerun broad checks only for new relevant changes, failures or unresolved concerns. Do not run thorough acceptance for each intermediate edit.
 
 ## Budget, execution and results

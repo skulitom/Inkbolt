@@ -4,7 +4,7 @@ use num_rational::BigRational as R;
 use num_traits::ToPrimitive;
 
 // The fast result's composition error, applied to any stored control point.
-pub(crate) const MAX_FAST_POINT_ERROR: f64 = 1e-9;
+pub(crate) use crate::limits::scene_hierarchy::MAX_FAST_POINT_ERROR;
 
 fn add_bound(a: f64, b: f64) -> f64 {
     if a == 0.0 {

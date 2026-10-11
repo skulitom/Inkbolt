@@ -1,10 +1,10 @@
 //! Source-independent list counters and pinned-font marker placement.
 use super::*;
 
-pub const MAX_LEVELS: usize = 9;
-pub const MAX_LISTS: usize = 64;
-pub const MAX_COUNTER: u32 = 999_999;
-pub const MAX_AFFIX: usize = 32;
+pub use crate::limits::text_flow_lists::MAX_AFFIX;
+pub use crate::limits::text_flow_lists::MAX_COUNTER;
+pub use crate::limits::text_flow_lists::MAX_LEVELS;
+pub use crate::limits::text_flow_lists::MAX_LISTS;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

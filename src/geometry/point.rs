@@ -2,7 +2,7 @@
 use num_rational::BigRational as R;
 use num_traits::ToPrimitive;
 
-pub(crate) const MAX_ROUNDOFF: f64 = 1e-9;
+pub(crate) use crate::limits::geometry_point::MAX_ROUNDOFF;
 
 // With rounded-product magnitudes summing to at most 2^20, the two products
 // and two additions have absolute forward error below 2^-31, including gradual

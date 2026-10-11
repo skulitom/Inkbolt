@@ -1,7 +1,7 @@
 //! Conservative per-tile scene membership; composition retains authored order.
 use super::*;
-pub const EDGE: u32 = 8;
-pub const MAX_REFERENCES: u64 = 1_048_576;
+pub use crate::limits::render_spatial::EDGE;
+pub use crate::limits::render_spatial::MAX_REFERENCES;
 
 #[derive(Default)]
 pub(super) struct Tile {

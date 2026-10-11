@@ -1,5 +1,7 @@
 # Fill, layer effects and coverage
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Printable drawable items and isolated groups support `fill_opacity` (0..1,
 default 1), an editable `effects` list and a `coverage` control. Defaults are
 omitted from snapshots; existing snapshots keep their original meaning. The

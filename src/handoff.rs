@@ -11,8 +11,8 @@ mod clock;
 mod verify;
 
 pub const VERSION: u32 = 1;
-pub const MAX_PIXELS: u64 = 8_000_000;
-pub const MAX_BYTES: usize = crate::publish::MAX_OUTPUT_BYTES;
+pub use crate::limits::handoff::MAX_BYTES;
+pub use crate::limits::handoff::MAX_PIXELS;
 pub const LOSSES: &[&str] = &[
     "Delivery frames are flattened straight RGBA8 encoded sRGB. Editable artwork remains in the exact source snapshot; its external resource stores are not bundled.",
     "Destination duration, frame rate, sampling and ending are explicit. Source play count is recorded but is not an instruction to the destination.",

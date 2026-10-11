@@ -5,7 +5,7 @@ use std::time::Duration;
 
 pub(super) const SCHEMA: &str = "CREATE TABLE publications(request_id TEXT PRIMARY KEY, payload BLOB NOT NULL, sha256 TEXT NOT NULL) STRICT";
 const APPLICATION: i64 = 0x494e4b50;
-const DATABASE_BYTES: u64 = 128 * 1024 * 1024;
+use crate::limits::publications_store::DATABASE_BYTES;
 
 pub(super) fn sql(e: rusqlite::Error) -> Error {
     match e.sqlite_error_code() {

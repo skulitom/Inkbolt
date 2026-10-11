@@ -4,6 +4,7 @@ import copy
 import hashlib
 import struct
 import unittest
+from advertised_limits import capabilities, over_pixel_budget
 import test_agent_workspace as workspace
 import test_stored_samples as native
 import test_samples_cli as samples
@@ -124,13 +125,13 @@ class TiledRenderTests(unittest.TestCase):
         item=rect(w=5,h=5); item['filters']=[dict(id='blur',operator=dict(type='radial',center=[2,2],angle=10),border='wrap')]
         d=self.document([item],10,10)
         self.cli('document.export',document=d,format='png',render_options=dict(evaluation='tiled'),error='UNSUPPORTED_TILED_RENDER')
-        d=self.document([],4097,4096)
+        d=self.document([], *over_pixel_budget(capabilities()['render_quality']['evaluation']['tiled_evaluation_pixels']))
         self.cli('document.export',document=d,format='png',render_options=dict(evaluation='tiled'),error='RESOURCE_LIMIT')
         self.cli('document.export',document=self.document([],10,10),format='png',render_options=dict(evaluation='tiled'),control=dict(timeout_ms=0),error='TIMEOUT')
         commands=[dict(verb='move',to=[0,0])]+[dict(verb='cubic',control1=[.25,.25],control2=[.75,.75],to=[1,1]) for _ in range(512)]+[dict(verb='close')]
         item=rect();item['content']['geometry']=dict(shape='path',commands=commands)
-        d=self.document([item],32768,1)
-        self.cli('document.export',document=d,format='png',scale=4,render_options=dict(evaluation='tiled',antialias='supersample4'),error='RESOURCE_LIMIT')
+        d=self.document([item],capabilities()['limits']['dimension_pixels'],1)
+        self.cli('document.export',document=d,format='png',scale=capabilities()['limits']['render_scale'][1],render_options=dict(evaluation='tiled',antialias='supersample4'),error='RESOURCE_LIMIT')
 
     def test_fractional_canvas_and_dissolve_keep_global_coordinates(self):
         d=self.document([rect(x=-10,y=-10,w=300,h=160)])

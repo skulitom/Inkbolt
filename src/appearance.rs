@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
-pub const MAX_PASSES: usize = 16;
+pub use crate::limits::appearance::MAX_PASSES;
 fn one() -> f64 {
     1.0
 }
@@ -284,7 +284,7 @@ pub(crate) fn bake(
             "Appearance baking currently requires encoded-sRGB working space",
         ));
     }
-    if !(1..=4).contains(&region.scale)
+    if !(1..=crate::limits::render_quality::MAX_SCALE).contains(&region.scale)
         || region.width == 0
         || region.height == 0
         || region.width > MAX_DIMENSION
@@ -292,9 +292,10 @@ pub(crate) fn bake(
         || region.width as u64 * region.height as u64 * (region.scale as u64).pow(2)
             > MAX_STORED_PIXELS as u64
     {
-        return Err(limit(
-            "Appearance baking requires scale 1..4 and at most 65536 embedded pixels",
-        ));
+        return Err(limit(&format!(
+            "Appearance baking requires scale 1..{} and at most {MAX_STORED_PIXELS} embedded pixels",
+            crate::limits::render_quality::MAX_SCALE
+        )));
     }
     geometry::validate_geometry(&Geometry::Rect {
         x: region.origin[0],

@@ -4,10 +4,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-pub const MAX_PIXELS: u64 = 262_144;
-pub const MAX_WORK: u64 = 67_108_864;
-pub const MAX_RADIUS: u32 = 32;
-pub const MAX_POLYGON_POINTS: usize = 1024;
+pub use crate::limits::selections::MAX_PIXELS;
+pub use crate::limits::selections::MAX_POLYGON_POINTS;
+pub use crate::limits::selections::MAX_RADIUS;
+pub use crate::limits::selections::MAX_WORK;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -303,7 +303,7 @@ pub fn to_mask(
 
 // Exact horizontal interval coverage, integrated over 256 subrows. Rectangles use exact area.
 // All geometry stays f64; this does not depend on the drawing backend's edge quantization.
-pub const COVERAGE_SUBROWS: u32 = 256;
+pub use crate::limits::selections::COVERAGE_SUBROWS;
 fn coverage(
     boundary: &Boundary,
     width: u32,

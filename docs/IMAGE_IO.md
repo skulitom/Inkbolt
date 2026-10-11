@@ -1,5 +1,7 @@
 # Image import and delivery
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Additional BMP, TGA, GIF and associated TIFF alpha contracts are in [EXTENDED_IMAGE_IO.md](EXTENDED_IMAGE_IO.md).
 
 Native-depth PNG/TIFF sample import is described in [SAMPLES.md](SAMPLES.md); signed linear binary32 TIFF and explicit display views are described in [HDR.md](HDR.md).

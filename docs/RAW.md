@@ -1,5 +1,7 @@
 # Explicit raw sensor development
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `raw.develop` reads an original Bayer sensor buffer and returns a new editable raster document, a versioned recipe, source identity and range diagnostics. The Rust library exposes `raw::develop` for byte slices and `raw::import` for an absolute local path. CLI and MCP stdio share the implementation. Nothing writes to the input file.
 
 This is a sensor-buffer interface. It does not identify camera containers, read embedded calibration, guess a camera model or infer colour from a filename. Callers supply sensor layout and calibration. The four little-endian word layouts follow the public [sensor format description](https://docs.kernel.org/userspace-api/media/v4l/pixfmt-srggb16.html); byte and big-endian word buffers have separate packing choices. No external camera SDK or new dependency is used.

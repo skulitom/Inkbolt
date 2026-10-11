@@ -1,5 +1,7 @@
 # Saved channels and image-guided selection
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Inkbolt stores reusable scalar regions separately from visible artwork. These original operations use the same Rust library, JSON CLI and MCP tools. They are available in both document kinds. A selection or saved channel never changes a composite until an explicit operation such as `mask_from_selection` uses it.
 
 ## Saved scalar channels

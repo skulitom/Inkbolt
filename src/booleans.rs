@@ -12,10 +12,10 @@ use std::{
 mod curves;
 mod topology;
 
-pub const MAX_INPUTS: usize = 16;
-pub const MAX_EDGES: usize = 512;
-pub const MAX_ATOMS: usize = 4096;
-pub const MAX_WORK: usize = 2_000_000;
+pub use crate::limits::booleans::MAX_ATOMS;
+pub use crate::limits::booleans::MAX_EDGES;
+pub use crate::limits::booleans::MAX_INPUTS;
+pub use crate::limits::booleans::MAX_WORK;
 pub fn default_tolerance() -> f64 {
     0.125
 }

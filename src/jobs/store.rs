@@ -8,7 +8,7 @@ use std::{
 };
 
 const APP: u32 = 0x494e4b4a;
-const DATABASE_BYTES: u64 = 512 * 1024 * 1024;
+use crate::limits::jobs_store::DATABASE_BYTES;
 const INPUTS: &str =
     "CREATE TABLE inputs(id TEXT PRIMARY KEY, payload BLOB NOT NULL, sha256 TEXT NOT NULL) STRICT";
 const JOBS: &str = "CREATE TABLE jobs(id TEXT PRIMARY KEY REFERENCES inputs(id), state BLOB NOT NULL, state_sha256 TEXT NOT NULL) STRICT";

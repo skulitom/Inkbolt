@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
-pub const MAX_WORK: u64 = 67_108_864;
-pub const MAX_PATCHES: usize = 4096;
+pub use crate::limits::repair::MAX_PATCHES;
+pub use crate::limits::repair::MAX_WORK;
 fn one() -> f64 {
     1.0
 }

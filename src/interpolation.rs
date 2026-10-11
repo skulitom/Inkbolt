@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 mod geometry;
 
-pub const MAX_COUNT: usize = 128;
-pub const MAX_DOCUMENT_SPINE_LEAVES: usize = 65536;
+pub use crate::limits::interpolation::MAX_COUNT;
+pub use crate::limits::interpolation::MAX_DOCUMENT_SPINE_LEAVES;
 fn one() -> f64 {
     1.0
 }
