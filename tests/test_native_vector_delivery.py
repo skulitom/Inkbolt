@@ -12,6 +12,7 @@ import test_native_vector_import as native
 import test_agent_workspace as workspace
 import test_jobs as jobs
 from test_mcp import Client
+from platform_support import requires_capability
 from test_editing_cli import png_pixels
 
 
@@ -228,8 +229,15 @@ class NativeVectorDelivery(unittest.TestCase):
         self.assertEqual(self.invoke(args,1)['code'],'UNSUPPORTED')
         self.assertFalse((self.root/'one.vector').exists())
 
+    def test_saved_revision_receipt_recovery_preserves_bytes_without_job(self):
+        self.delivery_workflow(False)
+
+    @requires_capability('jobs')
     def test_saved_revision_receipt_recovery_and_background_job_preserve_bytes(self):
-        self.addCleanup(self.stop_owned)
+        self.delivery_workflow(True)
+
+    def delivery_workflow(self, with_job):
+        if with_job: self.addCleanup(self.stop_owned)
         d=self.document()
         self.cli('session.create',session_id='work',request_id='create',document=d)
         original=dict(session_id='work',revision=0)
@@ -242,12 +250,13 @@ class NativeVectorDelivery(unittest.TestCase):
         self.assertTrue(self.cli('document.publish',**args)['publication']['replayed'])
         self.assertEqual(self.cli('publication.receipt',request_id='saved')['result']['sha256'],published['sha256'])
         self.assertEqual((self.root/'saved.vector').read_bytes(),before)
-        job=dict(request_id='native-job',document=original,output=dict(file_name='background.vector',format='native_vector'))
-        self.cli('job.start',**job)
-        self.finish('native-job'); self.idle()
-        self.assertEqual((self.root/'background.vector').read_bytes(),before)
-        self.assertTrue(self.cli('job.start',**job)['replayed'])
-        self.assertEqual(self.cli('job.result',request_id='native-job')['sha256'],published['sha256'])
+        if with_job:
+            job=dict(request_id='native-job',document=original,output=dict(file_name='background.vector',format='native_vector'))
+            self.cli('job.start',**job)
+            self.finish('native-job'); self.idle()
+            self.assertEqual((self.root/'background.vector').read_bytes(),before)
+            self.assertTrue(self.cli('job.start',**job)['replayed'])
+            self.assertEqual(self.cli('job.result',request_id='native-job')['sha256'],published['sha256'])
 
 
 if __name__=='__main__': unittest.main()

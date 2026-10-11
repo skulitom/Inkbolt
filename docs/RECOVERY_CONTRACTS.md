@@ -4,6 +4,12 @@ The Windows recovery implementation for readiness gate **A4** has a complete con
 
 The original 167 engine checkpoints remain unchanged. This audit supplies recovery evidence, while actual model-driven trials, practical-scale latency/memory gates, release validation and the rest of the readiness plan remain separate requirements. The accepted environment is a trusted local Windows filesystem with locking and hard links. Process interruption is tested; failing hardware, sudden power loss, hostile path replacement, remote filesystems and other platforms are not certified.
 
+Linux now runs the portable receipt and history-recovery fixtures, including
+writer interruption and physical file identity checks, through the
+[WSL workflow](PLATFORMS.md). This is core/receipt tier evidence. The complete
+queued recovery workflow and contained job backend remain Windows-only; Linux
+coverage does not claim the full A4 job contract or Windows memory measurements.
+
 ## A4 requirement evidence
 
 | Requirement | Implemented behavior | Executable evidence |

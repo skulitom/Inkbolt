@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from test_cli import EXE, ROOT
+from platform_support import require_capability
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
 from benchmark_recovery_runtime import RecoveryTrial,process_ids
@@ -18,6 +19,9 @@ from benchmark_tasks import CHECKS
 
 
 class RecoveryBenchmarkTests(unittest.TestCase):
+    def setUp(self):
+        require_capability(self, "jobs")
+
     def test_exited_command_identity_survives_until_the_trial_closes(self):
         with tempfile.TemporaryDirectory() as directory:
             trial=RecoveryTrial(EXE,Path(directory)/'case','B19',1,'cli',[])

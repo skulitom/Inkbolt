@@ -37,6 +37,7 @@ class HandoffBenchmarkTests(unittest.TestCase):
         for value in [dict(frames=[]),dict(frames=[dict(best_effort_timestamp_time='0.05')])]:
             with self.assertRaises(TaskFailure):check_timestamps(value,1)
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows process-tree commit-memory backend')
     def test_kernel_peak_includes_a_short_lived_child_and_timeout_cleans_the_owned_tree(self):
         child="value=bytearray(64*1024*1024);print(len(value))"
         script="import json,sys,subprocess;child=json.load(sys.stdin);result=subprocess.run([sys.executable,'-c',child],check=True,capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW);sys.stdout.buffer.write(result.stdout)"
@@ -52,6 +53,7 @@ class HandoffBenchmarkTests(unittest.TestCase):
         self.assertTrue(result['timed_out']);self.assertFalse(result['memory_available'])
         self.assertNotEqual(result['exit_code'],0)
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows process-tree commit-memory backend')
     def test_failed_assignment_kills_the_unassigned_owned_caller(self):
         with patch.object(WindowsJob,'assign',side_effect=RuntimeError('injected assignment failure')):
             result,_,_=tree_command([sys.executable,'-c','import sys;sys.stdin.read()'],b'{}',os.environ.copy(),5)

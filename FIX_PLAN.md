@@ -177,6 +177,18 @@ the end of W0.
 
 ## W1. Cross-platform build and CI (P0, M) [D2, D5]
 
+**Linux execution update, 11 October 2026.** The owner explicitly requested Linux
+build and test coverage using WSL. Execute this W1 tier-1 slice now, then resume
+the remaining W0 audit and the order above. Use `tools/verify_wsl.py` to test the
+current Windows candidate on native Linux storage with independent build/check
+caches and the unchanged mandatory private guard. Linux acceptance covers the
+core engine, CLI, MCP, sessions and durable publication/history receipts.
+Background jobs remain tier 2; capability-based skips must remain visible in
+reports. Fresh thorough checks passed on both Windows and Ubuntu under WSL2
+for this slice (170 Rust plus 2,190 executed Python tests on Linux; 202 Rust plus
+2,224 Python tests on Windows). Linux retains 34 explicit Python skips. The public CI guard, approved CI activation, macOS evidence and
+distribution remain separate open work; local WSL coverage does not complete W1.
+
 **Problem.** Only Windows has evidence. The engine is portable Rust, but:
 
 - **Receipts.** `src/publications/file_identity.rs:55-61` is a non-Windows stub,

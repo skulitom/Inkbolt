@@ -83,10 +83,16 @@ def checked_result(row, expected=None, rust=False):
     if row['status'] != 'passed':
         return row
     if expected is not None:
-        counts = re.findall(r'^Ran (\d+) tests? in ', row['output'], re.MULTILINE)
+        output = row['output'].replace('\r\n', '\n')
+        counts = re.findall(r'^Ran (\d+) tests? in ', output, re.MULTILINE)
         if len(counts) != 1 or int(counts[0]) != expected or expected <= 0:
             return dict(row, status='failed', reason=f'Incomplete Python accounting (expected {expected})')
         row['tests'] = expected
+        skipped = re.search(r'^OK \(.*?skipped=(\d+).*?\)$', output, re.MULTILINE)
+        row['skipped'] = int(skipped[1]) if skipped else 0
+        if row['skipped'] > expected:
+            return dict(row, status='failed', reason='Invalid Python skip accounting')
+        row['skip_reasons'] = re.findall(r"^.*? \.\.\. skipped (.+)$", output, re.MULTILINE)
     if rust:
         counts = re.findall(r'^test result: ok\. (\d+) passed;', row['output'], re.MULTILINE)
         if not counts or sum(map(int, counts)) == 0:
@@ -166,7 +172,11 @@ def python_checks(jobs):
     failures = [name for name, row in rows.items() if row['status'] != 'passed']
     if failures or sum(row.get('tests', 0) for row in rows.values()) != sum(counts.values()):
         raise RuntimeError('Python verification failed: ' + ', '.join(failures))
-    print(f'All {sum(counts.values())} Python tests passed across {len(modules)} isolated modules.')
+    skipped = sum(row.get('skipped', 0) for row in rows.values())
+    if skipped:
+        print(f'{sum(counts.values()) - skipped} Python tests passed; {skipped} explicitly skipped across {len(modules)} isolated modules.')
+    else:
+        print(f'All {sum(counts.values())} Python tests passed across {len(modules)} isolated modules.')
 
 
 def execute(args):
@@ -294,7 +304,8 @@ def verify(args, state, started, deadline):
                   checks=rows, failed=failures, deferred=deferred, outside_scope=excluded,
                   retained_engine_copy=retained_engine,
                   python_modules_discovered=len(modules), python_tests_discovered=sum(counts.values()) if counts else None,
-                  python_tests_executed=sum(row.get('tests', 0) for name, row in rows.items() if name.startswith('test_') and row['status'] == 'passed'),
+                  python_tests_executed=sum(row.get('tests', 0) - row.get('skipped', 0) for name, row in rows.items() if name.startswith('test_') and row['status'] == 'passed'),
+                  python_tests_skipped=sum(row.get('skipped', 0) for name, row in rows.items() if name.startswith('test_') and row['status'] == 'passed'),
                   complete_suite=args.thorough and code == 0, exit_code=code)
     report_path = directory / 'report.json'
     report_path.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
@@ -325,6 +336,8 @@ def verify(args, state, started, deadline):
           f"{len(excluded)} outside scope; {report['seconds']:.1f}s.\nReport: {report_path}", flush=True)
     if not stable:
         print('Inputs changed during verification; no results accepted.', flush=True)
+    if report['python_tests_skipped']:
+        print(f"Python tests: {report['python_tests_executed']} executed, {report['python_tests_skipped']} explicitly skipped; reasons are retained in the report.", flush=True)
     if deferred:
         print('Budget/prerequisite left checks pending. Rerun to resume, select --only/--rust, or use --thorough.', flush=True)
     if not args.thorough:

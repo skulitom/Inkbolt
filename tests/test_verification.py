@@ -116,6 +116,7 @@ class VerificationTests(unittest.TestCase):
             'test_verification_runner','test_workload_gates','test_wide_workload_gates',
             'test_agent_benchmark','test_agent_benchmark_handoff',
             'test_agent_benchmark_photo','test_agent_benchmark_recovery',
+            'test_wsl_verification',  # The WSL snapshot binds the whole candidate.
         })
         # Refactoring must still invalidate actual shared helper consumers and
         # must not weaken the conservative Rust/unknown-input boundary.
@@ -163,6 +164,18 @@ class VerificationTests(unittest.TestCase):
         failed = process.run([sys.executable, '-c', "print('test-error');raise SystemExit(7)"], self.root, timeout=3)
         self.assertEqual((failed['status'], failed['exit_code']), ('failed', 7))
         self.assertIn('test-error', failed['output'])
+
+    def test_explicit_platform_skips_are_not_counted_as_executed_tests(self):
+        output = "test_job ... skipped 'Engine capabilities.jobs.supported_here is false'\nRan 2 tests in 0.1s\nOK (skipped=1)\n"
+        row = verify.checked_result(dict(status='passed', output=output), expected=2)
+        self.assertEqual(row['tests'], 2)
+        self.assertEqual(row['skipped'], 1)
+        self.assertEqual(row['skip_reasons'], ["'Engine capabilities.jobs.supported_here is false'"])
+        windows = verify.checked_result(dict(status='passed', output=output.replace('\n', '\r\n')), expected=2)
+        self.assertEqual(windows['skipped'], 1)
+        self.assertEqual(windows['skip_reasons'], row['skip_reasons'])
+        broken = verify.checked_result(dict(status='passed', output=output.replace('skipped=1', 'skipped=3')), expected=2)
+        self.assertEqual(broken['status'], 'failed')
 
     def test_normal_completion_also_stops_owned_background_workers(self):
         child = self.write('child.py', 'import time\ntime.sleep(60)\n')

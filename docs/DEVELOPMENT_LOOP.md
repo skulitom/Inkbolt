@@ -2,6 +2,13 @@
 
 The routine target is **2-3 minutes after implementing a change**. Run focused checks while working and reserve complete acceptance for milestones. This separation follows the sister project's quick/thorough workflow; it does not add automatic publishing or background jobs.
 
+For Linux from Windows, use `python tools/verify_wsl.py` with these same selectors
+or `--thorough`. It checks a content-bound candidate on native WSL storage with
+independent caches and the mandatory private guard. See [platform coverage](PLATFORMS.md).
+Reports retain explicit platform skip counts and reasons separately from tests
+actually executed; unsupported jobs and unavailable memory measurements do not
+count as Linux feature passes.
+
 | Need | Command |
 | --- | --- |
 | Default change-aware check | `python tools/verify.py` |

@@ -5,7 +5,9 @@ import ctypes
 from ctypes import wintypes
 import hashlib
 import json
-import msvcrt
+import os
+if os.name == 'nt':
+    import msvcrt
 from pathlib import Path
 import shutil
 import sqlite3
@@ -19,6 +21,7 @@ from test_editing_cli import png_pixels
 from test_images_cli import png
 from test_mcp import Client
 from synthetic_font import geometric_font
+from platform_support import require_capability
 
 
 class JobTests(unittest.TestCase):
@@ -27,6 +30,7 @@ class JobTests(unittest.TestCase):
     save=workspace.AgentWorkspaceTests.save
 
     def setUp(self):
+        require_capability(self, 'jobs')
         workspace.AgentWorkspaceTests.setUp(self)
         self.addCleanup(self.stop_owned)
 

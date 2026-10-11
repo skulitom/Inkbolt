@@ -1,5 +1,13 @@
 # Architecture
 
+Durable publication uses held-file identity on Windows and Unix: Windows volume
+plus 128-bit file ID, or Unix device plus inode encoded in the existing receipt
+layout. Retained hard links witness publication ownership across interruption;
+matching bytes alone never prove creation. Linux core/CLI/MCP/receipt coverage
+runs through the [WSL verification workflow](PLATFORMS.md). Windows-only job
+implementation details are conditionally compiled; unavailable job commands
+still fail explicitly and capability reports describe the active backend.
+
 `limits` centralizes existing named resource and bounded-evaluation constants,
 preserving their old Rust module paths as re-exports. Shared native pixel and tile
 geometry definitions feed storage, tiled rendering and capability reporting;

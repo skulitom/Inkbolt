@@ -7,9 +7,10 @@ mod tests;
 #[cfg(windows)]
 mod worker;
 use crate::limits::{job_process as runner_bounds, jobs as bounds};
+#[cfg(windows)]
+use crate::publications;
 use crate::{
-    Document, Error, assets, control::Control, job_process, model, publications, publish,
-    sessions::Resources,
+    Document, Error, assets, control::Control, job_process, model, publish, sessions::Resources,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -207,6 +208,7 @@ struct State {
     reports: Vec<job_process::Report>,
 }
 impl State {
+    #[cfg(windows)]
     fn new(id: &str) -> Self {
         Self {
             version: 1,
@@ -243,6 +245,7 @@ impl State {
         }
         Ok(())
     }
+    #[cfg(windows)]
     fn complete(&mut self, result: Value) {
         self.phase = Phase::Completed;
         self.progress = Progress::phase("completed");
@@ -260,12 +263,14 @@ struct Runtime {
     owner: Option<job_process::ProcessIdentity>,
 }
 
-fn receipt(root: &Path, id: &str) -> publications::ReceiptTarget {
-    publications::ReceiptTarget {
+#[cfg(windows)]
+fn receipt(root: &Path, id: &str) -> crate::publications::ReceiptTarget {
+    crate::publications::ReceiptTarget {
         receipt_root: root.join("publications"),
         request_id: id.into(),
     }
 }
+#[cfg(windows)]
 fn bound_control(input: &Input) -> Result<Control, Error> {
     let workspace = input
         .workspace
@@ -354,7 +359,7 @@ pub fn start(
     if options.worker_executable.is_none() {
         options.worker_executable = CLI_EXECUTABLE.get().cloned();
     }
-    let executable_path = options.worker_executable.clone().ok_or_else(|| {
+    let _executable_path = options.worker_executable.clone().ok_or_else(|| {
         err(
             "JOB_EXECUTABLE_REQUIRED",
             "Library job submission requires an explicit Inkbolt worker executable",
@@ -385,7 +390,8 @@ pub fn start(
     model::validate_controlled(document, control)?;
     control.check_path(&output.output_root)?;
     verify_resources(document, resources, control, &mut 0)?;
-    let executable = job_process::Executable::inspect(&executable_path, control)?;
+    #[cfg(windows)]
+    let executable = job_process::Executable::inspect(&_executable_path, control)?;
     std::fs::create_dir_all(root).map_err(|_| err("IO_ERROR", "Unable to create job root"))?;
     #[cfg(windows)]
     {
@@ -425,6 +431,8 @@ pub fn start(
     Err(err("UNSUPPORTED_PLATFORM", "Durable jobs require Windows"))
 }
 fn status_inner(root: &Path, id: &str, reconcile: bool, control: &Control) -> Result<Value, Error> {
+    #[cfg(not(windows))]
+    let _ = reconcile;
     checked_root(root, control)?;
     checked_id(id)?;
     #[cfg(windows)]
@@ -435,13 +443,16 @@ fn status_inner(root: &Path, id: &str, reconcile: bool, control: &Control) -> Re
     let tx = db.transaction().map_err(store::sql)?;
     let input = store::input(&tx, id)?;
     let state = store::state(&tx, id)?;
+    #[cfg(windows)]
     let runtime = if state.phase == Phase::Queued {
         Some(store::runtime(&tx)?)
     } else {
         None
     };
     drop(tx);
-    let mut result = view(root, &input, &state, false);
+    let result = view(root, &input, &state, false);
+    #[cfg(windows)]
+    let mut result = result;
     #[cfg(windows)]
     if let Some(runtime) = runtime {
         let owner = runtime.owner;

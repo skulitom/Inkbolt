@@ -94,6 +94,42 @@ fn target(root: &Path) -> ReceiptTarget {
         request_id: "export".into(),
     }
 }
+#[test]
+fn file_identity_follows_links_and_renames_but_rejects_identical_copies() {
+    let owned = Owned::new();
+    let original = owned.root.join("original");
+    let linked = owned.root.join("linked");
+    let renamed = owned.root.join("renamed");
+    let copied = owned.root.join("copied");
+    fs::write(&original, b"original synthetic identity fixture").unwrap();
+    let held = fs::File::open(&original).unwrap();
+    let identity = file_identity::identify(&held).unwrap();
+    fs::hard_link(&original, &linked).unwrap();
+    fs::rename(&original, &renamed).unwrap();
+    fs::copy(&renamed, &copied).unwrap();
+    for path in [&linked, &renamed] {
+        assert_eq!(
+            identity,
+            file_identity::identify(&fs::File::open(path).unwrap()).unwrap()
+        );
+    }
+    assert_ne!(
+        identity,
+        file_identity::identify(&fs::File::open(&copied).unwrap()).unwrap()
+    );
+    fs::remove_file(&renamed).unwrap();
+    assert_eq!(identity, file_identity::identify(&held).unwrap());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let metadata = held.metadata().unwrap();
+        assert_eq!(identity.volume, metadata.dev());
+        assert_eq!(
+            u128::from_le_bytes(identity.file),
+            u128::from(metadata.ino())
+        );
+    }
+}
 fn request(root: &Path) -> crate::Request {
     if root.join("request.json").exists() {
         return serde_json::from_slice(&fs::read(root.join("request.json")).unwrap()).unwrap();

@@ -27,6 +27,7 @@ pub use crate::limits::job_process::MAX_EXECUTABLE_BYTES;
 pub use crate::limits::job_process::MAX_LIFETIME_MS;
 pub use crate::limits::job_process::MAX_MEMORY_MIB;
 const START_BYTE: u8 = 0xa7;
+#[cfg(windows)]
 pub(crate) fn release_start(mut output: impl std::io::Write) -> Result<(), Error> {
     output.write_all(&[START_BYTE]).map_err(|_| {
         failure(

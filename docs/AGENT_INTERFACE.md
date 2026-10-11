@@ -6,7 +6,7 @@ shared artboards. The source is unchanged; retain the loss receipt. Native
 delivery and complete interchange remain open. See
 [native vector import](NATIVE_VECTOR_IMPORT.md).
 
-Optional `receipt:{receipt_root,request_id}` on `document.publish` and `session.publish` records prepared output before publication. Inspect with `publication.receipt` or finish interrupted work with `publication.recover`; completed session exports replay without reopening an advanced or missing source. The verified backend uses local Windows file identity. See [durable publication receipts](PUBLICATION_RECEIPTS.md).
+Optional `receipt:{receipt_root,request_id}` on `document.publish` and `session.publish` records prepared output before publication. Inspect with `publication.receipt` or finish interrupted work with `publication.recover`; completed session exports replay without reopening an advanced or missing source. Verified receipt backends use Windows file IDs or Linux device/inode identity. See [durable publication receipts](PUBLICATION_RECEIPTS.md).
 
 For compact MCP discovery and focused `schema.lookup` queries, see [agent discovery](AGENT_DISCOVERY.md). Full CLI schemas and command results remain available. [Agent readiness](AGENT_READINESS.md) tracks the broader interface and workflow improvements separately from engine checkpoints.
 

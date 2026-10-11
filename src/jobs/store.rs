@@ -295,6 +295,7 @@ pub(super) fn runtime(db: &Connection) -> Result<Runtime, Error> {
     }
     Ok(runtime)
 }
+#[cfg(windows)]
 pub(super) fn save_runtime(db: &Connection, runtime: &Runtime) -> Result<(), Error> {
     let data = encode(runtime, 16384)?;
     if db
@@ -309,6 +310,7 @@ pub(super) fn save_runtime(db: &Connection, runtime: &Runtime) -> Result<(), Err
     }
     Ok(())
 }
+#[cfg(windows)]
 pub(super) fn ids(db: &Connection) -> Result<Vec<String>, Error> {
     let mut query = db
         .prepare("SELECT id FROM jobs ORDER BY rowid LIMIT ?1")
@@ -358,6 +360,7 @@ pub(super) fn inventory(db: &Connection) -> Result<Vec<(String, String)>, Error>
         })
         .collect()
 }
+#[cfg(windows)]
 pub(super) fn check_active(
     db: &Connection,
     input: &Input,
@@ -387,6 +390,7 @@ pub(super) fn check_active(
     }
     Ok(())
 }
+#[cfg(windows)]
 pub(super) fn admit(db: &Connection, input: &Input, data: &[u8]) -> Result<(), Error> {
     check_active(db, input, None)?;
     let (count, bytes): (i64, i64) = db

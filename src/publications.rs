@@ -2,7 +2,7 @@
 mod file_identity;
 pub mod history;
 mod store;
-#[cfg(all(test, windows))]
+#[cfg(all(test, any(windows, unix)))]
 mod tests;
 use crate::{Document, Error, assets, control::Control, publish, sessions::Resources};
 use rusqlite::TransactionBehavior;
@@ -537,6 +537,7 @@ pub fn recover(target: &ReceiptTarget, control: &Control) -> Result<Value, Error
     resume_transaction(tx, &target.receipt_root, record, true, control)
 }
 /// Reconcile a stopped worker without creating an output it never published.
+#[cfg(windows)]
 pub(crate) fn recover_published_only(
     target: &ReceiptTarget,
     control: &Control,

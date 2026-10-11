@@ -39,6 +39,7 @@ impl Control {
     pub(crate) fn workspace_root(&self) -> Option<PathBuf> {
         self.workspace.as_ref().map(|w| w.root().to_owned())
     }
+    #[cfg(windows)]
     pub(crate) fn for_job(
         timeout_ms: u64,
         workspace: Option<&crate::workspace::Workspace>,

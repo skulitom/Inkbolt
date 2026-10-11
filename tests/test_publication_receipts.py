@@ -13,10 +13,11 @@ import test_agent_workspace as workspace
 from test_cli import EXE
 from test_images_cli import png
 from test_mcp import Client
+from platform_support import requires_capability
 
 
 class PublicationReceiptTests(unittest.TestCase):
-    setUp=workspace.AgentWorkspaceTests.setUp
+    setUp=requires_capability('durable_publication')(workspace.AgentWorkspaceTests.setUp)
     cli=workspace.AgentWorkspaceTests.cli
     document=workspace.AgentWorkspaceTests.document
     save=workspace.AgentWorkspaceTests.save

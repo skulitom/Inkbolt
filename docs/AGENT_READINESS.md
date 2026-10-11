@@ -36,6 +36,12 @@ milestone acceptance, unchanged existing measurement suites and content-bound
 evidence. Complete the whole goal only when both the workstreams in FIX_PLAN
 and all original delivery gates have current acceptance evidence.
 
+The owner additionally requested Linux execution and testing using WSL.
+The current W1 slice adds native Linux verification of core/CLI/MCP, sessions and
+receipts, with visible capability-based job skips and independent caches.
+See [platform support](PLATFORMS.md). This slice precedes resuming the remaining
+W0 audit. macOS, CI activation, Linux jobs and release/scale evidence remain open.
+
 ## Delivery gates
 
 W0 is in progress: the central catalog holds 311 existing resource ceilings and
