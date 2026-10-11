@@ -118,6 +118,7 @@ fn tag_version(key: &[u8; 4], version: Version) -> Version {
                 | b"Alph"
                 | b"FMsk"
                 | b"lnk2"
+                | b"lnkE"
                 | b"FEid"
                 | b"FXid"
                 | b"PxSD"

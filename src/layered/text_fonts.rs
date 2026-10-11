@@ -16,6 +16,24 @@ pub struct TextFonts {
     pub bindings: Vec<TextFontBinding>,
     #[serde(default)]
     pub font_root: Option<PathBuf>,
+    /// Explicitly choose editable engine layout for the admitted text subset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reconstruction: Option<TextImportReconstruction>,
+    /// Explicitly replace known native edge/spacing controls with engine rendering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rendering: Option<TextImportRendering>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TextImportReconstruction {
+    EngineLayout,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TextImportRendering {
+    Engine,
 }
 
 fn valid_name(name: &str) -> bool {
@@ -45,6 +63,12 @@ pub(super) fn face_name(face: &rustybuzz::Face<'_>) -> Result<String, Error> {
 
 impl TextFonts {
     pub(super) fn validate(&self) -> Result<(), Error> {
+        if self.rendering.is_some() && self.reconstruction.is_none() {
+            return Err(Error::new(
+                "INVALID_REQUEST",
+                "Text rendering requires explicit engine_layout reconstruction",
+            ));
+        }
         if self.bindings.is_empty() || self.bindings.len() > fonts::MAX_FONTS {
             return Err(limit(
                 "Native text bindings require one to eight explicit font faces",
@@ -91,9 +115,11 @@ impl TextFonts {
                 "FONT_BINDING_REQUIRED",
                 "Supply an explicit pinned font binding for every referenced face in the selected native text source",
             );
-            error.details = Some(Box::new(
-                json!({"kind":"native_text_font_bindings","text_source":if global {"global_story"} else {"local_record"},"missing_face_names":missing,"source_font_files_identified":false}),
-            ));
+            let mut details = json!({"kind":"native_text_font_bindings","text_source":if global {"global_story"} else {"local_record"},"missing_face_names":missing,"source_font_files_identified":false});
+            if let Some(records) = source.get("font_records") {
+                details["source_font_records"] = records.clone();
+            }
+            error.details = Some(Box::new(details));
             return Err(error);
         }
         for (name, font) in &used {

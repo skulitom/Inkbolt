@@ -9,7 +9,9 @@ signed 32-bit integer. The minimum signed integer is excluded because a receivin
 writer can damage it on save. Export refuses out-of-range values before delivery.
 See [character geometry](FONT_CONTROLS.md#character-geometry).
 
-Native editable text import remains unsupported; explicit text delivery is described below. When `layered.import`
+Explicit [editable point-text import](LAYERED_TEXT_IMPORT.md) is available for a
+bounded authoring subset with chosen fonts and declared engine layout differences.
+General native saved text remains unsupported; explicit text delivery is described below. When `layered.import`
 encounters a recognized text record, its `UNSUPPORTED_LAYERED_SEMANTICS` error can
 include `details.kind:"native_text_requirements"`. This reports character/UTF-16
 counts, style/paragraph run counts, referenced face names, affine placement and a
@@ -38,6 +40,8 @@ bindings are counted but their files are not read. Pixel-only imports use no
 font bindings. Cancellation and source-hash checks precede resource reads.
 
 A valid choice adds `details.font_bindings` to the unsupported-text diagnostic.
+Adding `reconstruction:"engine_layout"` opts into the separately documented
+point-text import subset; bindings alone retain diagnostic behavior.
 Its `chosen_bindings_sha256` binds the referenced face-name-to-descriptor map
 using compact sorted-key JSON, independent of binding order and unused entries.
 `chosen_resources_validated:true` applies only to the first native text record
@@ -81,25 +85,45 @@ Columns, arbitrary shapes, other properties and complete reconstruction remain
 unimplemented. Named geometry-extension owners are still untrusted.
 
 `global_story.character_styles` checks types for individually mapped character
-controls and compares their explicit values with the local cache. It resolves
+controls after explicit source-style resolution and compares them with the local cache. It resolves
 font names through each independent font table, then compares intersecting UTF-16
 spans, including the terminal marker; different run partitions are allowed.
 Numbers use a common numeric representation, while Boolean and integral controls
 are never coerced. If the source characters differ, comparison is explicitly
 skipped. The report counts differing spans and names conflicting or missing
-controls. A missing value stays missing; it is never replaced with a default.
+controls. Values still absent after source resolution remain absent; no application
+defaults are invented. `global_story.inheritance` identifies followed character
+and paragraph references, source-declared roots and run intersections. See
+[editable point-text import](LAYERED_TEXT_IMPORT.md) for its bounded precedence
+and the conversion of named styles into independent editable ranges.
 
 Known controls include size, faux styles, automatic/explicit leading, horizontal
 and vertical scales, tracking, baseline shift, capitalization/baseline codes, no-break
-and observed character-feature switches. These are source values, with no unit
-conversion, shaping-tag translation, feature availability or layout acceptance.
+and observed character-feature switches. Explicit language, baseline direction,
+character alignment, spacing compression, alternate forms, figure styles,
+diacritic offsets, mark-baseline distance and stylistic-set selections are also
+type checked. Rotation, underline offset, legacy alternate-ligature/figure
+switches, phonetic/split annotations, annotation counts/gaps, inline offsets,
+character spacing/cell width, fill/stroke switches, paint order, overprint,
+stroke width, miter limit and dash phase have individual diagnostic mappings.
+The legacy figure switch remains distinct from the modern figure-style code.
+Fill/stroke switches, paint order and stroke width also compare against observed
+local cache fields. These are source values, with no unit
+conversion. Separate fill/stroke visibility, dash patterns, cap/join codes,
+direction overrides, mark-position codes and annotation alignment/scale also
+have diagnostic mappings. Dash patterns retain order and at most 32 finite
+values, including an explicit empty pattern. The annotation scale uses its
+observed numeric record; extra record fields remain listed as unknown. These
+checks do not validate dash geometry, enum meanings or effective visibility.
+There is no
+shaping-tag translation, feature availability or layout acceptance.
 Several global feature switches can be absent from the local cache, so matching
 compared values does not imply complete style agreement. Each side reports
 observed/enabled controls, the number of unmapped fields and at most sixteen of
 their untrusted names. `run_controls_sha256` binds only mapped values and run
 boundaries; it is not an identity for the complete style. The existing complete
 text-data hashes also bind unknown fields. Full style, font-file and rendering
-validation remain false. Inherited controls, other fields and paragraph semantics
+validation remain false. Unmapped inherited controls, other fields and paragraph semantics
 still require complete reconstruction.
 
 Explicit type-1 fill and stroke colors compare four finite source components.
@@ -112,7 +136,8 @@ nested paths. Component fingerprints remain partial style identities.
 
 Global kerning, underline and strikethrough codes stay separate from
 `local_auto_kerning`, `local_underline`, `local_underline_position` and
-`local_strikethrough`. These legacy cache fields cannot establish all global
+`local_strikethrough`. Digit-set and joining-elongation codes likewise remain
+separate from the less expressive or differently encoded local controls. These legacy cache fields cannot establish all global
 modes, so the comparison reports them as missing on the other side instead of
 inventing conversions. Both `color_conversion_validated` and
 `legacy_code_conversion_validated` remain false. Decoration geometry, font
@@ -121,9 +146,31 @@ features and profile-dependent paint reconstruction still require verification.
 `global_story.paragraph_styles` similarly compares explicit paragraph controls:
 justification codes, indents, before/after spacing, automatic-leading factors,
 hyphenation switches and word-length controls, spacing/scaling triples, hanging
-punctuation and every-line composition. Numeric triples require exactly three
+punctuation and every-line composition. Leading direction, paragraph direction,
+line-breaking order, list tier and joining width retain their explicit codes.
+Global hanging-punctuation codes stay separate from the local Boolean cache.
+Hyphenation zone/preference, single-word justification, automatic inline
+grouping, line-keeping, repeated-character processing, default tab width and
+justification-method controls retain their explicit source values. The observed
+local hyphenation-zone value can compare with its global counterpart; other
+newly mapped controls do not invent local equivalents.
+Drop-cap multipliers and composer codes retain explicit integer values.
+`line_breaking_preset_reference`, `spacing_preset_reference` and
+`list_style_reference` preserve an unsigned source index or the typed empty
+name `/nil`. Missing, empty and index zero produce distinct known-value
+fingerprints. Strings, other names, negative indices, fractional values and
+Boolean values cannot impersonate references. The diagnostic checks reference
+encoding only: it does not resolve target tables, validate index ranges against
+those tables, copy preset definitions or interpret empty references as defaults.
+Local `local_line_breaking_preset_code` and `local_spacing_preset_code` remain
+separate because their encodings differ from the global references.
+`preset_references_resolved` and `legacy_preset_conversion_validated` stay false.
+All newly recognized paragraph controls still require explicit implementation
+before editable conversion, including zero codes and empty references.
+Numeric triples require exactly three
 finite numbers. Values remain in their source units; no layout algorithm, enum
-translation, inherited value or default is inferred. Missing property containers
+translation or application default is inferred. Explicit source references can
+supply inherited properties. Missing property containers after resolution
 are counted separately from present containers with missing controls.
 
 The global hyphen limit and `local_consecutive_hyphens_code` remain distinct
@@ -136,12 +183,14 @@ Run ends that do not follow an encoded carriage return are counted; structural
 UTF-16 coverage does not validate paragraph boundaries or paragraph layout.
 `paragraph_boundaries_semantically_validated` and
 `legacy_hyphen_limit_conversion_validated` remain false. These diagnostics still
-refuse editable import; unknown styles, inheritance, native layout algorithms,
+refuse editable import without the separate reconstruction choice; unmapped styles
+and inheritance, native layout algorithms,
 font bindings and complete reconstruction remain required.
 
 These diagnostics check this local record's framing, matching local text sources, complete
-UTF-16 run coverage without splitting surrogate pairs, and explicit per-run font
-references. They do not validate layout semantics, later records or the whole
+UTF-16 run coverage without splitting surrogate pairs, and present font
+references. Sparse local font references are reported and require an authoritative
+global source; local-only inherited fonts remain unsupported. They do not validate layout semantics, later records or the whole
 file. The global extension checks tagged-section framing and, for the recognized
 version, the selected story's UTF-16 coverage and explicit font references.
 `other_stories_validated`, `other_layer_references_validated`,
@@ -152,6 +201,12 @@ authoritative while local text or layout is stale. Editable reconstruction must
 reconcile styles and geometry as well as characters; removing global layout can
 change paragraph placement even when the characters match.
 Inherited styles and unknown descriptor framing can prevent diagnostics.
+
+Rendering diagnostics also report typed layer/local controls and the selected
+global story's explicit controls. Missing values remain absent; unknown global
+rendering field names are bounded and counted. Known controls can be reconstructed
+only within the [editable import contract](LAYERED_TEXT_IMPORT.md), including its
+separate explicit engine-rendering choice and loss receipts.
 Font names come from untrusted source data and do not identify exact font bytes.
 Editable reconstruction still needs explicit content-pinned font bindings and
 declared layout/rendering differences; no import option currently enables it.
@@ -174,6 +229,11 @@ unit adds no engine-checkpoint credit.
 `layered.import` and `document.export` with `format:"layered"` exchange a bounded native RGB8 pixel-layer subset. Publication uses `.psd`. The basic interchange checkpoint is **verified**; current totals are tracked in the [implementation report](IMPLEMENTATION.md). Independent native application round trips preserve layer structure, original samples and visible composite pixels. The extended requirement for large-document structures, masks, text, groups and embedded objects remains required and uncredited.
 
 `format:"layered_large"` publishes `.psb` with version-two framing. The importer selects framing from the file header. Layer-section, layer-info and channel lengths are unsigned 64-bit values; row-compression counts are 32-bit values. Only the format-defined tagged records use 64-bit lengths; all other sections retain their specified widths. The Rust library exposes `export_versioned` with `Version::Standard` or `Version::Large`.
+
+Empty external-link tables use their version-specific length framing and are
+listed in omission receipts. Nonempty external references remain unsupported.
+Text lookup and metadata validation share the same framing and bounds checks,
+including following tags, duplicate records, truncation and oversized lengths.
 
 This is partial extended interchange and adds no checkpoint credit. Version two currently supports axes through the existing engine limit of 32,768, including thin canvases wider or taller than the standard format's 30,000 limit. The 32 MiB file, 1,048,576 canvas-pixel and 65,536 stored-pixel limits remain. Larger engine axes, remaining group/mask semantics, text and full embedded-object exchange remain required; selecting a large container does not imply those semantics are supported.
 
@@ -244,11 +304,12 @@ The native consumer chooses interpolation and edge coverage after editing or rec
 
 Only independently retained working-sRGB sources with fully mapped editable semantics are delivered. External object links, HDR views, descriptive metadata inside a source, source filters/effects, unmapped resources and source pixel resampling fail. Text requires the additional policy below, including in nested sources. Strip metadata explicitly from a source copy before placing it; stripping the outer document does not authorize changing retained snapshots. Supported object masks remain separate authored planes and need an integer document-space placement; no mask resampling is implicit.
 
-Delivery keeps the per-document canvas, item and stored-pixel limits, including object caches and masks in the 65,536 stored-pixel total. Nested delivery also bounds decoded logical samples to 8 MiB, editable items to 1,024, aggregate native source payloads to 32 MiB and nesting to four. Each source-table record is zero-aligned; incoming padding must be absent or exactly the required all-zero alignment. Cancellation and create-only publication apply to every nested source. Larger axes, editable text, additional group/mask semantics and the original extended acceptance remain open.
+Delivery keeps the per-document canvas, item and stored-pixel limits, including object caches and masks in the 65,536 stored-pixel total. Nested delivery also bounds decoded logical samples to 8 MiB, editable items to 1,024, aggregate native source payloads to 32 MiB and nesting to four. Each source-table record is zero-aligned; incoming padding must be absent or exactly the required all-zero alignment. Cancellation and create-only publication apply to every nested source. Larger axes, general native text, additional group/mask semantics and the original extended acceptance remain open.
 
 ## Explicit editable text delivery
 
-Explicit `frame.first_baseline` controls currently require an additional native
+Except for the fixed-zero, unwrapped point form used by editable import,
+explicit `frame.first_baseline` controls currently require an additional native
 authoring mapping and are rejected for this delivery format. Retain them in an
 engine snapshot or use an output that renders the shared frame layout.
 
@@ -256,12 +317,14 @@ For either layered format, supply `layered_options.text` with `reconstruction:"n
 
 Use `font_root` for direct export, or `resources.font_root` for document publication, preflight and jobs; sessions use their saved resources. Rust callers use `layered::export_with_fonts`. The source font files and their retained licenses must match the document's pinned identities. Each static TrueType outline face needs one unambiguous Unicode PostScript name. Other outline formats require a separate verified mapping. Different files or face indices with the same name are rejected across the complete delivery, including nested objects. At most eight face names are admitted. Fonts and licenses stay external: the receiving consumer resolves names and may use different font bytes. No installed-font lookup, substitution or font embedding occurs in Inkbolt.
 
-The bounded subset preserves source text, character style ranges, opaque solid RGB fills, font sizes, tracking, explicit leading and Boolean `kern`, `liga` and `dlig` controls. Engine scalar indices become UTF-16 run lengths without splitting surrogate pairs. Newlines become native paragraph separators. Default-style gaps remain explicit, and a terminal separator belongs to the last style. Font sizes and other decimal units remain decimal tokens. Native tracking requires integral thousandths of em; delivery rounds to the nearest integer, with ties away from zero. `tracking_quantization` records each changed authored style index, source pixels, native units and delivered pixels. Engine source text and preview spacing remain unchanged. Automatic leading resolves to explicit per-style font metrics; this is a declared reconstruction change.
+The bounded subset preserves source text, character style ranges, opaque solid RGB fills, font sizes, tracking, explicit leading and Boolean `kern`, `liga` and `dlig` controls. Explicit `en-US`, `en-GB`, `fr`
+and `tr` language tags preserve their native codes per character run; absent
+language stays absent. Other tags, aliases and region inference are unsupported. Engine scalar indices become UTF-16 run lengths without splitting surrogate pairs. Newlines become native paragraph separators. Default-style gaps remain explicit, and a terminal separator belongs to the last style. Font sizes and other decimal units remain decimal tokens. Native tracking requires integral thousandths of em; delivery rounds to the nearest integer, with ties away from zero. `tracking_quantization` records each changed authored style index, source pixels, native units and delivered pixels. Engine source text and preview spacing remain unchanged. Automatic leading resolves to explicit per-style font metrics; this is a declared reconstruction change.
 
-Frames must be horizontal, left-aligned LTR with single-run direction handling and no path. `wrap:false` delivers point text with the engine's first baseline incorporated into its affine placement; `wrap:true` delivers an explicit local paragraph box. Parent transforms are resolved into the text matrix. Point text accepts error/visible overflow; paragraph text accepts error/clipped overflow. Nominal point-frame bounds are not native editing constraints. Unicode bidirectional layout, fallback fonts, variable instances, language settings, other features, character alpha/non-solid paints and unmapped item controls fail explicitly.
+Frames must be horizontal, left-aligned LTR with single-run direction handling and no path. `wrap:false` delivers point text with the engine's first baseline incorporated into its affine placement; `wrap:true` delivers an explicit local paragraph box. Parent transforms are resolved into the text matrix. Point text accepts error/visible overflow; paragraph text accepts error/clipped overflow. Nominal point-frame bounds are not native editing constraints. Unicode bidirectional layout, fallback fonts, variable instances, unmapped language settings, other features, character alpha/non-solid paints and unmapped item controls fail explicitly.
 
 Layer opacity, fill opacity, supported scalar masks and grouping remain separate from text and its preview cache. Text inside embedded objects requires both delivery policies. Per-layer and merged caches use pinned source fonts and engine rendering. The receiving consumer can reshape, reflow and rerasterize text differently; kerning, baselines, line breaks, hinting and antialiasing are not promised equal. Caches are never an editable source or evidence of native recomposition equality.
 
 `layered.text` receipts identify each source item, text hash, character/UTF-16 counts, point/paragraph shape, supplied owner, source frame, native matrix and pinned font descriptors/names. They explicitly report `native_layout_equality:false`, `recipient_file_identity_pinned:false` per face and external fonts. Nested receipts and losses remain with the embedded-source receipt. Source documents/files remain unchanged. Publication is create-only; CLI, MCP, preflight and durable jobs share this contract.
 
-Text allows at most 4,096 characters, 65 character runs after inserting default gaps, 65 paragraphs and a 64 KiB native text record. Caches and masks share the existing 65,536 stored-pixel and 8 MiB nested decoded-sample budgets. Independent original byte fixtures test ranges, Unicode, fonts, affine placement, caches and durable workflows. Native point/paragraph reopen-and-edit evidence is retained privately. Editable incoming text, global story semantics, further style/layout mappings and the original extended checkpoint remain open; this unit adds no checkpoint credit.
+Text allows at most 4,096 characters, 65 character runs after inserting default gaps, 65 paragraphs and a 64 KiB native text record. Caches and masks share the existing 65,536 stored-pixel and 8 MiB nested decoded-sample budgets. Independent original byte fixtures test ranges, Unicode, fonts, affine placement, caches and durable workflows. Native point/paragraph reopen-and-edit evidence is retained privately. The separate point-text import subset does not establish general native saved-text interoperability. Further global story/style/layout mappings and the original extended checkpoint remain open; this unit adds no checkpoint credit.

@@ -1,6 +1,5 @@
-//! Explicit observed paragraph controls; no inherited values or layout defaults.
+//! Observed paragraph controls after explicit source resolution; no invented defaults.
 use super::{
-    text_data::Node,
     text_style::{Kind, Run, Styles},
     *,
 };
@@ -23,6 +22,21 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
     (Some("3"), Some("EndIndent"), "end_indent", Kind::Number),
     (Some("4"), Some("SpaceBefore"), "space_before", Kind::Number),
     (Some("5"), Some("SpaceAfter"), "space_after", Kind::Number),
+    (Some("6"), None, "drop_cap_multiplier", Kind::Integer),
+    (Some("35"), None, "composer_code", Kind::Integer),
+    // Legacy cache codes are not indices into the global preset tables.
+    (
+        None,
+        Some("Kinsoku"),
+        "local_line_breaking_preset_code",
+        Kind::Integer,
+    ),
+    (
+        None,
+        Some("MojiKumi"),
+        "local_spacing_preset_code",
+        Kind::Integer,
+    ),
     (
         Some("7"),
         Some("AutoLeading"),
@@ -63,6 +77,29 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
         Kind::Integer,
     ),
     (Some("15"), None, "hyphenate_capitalized", Kind::Boolean),
+    (Some("14"), Some("Zone"), "hyphenation_zone", Kind::Number),
+    (Some("16"), None, "hyphenation_preference", Kind::Number),
+    (
+        Some("20"),
+        None,
+        "single_word_justification_code",
+        Kind::Integer,
+    ),
+    (
+        Some("22"),
+        None,
+        "automatic_inline_grouping_code",
+        Kind::Integer,
+    ),
+    (Some("23"), None, "keep_lines_together", Kind::Boolean),
+    (
+        Some("26"),
+        None,
+        "repeated_character_processing",
+        Kind::Boolean,
+    ),
+    (Some("31"), None, "default_tab_width", Kind::Number),
+    (Some("34"), None, "justification_method_code", Kind::Integer),
     (
         Some("17"),
         Some("WordSpacing"),
@@ -88,12 +125,50 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
         "every_line_composer",
         Kind::Boolean,
     ),
+    (
+        Some("8"),
+        Some("LeadingType"),
+        "leading_direction_code",
+        Kind::Integer,
+    ),
+    (Some("24"), None, "hanging_punctuation_code", Kind::Integer),
+    (
+        None,
+        Some("Burasagari"),
+        "local_hanging_punctuation",
+        Kind::Boolean,
+    ),
+    (Some("25"), None, "line_breaking_order_code", Kind::Integer),
+    (Some("33"), None, "paragraph_direction_code", Kind::Integer),
+    (Some("37"), None, "list_tier", Kind::Integer),
+    (
+        Some("40"),
+        None,
+        "joining_elongation_width_code",
+        Kind::Integer,
+    ),
 ];
 
+const REFERENCES: &[(&str, &str)] = &[
+    ("27", "line_breaking_preset_reference"),
+    ("28", "spacing_preset_reference"),
+    ("36", "list_style_reference"),
+];
+
+fn reference(value: &super::text_data::Node) -> Result<Value, Error> {
+    // Only this typed name denotes an explicit empty reference. A source
+    // index, including zero, remains distinct and does not resolve a preset.
+    if matches!(value, super::text_data::Node::Name(name) if name == "nil") {
+        Ok(Value::Null)
+    } else {
+        Ok(json!(value.unsigned()?))
+    }
+}
+
 pub(super) struct Paragraphs {
-    styles: Styles,
-    absent_properties: usize,
-    run_ends_without_carriage_return: usize,
+    pub styles: Styles,
+    pub absent_properties: usize,
+    pub run_ends_without_carriage_return: usize,
 }
 impl Paragraphs {
     fn new() -> Self {
@@ -171,33 +246,39 @@ impl Paragraphs {
         out.endings(source);
         Ok(out)
     }
-    pub fn global(runs: &[Node], source: &str, control: &Control) -> Result<Self, Error> {
+    pub fn global(
+        runs: &[super::text_inheritance::Run<'_>],
+        source: &str,
+        control: &Control,
+    ) -> Result<Self, Error> {
         let mut out = Self::new();
         let mut end = 0;
         for run in runs {
             control.check()?;
-            end += run.field("1")?.unsigned()?;
-            let sheet = run.field("0")?.optional("0")?;
-            let properties = sheet.map(|v| v.optional("5")).transpose()?.flatten();
+            end += run.length;
+            let properties = run.fields.as_ref();
             let mut controls = BTreeMap::new();
             if let Some(properties) = properties {
-                let Node::Dictionary(properties) = properties else {
-                    return Err(malformed());
-                };
                 for &(global, _, name, kind) in CONTROLS {
                     if let Some(value) = global.and_then(|key| properties.get(key)) {
                         controls.insert(name, kind.read_node(value)?);
+                    }
+                }
+                for &(key, name) in REFERENCES {
+                    if let Some(value) = properties.get(key) {
+                        controls.insert(name, reference(value)?);
                     }
                 }
                 out.styles.unknown.extend(
                     properties
                         .keys()
                         .filter(|k| {
-                            !CONTROLS
-                                .iter()
-                                .any(|(global, _, _, _)| *global == Some(k.as_str()))
+                            !REFERENCES.iter().any(|(key, _)| *key == **k)
+                                && !CONTROLS
+                                    .iter()
+                                    .any(|(global, _, _, _)| *global == Some(**k))
                         })
-                        .cloned(),
+                        .map(|k| (*k).to_owned()),
                 );
             } else {
                 out.absent_properties += 1;
@@ -224,6 +305,8 @@ impl Paragraphs {
         }
         result["paragraph_boundaries_semantically_validated"] = json!(false);
         result["legacy_hyphen_limit_conversion_validated"] = json!(false);
+        result["preset_references_resolved"] = json!(false);
+        result["legacy_preset_conversion_validated"] = json!(false);
         Ok(result)
     }
 }

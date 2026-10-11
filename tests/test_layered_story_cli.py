@@ -79,7 +79,7 @@ class LayeredStoryTests(unittest.TestCase):
             self.assertEqual(d['native_story_index'],index);self.assertFalse(d['global_story']['present'])
             self.assertEqual(d['global_story']['text_source'],'local_record')
         c=self.invoke(dict(command='capabilities'))['layered_interchange']['text_diagnostics']
-        self.assertEqual(c['global_story']['versions'],[14]);self.assertFalse(c['editable_text_import'])
+        self.assertEqual(c['global_story']['versions'],[14]);self.assertTrue(c['editable_text_import']);self.assertEqual(c['editable_text_import_scope'],'explicit_point_subset;see_text_import')
 
     def test_utf16_run_coverage_and_font_indices_are_independently_checked(self):
         g=global_data();g['1']['1']=[story('A\U0001f600B',[1,2,2],[1,0,1])]

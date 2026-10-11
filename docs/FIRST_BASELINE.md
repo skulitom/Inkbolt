@@ -34,7 +34,8 @@ No extra space is silently added and no overflow is silently hidden.
 Inspection reports actual baseline positions. Pixel rendering, outlines, SVG and
 PDF use the shared layout. Snapshot, session, retry and undo/redo operations retain
 the control and original font identities. Path text has its own baseline and
-rejects this setting. Linked-story paragraph controls and native layered delivery
-do not yet map it and must not silently drop it. This frame primitive is a
-prerequisite for editable native text reconstruction, which remains unfinished;
+rejects this setting. Native layered delivery admits the fixed-zero unwrapped
+point form used by [editable point import](LAYERED_TEXT_IMPORT.md). Other explicit
+first-baseline controls and linked-story paragraph controls remain unsupported
+there and must not be silently dropped. General native text reconstruction remains unfinished;
 it adds no credit to the original 167 checkpoints.

@@ -1,5 +1,37 @@
 # Architecture
 
+Paragraph diagnostics preserve drop-cap and composer codes, plus typed empty
+or indexed line-breaking, spacing and list-style references. These references
+remain unresolved; local legacy preset codes are separate controls. Neither a
+zero index nor an explicit empty reference supplies a layout default or permits
+editable conversion. Source table definitions remain outside this mapping.
+
+Mapped source layout diagnostics include separate paint visibility, bounded dash
+patterns, typed annotation-scale records and additional paragraph controls. Nested
+unknown fields stay visible, source codes remain uninterpreted, and absent local
+equivalents are not invented. Recognition alone never permits editable conversion.
+
+Character diagnostics now identify individually observed rotation, annotation,
+spacing and paint controls. Source values participate in typed run comparisons
+and fingerprints; legacy feature switches remain distinct from modern codes.
+Four observed local paint-cache fields compare with their global counterparts.
+No defaults or additional editable layout semantics are admitted by this mapping.
+
+`layered::text_font_records` validates source font provenance separately from the
+caller-chosen content-pinned fonts. Diagnostics inspect selected records; editable
+admission checks the entire bounded table. Typed class, technology and version
+fields never imply source file identity, installed lookup or a version match.
+The import receipt retains source metadata; the chosen font controls rendering
+and delivery.
+
+`layered::text_inheritance` resolves bounded explicit source style references
+before interpreting character and paragraph controls. Referenced roots must equal
+the document's own declarations. Borrowed property maps apply paragraph, named
+character and local overrides without copying native defaults or using caches.
+Run intersections preserve UTF-16 boundaries; cycles, deeper chains and expansion
+budgets fail explicitly. Receipts declare that named links become independent
+editable ranges. Unmapped layout and authoring semantics still reject import.
+
 Bounded vector overviews reuse the renderer through an immutable projected
 evaluation copy. `previews::Options.max_size` fits the complete canvas to a
 bounded grid before pixel planning; stored geometry and source identities stay
@@ -95,7 +127,29 @@ sweep compares intersecting UTF-16 runs using resolved face names, preserving
 missing values and unrecognized fields as explicit limitations. Global-only
 feature switches cannot disappear into cache defaults. Compact summaries and
 partial run fingerprints never certify full style or rendering agreement.
-Incoming editable text and global story reconstruction remain open.
+Explicit text-language mappings are shared by import and delivery. Supported
+source codes retain per-run language selection through engine shaping and native
+authoring; absent values remain absent. Additional typed character/paragraph
+diagnostics keep distinct legacy codes separate and infer no inheritance.
+
+`text_import` adds explicit editable point reconstruction for admitted authoring
+records. Strict geometry/style converters select complete local or indexed global
+source, validate fonts and shaping, convert UTF-16 ranges, and retain native point
+placement with a fixed-zero engine baseline. Global story/frame coverage is checked
+across all layers before accepting the table. Linked masks are rebased; nested
+objects share the caller's bindings. Unknown native saved tables and the full
+incoming-text acceptance remain open. See [the import contract](LAYERED_TEXT_IMPORT.md).
+
+Explicit text profile conversion batches authored floating-point RGB fills through
+the shared profile transform before constructing RGB8 styles. Nested documents use
+their own profiles; cached glyph pixels never supply the paint. Source diagnostics
+retain their original values, and the conversion/clipping policy is reported
+separately without claiming a total clipping count.
+
+Text rendering controls are independent of style and geometry admission. Typed
+descriptor/local/global controls retain absence and detect explicit conflicts.
+The optional engine-rendering conversion records edge and spacing differences;
+it never grants permission to ignore unknown source controls or authoring tables.
 
 `presets` provides pure versioned screen and physical-page recipes over the
 existing document, artboard, logical-canvas and publication contracts. Explicit

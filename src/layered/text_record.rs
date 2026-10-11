@@ -50,11 +50,15 @@ fn runs<'a>(engine: &'a Value, key: &str, text: &str) -> Result<&'a Vec<Value>, 
     Ok(values)
 }
 pub(super) struct Record {
-    details: Value,
-    source: String,
-    story_index: i32,
-    styles: super::text_style::Styles,
-    paragraphs: super::text_paragraph::Paragraphs,
+    pub details: Value,
+    pub source: String,
+    pub story_index: i32,
+    pub styles: super::text_style::Styles,
+    pub paragraphs: super::text_paragraph::Paragraphs,
+    pub parsed: Value,
+    pub transform: Matrix,
+    pub plain_modes: bool,
+    pub rendering: super::text_rendering::Local,
 }
 pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Record, Error> {
     if input.left() > 65536 {
@@ -84,12 +88,20 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
     };
     // These descriptor fields are framed, not interpreted as engine layout.
     // Unknown fields cannot be waved through even for this narrow diagnostic.
-    for key in ["textGridding", "Ornt", "AntA"] {
-        if !matches!(d.field(key)?, Datum::Enum(_, _)) {
+    let mut plain_modes = true;
+    for (key, kind, value) in [
+        ("textGridding", "textGridding", "None"),
+        ("Ornt", "Ornt", "Hrzn"),
+    ] {
+        let Datum::Enum(k, v) = d.field(key)? else {
             return Err(malformed());
-        }
+        };
+        plain_modes &= k == kind && v == value;
     }
-    d.field("TxMP")?.boolean()?;
+    let Datum::Enum(antialias_kind, antialias_value) = d.field("AntA")? else {
+        return Err(malformed());
+    };
+    plain_modes &= !d.field("TxMP")?.boolean()?;
     let story_index = d.field("TextIndex")?.integer()?;
     let old_text = d.optional("oldText").map(Datum::boolean).transpose()?;
     let age = match d.optional("oldTextAge") {
@@ -99,6 +111,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
     };
     let compatibility = json!({"present":old_text.is_some() || age.is_some(),"old_text":old_text,
         "age":age,"semantics_validated":false,"trusted":false});
+    plain_modes &= old_text.is_none() && age.is_none();
     for key in ["bounds", "boundingBox"] {
         if let Some(value) = d.optional(key) {
             let mut bounds = value.object()?;
@@ -115,13 +128,17 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         return Err(unsupported("Unknown text warp version"));
     }
     let mut warp = descriptor::versioned(input, control)?;
-    for key in ["warpStyle", "warpRotate"] {
-        if !matches!(warp.field(key)?, Datum::Enum(_, _)) {
+    for (key, kind, value) in [
+        ("warpStyle", "warpStyle", "warpNone"),
+        ("warpRotate", "Ornt", "Hrzn"),
+    ] {
+        let Datum::Enum(k, v) = warp.field(key)? else {
             return Err(malformed());
-        }
+        };
+        plain_modes &= k == kind && v == value;
     }
     for key in ["warpValue", "warpPerspective", "warpPerspectiveOther"] {
-        warp.field(key)?.number()?;
+        plain_modes &= warp.field(key)?.number()? == 0.0;
     }
     warp.finish("warp")?;
     for _ in 0..4 {
@@ -130,6 +147,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
     input.zero_padding(3)?;
     let parsed = super::text_data::parse(&payload, control)?;
     let engine = object(&parsed, "EngineDict")?;
+    let rendering = super::text_rendering::Local::read(antialias_kind, antialias_value, engine)?;
     let source = object(engine, "Editor")?
         .get("Text")
         .and_then(Value::as_str)
@@ -172,15 +190,20 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         "diagnostic_scope":"selected_story_references_frame_geometry_and_known_character_paragraph_control_comparison",
         "reported_text_source":"local_record","native_story_index":story_index,
         "compatibility_markers":compatibility,
+        "rendering":rendering.report(),
         "whole_file_validated":false,"layout_semantics_validated":false,
         "text_characters":text.chars().count(),"text_utf16_units":text.encode_utf16().count(),
         "style_runs":style_runs.len(),"paragraph_runs":paragraph_runs.len(),
-        "font_face_names":referenced_fonts,"font_file_identity_declared":false,
+        "font_face_names":referenced_fonts,"font_file_identity_declared":false,"local_font_reference_runs_missing":styles.missing_fonts(),
         "shape_owner_labels":owners,"shape_owner_labels_truncated":owners_truncated,"shape_owner_labels_trusted":false,
         "transform":transform,"text_data_sha256":assets::sha256(&payload),
         "cached_pixels_used":false,"required_mapping":["explicit_content_pinned_font_bindings","global_story_and_local_style_reconciliation","editable_text_layout_reconstruction","declared_native_layout_and_rendering_differences"]}),
         styles,
         paragraphs,
+        parsed,
+        transform,
+        plain_modes,
+        rendering,
     })
 }
 pub(super) fn diagnose(
@@ -190,14 +213,30 @@ pub(super) fn diagnose(
     control: &Control,
 ) -> Result<Value, Error> {
     let mut record = inspect(input, control)?;
-    record.details["global_story"] = super::text_story::diagnose(
-        tail,
-        version,
-        record.story_index,
-        &record.source,
-        &record.styles,
-        &record.paragraphs,
-        control,
-    )?;
+    record.resolve_details(tail, version, control)?;
     Ok(record.details)
+}
+impl Record {
+    pub fn resolve_details(
+        &mut self,
+        tail: &Reader<'_>,
+        version: Version,
+        control: &Control,
+    ) -> Result<(), Error> {
+        self.details["global_story"] = super::text_story::diagnose(
+            tail,
+            version,
+            self.story_index,
+            &self.source,
+            &self.styles,
+            &self.paragraphs,
+            control,
+        )?;
+        if self.details["global_story"]["present"] == false && self.styles.missing_fonts() != 0 {
+            return Err(unsupported(
+                "Local-only text needs explicit font references; inherited local styles are not mapped",
+            ));
+        }
+        Ok(())
+    }
 }

@@ -1,5 +1,5 @@
 //! Observed character controls only. Equal local caches do not establish complete
-//! style semantics, font identity, inheritance, paragraph layout or editability.
+//! style semantics, font identity, paragraph layout or editability.
 use super::{text_data::Node, *};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -9,8 +9,18 @@ pub(super) enum Kind {
     Number,
     Integer,
     NumberTriple,
+    NumberList,
 }
 impl Kind {
+    fn array_size(self, count: usize) -> Result<(), Error> {
+        if matches!(self, Self::NumberTriple) && count != 3 {
+            return Err(malformed());
+        }
+        if matches!(self, Self::NumberList) && count > 32 {
+            return Err(limit("Text stroke patterns exceed 32 source values"));
+        }
+        Ok(())
+    }
     pub fn read(self, value: &Value) -> Result<Value, Error> {
         Ok(match self {
             Self::Boolean => json!(value.as_bool().ok_or_else(malformed)?),
@@ -21,11 +31,9 @@ impl Kind {
                     .ok_or_else(malformed)?
             ),
             Self::Integer => json!(value.as_i64().ok_or_else(malformed)?),
-            Self::NumberTriple => {
+            Self::NumberTriple | Self::NumberList => {
                 let values = value.as_array().ok_or_else(malformed)?;
-                if values.len() != 3 {
-                    return Err(malformed());
-                }
+                self.array_size(values.len())?;
                 Value::Array(
                     values
                         .iter()
@@ -36,11 +44,9 @@ impl Kind {
         })
     }
     pub fn read_node(self, node: &Node) -> Result<Value, Error> {
-        if let Self::NumberTriple = self {
+        if matches!(self, Self::NumberTriple | Self::NumberList) {
             let values = node.array()?;
-            if values.len() != 3 {
-                return Err(malformed());
-            }
+            self.array_size(values.len())?;
             return Ok(Value::Array(
                 values
                     .iter()
@@ -148,9 +154,110 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
     (Some("32"), None, "kana", Kind::Boolean),
     (Some("33"), None, "italics", Kind::Boolean),
     (Some("52"), Some("NoBreak"), "no_break", Kind::Boolean),
+    (Some("10"), None, "character_rotation", Kind::Number),
+    (Some("17"), None, "underline_offset", Kind::Number),
+    (
+        Some("21"),
+        None,
+        "legacy_alternate_ligatures",
+        Kind::Boolean,
+    ),
+    (Some("22"), None, "legacy_old_style_figures", Kind::Boolean),
+    (Some("34"), None, "phonetic_annotation", Kind::Boolean),
+    (Some("40"), None, "split_annotation", Kind::Boolean),
+    (Some("41"), None, "split_annotation_lines", Kind::Integer),
+    (Some("42"), None, "split_annotation_line_gap", Kind::Integer),
+    (Some("44"), None, "split_annotation_widow", Kind::Integer),
+    (Some("45"), None, "split_annotation_orphan", Kind::Integer),
+    (Some("47"), None, "inline_vertical_offset", Kind::Integer),
+    (Some("48"), None, "inline_horizontal_offset", Kind::Integer),
+    (Some("49"), None, "space_before_character", Kind::Number),
+    (Some("50"), None, "space_after_character", Kind::Number),
+    (Some("51"), None, "character_cell_width", Kind::Integer),
+    (Some("56"), Some("FillFlag"), "fill_enabled", Kind::Boolean),
+    (
+        Some("57"),
+        Some("StrokeFlag"),
+        "stroke_enabled",
+        Kind::Boolean,
+    ),
+    (
+        Some("58"),
+        Some("FillFirst"),
+        "fill_before_stroke",
+        Kind::Boolean,
+    ),
+    (Some("59"), None, "fill_overprint", Kind::Boolean),
+    (Some("60"), None, "stroke_overprint", Kind::Boolean),
+    (
+        Some("63"),
+        Some("OutlineWidth"),
+        "stroke_width",
+        Kind::Number,
+    ),
+    (Some("64"), None, "stroke_miter_limit", Kind::Number),
+    (Some("65"), None, "stroke_dash_phase", Kind::Number),
+    (Some("66"), None, "stroke_dash_pattern", Kind::NumberList),
+    (Some("61"), None, "stroke_cap_code", Kind::Integer),
+    (Some("62"), None, "stroke_join_code", Kind::Integer),
+    (Some("69"), None, "direction_override_code", Kind::Integer),
+    (Some("71"), None, "mark_position_code", Kind::Integer),
+    (Some("77"), None, "fill_visible", Kind::Boolean),
+    (Some("78"), None, "stroke_visible", Kind::Boolean),
+    (
+        Some("46"),
+        None,
+        "split_annotation_alignment_code",
+        Kind::Integer,
+    ),
+    (Some("14"), None, "opentype_baseline_code", Kind::Integer),
+    (Some("30"), None, "figure_style_code", Kind::Integer),
+    (
+        Some("35"),
+        Some("BaselineDirection"),
+        "baseline_direction_code",
+        Kind::Integer,
+    ),
+    (
+        Some("36"),
+        Some("Tsume"),
+        "spacing_compression",
+        Kind::Number,
+    ),
+    (
+        Some("37"),
+        Some("StyleRunAlignment"),
+        "character_alignment_code",
+        Kind::Integer,
+    ),
+    (Some("38"), Some("Language"), "language_code", Kind::Integer),
+    (Some("39"), None, "alternate_form_code", Kind::Integer),
+    (Some("68"), None, "joining_elongation_code", Kind::Integer),
+    (
+        None,
+        Some("Kashida"),
+        "local_joining_elongation_code",
+        Kind::Integer,
+    ),
+    (Some("70"), None, "digit_set_code", Kind::Integer),
+    (
+        None,
+        Some("HindiNumbers"),
+        "local_alternate_digits",
+        Kind::Boolean,
+    ),
+    (
+        Some("72"),
+        None,
+        "diacritic_horizontal_offset",
+        Kind::Number,
+    ),
+    (Some("73"), None, "diacritic_vertical_offset", Kind::Number),
+    (Some("85"), None, "stylistic_set_selection", Kind::Integer),
+    (Some("87"), None, "mark_baseline_distance", Kind::Number),
 ];
 
-fn face_name(name: &str) -> Result<Value, Error> {
+pub(super) fn face_name(name: &str) -> Result<Value, Error> {
     if name.is_empty() || name.len() > 128 || !name.bytes().all(|b| (33..=126).contains(&b)) {
         return Err(unsupported(
             "Native font identity is not a bounded printable face name",
@@ -190,13 +297,19 @@ impl Styles {
                 .pointer("/StyleSheet/StyleSheetData")
                 .and_then(Value::as_object)
                 .ok_or_else(malformed)?;
-            let index = properties.get("Font").ok_or_else(|| unsupported("Native text diagnostics require explicit per-run font references; inherited styles need a layout mapping"))?.as_u64().and_then(|n|usize::try_from(n).ok()).ok_or_else(malformed)?;
-            let name = fonts
-                .get(index)
-                .and_then(|v| v.get("Name"))
-                .and_then(Value::as_str)
-                .ok_or_else(malformed)?;
-            let mut controls = BTreeMap::from([("font_face_name", face_name(name)?)]);
+            let mut controls = BTreeMap::new();
+            if let Some(index) = properties.get("Font") {
+                let index = index
+                    .as_u64()
+                    .and_then(|n| usize::try_from(n).ok())
+                    .ok_or_else(malformed)?;
+                let name = fonts
+                    .get(index)
+                    .and_then(|v| v.get("Name"))
+                    .and_then(Value::as_str)
+                    .ok_or_else(malformed)?;
+                controls.insert("font_face_name", face_name(name)?);
+            }
             for &(_, local, name, kind) in CONTROLS {
                 if let Some(v) = local.and_then(|key| properties.get(key)) {
                     controls.insert(name, kind.read(v)?);
@@ -231,7 +344,11 @@ impl Styles {
         Ok(out)
     }
 
-    pub fn global(runs: &[Node], fonts: &[Node], control: &Control) -> Result<Self, Error> {
+    pub fn global(
+        runs: &[super::text_inheritance::Run<'_>],
+        fonts: &[Node],
+        control: &Control,
+    ) -> Result<Self, Error> {
         let mut out = Self {
             runs: Vec::new(),
             unknown: BTreeSet::new(),
@@ -239,9 +356,9 @@ impl Styles {
         let mut end = 0;
         for run in runs {
             control.check()?;
-            end += run.field("1")?.unsigned()?;
-            let style = run.field("0")?.field("0")?.field("6")?;
-            let index = style.field("0")?.unsigned()?;
+            end += run.length;
+            let style = run.fields.as_ref().ok_or_else(malformed)?;
+            let index = style.get("0").ok_or_else(malformed)?.unsigned()?;
             let name = fonts
                 .get(index)
                 .ok_or_else(malformed)?
@@ -252,34 +369,41 @@ impl Styles {
             let mut controls = BTreeMap::from([("font_face_name", face_name(name)?)]);
             for &(key, _, name, kind) in CONTROLS {
                 if let Some(key) = key
-                    && let Some(v) = style.optional(key)?
+                    && let Some(v) = style.get(key)
                 {
                     controls.insert(name, kind.read_node(v)?);
                 }
             }
             for &(global, _, name) in super::text_paint::FIELDS {
-                if let Some(value) = style.optional(global)?
+                if let Some(value) = style.get(global)
                     && let Some(value) = super::text_paint::global(value, global, &mut out.unknown)?
                 {
                     controls.insert(name, value);
                 }
             }
-            let Node::Dictionary(properties) = style else {
-                return Err(malformed());
-            };
+            if let Some(value) = style.get("43") {
+                let Node::Dictionary(fields) = value else {
+                    return Err(malformed());
+                };
+                controls.insert("split_annotation_scale", json!(value.field("0")?.number()?));
+                out.unknown.extend(
+                    fields
+                        .keys()
+                        .filter(|k| k.as_str() != "0")
+                        .map(|k| format!("43/{k}")),
+                );
+            }
             out.unknown.extend(
-                properties
+                style
                     .keys()
                     .filter(|k| {
-                        k.as_str() != "0"
+                        !matches!(**k, "0" | "43")
                             && !super::text_paint::FIELDS
                                 .iter()
-                                .any(|(global, _, _)| *global == k.as_str())
-                            && !CONTROLS
-                                .iter()
-                                .any(|(key, _, _, _)| *key == Some(k.as_str()))
+                                .any(|(global, _, _)| *global == **k)
+                            && !CONTROLS.iter().any(|(key, _, _, _)| *key == Some(**k))
                     })
-                    .cloned(),
+                    .map(|k| (*k).to_owned()),
             );
             out.runs.push(Run {
                 end_utf16: end,
@@ -289,11 +413,18 @@ impl Styles {
         Ok(out)
     }
 
+    pub fn missing_fonts(&self) -> usize {
+        self.runs
+            .iter()
+            .filter(|r| !r.controls.contains_key("font_face_name"))
+            .count()
+    }
+
     pub fn faces(&self) -> Result<BTreeSet<&str>, Error> {
         let faces = self
             .runs
             .iter()
-            .map(|r| r.controls["font_face_name"].as_str().unwrap())
+            .filter_map(|r| r.controls.get("font_face_name").and_then(Value::as_str))
             .collect::<BTreeSet<_>>();
         if faces.len() > crate::fonts::MAX_FONTS {
             return Err(limit(

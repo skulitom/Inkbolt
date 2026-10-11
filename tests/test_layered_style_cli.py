@@ -112,6 +112,36 @@ class LayeredStyleTests(unittest.TestCase):
         before=self.load(g,local)['details']['global_story']['global_data_sha256'];gp(g)['UnknownOriginal']=False
         self.assertNotEqual(before,self.load(g,local)['details']['global_story']['global_data_sha256'])
 
+    def test_additional_controls_preserve_sparse_global_and_legacy_distinctions(self):
+        g,local=inputs(global_lengths=[1,4],local_lengths=[3,2])
+        for i in range(2):
+            gp(g,i).update({'14':1,'30':2,'35':2,'36':.25,'37':0,'38':26,'39':1,'68':1,'70':2,'72':3.5,'73':-2.5,'85':5,'87':80})
+            lp(local,i).update(BaselineDirection=2,Tsume=.25,StyleRunAlignment=0,Language=26,Kashida=0,HindiNumbers=True)
+        v=self.controls(g,local);c=v['comparison']
+        self.assertTrue(c['all_compared_values_match']);self.assertEqual(c['utf16_spans'],3)
+        self.assertEqual(c['compared_controls'],['baseline_direction_code','character_alignment_code','font_face_name','language_code','spacing_compression'])
+        self.assertIn('joining_elongation_code',c['missing_local_controls']);self.assertIn('digit_set_code',c['missing_local_controls'])
+        self.assertEqual(c['missing_global_controls'],['local_alternate_digits','local_joining_elongation_code'])
+        self.assertEqual(v['global']['unmapped_field_count'],0);self.assertEqual(v['local']['unmapped_field_count'],0)
+        gp(g,1)['38']=14;lp(local,1)['Tsume']=.5
+        changed=self.controls(g,local);self.assertEqual(changed['comparison']['different_controls'],['language_code','spacing_compression'])
+        self.assertEqual(changed['comparison']['differing_spans'],2)
+        self.assertNotEqual(v['global']['run_controls_sha256'],changed['global']['run_controls_sha256'])
+        for key in ['complete_style_semantics_validated','missing_values_defaulted','rendering_equivalence_validated']:
+            self.assertFalse(changed[key])
+
+    def test_new_codes_and_offsets_reject_wrong_types_and_keep_unknown_codes_raw(self):
+        for key,bad in [('14',True),('30',1.0),('35','2'),('36',False),('37',[]),('38',2.0),('39',{}),('68',False),('70',1.5),('72','3'),('73',[]),('85',1.0),('87',True)]:
+            g,local=inputs();gp(g)[key]=bad
+            self.assertEqual(self.load(g,local)['code'],'INVALID_LAYERED_FILE',(key,bad))
+        for key,bad in [('BaselineDirection',True),('Tsume','0'),('StyleRunAlignment',1.0),('Language',14.0),('Kashida',False),('HindiNumbers',1)]:
+            g,local=inputs();lp(local)[key]=bad
+            self.assertEqual(self.load(g,local)['code'],'INVALID_LAYERED_FILE',(key,bad))
+        g,local=inputs();gp(g)['38']=999;lp(local)['Language']=999
+        self.assertTrue(self.controls(g,local)['comparison']['all_compared_values_match'])
+        gp(g)['38']=998
+        self.assertEqual(self.controls(g,local)['comparison']['different_controls'],['language_code'])
+
     def test_cli_mcp_parity_source_integrity_and_compact_maximum_run_report(self):
         g,local=inputs(text='A'*64,global_lengths=[1]*65,local_lengths=[1]*65)
         for i in range(65):gp(g,i)['1']=i+1;lp(local,i)['FontSize']=i+2

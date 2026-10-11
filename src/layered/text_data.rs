@@ -11,6 +11,7 @@ const MAX_STRING_BYTES: usize = 16388;
 
 // Names and opaque strings must remain distinct from Unicode text. In
 // particular, a named value cannot impersonate a story or a font face.
+#[derive(PartialEq)]
 pub(super) enum Node {
     Dictionary(BTreeMap<String, Node>),
     Array(Vec<Node>),

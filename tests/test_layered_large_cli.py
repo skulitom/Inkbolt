@@ -58,6 +58,40 @@ class LargeLayeredTests(unittest.TestCase):
         self.assertIn('global:cinf',self.read(self.source(global_extra=tag),color_policy='assume_srgb')['omitted_nonappearance_records'])
         self.assertEqual(self.read(self.source(global_extra=b'8BIMFMsk'+f.U64(2**64-1)),1,color_policy='assume_srgb')['code'],'RESOURCE_LIMIT')
         self.assertEqual(self.read(self.source(global_extra=f.tag(b'FMsk',overlay)),1,color_policy='assume_srgb')['code'],'RESOURCE_LIMIT')
+    def test_empty_external_link_table_uses_large_length_and_preserves_following_tags(self):
+        overlay=f.U16(0)+f.U16(1111)*4+f.U16(40)
+        suffix=b'8B64FMsk'+f.large_section(overlay)+metadata.global_tag(b'GenI',metadata.generation())
+        for signature in [b'8BIM',b'8B64']:
+            tag=signature+b'lnkE'+f.U64(0)
+            raw=self.source(global_extra=tag+suffix)
+            result=self.read(raw,color_policy='assume_srgb')
+            self.assertEqual(result['omitted_nonappearance_records'],['global:FMsk','global:GenI','global:lnkE'])
+            self.assertEqual(result['document']['items'][0]['content']['rgba_hex'],bytes([20,80,140,0,200,40,70,1,30,20,10,127]*2).hex())
+            self.assertEqual(self.read(self.source(global_extra=tag+tag),1,color_policy='assume_srgb')['code'],'INVALID_LAYERED_FILE')
+            nonempty=signature+b'lnkE'+f.large_section(b'original external record')+bytes(-len(b'original external record')%4)
+            self.assertEqual(self.read(self.source(global_extra=nonempty),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
+        # The standard container keeps its 32-bit empty table; neither version guesses.
+        raw=f.make([dict(name='p',width=1,height=1,rgba=[1,2,3,255])],global_extra=metadata.global_tag(b'lnkE',b''))
+        self.assertIn('global:lnkE',self.read(raw,color_policy='assume_srgb')['omitted_nonappearance_records'])
+        self.assertEqual(self.read(self.source(global_extra=b'8BIMlnkE'+f.U32(0)+suffix),1,color_policy='assume_srgb')['code'],'RESOURCE_LIMIT')
+        for length in [2**32,2**63,2**64-1,32*1024*1024+1]:
+            self.assertEqual(self.read(self.source(global_extra=b'8B64lnkE'+f.U64(length)),1,color_policy='assume_srgb')['code'],'RESOURCE_LIMIT')
+        for length in range(1,8):
+            self.assertEqual(self.read(self.source(global_extra=b'8B64lnkE'+bytes(length)),1,color_policy='assume_srgb')['code'],'INVALID_LAYERED_FILE')
+
+    def test_text_lookup_uses_the_same_external_link_framing_without_accepting_references(self):
+        import layered_editable_text_fixtures as point
+        import test_layered_story_cli as story
+        g=point.global_data();text=story.tag(story.entries(g));empty=b'8B64lnkE'+f.U64(0)
+        for tail in [empty+text,text+empty]:
+            raw=f.make([point.layer()],version=2,global_extra=tail)
+            error=self.read(raw,1,color_policy='assume_srgb')
+            self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
+            self.assertTrue(error['details']['global_story']['present'])
+            self.assertTrue(error['details']['global_story']['global_tag_framing_validated'])
+        raw=f.make([point.layer()],version=2,global_extra=text+b'8B64lnkE'+f.U64(2**32))
+        self.assertEqual(self.read(raw,1,color_policy='assume_srgb')['code'],'RESOURCE_LIMIT')
+
     def test_native_publication_sessions_and_mcp_discover_large_format_without_new_transport(self):
         d=self.scene()
         with tempfile.TemporaryDirectory() as root:

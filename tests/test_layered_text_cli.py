@@ -1,4 +1,4 @@
-"""Text remains unsupported while malformed records and requirements are precise."""
+"""Structured text diagnostics without opting into editable reconstruction."""
 import hashlib,json,struct,tempfile,unittest
 from pathlib import Path
 import layered_text_fixtures as t
@@ -26,7 +26,7 @@ class LayeredTextTests(unittest.TestCase):
             self.assertFalse(d[k])
         self.assertNotIn('document',error);self.assertLess(len(json.dumps(error).encode()),8192)
         capability=self.invoke(dict(command='capabilities'))['layered_interchange']['text_diagnostics']
-        self.assertFalse(capability['editable_text_import']);self.assertTrue(capability['editable_text_export'])
+        self.assertTrue(capability['editable_text_import']);self.assertEqual(capability['editable_text_import_scope'],'explicit_point_subset;see_text_import');self.assertTrue(capability['editable_text_export'])
         self.assertEqual(capability['limits']['runs'],65)
 
     def test_font_references_and_unicode_run_units_are_checked(self):
