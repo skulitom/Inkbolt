@@ -1,6 +1,5 @@
 // Verify the Windows bundle in fresh folders under target/, never the user's artwork.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
 import { readdirSync, lstatSync } from 'node:fs';
 import { readFile, writeFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
@@ -8,10 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { root, cargoVersion, VERSION } from './build.mjs';
 import { readZip, sha256 } from './zip.mjs';
 
-export const inside = (base, file) => {
-  const relative = path.relative(base, file);
-  return relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-};
+import { inside, mcpFolders, startMcp } from './mcp-client.mjs';
+export { inside } from './mcp-client.mjs';
 
 export function checkManifest(manifest, version) {
   for (const key of ['name', 'version', 'description', 'display_name', 'long_description']) assert.ok(typeof manifest[key] === 'string' && manifest[key], `manifest.${key} is required`);
@@ -68,11 +65,12 @@ export async function verifyMcpb(bundle, { allowSkip = false } = {}) {
   const tempRoot = path.join(root, 'target');
   await mkdir(tempRoot, { recursive: true });
   const temp = await mkdtemp(path.join(tempRoot, 'mcpb-verify-'));
-  let child, closed, timer;
+  let client;
   try {
-    const extension = path.join(temp, 'extension'), workspace = path.join(temp, 'workspace'), cwd = path.join(temp, 'cwd');
-    const home = path.join(temp, 'home'), scratch = path.join(temp, 'tmp');
-    for (const directory of [extension, workspace, cwd, home, scratch]) await mkdir(directory);
+    const extension = path.join(temp, 'extension');
+    await mkdir(extension);
+    const folders = await mcpFolders(temp);
+    const { workspace, cwd, home, scratch } = folders;
     for (const [name, entry] of entries) {
       assert.ok(!/[\\:]/.test(name) && !name.split('/').some(part => ['', '.', '..'].includes(part)), `Unsafe bundle path: ${name}`);
       const file = path.resolve(extension, name);
@@ -81,59 +79,11 @@ export async function verifyMcpb(bundle, { allowSkip = false } = {}) {
       await writeFile(file, entry.read(), { flag: 'wx' });
     }
     const before = inventory(root, temp);
-    const substitute = value => value.replaceAll('${__dirname}', extension).replaceAll('${user_config.workspace}', workspace);
-    const config = manifest.server.mcp_config, pending = new Map();
-    let id = 0, buffer = '', stderr = '', failure;
-    const fail = error => { failure ??= error; for (const request of pending.values()) request.reject(error); pending.clear(); };
-    child = spawn(substitute(config.command), config.args.map(substitute), {
-      cwd, env: { ...process.env, HOME: home, USERPROFILE: home, APPDATA: home, LOCALAPPDATA: home, TMP: scratch, TEMP: scratch },
-      stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true
-    });
-    closed = new Promise(resolve => child.once('close', (code, signal) => { fail(new Error(`MCP server exited (${code ?? signal}): ${stderr}`)); resolve(); }));
-    child.on('error', fail); child.stdin.on('error', fail);
-    child.stderr.setEncoding('utf8'); child.stderr.on('data', data => { stderr = (stderr + data).slice(-8000); });
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', data => {
-      try {
-        buffer += data;
-        assert.ok(buffer.length < 8 * 1024 * 1024, 'MCP response exceeds smoke-test budget');
-        let end;
-        while ((end = buffer.indexOf('\n')) !== -1) {
-          const line = buffer.slice(0, end); buffer = buffer.slice(end + 1);
-          const message = JSON.parse(line), request = pending.get(message.id);
-          assert.equal(message.jsonrpc, '2.0');
-          if (!request) continue;
-          pending.delete(message.id);
-          if (message.error) request.reject(new Error(`${request.method}: ${JSON.stringify(message.error)}`));
-          else request.resolve(message.result);
-        }
-      } catch (error) { fail(error); }
-    });
-    timer = setTimeout(() => { fail(new Error(`MCP smoke test timed out after 15 seconds. ${stderr}`)); child.kill(); }, 15000);
-    const send = message => child.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\n');
-    const request = (method, params) => new Promise((resolve, reject) => {
-      if (failure) { reject(failure); return; }
-      const current = ++id; pending.set(current, { resolve, reject, method }); send({ id: current, method, params });
-    });
-    const initialized = await request('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'inkbolt-mcpb-smoke', version: '1.0.0' } });
-    assert.equal(initialized.protocolVersion, '2025-11-25');
-    assert.equal(initialized.serverInfo.version, manifest.version, 'binary version must equal manifest version');
-    send({ method: 'notifications/initialized' });
-    const tools = [], cursors = new Set();
-    let cursor;
-    do {
-      const listed = await request('tools/list', cursor ? { cursor } : {});
-      assert.ok(Array.isArray(listed.tools));
-      tools.push(...listed.tools);
-      cursor = listed.nextCursor;
-      if (cursor) {
-        assert.ok(typeof cursor === 'string' && !cursors.has(cursor) && cursors.size < 100, 'Invalid or repeating catalog cursor');
-        cursors.add(cursor);
-      }
-    } while (cursor);
-    assert.equal(new Set(tools.map(tool => tool.name)).size, tools.length, 'duplicate live tool names');
-    assert.deepEqual(new Set(tools.map(tool => tool.name)), new Set(manifest.tools.map(tool => tool.name)));
-    const created = await request('tools/call', { name: 'inkbolt_run', arguments: {
+    client = startMcp({ manifest, extension, ...folders });
+    await client.initialize();
+    const tools = await client.listTools();
+    assert.deepEqual(new Set(tools.map(tool => tool.name)), new Set(manifest.tools.map(tool => tool.name)), 'manifest tools must match live tools');
+    const created = await client.request('tools/call', { name: 'inkbolt_run', arguments: {
       command: 'document.create', arguments: { id: 'mcpb-smoke', kind: 'vector', width: 2, height: 2 }
     } });
     assert.equal(created.isError, false, `document.create failed: ${JSON.stringify(created)}`);
@@ -143,8 +93,7 @@ export async function verifyMcpb(bundle, { allowSkip = false } = {}) {
     assert.equal(result.result.kind, 'vector');
     assert.equal(result.result.width, 2); assert.equal(result.result.height, 2);
     assert.deepEqual(result.result.items, []);
-    child.kill(); await closed; child = null;
-    clearTimeout(timer);
+    await client.stop(); client = null;
     assert.deepEqual(inventory(root, temp), before, 'The server changed repository files outside its temporary folders');
     for (const directory of [workspace, cwd, home, scratch]) assert.deepEqual(await readdir(directory), [], `Unexpected writes in ${directory}`);
     assert.deepEqual((await readdir(temp)).sort(), ['cwd', 'extension', 'home', 'tmp', 'workspace']);
@@ -152,10 +101,10 @@ export async function verifyMcpb(bundle, { allowSkip = false } = {}) {
     assert.deepEqual(Object.keys(inventory(extension)).sort(), [...entries.keys(), 'server'].map(name => name.replaceAll('/', path.sep)).sort(), 'The server added files to the bundle');
     return { version: manifest.version, tools: tools.length, files: entries.size };
   } finally {
-    clearTimeout(timer);
-    if (child) { child.kill(); await closed; }
-    assert.ok(inside(tempRoot, temp), 'Refusing to remove a folder outside target/');
-    await rm(temp, { recursive: true, force: true });
+    try { await client?.stop(); } finally {
+      assert.ok(inside(tempRoot, temp), 'Refusing to remove a folder outside target/');
+      await rm(temp, { recursive: true, force: true });
+    }
   }
 }
 

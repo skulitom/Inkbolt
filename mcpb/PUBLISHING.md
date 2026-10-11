@@ -17,6 +17,8 @@ git push origin vX.Y.Z
 
 The tag must be `v` plus Cargo.toml's `[package] version`, a stable `X.Y.Z`. A manual Release run also requires an existing tag. Never reuse a tag for changed bytes. The manifest template has no version: the builder inserts Cargo's version. `server.json` stays metadata-only and may retain an older version on main. The entry writer stamps the release version into its generated copy, checks the bundle's version and SHA-256, and never edits the source metadata. Metadata-only publication also stamps the release version.
 
+The builder discovers every page of the binary's core tool catalog and logs added or dropped names; `mcpb/manifest.json` keeps curated descriptions as display overrides, not a fixed tool inventory. New tools use the first sentence of the server description, shortened to at most 160 characters on a word boundary.
+
 ## Test the download, then publish
 
 On Windows, use a checkout whose Cargo.toml matches the release, with Node 20 or newer. Substitute the tag below:

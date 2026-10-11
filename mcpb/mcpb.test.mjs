@@ -5,11 +5,14 @@ import { readFile, writeFile, mkdir, mkdtemp, rm, access, link } from 'node:fs/p
 import path from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { archive } from './archive.mjs';
-import { root, cargoVersion, assembleMcpb, buildMcpb, registryEntry, BUNDLE_NAME, json } from './build.mjs';
+import { root, cargoVersion, assembleMcpb, buildMcpb, registryEntry, BUNDLE_NAME, json, mergeTools } from './build.mjs';
 import { readZip, writeZip, sha256 } from './zip.mjs';
 import { checkManifest, inside, verifyMcpb } from './verify.mjs';
 
-let temp, base, binary, template, metadata, build;
+let temp, base, binary, template, metadata, build, fixtureTools;
+// Packaging fixtures need no executable; the real-binary test covers discovery.
+const assembleFixture = options => assembleMcpb(options, async () => fixtureTools);
+const buildFixture = options => buildMcpb(options, async () => fixtureTools);
 const version = '7.8.9';
 const writeJSON = (file, value) => writeFile(file, json(value));
 const cargo = value => `[package]\nname = "fixture"\nversion = "${value}"\n\n[dependencies]\nunused = "0.1.0"\n`;
@@ -19,6 +22,7 @@ before(async () => {
   base = path.join(temp, 'source');
   await mkdir(path.join(base, 'mcpb'), { recursive: true });
   template = JSON.parse(await readFile(path.join(root, 'mcpb/manifest.json')));
+  fixtureTools = [...template.tools.slice(1).reverse(), { name: 'inkbolt_new', description: 'New tool sentence. More detail.' }];
   metadata = { ...JSON.parse(await readFile(path.join(root, 'server.json'))), version: '0.0.1' };
   await writeJSON(path.join(base, 'mcpb/manifest.json'), template);
   await writeJSON(path.join(base, 'server.json'), metadata);
@@ -28,7 +32,7 @@ before(async () => {
   await writeFile(path.join(base, 'README.md'), 'Fixture readme\r\n');
   binary = path.join(base, 'stand-in.exe');
   await writeFile(binary, Buffer.from([77, 90, 0, 13, 10, 255]));
-  build = await buildMcpb({ base, binary, out: path.join(temp, 'first') });
+  build = await buildFixture({ base, binary, out: path.join(temp, 'first') });
 });
 after(async () => {
   if (temp) {
@@ -50,44 +54,107 @@ test('metadata stays package-free with the required identity and short descripti
 test('manifest template has no version and has valid binary-server fields', async () => {
   assert.equal(Object.hasOwn(template, 'version'), false);
   checkManifest({ ...template, version: await cargoVersion() }, await cargoVersion());
-  assert.equal(template.tools.length, 22);
+});
+
+test('tool merge keeps curated descriptions, drops absent tools and follows live order without mutation', () => {
+  const overrides = [
+    { name: 'inkbolt_first', description: 'Curated first.' },
+    { name: 'inkbolt_dropped', description: 'Retired.' },
+    { name: 'inkbolt_last', description: 'Curated last.' }
+  ];
+  const live = [
+    { name: 'inkbolt_last', description: 'Server last.', inputSchema: {} },
+    { name: 'inkbolt_first', description: 'Server first.' }
+  ];
+  const before = structuredClone({ overrides, live });
+  assert.deepEqual(mergeTools(overrides, live), {
+    tools: [overrides[2], overrides[0]], added: [], dropped: ['inkbolt_dropped']
+  });
+  assert.deepEqual({ overrides, live }, before);
+});
+
+test('new tool descriptions use the first sentence and normalize whitespace', () => {
+  for (const [description, expected] of [
+    ['  Make a\nsmall image. Keep the source.  ', 'Make a small image.'],
+    ['Inspect it! Then edit.', 'Inspect it!'],
+    ['Ready? More details.', 'Ready?'],
+    ['Render at 1.5 scale. More details.', 'Render at 1.5 scale.'],
+    ['  No final punctuation  ', 'No final punctuation']
+  ]) {
+    assert.deepEqual(mergeTools([], [{ name: 'inkbolt_new', description }]), {
+      tools: [{ name: 'inkbolt_new', description: expected }], added: ['inkbolt_new'], dropped: []
+    });
+  }
+});
+
+test('new tool descriptions stop at a whole word within 160 characters', () => {
+  const merge = description => mergeTools([], [{ name: 'inkbolt_new', description }]).tools[0].description;
+  const exact = 'word '.repeat(31) + 'final';
+  assert.equal(exact.length, 160);
+  assert.equal(merge(exact), exact);
+  assert.equal(merge(exact + ' more words.'), exact);
+  assert.equal(merge('word '.repeat(31) + 'longerword.'), 'word '.repeat(31).trim());
+  assert.throws(() => merge('x'.repeat(161)), /word boundary/);
+});
+
+test('tool merge rejects empty catalogs, invalid names and duplicates', () => {
+  for (const live of [[], undefined, {}]) assert.throws(() => mergeTools([], live), /no tools/);
+  for (const name of ['', 'inkbolt_', 'other_tool', 'inkbolt_bad-name', 'inkbolt_bad.name', 'inkbolt_é', 'inkbolt_bad\n', ' inkbolt_bad', 7, null, undefined]) {
+    assert.throws(() => mergeTools([], [{ name, description: 'Description.' }]), /Invalid tool name/);
+  }
+  assert.throws(() => mergeTools([], [null]), /Invalid tool name/);
+  const tool = { name: 'inkbolt_valid_123', description: 'Description.' };
+  assert.deepEqual(mergeTools([], [tool]).tools, [tool]);
+  assert.throws(() => mergeTools([], [tool, tool]), /Duplicate tool name/);
+});
+
+test('new tools require usable descriptions while curated descriptions remain exact', () => {
+  for (const description of [undefined, null, '', ' \n ']) {
+    assert.throws(() => mergeTools([], [{ name: 'inkbolt_new', description }]), /server description/);
+  }
+  const override = { name: 'inkbolt_known', description: 'Curated text. A second sentence is retained.' };
+  assert.deepEqual(mergeTools([override], [{ name: override.name }]).tools, [override]);
 });
 
 test('two builds are identical, with exactly the required entries and checksum', async () => {
-  const second = await buildMcpb({ base, binary, out: path.join(temp, 'second') });
+  const second = await buildFixture({ base, binary, out: path.join(temp, 'second') });
   assert.deepEqual(second.bytes, build.bytes);
   const entries = readZip(build.bytes);
   assert.deepEqual([...entries.keys()], ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'manifest.json', 'server/inkbolt.exe']);
   assert.deepEqual(entries.get('server/inkbolt.exe').read(), await readFile(binary));
   assert.equal(entries.get('LICENSE').read().toString(), 'Fixture license\n');
-  assert.equal(JSON.parse(entries.get('manifest.json').read()).version, version);
+  const generated = JSON.parse(entries.get('manifest.json').read());
+  assert.equal(generated.version, version);
+  assert.deepEqual(generated.tools, mergeTools(template.tools, fixtureTools).tools);
+  assert.deepEqual(build.added, ['inkbolt_new']);
+  assert.deepEqual(build.dropped, [template.tools[0].name]);
   assert.equal(await readFile(`${build.bundle}.sha256`, 'utf8'), `${sha256(build.bytes)}  ${BUNDLE_NAME}\n`);
   await writeFile(path.join(base, 'LICENSE'), 'Fixture license\n');
-  assert.deepEqual((await assembleMcpb({ base, binary })).bytes, build.bytes);
-  await buildMcpb({ base, binary, out: path.join(temp, 'first') });
+  assert.deepEqual((await assembleFixture({ base, binary })).bytes, build.bytes);
+  await buildFixture({ base, binary, out: path.join(temp, 'first') });
 });
 
 test('builder refuses a template version, invalid package versions and missing binaries', async () => {
   try {
     await writeJSON(path.join(base, 'mcpb/manifest.json'), { ...template, version });
-    await assert.rejects(assembleMcpb({ base, binary }), /must not contain version/);
+    await assert.rejects(assembleFixture({ base, binary }), /must not contain version/);
   } finally { await writeJSON(path.join(base, 'mcpb/manifest.json'), template); }
   try {
     for (const value of ['1.0', 'v1.0.0', '01.0.0', '1.0.0-beta']) {
       await writeFile(path.join(base, 'Cargo.toml'), cargo(value));
-      await assert.rejects(assembleMcpb({ base, binary }), /version must have the form X.Y.Z/);
+      await assert.rejects(assembleFixture({ base, binary }), /version must have the form X.Y.Z/);
     }
     await writeFile(path.join(base, 'Cargo.toml'), '[dependencies]\nversion = "1.2.3"\n');
     await assert.rejects(cargoVersion(base), /version must have the form X.Y.Z/);
   } finally { await writeFile(path.join(base, 'Cargo.toml'), cargo(version)); }
-  await assert.rejects(assembleMcpb({ base }), /--binary is required/);
-  await assert.rejects(assembleMcpb({ base, binary: path.join(temp, 'missing.exe') }), /Missing binary/);
+  await assert.rejects(assembleFixture({ base }), /--binary is required/);
+  await assert.rejects(assembleFixture({ base, binary: path.join(temp, 'missing.exe') }), /Missing binary/);
 });
 
 test('existing different artifacts are preserved', async () => {
   const out = path.join(temp, 'occupied'); await mkdir(out);
   const file = path.join(out, BUNDLE_NAME); await writeFile(file, 'keep');
-  await assert.rejects(buildMcpb({ base, binary, out }), /already exists with different contents/);
+  await assert.rejects(buildFixture({ base, binary, out }), /already exists with different contents/);
   assert.equal(await readFile(file, 'utf8'), 'keep');
 });
 
@@ -133,7 +200,7 @@ test('registry entry stamps Cargo version despite stale metadata and preserves i
 test('a Cargo-only version bump needs no manifest or metadata edits', async () => {
   try {
     await writeFile(path.join(base, 'Cargo.toml'), cargo('7.9.0'));
-    const next = await buildMcpb({ base, binary, out: path.join(temp, 'bumped') });
+    const next = await buildFixture({ base, binary, out: path.join(temp, 'bumped') });
     const entry = await registryEntry({ base, tag: 'v7.9.0', bundle: next.bundle, out: path.join(temp, 'bumped-entry.json') });
     assert.equal(next.manifest.version, '7.9.0');
     assert.equal(entry.version, '7.9.0');
@@ -192,7 +259,16 @@ test('real release binary passes the standalone bundle smoke test', async contex
   const realBinary = path.join(root, 'target/release/inkbolt.exe');
   if (process.platform !== 'win32') { context.skip('Windows only'); return; }
   try { await access(realBinary); } catch (error) { if (error.code !== 'ENOENT') throw error; context.skip('No release binary'); return; }
-  const real = await buildMcpb({ binary: realBinary, out: path.join(temp, 'real') });
+  let real;
+  try { real = await buildMcpb({ binary: realBinary, out: path.join(temp, 'real') }); } catch (error) {
+    if (!error.message.includes('binary version must equal manifest version')) throw error;
+    context.skip('Release binary version is stale'); return;
+  }
   const output = execFileSync(process.execPath, [path.join(root, 'mcpb/verify.mjs'), real.bundle], { encoding: 'utf8', timeout: 22000, windowsHide: true });
-  assert.match(output, /MCPB verified: Inkbolt .*22 tools.*vector creation passed/);
+  assert.ok(output.includes(`MCPB verified: Inkbolt ${real.manifest.version}, ${real.manifest.tools.length} tools, 4 files; vector creation passed.`));
+  const changed = new Map([...readZip(real.bytes)].map(([name, entry]) => [name, entry.read()]));
+  changed.set('manifest.json', json({ ...real.manifest, tools: [...real.manifest.tools, { name: 'inkbolt_not_in_binary', description: 'Synthetic mismatch.' }] }));
+  const mismatched = path.join(temp, 'mismatched.mcpb');
+  await writeFile(mismatched, writeZip(changed));
+  await assert.rejects(verifyMcpb(mismatched), /manifest tools must match live tools/);
 });

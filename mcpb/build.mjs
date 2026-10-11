@@ -1,8 +1,9 @@
 // Node 20+, node: built-ins only. All generated text is UTF-8 with LF endings.
-import { readFile, writeFile, mkdir, realpath, stat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, mkdtemp, rm, realpath, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { writeZip, readZip, sha256 } from './zip.mjs';
+import { inside, mcpFolders, startMcp } from './mcp-client.mjs';
 
 export const root = fileURLToPath(new URL('../', import.meta.url));
 export const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$(?![\s\S])/;
@@ -29,7 +30,49 @@ export async function writeUnchangedOrNew(file, bytes) {
   await writeFile(file, bytes, { flag: 'wx' });
 }
 
-export async function assembleMcpb({ base = root, binary } = {}) {
+function shortDescription(description) {
+  if (typeof description !== 'string' || !description.trim()) throw new Error('New tools need a server description.');
+  const line = description.trim().replace(/\s+/g, ' ');
+  const sentence = /^.*?[.!?](?=\s|$)/u.exec(line)?.[0] ?? line;
+  if (sentence.length <= 160) return sentence;
+  const end = sentence.lastIndexOf(' ', 160);
+  if (end < 1) throw new Error('Tool description has no word boundary within 160 characters.');
+  return sentence.slice(0, end);
+}
+
+export function mergeTools(overrides, liveTools) {
+  if (!Array.isArray(liveTools) || liveTools.length === 0) throw new Error('MCP server lists no tools.');
+  const curated = new Map(overrides.map(tool => [tool.name, tool.description]));
+  const names = new Set(), added = [];
+  const tools = liveTools.map(tool => {
+    const name = tool?.name;
+    if (typeof name !== 'string' || name !== name.trim() || !/^inkbolt_\w+$/.test(name)) throw new Error(`Invalid tool name: ${JSON.stringify(name)}`);
+    if (names.has(name)) throw new Error(`Duplicate tool name: ${name}`);
+    names.add(name);
+    if (!curated.has(name)) added.push(name);
+    return { name, description: curated.has(name) ? curated.get(name) : shortDescription(tool.description) };
+  });
+  return { tools, added, dropped: overrides.filter(tool => !names.has(tool.name)).map(tool => tool.name) };
+}
+
+export async function discoverTools({ manifest, binary, base = root }) {
+  const tempRoot = path.resolve(base, 'target');
+  await mkdir(tempRoot, { recursive: true });
+  const temp = await mkdtemp(path.join(tempRoot, 'mcpb-build-'));
+  let client;
+  try {
+    client = startMcp({ manifest, binary, ...await mcpFolders(temp) });
+    await client.initialize();
+    return await client.listTools();
+  } finally {
+    try { await client?.stop(); } finally {
+      if (!inside(tempRoot, temp)) throw new Error('Refusing to remove a folder outside target/');
+      await rm(temp, { recursive: true, force: true });
+    }
+  }
+}
+
+export async function assembleMcpb({ base = root, binary } = {}, discover = discoverTools) {
   const template = JSON.parse(await readFile(path.join(base, 'mcpb/manifest.json'), 'utf8'));
   if (Object.hasOwn(template, 'version')) throw new Error('mcpb/manifest.json must not contain version; Cargo.toml supplies it.');
   const manifest = { ...template, version: await cargoVersion(base) };
@@ -38,17 +81,20 @@ export async function assembleMcpb({ base = root, binary } = {}) {
     if (error.code === 'ENOENT') throw new Error(`Missing binary: ${binary}`);
     throw error;
   });
+  const catalog = mergeTools(template.tools, await discover({ manifest, binary, base }));
+  manifest.tools = catalog.tools;
+  console.log(`Core tools: added ${catalog.added.join(', ') || '(none)'}; dropped ${catalog.dropped.join(', ') || '(none)'}`);
   const files = new Map([
     ['manifest.json', json(manifest)], ['server/inkbolt.exe', binaryBytes],
     ['LICENSE', await textFile(path.join(base, 'LICENSE'))],
     ['THIRD_PARTY_NOTICES.md', await textFile(path.join(base, 'THIRD_PARTY_NOTICES.md'))]
   ]);
   const bytes = writeZip(files);
-  return { bytes, manifest, files: files.size, hash: sha256(bytes) };
+  return { bytes, manifest, files: files.size, hash: sha256(bytes), added: catalog.added, dropped: catalog.dropped };
 }
 
-export async function buildMcpb({ base = root, binary, out = path.join(root, 'target/dist/mcpb') } = {}) {
-  const build = await assembleMcpb({ base, binary });
+export async function buildMcpb({ base = root, binary, out = path.join(root, 'target/dist/mcpb') } = {}, discover = discoverTools) {
+  const build = await assembleMcpb({ base, binary }, discover);
   const bundle = path.resolve(out, BUNDLE_NAME);
   await writeUnchangedOrNew(bundle, build.bytes);
   await writeUnchangedOrNew(`${bundle}.sha256`, Buffer.from(`${build.hash}  ${BUNDLE_NAME}\n`));
