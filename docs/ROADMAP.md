@@ -1,5 +1,11 @@
 # Roadmap and verified scope
 
+Shared point placement now bounds arithmetic after matrix construction, recovering
+small residuals from cancelling products without changing source coordinates.
+Independent rational placement, visible geometry and 5,000-object checks cover
+the change. This advances the remaining precision audit; it does not complete the
+original resource checkpoint or change the six-checkpoint acceptance criteria.
+
 Tiled rendering now covers detail, local creative and spatial filter families,
 preserving global noise, mosaic, row-parity and field coordinates across tile and
 codec-strip boundaries. Full normal replacement avoids redundant blend work;

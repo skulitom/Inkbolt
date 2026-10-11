@@ -1,5 +1,13 @@
 # Architecture
 
+`geometry::point` keeps ordinary small point products and certifies larger
+expressions using recovered product/addition residuals. Uncertain final rounding
+or overflowing intermediates use exact rational evaluation. Each finite input
+expression has either an absolute `1e-9` roundoff bound or nearest-binary64 output;
+matrix construction, source normalization and coverage remain separate stages.
+The shared mapper serves bounds, placed controls and inverse sampling without
+changing source values or document admission limits.
+
 Tiled filter neighborhoods now include detail, local creative and spatial operators. Shared regional evaluation retains full-viewport noise cells, mosaic blocks, alternating-row parity and global displacement/value-field transforms. Rank scratch is charged separately from image temporaries. A full normal unmasked filter directly replaces bounded premultiplied samples, avoiding redundant color conversions and their work charge. Nonlocal radial/twist and wrapped borders remain explicit failures.
 
 Optional native text font bindings validate chosen content-addressed fonts and

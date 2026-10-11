@@ -67,6 +67,8 @@ moves, dimensions, artboard export, preview mappings and SVG coordinate conversi
 also use complete ordered expressions with interior inverses. Independent rational
 and visible export fixtures cover these consumers. Input normalization, world
 recomposition, final point arithmetic and sampling still require the complete
-precision audit.
+precision audit. Shared point application now has its own absolute-roundoff or
+nearest-binary64 contract, including cancellation and intermediate overflow; see
+the point-placement section of [coordinate fidelity](COORDINATE_PRECISION.md).
 
 This remains partial implementation of `vector.resources.extended`. Complete independent resource and extreme-scale acceptance review is still required before the checkpoint earns credit. The total remains **161/167 (96.41%)**.

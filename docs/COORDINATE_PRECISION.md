@@ -29,6 +29,24 @@ have their existing minimums, and singular or renderer-singular matrices fail.
 Explicit fractional canvas/unit/color semantics are documented in [VECTOR_CANVAS.md](VECTOR_CANVAS.md).
 Complete extreme-scale acceptance remains a separate checkpoint.
 
+Shared point placement now bounds the arithmetic of each supplied binary64
+expression `a*x+b*y+translation` separately from matrix construction. Ordinary
+small terms retain their existing result with absolute roundoff below `1e-9`
+logical units. Larger terms recover product and addition residuals; the result
+must meet the same absolute bound or a nearest-binary64 rounding certificate.
+Ambiguous rounding and overflowing intermediate products use the complete exact
+rational expression, rounded once with ties to even. True final overflow keeps
+the ordinary IEEE behavior and existing engine validation still applies.
+
+This improves shared geometry bounds, control placement and sampling coordinates;
+it does not make input normalization, inverse coefficient rounding, curve extrema,
+sampling kernels or binary32 coverage exact. The bound applies to the supplied
+finite matrix and point, not an unrounded expression that produced either input.
+No coordinate, matrix, canvas or work limit changes. Independent Fraction
+placements, 5,000 transformed paths, curves, clips and saved history are covered
+by `tests/test_point_arithmetic_cli.py`; Rust tests also cover gradual underflow,
+intermediate overflow, half-way ties and seeded finite expressions.
+
 Coverage applies the final binary64 matrix before rounding controls for the
 backend. This prevents cancellation in a large shear from amplifying a previous
 binary32 rounding of the local controls. Rectangle endpoint sums also remain in

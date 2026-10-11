@@ -1,16 +1,18 @@
 use crate::{Error, model::*};
 
 mod affine;
+mod point;
 pub(crate) use affine::{
     MAX_FAST_POINT_ERROR as MAX_FAST_INVERSE_POINT_ERROR, MAX_RELATIVE_FACTORS,
     MAX_TRANSFORM_FACTORS, MIN_DETERMINANT, TransformFactor,
 };
+pub(crate) use point::MAX_ROUNDOFF as MAX_POINT_ROUNDOFF;
 
 pub type Bounds = [f64; 4]; // min x, min y, max x, max y; geometry only
 pub fn map(m: Matrix, p: Point) -> Point {
     [
-        m[0] * p[0] + m[2] * p[1] + m[4],
-        m[1] * p[0] + m[3] * p[1] + m[5],
+        point::axis(m[0], p[0], m[2], p[1], m[4]),
+        point::axis(m[1], p[0], m[3], p[1], m[5]),
     ]
 }
 /// Column-vector composition: apply right, then left.
