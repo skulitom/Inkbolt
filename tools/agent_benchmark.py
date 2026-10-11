@@ -109,7 +109,7 @@ def main(argv=None):
     successful=all(row['status']=='passed' for row in rows)
     status='all_tasks_passed' if full and successful else 'selected_tasks_passed' if successful else 'incomplete_or_failed'
     if not unchanged: status='invalid_inputs_changed'
-    report=dict(schema_version=1,suite=SUITE,transport=args.transport,model_trials=False,
+    report=dict(schema_version=2,suite=SUITE,transport=args.transport,model_trials=False,
         selected_tasks=list(selected),all_tasks=list(TASKS),full_selection=full,
         implemented_tasks=list(ADAPTERS),repetitions=args.repetitions,
         complete_scripted_suite=full and successful and unchanged,
@@ -119,7 +119,7 @@ def main(argv=None):
         git_commit=provenance['git_commit'],git_status=provenance['git_status'],toolchain=provenance['toolchain'],
         environment=environment,conditions=args.conditions,consumer_tools=consumer_identity,
         rows=rows,aggregates=aggregate(rows),outcome=status,
-        timing='Round trips include local process/stdio/JSON costs. B19 can overlap a CLI launch caller with its independent cancellation caller; summed round trips are not wall time. Scripted wall and retrospective verified-preview times include discovery and prior oracle work; fixture generation precedes begin. B20 consumer calls/bytes/time are separately recorded in each row.consumer, with total_engine_commands and total_engine_retries covering both engines; wall time includes consumer and independent decoding. No autonomous agent time is inferred.',
+        timing='Round trips include local process/stdio/JSON costs. Rows with judge_separated=true exclude judge calls/traffic and stop scripted wall time before judging; judge metrics and raw traffic are retained separately. Other adapters still include interleaved oracle work. B19 can overlap a CLI launch caller with its independent cancellation caller; summed round trips are not wall time. Verified-preview times require a successful observed solve response. Fixture generation precedes begin. B20 consumer calls/bytes/time are separately recorded in each row.consumer, with total_engine_commands and total_engine_retries covering both engines; wall time includes consumer and independent decoding. No autonomous agent time is inferred.',
         memory='Inkbolt CLI uses the maximum observed individual-process lifetime peaks; MCP uses the persistent server lifetime. B19 also retains every supervisor/runner and owned console-host handle and requires complete contained-process counts. B20 separately reports the OS job commit peak of each Cutbolt caller and all inherited encoder/probe children; it is not mixed with individual Inkbolt peaks. Neither includes the Python driver or independent decoder judge. Missing observations stay null.',
         cache_conditions='Fresh workspace and server per trial; CLI process per call. OS caches may be warm. Repetition order rotates deterministically.',
         evidence='Raw CLI/MCP request/response bytes, stderr, original fixtures, delivered artifacts, exact source/executable and explicit required-check results retained. A lost-response injection retains the hidden response for the judge and marks it unobserved by the solver.',

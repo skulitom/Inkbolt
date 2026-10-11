@@ -67,41 +67,6 @@ def verify_history(case):
     case.check('history-valid',lambda:require(result['valid'],'Invalid saved history'))
 
 
-def diagram(case):
-    font_bytes=geometric_font()
-    case.source('original.ttf',font_bytes)
-    case.source('font-license.txt',b'Original Inkbolt synthetic font. Permission to use, modify and redistribute with this notice.')
-    case.begin('Create a 128x56 editable vector diagram: blue rectangle (8,8,48,36), green rectangle (80,8,40,36), '
-        'gray connector (56,25,24,2). Use original.ttf at size 20, white labels AA at (20,16) and A at (96,16). '
-        'Retain editable text and its licensed font, save a session, review a PNG and publish editable.json.')
-    font=case.call('font','font.import',source_path='original.ttf',license_path='font-license.txt')
-    doc=case.call('create','document.create',id='diagram',kind='vector',width=128,height=56)
-    doc['fonts']={'face':font}
-    items=[rectangle('left',8,8,48,36,BLUE),rectangle('right',80,8,40,36,GREEN),rectangle('connector',56,25,24,2,[80,80,80,255])]
-    for ident,text,x in [('label-left','AA',20),('label-right','A',96)]:
-        items.append(dict(id=ident,transform=[1,0,0,1,x,16],content=dict(type='text',frame=dict(
-            text=text,width=32,height=24,style=dict(font_id='face',size=20,fill=[255]*4)))))
-    doc['items']=items
-    saved=store(case,doc)
-    actual=source_snapshot(case,saved)
-    def structure():
-        require([i['id'] for i in actual['items']]==[i['id'] for i in items],'Diagram IDs/order changed')
-        for a,e in zip(actual['items'],items):
-            require(a['content']['type']==e['content']['type'],'Diagram content changed kind')
-            if e['content']['type']=='text':
-                require(a['content']['frame']['text']==e['content']['frame']['text'],'Label content changed')
-                require(a['transform']==e['transform'],'Label moved')
-            else: require(a['content']['geometry']==e['content']['geometry'],'Block geometry changed')
-    case.check('diagram-structure',structure)
-    case.check('font-identity',lambda:require(actual['fonts']['face']['sha256']==sha(font_bytes) and
-        actual['fonts']['face']['license_sha256']==case.sources['font-license.txt'],'Font/license changed'))
-    expected=pixels(128,56,[(8,8,48,36,BLUE),(80,8,40,36,GREEN),(56,25,24,2,[80,80,80,255]),
-        (21,18,8,14,[255]*4),(33,18,8,14,[255]*4),(97,18,8,14,[255]*4)])
-    view(case,'preview',saved,'diagram-pixels',128,56,expected)
-    reopened=case.call('reopen','document.validate',document=dict(file_path='editable.json',sha256=sha((case.root/'editable.json').read_bytes())))
-    case.check('editable-source',lambda:require(reopened==actual,'Editable document did not reopen exactly'))
-
-
 def icons(case):
     case.begin('Create a 112x32 icon sheet with artboards board-0, board-1, board-2 at x=0,40,80; '
         'each is 32x32 with one 8x10 icon at local (12,11), respectively blue, green and orange. '

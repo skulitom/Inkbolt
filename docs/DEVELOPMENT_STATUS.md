@@ -76,11 +76,24 @@ Hosted matrix results remain pending. Local verification does
 not establish GitHub cache behavior, macOS or a passing hosted matrix. See
 [platform coverage](PLATFORMS.md).
 
+The Linux job in [the first hosted run](https://github.com/skulitom/Inkbolt/actions/runs/38182183426)
+passed all 213 fresh stages, including 2,250 Python tests with 34 explicit skips,
+in 902.9 seconds. The overall run failed because of Windows/macOS Python setup.
+The [corrected run](https://github.com/skulitom/Inkbolt/actions/runs/38182478787)
+passed Python and Rust setup on all three platforms; its full matrix is pending.
+
 ## W2 and the next behavior increments
 
-The model/baseline harness is next: fixture/prompt/solve/judge separation,
-versioned deliverables, artifact/engine check classes, external-driver/transcript
-support and fake-driver tests. No real model trial is claimed. W5.1 payloads,
+B01 now separates fixtures, its versioned prompt, reference solving and a judge
+that reads delivered artifacts and accepts different solver-chosen IDs. Judge
+calls/traffic and wall time are separate; MCP lifetime memory remains inclusive.
+The five affected benchmark modules passed focused verification: 21 tests on
+Windows in 115.9 seconds (including four identical-result reuses), and 13 executed
+tests with eight explicit platform skips on Linux in 62.6 seconds. These checks
+cover the shared runtime; full W2 milestone acceptance remains open.
+Remaining tasks, artifact/engine check
+classes, both model/baseline arms, external-driver/transcript support and fake-driver
+tests remain open. No real model trial is claimed. W5.1 payloads,
 SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
 plan's decision rule; accepted outcomes remain required.

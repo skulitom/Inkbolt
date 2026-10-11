@@ -1,4 +1,5 @@
 """Local, retained CLI/MCP task traffic and explicit independently judged results."""
+import base64
 import copy
 import json
 import os
@@ -162,6 +163,8 @@ class Trial:
         self.phase = 'setup'
         self.started = time.perf_counter()
         self.agent_started = None
+        self.solve_seconds = None
+        self.prompt_sha256 = None
         self._prefixes = set()
 
     def prefix(self, step):
@@ -188,6 +191,7 @@ class Trial:
     def begin(self, prompt):
         require(self.agent_started is None, 'Trial already started')
         save(self.root/'task.txt', prompt.encode())
+        self.prompt_sha256 = sha(prompt.encode())
         self.agent_started = time.perf_counter()
         self.phase = 'task'
         if self.transport == 'mcp':
@@ -197,6 +201,29 @@ class Trial:
     def spawn(self, argv, **options):
         return subprocess.Popen(argv, **options)
 
+    def begin_judging(self):
+        require(self.agent_started is not None and self.phase == 'task',
+                'Judging must follow a started solve phase')
+        self.solve_seconds = time.perf_counter()-self.agent_started
+        self.phase = 'judge'
+
+    def verified_preview(self, raw):
+        """Match judged bytes to an observed solve response without a chosen step ID."""
+        for row in self.calls:
+            if (row.get('phase') == 'judge' or row['status'] != 'success'
+                    or not row['response_observed'] or row['command'] != 'document.preview'):
+                continue
+            artifact = self.results.get(row['step'], {}).get('result', {}).get('artifact', {})
+            if artifact.get('encoding') != 'base64':
+                continue
+            try:
+                matches = base64.b64decode(artifact.get('data', ''), validate=True) == raw
+            except (ValueError, TypeError):
+                continue
+            if matches:
+                elapsed = row['completed_task_seconds']
+                self.first_preview = elapsed if self.first_preview is None else min(self.first_preview, elapsed)
+
     def execute(self, argv, payload):
         return run_process(argv, payload, self.timeout)
 
@@ -204,8 +231,8 @@ class Trial:
         require(not command.startswith('job.'), 'Background jobs require the separate recovery adapter')
 
     def memory_observations(self):
-        memory = [row.get('memory') for row in self.calls] if self.transport == 'cli' else [self.server_memory]
-        scope = 'individual CLI processes' if self.transport == 'cli' else 'complete persistent MCP server lifetime'
+        memory = [row.get('memory') for row in self.calls if row.get('phase') != 'judge'] if self.transport == 'cli' else [self.server_memory]
+        scope = 'individual solve CLI processes' if self.transport == 'cli' else 'complete persistent MCP server lifetime, including judge calls'
         return memory, scope
 
     def extra_results(self):
@@ -222,7 +249,7 @@ class Trial:
             prior = [row for row in self.calls if row['step'] == retry_of]
             require(len(prior) == 1 and prior[0]['request_sha256'] == fingerprint,
                     'A retry must repeat an earlier exact request')
-        row = dict(step=step, command=command, request_sha256=fingerprint,
+        row = dict(step=step, phase=self.phase, command=command, request_sha256=fingerprint,
                    retry_of=retry_of, response_observed=not discard, expected_error=expected_error)
         self.calls.append(row)
         try:
@@ -292,33 +319,44 @@ class Trial:
     def finish(self):
         self.close()
         self.check('source-preservation', lambda: require(all(
-            sha((self.root/name).read_bytes()) == expected for name,expected in self.sources.items()),
-            'An original fixture source changed'))
+            sha((self.root/name).read_bytes()) == expected for name,expected in self.sources.items()) and
+            (self.prompt_sha256 is None or sha((self.root/'task.txt').read_bytes()) == self.prompt_sha256),
+            'An original fixture source or task prompt changed'))
         names = {check['name'] for check in self.checks}
         missing = [name for name in self.required_checks if name not in names]
         complete = not missing and all(check['status'] == 'pass' for check in self.checks)
-        success = complete and bool(self.calls) and not self.error and all(
+        solve_calls = [row for row in self.calls if row.get('phase') != 'judge']
+        success = complete and bool(solve_calls) and not self.error and all(
             row['status'] in ('success','expected_error','response_lost') for row in self.calls)
         memory, memory_scope = self.memory_observations()
         memory_complete = bool(memory) and all(m and m.get('available') for m in memory)
         memory_values = [m for m in memory if m and m.get('available')]
         traffic = self.calls if self.transport == 'cli' else self.protocol
+        judge_traffic = [row for row in traffic if row.get('phase') == 'judge']
+        traffic = [row for row in traffic if row.get('phase') != 'judge']
         def invalid(row):
             error=row.get('engine_error') or row.get('error')
             return isinstance(error,dict) and error.get('code') in ('INVALID_JSON','INVALID_REQUEST')
-        result = dict(task=self.task, repetition=self.repetition, transport=self.transport,
+        result = dict(schema_version=2, task=self.task, repetition=self.repetition, transport=self.transport,
+            prompt_sha256=self.prompt_sha256,
             status='passed' if success else 'failed', error=self.error, required_checks=list(self.required_checks),
             missing_checks=missing, checks=self.checks, calls=self.calls, protocol=self.protocol,
-            sources=self.sources, process_calls=len(self.calls) if self.transport == 'cli' else int(self.server is not None),
-            engine_commands=len(self.calls), protocol_requests=len(self.protocol),
-            retries=sum(row['retry_of'] is not None for row in self.calls),
-            replayed_receipts=sum(row.get('replayed',False) for row in self.calls),
-            expected_errors=sum(row['status']=='expected_error' for row in self.calls),
-            invalid_calls=sum(invalid(row) for row in self.calls),
+            sources=self.sources, process_calls=len(solve_calls) if self.transport == 'cli' else int(self.server is not None),
+            engine_commands=len(solve_calls), protocol_requests=sum(row.get('phase') != 'judge' for row in self.protocol),
+            retries=sum(row['retry_of'] is not None for row in solve_calls),
+            replayed_receipts=sum(row.get('replayed',False) for row in solve_calls),
+            expected_errors=sum(row['status']=='expected_error' for row in solve_calls),
+            invalid_calls=sum(invalid(row) for row in solve_calls),
             request_bytes=sum(row.get('request_bytes',0) for row in traffic),
             response_bytes=sum(row.get('response_bytes',0) for row in traffic),
             engine_roundtrip_seconds=sum(row.get('seconds',0) for row in traffic),
-            scripted_wall_seconds=None if self.agent_started is None else time.perf_counter()-self.agent_started,
+            scripted_wall_seconds=self.solve_seconds if self.solve_seconds is not None else
+                None if self.agent_started is None else time.perf_counter()-self.agent_started,
+            judge_separated=self.solve_seconds is not None,
+            judge_engine_commands=len(self.calls)-len(solve_calls),
+            judge_request_bytes=sum(row.get('request_bytes',0) for row in judge_traffic),
+            judge_response_bytes=sum(row.get('response_bytes',0) for row in judge_traffic),
+            judge_roundtrip_seconds=sum(row.get('seconds',0) for row in judge_traffic),
             first_verified_preview_seconds=self.first_preview,
             memory_complete=memory_complete, memory_scope=memory_scope,
             peak_working_set_bytes=max(m['peak_working_set_bytes'] for m in memory_values) if memory_complete else None,

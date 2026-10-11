@@ -49,6 +49,16 @@ tools fails B20 explicitly; it cannot receive complete-suite acceptance.
 
 ## Current adapters and independent checks
 
+B01 is the first W2 migration: `benchmark_diagram.py` separates fixture creation,
+the versioned [prompt](../tools/benchmark_prompts/B01.md), reference solving and
+judging. The judge reads `editable.json` and `preview.png`, accepts solver-chosen
+document/object/font-binding IDs, validates the snapshot and independently checks
+both delivered pixels and a fresh rendering against authored geometry. Prompt and
+source hashes must remain unchanged. Tests alter names, geometry, visibility,
+fonts, images and inputs. Other adapters still interleave solving and judging;
+the external driver, transcript import, baseline arm and remaining prompt/check
+migrations are open. This increment does not establish model evidence.
+
 | Tasks | Implemented evidence |
 | --- | --- |
 | B01 diagram; B02 icon sheet | Stable editable objects, original geometric font identity, exact label/connector/icon pixels and three independent artboard exports |
@@ -167,6 +177,10 @@ Complete print/interchange scope remains governed by the original feature regist
 - Engine commands and process calls are distinct. MCP protocol counts and bytes
   include initialization, the initialized notification and paged core discovery.
   Raw request/response lengths include actual framing and image payloads.
+  Report/row schema version 2 separates calls marked `phase:"judge"` from ordinary
+  counts, bytes and round-trip time, preserving their raw records and separate
+  `judge_*` totals. `judge_separated:true` identifies migrated tasks (currently B01).
+  Judge calls alone cannot establish a successful solve.
   For B20 these ordinary fields describe Inkbolt; `consumer` records the Cutbolt
   side. `total_engine_commands`, `total_engine_retries`, `total_request_bytes`,
   `total_response_bytes` and `total_engine_roundtrip_seconds` include both engines.
@@ -174,14 +188,19 @@ Complete print/interchange scope remains governed by the original feature regist
   hash. Expected failures, invalid calls and replayed receipts are separate counts.
   B17 retains a deliberately dropped response for the judge and explicitly marks
   it unobserved by the scripted recovery path.
-- Round-trip time includes process or stdio transport and JSON costs. Scripted
-  wall time includes discovery and independent judge work after fixture setup.
+- Round-trip time includes process or stdio transport and JSON costs. For migrated
+  tasks, scripted wall time stops before judging; other adapters still include
+  their interleaved oracle work. Both include discovery after fixture setup.
   First verified preview is the recorded completion time of the earliest image
   response or delivery later accepted by its independent pixel oracle. It is a
   retrospective availability measure, not a model's assessment of usefulness.
+  B01 matches the judged PNG bytes to an observed solve response; a judge render
+  cannot supply missing preview timing.
   B19's overlapping CLI callers mean summed round trips need not equal wall time.
 - Windows memory uses OS lifetime high-water marks: the maximum individual CLI
-  process peak or the persistent MCP server peak. B19 additionally includes every
+  process peak (excluding separately tagged judge calls) or the persistent MCP
+  server peak, which still includes judge activity and cannot be split into phases.
+  B19 additionally includes every
   supervisor, runner and owned console host, with separate identities and peaks.
   These are maximum individual-process peaks, not a concurrent memory sum. The
   Python driver is excluded. Unavailable memory stays null; these records
@@ -203,6 +222,7 @@ retain their own baselines and budgets; task timings here do not replace them.
 ## Development checks
 
 Use `python tools/verify.py --only test_agent_benchmark` for the common adapters.
+Use `--only test_benchmark_diagram` for the separated B01 contract.
 The photo and recovery workflows have focused `test_agent_benchmark_photo` and
 `test_agent_benchmark_recovery` modules. `test_agent_benchmark_handoff` checks
 fail-closed dependencies, independent alpha/time expectations and owned process
