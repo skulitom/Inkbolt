@@ -17,7 +17,7 @@ pub use crate::limits::booleans::MAX_EDGES;
 pub use crate::limits::booleans::MAX_INPUTS;
 pub use crate::limits::booleans::MAX_WORK;
 pub fn default_tolerance() -> f64 {
-    0.125
+    crate::limits::booleans::DEFAULT_CURVE_TOLERANCE
 }
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -91,7 +91,9 @@ fn emit_edge(edges: &mut Vec<Segment>, a: P, b: P) -> Result<(), Error> {
     if a != b {
         edges.push([a, b]);
         if edges.len() > MAX_EDGES {
-            return Err(limit("Boolean input exceeds 512 flattened edges"));
+            return Err(limit(&format!(
+                "Boolean input exceeds {MAX_EDGES} flattened edges"
+            )));
         }
     }
     Ok(())
@@ -161,7 +163,9 @@ fn input(document: &Document, index: usize) -> Result<Operand, Error> {
                 emit_edge(&mut out, mapped(e.from, m), mapped(e.to, m))?;
             }
             if out.len() + cubics.len() > MAX_EDGES {
-                return Err(limit("Boolean input exceeds 512 source edges"));
+                return Err(limit(&format!(
+                    "Boolean input exceeds {MAX_EDGES} source edges"
+                )));
             }
         }
         let end = c.edges.last().unwrap().to;
@@ -488,11 +492,15 @@ pub fn compute(
     crate::validate(document)?;
     if !(2..=MAX_INPUTS).contains(&ids.len())
         || !curve_tolerance.is_finite()
-        || !(0.0..=64.0).contains(&curve_tolerance)
+        || !(0.0..=f64::from(crate::limits::booleans::MAX_CURVE_TOLERANCE))
+            .contains(&curve_tolerance)
     {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Boolean requires 2..=16 distinct vector IDs and curve_tolerance in 0..=64",
+            format!(
+                "Boolean requires 2..={MAX_INPUTS} distinct vector IDs and curve_tolerance in 0..={}",
+                crate::limits::booleans::MAX_CURVE_TOLERANCE
+            ),
         ));
     }
     let mut unique = BTreeSet::new();
@@ -517,7 +525,9 @@ pub fn compute(
     }
     let raw: Vec<_> = inputs.iter().flat_map(|v| v.edges.clone()).collect();
     if raw.len() > MAX_EDGES {
-        return Err(limit("Boolean inputs exceed 512 aggregate flattened edges"));
+        return Err(limit(&format!(
+            "Boolean inputs exceed {MAX_EDGES} aggregate flattened edges"
+        )));
     }
     let mut cuts = vec![BTreeSet::from([R::zero(), n(1)]); raw.len()];
     for i in 0..raw.len() {
@@ -544,7 +554,9 @@ pub fn compute(
                 atoms.entry(key).or_insert_with(|| vec![0; inputs.len()])[source] += sign;
             }
             if atoms.len() > MAX_ATOMS {
-                return Err(limit("Boolean arrangement exceeds 4096 atomic edges"));
+                return Err(limit(&format!(
+                    "Boolean arrangement exceeds {MAX_ATOMS} atomic edges"
+                )));
             }
         }
     }

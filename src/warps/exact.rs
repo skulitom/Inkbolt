@@ -150,7 +150,9 @@ pub(super) fn homography(corners: &[Point; 4]) -> Result<[R; 9], Error> {
         )
     };
     for w in [R::one(), R::one() + &g, R::one() + &g + &h, R::one() + &h] {
-        if w < R::new(1.into(), 1024.into()) || w > integer(1024) {
+        if w < R::new(1.into(), limits::MAX_PERSPECTIVE_WEIGHT.into())
+            || w > integer(limits::MAX_PERSPECTIVE_WEIGHT)
+        {
             return Err(Error::new(
                 "UNSUPPORTED",
                 "Perspective weights exceed the supported conditioning interval",

@@ -105,6 +105,10 @@ pub mod booleans_topology_algebraic_roots {
 
 /// Limits for `src/booleans.rs`.
 pub mod booleans {
+    /// Maximum requested curve-flattening deviation in root document units.
+    pub const MAX_CURVE_TOLERANCE: u32 = 64;
+    /// Default requested curve-flattening deviation; topology certification remains mandatory.
+    pub const DEFAULT_CURVE_TOLERANCE: f64 = 0.125;
     /// Maximum geometric subdivision depth shared by topology refinement and exact contact synchronization.
     pub const MAX_TOPOLOGY_DEPTH: usize = 20;
     /// Max inputs (booleans).
@@ -721,6 +725,12 @@ pub mod paint {
 
 /// Limits for `src/path_text.rs`.
 pub mod path_text {
+    /// Minimum caller-selected distance-table tolerance shared by text paths and interpolation spines.
+    pub const MIN_TOLERANCE: f64 = 0.000001;
+    /// Maximum caller-selected distance-table tolerance shared by text paths and interpolation spines.
+    pub const MAX_TOLERANCE: f64 = 0.25;
+    /// Default distance-table tolerance for text paths and interpolation spines.
+    pub const DEFAULT_TOLERANCE: f64 = 0.001;
     /// Maximum path measurement subdivision depth shared with interpolation spines.
     pub const MAX_SUBDIVISION_DEPTH: usize = 24;
     /// Max commands (path text).
@@ -945,6 +955,10 @@ pub mod repair {
 
 /// Limits for `src/repeats.rs`.
 pub mod repeats {
+    /// Minimum hexagonal/radial layout radius in repeat-local units.
+    pub const MIN_RADIUS: f64 = 0.001;
+    /// Minimum absolute grid/brick step on each axis in repeat-local units.
+    pub const MIN_STEP: f64 = 0.001;
     /// Max copies (repeats).
     pub const MAX_COPIES: usize = 128;
 }
@@ -1391,6 +1405,16 @@ pub mod volumes {
 
 /// Limits for `src/warps.rs`.
 pub mod warps {
+    /// Minimum positive domain width/height for perspective, envelope and inspected grids.
+    pub const MIN_DOMAIN_EXTENT: f64 = 0.001;
+    /// Minimum requested certified chord deviation in warp-local units.
+    pub const MIN_TOLERANCE: f64 = 0.000001;
+    /// Maximum requested certified chord deviation in warp-local units.
+    pub const MAX_TOLERANCE: u32 = 1;
+    /// Default requested certified chord deviation in warp-local units.
+    pub const DEFAULT_TOLERANCE: f64 = 0.01;
+    /// Maximum projective corner weight; the minimum is its exact reciprocal.
+    pub const MAX_PERSPECTIVE_WEIGHT: usize = 1024;
     /// Maximum intervals on each axis of an inspected deformation grid.
     pub const MAX_GRID_AXIS: usize = 16;
     /// Max maps (warps).

@@ -1,4 +1,5 @@
 //! Original bounded distance tables for editable one-contour text baselines.
+use crate::limits::path_text as limits;
 use crate::{Error, geometry, model::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -7,7 +8,7 @@ pub use crate::limits::path_text::MAX_COMMANDS;
 pub use crate::limits::path_text::MAX_DOCUMENT_LEAVES;
 pub use crate::limits::path_text::MAX_LEAVES;
 fn tolerance() -> f64 {
-    0.001
+    limits::DEFAULT_TOLERANCE
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -108,7 +109,9 @@ fn commands(path: &Baseline) -> Result<Vec<PathCommand>, Error> {
         unreachable!()
     };
     if commands.len() > MAX_COMMANDS {
-        return Err(limit("Text baseline exceeds 1024 expanded commands"));
+        return Err(limit(&format!(
+            "Text baseline exceeds {MAX_COMMANDS} expanded commands"
+        )));
     }
     if commands
         .iter()
@@ -133,10 +136,14 @@ pub fn validate(path: &Baseline) -> Result<usize, Error> {
             "Text baseline offsets must be finite and within coordinate limits",
         ));
     }
-    if !path.tolerance.is_finite() || !(0.000001..=0.25).contains(&path.tolerance) {
-        return Err(invalid(
-            "Text baseline tolerance must be in 0.000001..=0.25",
-        ));
+    if !path.tolerance.is_finite()
+        || !(limits::MIN_TOLERANCE..=limits::MAX_TOLERANCE).contains(&path.tolerance)
+    {
+        return Err(invalid(&format!(
+            "Text baseline tolerance must be in {}..={}",
+            limits::MIN_TOLERANCE,
+            limits::MAX_TOLERANCE
+        )));
     }
     Ok(commands(path)?.len())
 }
@@ -166,7 +173,9 @@ impl Build {
             self.visit(right, error / 2.0, position, depth + 1)?;
         } else {
             if self.leaves.len() >= MAX_LEAVES {
-                return Err(limit("Text baseline exceeds 32768 distance-table entries"));
+                return Err(limit(&format!(
+                    "Text baseline exceeds {MAX_LEAVES} distance-table entries"
+                )));
             }
             self.leaves.push(Leaf {
                 curve: c,

@@ -12,7 +12,7 @@ fn one() -> f64 {
     1.0
 }
 fn tolerance() -> f64 {
-    0.001
+    crate::limits::path_text::DEFAULT_TOLERANCE
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -141,9 +141,13 @@ pub(crate) fn stored(spec: &Spec) -> Result<usize, Error> {
         if let Some(s) = &e.stroke {
             stroke_color(s)?;
             if !s.width.is_finite()
-                || !(0.001..=1024.0).contains(&s.width)
+                || !(crate::limits::strokes::MIN_WIDTH
+                    ..=f64::from(crate::limits::strokes::MAX_WIDTH))
+                    .contains(&s.width)
                 || !s.miter_limit.is_finite()
-                || !(1.0..=16.0).contains(&s.miter_limit)
+                || !(f64::from(crate::limits::strokes::MIN_MITER_LIMIT)
+                    ..=f64::from(crate::limits::strokes::MAX_MITER_LIMIT))
+                    .contains(&s.miter_limit)
             {
                 return Err(invalid(
                     "Endpoint stroke width/miter limits must satisfy ordinary stroke limits",

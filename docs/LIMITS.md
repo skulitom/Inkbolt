@@ -37,7 +37,9 @@ capability literals and diagnostic messages remains in progress.
 | `boards.MAX_BLEED` | `u32` | 4096 | `4096` |
 | `boards.MAX_FRAME_GUIDES` | `usize` | 64 | `64` |
 | `boards.MAX_GUIDES` | `usize` | 512 | `512` |
+| `booleans.DEFAULT_CURVE_TOLERANCE` | `f64` | 0.125 | `0.125` |
 | `booleans.MAX_ATOMS` | `usize` | 4096 | `4096` |
+| `booleans.MAX_CURVE_TOLERANCE` | `u32` | 64 | `64` |
 | `booleans.MAX_EDGES` | `usize` | 512 | `512` |
 | `booleans.MAX_INPUTS` | `usize` | 16 | `16` |
 | `booleans.MAX_TOPOLOGY_DEPTH` | `usize` | 20 | `20` |
@@ -243,10 +245,13 @@ capability literals and diagnostic messages remains in progress.
 | `paint.MAX_PAINT_WORK` | `u64` | 134217728 | `134_217_728` |
 | `paint.MAX_PATTERN_PIXELS` | `usize` | 4096 | `4096` |
 | `paint.MAX_STOPS` | `usize` | 64 | `64` |
+| `path_text.DEFAULT_TOLERANCE` | `f64` | 0.001 | `0.001` |
 | `path_text.MAX_COMMANDS` | `usize` | 1024 | `1024` |
 | `path_text.MAX_DOCUMENT_LEAVES` | `usize` | 65536 | `65536` |
 | `path_text.MAX_LEAVES` | `usize` | 32768 | `32768` |
 | `path_text.MAX_SUBDIVISION_DEPTH` | `usize` | 24 | `24` |
+| `path_text.MAX_TOLERANCE` | `f64` | 0.25 | `0.25` |
+| `path_text.MIN_TOLERANCE` | `f64` | 1e-06 | `0.000001` |
 | `paths.MAX_PATH_UNITS` | `usize` | 4096 | `4096` |
 | `pdf.MAX_COMMANDS` | `usize` | 262144 | `262_144` |
 | `pdf.MAX_IMAGE_PIXELS` | `u64` | 4194304 | `4_194_304` |
@@ -319,6 +324,8 @@ capability literals and diagnostic messages remains in progress.
 | `repair.MAX_PATCHES` | `usize` | 4096 | `4096` |
 | `repair.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `repeats.MAX_COPIES` | `usize` | 128 | `128` |
+| `repeats.MIN_RADIUS` | `f64` | 0.001 | `0.001` |
+| `repeats.MIN_STEP` | `f64` | 0.001 | `0.001` |
 | `request.MAX_REQUEST_BYTES` | `u64` | 16777216 | `16 * 1024 * 1024` |
 | `resample.MAX_AXIS_TAPS` | `u64` | 65536 | `65_536` |
 | `resample.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
@@ -469,14 +476,19 @@ capability literals and diagnostic messages remains in progress.
 | `volumes.MAX_EDGES` | `usize` | 128 | `128` |
 | `volumes.MAX_FACES` | `usize` | 192 | `192` |
 | `volumes.MAX_PARTITION_DEPTH` | `usize` | 128 | `128` |
+| `warps.DEFAULT_TOLERANCE` | `f64` | 0.01 | `0.01` |
 | `warps.MAX_BITS` | `u64` | 8192 | `8192` |
 | `warps.MAX_DEGREE` | `usize` | 128 | `128` |
 | `warps.MAX_DEPTH` | `usize` | 24 | `24` |
 | `warps.MAX_GRID_AXIS` | `usize` | 16 | `16` |
 | `warps.MAX_INPUT_EDGES` | `usize` | 256 | `256` |
 | `warps.MAX_MAPS` | `usize` | 8 | `8` |
+| `warps.MAX_PERSPECTIVE_WEIGHT` | `usize` | 1024 | `1024` |
 | `warps.MAX_SAMPLES` | `usize` | 256 | `256` |
+| `warps.MAX_TOLERANCE` | `u32` | 1 | `1` |
 | `warps.MAX_WORK` | `usize` | 2000000 | `2_000_000` |
+| `warps.MIN_DOMAIN_EXTENT` | `f64` | 0.001 | `0.001` |
+| `warps.MIN_TOLERANCE` | `f64` | 1e-06 | `0.000001` |
 | `work_paths.MAX_COMPONENTS` | `usize` | 64 | `64` |
 | `work_paths.MAX_COMPONENT_DEPTH` | `usize` | 8 | `8` |
 | `work_paths.MAX_OPERANDS` | `usize` | 16 | `16` |

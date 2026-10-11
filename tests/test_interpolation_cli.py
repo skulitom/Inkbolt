@@ -258,6 +258,21 @@ class InterpolationTests(unittest.TestCase):
             stale=c.tool('session.apply',**session,expected_revision=0,request_id='stale',action=dict(type='undo'))
             self.assertTrue(stale['isError'])
 
+    def test_spine_and_endpoint_boundaries_follow_discovery(self):
+        limits=capabilities()['interpolation']
+        for value,expected in [(limits['spine_tolerance'][0],0),(limits['spine_tolerance'][1],0),
+                               (limits['spine_tolerance'][0]/2,1),(limits['spine_tolerance'][1]*2,1)]:
+            self.inspect(spec(count=2,spine=dict(geometry=line([[0,0],[10,0]]),tolerance=value)),expected=expected)
+        limits=capabilities()['vector_strokes']
+        for field in ['width','miter_limit']:
+            for value,expected in [(limits[field][0],0),(limits[field][1],0),
+                                   (limits[field][0]/2,1),(limits[field][1]+1,1)]:
+                source=spec(count=2)
+                for endpoint in [source['from'],source['to']]:
+                    endpoint['stroke']=dict(color=[0,0,0,255],width=1)
+                    endpoint['stroke'][field]=value
+                self.inspect(source,expected=expected)
+
     def test_strict_pairing_stroke_spine_limits_atomic_failure_and_cancellation(self):
         for patch in [dict(count=1),dict(count=capabilities()['interpolation']['count'][1]+1),dict(count=3.5),dict(extra=1),dict(orientation='upright'),dict(contours=[{'from':0,'to':0,'to_start':4}]),dict(contours=[{'from':None,'to':None}]),dict(contours=[{'from':0,'to':0},{'from':0,'to':0}]),dict(contours=[{'from':0,'to':None}]),dict(contours=[{'from':1,'to':0}])]:
             self.inspect(spec(**patch),expected=1)
@@ -307,7 +322,7 @@ class InterpolationTests(unittest.TestCase):
         self.invoke(dict(command='document.validate',document=d))
         d['items']+=[dict(copy.deepcopy(node(d)),id='third')]
         r=self.invoke(dict(command='document.validate',document=d),1);self.assertEqual(r['code'],'RESOURCE_LIMIT');self.assertIn(str(capabilities()['interpolation']['document_spine_leaves']),r['message'])
-        s['spine']['geometry']=curved([[0,0],[32000,32000],[-32000,32000],[0,0]])['geometry'];s['spine']['tolerance']=.000001
+        s['spine']['geometry']=curved([[0,0],[32000,32000],[-32000,32000],[0,0]])['geometry'];s['spine']['tolerance']=capabilities()['interpolation']['spine_tolerance'][0]
         self.assertEqual(self.inspect(s,expected=1)['code'],'RESOURCE_LIMIT')
 
     def test_generated_ids_avoid_collisions_and_transfer_keeps_editable_spec(self):

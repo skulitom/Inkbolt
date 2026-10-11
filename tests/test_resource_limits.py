@@ -13,6 +13,21 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'booleans/curve_tolerance/1': 'booleans.MAX_CURVE_TOLERANCE',
+    'booleans/default_curve_tolerance': 'booleans.DEFAULT_CURVE_TOLERANCE',
+    'warps/perspective_weights/1': 'warps.MAX_PERSPECTIVE_WEIGHT',
+    'warps/tolerance/0': 'warps.MIN_TOLERANCE',
+    'warps/tolerance/1': 'warps.MAX_TOLERANCE',
+    'warps/default_tolerance': 'warps.DEFAULT_TOLERANCE',
+    'repeats/copies/1': 'repeats.MAX_COPIES',
+    'interpolation/spine_tolerance/0': 'path_text.MIN_TOLERANCE',
+    'interpolation/spine_tolerance/1': 'path_text.MAX_TOLERANCE',
+    'path_text/tolerance/0': 'path_text.MIN_TOLERANCE',
+    'path_text/tolerance/1': 'path_text.MAX_TOLERANCE',
+    'path_text/default_tolerance': 'path_text.DEFAULT_TOLERANCE',
+    'path_text/max_commands': 'path_text.MAX_COMMANDS',
+    'path_text/max_leaves': 'path_text.MAX_LEAVES',
+    'path_text/max_document_leaves': 'path_text.MAX_DOCUMENT_LEAVES',
     'vector_strokes/miter_limit/0': 'strokes.MIN_MITER_LIMIT',
     'vector_strokes/miter_limit/1': 'strokes.MAX_MITER_LIMIT',
     'vector_strokes/width/0': 'strokes.MIN_WIDTH',
@@ -392,6 +407,24 @@ class ResourceLimitTests(unittest.TestCase):
                          f"zero_or_{values['strokes.MIN_DASH_LENGTH']:g}_to_{values['model.MAX_COORDINATE']:g}")
         self.assertEqual(stroke['curve_tolerance']['automatic_refinement'],
                          f"min_saved_and_1_over_{1 / values['strokes.DEFAULT_CURVE_TOLERANCE']:g}_divided_by_max_1_and_{values['strokes.OUTLINE_RESOLUTION']}_times_world_stretch_bound")
+
+        # Required counts and normalized endpoints are structural semantics;
+        # projective weight bounds are coupled by an exact reciprocal policy.
+        fixed = {'booleans/curve_tolerance/0': 0, 'warps/map_count/0': 1,
+                 'warps/grid_intervals/0': 1, 'repeats/copies/0': 1,
+                 'repeats/brick_offset/0': 0, 'repeats/brick_offset/1': 1,
+                 'interpolation/count/0': 2}
+        for path, expected in fixed.items():
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[int(part)] if isinstance(value, list) else value[part]
+            self.assertEqual(value, expected)
+        weights = capabilities()['warps']['perspective_weights']
+        self.assertEqual(weights[0], 1 / weights[1])
+        for prefix in ('booleans', 'warps', 'repeats', 'interpolation', 'path_text'):
+            self.assertEqual(numeric_fields(capabilities()[prefix], prefix)
+                             - fixed.keys() - {'warps/perspective_weights/0'},
+                             {p for p in BINDINGS if p.startswith(prefix+'/')})
 
         prefix = 'layered_interchange'
         reported = numeric_fields(capabilities()[prefix], prefix)

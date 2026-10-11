@@ -360,7 +360,9 @@ pub(crate) fn run(
     {
         return Err(Error::new(
             "INVALID_OPERATION",
-            "Simplification requires tolerance in 0..=32768 and max_span in 2..=32",
+            format!(
+                "Simplification requires tolerance in 0..={MAX_COORDINATE} and max_span in 2..={MAX_SPAN}"
+            ),
         ));
     }
     let mut contours = paths::parse(commands);

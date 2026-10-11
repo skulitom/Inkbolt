@@ -176,6 +176,12 @@ independent despite equal values. Every numeric stroke/brush capability is check
 against its constant or explicit normalized/symmetric semantics. Numeric limits
 and source defaults are unchanged; the wider inline audit remains open.
 
+Warp conditioning/tolerance, repeat geometry and text/spine distance-table bounds
+also use the catalog. Interpolation endpoint strokes reuse ordinary stroke limits.
+Boolean discovery now exposes the existing tolerance range/default; numeric
+behavior, topology requirements and refusal codes remain unchanged. The remaining
+inline audit and fresh thorough W0 acceptance are still required.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 
