@@ -28,6 +28,7 @@ pub(super) fn prepare(
             ));
         }
         let mut story_reference = None;
+        let mut source_fonts = None;
         let global = super::text_story::payload(tail, version, control)?;
         let (source, mut styles, paragraphs, rendering, inheritance) = if let Some(bytes) = global {
             let global = super::text_data::parse_global(bytes, control)?;
@@ -68,12 +69,12 @@ pub(super) fn prepare(
                 }
             }
             let font_table = global.field("0")?.field("1")?;
-            super::text_import_geometry::node_keys(font_table, &["0"])?;
-            for font in font_table.field("0")?.array()? {
-                super::text_import_geometry::node_keys(font, &["0"])?;
-                super::text_import_geometry::node_keys(font.field("0")?, &["0"])?;
-                super::text_import_geometry::node_keys(font.field("0")?.field("0")?, &["0"])?;
-            }
+            source_fonts = Some(super::text_font_records::read(
+                font_table,
+                &resolved.characters,
+                true,
+                control,
+            )?);
             let styles = super::text_style::Styles::global(
                 &resolved.characters,
                 font_table.field("0")?.array()?,
@@ -148,6 +149,9 @@ pub(super) fn prepare(
             "nominal_frame":[1,1],"font_bindings":binding_report,"cached_pixels_used":false,"native_layout_equality":false,
             "color_quantization":"opaque RGB components rounded to eight bits","missing_values_inherited":false});
         receipt["rendering"] = rendering;
+        if let Some(source_fonts) = source_fonts {
+            receipt["source_fonts"] = source_fonts;
+        }
         if let Some(inheritance) = inheritance {
             receipt["missing_values_inherited"] = inheritance["source_defined_inheritance"].clone();
             receipt["inheritance"] = inheritance;

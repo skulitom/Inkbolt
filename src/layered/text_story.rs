@@ -116,6 +116,12 @@ pub(super) fn diagnose(
         super::text_paragraph::Paragraphs::global(&resolved.paragraphs, source, control)?;
     let fonts = global.field("0")?.field("1")?.field("0")?.array()?;
     let styles = super::text_style::Styles::global(&resolved.characters, fonts, control)?;
+    let font_records = super::text_font_records::read(
+        global.field("0")?.field("1")?,
+        &resolved.characters,
+        false,
+        control,
+    )?;
     let faces = styles.faces()?;
     let mut character_styles = styles.compare(local_styles, source == local, control)?;
     character_styles["color_conversion_validated"] = json!(false);
@@ -129,7 +135,7 @@ pub(super) fn diagnose(
         "local_text_matches":source==local,"font_face_names":faces,"font_file_identity_declared":false,
         "style_runs":style_runs.len(),"paragraph_runs":paragraph_runs.len(),"global_data_sha256":assets::sha256(bytes),
         "global_tag_framing_validated":true,"selected_story_run_references_validated":true,"frame":frame,"character_styles":character_styles,"paragraph_styles":paragraph_styles,
-        "rendering":rendering,"inheritance":resolved.report,
+        "rendering":rendering,"inheritance":resolved.report,"font_records":font_records,
         "other_stories_validated":false,"other_layer_references_validated":false,"layout_semantics_validated":false,
         "style_semantics_validated":false,"local_style_consistency_validated":false}),
     )

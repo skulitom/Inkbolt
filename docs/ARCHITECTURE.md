@@ -1,5 +1,12 @@
 # Architecture
 
+`layered::text_font_records` validates source font provenance separately from the
+caller-chosen content-pinned fonts. Diagnostics inspect selected records; editable
+admission checks the entire bounded table. Typed class, technology and version
+fields never imply source file identity, installed lookup or a version match.
+The import receipt retains source metadata; the chosen font controls rendering
+and delivery.
+
 `layered::text_inheritance` resolves bounded explicit source style references
 before interpreting character and paragraph controls. Referenced roots must equal
 the document's own declarations. Borrowed property maps apply paragraph, named

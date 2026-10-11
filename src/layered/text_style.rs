@@ -195,7 +195,7 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
     (Some("87"), None, "mark_baseline_distance", Kind::Number),
 ];
 
-fn face_name(name: &str) -> Result<Value, Error> {
+pub(super) fn face_name(name: &str) -> Result<Value, Error> {
     if name.is_empty() || name.len() > 128 || !name.bytes().all(|b| (33..=126).contains(&b)) {
         return Err(unsupported(
             "Native font identity is not a bounded printable face name",

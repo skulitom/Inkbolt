@@ -27,6 +27,22 @@ There is no installed-font lookup or fallback. The chosen static outline face
 must have the exact declared name and all required glyphs and enabled features.
 Its identity is the caller's explicit choice, not proof of the source font file.
 
+Global font resources may also declare the supported font class, technology code
+`0` or `1`, and a source version string. These values are provenance; the numeric
+technology code is not interpreted as an outline format. Missing metadata stays
+absent. Names and version strings do not establish source file identity, trigger
+installed-font lookup, or require the chosen font to have the same version.
+The caller's pinned font remains the explicit reconstruction choice.
+
+`source_fonts` in each global text import receipt retains the selected resource
+indices and metadata. Structural diagnostics expose the same selected records at
+`global_story.font_records`; missing-binding errors include these source records
+to help the caller choose resources. Editable admission validates the entire font table,
+including unused records, and rejects unknown classes, fields, technology codes
+and malformed values. Limits are 256 table records, eight selected records per
+story and 512 UTF-8 bytes per version string. Metadata stays in the import receipt;
+delivery uses the chosen font and does not round-trip the source font catalog.
+
 The admitted subset requires one horizontal, left-aligned line, no wrapping or
 hyphenation, explicit character controls, opaque solid RGB fill, uniform explicit
 leading and supported point geometry. Size, integral native tracking, horizontal

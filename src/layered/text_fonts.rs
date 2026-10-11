@@ -115,9 +115,11 @@ impl TextFonts {
                 "FONT_BINDING_REQUIRED",
                 "Supply an explicit pinned font binding for every referenced face in the selected native text source",
             );
-            error.details = Some(Box::new(
-                json!({"kind":"native_text_font_bindings","text_source":if global {"global_story"} else {"local_record"},"missing_face_names":missing,"source_font_files_identified":false}),
-            ));
+            let mut details = json!({"kind":"native_text_font_bindings","text_source":if global {"global_story"} else {"local_record"},"missing_face_names":missing,"source_font_files_identified":false});
+            if let Some(records) = source.get("font_records") {
+                details["source_font_records"] = records.clone();
+            }
+            error.details = Some(Box::new(details));
             return Err(error);
         }
         for (name, font) in &used {
