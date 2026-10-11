@@ -95,7 +95,10 @@ controls. A missing value stays missing; it is never replaced with a default.
 
 Known controls include size, faux styles, automatic/explicit leading, horizontal
 and vertical scales, tracking, baseline shift, capitalization/baseline codes, no-break
-and observed character-feature switches. These are source values, with no unit
+and observed character-feature switches. Explicit language, baseline direction,
+character alignment, spacing compression, alternate forms, figure styles,
+diacritic offsets, mark-baseline distance and stylistic-set selections are also
+type checked. These are source values, with no unit
 conversion, shaping-tag translation, feature availability or layout acceptance.
 Several global feature switches can be absent from the local cache, so matching
 compared values does not imply complete style agreement. Each side reports
@@ -116,7 +119,8 @@ nested paths. Component fingerprints remain partial style identities.
 
 Global kerning, underline and strikethrough codes stay separate from
 `local_auto_kerning`, `local_underline`, `local_underline_position` and
-`local_strikethrough`. These legacy cache fields cannot establish all global
+`local_strikethrough`. Digit-set and joining-elongation codes likewise remain
+separate from the less expressive or differently encoded local controls. These legacy cache fields cannot establish all global
 modes, so the comparison reports them as missing on the other side instead of
 inventing conversions. Both `color_conversion_validated` and
 `legacy_code_conversion_validated` remain false. Decoration geometry, font
@@ -125,7 +129,10 @@ features and profile-dependent paint reconstruction still require verification.
 `global_story.paragraph_styles` similarly compares explicit paragraph controls:
 justification codes, indents, before/after spacing, automatic-leading factors,
 hyphenation switches and word-length controls, spacing/scaling triples, hanging
-punctuation and every-line composition. Numeric triples require exactly three
+punctuation and every-line composition. Leading direction, paragraph direction,
+line-breaking order, list tier and joining width retain their explicit codes.
+Global hanging-punctuation codes stay separate from the local Boolean cache.
+Numeric triples require exactly three
 finite numbers. Values remain in their source units; no layout algorithm, enum
 translation, inherited value or default is inferred. Missing property containers
 are counted separately from present containers with missing controls.
@@ -261,9 +268,11 @@ For either layered format, supply `layered_options.text` with `reconstruction:"n
 
 Use `font_root` for direct export, or `resources.font_root` for document publication, preflight and jobs; sessions use their saved resources. Rust callers use `layered::export_with_fonts`. The source font files and their retained licenses must match the document's pinned identities. Each static TrueType outline face needs one unambiguous Unicode PostScript name. Other outline formats require a separate verified mapping. Different files or face indices with the same name are rejected across the complete delivery, including nested objects. At most eight face names are admitted. Fonts and licenses stay external: the receiving consumer resolves names and may use different font bytes. No installed-font lookup, substitution or font embedding occurs in Inkbolt.
 
-The bounded subset preserves source text, character style ranges, opaque solid RGB fills, font sizes, tracking, explicit leading and Boolean `kern`, `liga` and `dlig` controls. Engine scalar indices become UTF-16 run lengths without splitting surrogate pairs. Newlines become native paragraph separators. Default-style gaps remain explicit, and a terminal separator belongs to the last style. Font sizes and other decimal units remain decimal tokens. Native tracking requires integral thousandths of em; delivery rounds to the nearest integer, with ties away from zero. `tracking_quantization` records each changed authored style index, source pixels, native units and delivered pixels. Engine source text and preview spacing remain unchanged. Automatic leading resolves to explicit per-style font metrics; this is a declared reconstruction change.
+The bounded subset preserves source text, character style ranges, opaque solid RGB fills, font sizes, tracking, explicit leading and Boolean `kern`, `liga` and `dlig` controls. Explicit `en-US`, `en-GB`, `fr`
+and `tr` language tags preserve their native codes per character run; absent
+language stays absent. Other tags, aliases and region inference are unsupported. Engine scalar indices become UTF-16 run lengths without splitting surrogate pairs. Newlines become native paragraph separators. Default-style gaps remain explicit, and a terminal separator belongs to the last style. Font sizes and other decimal units remain decimal tokens. Native tracking requires integral thousandths of em; delivery rounds to the nearest integer, with ties away from zero. `tracking_quantization` records each changed authored style index, source pixels, native units and delivered pixels. Engine source text and preview spacing remain unchanged. Automatic leading resolves to explicit per-style font metrics; this is a declared reconstruction change.
 
-Frames must be horizontal, left-aligned LTR with single-run direction handling and no path. `wrap:false` delivers point text with the engine's first baseline incorporated into its affine placement; `wrap:true` delivers an explicit local paragraph box. Parent transforms are resolved into the text matrix. Point text accepts error/visible overflow; paragraph text accepts error/clipped overflow. Nominal point-frame bounds are not native editing constraints. Unicode bidirectional layout, fallback fonts, variable instances, language settings, other features, character alpha/non-solid paints and unmapped item controls fail explicitly.
+Frames must be horizontal, left-aligned LTR with single-run direction handling and no path. `wrap:false` delivers point text with the engine's first baseline incorporated into its affine placement; `wrap:true` delivers an explicit local paragraph box. Parent transforms are resolved into the text matrix. Point text accepts error/visible overflow; paragraph text accepts error/clipped overflow. Nominal point-frame bounds are not native editing constraints. Unicode bidirectional layout, fallback fonts, variable instances, unmapped language settings, other features, character alpha/non-solid paints and unmapped item controls fail explicitly.
 
 Layer opacity, fill opacity, supported scalar masks and grouping remain separate from text and its preview cache. Text inside embedded objects requires both delivery policies. Per-layer and merged caches use pinned source fonts and engine rendering. The receiving consumer can reshape, reflow and rerasterize text differently; kerning, baselines, line breaks, hinting and antialiasing are not promised equal. Caches are never an editable source or evidence of native recomposition equality.
 

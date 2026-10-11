@@ -148,6 +148,51 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
     (Some("32"), None, "kana", Kind::Boolean),
     (Some("33"), None, "italics", Kind::Boolean),
     (Some("52"), Some("NoBreak"), "no_break", Kind::Boolean),
+    (Some("14"), None, "opentype_baseline_code", Kind::Integer),
+    (Some("30"), None, "figure_style_code", Kind::Integer),
+    (
+        Some("35"),
+        Some("BaselineDirection"),
+        "baseline_direction_code",
+        Kind::Integer,
+    ),
+    (
+        Some("36"),
+        Some("Tsume"),
+        "spacing_compression",
+        Kind::Number,
+    ),
+    (
+        Some("37"),
+        Some("StyleRunAlignment"),
+        "character_alignment_code",
+        Kind::Integer,
+    ),
+    (Some("38"), Some("Language"), "language_code", Kind::Integer),
+    (Some("39"), None, "alternate_form_code", Kind::Integer),
+    (Some("68"), None, "joining_elongation_code", Kind::Integer),
+    (
+        None,
+        Some("Kashida"),
+        "local_joining_elongation_code",
+        Kind::Integer,
+    ),
+    (Some("70"), None, "digit_set_code", Kind::Integer),
+    (
+        None,
+        Some("HindiNumbers"),
+        "local_alternate_digits",
+        Kind::Boolean,
+    ),
+    (
+        Some("72"),
+        None,
+        "diacritic_horizontal_offset",
+        Kind::Number,
+    ),
+    (Some("73"), None, "diacritic_vertical_offset", Kind::Number),
+    (Some("85"), None, "stylistic_set_selection", Kind::Integer),
+    (Some("87"), None, "mark_baseline_distance", Kind::Number),
 ];
 
 fn face_name(name: &str) -> Result<Value, Error> {

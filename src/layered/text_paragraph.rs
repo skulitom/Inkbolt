@@ -88,6 +88,28 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
         "every_line_composer",
         Kind::Boolean,
     ),
+    (
+        Some("8"),
+        Some("LeadingType"),
+        "leading_direction_code",
+        Kind::Integer,
+    ),
+    (Some("24"), None, "hanging_punctuation_code", Kind::Integer),
+    (
+        None,
+        Some("Burasagari"),
+        "local_hanging_punctuation",
+        Kind::Boolean,
+    ),
+    (Some("25"), None, "line_breaking_order_code", Kind::Integer),
+    (Some("33"), None, "paragraph_direction_code", Kind::Integer),
+    (Some("37"), None, "list_tier", Kind::Integer),
+    (
+        Some("40"),
+        None,
+        "joining_elongation_width_code",
+        Kind::Integer,
+    ),
 ];
 
 pub(super) struct Paragraphs {

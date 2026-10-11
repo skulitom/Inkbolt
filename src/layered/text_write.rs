@@ -185,14 +185,16 @@ pub(super) fn prepare(
     let mut font_receipts = Vec::new();
     for style in &styles {
         if !style.fallback_fonts.is_empty()
-            || style.language.is_some()
             || !style.font_variations.is_empty()
             || style
                 .features
                 .iter()
                 .any(|(k, v)| !["kern", "liga", "dlig"].contains(&k.as_str()) || *v > 1)
         {
-            return Err(unsupported("Native text needs explicit single-face styles without language, fallback, variation or unmapped feature controls").at_item(&item.id));
+            return Err(unsupported("Native text needs explicit single-face styles without fallback, variation or unmapped feature controls").at_item(&item.id));
+        }
+        if let Some(language) = &style.language {
+            super::text_language::to_code(language).map_err(|e| e.at_item(&item.id))?;
         }
         if font_indexes.contains_key(&style.font_id) {
             continue;
@@ -243,13 +245,17 @@ pub(super) fn prepare(
         let natural = (face.ascender() as f64-face.descender() as f64+face.line_gap() as f64)*style.size*style.vertical_scale/face.units_per_em() as f64;
         let leading = frame.leading.unwrap_or(natural.max(0.001));
         let liga = style.features.get("liga").copied().unwrap_or(u32::from(style.tracking==0.0))!=0;
-        Ok(json!({"Font":font_indexes[&style.font_id],"FontSize":style.size,
+        let mut encoded = json!({"Font":font_indexes[&style.font_id],"FontSize":style.size,
             "FillColor":{"Type":1,"Values":[1.0,color[0] as f64/255.0,color[1] as f64/255.0,color[2] as f64/255.0]},
             "FillFlag":true,"StrokeFlag":false,"AutoLeading":false,"Leading":leading,
             "Tracking":tracking,"HorizontalScale":style.horizontal_scale,"VerticalScale":style.vertical_scale,
             "BaselineShift":style.baseline_shift,"FontCaps":0,"FontBaseline":0,
             "AutoKerning":style.features.get("kern").copied().unwrap_or(1)!=0,"Kerning":0,
-            "Ligatures":liga,"DLigatures":style.features.get("dlig").copied().unwrap_or(0)!=0}))
+            "Ligatures":liga,"DLigatures":style.features.get("dlig").copied().unwrap_or(0)!=0});
+        if let Some(language) = &style.language {
+            encoded["Language"] = json!(super::text_language::to_code(language)?);
+        }
+        Ok(encoded)
     }).collect::<Result<Vec<_>,Error>>()?;
     let chars = frame.text.chars().collect::<Vec<_>>();
     let mut segments = Vec::<(usize, usize)>::new();

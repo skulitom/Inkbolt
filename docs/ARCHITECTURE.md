@@ -95,6 +95,11 @@ sweep compares intersecting UTF-16 runs using resolved face names, preserving
 missing values and unrecognized fields as explicit limitations. Global-only
 feature switches cannot disappear into cache defaults. Compact summaries and
 partial run fingerprints never certify full style or rendering agreement.
+Explicit text-language mappings are shared by import and delivery. Supported
+source codes retain per-run language selection through engine shaping and native
+authoring; absent values remain absent. Additional typed character/paragraph
+diagnostics keep distinct legacy codes separate and infer no inheritance.
+
 `text_import` adds explicit editable point reconstruction for admitted authoring
 records. Strict geometry/style converters select complete local or indexed global
 source, validate fonts and shaping, convert UTF-16 ranges, and retain native point

@@ -113,6 +113,24 @@ class LayeredParagraphTests(unittest.TestCase):
             g,local=inputs(global_lengths=[2,4] if side=='global' else None,local_lengths=[2,4] if side=='local' else None)
             self.assertEqual(self.load(g,local)['code'],'INVALID_LAYERED_FILE')
 
+    def test_direction_line_controls_and_legacy_hanging_remain_distinct(self):
+        g,local=inputs();gp(g).update({'8':1,'24':2,'25':2,'33':1,'37':3,'40':3})
+        lp(local).update(LeadingType=1,Burasagari=True)
+        v=self.controls(g,local);c=v['comparison']
+        self.assertEqual(c['compared_controls'],['leading_direction_code']);self.assertTrue(c['all_compared_values_match'])
+        self.assertEqual(c['missing_global_controls'],['local_hanging_punctuation'])
+        self.assertEqual(c['missing_local_controls'],['hanging_punctuation_code','joining_elongation_width_code','line_breaking_order_code','list_tier','paragraph_direction_code'])
+        self.assertEqual(v['global']['unmapped_field_count'],0);self.assertEqual(v['local']['unmapped_field_count'],0)
+        lp(local)['LeadingType']=0
+        self.assertEqual(self.controls(g,local)['comparison']['different_controls'],['leading_direction_code'])
+        for key in ['8','24','25','33','37','40']:
+            for bad in [True,1.0,'1']:
+                g,local=inputs();gp(g)[key]=bad
+                self.assertEqual(self.load(g,local)['code'],'INVALID_LAYERED_FILE',(key,bad))
+        for key,bad in [('LeadingType',False),('LeadingType',1.0),('Burasagari',1)]:
+            g,local=inputs();lp(local)[key]=bad
+            self.assertEqual(self.load(g,local)['code'],'INVALID_LAYERED_FILE')
+
     def test_cli_mcp_parity_maximum_runs_source_integrity_and_cancellation(self):
         g,local=inputs('A'*64,global_lengths=[1]*65,local_lengths=[1]*65)
         for i in range(65):gp(g,i)['2']=i;lp(local,i)['StartIndent']=i+1

@@ -140,10 +140,17 @@ pub(super) fn frame(
         };
         let size = number(v, "size")?;
         let horizontal_scale = number(v, "horizontal_scale")?;
+        let language = v
+            .get("language_code")
+            .map(super::text_language::from_code)
+            .transpose()?;
+        if language.is_some() {
+            consumed.insert("language_code");
+        }
         let style = text::Style {
             font_id: id,
             fallback_fonts: Vec::new(),
-            language: None,
+            language,
             font_variations: BTreeMap::new(),
             features: BTreeMap::from([
                 ("kern".into(), u32::from(kern)),

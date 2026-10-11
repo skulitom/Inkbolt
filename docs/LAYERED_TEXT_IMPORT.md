@@ -31,7 +31,11 @@ The admitted subset requires one horizontal, left-aligned line, no wrapping or
 hyphenation, explicit character controls, opaque solid RGB fill, uniform explicit
 leading and supported point geometry. Size, integral native tracking, horizontal
 and vertical scale, baseline shift, and `kern`/`liga`/`dlig` controls become editable
-styles. UTF-16 run boundaries convert to engine character indices without splitting
+styles. Explicit source language codes map to `en-US`, `en-GB`, `fr` and `tr`,
+including per-run language-dependent shaping. Missing language stays unspecified;
+other codes fail instead of selecting a default. Delivery retains these exact
+tags; regional guesses and aliases are unsupported. UTF-16 run boundaries convert
+to engine character indices without splitting
 surrogates; normal engine grapheme and range validation still applies. Global
 kerning admits font metrics only. Manual and optical modes fail. Other native
 features, inherited/default styles, distinct terminal insertion styles, unknown controls, native antialias settings,
@@ -68,3 +72,8 @@ the retained text and chosen fonts. Original independent byte fixtures and a
 geometric test font verify analytic pixels, rotations, stale global/local data,
 Unicode ranges, masks, groups, nested sources and durable text edits. They do not
 substitute for the original extended interchange acceptance fixture.
+
+Language verification includes an original font with a language-specific glyph
+substitution, independent authoring-byte checks and native readback of single and
+mixed language runs. The native check establishes language retention only; its
+external font was deliberately unavailable and supplies no rendering-equality credit.
