@@ -2,6 +2,37 @@
 
 Accepted 9 October 2026. This work improves practical agent use without changing the original 167 engine checkpoints or awarding them credit for interface work. [features.json](features.json) governs engine completion. Completion of this plan requires current evidence for every gate below; implemented pieces, documentation and narrow fixtures alone do not establish the entire gate.
 
+## Accepted execution update
+
+On 11 October 2026 the owner adopted [FIX_PLAN.md](../FIX_PLAN.md) as the
+execution plan for this active goal and explicitly accepted its recommended
+defaults D1-D7. Its workstream order supersedes the earlier implementation order
+below. All A1-A7 acceptance gates, original checkpoint criteria, B01-B20 outcomes,
+matched sister-project comparisons and existing recovery guarantees remain
+required. W9's optional learned-model integration stays deferred.
+
+Start with W0's shared limit definitions, then W1 platform support, W2 actual
+model trials with a separate no-engine baseline, and W5.1 payload deduplication.
+Continue through everyday vector inputs, declared-tolerance curved booleans,
+larger native raster workflows, measured interface improvements, distribution,
+broader interchange admission and evidence-based documentation in the plan's
+dependency order. Technical findings in the dated plan must be checked against
+current source before implementation.
+
+The accepted choices are automatic booleans with explicitly reported
+approximation; a separate public CI guard that never replaces the local private
+guard; opt-in SVG omission with located losses and failure as the default;
+no learned-model plugin; verified core/CLI/MCP/receipt support on Unix before
+durable-job parity; GitHub binaries and source installation first; and an
+8192x8192 raster target with a 512 MiB peak-commit ceiling for the 50 MP native
+16-bit edit/export workload. These are targets, not current feature claims.
+
+The owner has already authorized verified commits and pushes directly to `main`.
+Preserve the [2-3 minute development loop](DEVELOPMENT_LOOP.md), separate thorough
+milestone acceptance, unchanged existing measurement suites and content-bound
+evidence. Complete the whole goal only when both the workstreams in FIX_PLAN
+and all original delivery gates have current acceptance evidence.
+
 ## Delivery gates
 
 | Gate | Required behavior and evidence | Current state |
