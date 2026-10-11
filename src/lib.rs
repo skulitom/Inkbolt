@@ -180,6 +180,8 @@ pub enum Request {
         embedded_objects: Option<layered::EmbeddedObjects>,
         #[serde(default)]
         control: control::Options,
+        #[serde(default)]
+        text_fonts: Option<layered::TextFonts>,
     },
     #[serde(rename = "assist.segment")]
     AssistSegment {
@@ -1545,6 +1547,7 @@ fn capability_report() -> Value {
         "global_story":{"versions":[14],"text_source":"global_story_when_present;local_record_otherwise","style_semantics_validated":false,"other_stories_validated":false,"other_layer_references_validated":false,
             "limits":{"data_bytes":262144,"data_values":32768,"data_depth":32,"container_entries":4096,"tagged_records":512,"stories":256,"characters":4096,"runs":65,"referenced_fonts":8},
             "frame":{"source":"independent_global_frame_reference","shapes":["point","rectangle"],"frame_resources":256,"selected_frames":1,"coordinate_bound":32768,"first_baseline_metrics":["fixed","ascent","cap_height","leading","x_height"],"remaining_properties_validated":false,"local_geometry_consistency_validated":false,"other_frames_validated":false,"layout_semantics_validated":false}},
+        "font_bindings":{"argument":"text_fonts","maximum_faces":fonts::MAX_FONTS,"names":"exact_case_sensitive_unique_unicode_postscript_face_name","resources":"content_pinned_font_and_retained_license;referenced_only","source":"selected_global_story_or_local_record_if_absent","digest":"compact_sorted_key_json_of_referenced_face_name_to_font_descriptor_map","scope":"first_native_text_record_only;not_complete_import","source_font_files_identified":false,"system_font_lookup":false},
         "character_controls":{"scope":"explicit_observed_controls_only;unknown_fields_uninterpreted","comparison":"matching_text_utf16_spans;independent_run_partitions;resolved_face_names","missing_controls":"reported_without_defaults","run_fingerprints":"known_controls_and_boundaries_only;not_complete_style_identity","paint":"type_1_four_finite_source_components;typed_named_class;unknown_classes_modes_and_nested_fields_reported;no_color_conversion","legacy_controls":"global_kerning_and_decoration_codes_separate_from_local_flags;no_conversion","unmapped_fields_reported":16,"complete_style_semantics_validated":false},
         "paragraph_controls":{"scope":"explicit_observed_controls_only;no_inheritance_or_defaults","comparison":"matching_text_utf16_spans;independent_run_partitions;source_numeric_values","triples":"exactly_three_finite_numbers;no_justification_conversion","legacy_hyphen_limit":"global_limit_and_local_code_reported_separately;conversion_unvalidated","missing_property_containers":"counted_without_defaulting","paragraph_boundaries":"carriage_return_run_end_counts_only;semantics_unvalidated","unmapped_fields_reported":16,"complete_style_semantics_validated":false},
         "shape_owner_labels":"at_most_eight_bounded_untrusted_identifiers;not_geometry_validation",
@@ -1707,12 +1710,14 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             color_policy,
             embedded_objects,
             control,
-        } => layered::import_with_objects(
+            text_fonts,
+        } => layered::import_with_text_fonts(
             &source_path,
             expected_sha256.as_deref(),
             id,
             color_policy,
             embedded_objects,
+            text_fonts.as_ref(),
             &context.scoped(&control)?,
         ),
         Request::PresetList {} => Ok(presets::catalog()),

@@ -2,7 +2,7 @@
 //! caches stay separate from text, ranges and authoring geometry.
 use super::{binary::*, object_write as descriptor, *};
 use crate::{fonts, text};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 pub(super) struct Prepared {
     pub width: u32,
@@ -28,23 +28,7 @@ pub(super) fn policy(options: &TextDelivery) -> Result<(), Error> {
 }
 
 fn face_name(face: &rustybuzz::Face<'_>) -> Result<String, Error> {
-    let names = face
-        .names()
-        .into_iter()
-        .filter(|n| n.name_id == 6)
-        .filter_map(|n| n.to_string())
-        .collect::<BTreeSet<_>>();
-    if names.len() != 1 {
-        return Err(unsupported(
-            "Native text needs one unambiguous Unicode PostScript face name in each pinned font",
-        ));
-    }
-    let name = names.into_iter().next().unwrap();
-    if name.is_empty() || name.len() > 128 || !name.bytes().all(|b| (33..=126).contains(&b)) {
-        return Err(unsupported(
-            "Native font face name must contain 1..128 printable nonspace ASCII bytes",
-        ));
-    }
+    let name = super::text_fonts::face_name(face)?;
     if !face.variation_axes().is_empty() {
         return Err(unsupported(
             "Variable fonts need an explicit native instance mapping",

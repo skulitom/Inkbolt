@@ -21,6 +21,32 @@ Optional `compatibility_markers` retain typed Boolean/enum metadata as untrusted
 data with `semantics_validated:false`; they do not establish compatibility or
 authorize ignoring legacy layout behavior.
 
+Optional `text_fonts` supplies `bindings:[{face_name,font}]` and `font_root` to
+`layered.import`. Each `font` is a descriptor from `font.import`, including its
+font and retained-license SHA-256, byte count and face index. Supply one to eight
+unique, case-sensitive face names. A selected workspace supplies the nested
+font-root default when omitted; without a workspace, the root is explicit.
+
+When text diagnostics are available, binding checks use the selected global
+story's referenced names, or the local record if no global story exists. Missing
+choices return `FONT_BINDING_REQUIRED` with the missing names. Referenced fonts
+and licenses must pass the existing immutable-store checks, and each selected
+face must have one unambiguous Unicode PostScript name matching the binding;
+a different name returns `FONT_FACE_MISMATCH`. No installed-font lookup or
+fallback occurs. Invalid binding descriptors/duplicate names fail; unreferenced
+bindings are counted but their files are not read. Pixel-only imports use no
+font bindings. Cancellation and source-hash checks precede resource reads.
+
+A valid choice adds `details.font_bindings` to the unsupported-text diagnostic.
+Its `chosen_bindings_sha256` binds the referenced face-name-to-descriptor map
+using compact sorted-key JSON, independent of binding order and unused entries.
+`chosen_resources_validated:true` applies only to the first native text record
+and its selected source. It does not certify other layers, font instances,
+layout or import completion. Different font files can share the same face name;
+`source_font_files_identified:false` distinguishes the caller's pinned choice
+from the source's unknown file identity. No document is returned yet, and source
+files, font stores and licenses remain unchanged by these checks.
+
 Top-level counts and face names describe the local record, explicitly labelled
 `reported_text_source:"local_record"`. `native_story_index` is the descriptor's
 reference, independent of layer order or ID. When global text data exists,

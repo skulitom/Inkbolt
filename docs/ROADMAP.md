@@ -1,5 +1,11 @@
 # Roadmap and verified scope
 
+Native text import requirements now accept explicit content-pinned font choices
+and verify their retained licenses and exact face names. Global story references
+take precedence over stale local font caches. This completes the font-selection
+diagnostic contract; editable layout reconstruction and source font identity
+remain unproven, and the six original checkpoints remain open.
+
 Native character diagnostics now reconcile explicit type-1 fill/stroke values
 and baseline codes. Global kerning and decoration modes remain distinct from
 legacy local flags; unknown paint data is reported without interpretation.

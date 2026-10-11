@@ -1,5 +1,11 @@
 # Architecture
 
+Optional native text font bindings validate chosen content-addressed fonts and
+retained licenses against exact face names in the selected authoritative story.
+The compact binding digest records this explicit choice, not the source's
+unknown font-file identity. Binding checks share the delivery name contract;
+they do not accept unsupported text layout or substitute installed fonts.
+
 Character diagnostics compare explicit type-1 fill/stroke components without
 color conversion. Paint classes remain typed names, and unknown classes, modes
 and nested fields stay visible. Baseline codes compare directly; global kerning
