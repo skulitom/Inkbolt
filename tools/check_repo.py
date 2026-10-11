@@ -9,6 +9,8 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_SUFFIXES = {".rs", ".py", ".md", ".json", ".toml", ".lock"}
 ALLOWED_NAMES = {"LICENSE", ".gitignore", ".gitattributes"}
+# Release automation only, directly in its folder: GitHub reads workflows as YAML; the MCPB bundle scripts are Node.
+ALLOWED_IN_FOLDER = {".github/workflows": ".yml", "mcpb": ".mjs"}
 PRIVATE_PARTS = {
     "vendor", "decompiled", "decompilation", "disassembly", "research-private",
     "private-research", "captures", "ghidra-projects", "audit-private", "research", "audits", "private",
@@ -42,7 +44,8 @@ def local_patterns(root):
 def inspect_file(name, content, patterns):
     issues = []
     path = Path(name)
-    if path.suffix.lower() not in ALLOWED_SUFFIXES and path.name not in ALLOWED_NAMES:
+    suffix = path.suffix.lower()
+    if suffix not in ALLOWED_SUFFIXES and path.name not in ALLOWED_NAMES and ALLOWED_IN_FOLDER.get(path.parent.as_posix()) != suffix:
         issues.append(f"Unreviewed file type: {name}")
     if PRIVATE_PARTS & {p.lower() for p in path.parts}:
         issues.append(f"Excluded material directory: {name}")

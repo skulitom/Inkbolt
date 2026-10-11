@@ -67,6 +67,17 @@ class RepositoryGuardTests(unittest.TestCase):
         self.write("BlockedVendorToken.md", b"Original text")
         self.assertTrue(any("restriction in path" in issue for issue in guard.check_repository(self.root)[0]))
 
+    def test_release_automation_types_only_in_their_folders(self):
+        self.write(".github/workflows/release.yml", b"name: Release\n")
+        self.write("mcpb/build.mjs", b"export {};\n")
+        self.assertEqual(guard.check_repository(self.root)[0], [])
+        stray = ["notes.yml", "src/tool.mjs", ".github/workflows/nested/extra.yml", "mcpb/build.yml"]
+        for name in stray:
+            self.write(name, b"x\n")
+        issues = guard.check_repository(self.root)[0]
+        for name in stray:
+            self.assertIn(f"Unreviewed file type: {name}", issues)
+
     def test_batch_reads_empty_repeated_unicode_and_newline_named_index_blobs(self):
         names = ['empty.md', 'repeated.md', 'space name.md', 'unicode_\u03bb.md']
         if __import__('os').name != 'nt':
