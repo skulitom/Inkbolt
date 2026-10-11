@@ -32,6 +32,15 @@ fn invalid(message: &str) -> Error {
 }
 
 fn evaluation_pixels(document: &Document, options: &previews::Options) -> Result<u64, Error> {
+    if options.max_size.is_some() {
+        return Ok(previews::overview::plan(document, options)?
+            .0
+            .evaluation
+            .iter()
+            .map(|&v| u64::from(v))
+            .product::<u64>()
+            * u64::from(options.render_options.antialias.factor()).pow(2));
+    }
     let plan = if let previews::Focus::Artboard { id, include_bleed } = &options.focus {
         let item = &document.items[scene::index(document, id)?];
         let Content::Frame { frame } = &item.content else {

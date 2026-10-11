@@ -10,6 +10,45 @@ The example uses an existing workspace session; provide the reference's explicit
 
 ## Focus and composition
 
+For a large vector canvas, opt into a bounded overview:
+
+```json
+{"command":"document.preview","document":{"session_id":"poster","revision":3},"options":{"max_size":[1024,1024]}}
+```
+
+`max_size` fits the full vector canvas inside the requested pixel box without
+enlargement. Each axis must be 8–1024. It requires canvas focus, scale 1, whole
+evaluation, zero padding and canvas cropping. Aspect ratio is retained; output
+dimensions round outward, with fractional edge coverage. The scene is evaluated
+at the reduced density in a temporary copy, without a full-resolution pixel
+buffer or saved source changes. Existing pixel, work, memory, geometry and matrix
+limits still apply; supersampling counts toward the same evaluation budget.
+
+Overviews admit ordinary vector fills and object-scaled strokes, groups, frames,
+geometric clips, scalar masks, text and placed/retained pixel samples. Local paint,
+text and image coordinates remain in their original spaces. Unlinked scalar masks
+are mapped with the canvas; nonpainting scene-artboard markers are omitted only
+from the temporary evaluation. Output profiles, transparency, saved revision
+identity and ordinary resource verification are retained. Hidden content receives
+the same admission checks.
+
+Document-scaled strokes, effects, filters, artwork masks, pixel warps, HDR grades,
+backgrounds, native ink recipes and other retained generators are not yet admitted
+to overviews and fail explicitly. A raster document also fails. Ordinary previews
+keep their existing behavior. This is a review mode for the declared subset;
+thin details can disappear and it does not replace original-coordinate geometry
+checks or full-resolution delivery.
+
+The result identifies `composition:"vector_overview"`, `max_size` and
+`overview_scale`, with both document/pixel maps. `full_render` describes the
+reduced evaluation and additionally reports source origin, logical size and
+units per pixel. PNG density is source density times the overview factor;
+integer PNG density fields retain their ordinary rounding. The source document
+hash and revision remain those of the original snapshot. Contact-sheet views
+accept the same option and charge reduced evaluation pixels, including
+supersampling, before reading fonts or images. Visual-difference commands retain
+their separate full-resolution comparison contract.
+
 | Focus | Inputs | Meaning |
 | --- | --- | --- |
 | `canvas` | None | Complete ordinary rendered canvas, including explicit uncropped render padding |
@@ -19,7 +58,7 @@ The example uses an existing workspace session; provide the reference's explicit
 
 Item focus includes hidden items in its geometric bounds and excludes strokes/effects. Margin is explicit; no heuristic claims to find every painted pixel. Other artwork within the region stays visible. Bounds must be finite, within document coordinate limits, and have positive area. Empty geometric selections return `EMPTY_PREVIEW`; add a margin for a zero-height/width path or supply a region. A region with no rendered intersection returns `FOCUS_OUTSIDE_CANVAS`. Unknown/duplicate IDs and unsupported semantics fail explicitly.
 
-Region and item views crop completed full-scene pixels outward to the original output grid, then clip to the rendered extent. This preserves filters, backgrounds, masks and canvas-relative operators. Full render pixel/work limits and evaluation cost still apply; a tiny crop does not enable an otherwise oversized render. The PNG uses the existing RGBA8 view, source-depth/ink losses, output-profile conversion and exact embedded ICC profile. Source precision and editable controls remain intact.
+Region and item views crop completed full-scene pixels outward to the original output grid, then clip to the rendered extent. This preserves filters, backgrounds, masks and canvas-relative operators. Full render pixel/work limits and evaluation cost still apply; a tiny crop does not enable an otherwise oversized render. `max_size` is available only for the full vector canvas. The PNG uses the existing RGBA8 view, source-depth/ink losses, output-profile conversion and exact embedded ICC profile. Source precision and editable controls remain intact.
 
 Artboard views use the standalone export contract. Default subtree scope excludes placement and ancestor appearance, retaining the artboard's own appearance. Explicit [scene scope](SCENE_ARTBOARDS.md) selects a translated viewport of the shared layer tree. Asymmetric bleed, fractional logical sizes, masks and retained content share the ordinary exporter. Placement still participates in the map back to document-world coordinates. Artboard export carries the active cancellation context into preparation loops and rendering.
 

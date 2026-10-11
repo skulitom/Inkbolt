@@ -1,5 +1,14 @@
 # Architecture
 
+Bounded vector overviews reuse the renderer through an immutable projected
+evaluation copy. `previews::Options.max_size` fits the complete canvas to a
+bounded grid before pixel planning; stored geometry and source identities stay
+unchanged. Complete matrix expressions map root placement and unlinked masks,
+and the receipt records both source/pixel directions. The declared content
+subset rejects viewport-dependent or unhandled semantics before drawing.
+Contact-sheet preflight charges the actual overview grid. See
+[focused previews](FOCUSED_PREVIEWS.md).
+
 `vector_native` reads bounded editable text or classic-xref containers and their authoritative
 editable stream into flat layers, original path controls and shared scene
 artboards. It never interprets preview page artwork or executes source programs.

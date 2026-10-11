@@ -16,6 +16,17 @@ The CLI accepts at most 16 MiB per request; the stdio adapter allows an addition
 
 The original workload tests retain 5,000 individually editable colored cells through snapshots, SVG and PDF delivery, compare every PNG pixel to an independently constructed grid, and exercise grouping, undo, retries and revision conflicts through stdio. An independent XML parser and PDF reader check every object's coordinates and colors. A separate 20,000-point-wide canvas keeps its physical SVG/PDF size and exact distant pixel placement. Source SVG files remain byte-identical after import and failed operations.
 
+Full 10,000- and 20,000-point square canvases now have an opt-in bounded vector
+overview through `document.preview` with `options.max_size`. It evaluates only
+the reduced pixel grid, preserves original coordinates and reports both map
+directions. Independent tests cover the original large-square geometry and
+physical page sizes, all pixels of a 5,000-object overview, profiles, text,
+images, clips, masks and saved/MCP/contact-sheet workflows. See the admitted
+subset and explicit restrictions in [focused previews](FOCUSED_PREVIEWS.md).
+This closes the full-canvas review gap without changing renderer budgets.
+Complete resource acceptance and the broader practical-scale gate still require
+their independent audits; this change alone earns no checkpoint credit.
+
 SVG import, validation, edits, SVG/PDF serialization and PNG/preview drawing check the caller's cancellation token during work. `document.export` and `document.render` accept the shared optional `control` object; timeouts and cancellation propagate through the same local engine. Publication remains create-only and exposes no partial output. Blocking filesystem reads and individual codec calls are not forcefully interrupted.
 
 Retained warp subdivision and dimensional profile preparation now receive the

@@ -10,6 +10,12 @@ The Rust library, one-request JSON CLI and MCP stdio adapter share the same vali
 
 ## Compare before committing more work
 
+For a supported large vector canvas, use `document.preview` with
+`options:{"max_size":[1024,1024]}` to obtain a bounded overview with source/pixel
+maps. This review mode keeps the source revision intact and avoids a full-size
+pixel buffer. Check its [admitted content and limits](FOCUSED_PREVIEWS.md) before
+using it; unsupported controls fail explicitly.
+
 Use [focused previews and contact sheets](FOCUSED_PREVIEWS.md) to review regions, selected objects and standalone artboards. Views carry exact document identities and world/pixel or world/sheet maps. A dry-run `proposed_document` can be previewed before its checked proposal is committed.
 
 `document.diff` accepts `before`, `after`, optional `before_resources`/`after_resources`, `compare_pixels` (false by default) and `control`. Both snapshots must have the same ID and document kind. Normal request/document bounds apply; for two large saved documents use `session.diff` with `session_root`, `session_id`, `from_revision`, `to_revision` and optional `compare_pixels`/`control`.

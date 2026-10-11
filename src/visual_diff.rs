@@ -63,6 +63,7 @@ fn view(
         &previews::Options {
             focus: focus.clone(),
             scale,
+            max_size: None,
             render_options: quality,
         },
         resources.asset_root.as_deref(),

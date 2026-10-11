@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
+pub(crate) mod overview;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -32,6 +33,9 @@ pub enum Focus {
 pub struct Options {
     pub focus: Focus,
     pub scale: u32,
+    /// Optional bounded full-canvas overview; never enlarges the source.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_size: Option<[u32; 2]>,
     pub render_options: render_quality::Options,
 }
 impl Default for Options {
@@ -39,6 +43,7 @@ impl Default for Options {
         Self {
             focus: Focus::Canvas,
             scale: 1,
+            max_size: None,
             render_options: Default::default(),
         }
     }
@@ -109,7 +114,9 @@ pub fn preview(
         asset_root: asset_root.map(Path::to_owned),
         font_root: font_root.map(Path::to_owned),
     })?;
-    let mut result = if let Focus::Artboard { id, include_bleed } = &options.focus {
+    let mut result = if options.max_size.is_some() {
+        overview::preview(document, options, asset_root, font_root, control)?
+    } else if let Focus::Artboard { id, include_bleed } = &options.focus {
         artboard(
             document,
             options,

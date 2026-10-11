@@ -1,6 +1,13 @@
 # Roadmap and verified scope
 
 **Current engine scope: 162/167 verified (97.01%); five checkpoints remain.**
+
+Large vector canvases now support bounded overview images without full-size
+pixel allocations. Original 10,000/20,000-point square cases, a 5,000-object
+overview and independent text/image/mask/coordinate checks cover this review
+path. The original resource checkpoint and wider scale gate remain in progress;
+see [large vector documents](LARGE_VECTOR.md).
+
 The original basic native vector requirement is now independently verified:
 the original layers, paths and artboard survive native import, editable delivery,
 native save/reopen and reimport, with exact structure and every pixel checked
