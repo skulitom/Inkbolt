@@ -1,10 +1,15 @@
 """Negative publication tests with invented sensitive markers and temporary repositories."""
 import importlib.util
+from contextlib import redirect_stdout, redirect_stderr
+import io
 import json
+import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("check_repo", ROOT / "tools/check_repo.py")
@@ -93,6 +98,81 @@ class RepositoryGuardTests(unittest.TestCase):
         subprocess.run(['git', 'update-index', '--index-info'], cwd=self.root,
                        input=f'100644 {oid} 1\tunmerged.md\n'.encode(), check=True, capture_output=True)
         self.assertIn('Unexpected index entry: unmerged.md', guard.check_repository(self.root, staged=True)[0])
+
+    def test_public_mode_is_explicit_and_never_reads_or_claims_private_policy(self):
+        self.write('README.md', b'BlockedVendorToken\n')
+        policy = self.root/'.git/private-content-policy.json'
+        for data in (None, '{}', '{"patterns": []}', 'not JSON'):
+            if data is None: policy.unlink()
+            else: policy.write_text(data, encoding='utf-8')
+            output = io.StringIO()
+            with patch.object(guard, 'local_patterns', side_effect=AssertionError('private policy read')), redirect_stdout(output):
+                self.assertEqual(guard.main(['--public'], root=self.root), 0)
+            report = json.loads(output.getvalue())
+            self.assertEqual(report, dict(ok=True, mode='public_structural', scope='candidate',
+                                         private_policy='not_evaluated', checked_files=2, issues=[]))
+            with self.assertRaises((ValueError, KeyError)):
+                guard.check_repository(self.root)
+
+    def test_public_mode_keeps_structural_and_forced_addition_rejections(self):
+        for name, data in [('bad.bin', b'original'), ('binary.rs', b'\0'),
+                           ('invalid.md', b'\xff'), ('large.md', b'x'*(guard.MAX_BYTES+1)),
+                           ('private/notes.md', b'original')]:
+            self.write(name, data)
+            self.git('add', '-f', name)
+        private_issues, _ = guard.check_repository(self.root)
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(guard.main(['--public'], root=self.root), 1)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report['issues'], private_issues)
+        self.assertEqual(report['private_policy'], 'not_evaluated')
+        for kind in ('Unreviewed file type', 'Binary or oversized', 'Non-UTF-8',
+                     'Excluded material directory', 'Ignored material'):
+            self.assertTrue(any(kind in issue for issue in report['issues']), kind)
+
+    def test_public_mode_cannot_select_indexed_content_or_replace_hook(self):
+        with self.assertRaises(ValueError):
+            guard.check_repository(self.root, staged=True, public=True)
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
+            guard.main(['--public', '--staged'], root=self.root)
+        self.assertEqual(error.exception.code, 2)
+
+        project = self.root/'hook-project'
+        project.mkdir()
+        (project/'tools').mkdir()
+        for name in ('check_repo.py', 'setup_private.py'):
+            (project/'tools'/name).write_bytes((ROOT/'tools'/name).read_bytes())
+        def run(*args, check=True):
+            return subprocess.run(args, cwd=project, capture_output=True, check=check,
+                                  env={**os.environ, 'CI':'true', 'GITHUB_ACTIONS':'true'})
+        run('git', 'init', '--quiet')
+        run('git', 'config', 'user.name', 'Original fixture')
+        run('git', 'config', 'user.email', 'fixture@example.invalid')
+        run('git', 'config', 'core.hooksPath', '.git/hooks')
+        policy_source = self.root/'fixture-policy.json'
+        policy_source.write_text('{"patterns":["BlockedVendorToken"]}', encoding='utf-8')
+        run(sys.executable, 'tools/setup_private.py', '--research-root', str(self.root/'fixture-research'),
+            '--policy', str(policy_source))
+        hook = (project/'.git/hooks/pre-commit').read_text(encoding='utf-8')
+        self.assertTrue(hook.rstrip().endswith('--staged'))
+        self.assertNotIn('--public', hook)
+        (project/'README.md').write_text('BlockedVendorToken\n', encoding='utf-8')
+        run('git', 'add', '.')
+        public = run(sys.executable, 'tools/check_repo.py', '--public')
+        self.assertEqual(json.loads(public.stdout)['private_policy'], 'not_evaluated')
+        rejected = run('git', 'commit', '-m', 'Must reject private fixture', check=False)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn(b'Private content restriction', rejected.stderr+rejected.stdout)
+        (project/'.git/private-content-policy.json').unlink()
+        run(sys.executable, 'tools/check_repo.py', '--public')
+        rejected = run('git', 'commit', '-m', 'Must reject missing policy', check=False)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn(b'Required Git-private content policy is missing', rejected.stderr+rejected.stdout)
+        (project/'.git/private-content-policy.json').write_bytes(policy_source.read_bytes())
+        (project/'README.md').write_text('Original source\n', encoding='utf-8')
+        run('git', 'add', 'README.md')
+        run('git', 'commit', '-m', 'Private policy verified fixture')
 
 
 if __name__ == "__main__":

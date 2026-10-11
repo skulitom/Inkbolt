@@ -1,10 +1,13 @@
 """A Linux snapshot must be complete, content-bound and confined to its mirror."""
 import json
+from contextlib import redirect_stderr
+import io
 from pathlib import Path, PurePosixPath
 import sys
 import tempfile
 import unittest
 import zipfile
+from unittest.mock import patch
 
 from test_cli import ROOT
 sys.path.insert(0, str(ROOT/'tools'))
@@ -12,6 +15,17 @@ import verify_wsl as wsl
 
 
 class WslVerificationTests(unittest.TestCase):
+    def test_development_mirror_cannot_select_public_guard(self):
+        for flag in ('--public', '--pub'):
+            with patch.object(sys, 'argv', ['verify_wsl.py',flag]), \
+                 patch.object(wsl, 'windows_run') as windows, \
+                 patch.object(wsl, 'linux_run') as linux, \
+                 redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
+                wsl.main()
+            self.assertEqual(error.exception.code, 2)
+            windows.assert_not_called()
+            linux.assert_not_called()
+
     def test_transient_windows_interop_is_removed_from_actual_linux_environment(self):
         original = dict(WSL_INTEROP='/run/WSL/100_interop', PATH='/original/tools', PWD='/mnt/c/source', CARGO_HOME='/cache')
         actual = wsl.linux_environment(original, PurePosixPath('/owned/linux'))

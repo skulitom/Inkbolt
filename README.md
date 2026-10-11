@@ -10,7 +10,7 @@ Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). C
 
 [Native block documents](docs/NATIVE_SAMPLE_STORAGE.md) provide opt-in multi-megapixel PNG/TIFF import, exact local patch edits, native clone/heal retouching, bounded paint/erase/smudge/mixer strokes and durable history. Opt-in [tiled evaluation](docs/RENDER_QUALITY.md) renders screen, social and print-sized images with bounded floating-point surfaces and native-depth TIFF strips. Source precision and files stay intact. Bounded tile neighborhoods support blur, detail, local creative and spatial filters, plus retained shadows, strokes and overlays. PNG imports decode ordinary or interlaced pass rows directly into native blocks; native TIFF imports decode one band of strips or tiles at a time, preserving separate planes and floating-point samples. Radial and twist filters also trace bounded source neighborhoods. Wrapped borders, streaming import for remaining formats, broader native operators and the complete scale acceptance gate remain in progress.
 
-Build with Rust/Cargo; current verification uses Rust 1.98.1. Worker leases require the file-locking API introduced in Rust 1.89. Development verification also uses Python 3.11+. Dependencies are locked in Cargo.lock and remain in the external package cache.
+Build with Rust/Cargo; `rust-toolchain.toml` pins development to Rust 1.98.1 with formatting and Clippy. The minimum supported compiler is Rust 1.89, required by file locking and the locked color-engine dependency and checked across all targets on Windows and Linux. Development verification also uses Python 3.11+. Dependencies are locked in Cargo.lock and remain in the external package cache.
 
 ```powershell
 cargo build --locked
@@ -114,6 +114,12 @@ python tools/check_repo.py --staged
 ```
 
 The verifier includes formatting, locked build, all-target Clippy, Rust tests and Python checks. Up to four isolated workers run by default; `--jobs` supports one to eight. Quick runs return exit 2 if checks remain pending, preserve completed passes, and resume on the next invocation. `--list` explains selection/reuse. Explicit selections report their limited scope. See [the development loop](docs/DEVELOPMENT_LOOP.md) for cache boundaries, diagnostics and thorough acceptance. Concurrent check timings are not engine performance benchmarks.
+
+Public clones without the checkout-local policy use an explicit
+`python tools/verify.py --public` (or `--public --thorough` at a milestone).
+This performs structural repository checks and reports `private_policy:"not_evaluated"`.
+It cannot substitute for the private staged check or commit hook; the default
+verifier and WSL development mirror still require the local private policy.
 
 The separate [release workload measurements](docs/WORKLOAD_MEASUREMENT.md) exercise native edit/history fidelity and practical output sizes, retaining failed tasks alongside command time, response bytes and available Windows memory peaks. They guide the open scale work and do not count as model-driven task trials.
 

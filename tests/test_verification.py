@@ -299,6 +299,30 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(saved['checks']['test_two']['duration_hint_seconds'], .01)
         self.assertEqual(sum('test_two.py' in command for command in commands), 1)
 
+    def test_public_guard_is_reported_and_cannot_satisfy_next_private_run(self):
+        self.write('tests/test_one.py', 'value=1')
+        self.write('engine.exe', 'test-binary')
+        state = self.root/'state'; state.mkdir()
+        commands = []
+        def fake(argv, *args):
+            commands.append(argv)
+            private = 'tools/check_repo.py' in argv and '--public' not in argv
+            return dict(status='failed' if private else 'passed', seconds=.01,
+                        exit_code=int(private), output='Missing private policy' if private else 'Ran 1 test in 0.01s\nOK\n')
+        self.assertEqual(self.mini_run(['--public','--only','test_one'], fake, state), 0)
+        saved = verify.load_state(state/'state.json')
+        report = json.loads(Path(saved['latest_report']).read_text(encoding='utf-8'))
+        self.assertEqual(report['repository_guard'], dict(mode='public_structural', private_policy='not_evaluated'))
+        self.assertIn('--public', report['checks']['guard']['command'])
+        commands.clear()
+        self.assertEqual(self.mini_run(['--only','test_one'], fake, state), 1)
+        self.assertEqual(commands, [verify.PY+['tools/check_repo.py']])
+        saved = verify.load_state(state/'state.json')
+        report = json.loads(Path(saved['latest_report']).read_text(encoding='utf-8'))
+        self.assertEqual(report['repository_guard'], dict(mode='private', private_policy='required'))
+        self.assertEqual(report['failed'], ['guard'])
+        self.assertEqual(report['deferred'], ['build','clippy','fmt','test_one'])
+
     def test_unicode_failure_on_legacy_pipe_keeps_exact_log_report_and_retry(self):
         for name in ('one', 'two'):self.write(f'tests/test_{name}.py', 'value=1')
         self.write('engine.exe', 'test-binary')

@@ -9,6 +9,13 @@ return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 The Unix file-identity implementation is shared source, but macOS remains
 unverified. This does not establish full W1, distribution or scale acceptance.
 
+`rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
+to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked
+`moxcms` dependency requires it, as does the standard file-locking API. Separate
+`cargo +1.89.0 check --locked --offline --all-targets` runs passed on Windows and
+Linux against the unchanged engine sources and lockfile. These are compiler
+compatibility checks, not additional runtime or macOS acceptance.
+
 Fresh W0 acceptance on 11 October 2026 tested engine commit `53518fd`
 on both platforms. Every verification stage ran afresh, including formatting,
 the locked build, all-target Clippy with warnings denied, Rust tests and all
@@ -74,17 +81,24 @@ again inside Linux. Its Git-private policy is copied only into the owned mirror'
 Git metadata, along with a local guard hook. No research directory, Windows build
 output or arbitrary ignored files are copied. The mirror makes no commits or
 pushes. Logs and cache state stay under its `.git/inkbolt-verify/` directory.
-This workflow does not introduce the planned public CI guard or enable CI.
+The development mirror always requires that private guard and rejects `--public`.
+It does not enable CI.
 
-For direct Linux use, configure the normal checkout-local private policy as
-described in [research boundaries](RESEARCH.md), then run:
+For a direct public Linux clone, run:
 
 ```bash
 cargo build --locked
 ./target/debug/inkbolt examples/create-vector.json
 ./target/debug/inkbolt mcp --tools core
-python3.11 tools/verify.py --only test_cli,test_mcp
+python3.11 tools/verify.py --public --only test_cli,test_mcp
 ```
+
+The explicit public mode performs structural checks and reports
+`private_policy:"not_evaluated"`; it does not satisfy the private commit hook.
+Development checkouts retain the normal policy described in
+[research boundaries](RESEARCH.md) and use verification without `--public`.
+Public mode never activates automatically. Public-clone full acceptance and
+the approved CI matrix remain separate W1 work.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

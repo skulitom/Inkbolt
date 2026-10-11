@@ -221,6 +221,17 @@ Toolchain/MSRV verification, the separate public CI guard, approved CI activatio
 macOS evidence and distribution remain open. Linux tier-1 coverage does not
 complete W1; continue with the remaining tasks below after W0.
 
+**Toolchain and guard preparation, 11 October 2026.** Rust 1.89 checked all
+targets with the locked dependencies on Windows and Linux; it is now the
+declared minimum. Development is pinned to the previously verified Rust 1.98.1,
+including rustfmt and Clippy. The explicit public structural guard and verifier
+mode report `private_policy:"not_evaluated"`; defaults, the staged guard, the
+installed commit hook and the WSL mirror retain the private-policy requirement.
+Temporary-repository tests exercise real rejected and accepted commits, including
+a missing policy after a public pass. Focused checks passed on both platforms.
+Fresh public-clone full acceptance, owner-approved CI activation and macOS
+evidence remain pending; this preparation does not complete W1.
+
 **Original findings (before implementation).** Only Windows had evidence. The
 initial audit identified these gaps; the updates above record the Linux tier-1
 work already completed:

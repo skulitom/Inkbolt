@@ -232,6 +232,10 @@ def verify(args, state, started, deadline):
         if hasattr(stream, 'reconfigure'):
             stream.reconfigure(errors='backslashreplace')
     print('Planning checks from current file contents and previous results...', flush=True)
+    guard_policy = dict(mode='public_structural' if args.public else 'private',
+                        private_policy='not_evaluated' if args.public else 'required')
+    if args.public:
+        print('Public structural guard only; private_policy: not_evaluated.', flush=True)
     baseline = snapshot(ROOT)
     environment = environment_identity(ROOT)
     modules = sorted(p.stem for p in (ROOT / 'tests').glob('test_*.py'))
@@ -280,7 +284,7 @@ def verify(args, state, started, deadline):
             print(log.read_text(encoding='utf-8')[-12000:], flush=True)
         return row
     # The material guard always runs against current bytes. It is never cached.
-    for name, argv in [('guard', PY + ['tools/check_repo.py']),
+    for name, argv in [('guard', PY + ['tools/check_repo.py'] + (['--public'] if args.public else [])),
                        ('fmt', ['cargo', 'fmt', '--check']),
                        ('build', ['cargo', 'build', '--locked']),
                        ('clippy', ['cargo', 'clippy', '--locked', '--all-targets', '--', '-D', 'warnings'])]:
@@ -337,6 +341,7 @@ def verify(args, state, started, deadline):
     deferred = sorted(n for n, row in rows.items() if row['status'] == 'deferred')
     code = 1 if failures or not stable else 2 if deferred else 0
     report = dict(version=1, mode='thorough' if args.thorough else 'quick', seconds=time.monotonic() - started,
+                  repository_guard=guard_policy,
                   budget_seconds=None if args.thorough else args.budget, inputs_unchanged=stable,
                   input_fingerprint=digest(baseline), environment=environment, executable=binary,
                   checks=rows, failed=failures, deferred=deferred, outside_scope=excluded,
@@ -386,6 +391,7 @@ def verify(args, state, started, deadline):
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--thorough', action='store_true', help='Rerun every check without cache reuse or the quick budget')
+    parser.add_argument('--public', action='store_true', help='Use the explicit public structural guard for clones/CI; private policy is not evaluated')
     parser.add_argument('--jobs', type=int, default=min(4, os.cpu_count() or 2), choices=range(1, 9), help='Concurrent stages (default: up to 4; maximum: 8)')
     parser.add_argument('--budget', type=float, default=180, help='Total quick-run seconds, including builds (default: 180)')
     parser.add_argument('--only', help='Comma-separated Python test module names (test_ prefix, no path), or rust')

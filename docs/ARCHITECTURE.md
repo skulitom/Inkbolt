@@ -13,7 +13,8 @@ preserving their old Rust module paths as re-exports. Shared native pixel and ti
 geometry definitions feed storage, tiled rendering and capability reporting;
 independent tile-entry, byte, processing and work budgets remain separate.
 The generated [limit reference](LIMITS.md) is checked against every compiled
-catalog value. Inline-limit consolidation remains in progress under W0.
+catalog value. W0's source audit and Windows/Linux acceptance are complete;
+current ceilings remain unchanged and larger workload targets remain open.
 
 Tiled radial and twist filters use bounded source-dependency paths through filter
 stacks, parent containers and clipped siblings. Radial sample offsets are bounded

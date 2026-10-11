@@ -20,6 +20,13 @@ count as Linux feature passes.
 | Force a focused rerun | Add `--force` to a quick command |
 | Complete milestone acceptance | `python tools/verify.py --thorough` |
 | Staged publication check | `python tools/check_repo.py --staged` |
+| Explicit public-clone check | `python tools/verify.py --public` |
+
+The checked-in toolchain pins Rust 1.98.1, rustfmt and Clippy. Rust 1.89 is the
+verified compiler minimum for the locked dependency graph and current sources;
+use `cargo +1.89.0 check --locked --all-targets` for its separate compatibility
+check. Toolchain installation is setup work; keep it outside the routine check
+budget when provisioning a new machine.
 
 After changing `docs/features.json`, run `python tools/update_report.py` before
 verification. The dedicated `test_implementation_registry` module checks the
@@ -81,5 +88,16 @@ change. A regression check exercises these boundaries against the real checkout,
 including shared-helper edits and universal Rust-change invalidation.
 
 The candidate material guard always runs and is never cached. The staged guard reads actual indexed blobs in bounded Git batches, preserving path/type/size/encoding/private-content and forced-ignore checks. It does not substitute working-copy bytes, waive the private policy or bypass the commit hook.
+
+An explicit `--public` selects the same structural checks without reading the
+private pattern policy, for public clones and CI. Public reports identify
+`repository_guard.mode:"public_structural"` and
+`repository_guard.private_policy:"not_evaluated"`. Quick budgets, check selection
+and identical-pass rules are unchanged. Default verification still requires the
+private guard even after a successful public run; the guard itself is never
+reused. `check_repo.py --public` cannot combine with `--staged`, and the WSL
+development wrapper rejects public mode. Nothing switches modes based on CI
+environment variables or a missing policy. CI activation remains a separate
+owner-approved step in [FIX_PLAN.md](../FIX_PLAN.md).
 
 Console failure excerpts preserve the selected output encoding and escape characters it cannot represent. Raw per-check logs remain UTF-8. A failing test with Unicode output still produces its failure report and retry state; `--last-failed` reruns that check normally.

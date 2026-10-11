@@ -168,8 +168,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--distribution', default='Ubuntu')
     parser.add_argument('--python', default='python3.11')
+    parser.add_argument('--public', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--sync-package', type=Path, help=argparse.SUPPRESS)
     args, arguments = parser.parse_known_args()
+    if args.public:
+        parser.error('The WSL development mirror always requires the private guard; public clones use tools/verify.py --public directly')
     if args.sync_package:
         if sys.platform != 'linux':
             parser.error('Snapshot synchronization requires Linux')

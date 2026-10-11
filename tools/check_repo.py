@@ -24,14 +24,11 @@ def git(root, *args, input_data=None, allowed=(0,)):
 
 
 def local_patterns(root):
-    required = True
     path = Path(git(root, "rev-parse", "--git-path", "private-content-policy.json").decode().strip())
     if not path.is_absolute():
         path = root / path
     if not path.exists():
-        if required:
-            raise ValueError("Required Git-private content policy is missing.")
-        return []
+        raise ValueError("Required Git-private content policy is missing.")
     data = json.loads(path.read_text(encoding="utf-8"))
     patterns = data["patterns"]
     if not isinstance(patterns, list) or not patterns or any(not isinstance(p, str) or not p for p in patterns):
@@ -63,9 +60,11 @@ def inspect_file(name, content, patterns):
     return issues
 
 
-def check_repository(root=ROOT, staged=False):
+def check_repository(root=ROOT, staged=False, *, public=False):
+    if public and staged:
+        raise ValueError("Public structural checks cannot replace the private staged guard.")
     root = Path(root).resolve()
-    patterns = local_patterns(root)
+    patterns = [] if public else local_patterns(root)
     issues = []
     files = {}
     if staged:
@@ -131,19 +130,29 @@ def check_repository(root=ROOT, staged=False):
     return sorted(set(issues)), len(files)
 
 
-def main():
+def main(argv=None, *, root=ROOT):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--staged", action="store_true", help="Inspect actual index bytes, including forced additions")
-    args = parser.parse_args()
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--staged", action="store_true", help="Inspect actual index bytes, including forced additions")
+    mode.add_argument("--public", action="store_true", help="Check public structure only; never evaluates private policy or authorizes a commit")
+    args = parser.parse_args(argv)
+    count = None
     try:
-        issues, count = check_repository(staged=args.staged)
+        issues, count = check_repository(root, staged=args.staged, public=args.public)
     except (ValueError, KeyError, OSError, re.error) as error:
-        raise SystemExit(f"Repository material check failed: {error}") from error
+        if not args.public:
+            raise SystemExit(f"Repository material check failed: {error}") from error
+        issues = [f"Repository material check failed: {error}"]
+    if args.public:
+        print(json.dumps(dict(ok=not issues, mode="public_structural", scope="candidate",
+                              private_policy="not_evaluated", checked_files=count, issues=issues)))
+        return int(bool(issues))
     if issues:
         raise SystemExit("\n".join(issues))
     scope = "indexed files" if args.staged else "candidate files"
     print(f"Repository material check passed ({count} {scope}; private material excluded).")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
