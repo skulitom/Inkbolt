@@ -95,7 +95,13 @@ sweep compares intersecting UTF-16 runs using resolved face names, preserving
 missing values and unrecognized fields as explicit limitations. Global-only
 feature switches cannot disappear into cache defaults. Compact summaries and
 partial run fingerprints never certify full style or rendering agreement.
-Incoming editable text and global story reconstruction remain open.
+`text_import` adds explicit editable point reconstruction for admitted authoring
+records. Strict geometry/style converters select complete local or indexed global
+source, validate fonts and shaping, convert UTF-16 ranges, and retain native point
+placement with a fixed-zero engine baseline. Global story/frame coverage is checked
+across all layers before accepting the table. Linked masks are rebased; nested
+objects share the caller's bindings. Unknown native saved tables and the full
+incoming-text acceptance remain open. See [the import contract](LAYERED_TEXT_IMPORT.md).
 
 `presets` provides pure versioned screen and physical-page recipes over the
 existing document, artboard, logical-canvas and publication contracts. Explicit

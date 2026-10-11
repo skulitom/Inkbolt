@@ -16,11 +16,16 @@ against the original fixture and an independent calculation. See
 [the acceptance audit](NATIVE_VECTOR_ACCEPTANCE.md).
 
 The remaining original checkpoints cover extended curve combinations, extended
-native vector interchange, page interchange, large/extreme-scale vector
-resources and extended layered raster interchange. All 167 original acceptance
+native vector interchange, page interchange and extended layered raster
+interchange. All 167 original acceptance
 criteria remain unchanged. The separate [agent-readiness plan](AGENT_READINESS.md)
 still requires its remaining scale, model-trial, comparison and final workflow
 evidence; the engine percentage does not measure completion of that goal.
+
+An explicit [editable point-text import](LAYERED_TEXT_IMPORT.md) now reconstructs
+the admitted local/global authoring subset with pinned fonts, retained baselines,
+groups, masks and nested sources. Unknown native tables and inherited styles
+still fail; the original extended raster checkpoint is unchanged.
 
 ## Earlier implementation milestones
 

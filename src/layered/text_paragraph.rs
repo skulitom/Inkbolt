@@ -91,9 +91,9 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
 ];
 
 pub(super) struct Paragraphs {
-    styles: Styles,
-    absent_properties: usize,
-    run_ends_without_carriage_return: usize,
+    pub styles: Styles,
+    pub absent_properties: usize,
+    pub run_ends_without_carriage_return: usize,
 }
 impl Paragraphs {
     fn new() -> Self {

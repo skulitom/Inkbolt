@@ -58,8 +58,12 @@ Snapshot edits and ordinary exports return data. `document.publish` and `session
 of flat layers, closed RGB paths and shared artboards, with explicit color
 interpretation and loss reporting. [Editable native delivery](docs/NATIVE_VECTOR_DELIVERY.md)
 adds original text output for the declared layer/path/artboard subset, including
-safe publication and native save/reopen comparisons. Complete interchange and
-both original native checkpoints remain unfinished.
+safe publication and native save/reopen comparisons. The original basic native
+vector checkpoint is verified; extended native interchange remains unfinished.
+
+Explicit [layered point-text import](docs/LAYERED_TEXT_IMPORT.md) reconstructs a
+bounded local/global authoring subset into editable text with chosen pinned fonts.
+General native saved text and the original extended raster checkpoint remain open.
 
 The engine covers vector geometry, typography, artboards, retained raster edits, masks, effects, color, print preparation and bounded interchange. Each capability has specific limits and unsupported cases; the registry's verified status applies to those exact acceptance criteria.
 

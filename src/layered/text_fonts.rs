@@ -16,6 +16,15 @@ pub struct TextFonts {
     pub bindings: Vec<TextFontBinding>,
     #[serde(default)]
     pub font_root: Option<PathBuf>,
+    /// Explicitly choose editable engine layout for the admitted text subset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reconstruction: Option<TextImportReconstruction>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TextImportReconstruction {
+    EngineLayout,
 }
 
 fn valid_name(name: &str) -> bool {

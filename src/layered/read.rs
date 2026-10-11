@@ -1,6 +1,12 @@
 use super::{binary::*, *};
 use std::collections::BTreeSet;
 
+#[derive(Clone, Copy)]
+pub(super) struct Options<'a> {
+    pub embedded_objects: Option<EmbeddedObjects>,
+    pub text_fonts: Option<&'a TextFonts>,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Pixel,
@@ -19,6 +25,7 @@ struct Layer {
     kind: Kind,
     mask: Option<super::mask::Record>,
     placement: Option<super::objects::Placement>,
+    text: Option<super::text_import::Prepared>,
 }
 impl Layer {
     fn identity(&self, index: usize) -> String {
@@ -33,9 +40,10 @@ fn record(
     ignored: &mut BTreeSet<String>,
     control: &Control,
     version: Version,
-    embedded_objects: Option<EmbeddedObjects>,
+    options: Options<'_>,
     global_tail: &Reader<'_>,
 ) -> Result<Layer, Error> {
+    let embedded_objects = options.embedded_objects;
     let bounds = [
         input.signed()?,
         input.signed()?,
@@ -112,6 +120,7 @@ fn record(
         kind: Kind::Pixel,
         mask,
         placement: None,
+        text: None,
     };
     let mut unicode_name = None;
     let mut keys = BTreeSet::new();
@@ -134,13 +143,23 @@ fn record(
         let count = data.left();
         match &key {
             b"TySh" => {
-                let details =
-                    super::text_record::diagnose(&mut data, global_tail, version, control)?;
-                let mut error = unsupported(
-                    "Editable native text requires font binding, authoritative story reconciliation and layout reconstruction that are not yet implemented. Preserve the source; cached text pixels are not substituted for editable text. Details describe local and selected global story framing and references, not whole-file or layout validation.",
-                );
-                error.details = Some(Box::new(details));
-                return Err(error);
+                if let Some(fonts) = options.text_fonts.filter(|f| f.reconstruction.is_some()) {
+                    layer.text = Some(super::text_import::prepare(
+                        &mut data,
+                        global_tail,
+                        version,
+                        fonts,
+                        control,
+                    )?);
+                } else {
+                    let details =
+                        super::text_record::diagnose(&mut data, global_tail, version, control)?;
+                    let mut error = unsupported(
+                        "Editable native text requires explicit text_fonts bindings and reconstruction:engine_layout for the admitted point-text subset. Preserve the source; cached text pixels are not substituted for editable text. Details describe local and selected global story framing and references, not whole-file or layout validation.",
+                    );
+                    error.details = Some(Box::new(details));
+                    return Err(error);
+                }
             }
             b"PlLd" | b"plLd" | b"SoLd" | b"SoLE" => {
                 if embedded_objects.is_none() {
@@ -287,6 +306,9 @@ fn record(
     if layer.placement.is_some() && layer.kind != Kind::Pixel {
         return Err(malformed());
     }
+    if layer.text.is_some() && (layer.kind != Kind::Pixel || layer.placement.is_some()) {
+        return Err(malformed());
+    }
     if flags & 1 != 0 && !layer.locked {
         return Err(unsupported(
             "Transparency-only locking has no whole-item lock equivalent",
@@ -365,11 +387,12 @@ pub(super) fn document(
     bytes: &[u8],
     id: String,
     policy: assets::ColorPolicy,
-    embedded_objects: Option<EmbeddedObjects>,
+    options: Options<'_>,
     control: &Control,
     depth: usize,
     budget: &mut DecodeBudget,
 ) -> Result<Value, Error> {
+    let embedded_objects = options.embedded_objects;
     if depth > crate::objects::MAX_NESTING {
         return Err(limit("Embedded layered sources exceed four levels"));
     }
@@ -559,7 +582,7 @@ pub(super) fn document(
             &mut ignored,
             control,
             version,
-            embedded_objects,
+            options,
             &section,
         )
         .map_err(|e| context(e, "Layer record"))?;
@@ -596,6 +619,8 @@ pub(super) fn document(
         return Err(limit("Layered input exceeds 256 editable items"));
     }
     let mut items = Vec::new();
+    let mut fonts = std::collections::BTreeMap::new();
+    let mut text_receipts = Vec::new();
     let mut cache_hashes = std::collections::BTreeMap::new();
     for (index, r) in records.iter().enumerate() {
         control.check()?;
@@ -627,8 +652,13 @@ pub(super) fn document(
         if r.kind == Kind::Boundary {
             continue;
         }
-        if r.placement.is_some() {
+        if r.placement.is_some() || r.text.is_some() {
             cache_hashes.insert(r.identity(index), assets::sha256(&rgba));
+        }
+        if convert && r.text.is_some() {
+            return Err(unsupported(
+                "Editable text currently requires an explicit working-sRGB interpretation; profile-space text paint conversion remains unsupported",
+            ));
         }
         if convert && r.kind == Kind::Pixel {
             let mut values = rgba.iter().map(|v| *v as f64 / 255.0).collect::<Vec<_>>();
@@ -655,7 +685,26 @@ pub(super) fn document(
             Kind::Group { isolated } => json!({"type":"group","isolated":isolated}),
             Kind::Boundary => unreachable!(),
         };
-        let item:Item=serde_json::from_value(json!({"id":r.identity(index),"parent":parents[index],"name":r.name,"visible":r.visible,"locked":r.locked,"opacity":r.opacity as f64/255.0,"fill_opacity":r.fill as f64/255.0,"transform":[1,0,0,1,r.bounds[1],r.bounds[0]],"mask":mask,"content":content})).map_err(|_|malformed())?;
+        let mut item:Item=serde_json::from_value(json!({"id":r.identity(index),"parent":parents[index],"name":r.name,"visible":r.visible,"locked":r.locked,"opacity":r.opacity as f64/255.0,"fill_opacity":r.fill as f64/255.0,"transform":[1,0,0,1,r.bounds[1],r.bounds[0]],"mask":mask,"content":content})).map_err(|_|malformed())?;
+        if let Some(text) = &r.text {
+            if let Some(mask) = &mut item.mask
+                && mask.linked
+            {
+                mask.transform = crate::geometry::relative_transform(
+                    text.transform,
+                    &[item.transform, mask.transform],
+                )?;
+            }
+            item.transform = text.transform;
+            item.content = Content::Text {
+                frame: Box::new(text.frame.clone()),
+            };
+            fonts.extend(text.fonts.clone());
+            let mut receipt = text.receipt.clone();
+            receipt["item_id"] = json!(item.id);
+            receipt["cached_rgba_sha256"] = json!(cache_hashes.get(&item.id));
+            text_receipts.push(receipt);
+        }
         items.push(item);
     }
     layers
@@ -672,7 +721,15 @@ pub(super) fn document(
         overlay.zero_padding(3)?;
         ignored.insert("global_mask:per_layer_display_overlay".into());
     }
-    let sources = super::metadata::global(&mut section, &mut ignored, control, version)?;
+    let reconstructed_text =
+        super::text_import::complete_references(records.iter().filter_map(|r| r.text.as_ref()))?;
+    let sources = super::metadata::global(
+        &mut section,
+        &mut ignored,
+        control,
+        version,
+        reconstructed_text,
+    )?;
     let (merged, padding) = binary::decode_padded(
         input.take(input.left())?,
         width as usize,
@@ -705,7 +762,7 @@ pub(super) fn document(
             source.bytes,
             format!("embedded-{}", source_receipts.len() + 1),
             policy,
-            embedded_objects,
+            options,
             control,
             depth + 1,
             budget,
@@ -725,7 +782,7 @@ pub(super) fn document(
             "snapshot_sha256":assets::sha256(snapshot.as_bytes()),"width":d.width,"height":d.height,
             "resolution_ppi":d.resolution_ppi,"interpretation":imported["interpretation"],
             "omitted_nonappearance_records":imported["omitted_nonappearance_records"],"embedded_zero_padding":imported["embedded_zero_padding"],
-            "nested_sources":imported["embedded_sources"]}));
+            "nested_sources":imported["embedded_sources"],"text":imported["text"]}));
         snapshots.insert(
             source_id.clone(),
             (snapshot, d.width, d.height, d.resolution_ppi),
@@ -782,11 +839,15 @@ pub(super) fn document(
             "cached_rgba_sha256":cache_hashes.get(&item.id),"cache_used_for_editable_reconstruction":false,
             "sampling":options.sampling,"sharing":options.sharing}));
     }
-    let document:Document=serde_json::from_value(json!({"schema_version":2,"id":id,"kind":"raster","width":width,"height":height,"resolution_ppi":resolution,"color_space":"srgb","items":items})).map_err(|_|malformed())?;
+    let document:Document=serde_json::from_value(json!({"schema_version":2,"id":id,"kind":"raster","width":width,"height":height,"resolution_ppi":resolution,"color_space":"srgb","items":items,"fonts":fonts})).map_err(|_|malformed())?;
     crate::validate(&document)?;
     control.check()?;
     let mut result = json!({"document":document,"format":if version==Version::Large{"layered_rgb_v2"}else{"layered_rgb_v1"},"file_version":version.number(),"layers":editable,"serialized_records":records.len(),"masked_items":records.iter().filter(|r|r.mask.is_some()).count(),"groups":records.iter().filter(|r|matches!(r.kind,Kind::Group{..})).count(),"source_profile_sha256":profile.as_ref().map(|v|assets::sha256(v)),"interpretation":if convert{"converted_srgb_per_layer"}else if profile.is_some(){"declared_working_srgb"}else{"assumed_srgb"},"merged_cache":{"sample_sha256":assets::sha256(&merged),"used_for_editable_reconstruction":false},"resolution_declared":density_declared,"omitted_nonappearance_records":ignored,"losses":["Creates new layer identities from numeric file IDs; preserves native pixel extents, sibling order, folder hierarchy, Unicode names, visibility, opacity and supported full locks. Folder expansion state is listed as omitted UI metadata. No file is overwritten.","The merged cache is decoded and validated but editable appearance is recomputed from layers. Descriptive/UI/thumbnail records listed in the receipt are not imported as trusted document metadata.","Explicit conversion to working sRGB changes layer RGB before compositing, preserves alpha and can change profile-space blending. It is not a promise of cross-consumer composite equality."]});
     result["embedded_zero_padding"] = json!(padding);
+    if !text_receipts.is_empty() {
+        result["losses"].as_array_mut().unwrap().push(json!("Text is reconstructed with explicitly chosen pinned fonts and engine shaping, metrics and antialiasing. Native point baselines are retained; the visible, unwrapped engine frame has a nominal one-pixel extent. Source glyph caches and inherited layout are not used. RGB fills are quantized to eight bits. Native layout or pixel equality is not promised."));
+    }
+    result["text"] = json!(text_receipts);
     result["embedded_sources"] = json!(source_receipts);
     result["embedded_placements"] = json!(placement_receipts);
     if !sources.is_empty() {

@@ -165,7 +165,9 @@ pub(super) fn prepare(
     let Content::Text { frame } = &item.content else {
         return Err(malformed());
     };
-    if frame.first_baseline.is_some() {
+    if frame.first_baseline.is_some_and(|first| {
+        frame.wrap || first.metric != text::FirstBaselineMetric::Fixed || first.minimum != 0.0
+    }) {
         return Err(unsupported("Explicit first-baseline controls require a native authoring mapping before layered delivery").at_item(&item.id));
     }
     if frame.path.is_some()

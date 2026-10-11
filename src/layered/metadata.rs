@@ -120,6 +120,7 @@ pub(super) fn global<'a>(
     ignored: &mut BTreeSet<String>,
     control: &Control,
     version: Version,
+    reconstructed_text: bool,
 ) -> Result<std::collections::BTreeMap<String, super::objects::Source<'a>>, Error> {
     let mut keys = BTreeSet::new();
     let mut sources = std::collections::BTreeMap::new();
@@ -151,6 +152,8 @@ pub(super) fn global<'a>(
                     return Err(malformed());
                 }
             }
+        } else if key == *b"Txt2" && reconstructed_text {
+            data.take(data.left())?;
         } else {
             global_record(&key, &mut data, control).map_err(|mut error| {
                 error.message = format!(
@@ -165,7 +168,7 @@ pub(super) fn global<'a>(
         if input.take((4 - count % 4) % 4)?.iter().any(|&b| b != 0) {
             return Err(malformed());
         }
-        if !matches!(&key, b"lnkD" | b"lnk2" | b"lnk3") {
+        if !matches!(&key, b"lnkD" | b"lnk2" | b"lnk3" | b"Txt2") {
             ignored.insert(format!("global:{}", String::from_utf8_lossy(&key)));
         }
     }

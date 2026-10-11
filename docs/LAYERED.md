@@ -9,7 +9,9 @@ signed 32-bit integer. The minimum signed integer is excluded because a receivin
 writer can damage it on save. Export refuses out-of-range values before delivery.
 See [character geometry](FONT_CONTROLS.md#character-geometry).
 
-Native editable text import remains unsupported; explicit text delivery is described below. When `layered.import`
+Explicit [editable point-text import](LAYERED_TEXT_IMPORT.md) is available for a
+bounded authoring subset with chosen fonts and declared engine layout differences.
+General native saved text remains unsupported; explicit text delivery is described below. When `layered.import`
 encounters a recognized text record, its `UNSUPPORTED_LAYERED_SEMANTICS` error can
 include `details.kind:"native_text_requirements"`. This reports character/UTF-16
 counts, style/paragraph run counts, referenced face names, affine placement and a
@@ -38,6 +40,8 @@ bindings are counted but their files are not read. Pixel-only imports use no
 font bindings. Cancellation and source-hash checks precede resource reads.
 
 A valid choice adds `details.font_bindings` to the unsupported-text diagnostic.
+Adding `reconstruction:"engine_layout"` opts into the separately documented
+point-text import subset; bindings alone retain diagnostic behavior.
 Its `chosen_bindings_sha256` binds the referenced face-name-to-descriptor map
 using compact sorted-key JSON, independent of binding order and unused entries.
 `chosen_resources_validated:true` applies only to the first native text record
@@ -244,11 +248,12 @@ The native consumer chooses interpolation and edge coverage after editing or rec
 
 Only independently retained working-sRGB sources with fully mapped editable semantics are delivered. External object links, HDR views, descriptive metadata inside a source, source filters/effects, unmapped resources and source pixel resampling fail. Text requires the additional policy below, including in nested sources. Strip metadata explicitly from a source copy before placing it; stripping the outer document does not authorize changing retained snapshots. Supported object masks remain separate authored planes and need an integer document-space placement; no mask resampling is implicit.
 
-Delivery keeps the per-document canvas, item and stored-pixel limits, including object caches and masks in the 65,536 stored-pixel total. Nested delivery also bounds decoded logical samples to 8 MiB, editable items to 1,024, aggregate native source payloads to 32 MiB and nesting to four. Each source-table record is zero-aligned; incoming padding must be absent or exactly the required all-zero alignment. Cancellation and create-only publication apply to every nested source. Larger axes, editable text, additional group/mask semantics and the original extended acceptance remain open.
+Delivery keeps the per-document canvas, item and stored-pixel limits, including object caches and masks in the 65,536 stored-pixel total. Nested delivery also bounds decoded logical samples to 8 MiB, editable items to 1,024, aggregate native source payloads to 32 MiB and nesting to four. Each source-table record is zero-aligned; incoming padding must be absent or exactly the required all-zero alignment. Cancellation and create-only publication apply to every nested source. Larger axes, general native text, additional group/mask semantics and the original extended acceptance remain open.
 
 ## Explicit editable text delivery
 
-Explicit `frame.first_baseline` controls currently require an additional native
+Except for the fixed-zero, unwrapped point form used by editable import,
+explicit `frame.first_baseline` controls currently require an additional native
 authoring mapping and are rejected for this delivery format. Retain them in an
 engine snapshot or use an output that renders the shared frame layout.
 
@@ -264,4 +269,4 @@ Layer opacity, fill opacity, supported scalar masks and grouping remain separate
 
 `layered.text` receipts identify each source item, text hash, character/UTF-16 counts, point/paragraph shape, supplied owner, source frame, native matrix and pinned font descriptors/names. They explicitly report `native_layout_equality:false`, `recipient_file_identity_pinned:false` per face and external fonts. Nested receipts and losses remain with the embedded-source receipt. Source documents/files remain unchanged. Publication is create-only; CLI, MCP, preflight and durable jobs share this contract.
 
-Text allows at most 4,096 characters, 65 character runs after inserting default gaps, 65 paragraphs and a 64 KiB native text record. Caches and masks share the existing 65,536 stored-pixel and 8 MiB nested decoded-sample budgets. Independent original byte fixtures test ranges, Unicode, fonts, affine placement, caches and durable workflows. Native point/paragraph reopen-and-edit evidence is retained privately. Editable incoming text, global story semantics, further style/layout mappings and the original extended checkpoint remain open; this unit adds no checkpoint credit.
+Text allows at most 4,096 characters, 65 character runs after inserting default gaps, 65 paragraphs and a 64 KiB native text record. Caches and masks share the existing 65,536 stored-pixel and 8 MiB nested decoded-sample budgets. Independent original byte fixtures test ranges, Unicode, fonts, affine placement, caches and durable workflows. Native point/paragraph reopen-and-edit evidence is retained privately. The separate point-text import subset does not establish general native saved-text interoperability. Further global story/style/layout mappings and the original extended checkpoint remain open; this unit adds no checkpoint credit.

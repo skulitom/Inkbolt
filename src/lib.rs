@@ -1590,7 +1590,7 @@ fn capability_report() -> Value {
         "unsupported":["external_links","aliases","selected_layer_comps","animation","active_warps","perspective","non_layered_sources","unknown_descriptor_fields"]
     });
     capabilities["layered_interchange"]["text_diagnostics"] = json!({
-        "status":"unsupported_import_with_structural_diagnostics",
+        "status":"structural_diagnostics;explicit_bounded_point_import_available",
         "error_details":"native_text_requirements;first_local_record_and_its_selected_global_story;not_a_complete_import",
         "checks":["descriptor_framing","bounded_text_data_syntax","matching_local_text_sources","utf16_run_boundaries","explicit_run_font_references","global_tag_framing","explicit_global_story_index","selected_global_story_run_references","local_global_text_comparison","selected_global_frame_reference","point_or_rectangular_frame_geometry","separate_frame_transform","first_baseline_control","known_character_control_types","local_global_character_control_comparison","known_paragraph_control_types","local_global_paragraph_control_comparison"],
         "limits":{"record_bytes":65536,"data_values":4096,"data_depth":16,"container_entries":512,"string_bytes":16388,"runs":65,"referenced_fonts":8},
@@ -1603,10 +1603,22 @@ fn capability_report() -> Value {
         "paragraph_controls":{"scope":"explicit_observed_controls_only;no_inheritance_or_defaults","comparison":"matching_text_utf16_spans;independent_run_partitions;source_numeric_values","triples":"exactly_three_finite_numbers;no_justification_conversion","legacy_hyphen_limit":"global_limit_and_local_code_reported_separately;conversion_unvalidated","missing_property_containers":"counted_without_defaulting","paragraph_boundaries":"carriage_return_run_end_counts_only;semantics_unvalidated","unmapped_fields_reported":16,"complete_style_semantics_validated":false},
         "shape_owner_labels":"at_most_eight_bounded_untrusted_identifiers;not_geometry_validation",
         "compatibility_markers":"optional_boolean_and_bounded_enum_source_data;untrusted;semantics_not_validated",
-        "editable_text_import":false,"editable_text_export":true
+        "editable_text_import":true,"editable_text_import_scope":"explicit_point_subset;see_text_import","editable_text_export":true
+    });
+    capabilities["layered_interchange"]["text_import"] = json!({
+        "status":"explicit_bounded_engine_layout_reconstruction;original_extended_checkpoint_open",
+        "option":"text_fonts.reconstruction","reconstruction":"engine_layout",
+        "sources":["explicit_local_authoring_without_global_table","explicit_selected_global_authoring"],
+        "frames":"single_line_horizontal_left_aligned_point;fixed_zero_baseline;visible_unwrapped_nominal_1x1_frame",
+        "fonts":"required_content_pinned_static_outline_fonts_and_retained_licenses;exact_face_names;no_installed_lookup",
+        "styles":["utf16_ranges","opaque_solid_rgb_quantized_to_eight_bits","size","tracking","uniform_explicit_leading","character_scales","baseline_shift","kern_liga_dlig"],
+        "references":"every_global_story_and_frame_exactly_once;no_stale_local_fallback",
+        "caches":"decoded_and_hashed;never_source","native_layout_equality":false,
+        "unsupported":["inherited_or_unmapped_controls","general_native_saved_global_tables","paragraph_or_multiline_text","linked_frames","other_features","manual_or_optical_global_kerning","warps","separate_frame_transforms","legacy_markers","native_antialias_modes","profile_conversion","variable_fonts","missing_glyphs_or_requested_features"],
+        "contract":"docs/LAYERED_TEXT_IMPORT.md"
     });
     capabilities["text_character_geometry"] = json!({"style_controls":["horizontal_scale","vertical_scale","baseline_shift"],"scale_range":[0.01,10.0],"scale_default":1,"baseline_shift_range":[-32768,32768],"baseline_shift_default":0,"baseline_shift":"positive_moves_up_in_local_glyph_coordinates;does_not_change_line_spacing","tracking":"local_pixels_added_after_horizontal_glyph_scaling","metrics":"vertical_scale_applies_to_font_metrics_and_first_baseline_heights","contexts":["ordinary_frames","paths","linked_stories","generated_list_markers","generated_hyphens"],"retained":true,"native_delivery":"explicit_scales_and_shift;tracking_compensated_for_native_horizontal_scale;recipient_layout_not_identical"});
-    capabilities["text_first_baseline"] = json!({"option":"text.frame.first_baseline","metrics":["ascent","cap_height","x_height","leading","fixed"],"minimum":"finite_0_to_32768_local_pixels","default":"existing_font_ascent_placement","font_metrics":"contributing_first_line_instances_and_base_style;cap_and_x_height_require_positive_font_metrics;no_fallback_guess","placement":"uniform_translation_of_all_lines;frame_origin_and_clip_unchanged","retained":true,"unsupported":["path_text","linked_story_controls","native_layered_delivery"]});
+    capabilities["text_first_baseline"] = json!({"option":"text.frame.first_baseline","metrics":["ascent","cap_height","x_height","leading","fixed"],"minimum":"finite_0_to_32768_local_pixels","default":"existing_font_ascent_placement","font_metrics":"contributing_first_line_instances_and_base_style;cap_and_x_height_require_positive_font_metrics;no_fallback_guess","placement":"uniform_translation_of_all_lines;frame_origin_and_clip_unchanged","retained":true,"native_layered_delivery":"fixed_zero_unwrapped_points_only","unsupported":["path_text","linked_story_controls","other_native_first_baseline_controls"]});
     capabilities["layered_interchange"]["text_delivery"] = json!({
         "status":"explicit_native_layout_reconstruction;bounded_subset",
         "option":"layered_options.text",
@@ -1618,9 +1630,9 @@ fn capability_report() -> Value {
         "placement":"affine_world_matrix;point_origin_includes_source_first_baseline;paragraph_box_local",
         "tracking":"compensated_for_horizontal_scale;magnitude_at_most_2147483647_integer_thousandths_em;nearest_ties_away_from_zero;changed_values_in_receipt",
         "caches":"separate_engine_rendered_pixels;never_editable_source",
-        "native_layout_equality":false,"recipient_font_file_identity_pinned":false,"editable_import":false,
+        "native_layout_equality":false,"recipient_font_file_identity_pinned":false,"editable_import":"explicit_point_subset",
         "limits":{"characters":text::MAX_TEXT_CHARS,"runs":65,"paragraphs":65,"font_faces_across_nested_sources":fonts::MAX_FONTS,"text_record_bytes":65536},
-        "unsupported":["font_fallback","variable_fonts","non_TrueType_outlines","language_controls","text_paths","unicode_bidi","non_left_alignment","character_alpha_or_non_solid_paint","other_features","point_clipping","paragraph_visible_overflow","explicit_first_baseline_controls"]
+        "unsupported":["font_fallback","variable_fonts","non_TrueType_outlines","language_controls","text_paths","unicode_bidi","non_left_alignment","character_alpha_or_non_solid_paint","other_features","point_clipping","paragraph_visible_overflow","explicit_first_baseline_controls_except_fixed_zero_points"]
     });
     capabilities["native_sample_store_library"] = json!({
         "status":"integrated_native_import_local_patch_edits_and_bounded_view_rendering;scale_gate_open",

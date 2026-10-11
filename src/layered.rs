@@ -9,6 +9,9 @@ mod read;
 mod text_data;
 mod text_fonts;
 mod text_frame;
+mod text_import;
+mod text_import_geometry;
+mod text_import_style;
 mod text_paint;
 mod text_paragraph;
 mod text_record;
@@ -22,7 +25,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
-pub use text_fonts::{TextFontBinding, TextFonts};
+pub use text_fonts::{TextFontBinding, TextFonts, TextImportReconstruction};
 pub const MAX_FILE_BYTES: usize = 32 * 1024 * 1024;
 pub const MAX_DECODED_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_CANVAS_PIXELS: usize = 1_048_576;
@@ -202,19 +205,30 @@ pub fn import_with_text_fonts(
             "Layered source bytes do not match the declared SHA-256",
         ));
     }
-    let mut result = decode_with_objects(&bytes, id, color_policy, embedded_objects, control)
-        .map_err(|mut error| {
-            if let Some(fonts) = text_fonts
-                && let Some(details) = &mut error.details
-                && details["kind"] == "native_text_requirements"
-            {
-                match fonts.diagnose(details, control) {
-                    Ok(report) => details["font_bindings"] = report,
-                    Err(binding_error) => return binding_error,
-                }
+    let mut result = read::document(
+        &bytes,
+        id,
+        color_policy,
+        read::Options {
+            embedded_objects,
+            text_fonts,
+        },
+        control,
+        0,
+        &mut DecodeBudget::default(),
+    )
+    .map_err(|mut error| {
+        if let Some(fonts) = text_fonts
+            && let Some(details) = &mut error.details
+            && details["kind"] == "native_text_requirements"
+        {
+            match fonts.diagnose(details, control) {
+                Ok(report) => details["font_bindings"] = report,
+                Err(binding_error) => return binding_error,
             }
-            error
-        })?;
+        }
+        error
+    })?;
     result["source_sha256"] = json!(hash);
     result["source_bytes"] = json!(bytes.len());
     result["source_changed"] = json!(false);
@@ -243,7 +257,10 @@ pub fn decode_with_objects(
         bytes,
         id,
         color_policy,
-        embedded_objects,
+        read::Options {
+            embedded_objects,
+            text_fonts: None,
+        },
         control,
         0,
         &mut DecodeBudget::default(),

@@ -3,7 +3,7 @@
 use super::{binary::Reader, text_data::Node, *};
 use std::collections::BTreeSet;
 
-fn payload<'a>(
+pub(super) fn payload<'a>(
     tail: &Reader<'a>,
     version: Version,
     control: &Control,
@@ -42,7 +42,7 @@ fn payload<'a>(
     Ok(found)
 }
 
-fn runs<'a>(
+pub(super) fn runs<'a>(
     authoring: &'a Node,
     key: &str,
     boundaries: &BTreeSet<usize>,
