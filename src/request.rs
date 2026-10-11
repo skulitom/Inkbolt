@@ -59,10 +59,13 @@ fn load_file(
             reference.file_path
         }
     };
-    if path.as_os_str().len() > 4096 {
+    if path.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
         return Err(Error::new(
             "RESOURCE_LIMIT",
-            "Document file path exceeds 4096 characters",
+            format!(
+                "Document file path exceeds {} characters",
+                crate::limits::paths::MAX_PATH_UNITS
+            ),
         ));
     }
     let bytes =

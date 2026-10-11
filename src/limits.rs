@@ -121,6 +121,10 @@ pub mod channels {
 
 /// Limits for `src/checks.rs`.
 pub mod checks {
+    /// Default number of document issues requested by an agent.
+    pub const DEFAULT_ISSUES: usize = 64;
+    /// Reserve for report metadata outside the collected issue records.
+    pub const REPORT_ENVELOPE_BYTES: usize = 8192;
     /// Max issues (checks).
     pub const MAX_ISSUES: usize = 256;
     /// Max report bytes (checks).
@@ -141,6 +145,12 @@ pub mod color_adjustments {
 
 /// Limits for `src/contact_sheets.rs`.
 pub mod contact_sheets {
+    /// Maximum thumbnail columns in a contact sheet.
+    pub const MAX_COLUMNS: u32 = 8;
+    /// Maximum pixels along a single thumbnail axis.
+    pub const MAX_CELL_AXIS: u32 = 512;
+    /// Maximum pixel gap between thumbnails.
+    pub const MAX_GAP: u32 = 64;
     /// Max views (contact sheets).
     pub const MAX_VIEWS: usize = 16;
     /// Max pixels (contact sheets).
@@ -149,6 +159,8 @@ pub mod contact_sheets {
 
 /// Limits for `src/control.rs`.
 pub mod control {
+    /// Maximum distinct cancellation markers inherited by a scoped request.
+    pub const MAX_CANCEL_FILES: usize = 4;
     /// Max timeout ms (control).
     pub const MAX_TIMEOUT_MS: u64 = 60_000;
 }
@@ -187,6 +199,8 @@ pub mod filters {
 
 /// Limits for `src/fonts.rs`.
 pub mod fonts {
+    /// Maximum face index admitted in a pinned font collection.
+    pub const MAX_FACE_INDEX: u32 = 255;
     /// Max font bytes (fonts).
     pub const MAX_FONT_BYTES: u64 = 8 * 1024 * 1024;
     /// Max fonts (fonts).
@@ -259,6 +273,14 @@ pub mod ink_recipes {
 
 /// Limits for `src/inspection.rs`.
 pub mod inspection {
+    /// Default number of records requested in a compact inspection page.
+    pub const DEFAULT_PAGE_ITEMS: usize = 32;
+    /// Maximum bytes in a content-bound inspection cursor.
+    pub const MAX_CURSOR_BYTES: usize = 256;
+    /// Maximum requested fields, including the distinctness check.
+    pub const MAX_FIELDS: usize = 10;
+    /// Maximum entries in the independent inspection item-type filter.
+    pub const MAX_TYPE_FILTERS: usize = 20;
     /// Max page items (inspection).
     pub const MAX_PAGE_ITEMS: usize = 128;
     /// Max page bytes (inspection).
@@ -301,6 +323,8 @@ pub mod job_process {
 
 /// Limits for `src/jobs/listing.rs`.
 pub mod jobs_listing {
+    /// Default number of records requested from retained jobs.
+    pub const DEFAULT_PAGE_RECORDS: usize = 8;
     /// Max page records (jobs listing).
     pub const MAX_PAGE_RECORDS: usize = 32;
     /// Max page bytes (jobs listing).
@@ -311,12 +335,22 @@ pub mod jobs_listing {
 
 /// Limits for `src/jobs/store.rs`.
 pub mod jobs_store {
+    /// Maximum stored process/runtime description bytes.
+    pub const MAX_RUNTIME_BYTES: usize = 16 * 1024;
+    /// SQLite row allowance for job input, state and record overhead.
+    pub const MAX_SQL_ROW_BYTES: usize = super::jobs::MAX_INPUT_BYTES + super::jobs::MAX_STATE_BYTES + 16384;
+    /// Maximum schema records read, including an extra incompatible table.
+    pub const MAX_SCHEMA_RECORDS: usize = 4;
     /// Database bytes (jobs store).
     pub const DATABASE_BYTES: u64 = 512 * 1024 * 1024;
 }
 
 /// Limits for `src/jobs.rs`.
 pub mod jobs {
+    /// Maximum Unicode characters retained from a worker failure message.
+    pub const MAX_ERROR_CHARACTERS: usize = 1024;
+    /// Maximum UTF-8 bytes in a stored progress phase label.
+    pub const MAX_PHASE_BYTES: usize = 64;
     /// Longest synchronous wait on a saved job, in milliseconds.
     pub const MAX_WAIT_MS: u64 = 30_000;
     /// Cooperative cancellation interval before stopping the owned runner.
@@ -324,7 +358,7 @@ pub mod jobs {
     /// Maximum root path length under the existing platform string measure.
     pub const MAX_ROOT_LENGTH: usize = 4_000;
     /// Maximum explicit worker path length under the platform string measure.
-    pub const MAX_WORKER_PATH_LENGTH: usize = 4_096;
+    pub const MAX_WORKER_PATH_LENGTH: usize = super::paths::MAX_PATH_UNITS;
     /// Maximum nested documents visited for job resource verification.
     pub const MAX_RESOURCE_DOCUMENTS: usize = 512;
     /// Max jobs (jobs).
@@ -475,6 +509,10 @@ pub mod masks {
 
 /// Limits for `src/mcp.rs`.
 pub mod mcp {
+    /// Maximum tool definitions in a full-catalog page.
+    pub const PAGE: usize = 8;
+    /// Maximum UTF-8 bytes in a nonempty string request identifier.
+    pub const MAX_ID_BYTES: usize = 256;
     /// Max message bytes (mcp).
     pub const MAX_MESSAGE_BYTES: usize = super::request::MAX_REQUEST_BYTES as usize + 16384;
     /// Max response bytes (mcp).
@@ -517,6 +555,16 @@ pub mod meshes {
 
 /// Limits for `src/metadata.rs`.
 pub mod metadata {
+    /// Maximum metadata payload bytes in each emitted JPEG comment segment.
+    pub const JPEG_PART_BYTES: usize = 60000;
+    /// Maximum parts needed for the complete bounded metadata packet.
+    pub const MAX_JPEG_PARTS: usize = MAX_PACKET_BYTES.div_ceil(JPEG_PART_BYTES);
+    /// Maximum UTF-8 bytes in one descriptive metadata text value.
+    pub const MAX_TEXT_BYTES: usize = 8192;
+    /// Maximum tags or entries in either metadata property map.
+    pub const MAX_ENTRIES: usize = 64;
+    /// Maximum UTF-8 bytes in one nonempty metadata tag.
+    pub const MAX_TAG_BYTES: usize = 128;
     /// Max record bytes (metadata).
     pub const MAX_RECORD_BYTES: usize = 16 * 1024;
     /// Max document bytes (metadata).
@@ -527,6 +575,10 @@ pub mod metadata {
 
 /// Limits for `src/model.rs`.
 pub mod model {
+    /// Maximum ASCII bytes in a portable engine identifier.
+    pub const MAX_ID_BYTES: usize = 128;
+    /// Maximum UTF-8 bytes in an item or channel name.
+    pub const MAX_NAME_BYTES: usize = 1024;
     /// Max dimension (model).
     pub const MAX_DIMENSION: u32 = 32768;
     /// Max items (model).
@@ -559,6 +611,46 @@ pub mod objects {
     pub const MAX_NESTING: usize = 4;
     /// Max rendered objects (objects).
     pub const MAX_RENDERED_OBJECTS: usize = 32;
+}
+
+/// Runtime filesystem paths, measured by the platform's `OsStr::len` units.
+pub mod paths {
+    /// Maximum encoded path units; does not change host filesystem limits.
+    pub const MAX_PATH_UNITS: usize = 4096;
+}
+
+/// Independent request-list admission budgets for document queries.
+pub mod query {
+    /// Maximum entries in a query's item-type filter.
+    pub const MAX_TYPES: usize = 12;
+    /// Maximum entries in a query's geometry-kind filter.
+    pub const MAX_SHAPES: usize = 8;
+}
+
+/// Shared connection budgets for bounded local SQLite stores.
+pub mod sqlite {
+    /// Storage-format page size used to derive every database page budget.
+    pub const PAGE_BYTES: u64 = 4096;
+    /// Maximum wait for another local database writer, in milliseconds.
+    pub const BUSY_TIMEOUT_MS: u64 = 250;
+    /// Connection page-cache allowance expressed in KiB.
+    pub const CACHE_KIB: u64 = 4096;
+    /// Maximum SQL bytes on receipt and job connections; sessions have their own.
+    pub const MAX_SQL_BYTES: usize = 16 * 1024;
+    /// Maximum columns on receipt and job connections; sessions have their own.
+    pub const MAX_COLUMNS: usize = 32;
+}
+
+/// Identifier construction during cross-document transfer.
+pub mod transfer {
+    /// Maximum prefix bytes, reserving space for generated object identifiers.
+    pub const MAX_PREFIX_BYTES: usize = 32;
+}
+
+/// Schema-guided resolution of workspace request arguments.
+pub mod workspace {
+    /// Maximum recursion depth while walking request schemas and values.
+    pub const MAX_ARGUMENT_DEPTH: usize = 128;
 }
 
 /// Limits for `src/paint.rs`.
@@ -669,6 +761,8 @@ pub mod profiles_gamut {
 
 /// Limits for `src/profiles.rs`.
 pub mod profiles {
+    /// Maximum colors in a device or elementary ink conversion batch.
+    pub const MAX_CONVERSION_SAMPLES: usize = 4096;
     /// Max profile bytes (profiles).
     pub const MAX_PROFILE_BYTES: usize = 256 * 1024;
     /// Max profile tags (profiles).
@@ -685,6 +779,10 @@ pub mod proof {
 
 /// Limits for `src/publications/store.rs`.
 pub mod publications_store {
+    /// SQLite row allowance for a receipt and record overhead.
+    pub const MAX_SQL_ROW_BYTES: usize = super::publications::MAX_RECEIPT_BYTES + 16384;
+    /// Maximum schema records read while rejecting incompatible tables.
+    pub const MAX_SCHEMA_RECORDS: usize = 3;
     /// Database bytes (publications store).
     pub const DATABASE_BYTES: u64 = 128 * 1024 * 1024;
 }
@@ -853,6 +951,8 @@ pub mod scene {
 
 /// Limits for `src/schema.rs`.
 pub mod schema {
+    /// Maximum UTF-8 bytes in a schema name or focused selector.
+    pub const MAX_SELECTOR_BYTES: usize = 128;
     /// Outline bytes (schema).
     pub const OUTLINE_BYTES: usize = 12 * 1024;
 }
@@ -889,6 +989,32 @@ pub mod sequences {
 
 /// Limits for `src/sessions.rs`.
 pub mod sessions {
+    /// Maximum receipts requested in one history page.
+    pub const MAX_PAGE_RECEIPTS: usize = 128;
+    /// Maximum exclusive filename reservations attempted for a new database.
+    pub const MAX_RESERVATION_ATTEMPTS: usize = 64;
+    /// Small test-only cache that makes interruption fixtures exercise disk writes.
+    pub const FAULT_CACHE_KIB: usize = 64;
+    /// Maximum serialized bytes in each undo or redo stack.
+    pub const MAX_STACK_BYTES: usize = 4096;
+    /// Maximum UTF-8 bytes in a retained edit-history label.
+    pub const MAX_LABEL_BYTES: usize = 512;
+    /// Maximum serialized provenance bytes in a continuation record.
+    pub const MAX_LINEAGE_BYTES: usize = 32 * 1024;
+    /// SQLite row allowance for a state and independent record overhead.
+    pub const MAX_SQL_ROW_BYTES: usize = MAX_STATE_BYTES + 65536;
+    /// Maximum bytes of SQL admitted by a session connection.
+    pub const MAX_SQL_BYTES: usize = 32 * 1024;
+    /// Maximum columns admitted by a session connection.
+    pub const MAX_SQL_COLUMNS: usize = 128;
+    /// Maximum SQL parameters admitted by a session connection.
+    pub const MAX_SQL_VARIABLES: usize = 32;
+    /// Maximum schema records read while rejecting incompatible tables.
+    pub const MAX_SCHEMA_RECORDS: usize = 16;
+    /// Pages copied per cancellable backup step.
+    pub const BACKUP_STEP_PAGES: usize = 256;
+    /// Fixed I/O buffer used while hashing or copying history backups.
+    pub const BACKUP_BUFFER_BYTES: usize = 65536;
     /// Max states (sessions).
     pub const MAX_STATES: usize = 256;
     /// Max requests (sessions).

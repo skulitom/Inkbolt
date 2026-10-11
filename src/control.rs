@@ -106,12 +106,12 @@ impl Control {
         if options.timeout_ms.is_some_and(|ms| ms > MAX_TIMEOUT_MS) {
             return Err(Error::new(
                 "INVALID_REQUEST",
-                "Timeout must be in 0..=60000 milliseconds",
+                format!("Timeout must be in 0..={MAX_TIMEOUT_MS} milliseconds"),
             ));
         }
         if let Some(path) = &options.cancel_file {
             crate::assets::absolute(path)?;
-            if path.as_os_str().len() > 4096 {
+            if path.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
                 return Err(Error::new(
                     "RESOURCE_LIMIT",
                     "Cancellation path is too long",
@@ -124,10 +124,13 @@ impl Control {
         {
             cancel_files.push(path.clone());
         }
-        if cancel_files.len() > 4 {
+        if cancel_files.len() > crate::limits::control::MAX_CANCEL_FILES {
             return Err(Error::new(
                 "RESOURCE_LIMIT",
-                "At most four scoped cancellation markers are supported",
+                format!(
+                    "At most {} scoped cancellation markers are supported",
+                    crate::limits::control::MAX_CANCEL_FILES
+                ),
             ));
         }
         let requested = options

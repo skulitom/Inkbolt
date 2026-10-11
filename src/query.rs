@@ -133,7 +133,9 @@ pub(crate) fn execute(
     if let Some(b) = query.anchor_bounds {
         valid_bounds(b)?;
     }
-    if query.types.len() > 12 || query.shapes.len() > 8 {
+    if query.types.len() > crate::limits::query::MAX_TYPES
+        || query.shapes.len() > crate::limits::query::MAX_SHAPES
+    {
         return Err(Error::new(
             "INVALID_REQUEST",
             "Query type/shape filters exceed available kinds",

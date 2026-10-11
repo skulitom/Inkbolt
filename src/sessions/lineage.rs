@@ -54,8 +54,11 @@ fn hash_valid(hash: &str) -> bool {
 }
 pub(super) fn save(db: &Connection, origin: &Origin) -> Result<(), Error> {
     let payload = encode(origin)?;
-    if payload.len() > 32768 {
-        return Err(limit("Session provenance exceeds 32 KiB"));
+    if payload.len() > bounds::MAX_LINEAGE_BYTES {
+        return Err(limit(&format!(
+            "Session provenance exceeds {} KiB",
+            bounds::MAX_LINEAGE_BYTES / 1024
+        )));
     }
     db.execute(
         "INSERT INTO lineage(id,payload,sha256) VALUES(1,?1,?2)",
@@ -83,7 +86,7 @@ pub(super) fn read(db: &Connection, session_id: &str) -> Result<Option<Origin>, 
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .map_err(sql)?;
-        if count > 1 || length > 32768 {
+        if count > 1 || length > bounds::MAX_LINEAGE_BYTES as i64 {
             return Err(corrupt("Session provenance exceeds its bound"));
         }
         let row = db

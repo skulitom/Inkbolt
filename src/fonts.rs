@@ -40,7 +40,9 @@ pub fn validate(font: &Font) -> Result<(), Error> {
             "Font and license identities must be lowercase SHA-256 hex",
         ));
     }
-    if !(1..=MAX_FONT_BYTES).contains(&font.bytes) || font.face_index > 255 {
+    if !(1..=MAX_FONT_BYTES).contains(&font.bytes)
+        || font.face_index > crate::limits::fonts::MAX_FACE_INDEX
+    {
         return Err(limit("Font descriptor exceeds byte or face-index limits"));
     }
     Ok(())

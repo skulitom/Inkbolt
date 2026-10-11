@@ -480,8 +480,11 @@ pub fn convert_with_gamut(
     gamut_mode: Option<gamut::Mode>,
     control: Option<&crate::control::Control>,
 ) -> Result<Value, Error> {
-    if values.len() > 4096 {
-        return Err(limit("Device conversion exceeds 4096 color samples"));
+    if values.len() > crate::limits::profiles::MAX_CONVERSION_SAMPLES {
+        return Err(limit(&format!(
+            "Device conversion exceeds {} color samples",
+            crate::limits::profiles::MAX_CONVERSION_SAMPLES
+        )));
     }
     if let Some(c) = control {
         c.check()?;

@@ -36,10 +36,11 @@ fn corrupt(message: &str) -> Error {
 }
 fn checked_path(path: &Path) -> Result<(), Error> {
     assets::absolute(path)?;
-    if path.as_os_str().len() > 4096 {
-        return Err(crate::model::limit(
-            "Publication path exceeds 4096 characters",
-        ));
+    if path.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
+        return Err(crate::model::limit(&format!(
+            "Publication path exceeds {} characters",
+            crate::limits::paths::MAX_PATH_UNITS
+        )));
     }
     Ok(())
 }

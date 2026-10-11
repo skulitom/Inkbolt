@@ -39,6 +39,12 @@ def catalog(source):
                 return value(key.rsplit('.', 1)[0] + '.' + node.id)
             if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
                 return value(node.value.id + '.' + node.attr)
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == 'div_ceil' and len(node.args) == 1 and not node.keywords):
+                numerator, denominator = read(node.func.value), read(node.args[0])
+                if type(numerator) is not int or type(denominator) is not int or numerator < 0 or denominator <= 0:
+                    raise ValueError('Unsupported unsigned ceiling division')
+                return (numerator + denominator - 1) // denominator
             if isinstance(node, ast.BinOp):
                 a, b = read(node.left), read(node.right)
                 if isinstance(node.op, ast.Add): return a + b

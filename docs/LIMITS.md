@@ -44,14 +44,20 @@ capability literals and diagnostic messages remains in progress.
 | `booleans_topology_algebraic_roots.MAX_ROOT_DEPTH` | `usize` | 96 | `96` |
 | `channels.MAX_CHANNELS` | `usize` | 16 | `16` |
 | `channels.MAX_SAMPLES` | `usize` | 262144 | `262_144` |
+| `checks.DEFAULT_ISSUES` | `usize` | 64 | `64` |
 | `checks.MAX_ISSUES` | `usize` | 256 | `256` |
 | `checks.MAX_REPORT_BYTES` | `usize` | 131072 | `128 * 1024` |
+| `checks.REPORT_ENVELOPE_BYTES` | `usize` | 8192 | `8192` |
 | `color_adjustments.MAX_DOCUMENT_LUT_ENTRIES` | `usize` | 65536 | `65536` |
 | `color_adjustments.MAX_LUT_1D` | `usize` | 4096 | `4096` |
 | `color_adjustments.MAX_LUT_3D_SIDE` | `u32` | 33 | `33` |
 | `color_adjustments.MAX_MAP_STOPS` | `usize` | 64 | `64` |
+| `contact_sheets.MAX_CELL_AXIS` | `u32` | 512 | `512` |
+| `contact_sheets.MAX_COLUMNS` | `u32` | 8 | `8` |
+| `contact_sheets.MAX_GAP` | `u32` | 64 | `64` |
 | `contact_sheets.MAX_PIXELS` | `u64` | 4194304 | `4_194_304` |
 | `contact_sheets.MAX_VIEWS` | `usize` | 16 | `16` |
+| `control.MAX_CANCEL_FILES` | `usize` | 4 | `4` |
 | `control.MAX_TIMEOUT_MS` | `u64` | 60000 | `60_000` |
 | `dimensions.MAX_WORK` | `usize` | 65536 | `65_536` |
 | `edit.MAX_OPERATIONS` | `usize` | 64 | `64` |
@@ -62,6 +68,7 @@ capability literals and diagnostic messages remains in progress.
 | `filters.MAX_STACK` | `usize` | 8 | `8` |
 | `filters.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `fonts.MAX_AXES` | `usize` | 16 | `16` |
+| `fonts.MAX_FACE_INDEX` | `u32` | 255 | `255` |
 | `fonts.MAX_FEATURES` | `usize` | 64 | `64` |
 | `fonts.MAX_FONTS` | `usize` | 8 | `8` |
 | `fonts.MAX_FONT_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |
@@ -85,8 +92,12 @@ capability literals and diagnostic messages remains in progress.
 | `ink_recipes.MAX_INKS` | `usize` | 8 | `8` |
 | `ink_recipes.MAX_KNOTS` | `usize` | 64 | `64` |
 | `ink_recipes.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
+| `inspection.DEFAULT_PAGE_ITEMS` | `usize` | 32 | `32` |
+| `inspection.MAX_CURSOR_BYTES` | `usize` | 256 | `256` |
+| `inspection.MAX_FIELDS` | `usize` | 10 | `10` |
 | `inspection.MAX_PAGE_BYTES` | `usize` | 32768 | `32 * 1024` |
 | `inspection.MAX_PAGE_ITEMS` | `usize` | 128 | `128` |
+| `inspection.MAX_TYPE_FILTERS` | `usize` | 20 | `20` |
 | `inspection.RECORD_BYTES` | `usize` | 28672 | `MAX_PAGE_BYTES - 4096` |
 | `instances.MAX_DEFINITIONS` | `usize` | 32 | `32` |
 | `instances.MAX_NESTING` | `usize` | 8 | `8` |
@@ -101,18 +112,24 @@ capability literals and diagnostic messages remains in progress.
 | `jobs.CANCEL_GRACE_MS` | `u64` | 2000 | `2_000` |
 | `jobs.MAX_ACTIVE` | `usize` | 32 | `32` |
 | `jobs.MAX_ATTEMPTS` | `u32` | 8 | `8` |
+| `jobs.MAX_ERROR_CHARACTERS` | `usize` | 1024 | `1024` |
 | `jobs.MAX_INPUT_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
 | `jobs.MAX_JOBS` | `usize` | 128 | `128` |
+| `jobs.MAX_PHASE_BYTES` | `usize` | 64 | `64` |
 | `jobs.MAX_RESOURCE_DOCUMENTS` | `usize` | 512 | `512` |
 | `jobs.MAX_ROOT_LENGTH` | `usize` | 4000 | `4_000` |
 | `jobs.MAX_STATE_BYTES` | `usize` | 1114112 | `super::publications::MAX_RECEIPT_BYTES + 65536` |
 | `jobs.MAX_STORE_BYTES` | `usize` | 268435456 | `256 * 1024 * 1024` |
 | `jobs.MAX_WAIT_MS` | `u64` | 30000 | `30_000` |
-| `jobs.MAX_WORKER_PATH_LENGTH` | `usize` | 4096 | `4_096` |
+| `jobs.MAX_WORKER_PATH_LENGTH` | `usize` | 4096 | `super::paths::MAX_PATH_UNITS` |
+| `jobs_listing.DEFAULT_PAGE_RECORDS` | `usize` | 8 | `8` |
 | `jobs_listing.MAX_CURSOR_BYTES` | `usize` | 1024 | `1024` |
 | `jobs_listing.MAX_PAGE_BYTES` | `usize` | 32768 | `32 * 1024` |
 | `jobs_listing.MAX_PAGE_RECORDS` | `usize` | 32 | `32` |
 | `jobs_store.DATABASE_BYTES` | `u64` | 536870912 | `512 * 1024 * 1024` |
+| `jobs_store.MAX_RUNTIME_BYTES` | `usize` | 16384 | `16 * 1024` |
+| `jobs_store.MAX_SCHEMA_RECORDS` | `usize` | 4 | `4` |
+| `jobs_store.MAX_SQL_ROW_BYTES` | `usize` | 17907712 | `super::jobs::MAX_INPUT_BYTES + super::jobs::MAX_STATE_BYTES + 16384` |
 | `layered.MAX_CANVAS_PIXELS` | `usize` | 1048576 | `1_048_576` |
 | `layered.MAX_DECODED_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `layered.MAX_DECODED_ITEMS` | `usize` | 1024 | `1024` |
@@ -163,10 +180,12 @@ capability literals and diagnostic messages remains in progress.
 | `masks.MAX_FEATHER_WORK` | `u64` | 67108864 | `67_108_864` |
 | `masks.MAX_PREPARED_PIXELS` | `u64` | 262144 | `262_144` |
 | `mcp.CORE_CATALOG_BYTES` | `usize` | 98304 | `96 * 1024` |
+| `mcp.MAX_ID_BYTES` | `usize` | 256 | `256` |
 | `mcp.MAX_MESSAGE_BYTES` | `usize` | 16793600 | `super::request::MAX_REQUEST_BYTES as usize + 16384` |
 | `mcp.MAX_PENDING` | `usize` | 8 | `8` |
 | `mcp.MAX_REQUEST_IDS` | `usize` | 4096 | `4096` |
 | `mcp.MAX_RESPONSE_BYTES` | `usize` | 100663296 | `96 * 1024 * 1024` |
+| `mcp.PAGE` | `usize` | 8 | `8` |
 | `mcp_preview.MAX_IMAGES` | `usize` | 4 | `4` |
 | `mcp_preview.MAX_IMAGE_BASE64_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `measurements.MAX_SAMPLES` | `usize` | 256 | `256` |
@@ -175,12 +194,18 @@ capability literals and diagnostic messages remains in progress.
 | `meshes.MAX_SAMPLES` | `usize` | 1024 | `1024` |
 | `meshes.MAX_SVG_TEXTURE_PIXELS` | `usize` | 131072 | `131072` |
 | `meshes.MAX_TEXTURE_PIXELS` | `usize` | 65536 | `65536` |
+| `metadata.JPEG_PART_BYTES` | `usize` | 60000 | `60000` |
 | `metadata.MAX_DOCUMENT_BYTES` | `usize` | 65536 | `64 * 1024` |
+| `metadata.MAX_ENTRIES` | `usize` | 64 | `64` |
+| `metadata.MAX_JPEG_PARTS` | `usize` | 5 | `MAX_PACKET_BYTES.div_ceil(JPEG_PART_BYTES)` |
 | `metadata.MAX_PACKET_BYTES` | `usize` | 262144 | `256 * 1024` |
 | `metadata.MAX_RECORD_BYTES` | `usize` | 16384 | `16 * 1024` |
+| `metadata.MAX_TAG_BYTES` | `usize` | 128 | `128` |
+| `metadata.MAX_TEXT_BYTES` | `usize` | 8192 | `8192` |
 | `model.MAX_COORDINATE` | `f64` | 32768.0 | `32768.0` |
 | `model.MAX_DIMENSION` | `u32` | 32768 | `32768` |
 | `model.MAX_DOCUMENT_BYTES` | `usize` | 786432 | `768 * 1024` |
+| `model.MAX_ID_BYTES` | `usize` | 128 | `128` |
 | `model.MAX_ITEMS` | `usize` | 256 | `256` |
 | `model.MAX_LARGE_RASTER_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `model.MAX_LARGE_RASTER_COMMANDS` | `usize` | 131072 | `131072` |
@@ -188,6 +213,7 @@ capability literals and diagnostic messages remains in progress.
 | `model.MAX_LARGE_VECTOR_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `model.MAX_LARGE_VECTOR_COMMANDS` | `usize` | 131072 | `131072` |
 | `model.MAX_LARGE_VECTOR_ITEMS` | `usize` | 8192 | `8192` |
+| `model.MAX_NAME_BYTES` | `usize` | 1024 | `1024` |
 | `model.MAX_SEGMENTS` | `usize` | 4096 | `4096` |
 | `model.MAX_STORED_PIXELS` | `usize` | 65536 | `65536` |
 | `objects.MAX_NESTING` | `usize` | 4 | `4` |
@@ -199,6 +225,7 @@ capability literals and diagnostic messages remains in progress.
 | `path_text.MAX_COMMANDS` | `usize` | 1024 | `1024` |
 | `path_text.MAX_DOCUMENT_LEAVES` | `usize` | 65536 | `65536` |
 | `path_text.MAX_LEAVES` | `usize` | 32768 | `32768` |
+| `paths.MAX_PATH_UNITS` | `usize` | 4096 | `4096` |
 | `pdf.MAX_COMMANDS` | `usize` | 262144 | `262_144` |
 | `pdf.MAX_IMAGE_PIXELS` | `u64` | 4194304 | `4_194_304` |
 | `pdf.MAX_OBJECTS` | `usize` | 32768 | `32_768` |
@@ -221,6 +248,7 @@ capability literals and diagnostic messages remains in progress.
 | `primitives.MAX_POLYGON_POINTS` | `usize` | 1024 | `1024` |
 | `primitives.MAX_SIDES` | `u32` | 256 | `256` |
 | `primitives.MAX_STAR_POINTS` | `u32` | 128 | `128` |
+| `profiles.MAX_CONVERSION_SAMPLES` | `usize` | 4096 | `4096` |
 | `profiles.MAX_PROFILE_BYTES` | `usize` | 262144 | `256 * 1024` |
 | `profiles.MAX_PROFILE_TAGS` | `usize` | 128 | `128` |
 | `profiles.TRANSFORM_STACK_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
@@ -231,7 +259,11 @@ capability literals and diagnostic messages remains in progress.
 | `publications.MAX_RECEIPT_BYTES` | `usize` | 1048576 | `1024 * 1024` |
 | `publications.MAX_RECORDS` | `usize` | 1024 | `1024` |
 | `publications_store.DATABASE_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
+| `publications_store.MAX_SCHEMA_RECORDS` | `usize` | 3 | `3` |
+| `publications_store.MAX_SQL_ROW_BYTES` | `usize` | 1064960 | `super::publications::MAX_RECEIPT_BYTES + 16384` |
 | `publish.MAX_OUTPUT_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
+| `query.MAX_SHAPES` | `usize` | 8 | `8` |
+| `query.MAX_TYPES` | `usize` | 12 | `12` |
 | `raster.MAX_PIXELS` | `u64` | 16777216 | `16_777_216` |
 | `raster.TILE_EDGE` | `u32` | 128 | `128` |
 | `raw.MAX_PIXELS` | `usize` | 16384 | `16384` |
@@ -274,6 +306,7 @@ capability literals and diagnostic messages remains in progress.
 | `scene.MAX_CACHED_CHAINS` | `usize` | 128 | `128` |
 | `scene.MAX_DEPTH` | `usize` | 16 | `16` |
 | `scene_hierarchy.MAX_FAST_POINT_ERROR` | `f64` | 1e-09 | `1e-9` |
+| `schema.MAX_SELECTOR_BYTES` | `usize` | 128 | `128` |
 | `schema.OUTLINE_BYTES` | `usize` | 12288 | `12 * 1024` |
 | `selection_analysis.MAX_EDGE_RADIUS` | `u32` | 8 | `8` |
 | `selection_analysis.MAX_TARGETS` | `usize` | 32 | `32` |
@@ -284,16 +317,34 @@ capability literals and diagnostic messages remains in progress.
 | `selections.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `sequences.MAX_FRAMES` | `usize` | 256 | `256` |
 | `sequences.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
+| `sessions.BACKUP_BUFFER_BYTES` | `usize` | 65536 | `65536` |
+| `sessions.BACKUP_STEP_PAGES` | `usize` | 256 | `256` |
+| `sessions.FAULT_CACHE_KIB` | `usize` | 64 | `64` |
 | `sessions.MAX_DATABASE_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
 | `sessions.MAX_HISTORY_BYTES` | `i64` | 67108864 | `64 * 1024 * 1024` |
+| `sessions.MAX_LABEL_BYTES` | `usize` | 512 | `512` |
+| `sessions.MAX_LINEAGE_BYTES` | `usize` | 32768 | `32 * 1024` |
+| `sessions.MAX_PAGE_RECEIPTS` | `usize` | 128 | `128` |
 | `sessions.MAX_RECEIPT_BYTES` | `usize` | 65536 | `65536` |
 | `sessions.MAX_REQUESTS` | `usize` | 2048 | `2048` |
+| `sessions.MAX_RESERVATION_ATTEMPTS` | `usize` | 64 | `64` |
+| `sessions.MAX_SCHEMA_RECORDS` | `usize` | 16 | `16` |
 | `sessions.MAX_SNAPSHOTS` | `usize` | 32 | `32` |
+| `sessions.MAX_SQL_BYTES` | `usize` | 32768 | `32 * 1024` |
+| `sessions.MAX_SQL_COLUMNS` | `usize` | 128 | `128` |
+| `sessions.MAX_SQL_ROW_BYTES` | `usize` | 8470528 | `MAX_STATE_BYTES + 65536` |
+| `sessions.MAX_SQL_VARIABLES` | `usize` | 32 | `32` |
+| `sessions.MAX_STACK_BYTES` | `usize` | 4096 | `4096` |
 | `sessions.MAX_STATES` | `usize` | 256 | `256` |
 | `sessions.MAX_STATE_BYTES` | `usize` | 8404992 | `super::model::MAX_LARGE_VECTOR_BYTES + 16384` |
 | `simplify.MAX_SPAN` | `usize` | 32 | `32` |
 | `simplify.MAX_WORK` | `usize` | 400000 | `400_000` |
 | `spatial_filters.MAX_MAP_PIXELS` | `usize` | 4096 | `4096` |
+| `sqlite.BUSY_TIMEOUT_MS` | `u64` | 250 | `250` |
+| `sqlite.CACHE_KIB` | `u64` | 4096 | `4096` |
+| `sqlite.MAX_COLUMNS` | `usize` | 32 | `32` |
+| `sqlite.MAX_SQL_BYTES` | `usize` | 16384 | `16 * 1024` |
+| `sqlite.PAGE_BYTES` | `u64` | 4096 | `4096` |
 | `stored_samples.CACHE_PIXELS` | `u64` | 262144 | `262_144` |
 | `stored_samples.CACHE_TILES` | `usize` | 16 | `(CACHE_PIXELS / (super::sample_store::TILE_EDGE as u64 * super::sample_store::TILE_EDGE as u64)) as usize` |
 | `stored_samples.MAX_PATCHES` | `usize` | 256 | `256` |
@@ -334,6 +385,7 @@ capability literals and diagnostic messages remains in progress.
 | `tracing.MAX_COLORS` | `usize` | 64 | `64` |
 | `tracing.MAX_EDGES` | `usize` | 262144 | `262_144` |
 | `tracing.MAX_PIXELS` | `usize` | 1048576 | `1_048_576` |
+| `transfer.MAX_PREFIX_BYTES` | `usize` | 32 | `32` |
 | `variants.MAX_BINDINGS` | `usize` | 64 | `64` |
 | `variants.MAX_DATASETS` | `usize` | 32 | `32` |
 | `variants.MAX_INHERITANCE` | `usize` | 8 | `8` |
@@ -357,3 +409,4 @@ capability literals and diagnostic messages remains in progress.
 | `warps.MAX_WORK` | `usize` | 2000000 | `2_000_000` |
 | `work_paths.MAX_COMPONENTS` | `usize` | 64 | `64` |
 | `work_paths.MAX_COMPONENT_DEPTH` | `usize` | 8 | `8` |
+| `workspace.MAX_ARGUMENT_DEPTH` | `usize` | 128 | `128` |

@@ -78,7 +78,7 @@ pub(crate) fn destination(options: &Options) -> Result<PathBuf, Error> {
         ));
     }
     let target = options.output_root.join(name);
-    if target.as_os_str().len() > 4096 {
+    if target.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
         return Err(crate::model::limit("Output path exceeds its length limit"));
     }
     Ok(target)

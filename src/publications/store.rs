@@ -1,5 +1,7 @@
 //! Bounded checksummed receipt ledger. Rendering never holds a writer transaction.
 use super::*;
+use crate::limits::publications_store as store_bounds;
+use crate::limits::sqlite;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, limits::Limit, params};
 use std::time::Duration;
 
@@ -35,17 +37,19 @@ fn connection(path: &Path) -> Result<Connection, Error> {
             | OpenFlags::SQLITE_OPEN_NOFOLLOW,
     )
     .map_err(sql)?;
-    db.busy_timeout(Duration::from_millis(250)).map_err(sql)?;
+    db.busy_timeout(Duration::from_millis(sqlite::BUSY_TIMEOUT_MS))
+        .map_err(sql)?;
     db.set_limit(
         Limit::SQLITE_LIMIT_LENGTH,
-        (MAX_RECEIPT_BYTES + 16384) as i32,
+        store_bounds::MAX_SQL_ROW_BYTES as i32,
     )
     .map_err(sql)?;
-    db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, 16384)
+    db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, sqlite::MAX_SQL_BYTES as i32)
         .map_err(sql)?;
-    db.set_limit(Limit::SQLITE_LIMIT_COLUMN, 32).map_err(sql)?;
+    db.set_limit(Limit::SQLITE_LIMIT_COLUMN, sqlite::MAX_COLUMNS as i32)
+        .map_err(sql)?;
     db.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0).map_err(sql)?;
-    db.execute_batch("PRAGMA synchronous=FULL; PRAGMA trusted_schema=OFF; PRAGMA recursive_triggers=OFF; PRAGMA cache_size=-4096; PRAGMA temp_store=MEMORY;").map_err(sql)?;
+    db.execute_batch(&format!("PRAGMA synchronous=FULL; PRAGMA trusted_schema=OFF; PRAGMA recursive_triggers=OFF; PRAGMA cache_size=-{}; PRAGMA temp_store=MEMORY;", sqlite::CACHE_KIB)).map_err(sql)?;
     Ok(db)
 }
 pub(super) fn open(root: &Path, create: bool) -> Result<Option<Connection>, Error> {
@@ -62,8 +66,11 @@ pub(super) fn open(root: &Path, create: bool) -> Result<Option<Connection>, Erro
             fs::create_dir_all(root).map_err(|_| io("Unable to create receipt root"))?;
             let temp = Stage::reserve(root, ".inkbolt-receipts-")?;
             let mut db = connection(&temp.path)?;
-            db.execute_batch("PRAGMA page_size=4096; PRAGMA journal_mode=DELETE;")
-                .map_err(sql)?;
+            db.execute_batch(&format!(
+                "PRAGMA page_size={}; PRAGMA journal_mode=DELETE;",
+                sqlite::PAGE_BYTES
+            ))
+            .map_err(sql)?;
             db.pragma_update(None, "application_id", APPLICATION)
                 .map_err(sql)?;
             db.pragma_update(None, "user_version", 1).map_err(sql)?;
@@ -131,7 +138,7 @@ pub(super) fn open(root: &Path, create: bool) -> Result<Option<Connection>, Erro
     let pages: i64 = db
         .pragma_query_value(None, "page_count", |r| r.get(0))
         .map_err(sql)?;
-    let mut stmt=db.prepare("SELECT name,type,sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*' ORDER BY name LIMIT 3").map_err(sql)?;
+    let mut stmt=db.prepare(&format!("SELECT name,type,sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*' ORDER BY name LIMIT {}", store_bounds::MAX_SCHEMA_RECORDS)).map_err(sql)?;
     let schemas: Vec<(String, String, String)> = stmt
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
         .map_err(sql)?
@@ -140,9 +147,9 @@ pub(super) fn open(root: &Path, create: bool) -> Result<Option<Connection>, Erro
     if app != APPLICATION
         || version != 1
         || mode != "delete"
-        || page_size != 4096
+        || page_size != sqlite::PAGE_BYTES as i64
         || pages < 0
-        || pages as u64 * 4096 > DATABASE_BYTES
+        || pages as u64 * sqlite::PAGE_BYTES > DATABASE_BYTES
         || schemas != vec![("publications".into(), "table".into(), SCHEMA.into())]
     {
         return Err(Error::new(
@@ -151,8 +158,12 @@ pub(super) fn open(root: &Path, create: bool) -> Result<Option<Connection>, Erro
         ));
     }
     drop(stmt);
-    db.pragma_update(None, "max_page_count", (DATABASE_BYTES / 4096) as u32)
-        .map_err(sql)?;
+    db.pragma_update(
+        None,
+        "max_page_count",
+        (DATABASE_BYTES / sqlite::PAGE_BYTES) as u32,
+    )
+    .map_err(sql)?;
     Ok(Some(db))
 }
 pub(super) fn read(db: &Connection, id: &str) -> Result<Option<Record>, Error> {

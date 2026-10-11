@@ -30,8 +30,11 @@ fn io(message: &str) -> Error {
 
 pub(super) fn checked_path(path: &Path) -> Result<(), Error> {
     assets::absolute(path)?;
-    if path.as_os_str().len() > 4096 {
-        return Err(limit("History path exceeds 4096 characters"));
+    if path.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
+        return Err(limit(&format!(
+            "History path exceeds {} characters",
+            crate::limits::paths::MAX_PATH_UNITS
+        )));
     }
     Ok(())
 }
@@ -110,7 +113,7 @@ pub(super) fn identity(path: &Path, control: &Control) -> Result<Source, Error> 
     let mut file = fs::File::open(path).map_err(|_| io("Unable to read prepared history"))?;
     let mut digest = Sha256::new();
     let mut bytes = 0;
-    let mut buffer = [0u8; 65536];
+    let mut buffer = [0u8; bounds::BACKUP_BUFFER_BYTES];
     loop {
         control.check()?;
         let count = file
@@ -121,7 +124,10 @@ pub(super) fn identity(path: &Path, control: &Control) -> Result<Source, Error> 
         }
         bytes += count as u64;
         if bytes > MAX_DATABASE_BYTES {
-            return Err(limit("History backup exceeds 128 MiB"));
+            return Err(limit(&format!(
+                "History backup exceeds {} MiB",
+                MAX_DATABASE_BYTES / (1024 * 1024)
+            )));
         }
         digest.update(&buffer[..count]);
     }
@@ -211,14 +217,18 @@ pub(crate) fn prepare_backup(
     let temp = reserve(&output.output_root)?;
     let mut destination = open_copy(&temp.0, false)?;
     destination
-        .pragma_update(None, "max_page_count", (MAX_DATABASE_BYTES / 4096) as u32)
+        .pragma_update(
+            None,
+            "max_page_count",
+            (MAX_DATABASE_BYTES / sqlite::PAGE_BYTES) as u32,
+        )
         .map_err(sql)?;
     {
         let copy = Backup::new(&tx, &mut destination).map_err(sql)?;
         let started = Instant::now();
         loop {
             control.check()?;
-            match copy.step(256).map_err(sql)? {
+            match copy.step(bounds::BACKUP_STEP_PAGES as i32).map_err(sql)? {
                 StepResult::Done => break,
                 StepResult::More => {}
                 StepResult::Busy | StepResult::Locked
@@ -299,7 +309,10 @@ pub(super) fn validate_source(source: &Source) -> Result<(), Error> {
     {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Backup identity requires 1..128 MiB bytes and a lowercase SHA-256",
+            format!(
+                "Backup identity requires 1..{} MiB bytes and a lowercase SHA-256",
+                MAX_DATABASE_BYTES / (1024 * 1024)
+            ),
         ));
     }
     Ok(())
@@ -338,7 +351,7 @@ pub(super) fn copy_source(
         .map_err(|_| io("Unable to open recovery temporary"))?;
     let mut digest = Sha256::new();
     let mut bytes = 0;
-    let mut buffer = [0u8; 65536];
+    let mut buffer = [0u8; bounds::BACKUP_BUFFER_BYTES];
     loop {
         control.check()?;
         let count = input

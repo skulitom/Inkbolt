@@ -17,7 +17,7 @@ pub struct ListOptions {
 impl Default for ListOptions {
     fn default() -> Self {
         Self {
-            limit: 8,
+            limit: crate::limits::jobs_listing::DEFAULT_PAGE_RECORDS,
             cursor: None,
         }
     }
@@ -85,7 +85,10 @@ pub fn list(root: &Path, options: &ListOptions, control: &Control) -> Result<Val
     checked_root(root, control)?;
     control.check()?;
     if !(1..=MAX_PAGE_RECORDS).contains(&options.limit) {
-        return Err(err("INVALID_REQUEST", "Job list limit must be in 1..=32"));
+        return Err(err(
+            "INVALID_REQUEST",
+            &format!("Job list limit must be in 1..={MAX_PAGE_RECORDS}"),
+        ));
     }
     let cursor = options.cursor.as_deref().map(parse_cursor).transpose()?;
     if cursor.as_ref().is_some_and(|c| c.limit != options.limit) {
@@ -161,7 +164,10 @@ pub fn list(root: &Path, options: &ListOptions, control: &Control) -> Result<Val
     if serde_json::to_vec(&result).unwrap().len() > MAX_PAGE_BYTES {
         return Err(err(
             "JOB_LIMIT",
-            "Job listing exceeds its 32 KiB result bound",
+            &format!(
+                "Job listing exceeds its {} KiB result bound",
+                MAX_PAGE_BYTES / 1024
+            ),
         ));
     }
     Ok(result)

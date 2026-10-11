@@ -162,10 +162,15 @@ pub(crate) fn lookup_in_workspace(
     force_full: bool,
     workspace: bool,
 ) -> Result<Value, Error> {
-    if name.len() > 128 || select.is_some_and(|s| s.len() > 128) {
+    if name.len() > crate::limits::schema::MAX_SELECTOR_BYTES
+        || select.is_some_and(|s| s.len() > crate::limits::schema::MAX_SELECTOR_BYTES)
+    {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Schema names and selectors are limited to 128 bytes",
+            format!(
+                "Schema names and selectors are limited to {} bytes",
+                crate::limits::schema::MAX_SELECTOR_BYTES
+            ),
         ));
     }
     if name == "index" {

@@ -89,7 +89,7 @@ pub fn validate(document: &Document) -> Result<(), Error> {
     let mut inks = HashSet::new();
     for (id, channel) in &document.channels {
         if !valid_id(id)
-            || channel.name.len() > 1024
+            || channel.name.len() > crate::limits::model::MAX_NAME_BYTES
             || channel
                 .name
                 .chars()

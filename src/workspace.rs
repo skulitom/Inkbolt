@@ -16,8 +16,12 @@ fn invalid(message: &str) -> Error {
 }
 
 fn lexical(path: &Path) -> Result<(), Error> {
-    if path.as_os_str().is_empty() || path.as_os_str().len() > 4096 {
-        return Err(invalid("Workspace paths require 1..4096 characters"));
+    if path.as_os_str().is_empty() || path.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS
+    {
+        return Err(invalid(&format!(
+            "Workspace paths require 1..{} characters",
+            crate::limits::paths::MAX_PATH_UNITS
+        )));
     }
     for component in path.components() {
         match component {
@@ -165,7 +169,7 @@ pub(crate) fn normalize(
     command: &str,
     depth: usize,
 ) -> Result<(), Error> {
-    if depth > 128 {
+    if depth > crate::limits::workspace::MAX_ARGUMENT_DEPTH {
         return Err(Error::new(
             "RESOURCE_LIMIT",
             "Workspace argument nesting exceeds limits",

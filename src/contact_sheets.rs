@@ -77,13 +77,19 @@ pub fn sheet(
     crate::model::validate_controlled(document, control)?;
     if options.views.is_empty()
         || options.views.len() > MAX_VIEWS
-        || !(1..=8).contains(&options.columns)
-        || options.cell_size.iter().any(|v| !(1..=512).contains(v))
-        || options.gap > 64
+        || !(1..=crate::limits::contact_sheets::MAX_COLUMNS).contains(&options.columns)
+        || options
+            .cell_size
+            .iter()
+            .any(|v| !(1..=crate::limits::contact_sheets::MAX_CELL_AXIS).contains(v))
+        || options.gap > crate::limits::contact_sheets::MAX_GAP
     {
-        return Err(invalid(
-            "Contact sheets require 1..=16 views, 1..=8 columns, cell axes 1..=512 and gap 0..=64",
-        ));
+        return Err(invalid(&format!(
+            "Contact sheets require 1..={MAX_VIEWS} views, 1..={} columns, cell axes 1..={} and gap 0..={}",
+            crate::limits::contact_sheets::MAX_COLUMNS,
+            crate::limits::contact_sheets::MAX_CELL_AXIS,
+            crate::limits::contact_sheets::MAX_GAP
+        )));
     }
     crate::finite::check(options)
         .map_err(|_| invalid("Contact sheet option numbers must be finite"))?;

@@ -3,6 +3,7 @@ from contextlib import closing
 import copy
 import json
 import unittest
+from advertised_limits import capabilities
 
 import test_agent_workspace as workspace
 from test_mcp import Client
@@ -27,7 +28,7 @@ class PagedInspectionTests(unittest.TestCase):
         records = []; cursor = None
         while True:
             page = self.page(doc, **options, cursor=cursor)
-            self.assertLessEqual(len(json.dumps(page, separators=(',', ':')).encode()), 32768)
+            self.assertLessEqual(len(json.dumps(page, separators=(',', ':')).encode()), capabilities()['paged_inspection']['maximum_result_bytes'])
             self.assertEqual(page['offset'], len(records))
             records.extend(page['records'])
             cursor = page['next_cursor']
@@ -39,7 +40,7 @@ class PagedInspectionTests(unittest.TestCase):
         doc = self.document(); doc['resource_profile'] = 'large_vector'
         doc['items'] = [rectangle(i) for i in range(513)]
         source = copy.deepcopy(doc)
-        records = self.all_records(doc, limit=128, view=dict(collection='items', fields=['name', 'bounds']))
+        records = self.all_records(doc, limit=capabilities()['paged_inspection']['maximum_records'], view=dict(collection='items', fields=['name', 'bounds']))
         self.assertEqual([r['id'] for r in records], [i['id'] for i in doc['items']])
         for i, row in enumerate(records):
             self.assertEqual(row, dict(id=f'item-{i:04}', index=i, name=f'Original item {i}', geometry_bounds=[i, 2, i+1, 5]))
@@ -114,10 +115,10 @@ class PagedInspectionTests(unittest.TestCase):
     def test_byte_budget_large_geometry_resources_and_invalid_requests(self):
         doc = self.document(); doc['items'] = [rectangle(i) for i in range(4)]
         for item in doc['items']: item['metadata'] = dict(description='x'*8000, note='y'*7000)
-        page = self.page(doc, limit=128, view=dict(collection='items', fields=['metadata']))
+        page = self.page(doc, limit=capabilities()['paged_inspection']['maximum_records'], view=dict(collection='items', fields=['metadata']))
         self.assertEqual(page['returned'], 1); self.assertIsNotNone(page['next_cursor'])
-        self.assertEqual(len(self.all_records(doc, limit=128, view=dict(collection='items', fields=['metadata']))), 4)
-        for options, code in [(dict(limit=0),'INVALID_REQUEST'), (dict(limit=129),'INVALID_REQUEST'),
+        self.assertEqual(len(self.all_records(doc, limit=capabilities()['paged_inspection']['maximum_records'], view=dict(collection='items', fields=['metadata']))), 4)
+        for options, code in [(dict(limit=0),'INVALID_REQUEST'), (dict(limit=capabilities()['paged_inspection']['maximum_records']+1),'INVALID_REQUEST'),
                               (dict(view=dict(collection='items', fields=['name','name'])),'INVALID_REQUEST'),
                               (dict(view=dict(collection='items', fields=['unknown'])),'INVALID_REQUEST'),
                               (dict(view=dict(collection='items', ids=['missing'])),'INSPECTION_ID_NOT_FOUND'),
@@ -137,7 +138,7 @@ class PagedInspectionTests(unittest.TestCase):
         doc['items']=[dict(id='large-path',content=dict(type='work_path',geometry=dict(shape='path',commands=commands)))]
         error=self.cli('document.inspect.page',document=doc,options=dict(view=dict(collection='items',fields=['geometry'])),error='INSPECTION_RECORD_TOO_LARGE')
         self.assertIn('anchors',error['message'])
-        anchors=self.all_records(doc,limit=128,view=dict(collection='anchors',id='large-path'))
+        anchors=self.all_records(doc,limit=capabilities()['paged_inspection']['maximum_records'],view=dict(collection='anchors',id='large-path'))
         self.assertEqual(len(anchors),1201)
         self.assertEqual([a['command_index'] for a in anchors],list(range(1201)))
         self.assertEqual([a['local'] for a in anchors],[c['to'] for c in commands])

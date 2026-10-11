@@ -29,7 +29,7 @@ pub use crate::limits::jobs::MAX_STATE_BYTES;
 pub use crate::limits::jobs::MAX_STORE_BYTES;
 pub fn capabilities() -> Value {
     let mut value = json!({"commands":["job.start","job.status","job.list","job.result","job.wait","job.cancel","job.resume"],"supported_here":cfg!(windows),"storage_version":1,"queue":"local_SQLite_FULL_rollback;checksummed_immutable_inputs_and_state","active_jobs":MAX_ACTIVE,"maximum_jobs":MAX_JOBS,"workers_per_root":1,"attempts":MAX_ATTEMPTS,"maximum_input_bytes":MAX_INPUT_BYTES,"maximum_state_bytes":MAX_STATE_BYTES,"maximum_reserved_store_bytes":MAX_STORE_BYTES,"maximum_database_bytes":crate::limits::jobs_store::DATABASE_BYTES,"maximum_wait_ms":bounds::MAX_WAIT_MS,"cancel_grace_ms":bounds::CANCEL_GRACE_MS,"inputs":"submitted_document_revision;content_addressed_resources_and_font_licenses;exact_worker_executable_per_root","resources_copied":false,"resource_validation":"submission_and_before_new_encoding;prepared_outputs_resume_from_verified_bytes","progress":["queued","starting","validating_resources","rendering_and_encoding","staging","publishing","completed","cancelled","failed","interrupted"],"publication":"create_only_with_durable_receipt;job_transaction_serializes_cancel_with_link_and_result","inspection":"never_starts_worker_or_publishes_absent_output;may_reconcile_saved_outcome","recovery":"explicit_job.resume;no_automatic_retries;completed_and_cancelled_are_terminal","result":"job.status_compact_output_summary;job.result_full_historical_receipt","memory_measure":"OS_peak_committed_bytes_for_observed_runner_exits","platform":"Windows_trusted_local_filesystem","listener":false,"telemetry":false,"power_loss_guarantee":false});
-    value["listing"] = json!({"command":"job.list","default_records":8,"maximum_records":listing::MAX_PAGE_RECORDS,"maximum_result_bytes":listing::MAX_PAGE_BYTES,"order":"admission","cursor":"root_build_and_initial_input_membership_bound;limit_preserved","later_submissions":"excluded_until_fresh_listing","progress":"saved_values_at_each_page_read;use_job.status_to_reconcile","resource_files_reopened":false,"starts_workers":false,"publishes_outputs":false});
+    value["listing"] = json!({"command":"job.list","default_records":crate::limits::jobs_listing::DEFAULT_PAGE_RECORDS,"maximum_records":listing::MAX_PAGE_RECORDS,"maximum_result_bytes":listing::MAX_PAGE_BYTES,"order":"admission","cursor":"root_build_and_initial_input_membership_bound;limit_preserved","later_submissions":"excluded_until_fresh_listing","progress":"saved_values_at_each_page_read;use_job.status_to_reconcile","resource_files_reopened":false,"starts_workers":false,"publishes_outputs":false});
     value
 }
 static CLI_EXECUTABLE: OnceLock<PathBuf> = OnceLock::new();
@@ -186,7 +186,11 @@ impl From<Error> for Failure {
     fn from(error: Error) -> Self {
         Self {
             code: error.code.into(),
-            message: error.message.chars().take(1024).collect(),
+            message: error
+                .message
+                .chars()
+                .take(crate::limits::jobs::MAX_ERROR_CHARACTERS)
+                .collect(),
         }
     }
 }
@@ -233,7 +237,7 @@ impl State {
             || self.attempt > MAX_ATTEMPTS
             || self.reports.len() > MAX_ATTEMPTS as usize
             || (self.phase == Phase::Completed) != self.result.is_some()
-            || self.progress.phase.len() > 64
+            || self.progress.phase.len() > crate::limits::jobs::MAX_PHASE_BYTES
             || self
                 .progress
                 .total

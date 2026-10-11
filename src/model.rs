@@ -1,4 +1,5 @@
 use crate::assets::{self, Crop, ImageAsset, Sampling};
+use crate::limits::model as bounds;
 pub use crate::paint::{Dither, Paint};
 use crate::{Error, geometry, scene};
 use schemars::JsonSchema;
@@ -478,7 +479,7 @@ pub struct Item {
 
 pub fn valid_id(id: &str) -> bool {
     !id.is_empty()
-        && id.len() <= 128
+        && id.len() <= bounds::MAX_ID_BYTES
         && id
             .bytes()
             .all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c))
@@ -664,15 +665,16 @@ pub fn validate_controlled(
         if i % 32 == 0 {
             control.check()?;
         }
-        if item.name.len() > 1024
+        if item.name.len() > bounds::MAX_NAME_BYTES
             || item
                 .name
                 .chars()
                 .any(|c| c.is_control() || matches!(c, '\u{fffe}' | '\u{ffff}'))
         {
-            return Err(invalid(
-                "Item names must be at most 1024 bytes and contain no control or invalid XML characters",
-            ));
+            return Err(invalid(&format!(
+                "Item names must be at most {} bytes and contain no control or invalid XML characters",
+                bounds::MAX_NAME_BYTES
+            )));
         }
         if !item.opacity.is_finite() || !(0.0..=1.0).contains(&item.opacity) {
             return Err(invalid("Opacity must be in 0..=1"));

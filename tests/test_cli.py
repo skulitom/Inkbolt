@@ -35,11 +35,13 @@ class CliTests(unittest.TestCase):
         self.assertIn("document.create", json.dumps(schema["result"]))
 
     def test_structured_error_cases(self):
+        _, reported = self.invoke(b"", "capabilities")
+        request_bytes = reported["result"]["limits"]["request_bytes"]
         for payload, expected in [(b"{", "INVALID_REQUEST"),
             (b'{"command":"capabilities","extra":1}', "INVALID_REQUEST"),
             (b'{"command":"capabilities","command":"schema"}', "INVALID_REQUEST"),
             (b'{"command":"capabilities"}\n{}', "INVALID_REQUEST"),
-            (b" " * (16 * 1024 * 1024 + 1), "REQUEST_TOO_LARGE"),
+            (b" " * (request_bytes + 1), "REQUEST_TOO_LARGE"),
             (b'{"command":"document.create","id":"x","kind":"raster","width":0,"height":1}', "INVALID_DOCUMENT")]:
             code, response = self.invoke(payload)
             self.assertEqual(code, 1)

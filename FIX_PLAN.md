@@ -138,6 +138,13 @@ check. Protocol versions, source code enumerations and exact format cardinalitie
 remain format semantics. The broader inline-limit audit is still open; W0 is
 not complete and its final fresh thorough acceptance remains required.
 
+The request/session slice also centralizes path, identifier, inspection, metadata,
+review-tool and persistent-store budgets. SQLite page counts and bounded history
+queries derive from their existing storage limits; file formats and numeric
+ceilings remain unchanged. MCP descriptions and capability reports use the same
+definitions as validation. Focused Windows and Linux checks remain the routine
+feedback path; this slice does not replace W0's final thorough gate.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

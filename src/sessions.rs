@@ -1,6 +1,8 @@
 //! Local transactional sessions with immutable content states, saved history and retry receipts.
 pub mod backup;
 pub mod lineage;
+use crate::limits::sessions as bounds;
+use crate::limits::sqlite;
 use crate::{
     Document, Error, assets,
     control::Control,
@@ -59,7 +61,7 @@ impl Resources {
     pub(crate) fn validate(&self) -> Result<(), Error> {
         for p in self.asset_root.iter().chain(self.font_root.iter()) {
             assets::absolute(p)?;
-            if p.as_os_str().len() > 4096 {
+            if p.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
                 return Err(limit("Resource root path is too long"));
             }
         }
@@ -192,19 +194,25 @@ pub fn store_path(root: &Path, session_id: &str) -> Result<PathBuf, Error> {
     Ok(root.join(format!("{}.sqlite3", assets::sha256(session_id.as_bytes()))))
 }
 fn configure(db: &Connection) -> Result<(), Error> {
-    db.busy_timeout(Duration::from_millis(250)).map_err(sql)?;
-    db.set_limit(Limit::SQLITE_LIMIT_LENGTH, (MAX_STATE_BYTES + 65536) as i32)
+    db.busy_timeout(Duration::from_millis(sqlite::BUSY_TIMEOUT_MS))
         .map_err(sql)?;
-    db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, 32768)
+    db.set_limit(Limit::SQLITE_LIMIT_LENGTH, bounds::MAX_SQL_ROW_BYTES as i32)
         .map_err(sql)?;
-    db.set_limit(Limit::SQLITE_LIMIT_COLUMN, 128).map_err(sql)?;
-    db.set_limit(Limit::SQLITE_LIMIT_VARIABLE_NUMBER, 32)
+    db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, bounds::MAX_SQL_BYTES as i32)
         .map_err(sql)?;
+    db.set_limit(Limit::SQLITE_LIMIT_COLUMN, bounds::MAX_SQL_COLUMNS as i32)
+        .map_err(sql)?;
+    db.set_limit(
+        Limit::SQLITE_LIMIT_VARIABLE_NUMBER,
+        bounds::MAX_SQL_VARIABLES as i32,
+    )
+    .map_err(sql)?;
     db.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0).map_err(sql)?;
-    db.execute_batch("PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; PRAGMA trusted_schema=OFF; PRAGMA recursive_triggers=OFF; PRAGMA cache_size=-4096; PRAGMA temp_store=MEMORY;").map_err(sql)?;
+    db.execute_batch(&format!("PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; PRAGMA trusted_schema=OFF; PRAGMA recursive_triggers=OFF; PRAGMA cache_size=-{}; PRAGMA temp_store=MEMORY;", sqlite::CACHE_KIB)).map_err(sql)?;
     #[cfg(test)]
     if std::env::var_os("INKBOLT_SESSION_FAULT").is_some() {
-        db.execute_batch("PRAGMA cache_size=-64;").map_err(sql)?;
+        db.execute_batch(&format!("PRAGMA cache_size=-{};", bounds::FAULT_CACHE_KIB))
+            .map_err(sql)?;
     }
     Ok(())
 }
@@ -223,7 +231,7 @@ fn check_schema(db: &Connection) -> Result<(), Error> {
             "Unrecognized session format or version",
         ));
     }
-    let mut stmt=db.prepare("SELECT name,type,sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*' ORDER BY name LIMIT 16").map_err(sql)?;
+    let mut stmt=db.prepare(&format!("SELECT name,type,sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*' ORDER BY name LIMIT {}", bounds::MAX_SCHEMA_RECORDS)).map_err(sql)?;
     let actual: Vec<(String, String, String)> = stmt
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
         .map_err(sql)?
@@ -258,11 +266,18 @@ fn check_schema(db: &Connection) -> Result<(), Error> {
     let page_size: i64 = db
         .pragma_query_value(None, "page_size", |r| r.get(0))
         .map_err(sql)?;
-    if page_size != 4096 || pages < 0 || pages as u64 * 4096 > MAX_DATABASE_BYTES {
+    if page_size != sqlite::PAGE_BYTES as i64
+        || pages < 0
+        || pages as u64 * sqlite::PAGE_BYTES > MAX_DATABASE_BYTES
+    {
         return Err(limit("Session database exceeds its page budget"));
     }
-    db.pragma_update(None, "max_page_count", (MAX_DATABASE_BYTES / 4096) as u32)
-        .map_err(sql)?;
+    db.pragma_update(
+        None,
+        "max_page_count",
+        (MAX_DATABASE_BYTES / sqlite::PAGE_BYTES) as u32,
+    )
+    .map_err(sql)?;
     Ok(())
 }
 fn open(root: &Path, session_id: &str) -> Result<Connection, Error> {
@@ -283,7 +298,10 @@ fn open_mode(root: &Path, session_id: &str, readonly: bool) -> Result<Connection
         ));
     }
     if m.len() > MAX_DATABASE_BYTES {
-        return Err(limit("Session database exceeds 128 MiB"));
+        return Err(limit(&format!(
+            "Session database exceeds {} MiB",
+            MAX_DATABASE_BYTES / (1024 * 1024)
+        )));
     }
     let db = Connection::open_with_flags(
         path,
@@ -301,7 +319,7 @@ fn open_mode(root: &Path, session_id: &str, readonly: bool) -> Result<Connection
 }
 fn read_meta(db: &Connection, session_id: &str) -> Result<Meta, Error> {
     let (stored,revision,current,undo,redo,hash):(String,u32,u32,String,String,String)=db.query_row("SELECT session_id,revision,current_state,undo_json,redo_json,sha256 FROM meta WHERE id=1",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?))).map_err(sql)?;
-    if undo.len() > 4096 || redo.len() > 4096 {
+    if undo.len() > bounds::MAX_STACK_BYTES || redo.len() > bounds::MAX_STACK_BYTES {
         return Err(corrupt("Session history stack exceeds limits"));
     }
     let meta = Meta {
@@ -326,7 +344,10 @@ fn read_meta(db: &Connection, session_id: &str) -> Result<Meta, Error> {
         return Err(corrupt("Session has an invalid head count"));
     }
     let mut stmt = db
-        .prepare("SELECT id FROM states ORDER BY id LIMIT 257")
+        .prepare(&format!(
+            "SELECT id FROM states ORDER BY id LIMIT {}",
+            MAX_STATES + 1
+        ))
         .map_err(sql)?;
     let states: HashSet<u32> = stmt
         .query_map([], |r| r.get(0))
@@ -469,7 +490,10 @@ fn request(db: &Connection, request_id: &str) -> Result<Option<(String, Receipt)
 fn save_request(db: &Connection, fingerprint: &str, receipt: &Receipt) -> Result<(), Error> {
     let bytes = encode(receipt)?;
     if bytes.len() > MAX_RECEIPT_BYTES {
-        return Err(limit("Session receipt exceeds 64 KiB"));
+        return Err(limit(&format!(
+            "Session receipt exceeds {} KiB",
+            MAX_RECEIPT_BYTES / 1024
+        )));
     }
     let hash = assets::sha256(&encode(&(fingerprint, &bytes))?);
     db.execute("INSERT INTO requests(request_id,fingerprint,revision,payload,sha256) VALUES(?1,?2,?3,?4,?5)",params![receipt.request_id,fingerprint,receipt.revision,bytes,hash]).map_err(sql)?;
@@ -502,7 +526,7 @@ impl Drop for Temporary {
 fn reserve(root: &Path) -> Result<Temporary, Error> {
     fs::create_dir_all(root)
         .map_err(|_| Error::new("IO_ERROR", "Unable to create explicit session root"))?;
-    for _ in 0..64 {
+    for _ in 0..bounds::MAX_RESERVATION_ATTEMPTS {
         let path = root.join(format!(
             ".inkbolt-session-{}-{}.tmp",
             std::process::id(),
@@ -614,14 +638,21 @@ fn create_prepared(
     )
     .map_err(sql)?;
     configure(&db)?;
-    db.execute_batch("PRAGMA page_size=4096; PRAGMA journal_mode=DELETE;")
-        .map_err(sql)?;
+    db.execute_batch(&format!(
+        "PRAGMA page_size={}; PRAGMA journal_mode=DELETE;",
+        sqlite::PAGE_BYTES
+    ))
+    .map_err(sql)?;
     db.pragma_update(None, "application_id", APPLICATION_ID)
         .map_err(sql)?;
     db.pragma_update(None, "user_version", STORE_VERSION)
         .map_err(sql)?;
-    db.pragma_update(None, "max_page_count", (MAX_DATABASE_BYTES / 4096) as u32)
-        .map_err(sql)?;
+    db.pragma_update(
+        None,
+        "max_page_count",
+        (MAX_DATABASE_BYTES / sqlite::PAGE_BYTES) as u32,
+    )
+    .map_err(sql)?;
     let tx = db
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(sql)?;
@@ -693,7 +724,10 @@ fn create_prepared(
 }
 fn snapshots(db: &Connection) -> Result<Vec<Snapshot>, Error> {
     let mut stmt = db
-        .prepare("SELECT name,state_id,revision,sha256 FROM snapshots ORDER BY name LIMIT 33")
+        .prepare(&format!(
+            "SELECT name,state_id,revision,sha256 FROM snapshots ORDER BY name LIMIT {}",
+            MAX_SNAPSHOTS + 1
+        ))
         .map_err(sql)?;
     let rows = stmt
         .query_map([], |r| {
@@ -932,10 +966,14 @@ fn prepare_action(
             label: requested,
         } => {
             control.check_resource_paths(&state.resources)?;
-            if requested.len() > 512 || requested.chars().any(char::is_control) {
+            if requested.len() > bounds::MAX_LABEL_BYTES || requested.chars().any(char::is_control)
+            {
                 return Err(Error::new(
                     "INVALID_REQUEST",
-                    "History label must be at most 512 bytes with no control characters",
+                    format!(
+                        "History label must be at most {} bytes with no control characters",
+                        bounds::MAX_LABEL_BYTES
+                    ),
                 ));
             }
             label = requested.clone();
@@ -1001,7 +1039,9 @@ fn prepare_action(
                 ));
             }
             if names.len() >= MAX_SNAPSHOTS {
-                return Err(limit("Session exceeds 32 named snapshots"));
+                return Err(limit(&format!(
+                    "Session exceeds {MAX_SNAPSHOTS} named snapshots"
+                )));
             }
             let snapshot = Snapshot {
                 name: name.clone(),
@@ -1042,7 +1082,7 @@ fn prepare_action(
     if meta.undo.len() > MAX_STATES || meta.redo.len() > MAX_STATES {
         return Err(Error::new(
             "HISTORY_LIMIT",
-            "Undo or redo depth exceeds 256 steps",
+            format!("Undo or redo depth exceeds {MAX_STATES} steps"),
         ));
     }
     meta.revision = next;
@@ -1064,7 +1104,10 @@ fn prepare_action(
         changes,
     };
     if encode(&receipt)?.len() > MAX_RECEIPT_BYTES {
-        return Err(limit("Session receipt exceeds 64 KiB"));
+        return Err(limit(&format!(
+            "Session receipt exceeds {} KiB",
+            MAX_RECEIPT_BYTES / 1024
+        )));
     }
     Ok(PreparedAction {
         meta,
@@ -1309,10 +1352,13 @@ pub fn history(
     after: Option<u64>,
     count: usize,
 ) -> Result<Value, Error> {
-    if !(1..=128).contains(&count) {
+    if !(1..=bounds::MAX_PAGE_RECEIPTS).contains(&count) {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "History page size must be in 1..=128",
+            format!(
+                "History page size must be in 1..={}",
+                bounds::MAX_PAGE_RECEIPTS
+            ),
         ));
     }
     let mut db = open(root, session_id)?;
