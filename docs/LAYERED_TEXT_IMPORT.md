@@ -38,9 +38,29 @@ tags; regional guesses and aliases are unsupported. UTF-16 run boundaries conver
 to engine character indices without splitting
 surrogates; normal engine grapheme and range validation still applies. Global
 kerning admits font metrics only. Manual and optical modes fail. Other native
-features, inherited/default styles, distinct terminal insertion styles, unknown controls, native antialias settings,
+features, inherited/default styles, distinct terminal insertion styles, unknown controls,
 warps, paragraph/linked frames and variable fonts
 require additional mappings and fail explicitly.
+
+For known native edge-smoothing settings or nonfractional source spacing, also set
+`text_fonts.rendering:"engine"`. This explicitly chooses Inkbolt's edge smoothing
+and fractional glyph placement. It requires `reconstruction:"engine_layout"` and
+does not claim native rendering equality. The admitted source labels are `none`,
+`crisp`, `strong`, `smooth` and `sharp`; they describe incoming controls, not
+alternative engine rendering algorithms. Without this additional choice, the
+previous subset still requires source smoothing `none` and fractional widths.
+
+The layer descriptor and local rendering controls must be present, known and
+consistent. Explicit rendering controls in the selected global story must agree
+with them. Missing global values stay absent in diagnostics and receipts; they
+are not interpreted as defaults. Unknown modes, extra global rendering fields,
+conflicts and missing local controls fail even with the conversion choice. Style,
+font, geometry, warp and other existing restrictions still apply.
+
+The rendering receipt records the source controls, chosen engine behavior and
+edge/spacing reconstruction differences. Source controls remain evidence in that
+receipt, not retained native rendering settings in the editable engine frame.
+Subsequent native delivery uses its own declared reconstruction contract.
 
 With `color_policy:"convert_srgb"`, the embedded RGB profile converts all authored
 fill components to working sRGB before eight-bit rounding. This includes every
@@ -55,6 +75,8 @@ exactly one layer reference. Missing, duplicated, shared or unreferenced records
 fail. Only explicitly admitted global containers are supported; this does not
 accept arbitrary native saved-file tables. Unknown nested layout fields and
 nontrivial frame geometry fail even when structural diagnostics can describe them.
+Unmapped global authoring containers identify their location and up to eight
+unknown field names, while retaining the source-text diagnostic details.
 
 The native affine point matrix places a fixed-zero engine baseline. A nominal
 1x1 frame with visible overflow stores the point without inventing a width from

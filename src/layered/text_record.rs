@@ -58,6 +58,7 @@ pub(super) struct Record {
     pub parsed: Value,
     pub transform: Matrix,
     pub plain_modes: bool,
+    pub rendering: super::text_rendering::Local,
 }
 pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Record, Error> {
     if input.left() > 65536 {
@@ -91,13 +92,15 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
     for (key, kind, value) in [
         ("textGridding", "textGridding", "None"),
         ("Ornt", "Ornt", "Hrzn"),
-        ("AntA", "Annt", "Anno"),
     ] {
         let Datum::Enum(k, v) = d.field(key)? else {
             return Err(malformed());
         };
         plain_modes &= k == kind && v == value;
     }
+    let Datum::Enum(antialias_kind, antialias_value) = d.field("AntA")? else {
+        return Err(malformed());
+    };
     plain_modes &= !d.field("TxMP")?.boolean()?;
     let story_index = d.field("TextIndex")?.integer()?;
     let old_text = d.optional("oldText").map(Datum::boolean).transpose()?;
@@ -144,6 +147,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
     input.zero_padding(3)?;
     let parsed = super::text_data::parse(&payload, control)?;
     let engine = object(&parsed, "EngineDict")?;
+    let rendering = super::text_rendering::Local::read(antialias_kind, antialias_value, engine)?;
     let source = object(engine, "Editor")?
         .get("Text")
         .and_then(Value::as_str)
@@ -186,6 +190,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         "diagnostic_scope":"selected_story_references_frame_geometry_and_known_character_paragraph_control_comparison",
         "reported_text_source":"local_record","native_story_index":story_index,
         "compatibility_markers":compatibility,
+        "rendering":rendering.report(),
         "whole_file_validated":false,"layout_semantics_validated":false,
         "text_characters":text.chars().count(),"text_utf16_units":text.encode_utf16().count(),
         "style_runs":style_runs.len(),"paragraph_runs":paragraph_runs.len(),
@@ -198,6 +203,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         parsed,
         transform,
         plain_modes,
+        rendering,
     })
 }
 pub(super) fn diagnose(

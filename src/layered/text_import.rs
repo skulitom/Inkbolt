@@ -24,16 +24,20 @@ pub(super) fn prepare(
     let converted = (|| {
         if !record.plain_modes {
             return Err(unsupported(
-                "Editable text requires horizontal unwarped text, no grid or native antialias mode, and no legacy compatibility markers",
+                "Editable text requires horizontal unwarped text, no grid, and no legacy compatibility markers",
             ));
         }
         let mut story_reference = None;
         let global = super::text_story::payload(tail, version, control)?;
-        let (source, mut styles, paragraphs) = if let Some(bytes) = global {
+        let (source, mut styles, paragraphs, rendering) = if let Some(bytes) = global {
             let global = super::text_data::parse_global(bytes, control)?;
             let stories = global.field("1")?.field("1")?.array()?;
             let index = usize::try_from(record.story_index).map_err(|_| malformed())?;
             let story = stories.get(index).ok_or_else(malformed)?;
+            let rendering = record.rendering.reconstruct(
+                &super::text_rendering::Global::read(story.field("0")?)?,
+                fonts.rendering,
+            )?;
             let (frame_index, frame_count) = super::text_import_geometry::global(&global, story)?;
             story_reference = Some((index, stories.len(), frame_index, frame_count));
             let authoring = story.field("0")?;
@@ -68,8 +72,11 @@ pub(super) fn prepare(
             )?;
             let paragraphs =
                 super::text_paragraph::Paragraphs::global(paragraph_runs, &source, control)?;
-            (source, styles, paragraphs)
+            (source, styles, paragraphs, rendering)
         } else {
+            let rendering = record
+                .rendering
+                .reconstruct(&super::text_rendering::Global::default(), fonts.rendering)?;
             super::text_import_geometry::local(&record.parsed)?;
             let runs = record.parsed["EngineDict"]["StyleRun"]["RunArray"]
                 .as_array()
@@ -88,7 +95,12 @@ pub(super) fn prepare(
             for key in ["FillFlag", "StrokeFlag", "Kerning"] {
                 record.styles.unknown.remove(key);
             }
-            (record.source.clone(), record.styles, record.paragraphs)
+            (
+                record.source.clone(),
+                record.styles,
+                record.paragraphs,
+                rendering,
+            )
         };
         if let Some(bytes) = source_profile {
             super::text_import_style::convert_colors(&mut styles, bytes, control)?;
@@ -125,6 +137,7 @@ pub(super) fn prepare(
             "text_sha256":assets::sha256(frame.text.as_bytes()),"characters":frame.text.chars().count(),"shape":"point","native_baseline_matrix":record.transform,
             "nominal_frame":[1,1],"font_bindings":binding_report,"cached_pixels_used":false,"native_layout_equality":false,
             "color_quantization":"opaque RGB components rounded to eight bits","missing_values_inherited":false});
+        receipt["rendering"] = rendering;
         receipt["color_interpretation"] = json!(if source_profile.is_some() {
             "converted_srgb_before_quantization"
         } else {

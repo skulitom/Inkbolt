@@ -1,4 +1,4 @@
-"""Text remains unsupported while malformed records and requirements are precise."""
+"""Structured text diagnostics without opting into editable reconstruction."""
 import hashlib,json,struct,tempfile,unittest
 from pathlib import Path
 import layered_text_fixtures as t

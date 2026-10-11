@@ -16,13 +16,22 @@ pub(super) fn keys(v: &Value, allowed: &[&str]) -> Result<(), Error> {
     Ok(())
 }
 pub(super) fn node_keys(v: &Node, allowed: &[&str]) -> Result<(), Error> {
+    node_keys_at(v, allowed, "global text container")
+}
+fn node_keys_at(v: &Node, allowed: &[&str], location: &str) -> Result<(), Error> {
     let Node::Dictionary(fields) = v else {
         return Err(malformed());
     };
-    if fields.keys().any(|k| !allowed.contains(&k.as_str())) {
-        return Err(unsupported(
-            "Global text contains an unmapped authoring or geometry field",
-        ));
+    let unknown = fields
+        .keys()
+        .filter(|k| !allowed.contains(&k.as_str()))
+        .collect::<Vec<_>>();
+    if !unknown.is_empty() {
+        return Err(unsupported(&format!(
+            "Unmapped authoring or geometry fields in {location}: {} ({} total)",
+            serde_json::to_string(&unknown.iter().take(8).collect::<Vec<_>>()).unwrap(),
+            unknown.len()
+        )));
     }
     Ok(())
 }
@@ -41,11 +50,7 @@ pub(super) fn local(parsed: &Value) -> Result<(), Error> {
         ],
     )?;
     keys(&e["Editor"], &["Text"])?;
-    if e["AntiAlias"] != 0 || e["UseFractionalGlyphWidths"] != true {
-        return Err(unsupported(
-            "Point-text import requires fractional widths and no native antialias mode",
-        ));
-    }
+    // Rendering controls are separately reconciled and explicitly converted.
     for (table, sheet, data) in [
         ("StyleRun", "StyleSheet", "StyleSheetData"),
         ("ParagraphRun", "ParagraphSheet", "Properties"),
@@ -187,15 +192,19 @@ pub(super) fn local(parsed: &Value) -> Result<(), Error> {
 }
 
 pub(super) fn global(global: &Node, story: &Node) -> Result<(usize, usize), Error> {
-    node_keys(global, &["98", "0", "1"])?;
-    node_keys(global.field("98")?, &["0"])?;
-    node_keys(global.field("1")?, &["1"])?;
+    node_keys_at(global, &["98", "0", "1"], "global root /")?;
+    node_keys_at(global.field("98")?, &["0"], "global version /98")?;
+    node_keys_at(global.field("1")?, &["1"], "global authoring /1")?;
     let resources = global.field("0")?;
-    node_keys(resources, &["1", "8"])?;
+    node_keys_at(resources, &["1", "8"], "global resources /0")?;
     node_keys(story, &["0", "1"])?;
-    node_keys(story.field("0")?, &["0", "5", "6"])?;
+    node_keys_at(
+        story.field("0")?,
+        &["0", "5", "6", "10"],
+        "selected story authoring",
+    )?;
     let layout = story.field("1")?;
-    node_keys(layout, &["0"])?;
+    node_keys_at(layout, &["0"], "selected story layout")?;
     let refs = layout.field("0")?.array()?;
     if refs.len() != 1 {
         return Err(unsupported(

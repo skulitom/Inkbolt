@@ -19,12 +19,21 @@ pub struct TextFonts {
     /// Explicitly choose editable engine layout for the admitted text subset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reconstruction: Option<TextImportReconstruction>,
+    /// Explicitly replace known native edge/spacing controls with engine rendering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rendering: Option<TextImportRendering>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TextImportReconstruction {
     EngineLayout,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TextImportRendering {
+    Engine,
 }
 
 fn valid_name(name: &str) -> bool {
@@ -54,6 +63,12 @@ pub(super) fn face_name(face: &rustybuzz::Face<'_>) -> Result<String, Error> {
 
 impl TextFonts {
     pub(super) fn validate(&self) -> Result<(), Error> {
+        if self.rendering.is_some() && self.reconstruction.is_none() {
+            return Err(Error::new(
+                "INVALID_REQUEST",
+                "Text rendering requires explicit engine_layout reconstruction",
+            ));
+        }
         if self.bindings.is_empty() || self.bindings.len() > fonts::MAX_FONTS {
             return Err(limit(
                 "Native text bindings require one to eight explicit font faces",

@@ -114,6 +114,11 @@ their own profiles; cached glyph pixels never supply the paint. Source diagnosti
 retain their original values, and the conversion/clipping policy is reported
 separately without claiming a total clipping count.
 
+Text rendering controls are independent of style and geometry admission. Typed
+descriptor/local/global controls retain absence and detect explicit conflicts.
+The optional engine-rendering conversion records edge and spacing differences;
+it never grants permission to ignore unknown source controls or authoring tables.
+
 `presets` provides pure versioned screen and physical-page recipes over the
 existing document, artboard, logical-canvas and publication contracts. Explicit
 background/color choices, typed delivery settings and specification identities

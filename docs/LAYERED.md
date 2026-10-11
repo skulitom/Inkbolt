@@ -163,6 +163,12 @@ authoritative while local text or layout is stale. Editable reconstruction must
 reconcile styles and geometry as well as characters; removing global layout can
 change paragraph placement even when the characters match.
 Inherited styles and unknown descriptor framing can prevent diagnostics.
+
+Rendering diagnostics also report typed layer/local controls and the selected
+global story's explicit controls. Missing values remain absent; unknown global
+rendering field names are bounded and counted. Known controls can be reconstructed
+only within the [editable import contract](LAYERED_TEXT_IMPORT.md), including its
+separate explicit engine-rendering choice and loss receipts.
 Font names come from untrusted source data and do not identify exact font bytes.
 Editable reconstruction still needs explicit content-pinned font bindings and
 declared layout/rendering differences; no import option currently enables it.
