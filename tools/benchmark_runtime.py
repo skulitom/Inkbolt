@@ -12,6 +12,7 @@ import time
 
 from workload_cases import process_memory, run_process, save, save_json, sha
 from test_mcp_preview import restore
+from benchmark_tasks import check_class
 
 MAX_RESPONSE = 96*1024*1024
 
@@ -149,8 +150,9 @@ class Mcp:
 
 
 class Trial:
-    def __init__(self, executable, root, task, repetition, transport, required_checks, timeout=90):
-        self.executable = Path(executable)
+    def __init__(self, executable, root, task, repetition, transport, required_checks, timeout=90, arm='reference'):
+        self.executable = Path(executable) if executable is not None else None
+        self.arm = arm
         self.root = Path(root); self.root.mkdir()
         self.task, self.repetition, self.transport = task, repetition, transport
         self.required_checks = tuple(required_checks) + ('source-preservation',)
@@ -299,7 +301,7 @@ class Trial:
         try:
             value = predicate()
             require(value is not False, 'Oracle returned false')
-            self.checks.append(dict(name=name, status='pass'))
+            self.checks.append(dict(name=name, status='pass', check_class=check_class(self.task,name)))
             if preview_step is not None and self.first_preview is None:
                 rows = [row for row in self.calls if row['step'] == preview_step]
                 require(len(rows) == 1 and rows[0]['status'] == 'success', 'Preview must identify a successful observed response')
@@ -308,8 +310,17 @@ class Trial:
         except Exception as error:
             # Replace a just-added pass if preview provenance itself was invalid.
             self.checks = [check for check in self.checks if check['name'] != name]
-            self.checks.append(dict(name=name, status='fail', error=f'{type(error).__name__}: {error}'))
+            self.checks.append(dict(name=name, status='fail', check_class=check_class(self.task,name), error=f'{type(error).__name__}: {error}'))
             return False
+
+    def not_applicable(self, name, reason):
+        require(self.arm == 'baseline' and name in self.required_checks and check_class(self.task,name) == 'engine',
+                'Only baseline engine checks can be not applicable')
+        require(reason and not any(row['name'] == name for row in self.checks), 'Missing reason or duplicate check')
+        self.checks.append(dict(name=name,status='not_applicable',check_class='engine',reason=reason))
+
+    def has_solve_evidence(self):
+        return any(row.get('phase') != 'judge' for row in self.calls)
 
     def close(self):
         if self.server is not None:
@@ -324,9 +335,10 @@ class Trial:
             'An original fixture source or task prompt changed'))
         names = {check['name'] for check in self.checks}
         missing = [name for name in self.required_checks if name not in names]
-        complete = not missing and all(check['status'] == 'pass' for check in self.checks)
+        complete = not missing and all(check['status'] == 'pass' or (self.arm == 'baseline' and
+            check['status'] == 'not_applicable' and check_class(self.task,check['name']) == 'engine') for check in self.checks)
         solve_calls = [row for row in self.calls if row.get('phase') != 'judge']
-        success = complete and bool(solve_calls) and not self.error and all(
+        success = complete and self.has_solve_evidence() and not self.error and all(
             row['status'] in ('success','expected_error','response_lost') for row in self.calls)
         memory, memory_scope = self.memory_observations()
         memory_complete = bool(memory) and all(m and m.get('available') for m in memory)
@@ -337,7 +349,7 @@ class Trial:
         def invalid(row):
             error=row.get('engine_error') or row.get('error')
             return isinstance(error,dict) and error.get('code') in ('INVALID_JSON','INVALID_REQUEST')
-        result = dict(schema_version=2, task=self.task, repetition=self.repetition, transport=self.transport,
+        result = dict(schema_version=2, task=self.task, repetition=self.repetition, transport=self.transport, arm=self.arm,
             prompt_sha256=self.prompt_sha256,
             status='passed' if success else 'failed', error=self.error, required_checks=list(self.required_checks),
             missing_checks=missing, checks=self.checks, calls=self.calls, protocol=self.protocol,
@@ -361,6 +373,7 @@ class Trial:
             memory_complete=memory_complete, memory_scope=memory_scope,
             peak_working_set_bytes=max(m['peak_working_set_bytes'] for m in memory_values) if memory_complete else None,
             peak_commit_bytes=max(m['peak_commit_bytes'] for m in memory_values) if memory_complete else None,
-            token_usage=None,model_calls=None,agent_seconds=None,model_trials=False, **self.extra_results())
-        save_json(self.root/'result.json',result)
+            token_usage=None,model_calls=None,agent_seconds=None,model_trials=False)
+        result.update(self.extra_results())
+        save_json(getattr(self,'result_path',self.root/'result.json'),result)
         return result

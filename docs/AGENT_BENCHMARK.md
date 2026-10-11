@@ -1,11 +1,15 @@
 # Reproducible agent task benchmark
 
-`tools/agent_benchmark.py` records scripted reference workflows for the fixed
+`tools/agent_benchmark.py` records scripted reference workflows and separated
+external-client trials for the fixed
 B01-B20 tasks in [the readiness plan](AGENT_READINESS.md). Twenty
 adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
+`--arm reference` is the existing default. B01 also supports `--arm model` and
+`--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
+The other external task migrations and full model/baseline acceptance remain open.
 
 ## Running and preserving evidence
 
@@ -55,9 +59,14 @@ judging. The judge reads `editable.json` and `preview.png`, accepts solver-chose
 document/object/font-binding IDs, validates the snapshot and independently checks
 both delivered pixels and a fresh rendering against authored geometry. Prompt and
 source hashes must remain unchanged. Tests alter names, geometry, visibility,
-fonts, images and inputs. Other adapters still interleave solving and judging;
-the external driver, transcript import, baseline arm and remaining prompt/check
-migrations are open. This increment does not establish model evidence.
+fonts, images and inputs. Its named font adds an optional public OpenType name
+table so the same original outlines work in the pinned SVG baseline renderer;
+older unnamed fixtures retain their exact bytes. Prompt version 2 describes both
+editable deliverables and the baseline source-judge subset. Both arms compare the
+delivered PNG and a fresh source render against the same authored pixel oracle.
+Other adapters still interleave solving and judging. All required checks have
+explicit artifact/engine classes; classification does not migrate those judges.
+No real model trial is claimed by synthetic driver tests or reference runs.
 
 | Tasks | Implemented evidence |
 | --- | --- |

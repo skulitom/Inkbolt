@@ -54,3 +54,65 @@ CHECKS = {
             'original-timeline', 'revised-timeline', 'undone-timeline', 'old-source-history',
             'immutable-deliveries', 'history-valid', 'consumer-processes'),
 }
+
+# These are scored identically across arms. The complementary engine list is
+# explicit too: adding a check requires a classification decision, not a default.
+ARTIFACT_CHECKS = {
+    'B01': ('diagram-structure','font-identity','diagram-pixels'),
+    'B02': ('sheet-structure','board-0-pixels','board-1-pixels','board-2-pixels'),
+    'B03': ('only-target-changed','large-layout-pixels'),
+    'B04': ('imported-structure','declared-losses','revised-pixels'),
+    'B05': ('palette-pixels',),
+    'B06': ('original-overflow','reading-order','retained-source','flow-pixels'),
+    'B07': ('glyph-cluster-order','typography-pixels'),
+    'B08': ('selection-coverage','retained-pixels','masked-pixels'),
+    'B09': ('exact-local-repair','repaired-pixels'),
+    'B10': ('photo-preview','edited-native-samples','memory-budget'),
+    'B11': ('composition-retained','resource-identity','mixed-pixels'),
+    'B12': ('wide-pixels','square-pixels','tall-pixels','base-preserved','outputs-preserved'),
+    'B13': ('transparent-pixels','screen-color','no-overwrite'),
+    'B14': ('print-preview','physical-boxes','profile-identities','native-inks','declared-losses'),
+    'B15': ('located-diagnostics','verified-replacements','unchanged-artwork','repaired-pixels'),
+    'B16': ('seeded-diagnosis','no-collateral-edits','repair-pixels','preflight-delivery'),
+    'B17': ('edited-pixels',),
+    'B18': ('both-intents-preserved','conflict-pixels'),
+    'B19': ('review-pixels','recovered-pixels','no-partial-final'),
+    'B20': ('delivery-0-pixels-clock','reviewed-source-only','revised-preview','delivery-1-pixels-clock',
+            'original-timeline','revised-timeline','immutable-deliveries'),
+}
+ENGINE_CHECKS = {
+    'B01': ('editable-source',), 'B02': ('editable-source',),
+    'B03': ('historical-pixels','history-valid'), 'B04': ('editable-source',),
+    'B05': ('live-dependencies','historical-pixels','history-valid'),
+    'B06': ('historical-flow','history-valid'), 'B07': ('editable-text-and-font','history-valid'),
+    'B08': ('historical-pixels','history-valid'), 'B09': ('historical-pixels','history-valid'),
+    'B10': ('native-import','editable-exact-patch','historical-native-samples','undo-editability',
+            'redo-editability','immutable-tiles','history-valid'),
+    'B11': ('historical-pixels','history-valid'), 'B12': ('variant-bindings','history-valid'),
+    'B13': ('editable-source',), 'B14': ('editable-print-source','history-valid'),
+    'B15': ('old-bindings-preserved','history-valid'), 'B16': ('history-valid',),
+    'B17': ('original-receipt','retry-idempotent','undo-preserved','history-valid'),
+    'B18': ('stale-rejected','historical-pixels','history-valid'),
+    'B19': ('active-cancellation','interrupted-unpublished','revision-resource-pinning',
+            'single-publication-no-overwrite','history-valid'),
+    'B20': ('pinned-successor','no-implicit-relink','explicit-consumer-revision','consumer-undo-retry',
+            'undone-timeline','old-source-history','history-valid','consumer-processes'),
+}
+for _task, _checks in CHECKS.items():
+    _classified = ARTIFACT_CHECKS[_task] + ENGINE_CHECKS[_task]
+    if len(_classified) != len(set(_classified)) or set(_classified) != set(_checks):
+        raise RuntimeError('Incomplete or duplicate benchmark check classification: '+_task)
+
+BASELINE_NOT_APPLICABLE = {
+    'B17': 'Lost Inkbolt editing receipts have no no-engine counterpart.',
+    'B18': 'Inkbolt revision conflicts have no no-engine counterpart.',
+    'B19': 'Inkbolt durable job recovery has no no-engine counterpart.',
+}
+
+
+def check_class(task, name):
+    if name == 'source-preservation' or name in ARTIFACT_CHECKS.get(task, ()):
+        return 'artifact'
+    if name in ENGINE_CHECKS.get(task, ()):
+        return 'engine'
+    return 'unclassified'  # Controlled unit-test probes; never comparable evidence.

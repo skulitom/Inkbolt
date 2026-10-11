@@ -80,20 +80,33 @@ The Linux job in [the first hosted run](https://github.com/skulitom/Inkbolt/acti
 passed all 213 fresh stages, including 2,250 Python tests with 34 explicit skips,
 in 902.9 seconds. The overall run failed because of Windows/macOS Python setup.
 The [corrected run](https://github.com/skulitom/Inkbolt/actions/runs/38182478787)
-passed Python and Rust setup on all three platforms; its full matrix is pending.
+passed setup and the minimum-compiler check on all three platforms. Linux passed;
+Windows and macOS failed their full checks. Windows failures expose an aliased
+temporary-path mismatch in the test inventory helper. macOS session failures
+reproduce on Linux when SQLite receives a database under a linked parent
+directory. These are under repair; macOS tier 1 remains unverified.
 
 ## W2 and the next behavior increments
 
-B01 now separates fixtures, its versioned prompt, reference solving and a judge
-that reads delivered artifacts and accepts different solver-chosen IDs. Judge
-calls/traffic and wall time are separate; MCP lifetime memory remains inclusive.
-The five affected benchmark modules passed focused verification: 21 tests on
-Windows in 115.9 seconds (including four identical-result reuses), and 13 executed
-tests with eight explicit platform skips on Linux in 62.6 seconds. These checks
-cover the shared runtime; full W2 milestone acceptance remains open.
-Remaining tasks, artifact/engine check
-classes, both model/baseline arms, external-driver/transcript support and fake-driver
-tests remain open. No real model trial is claimed. W5.1 payloads,
+B01 separates fixtures, its versioned prompt, reference solving and an independent
+artifact judge. Its [external driver lifecycle](BENCHMARK_DRIVER.md) supports
+model and no-engine arms, bounded client execution, retained transcripts, observed
+usage and rejudging captured workspaces. Unknown usage remains null. Explicit
+artifact/engine check classes cover the unchanged twenty-task inventory. The
+baseline uses externally pinned resvg 0.47.0 and Pillow 12.3.0 with the original
+named font; source checks and independently calculated pixels judge both arms.
+
+Seven affected modules passed focused Windows checks in 125.4 seconds; the final
+driver-path correction passed in 26.8 seconds. Linux passed the seven modules in
+60.1 seconds, executing 44 tests with eight explicit platform skips. These runs
+use identical-pass reuse for unaffected stages, with no failures or pending checks.
+Five synthetic-client B01 trials passed with the real pinned baseline tools on
+each platform; all five retained Windows trials also passed independent rejudging.
+Synthetic runs never count as model evidence. No actual model was invoked.
+
+B02-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+adapters, matched comparison reporting and genuine model trials remain open;
+full W2 milestone acceptance remains open. W5.1 payloads,
 SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
 plan's decision rule; accepted outcomes remain required.

@@ -116,6 +116,7 @@ class VerificationTests(unittest.TestCase):
             'test_verification_runner','test_workload_gates','test_wide_workload_gates',
             'test_agent_benchmark','test_agent_benchmark_handoff',
             'test_agent_benchmark_photo','test_agent_benchmark_recovery',
+            'test_benchmark_driver',  # Captures complete external trial workspaces.
             'test_wsl_verification',  # The WSL snapshot binds the whole candidate.
         })
         # Refactoring must still invalidate actual shared helper consumers and

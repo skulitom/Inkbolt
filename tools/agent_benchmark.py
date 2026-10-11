@@ -47,6 +47,8 @@ def aggregate(rows):
             passed=sum(row['status']=='passed' for row in trials),
             failed=sum(row['status']=='failed' for row in trials),
             not_implemented=sum(row['status']=='not_implemented' for row in trials),
+            not_applicable=sum(row['status']=='not_applicable' for row in trials),
+            prepared=sum(row['status']=='prepared' for row in trials),
             # Failed attempt metrics stay in these distributions; fast rejection
             # cannot silently become a successful-task performance observation.
             observations={key:distribution([row[key] for row in measured if row.get(key) is not None])
@@ -54,7 +56,10 @@ def aggregate(rows):
                             'engine_roundtrip_seconds','scripted_wall_seconds',
                             'first_verified_preview_seconds','peak_commit_bytes','peak_working_set_bytes',
                             'total_engine_commands','total_engine_retries','total_request_bytes','total_response_bytes',
-                            'total_engine_roundtrip_seconds','consumer_peak_tree_commit_bytes')}))
+                            'total_engine_roundtrip_seconds','consumer_peak_tree_commit_bytes','model_calls','agent_seconds')},
+            token_observations={key:distribution([row['token_usage'][key] for row in measured
+                if isinstance(row.get('token_usage'),dict) and row['token_usage'].get(key) is not None])
+                for key in ('input_tokens','output_tokens','cached_input_tokens','reasoning_tokens')}))
     return result
 
 
@@ -64,6 +69,11 @@ def main(argv=None):
     parser.add_argument('--conditions',required=True,help='Actual machine/load conditions; no isolation is implied')
     parser.add_argument('--repetitions',type=int,choices=range(1,11),default=5)
     parser.add_argument('--transport',choices=['cli','mcp'],default='mcp')
+    parser.add_argument('--arm',choices=['reference','model','baseline'],default='reference')
+    parser.add_argument('--driver-config',type=Path,help='External client/model settings; credentials stay in the environment')
+    parser.add_argument('--import-root',type=Path,help='Previously captured external trial root')
+    parser.add_argument('--prepare-only',action='store_true',help='Write external-client requests and fixtures without launching a client')
+    parser.add_argument('--baseline-tools',type=Path,help='External pinned resvg and Pillow Python executable paths')
     parser.add_argument('--task',action='append',choices=list(TASKS),dest='tasks')
     for name in ('cutbolt','ffmpeg','ffprobe'):
         parser.add_argument('--'+name,type=Path,help='Explicit local consumer executable for B20')
@@ -71,6 +81,12 @@ def main(argv=None):
     if sys.flags.optimize: parser.error('Independent oracles require assertions; do not use -O')
     if not args.conditions.strip() or len(args.conditions)>4096: parser.error('Provide bounded nonempty conditions')
     if args.tasks and len(set(args.tasks))!=len(args.tasks): parser.error('Task selections must be distinct')
+    external_options=args.driver_config or args.import_root or args.prepare_only or args.baseline_tools
+    if args.arm=='reference' and external_options: parser.error('External driver options require --arm model or baseline')
+    if args.arm!='reference' and not args.driver_config: parser.error('External arms require --driver-config')
+    if args.arm=='baseline' and not args.baseline_tools: parser.error('The baseline arm requires --baseline-tools')
+    if args.arm=='model' and args.baseline_tools: parser.error('Baseline tools belong to the baseline arm')
+    if args.prepare_only and args.import_root: parser.error('Prepare and import are separate operations')
     consumer_tools={name:getattr(args,name).resolve() for name in ('cutbolt','ffmpeg','ffprobe') if getattr(args,name)}
     if consumer_tools and len(consumer_tools)!=3:parser.error('Supply all three consumer executables together')
     consumer_identity=tool_identities(consumer_tools) if consumer_tools else None
@@ -78,6 +94,9 @@ def main(argv=None):
     if output.is_relative_to(ROOT.resolve()) or not output.parent.is_dir() or output.exists():
         parser.error('Use a new external directory under an existing parent')
     output.mkdir()
+    if args.arm!='reference':
+        from benchmark_external_cli import run_suite
+        return run_suite(args,output,aggregate)
     candidates=candidate_identity()
     environment=measurement_host.identity()
     executable,build=release_build(output)

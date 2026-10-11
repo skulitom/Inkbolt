@@ -8,10 +8,11 @@ from synthetic_font import geometric_font
 from workload_cases import rectangle, save, sha
 
 PROMPT = Path(__file__).with_name('benchmark_prompts')/'B01.md'
+FONT_FAMILY = 'Inkbolt Diagram Fixture'
 
 
 def fixture(case):
-    case.source('original.ttf', geometric_font())
+    case.source('original.ttf', geometric_font(family=FONT_FAMILY))
     case.source('font-license.txt', b'Original Inkbolt synthetic font. Permission to use, modify and redistribute with this notice.')
 
 
@@ -39,6 +40,19 @@ def delivered(case, name):
     return path.read_bytes()
 
 
+def expected_picture():
+    return pixels(128,56,[(8,8,48,36,BLUE), (80,8,40,36,GREEN), (56,25,24,2,[80,80,80,255]),
+        (21,18,8,14,[255]*4), (33,18,8,14,[255]*4), (97,18,8,14,[255]*4)])
+
+
+def rectangle_corners(item):
+    geometry=item['content']['geometry']
+    require(geometry['shape']=='rect', 'Expected editable rectangle geometry')
+    x,y,w,h=(geometry[key] for key in ('x','y','width','height'))
+    a,b,c,d,e,f=item['transform']
+    return {(round(a*px+c*py+e,8),round(b*px+d*py+f,8)) for px,py in ((x,y),(x+w,y),(x,y+h),(x+w,y+h))}
+
+
 def judge(case):
     """Read deliverables, never the reference solver's locals or chosen IDs."""
     raw = delivered(case, 'editable.json')
@@ -51,9 +65,8 @@ def judge(case):
         texts = [item for item in items if item['content']['type'] == 'text']
         require(len(vectors) == 3 and len(texts) == 2, 'Diagram content changed kind')
         for x, y, w, h, color in [(8,8,48,36,BLUE), (80,8,40,36,GREEN), (56,25,24,2,[80,80,80,255])]:
-            expected = rectangle('unused', x, y, w, h, color)['content']['geometry']
-            require(sum(item['content']['geometry'] == expected and item['content']['fill'] == color
-                        and item['transform'] == [1,0,0,1,0,0] for item in vectors) == 1,
+            expected = {(x,y),(x+w,y),(x,y+h),(x+w,y+h)}
+            require(sum(rectangle_corners(item) == expected and item['content']['fill'] == color for item in vectors) == 1,
                     'Block geometry or paint changed')
         for text, x in [('AA', 20), ('A', 96)]:
             require(sum(item['content']['frame']['text'] == text and item['transform'] == [1,0,0,1,x,16]
@@ -72,18 +85,17 @@ def judge(case):
 
     case.check('diagram-structure', structure)
     case.check('font-identity', fonts)
-    expected = pixels(128,56,[(8,8,48,36,BLUE), (80,8,40,36,GREEN), (56,25,24,2,[80,80,80,255]),
-        (21,18,8,14,[255]*4), (33,18,8,14,[255]*4), (97,18,8,14,[255]*4)])
+    expected = expected_picture()
     preview = delivered(case, 'preview.png')
-    case.check('diagram-pixels', lambda: png_check(preview,128,56,expected))
     reopened = case.call('judge-reopen', 'document.validate',
                         document=dict(file_path='editable.json', sha256=sha(raw)))
     rendered = case.call('judge-render', 'document.preview',
                          document=dict(file_path='editable.json', sha256=sha(raw)), options={}, preview=True)
-    def editable():
-        require(reopened == actual, 'Editable document did not reopen exactly')
+    def picture():
+        png_check(preview,128,56,expected)
         png_check(base64.b64decode(rendered['artifact']['data'], validate=True),128,56,expected)
-    case.check('editable-source', editable)
+    case.check('diagram-pixels', picture)
+    case.check('editable-source', lambda: require(reopened == actual, 'Editable document did not reopen exactly'))
 
 
 def diagram(case):
