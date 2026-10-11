@@ -35,11 +35,26 @@ All padding and supersamples count against the selected evaluation-pixel limit: 
 
 ## Bounded tiled evaluation
 
+
+Radial and twist filters trace bounded source regions through ordered filter
+stacks, parent containers and clipped siblings. Radial bounds cover every discrete
+spin/zoom sample; twist uses its finite rotation support and affine arithmetic
+margin. Transparent, clamp and reflect borders retain the full viewport meaning.
+Mapping work, expanded pixel visits, the largest live region and retained mapping
+storage count against the existing limits; native codec bands recheck work and
+peak storage. At most 131,072 path references and 131,072 radial sample mappings
+are retained. Wide kernels, distant centers, large transforms and dense stacks
+can still fail the resource budget, including combinations which whole evaluation
+can render more cheaply. Disabled and zero-opacity radial/twist stages do not
+expand source regions; their controls still undergo ordinary validation. There
+is no whole-image floating-point fallback or persistent filter cache.
+
+
 For a full-size image use, for example, `{"format":"png","render_options":{"evaluation":"tiled"}}`. Scene expansion, fonts, scalar masks and resource resolution occur once per render. The compositor visits evaluation-pixel tiles of at most 128×128 (smaller at edges), with original global sampling coordinates for paints, images, clips, masks and dissolve cells. Supersampling reduces the number of finished output pixels per tile. Whole and tiled modes share completed premultiplied sample averaging, fractional-canvas coverage, HDR views and one final depth projection. `render_settings` explicitly reports `evaluation:"tiled"` and `evaluation_tile_edge:128` as the maximum, plus `evaluation_tile_policy:"maximum_128;8_for_at_least_128_expanded_items"`; omitted/default options preserve existing receipts.
 
 Tiled evaluation supports box, Gaussian, directional and surface filters; all four detail operators; offset, displacement and mosaic; and the local creative operators relief, high-pass, extrema, tone fold, edge ink, stroke rank, value field and field repair. Borders can be transparent, clamp or reflect. Every output tile reads a surrounding neighborhood equal to the cumulative support along filter stacks and ancestor containers. Reads stop at the full padded evaluation viewport; the original filter implementation therefore retains the same real border at every stage. Only the completed interior reaches output. Masks sample global coordinates, including linked and unlinked filter masks. Supersampling scales the support before averaging. Spatial selection includes the expanded read region and retains source order.
 
-Expanded tile visits, filter/mask/paint work and reconstruction are charged before rendering; native TIFF recomputes the visit budget when its strip bound requires shorter tile rows. Composition and filter scratch include the expanded region and additional rank neighborhoods in the existing memory ceiling. Full-opacity normal filters without active masks replace bounded premultiplied samples directly, avoiding unnecessary straight-color/blend conversions and their work charge. Large stacks and dense overlaps can still reject without raising limits or falling back to a whole floating-point surface. Expensive noise, rank and field treatments do not automatically fit every multi-megapixel image. There is no cross-request filter cache. Wrapped borders, radial filtering and twist remain unsupported, as do artwork-mask references, raw development and retained-object content. Disabled/hidden instances of those unsupported controls also reject with `UNSUPPORTED_TILED_RENDER`. Scalar masks retain their existing support. The Rust API returning a complete native `SampleRaster` remains whole-only; native TIFF consumes the regional visitor directly.
+Expanded tile visits, filter/mask/paint work and reconstruction are charged before rendering; native TIFF recomputes the visit budget when its strip bound requires shorter tile rows. Composition and filter scratch include the expanded region and additional rank neighborhoods in the existing memory ceiling. Full-opacity normal filters without active masks replace bounded premultiplied samples directly, avoiding unnecessary straight-color/blend conversions and their work charge. Large stacks and dense overlaps can still reject without raising limits or falling back to a whole floating-point surface. Expensive noise, rank and field treatments do not automatically fit every multi-megapixel image. There is no cross-request filter cache. Wrapped borders remain unsupported, as do artwork-mask references, raw development and retained-object content. Disabled/hidden instances of those unsupported controls also reject with `UNSUPPORTED_TILED_RENDER`. Scalar masks retain their existing support. The Rust API returning a complete native `SampleRaster` remains whole-only; native TIFF consumes the regional visitor directly.
 
 Noise addresses the full padded viewport's document-unit cells; mosaic cells and
 field-repair row parity retain their full evaluation-pixel grid. Displacement and

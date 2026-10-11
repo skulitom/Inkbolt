@@ -1,5 +1,12 @@
 # Architecture
 
+Tiled radial and twist filters use bounded source-dependency paths through filter
+stacks, parent containers and clipped siblings. Radial sample offsets are bounded
+over each requested region; twist bounds include its finite rotation radius and
+affine roundoff. Visited regions, mapping work and retained plans count against
+the existing limits. Native codec bands recheck both work and peak storage.
+Wrapped borders still require a separate nonlocal read strategy.
+
 Selected global text-frame diagnostics retain explicit row/column counts, their
 gaps and spacing as typed source values. Missing controls stay absent; numeric
 validity does not establish a usable grid or allow editable conversion. Unknown

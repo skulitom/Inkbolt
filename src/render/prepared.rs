@@ -8,6 +8,8 @@ pub(crate) struct Prepared {
     sparse: Option<super::sparse::Plan>,
     neighborhood: Option<super::tiled::Neighborhood>,
     tile_work: u64,
+    tile_peak_pixels: u64,
+    tile_buffer_rate: u64,
     pub sampling: crate::render_quality::Plan,
     pub work: u64,
     pub buffers: u64,
@@ -75,7 +77,7 @@ impl Prepared {
         let count = width as u64 * height as u64;
         let tiled = plan.options.evaluation == crate::render_quality::Evaluation::Tiled;
         let neighborhood = if tiled {
-            super::tiled::validate(document, scale)?
+            super::tiled::validate(document, scale, control)?
         } else {
             None
         };
@@ -209,8 +211,12 @@ impl Prepared {
         {
             return Err(limit("Render exceeds paint evaluation work limit"));
         }
-        let own_work = if let Some(neighborhood) = &neighborhood {
-            neighborhood.work(document, &texts, spatial.as_ref(), &plan, u32::MAX, control)?
+        let neighborhood_cost = neighborhood
+            .as_ref()
+            .map(|n| n.work(document, &texts, spatial.as_ref(), &plan, u32::MAX, control))
+            .transpose()?;
+        let own_work = if let Some((work, _)) = neighborhood_cost {
+            work
         } else if let Some(plan) = &spatial {
             if plan.paint_work > crate::paint::MAX_PAINT_WORK {
                 return Err(limit("Spatial paint work exceeds limit"));
@@ -276,8 +282,13 @@ impl Prepared {
             0
         };
         let buffer_count = if tiled {
-            let edge = super::tiled::EDGE + 2 * neighborhood.as_ref().map_or(0, |p| p.halo);
-            u64::from(width.min(edge)) * u64::from(height.min(edge))
+            neighborhood_cost.map_or_else(
+                || {
+                    u64::from(width.min(super::tiled::EDGE))
+                        * u64::from(height.min(super::tiled::EDGE))
+                },
+                |(_, pixels)| pixels,
+            )
         } else {
             count
         };
@@ -316,6 +327,7 @@ impl Prepared {
         let mut work = own_work + mask_plan.work;
         let mut buffers = (buffer_pixels * 4).max(mask_plan.buffer_values)
             + spatial.as_ref().map_or(0, |p| p.buffer_values)
+            + neighborhood.as_ref().map_or(0, |n| n.buffer_values())
             + document
                 .items
                 .iter()
@@ -462,6 +474,8 @@ impl Prepared {
             sparse,
             neighborhood,
             tile_work: own_work,
+            tile_peak_pixels: buffer_count,
+            tile_buffer_rate: (buffer_pixels * 4).div_ceil(buffer_count.max(1)),
             sampling: plan,
             work,
             buffers,
@@ -535,9 +549,15 @@ impl Prepared {
                 max_rows,
                 &self.resources.control,
             )?;
-            if self.work - self.tile_work + work > MAX_RENDER_WORK {
+            if self.work - self.tile_work + work.0 > MAX_RENDER_WORK {
                 return Err(limit(
                     "Codec band filter/effect neighborhoods exceed render work limit",
+                ));
+            }
+            let extra = work.1.saturating_sub(self.tile_peak_pixels) * self.tile_buffer_rate;
+            if self.buffers + extra > MAX_BUFFER_PIXELS * 4 {
+                return Err(limit(
+                    "Codec band source neighborhoods exceed render memory limit",
                 ));
             }
         }
@@ -565,7 +585,8 @@ impl Prepared {
                     self.sampling
                         .evaluation
                         .map(|v| v * self.sampling.internal_scale),
-                );
+                    &self.resources.control,
+                )?;
                 origin = start;
                 [size[0], size[1]] = extent;
             }

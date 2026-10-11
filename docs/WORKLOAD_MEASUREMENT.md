@@ -38,7 +38,7 @@ Aggregates report all attempts, successes, failures, variance, bytes and observe
 
 ## Measured regression budgets
 
-`tools/workload_gates.py` creates versioned local budgets from a complete successful `scale-v1`, `wide-native-v1`, `native-layout-v1`, `native-filter-v1`, `native-shadow-v1`, `native-retouch-v1` or `native-brush-v1` report. The first requires all seven fixed cases; each additional suite requires its separate original native workload. All require at least five repetitions of every case, every original command and correctness check, unchanged inputs, an optimized binary, and complete positive Windows memory observations. It recomputes metrics from command records; aggregate success claims cannot hide a failed, missing, duplicate, timed-out or retried attempt.
+`tools/workload_gates.py` creates versioned local budgets from a complete successful `scale-v1`, `wide-native-v1`, `native-layout-v1`, `native-filter-v1`, `native-shadow-v1`, `native-retouch-v1`, `native-brush-v1`, `native-detail-v1` or `native-nonlocal-v1` report. The first requires all seven fixed cases; each additional suite requires its separate original native workload. All require at least five repetitions of every case, every original command and correctness check, unchanged inputs, an optimized binary, and complete positive Windows memory observations. It recomputes metrics from command records; aggregate success claims cannot hide a failed, missing, duplicate, timed-out or retried attempt.
 
 ```powershell
 python tools/workload_gates.py create --baseline C:\Work\Evidence\baseline\report.json --output C:\Work\Evidence\scale-gate.json --reason "Five complete successful runs under the recorded conditions"
@@ -136,3 +136,17 @@ The prior release imported and published this image but rejected the first brush
 `python tools/measure_native_detail.py --output-root C:/Work/Evidence/detail-001 --conditions "Sequential local run; no concurrent verification"` measures `native-detail-v1`. The original 1920x1080 RGBA16 source retains an amount-four sharpen filter with clamp borders. An independent integer oracle computes `5*center-left-right-up-down`, clamps each channel, and checks every initial, patched and historical TIFF sample. The retained 2x2 patch crosses four source blocks. Original source bytes and saved history order remain mandatory.
 
 The previous build rejects these tiled publications as unsupported. The new suite retains that failure separately, pins its complete fixture/helper closure and uses an independent five-repetition baseline and repeat-run gate through `workload_gates.py`. Full normal unmasked replacement avoids redundant blend conversions under the same work ceilings. The bounded fixture does not establish arbitrary sharpening fidelity, all large-image filter stacks or complete A5 acceptance.
+
+## Native radial workload
+
+`python tools/measure_native_nonlocal.py --output-root C:/Work/Evidence/nonlocal-001 --conditions "Sequential local run; no concurrent verification"`
+measures `native-nonlocal-v1`. The original 1920x1080 RGBA16 source retains a
+three-sample radial zoom with clamp borders. Exact integer bilinear weights check
+every output channel against synthetic source ramps, including border clamping,
+a 2x2 patch across four source blocks and historical output. Source preservation,
+retained filter controls and valid revision order remain mandatory.
+
+This has a separate content-bound regression gate requiring five successful
+release repetitions and complete command/memory records. Its fixed zoom workload
+does not establish that every radial/twist stack fits the same budgets or complete
+A5. Wrapped filters and wider production compositions remain open.

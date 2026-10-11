@@ -6,6 +6,7 @@ use std::{collections::BTreeMap, path::Path};
 
 mod coverage_cache;
 mod coverage_path;
+mod filter_regions;
 pub(crate) mod prepared;
 mod sparse;
 mod spatial;

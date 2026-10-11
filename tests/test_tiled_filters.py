@@ -90,7 +90,7 @@ class TiledFilterTests(unittest.TestCase):
         item=rect('source',w=30,h=30)
         d=self.document([item],263,141)
         output=dict(file_name='failed.png',format='png',render_options=dict(evaluation='tiled'))
-        for operator,border in [(dict(type='box',radius=1),'wrap'),(dict(type='radial',center=[1,1],angle=10),'clamp')]:
+        for operator,border in [(dict(type='box',radius=1),'wrap'),(dict(type='radial',center=[1,1],angle=10),'wrap')]:
             d['items'][0]['filters']=[dict(id='filter',operator=operator,border=border,enabled=False)]
             self.cli('document.publish',document=d,output=output,error='UNSUPPORTED_TILED_RENDER')
             self.assertFalse((self.root/'failed.png').exists())

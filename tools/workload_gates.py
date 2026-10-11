@@ -62,6 +62,9 @@ BRUSH_CONTRACTS = {'native-brush-history': WIDE_CONTRACTS['wide-mixed-native']}
 DETAIL_CASES = ('native-sharpen-history',)
 DETAIL_HARNESS = HARNESS + ('tools/measure_extra.py', 'tools/measure_native_detail.py', 'tools/native_detail_workload.py')
 DETAIL_CONTRACTS = {'native-sharpen-history': WIDE_CONTRACTS['wide-mixed-native']}
+NONLOCAL_CASES = ('native-radial-history',)
+NONLOCAL_HARNESS = HARNESS + ('tools/measure_extra.py', 'tools/measure_native_nonlocal.py', 'tools/native_nonlocal_workload.py')
+NONLOCAL_CONTRACTS = {'native-radial-history': WIDE_CONTRACTS['wide-mixed-native']}
 SUITES = {
     'scale-v1': (CASES, HARNESS, CONTRACTS, ('native-tiled-v1', 'legacy-v1')),
     'wide-native-v1': (WIDE_CASES, WIDE_HARNESS, WIDE_CONTRACTS, ('native-tiled-v1',)),
@@ -71,6 +74,7 @@ SUITES = {
     'native-retouch-v1': (RETOUCH_CASES, RETOUCH_HARNESS, RETOUCH_CONTRACTS, ('native-tiled-v1',)),
     'native-brush-v1': (BRUSH_CASES, BRUSH_HARNESS, BRUSH_CONTRACTS, ('native-tiled-v1',)),
     'native-detail-v1': (DETAIL_CASES, DETAIL_HARNESS, DETAIL_CONTRACTS, ('native-tiled-v1',)),
+    'native-nonlocal-v1': (NONLOCAL_CASES, NONLOCAL_HARNESS, NONLOCAL_CONTRACTS, ('native-tiled-v1',)),
 }
 
 
