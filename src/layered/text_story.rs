@@ -113,7 +113,7 @@ pub(super) fn diagnose(
     let paragraph_runs = runs(authoring, "5", &boundaries, units)?;
     let resolved = super::text_inheritance::resolve(&global, style_runs, paragraph_runs, control)?;
     let paragraphs =
-        super::text_paragraph::Paragraphs::global(&resolved.paragraphs, source, control)?;
+        super::text_paragraph::Paragraphs::global(&global, &resolved.paragraphs, source, control)?;
     let fonts = global.field("0")?.field("1")?.field("0")?.array()?;
     let styles = super::text_style::Styles::global(&resolved.characters, fonts, control)?;
     let font_records = super::text_font_records::read(

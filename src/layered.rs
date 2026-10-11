@@ -17,6 +17,7 @@ mod text_inheritance;
 mod text_language;
 mod text_paint;
 mod text_paragraph;
+mod text_preset_records;
 mod text_record;
 mod text_rendering;
 mod text_story;

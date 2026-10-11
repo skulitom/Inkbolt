@@ -1,10 +1,12 @@
 # Architecture
 
-Paragraph diagnostics preserve drop-cap and composer codes, plus typed empty
-or indexed line-breaking, spacing and list-style references. These references
-remain unresolved; local legacy preset codes are separate controls. Neither a
-zero index nor an explicit empty reference supplies a layout default or permits
-editable conversion. Source table definitions remain outside this mapping.
+Paragraph diagnostics resolve selected line-breaking, spacing and list-style
+references to bounded source record slots and names. Auxiliary ordering does
+not remap those slots; names join the partial control fingerprint. A compact
+preview reports selected names as untrusted metadata. Definition semantics and
+unused records remain unvalidated. Explicit empty references, missing controls
+and slot zero stay distinct. List-item suppression and number restarts are typed
+controls, with no additional editable layout admission.
 
 Mapped source layout diagnostics include separate paint visibility, bounded dash
 patterns, typed annotation-scale records and additional paragraph controls. Nested

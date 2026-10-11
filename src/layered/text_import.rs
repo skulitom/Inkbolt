@@ -80,8 +80,12 @@ pub(super) fn prepare(
                 font_table.field("0")?.array()?,
                 control,
             )?;
-            let paragraphs =
-                super::text_paragraph::Paragraphs::global(&resolved.paragraphs, &source, control)?;
+            let paragraphs = super::text_paragraph::Paragraphs::global(
+                &global,
+                &resolved.paragraphs,
+                &source,
+                control,
+            )?;
             (source, styles, paragraphs, rendering, Some(resolved.report))
         } else {
             let rendering = record
