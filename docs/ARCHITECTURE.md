@@ -1,5 +1,11 @@
 # Architecture
 
+Shared text shaping and outlines retain per-style horizontal/vertical factors
+and baseline shifts. Metrics use vertical scaling; tracking is added afterward
+in local pixels, while baseline shifts leave line spacing unchanged. Ordinary,
+path and linked text, including generated markers/hyphens, share the controls.
+Native delivery compensates tracking for the receiver's horizontal scale.
+
 Ordinary text frames retain optional [first-line placement](FIRST_BASELINE.md).
 Pinned first-line font-instance metrics select ascent, cap height or x-height;
 explicit/natural leading and fixed offsets share the same bounded minimum rule.

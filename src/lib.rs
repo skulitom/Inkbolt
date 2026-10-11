@@ -1550,6 +1550,7 @@ fn capability_report() -> Value {
         "compatibility_markers":"optional_boolean_and_bounded_enum_source_data;untrusted;semantics_not_validated",
         "editable_text_import":false,"editable_text_export":true
     });
+    capabilities["text_character_geometry"] = json!({"style_controls":["horizontal_scale","vertical_scale","baseline_shift"],"scale_range":[0.01,10.0],"scale_default":1,"baseline_shift_range":[-32768,32768],"baseline_shift_default":0,"baseline_shift":"positive_moves_up_in_local_glyph_coordinates;does_not_change_line_spacing","tracking":"local_pixels_added_after_horizontal_glyph_scaling","metrics":"vertical_scale_applies_to_font_metrics_and_first_baseline_heights","contexts":["ordinary_frames","paths","linked_stories","generated_list_markers","generated_hyphens"],"retained":true,"native_delivery":"explicit_scales_and_shift;tracking_compensated_for_native_horizontal_scale;recipient_layout_not_identical"});
     capabilities["text_first_baseline"] = json!({"option":"text.frame.first_baseline","metrics":["ascent","cap_height","x_height","leading","fixed"],"minimum":"finite_0_to_32768_local_pixels","default":"existing_font_ascent_placement","font_metrics":"contributing_first_line_instances_and_base_style;cap_and_x_height_require_positive_font_metrics;no_fallback_guess","placement":"uniform_translation_of_all_lines;frame_origin_and_clip_unchanged","retained":true,"unsupported":["path_text","linked_story_controls","native_layered_delivery"]});
     capabilities["layered_interchange"]["text_delivery"] = json!({
         "status":"explicit_native_layout_reconstruction;bounded_subset",
@@ -1558,9 +1559,9 @@ fn capability_report() -> Value {
         "shape_owner":"required_consumer_geometry_identifier;1_to_128_ASCII_letters_or_digits;unrecognized_labels_may_fail_geometry",
         "frames":["horizontal_left_aligned_ltr_point","horizontal_left_aligned_ltr_paragraph"],
         "fonts":"explicit_pinned_local_font_root;unique_Unicode_PostScript_name;static_TrueType_outline_faces;no_embedding_or_installed_font_lookup",
-        "styles":["utf16_character_ranges","size","solid_opaque_rgb","tracking","explicit_leading","kern_liga_dlig_boolean_controls"],
+        "styles":["utf16_character_ranges","size","solid_opaque_rgb","tracking","explicit_leading","horizontal_scale","vertical_scale","baseline_shift","kern_liga_dlig_boolean_controls"],
         "placement":"affine_world_matrix;point_origin_includes_source_first_baseline;paragraph_box_local",
-        "tracking":"rounded_integer_thousandths_em;nearest_ties_away_from_zero;changed_values_in_receipt",
+        "tracking":"compensated_for_horizontal_scale;magnitude_at_most_2147483647_integer_thousandths_em;nearest_ties_away_from_zero;changed_values_in_receipt",
         "caches":"separate_engine_rendered_pixels;never_editable_source",
         "native_layout_equality":false,"recipient_font_file_identity_pinned":false,"editable_import":false,
         "limits":{"characters":text::MAX_TEXT_CHARS,"runs":65,"paragraphs":65,"font_faces_across_nested_sources":fonts::MAX_FONTS,"text_record_bytes":65536},

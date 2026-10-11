@@ -354,6 +354,9 @@ pub(super) fn content(
             fill: paint(&style.fill, style.fill_opacity, style.color)?
                 .unwrap_or(Paint::Solid([0; 4])),
             tracking: 0.0,
+            horizontal_scale: 1.0,
+            vertical_scale: 1.0,
+            baseline_shift: 0.0,
         },
         ranges: vec![],
         align: text::Align::Left,

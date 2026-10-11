@@ -103,3 +103,30 @@ Public specifications: [variation overview](https://learn.microsoft.com/en-us/ty
 [axes](https://learn.microsoft.com/en-us/typography/opentype/spec/fvar),
 [glyph variations](https://learn.microsoft.com/en-us/typography/opentype/spec/gvar),
 [metric variations](https://learn.microsoft.com/en-us/typography/opentype/spec/mvar).
+
+## Character geometry
+
+Styles also retain `horizontal_scale` and `vertical_scale` factors in 0.01..10
+(default 1), plus `baseline_shift` in -32768..32768 local pixels (default 0).
+Default values are omitted from snapshots to preserve existing serialized styles.
+These controls apply after font-instance shaping and before path and item/parent
+transforms. Horizontal scale affects glyph advances, offsets and outlines;
+vertical scale affects vertical offsets, outlines, ascent/descent, natural line
+spacing and first-baseline font heights. Tracking remains an explicit local-pixel
+addition after horizontal scaling. Explicit leading stays in local pixels.
+
+A positive baseline shift raises glyphs. It does not change line baselines,
+spacing, wrapping or the frame clip. Shifted ink can therefore cause overflow;
+choose the existing explicit clip/visible policy when appropriate. On a path,
+the shift follows the glyph's rotated local vertical axis. Linked stories,
+list markers, discretionary hyphens and selected fallback/variable instances use
+the same controls. Inspection, raster output, SVG/PDF outlines and conversion to
+editable paths share the resulting glyph geometry. Source text and font bytes
+are unchanged.
+
+Explicit native layered delivery retains scale factors and baseline shift.
+Its integer tracking conversion compensates for native horizontal scaling;
+quantization receipts report the resulting local-pixel spacing. Native automatic
+leading is resolved from vertically scaled source metrics. Recipient font
+resolution, layout and rasterization remain subject to the existing declared
+reconstruction differences; editable incoming text remains unfinished.

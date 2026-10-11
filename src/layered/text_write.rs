@@ -102,14 +102,44 @@ fn encode(value: &Value, out: &mut Vec<u8>, control: &Control) -> Result<(), Err
             b"false".as_slice()
         }),
         Value::Number(n) if n.is_f64() => {
+            let start = out.len();
             // Retain a decimal point: integral tokens have different native units.
-            // Fixed notation avoids unsupported exponent syntax and round-trips
-            // even very small finite binary64 values before native quantization.
-            let fixed = format!("{:.340}", n.as_f64().unwrap());
-            let fixed = fixed.trim_end_matches('0');
-            out.extend(fixed.as_bytes());
-            if fixed.ends_with('.') {
-                out.push(b'0');
+            // Start with a shortest round-tripping spelling. Expanding the full
+            // binary fraction can make a receiving text reader reject a scale.
+            // Expand exponent notation only; the value remains the same f64.
+            let literal = n.to_string();
+            if let Some((mantissa, exponent)) = literal.split_once('e') {
+                let exponent = exponent.parse::<i32>().map_err(|_| malformed())?;
+                let unsigned = mantissa.strip_prefix('-').unwrap_or(mantissa);
+                let point = unsigned.find('.').unwrap_or(unsigned.len()) as i32 + exponent;
+                let digits = unsigned.replace('.', "");
+                if mantissa.starts_with('-') {
+                    out.push(b'-');
+                }
+                if point <= 0 {
+                    out.extend(b"0.");
+                    out.extend(std::iter::repeat_n(b'0', (-point) as usize));
+                    out.extend(digits.as_bytes());
+                } else if point as usize >= digits.len() {
+                    out.extend(digits.as_bytes());
+                    out.extend(std::iter::repeat_n(b'0', point as usize - digits.len()));
+                    out.extend(b".0");
+                } else {
+                    let (left, right) = digits.split_at(point as usize);
+                    out.extend(left.as_bytes());
+                    out.push(b'.');
+                    out.extend(right.as_bytes());
+                }
+            } else {
+                out.extend(literal.as_bytes());
+                if !literal.contains('.') {
+                    out.extend(b".0");
+                }
+            }
+            if out.len() - start > 128 {
+                return Err(unsupported(
+                    "Native text decimal values must fit the bounded 128-byte token grammar",
+                ));
             }
         }
         Value::Number(n) => out.extend(n.to_string().as_bytes()),
@@ -206,24 +236,32 @@ pub(super) fn prepare(
     let layout = text::layout(frame, document, cache)?;
     let tracking = styles
         .iter()
-        .map(|style| (style.tracking * 1000.0 / style.size).round() as i64)
-        .collect::<Vec<_>>();
+        .map(|style| {
+            let value = (style.tracking * 1000.0 / (style.size * style.horizontal_scale)).round();
+            // Keep the magnitude representable: the minimum signed integer can
+            // open correctly yet fail a receiving writer's decimal conversion.
+            if !(-(i32::MAX as f64)..=i32::MAX as f64).contains(&value) {
+                return Err(unsupported("Native tracking must stay within -2147483647..=2147483647 after horizontal-scale conversion (signed 32-bit magnitude); reduce tracking or increase the font size or horizontal scale").at_item(&item.id));
+            }
+            Ok(value as i32)
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
     let tracking_quantization = styles.iter().zip(&tracking).enumerate()
-        .filter(|(_, (style,units))| style.tracking * 1000.0 / style.size != **units as f64)
-        .map(|(index,(style,units))| json!({"style_index":index,"source_pixels":style.tracking,"native_thousandths_em":units,"delivered_pixels":*units as f64*style.size/1000.0}))
+        .filter(|(_, (style,units))| style.tracking * 1000.0 / (style.size * style.horizontal_scale) != **units as f64)
+        .map(|(index,(style,units))| json!({"style_index":index,"source_pixels":style.tracking,"native_thousandths_em":units,"delivered_pixels":*units as f64*style.size*style.horizontal_scale/1000.0}))
         .collect::<Vec<_>>();
     let native_styles = styles.iter().zip(&tracking).map(|(style,tracking)| {
         let Paint::Solid(color) = style.fill else { return Err(unsupported("Native text currently needs solid RGB character fills")); };
         if color[3]!=255 { return Err(unsupported("Native character alpha requires a verified paint mapping; use layer opacity for this delivery subset")); }
         let face = fonts::parsed(&document.fonts[&style.font_id], &cache[&style.font_id])?;
-        let natural = (face.ascender() as f64-face.descender() as f64+face.line_gap() as f64)*style.size/face.units_per_em() as f64;
+        let natural = (face.ascender() as f64-face.descender() as f64+face.line_gap() as f64)*style.size*style.vertical_scale/face.units_per_em() as f64;
         let leading = frame.leading.unwrap_or(natural.max(0.001));
         let liga = style.features.get("liga").copied().unwrap_or(u32::from(style.tracking==0.0))!=0;
         Ok(json!({"Font":font_indexes[&style.font_id],"FontSize":style.size,
             "FillColor":{"Type":1,"Values":[1.0,color[0] as f64/255.0,color[1] as f64/255.0,color[2] as f64/255.0]},
             "FillFlag":true,"StrokeFlag":false,"AutoLeading":false,"Leading":leading,
-            "Tracking":tracking,"HorizontalScale":1.0,"VerticalScale":1.0,
-            "BaselineShift":0.0,"FontCaps":0,"FontBaseline":0,
+            "Tracking":tracking,"HorizontalScale":style.horizontal_scale,"VerticalScale":style.vertical_scale,
+            "BaselineShift":style.baseline_shift,"FontCaps":0,"FontBaseline":0,
             "AutoKerning":style.features.get("kern").copied().unwrap_or(1)!=0,"Kerning":0,
             "Ligatures":liga,"DLigatures":style.features.get("dlig").copied().unwrap_or(0)!=0}))
     }).collect::<Result<Vec<_>,Error>>()?;

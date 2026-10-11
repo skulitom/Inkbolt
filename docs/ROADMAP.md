@@ -1,5 +1,11 @@
 # Roadmap and verified scope
 
+Retained character scaling and baseline shifts now provide the geometry controls
+needed for incoming native text reconstruction. Shared shaping, metrics, paths,
+linked stories and outlines retain these values; explicit native delivery maps
+them with tracking compensation. Full style/paragraph mapping and incoming
+editable text remain open; the six original checkpoints are unchanged.
+
 Ordinary frames now have explicit [first-baseline controls](FIRST_BASELINE.md),
 using pinned font metrics or fixed offsets without changing the frame clip.
 This prepares the geometry mapping required by editable native text import;

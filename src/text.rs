@@ -85,8 +85,27 @@ pub struct Style {
     pub fill: Paint,
     #[serde(default)]
     pub tracking: f64,
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub horizontal_scale: f64,
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub vertical_scale: f64,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub baseline_shift: f64,
+}
+fn one() -> f64 {
+    1.0
+}
+fn is_one(value: &f64) -> bool {
+    *value == 1.0
+}
+fn is_zero(value: &f64) -> bool {
+    *value == 0.0
 }
 impl Style {
+    fn glyph_scale(&self, face: &rustybuzz::Face<'_>) -> Point {
+        let scale = self.size / face.units_per_em() as f64;
+        [scale * self.horizontal_scale, scale * self.vertical_scale]
+    }
     pub fn font_ids(&self) -> impl Iterator<Item = &String> {
         std::iter::once(&self.font_id).chain(&self.fallback_fonts)
     }
@@ -261,6 +280,16 @@ pub fn validate(
         {
             return Err(invalid("Text size or tracking exceeds supported limits"));
         }
+        if [style.horizontal_scale, style.vertical_scale]
+            .iter()
+            .any(|v| !v.is_finite() || !(0.01..=10.0).contains(v))
+            || !style.baseline_shift.is_finite()
+            || style.baseline_shift.abs() > MAX_COORDINATE
+        {
+            return Err(invalid(
+                "Character scales must be in 0.01..=10; baseline shift must be within -32768..=32768 local pixels",
+            ));
+        }
         let (p, s) = crate::paint::validate(&style.fill)?;
         crate::paint::validate_world(&style.fill, world)?;
         pixels += p;
@@ -433,15 +462,15 @@ struct Builder {
     commands: Vec<PathCommand>,
     at: Point,
     origin: Point,
-    scale: f64,
+    scale: Point,
     limit: usize,
     exceeded: bool,
 }
 impl Builder {
     fn p(&self, x: f32, y: f32) -> Point {
         [
-            self.origin[0] + x as f64 * self.scale,
-            self.origin[1] - y as f64 * self.scale,
+            self.origin[0] + x as f64 * self.scale[0],
+            self.origin[1] - y as f64 * self.scale[1],
         ]
     }
     fn push(&mut self, c: PathCommand) {
@@ -577,7 +606,7 @@ pub fn layout(frame: &Frame, document: &Document, cache: &fonts::Cache) -> Resul
         for (i, font_id) in ids {
             let s = style(frame, i);
             let face = s.face(font_id, document, cache)?;
-            let scale = s.size / face.units_per_em() as f64;
+            let scale = s.glyph_scale(&face)[1];
             ascent = ascent.max(face.ascender() as f64 * scale);
             natural = natural.max(
                 (face.ascender() as f64 - face.descender() as f64 + face.line_gap() as f64) * scale,
@@ -585,7 +614,7 @@ pub fn layout(frame: &Frame, document: &Document, cache: &fonts::Cache) -> Resul
             if let Some(first) = first {
                 first_height = first_height.max(
                     first
-                        .font_height(&face, s.size)
+                        .font_height(&face, s.size * s.vertical_scale)
                         .map_err(|e| e.at_font(font_id))?,
                 );
             }
@@ -647,7 +676,7 @@ fn append_glyphs(
             commands: Vec::new(),
             at: [0.0, 0.0],
             origin,
-            scale: s.size / face.units_per_em() as f64,
+            scale: s.glyph_scale(&face),
             limit: MAX_OUTLINE_COMMANDS - *command_count,
             exceeded: false,
         };
@@ -759,7 +788,7 @@ fn path_layout(
                 commands: Vec::new(),
                 at: [0.0; 2],
                 origin: [g.x, g.y],
-                scale: s.size / face.units_per_em() as f64,
+                scale: s.glyph_scale(&face),
                 limit: MAX_OUTLINE_COMMANDS - command_count,
                 exceeded: false,
             };

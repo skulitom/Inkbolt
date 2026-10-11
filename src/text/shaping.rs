@@ -178,7 +178,7 @@ impl Shaper<'_> {
         if shaped.len() > MAX_GLYPHS {
             return Err(limit("Text exceeds glyph limit"));
         }
-        let scale = style.size / face.units_per_em() as f64;
+        let scale = style.glyph_scale(&face);
         let mut boundaries: Vec<_> = shaped
             .glyph_infos()
             .iter()
@@ -210,9 +210,9 @@ impl Shaper<'_> {
                 level: run.level,
                 start: run.start + text[..cluster].chars().count(),
                 end: run.start + text[..next].chars().count(),
-                x: pos.x_offset as f64 * scale,
-                y: -(pos.y_offset as f64) * scale,
-                advance: pos.x_advance as f64 * scale,
+                x: pos.x_offset as f64 * scale[0],
+                y: -(pos.y_offset as f64) * scale[1] - style.baseline_shift,
+                advance: pos.x_advance as f64 * scale[0],
             });
         }
         Ok(Some(result))

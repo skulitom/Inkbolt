@@ -472,7 +472,7 @@ pub fn layout(story: &Story, d: &Document, cache: &fonts::Cache) -> Result<Repor
                 for (i, font_id) in ids {
                     let s = style(f, i);
                     let face = s.face(font_id, d, cache)?;
-                    let scale = s.size / face.units_per_em() as f64;
+                    let scale = s.glyph_scale(&face)[1];
                     ascent = ascent.max(face.ascender() as f64 * scale);
                     descent = descent.max(-(face.descender() as f64) * scale);
                     gap = gap.max(face.line_gap() as f64 * scale);

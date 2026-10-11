@@ -1,5 +1,14 @@
 # Layered pixel interchange
 
+Native delivery retains explicit character scale factors and baseline shifts;
+tracking conversion compensates for horizontal scaling. Decimal values use the
+shortest exact fixed spelling, with an explicit refusal when a literal exceeds
+the existing 128-byte text-data token bound; no value is rounded away. Converted
+tracking must stay within -2147483647..2147483647; its magnitude must also fit a
+signed 32-bit integer. The minimum signed integer is excluded because a receiving
+writer can damage it on save. Export refuses out-of-range values before delivery.
+See [character geometry](FONT_CONTROLS.md#character-geometry).
+
 Native editable text import remains unsupported; explicit text delivery is described below. When `layered.import`
 encounters a recognized text record, its `UNSUPPORTED_LAYERED_SEMANTICS` error can
 include `details.kind:"native_text_requirements"`. This reports character/UTF-16
