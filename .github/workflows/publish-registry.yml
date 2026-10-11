@@ -121,8 +121,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p mcpb artifacts/registry
-          cp artifacts/registry-workflow/mcpb/build.mjs mcpb/build.mjs
-          cp artifacts/registry-workflow/mcpb/zip.mjs mcpb/zip.mjs
+          # Every helper module, so the builder's imports resolve even for a tag that predates one of them.
+          cp artifacts/registry-workflow/mcpb/*.mjs mcpb/
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           import { cargoVersion } from './mcpb/build.mjs';

@@ -1,6 +1,6 @@
 # Publishing Inkbolt
 
-Pushing a version tag runs **Release**: locked Rust 1.98.1 builds for Windows x64, Linux x64 and macOS arm64, a CLI startup check, native archives, the Windows MCPB smoke test, Node tests and MCPB 2.1.2 validation. After every build succeeds, it attests the archives and bundle and creates the GitHub release with checksums. `inkbolt-mcpb` retains the bundle, its checksum and `server.registry.json` as a workflow artifact. Reruns skip identical release assets and fail on different bytes; they never replace assets. Only the highest stable tag becomes Latest.
+Pushing a version tag runs **Release**: locked Rust 1.98.1 builds for Windows x64 (C runtime linked statically, so no Visual C++ Redistributable is needed), Linux x64 and macOS arm64, a CLI startup check, native archives, the Windows MCPB smoke test, Node tests and MCPB 2.1.2 validation. After every build succeeds, it attests the archives and bundle and creates the GitHub release with checksums. `inkbolt-mcpb` retains the bundle, its checksum and `server.registry.json` as a workflow artifact. Reruns skip identical release assets and fail on different bytes; they never replace assets. Only the highest stable tag becomes Latest.
 
 Pull requests touching the distribution workflows, `mcpb/` or `server.json` run the builds and Windows checks as a dry run, without attestation or release. Branch pushes do not trigger Release. Registry publication is always a separate manual dispatch after testing. It uses GitHub OIDC and skips versions already listed.
 

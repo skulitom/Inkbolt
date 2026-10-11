@@ -76,7 +76,15 @@ jobs:
           host=$(rustc +1.98.1 -vV | sed -n 's/^host: //p' | tr -d '\r')
           test "$host" = "$BUILD_TARGET"
       - name: Build locked release binary
-        run: cargo +1.98.1 build --release --locked
+        env:
+          # Link the C runtime statically on Windows, so the download runs without the Visual C++ Redistributable.
+          RUSTFLAGS: ${{ runner.os == 'Windows' && '-C target-feature=+crt-static' || '' }}
+        run: |
+          set -euo pipefail
+          cargo +1.98.1 build --release --locked
+          if [[ "$RUNNER_OS" == Windows ]] && grep -qai 'vcruntime140' target/release/inkbolt.exe; then
+            echo "::error::inkbolt.exe still imports the Visual C++ runtime"; exit 1
+          fi
       - name: Smoke-test CLI and package native archive
         run: node mcpb/archive.mjs --target "$BUILD_TARGET" --binary target/release/${{ matrix.binary }}
       - name: Build and verify Windows bundle
