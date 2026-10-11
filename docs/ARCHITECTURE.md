@@ -1,5 +1,11 @@
 # Architecture
 
+Paragraph diagnostics preserve drop-cap and composer codes, plus typed empty
+or indexed line-breaking, spacing and list-style references. These references
+remain unresolved; local legacy preset codes are separate controls. Neither a
+zero index nor an explicit empty reference supplies a layout default or permits
+editable conversion. Source table definitions remain outside this mapping.
+
 Mapped source layout diagnostics include separate paint visibility, bounded dash
 patterns, typed annotation-scale records and additional paragraph controls. Nested
 unknown fields stay visible, source codes remain uninterpreted, and absent local

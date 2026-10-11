@@ -154,6 +154,19 @@ grouping, line-keeping, repeated-character processing, default tab width and
 justification-method controls retain their explicit source values. The observed
 local hyphenation-zone value can compare with its global counterpart; other
 newly mapped controls do not invent local equivalents.
+Drop-cap multipliers and composer codes retain explicit integer values.
+`line_breaking_preset_reference`, `spacing_preset_reference` and
+`list_style_reference` preserve an unsigned source index or the typed empty
+name `/nil`. Missing, empty and index zero produce distinct known-value
+fingerprints. Strings, other names, negative indices, fractional values and
+Boolean values cannot impersonate references. The diagnostic checks reference
+encoding only: it does not resolve target tables, validate index ranges against
+those tables, copy preset definitions or interpret empty references as defaults.
+Local `local_line_breaking_preset_code` and `local_spacing_preset_code` remain
+separate because their encodings differ from the global references.
+`preset_references_resolved` and `legacy_preset_conversion_validated` stay false.
+All newly recognized paragraph controls still require explicit implementation
+before editable conversion, including zero codes and empty references.
 Numeric triples require exactly three
 finite numbers. Values remain in their source units; no layout algorithm, enum
 translation or application default is inferred. Explicit source references can

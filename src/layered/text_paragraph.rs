@@ -22,6 +22,21 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
     (Some("3"), Some("EndIndent"), "end_indent", Kind::Number),
     (Some("4"), Some("SpaceBefore"), "space_before", Kind::Number),
     (Some("5"), Some("SpaceAfter"), "space_after", Kind::Number),
+    (Some("6"), None, "drop_cap_multiplier", Kind::Integer),
+    (Some("35"), None, "composer_code", Kind::Integer),
+    // Legacy cache codes are not indices into the global preset tables.
+    (
+        None,
+        Some("Kinsoku"),
+        "local_line_breaking_preset_code",
+        Kind::Integer,
+    ),
+    (
+        None,
+        Some("MojiKumi"),
+        "local_spacing_preset_code",
+        Kind::Integer,
+    ),
     (
         Some("7"),
         Some("AutoLeading"),
@@ -134,6 +149,22 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
     ),
 ];
 
+const REFERENCES: &[(&str, &str)] = &[
+    ("27", "line_breaking_preset_reference"),
+    ("28", "spacing_preset_reference"),
+    ("36", "list_style_reference"),
+];
+
+fn reference(value: &super::text_data::Node) -> Result<Value, Error> {
+    // Only this typed name denotes an explicit empty reference. A source
+    // index, including zero, remains distinct and does not resolve a preset.
+    if matches!(value, super::text_data::Node::Name(name) if name == "nil") {
+        Ok(Value::Null)
+    } else {
+        Ok(json!(value.unsigned()?))
+    }
+}
+
 pub(super) struct Paragraphs {
     pub styles: Styles,
     pub absent_properties: usize,
@@ -233,13 +264,19 @@ impl Paragraphs {
                         controls.insert(name, kind.read_node(value)?);
                     }
                 }
+                for &(key, name) in REFERENCES {
+                    if let Some(value) = properties.get(key) {
+                        controls.insert(name, reference(value)?);
+                    }
+                }
                 out.styles.unknown.extend(
                     properties
                         .keys()
                         .filter(|k| {
-                            !CONTROLS
-                                .iter()
-                                .any(|(global, _, _, _)| *global == Some(**k))
+                            !REFERENCES.iter().any(|(key, _)| *key == **k)
+                                && !CONTROLS
+                                    .iter()
+                                    .any(|(global, _, _, _)| *global == Some(**k))
                         })
                         .map(|k| (*k).to_owned()),
                 );
@@ -268,6 +305,8 @@ impl Paragraphs {
         }
         result["paragraph_boundaries_semantically_validated"] = json!(false);
         result["legacy_hyphen_limit_conversion_validated"] = json!(false);
+        result["preset_references_resolved"] = json!(false);
+        result["legacy_preset_conversion_validated"] = json!(false);
         Ok(result)
     }
 }
