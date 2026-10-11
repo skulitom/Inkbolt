@@ -102,9 +102,7 @@ pub(super) fn prepare(
                     ));
                 }
             }
-            for key in ["FillFlag", "StrokeFlag", "Kerning"] {
-                record.styles.unknown.remove(key);
-            }
+            record.styles.unknown.remove("Kerning");
             (
                 record.source.clone(),
                 record.styles,

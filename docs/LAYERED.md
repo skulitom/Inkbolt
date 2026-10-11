@@ -102,7 +102,13 @@ and vertical scales, tracking, baseline shift, capitalization/baseline codes, no
 and observed character-feature switches. Explicit language, baseline direction,
 character alignment, spacing compression, alternate forms, figure styles,
 diacritic offsets, mark-baseline distance and stylistic-set selections are also
-type checked. These are source values, with no unit
+type checked. Rotation, underline offset, legacy alternate-ligature/figure
+switches, phonetic/split annotations, annotation counts/gaps, inline offsets,
+character spacing/cell width, fill/stroke switches, paint order, overprint,
+stroke width, miter limit and dash phase have individual diagnostic mappings.
+The legacy figure switch remains distinct from the modern figure-style code.
+Fill/stroke switches, paint order and stroke width also compare against observed
+local cache fields. These are source values, with no unit
 conversion, shaping-tag translation, feature availability or layout acceptance.
 Several global feature switches can be absent from the local cache, so matching
 compared values does not imply complete style agreement. Each side reports

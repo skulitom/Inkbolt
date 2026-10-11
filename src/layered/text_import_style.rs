@@ -107,6 +107,14 @@ pub(super) fn frame(
     for run in &styles.runs {
         let v = &run.controls;
         let mut consumed = std::collections::BTreeSet::new();
+        if !global {
+            // Preserve the existing local-only, explicit fill/no-stroke contract.
+            // Global painting controls still require their own conversion.
+            if !boolean(v, "fill_enabled")? || boolean(v, "stroke_enabled")? {
+                return Err(missing("fill-only paint"));
+            }
+            consumed.extend(["fill_enabled", "stroke_enabled"]);
+        }
         for key in [
             "faux_bold",
             "faux_italic",

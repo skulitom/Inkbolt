@@ -58,6 +58,12 @@ features, unmapped inherited controls, distinct terminal insertion styles, unkno
 warps, paragraph/linked frames and variable fonts
 require additional mappings and fail explicitly.
 
+Structural diagnostics can identify additional rotation, annotation, spacing
+and paint controls without admitting their layout semantics. Recognized fields
+still reject editable import when conversion is unavailable, including values
+that might appear inactive. The existing local-only explicit fill/no-stroke
+contract is unchanged; local cache values never supply missing global controls.
+
 For known native edge-smoothing settings or nonfractional source spacing, also set
 `text_fonts.rendering:"engine"`. This explicitly chooses Inkbolt's edge smoothing
 and fractional glyph placement. It requires `reconstruction:"engine_layout"` and

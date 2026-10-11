@@ -1,5 +1,11 @@
 # Architecture
 
+Character diagnostics now identify individually observed rotation, annotation,
+spacing and paint controls. Source values participate in typed run comparisons
+and fingerprints; legacy feature switches remain distinct from modern codes.
+Four observed local paint-cache fields compare with their global counterparts.
+No defaults or additional editable layout semantics are admitted by this mapping.
+
 `layered::text_font_records` validates source font provenance separately from the
 caller-chosen content-pinned fonts. Diagnostics inspect selected records; editable
 admission checks the entire bounded table. Typed class, technology and version
