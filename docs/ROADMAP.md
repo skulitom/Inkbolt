@@ -1,5 +1,9 @@
 # Roadmap and verified scope
 
+[FIX_PLAN.md](../FIX_PLAN.md) is the primary development plan and takes priority
+over all earlier plans, including this roadmap. Use the notes below as supporting
+scope and implementation history; resolve planning conflicts in favor of FIX_PLAN.md.
+
 **Current engine scope: 163/167 verified (97.60%); four checkpoints remain.**
 
 Large vector canvases now support bounded overview images without full-size

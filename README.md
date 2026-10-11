@@ -77,7 +77,12 @@ Sessions retain external resource bindings, not a self-contained resource archiv
 
 ## Development and provenance
 
-Read [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), [agent readiness](docs/AGENT_READINESS.md) and [research boundaries](docs/RESEARCH.md) before extending behavior. Historical feature updates are retained in [implementation history](docs/PROGRESS_HISTORY.md).
+Start with [FIX_PLAN.md](FIX_PLAN.md), the primary development plan; it takes
+priority over all earlier plans. Read [architecture](docs/ARCHITECTURE.md),
+[roadmap](docs/ROADMAP.md), [agent readiness](docs/AGENT_READINESS.md) and
+[research boundaries](docs/RESEARCH.md) as supporting context before extending
+behavior. Historical feature updates are retained in
+[implementation history](docs/PROGRESS_HISTORY.md).
 
 Routine feedback has a three-minute budget and reuses checks whose inputs passed unchanged:
 

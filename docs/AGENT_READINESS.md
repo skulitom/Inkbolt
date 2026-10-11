@@ -5,9 +5,12 @@ Accepted 9 October 2026. This work improves practical agent use without changing
 ## Accepted execution update
 
 On 11 October 2026 the owner adopted [FIX_PLAN.md](../FIX_PLAN.md) as the
-execution plan for this active goal and explicitly accepted its recommended
-defaults D1-D7. Its workstream order supersedes the earlier implementation order
-below. All A1-A7 acceptance gates, original checkpoint criteria, B01-B20 outcomes,
+primary development plan for this active goal and explicitly accepted its
+recommended defaults D1-D7. The owner reaffirmed that it takes priority over
+every earlier plan: its scope, decisions, priorities and workstream order govern
+implementation. This document supplies supporting readiness context; resolve
+planning conflicts in favor of FIX_PLAN.md. As that plan explicitly requires,
+all A1-A7 acceptance gates, original checkpoint criteria, B01-B20 outcomes,
 matched sister-project comparisons and existing recovery guarantees remain
 required. W9's optional learned-model integration stays deferred.
 

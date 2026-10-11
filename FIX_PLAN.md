@@ -8,7 +8,11 @@ line numbers blindly.
 
 **Adopted 11 October 2026.** The owner adopted this plan for the active
 agent-readiness goal and explicitly approved all recommended defaults D1-D7.
-The workstream order below now governs implementation. The original A1-A7 gates,
+**This is the primary development plan and takes priority over every earlier
+plan**, as the owner reaffirmed on 11 October 2026. Its scope, decisions,
+priorities and workstream order govern implementation. Older roadmaps and
+readiness plans are supporting context; resolve planning conflicts in favor of
+this plan. The original A1-A7 gates,
 matched sister-project comparisons, B01-B20 outcomes and unchanged 167-checkpoint
 criteria remain required; this plan extends their execution, not their credit.
 See [the readiness plan](docs/AGENT_READINESS.md). W9 remains deferred and outside
@@ -36,7 +40,9 @@ the source:
 
 - Read `AGENTS.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`,
   `docs/AGENT_READINESS.md`, `docs/DEVELOPMENT_LOOP.md` and `docs/RESEARCH.md`
-  before changing behavior. They override anything in this plan that conflicts.
+  before changing behavior. This is the primary plan and takes priority over
+  earlier plans in those documents. Preserve applicable project safeguards and
+  the acceptance requirements explicitly retained below.
 - **Research boundary.** Use project-owned capability names ("native vector",
   "native layered", "page exchange"). Never put third-party product names,
   private research, copied implementation or third-party assets in the repo.

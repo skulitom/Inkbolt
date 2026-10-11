@@ -1,6 +1,7 @@
 # Inkbolt project instructions
 
 - Build an original local vector and raster editing engine for agents, sister to Cutbolt.
+- FIX_PLAN.md is the primary development plan and takes priority over every earlier plan. Read it first; use older roadmaps and readiness plans as supporting context, resolving any planning conflict in favor of FIX_PLAN.md.
 - Read README.md, docs/ARCHITECTURE.md and docs/ROADMAP.md before extending behavior. Consult docs/features.json for the full implementation scope and verified status; do not infer completion from scaffolding or partial behavior.
 - Use the Rust library, structured JSON CLI and implemented MCP stdio adapter. See docs/AGENT_DISCOVERY.md for compact tool discovery and docs/AGENT_READINESS.md for the separate agent-readiness plan. Do not introduce a network listener, hosted API, account requirement or telemetry.
 - Read docs/RESEARCH.md before application inspection. Keep product names, exact target mappings, inventories, audit scripts, binary-analysis projects, captures and reports in the external private research root recorded in local Git configuration.
