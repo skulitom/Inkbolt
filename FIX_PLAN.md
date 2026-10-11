@@ -20,8 +20,25 @@ the active implementation scope. Routine checks retain the 180-second budget.
 Verified changes are committed and pushed directly to `main` under the owner's
 standing authorization.
 
-This plan addresses six gaps, found by measuring the current build and reading
-the source:
+## Current status and next actions
+
+| Workstream | Current status | Next action |
+| --- | --- | --- |
+| W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
+| W1 | Linux tier 1, toolchain pinning and public guard verified; CI activation/macOS and Unix jobs remain open | Finish CI review and obtain its required approval; this does not block W2 preparation |
+| W2 | Model/baseline harness and retained trials remain open | Build fixture/prompt/solve/judge separation, both arms and fake-driver tests; owner involvement starts at real trial execution |
+| W5.1 | Payload duplication remains open | Remove repeated image bytes; add explicit structured responses while preserving default text compatibility |
+| W3a.1-2 / W3b | Arcs, rounded rectangles and SVG insertion remain open | Deliver these bounded input/authoring increments alongside W2 preparation |
+| W3c / W4 / W5.2+ / W6 | Open; substantial work | Use W2's decision rule below to select and sequence the next measured increments |
+| W7 / W8 | Distribution and published usability evidence remain open; README checkpoint headline moved | Ship only verified platform tiers; publish comparable results after trials |
+| W9 | Deferred, outside active scope | No learned-model plugin work |
+
+Keep this table current in place. Detailed milestone evidence belongs in
+[development status](docs/DEVELOPMENT_STATUS.md) and the relevant contract;
+per-commit history belongs in Git, not appended status paragraphs in this plan.
+
+The initial review identified six gaps. The table above records subsequent
+progress; the following list describes that original baseline:
 
 1. **No recorded model evidence and no baseline.** Model-driven trials are informal;
    nothing compares an agent using Inkbolt against an agent that is not using it.
@@ -77,19 +94,6 @@ the source:
   API keys or credentials. Model trials read them from the environment, which the
   owner sets up.
 
-### Current implementation baseline
-
-The tiled radial/twist milestone landed on `main` as `f9ea22a` on 11 October.
-Capabilities report both operators as supported under bounded source paths;
-wrapped borders remain unsupported. Its fresh thorough run passed all 210 checks
-(200 Rust and 2,210 Python tests), and ten release workload trials passed exact
-native-channel/history checks and a separate speed/memory comparison. Focused
-development feedback took 115.4 seconds. This is an A5 increment, with no registry
-checkpoint or whole-goal completion credit. Start with W0 below and inspect
-`git status` before editing to preserve any concurrent work.
-
----
-
 ## 1. Accepted owner decisions
 
 On 11 October 2026 the owner answered **"Adopt the recommended defaults"** for
@@ -111,155 +115,47 @@ selecting a target or platform tier does not establish support.
 
 ## 2. Priorities and order
 
-| Order | Workstream | Priority | Size | Depends on |
-| --- | --- | --- | --- | --- |
-| 1 | W0 Limits single source of truth | P0 | S | none |
-| 2 | W1 Cross-platform build and CI | P0 | M | D2, D5 |
-| 3 | W2 Model trials and baseline arm | P0 | M | owner runs trials |
-| 4 | W5.1 Stop payload duplication | P0 | S | none |
-| 5 | W3a SVG import coverage + W3b SVG authoring op | P1 | M | D3 |
-| 6 | W3c Robust curved booleans | P1 | M-L | D1 |
-| 7 | W4 Practical raster scale | P1 | L | W0, D7, in-flight tiled work landed |
-| 8 | W5.2-5.7 Interface slimming and high-level ops | P1 | M | W2 results |
-| 9 | W7 Distribution | P1 | S-M | W1, D6 |
-| 10 | W6a PDF fonts, transparency and reimport | P2 | L | none |
-| 11 | W6b/W6c Native layered and native vector admission | P2 | L | W4 (layered scale), research review |
-| 12 | W8 README and positioning | P2 | S | W2, W7 |
-| 13 | W9 Semantic assistance plugin | Deferred | M | D4 |
+| Order | Work | Delivery unit / dependency |
+| --- | --- | --- |
+| Closed | W0 | Complete; no additional cleanup gate for later work |
+| 1 | W1 CI review and platform verification | Approval and hosted evidence remain; do not hold independent harness work behind them |
+| 2 | W2 harness | Several milestones across 20 adapters; no model credentials needed for fixtures, prompts, judges, fake drivers or baseline plumbing |
+| 3 | W5.1 payloads, W3a.1-2 arcs/rounded rectangles, W3b SVG insertion | Separate bounded behavior changes with focused tests; can proceed while real trials await the owner's environment |
+| 4 | W2 real model and baseline trials | Owner-provided execution environment or transcript/workspace imports; matched settings and retained failures |
+| 5 | W3a remaining coverage, W3c, W4, W5.2+ and W6 | Reorder using the decision rule under W2 before committing to a substantial stream |
+| 6 | W7 distribution | W1 evidence and approved D6 channels; publication approval still applies |
+| Now / later | W8 positioning | Move the checkpoint headline now; gallery, install promises and comparative claims follow verified delivery and trials |
+| Deferred | W9 | Outside active scope under D4 |
 
-Commit in small logical units, each with its tests, capability report and docs.
+The original S/M/L estimates were too optimistic and are not schedule promises.
+W4 and each W6 format stream need multiweek planning allowances, split into
+reviewable storage/migration, admission, fidelity and acceptance milestones.
+W2 is also a multi-milestone refactor, not merely waiting for the owner to run a
+model. Re-estimate each increment after its design and oracle are concrete;
+small interface/SVG increments are not guaranteed one-day changes.
+
+Commit in small logical units with tests, capability reporting and documentation.
+Keep routine feedback within 180 seconds. Reserve fresh full acceptance for
+behavior/platform milestones; planning, wording and workflow scheduling changes
+use focused verification plus the existing unchanged-engine evidence.
 
 ---
 
-## W0. Limits single source of truth (P0, S)
+## W0. Limits single source of truth (complete)
 
-**Complete, 11 October 2026.** The central catalog contains 773 documented
-resource, admission, numerical and work-accounting constants. Shared raster/tile
-policies derive from common definitions; independent policies retain their own
-names even when values coincide. Existing module paths remain compatible and
-no ceiling increased. Discovery and diagnostics use the enforced values, with
-676 direct numeric capability bindings, derived/semantic checks and seven
-legacy descriptive bindings. The six specifically listed boundary-fixture
-modules now read advertised limits; 75 contract documents link to the generated
-[limit reference](docs/LIMITS.md).
-
-The source audit covered named definitions, comparisons, bounded loops, batch
-extents, work charges and diagnostic/discovery strings. Remaining literals
-represent format widths/versions, channel and geometric cardinalities,
-mathematical definitions, actual operation counts or synthetic test data.
-They are not adjustable resource ceilings.
-
-Fresh acceptance at `53518fd` passed all 213 stages on both platforms:
-Windows ran 208 Rust and 2,278 Python tests in 1006.1 seconds;
-Linux ran 176 Rust and 2,244 Python tests in 494.5 seconds,
-with 34 explicit platform skips. No checks failed, remained pending or reused
-older results. The final focused change took 108.5 seconds on Windows and
-87.3 seconds on Linux. See [platform evidence](docs/PLATFORMS.md) and the
-[development loop](docs/DEVELOPMENT_LOOP.md). W0 completion does not complete
-W1, any additional engine checkpoint, the scale targets or the overall goal.
-
-**Original problem (before implementation).** Scattered ceilings made W4
-error-prone.
-
-- **One value, five separate constants.** 16,777,216 is defined independently in
-  `src/sample_store.rs` (`MAX_PIXELS`), `src/render/tiled.rs` (`MAX_PIXELS`),
-  `src/render/coverage_cache.rs`, `src/assets.rs` (`MAX_ASSET_PIXELS`) and
-  `src/sequences.rs:14`.
-- **Duplicated tile edge.** The tile edge of 128 is defined twice and the two are
-  not linked.
-- **Literals in capabilities.** `capabilities` repeats limits as literals at
-  `src/lib.rs` ~1478 (`65536`, `33554432`, `67108864`), ~1576 (`30000`/`32768`),
-  ~1662 (`262144`) and ~1673-1698 (`1_048_576`, `16_777_216`, `minimum_items:128`).
-  `src/jobs.rs:29` has its own.
-- **Literals elsewhere.** `src/layered.rs:116` has a bare `30000`. The spatial
-  index threshold `128` is a literal at `src/render/prepared.rs` ~95. Error
-  messages hard-code numbers (`model.rs` ~543/608/937, `geometry.rs:146`,
-  `retouch.rs:297`, `pixel_brush.rs:565`, `assistance/segment.rs:44,148`,
-  `sample_import.rs:127`).
-- **Tests.** Tests hard-code limits (`test_tiled_render.py:127`,
-  `test_stored_samples.py:259`, `test_large_raster.py:51,62,77`,
-  `test_native_brush.py:98-99`, `test_large_vector_cli.py:178`,
-  `test_native_retouch.py:223,259`).
-
-**Tasks**
-
-1. Create `src/limits.rs` holding every resource ceiling as a named, documented
-   constant. Include the document/profile limits in `model.rs:8-19`, render
-   limits, the native store, decoders, sessions (`sessions.rs:26-32`), requests
-   (`lib.rs:114`, `mcp.rs:20-21`), jobs, work budgets and caches. Re-export them
-   or replace the module-local constants. Derive related values from each other
-   (for example `MAX_TILES = MAX_PIXELS / TILE_EDGE^2`).
-2. Make `capabilities` read only from these constants. Remove every literal.
-3. Format error messages from the constants.
-4. Add a test asserting that each limit `capabilities` reports equals its
-   constant. Change the tests listed above to read limits from `capabilities`
-   instead of literals.
-5. Add a generated `docs/LIMITS.md` table, or a section in an existing doc, as
-   the single human-readable limit reference. Link to it from the ~50 docs that
-   repeat numbers, and over time replace their numbers with the link.
-
-**Acceptance.** No limit numeric literal remains outside `limits.rs` (verify by
-grep). Behavior is unchanged: the quick verify passes, and `--thorough` passes at
-the end of W0.
+Closed. The [original requirements and verified evidence](docs/DEVELOPMENT_STATUS.md)
+remain available for traceability. Further limit work must accompany an actual
+capability or safety requirement, not reopen a consolidation campaign.
 
 ---
 
 ## W1. Cross-platform build and CI (P0, M) [D2, D5]
 
-**Linux tier-1 complete, 11 October 2026.** The owner explicitly requested
-Linux build and test coverage using WSL. Native Linux core, CLI, MCP, sessions
-and durable publication/history receipts pass the full suite. The current
-W0 acceptance at `53518fd` ran 176 Rust and 2,244 Python tests on
-Ubuntu under WSL2, with 34 explicit platform skips; the matching Windows run
-passed 208 Rust and 2,278 Python tests without skips. See
-[platform evidence](docs/PLATFORMS.md).
-
-`tools/verify_wsl.py` tests the current candidate on native Linux storage with
-independent caches, the mandatory private guard and the same quick/thorough
-selectors. Background jobs remain tier 2 and explicitly unsupported on Linux.
-Toolchain/MSRV verification, the separate public CI guard, approved CI activation,
-macOS evidence and distribution remain open. Linux tier-1 coverage does not
-complete W1; continue with the remaining tasks below after W0.
-
-**Toolchain and guard preparation, 11 October 2026.** Rust 1.89 checked all
-targets with the locked dependencies on Windows and Linux; it is now the
-declared minimum. Development is pinned to the previously verified Rust 1.98.1,
-including rustfmt and Clippy. The explicit public structural guard and verifier
-mode report `private_policy:"not_evaluated"`; defaults, the staged guard, the
-installed commit hook and the WSL mirror retain the private-policy requirement.
-Temporary-repository tests exercise real rejected and accepted commits, including
-a missing policy after a public pass. Focused checks passed on both platforms.
-Fresh public-clone full acceptance, owner-approved CI activation and macOS
-evidence remain pending; this preparation does not complete W1.
-
-**Original findings (before implementation).** Only Windows had evidence. The
-initial audit identified these gaps; the updates above record the Linux tier-1
-work already completed:
-
-- **Receipts.** `src/publications/file_identity.rs:55-61` is a non-Windows stub,
-  so any `receipt:{...}` publish, backup, recover or migrate fails off Windows.
-- **Durable jobs.** These are stubs off Windows: `src/jobs.rs` ~62-67, 377-412,
-  518-578 and `src/job_process.rs` ~266-288. They use raw `kernel32` externs in
-  `src/job_process/windows.rs:52-78`. `ProcessIdentity.created` is a Windows
-  FILETIME.
-- **Clippy.** It likely fails off Windows with `-D warnings` on now-unused items:
-  `jobs.rs` `receipt` ~253, `bound_control` ~259, `complete` ~236, the `runtime`
-  variable ~425 and the `reconcile` parameter ~414, plus
-  `job_process::release_start` ~30.
-- **Python test discovery.** `tests/test_jobs.py:8` imports `msvcrt` at module
-  level and uses `WinDLL`, which breaks discovery for the whole Python suite.
-  The receipt, job and recovery benchmark tests have no platform skips.
-- **Measurement and benchmark tools.**
-  - `tools/workload_cases.py:4` imports `ctypes.wintypes` at module level.
-  - `tools/measurement_host.py` uses `WinDLL`/`winreg`. `workload_gates.py`
-    ~117/152 then hard-fails off Windows.
-  - B19/B20 adapters `require(os.name=='nt')`.
-- **Guard.** `tools/check_repo.py:27` hard-requires the private policy, and
-  `tools/verify.py` ~240-248 stops at the guard, so a fresh clone or CI cannot
-  run anything.
-- **No CI.** There is no CI, no `rust-version` and no toolchain pin.
-- **Windows-only docs.** `examples/mcp-config.json` hard-codes
-  `C:/Tools/Inkbolt/inkbolt.exe`, and the README examples are PowerShell-only.
+See the status table, [platform support](docs/PLATFORMS.md) and
+[milestone evidence](docs/DEVELOPMENT_STATUS.md) for verified coverage.
+Linux tier 1 does not establish macOS, Unix jobs or full W1 completion.
+CI activation and the workflow-path publication rule still need owner approval
+under task 6; D2 authorizes their preparation, not activation.
 
 **Tasks**
 
@@ -315,7 +211,7 @@ claimed, with evidence.
 
 ---
 
-## W2. Model-driven trials and a no-engine baseline (P0, M)
+## W2. Model-driven trials and a no-engine baseline (P0, multiple milestones)
 
 **Problem.** The product claims to be "for agents". The owner has tried it
 informally with an external model client, but there are no retained trials
@@ -334,6 +230,13 @@ Current code:
   that successful response".
 - `tools/agent_benchmark.py` ~118/127 hard-codes `actual_model_benchmark_complete=False`
   and null token fields. `--transport` accepts only `cli` and `mcp`.
+
+**Execution boundary.** Harness preparation has no owner/credential dependency.
+Implement prompts, fixtures, independent judges, reference solvers, check classes,
+fake-driver tests and model/baseline transcript ingestion before requesting real
+trial execution. External transcript imports must retain the exact prompt,
+settings, input/workspace identities and observed usage; missing data stays
+unknown. Fake or scripted runs never count as model evidence.
 
 **Tasks**
 
@@ -394,10 +297,41 @@ Current code:
    and `model_trials=False`) to cover the new arms with a fake driver. Test that a
    model row without observed usage keeps nulls.
 
+**How results change the work.** Compare matched artifact checks separately from
+engine-only checks, using the same task inputs, model/settings and at least five
+repetitions per arm. Report counts and uncertainty; equal results in five trials
+are a prioritization signal, not proof of equivalence. Unknown usage cannot
+establish an efficiency advantage. Define task categories before running trials,
+retain every failure, and do not tune the judge after seeing which arm wins.
+
+| Observed bottleneck | Planning consequence |
+| --- | --- |
+| Valid SVG input or awkward authoring prevents an artifact | Promote the smallest relevant W3a/W3b increment and rerun affected tasks |
+| Comparable artifacts require more calls, retries or tokens with Inkbolt | Prioritize W5.1 and only the W5.2+ surfaces implicated by traces; drop redundant optional wrappers |
+| A required workload exceeds measured memory, storage or latency bounds | Promote that W4 slice with its migration contract and independent workload oracle |
+| A required input/delivery format is the cause of failure | Promote that W6 admission slice after the required specification/research review |
+| Curved geometry is the blocker | Promote the relevant W3c case with declared approximation and fidelity checks |
+| Revision, retry or history guarantees are the useful distinction | Report those engine checks separately and improve the demonstrated workflow; do not inflate the shared artifact score |
+
+If the baseline matches or beats Inkbolt on most comparable task IDs without a
+demonstrated efficiency or engine-workflow advantage, prioritize input admission,
+SVG authoring and fewer required interactions. Hold optional broad storage,
+interface and interchange expansion until a recorded failing task or required
+scale case justifies the next increment. Cut speculative extra features and
+redundant approaches, not the owner's accepted W0-W8 scope, A1-A7 gates, B01-B20
+outcomes or unchanged 167 checkpoint criteria. Any actual scope reduction needs
+an explicit owner decision.
+
+Before beginning a substantial W3c/W4/W5.2+/W6 increment, record the motivating
+tasks, expected improvement and remeasurement/stop condition in development
+status. Update the priority table in place. A failing implementation hypothesis
+can be abandoned without hiding failures or marking its required outcome done.
+
 **Acceptance.** One complete model-arm run and one baseline-arm run, retained
 privately. Aggregates may be published only where the research boundary permits.
-The losing-tasks list is checked in as an aggregate summary and drives W5
-priorities.
+The losing-tasks list is checked in as an aggregate summary and drives the
+W3c/W4/W5.2+/W6 ordering above. Harness completion and trial acceptance are
+reported separately.
 
 ---
 
@@ -547,7 +481,7 @@ verified.
 
 ---
 
-## W4. Practical raster scale (P1, L) [W0, D7] (A5)
+## W4. Practical raster scale (P1, multiple substantial milestones) [W0, D7] (A5)
 
 **Problem.** Real photos and print pages exceed current ceilings, and several
 operations are confined to tiny inline grids.
@@ -730,7 +664,7 @@ and calls per successful task with no correctness loss. Update
 
 ---
 
-## W6. Interchange checkpoints (P2, L)
+## W6. Interchange checkpoints (P2, substantial scope per format)
 
 All native-format work must follow `docs/RESEARCH.md`: public specifications
 first, and only owner-reviewed minimal factual requirements. Prefer **admitting**
@@ -864,14 +798,15 @@ Tasks:
 
 ---
 
-## W8. README and positioning (P2, S) [after W2, W7]
+## W8. README and positioning (headline now; evidence after W2/W7)
 
 1. **Lead with what it does.**
    - Start with a 30-second quickstart per OS and a small gallery of original
      example outputs (generated by `examples/*.py`).
    - Check the guard's suffix allowlist before committing images. Otherwise link
      to release assets.
-   - Move the checkpoint score below this.
+   - Keep the checkpoint score below quickstart and current limitations; this
+     wording change does not wait for W2 or W7.
 2. **State strengths plainly.** Deterministic revision-safe editing (dry runs,
    undo, receipts, create-only publish), print correctness (spots, separations,
    ICC, page boxes) and typography (bidi, shaping, hyphenation). State the

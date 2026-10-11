@@ -97,8 +97,9 @@ The explicit public mode performs structural checks and reports
 `private_policy:"not_evaluated"`; it does not satisfy the private commit hook.
 Development checkouts retain the normal policy described in
 [research boundaries](RESEARCH.md) and use verification without `--public`.
-Public mode never activates automatically. Public-clone full acceptance and
-the approved CI matrix remain separate W1 work.
+Public mode never activates automatically. Fresh public-clone Windows/Linux
+acceptance is recorded in [development status](DEVELOPMENT_STATUS.md). CI
+activation, the hosted matrix and macOS evidence remain separate W1 work.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

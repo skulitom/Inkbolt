@@ -2,8 +2,6 @@
 
 An original local vector and raster editing engine for agents. Cutbolt handles time; Inkbolt handles paths, pixels and layered documents. Use the Rust library, structured JSON CLI or MCP over stdio. No listener, account, telemetry or external editing application is required at runtime.
 
-**Engine scope: 163/167 independently verified checkpoints (97.60%).** Four checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
-
 Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; [visual revision comparisons](docs/VISUAL_COMPARISONS.md) add aligned images and change masks. MCP preview format sends each PNG payload once. [Document checks and export preflight](docs/DOCUMENT_CHECKS.md) support explicit repairs. [Checked backups](docs/SESSION_BACKUPS.md) preserve full session history; [explicit migration and linked continuation](docs/SESSION_LINEAGE.md) upgrade copies and start fresh history without discarding the original. [Durable publication receipts](docs/PUBLICATION_RECEIPTS.md) recover prepared outputs and lost responses on Windows and Linux. [Durable local export jobs](docs/JOBS.md) add persistent submission, paged discovery, cancellation and recovery. The Windows [recovery audit](docs/RECOVERY_CONTRACTS.md) covers writer interruption and a complete CLI/MCP workflow. Larger raster workloads and complete readiness evidence remain on that plan.
 
 ## Start locally
@@ -87,6 +85,12 @@ The engine covers vector geometry, typography, artboards, retained raster edits,
 The standard document profile holds 256 items; explicit large-vector and [large-raster](docs/LARGE_RASTER.md) profiles hold 8,192 for their respective kinds. The raster profile also enables ordinary editable vector overlays over native pixel sources. Inline mutable pixel storage is limited to 65,536 pixels, and default whole evaluation to 1,048,576 pixels. Explicit tiled evaluation supports up to 16,777,216 evaluation pixels for its declared subset; native block imports retain up to 16,777,216 source pixels. Storage allowances do not increase independent processing budgets. See [large documents](docs/LARGE_VECTOR.md) and capability reporting before selecting a workload.
 
 Sessions retain external resource bindings, not a self-contained resource archive. History has explicit limits and no silent eviction. Checked backup, migration and linked continuation are available. Optional durable output receipts support recovery on the Windows and Linux backends. [Durable export jobs](docs/JOBS.md) use the contained worker library for process lifetime and memory limits. Production-sized raster editing and complete readiness evidence remain open. Unknown semantics fail explicitly.
+
+SVG import remains a strict subset: elliptical arcs and rounded rectangles are
+currently refused. Linux background jobs and actual model-versus-baseline
+usability evidence remain open.
+
+**Engine scope: 163/167 independently verified checkpoints (97.60%).** Four checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
 
 ## Development and provenance
 
