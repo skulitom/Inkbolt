@@ -8,6 +8,7 @@ mod objects;
 mod read;
 mod text_data;
 mod text_frame;
+mod text_paragraph;
 mod text_record;
 mod text_story;
 mod text_style;

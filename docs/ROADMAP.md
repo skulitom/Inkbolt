@@ -1,5 +1,11 @@
 # Roadmap and verified scope
 
+Native paragraph diagnostics now reconcile explicit alignment, indentation,
+spacing, hyphenation and observed composition controls across local caches and
+global stories. Missing values remain unknown, and the differently encoded
+legacy hyphen limit stays separate. This supplies reconstruction requirements;
+complete paragraph semantics and editable incoming text remain unfinished.
+
 Retained character scaling and baseline shifts now provide the geometry controls
 needed for incoming native text reconstruction. Shared shaping, metrics, paths,
 linked stories and outlines retain these values; explicit native delivery maps

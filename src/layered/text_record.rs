@@ -54,6 +54,7 @@ pub(super) struct Record {
     source: String,
     story_index: i32,
     styles: super::text_style::Styles,
+    paragraphs: super::text_paragraph::Paragraphs,
 }
 pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Record, Error> {
     if input.left() > 65536 {
@@ -138,6 +139,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
     }
     let style_runs = runs(engine, "StyleRun", source)?;
     let paragraph_runs = runs(engine, "ParagraphRun", source)?;
+    let paragraphs = super::text_paragraph::Paragraphs::local(engine, source, control)?;
     let fonts = array(object(&parsed, "ResourceDict")?, "FontSet")?;
     let styles = super::text_style::Styles::local(engine, fonts, control)?;
     let referenced_fonts = styles.faces()?;
@@ -167,7 +169,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         source: source.to_owned(),
         story_index,
         details: json!({"kind":"native_text_requirements","editable_import_supported":false,
-        "diagnostic_scope":"selected_story_references_frame_geometry_and_known_character_control_comparison",
+        "diagnostic_scope":"selected_story_references_frame_geometry_and_known_character_paragraph_control_comparison",
         "reported_text_source":"local_record","native_story_index":story_index,
         "compatibility_markers":compatibility,
         "whole_file_validated":false,"layout_semantics_validated":false,
@@ -178,6 +180,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         "transform":transform,"text_data_sha256":assets::sha256(&payload),
         "cached_pixels_used":false,"required_mapping":["explicit_content_pinned_font_bindings","global_story_and_local_style_reconciliation","editable_text_layout_reconstruction","declared_native_layout_and_rendering_differences"]}),
         styles,
+        paragraphs,
     })
 }
 pub(super) fn diagnose(
@@ -193,6 +196,7 @@ pub(super) fn diagnose(
         record.story_index,
         &record.source,
         &record.styles,
+        &record.paragraphs,
         control,
     )?;
     Ok(record.details)

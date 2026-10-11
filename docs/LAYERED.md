@@ -76,6 +76,27 @@ text-data hashes also bind unknown fields. Full style, font-file and rendering
 validation remain false. Inherited controls, colors, decorations, other fields
 and paragraph semantics still require complete reconstruction.
 
+`global_story.paragraph_styles` similarly compares explicit paragraph controls:
+justification codes, indents, before/after spacing, automatic-leading factors,
+hyphenation switches and word-length controls, spacing/scaling triples, hanging
+punctuation and every-line composition. Numeric triples require exactly three
+finite numbers. Values remain in their source units; no layout algorithm, enum
+translation, inherited value or default is inferred. Missing property containers
+are counted separately from present containers with missing controls.
+
+The global hyphen limit and `local_consecutive_hyphens_code` remain distinct
+controls because their observed encodings differ. The report does not treat that
+difference as a semantic conflict or invent a conversion. Global-only values can
+be absent locally, and disabled features can omit global parameters even when
+the local cache contains values. Both sides retain missing/unmapped controls and
+known-value fingerprints, using the same bounded comparison as character styles.
+Run ends that do not follow an encoded carriage return are counted; structural
+UTF-16 coverage does not validate paragraph boundaries or paragraph layout.
+`paragraph_boundaries_semantically_validated` and
+`legacy_hyphen_limit_conversion_validated` remain false. These diagnostics still
+refuse editable import; unknown styles, inheritance, native layout algorithms,
+font bindings and complete reconstruction remain required.
+
 These diagnostics check this local record's framing, matching local text sources, complete
 UTF-16 run coverage without splitting surrogate pairs, and explicit per-run font
 references. They do not validate layout semantics, later records or the whole

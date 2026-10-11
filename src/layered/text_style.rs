@@ -4,13 +4,14 @@ use super::{text_data::Node, *};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy)]
-enum Kind {
+pub(super) enum Kind {
     Boolean,
     Number,
     Integer,
+    NumberTriple,
 }
 impl Kind {
-    fn read(self, value: &Value) -> Result<Value, Error> {
+    pub fn read(self, value: &Value) -> Result<Value, Error> {
         Ok(match self {
             Self::Boolean => json!(value.as_bool().ok_or_else(malformed)?),
             Self::Number => json!(
@@ -20,7 +21,37 @@ impl Kind {
                     .ok_or_else(malformed)?
             ),
             Self::Integer => json!(value.as_i64().ok_or_else(malformed)?),
+            Self::NumberTriple => {
+                let values = value.as_array().ok_or_else(malformed)?;
+                if values.len() != 3 {
+                    return Err(malformed());
+                }
+                Value::Array(
+                    values
+                        .iter()
+                        .map(|v| Self::Number.read(v))
+                        .collect::<Result<_, _>>()?,
+                )
+            }
         })
+    }
+    pub fn read_node(self, node: &Node) -> Result<Value, Error> {
+        if let Self::NumberTriple = self {
+            let values = node.array()?;
+            if values.len() != 3 {
+                return Err(malformed());
+            }
+            return Ok(Value::Array(
+                values
+                    .iter()
+                    .map(|v| Ok(json!(v.number()?)))
+                    .collect::<Result<_, Error>>()?,
+            ));
+        }
+        let Node::Scalar(v) = node else {
+            return Err(malformed());
+        };
+        self.read(v)
     }
 }
 
@@ -80,13 +111,13 @@ fn face_name(name: &str) -> Result<Value, Error> {
 }
 
 #[derive(Serialize)]
-struct Run {
-    end_utf16: usize,
-    controls: BTreeMap<&'static str, Value>,
+pub(super) struct Run {
+    pub end_utf16: usize,
+    pub controls: BTreeMap<&'static str, Value>,
 }
 pub(super) struct Styles {
-    runs: Vec<Run>,
-    unknown: BTreeSet<String>,
+    pub runs: Vec<Run>,
+    pub unknown: BTreeSet<String>,
 }
 impl Styles {
     pub fn local(engine: &Value, fonts: &[Value], control: &Control) -> Result<Self, Error> {
@@ -162,10 +193,7 @@ impl Styles {
             let mut controls = BTreeMap::from([("font_face_name", face_name(name)?)]);
             for &(key, _, name, kind) in CONTROLS {
                 if let Some(v) = style.optional(key)? {
-                    let Node::Scalar(v) = v else {
-                        return Err(malformed());
-                    };
-                    controls.insert(name, kind.read(v)?);
+                    controls.insert(name, kind.read_node(v)?);
                 }
             }
             let Node::Dictionary(properties) = style else {

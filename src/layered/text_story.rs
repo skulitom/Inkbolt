@@ -78,6 +78,7 @@ pub(super) fn diagnose(
     index: i32,
     local: &str,
     local_styles: &super::text_style::Styles,
+    local_paragraphs: &super::text_paragraph::Paragraphs,
     control: &Control,
 ) -> Result<Value, Error> {
     let Some(bytes) = payload(tail, version, control)? else {
@@ -110,17 +111,19 @@ pub(super) fn diagnose(
     }
     let style_runs = runs(authoring, "6", &boundaries, units)?;
     let paragraph_runs = runs(authoring, "5", &boundaries, units)?;
+    let paragraphs = super::text_paragraph::Paragraphs::global(paragraph_runs, source, control)?;
     let fonts = global.field("0")?.field("1")?.field("0")?.array()?;
     let styles = super::text_style::Styles::global(style_runs, fonts, control)?;
     let faces = styles.faces()?;
     let character_styles = styles.compare(local_styles, source == local, control)?;
+    let paragraph_styles = paragraphs.compare(local_paragraphs, source == local, control)?;
     let frame = super::text_frame::diagnose(&global, story)?;
     Ok(
         json!({"present":true,"version":14,"text_source":"global_story","story_index":index,"story_count":stories.len(),
         "text_characters":text.chars().count(),"text_utf16_units":units-1,"text_sha256":assets::sha256(text.as_bytes()),
         "local_text_matches":source==local,"font_face_names":faces,"font_file_identity_declared":false,
         "style_runs":style_runs.len(),"paragraph_runs":paragraph_runs.len(),"global_data_sha256":assets::sha256(bytes),
-        "global_tag_framing_validated":true,"selected_story_run_references_validated":true,"frame":frame,"character_styles":character_styles,
+        "global_tag_framing_validated":true,"selected_story_run_references_validated":true,"frame":frame,"character_styles":character_styles,"paragraph_styles":paragraph_styles,
         "other_stories_validated":false,"other_layer_references_validated":false,"layout_semantics_validated":false,
         "style_semantics_validated":false,"local_style_consistency_validated":false}),
     )

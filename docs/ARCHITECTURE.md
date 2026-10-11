@@ -1,5 +1,11 @@
 # Architecture
 
+Selected native paragraph controls now share the character diagnostic's typed
+value, run-fingerprint and UTF-16 overlap comparison. Missing property containers
+and carriage-return run endings are reported without assuming inheritance or
+layout semantics. The native hyphen limit and its legacy local code are distinct
+until their conversion is independently verified; editable import stays open.
+
 Shared text shaping and outlines retain per-style horizontal/vertical factors
 and baseline shifts. Metrics use vertical scaling; tracking is added afterward
 in local pixels, while baseline shifts leave line spacing unchanged. Ordinary,
