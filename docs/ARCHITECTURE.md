@@ -108,6 +108,12 @@ across all layers before accepting the table. Linked masks are rebased; nested
 objects share the caller's bindings. Unknown native saved tables and the full
 incoming-text acceptance remain open. See [the import contract](LAYERED_TEXT_IMPORT.md).
 
+Explicit text profile conversion batches authored floating-point RGB fills through
+the shared profile transform before constructing RGB8 styles. Nested documents use
+their own profiles; cached glyph pixels never supply the paint. Source diagnostics
+retain their original values, and the conversion/clipping policy is reported
+separately without claiming a total clipping count.
+
 `presets` provides pure versioned screen and physical-page recipes over the
 existing document, artboard, logical-canvas and publication contracts. Explicit
 background/color choices, typed delivery settings and specification identities

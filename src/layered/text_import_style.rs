@@ -20,6 +20,53 @@ fn boolean(values: &BTreeMap<&str, Value>, key: &str) -> Result<bool, Error> {
         .and_then(Value::as_bool)
         .ok_or_else(|| missing(key))
 }
+fn rgba(values: &BTreeMap<&str, Value>) -> Result<[f64; 4], Error> {
+    let color = values
+        .get("fill_color")
+        .ok_or_else(|| missing("solid RGB fill"))?;
+    let components = color["components"].as_array().ok_or_else(malformed)?;
+    if color["type"] != 1 || components.len() != 4 || components[0].as_f64() != Some(1.0) {
+        return Err(missing("opaque type-1 RGB fill"));
+    }
+    let mut rgba = [1.0; 4];
+    for (out, value) in rgba.iter_mut().zip(&components[1..]) {
+        *out = value
+            .as_f64()
+            .filter(|n| (0.0..=1.0).contains(n))
+            .ok_or_else(|| missing("RGB components in 0..1"))?;
+    }
+    Ok(rgba)
+}
+pub(super) fn convert_colors(
+    styles: &mut Styles,
+    profile: &[u8],
+    control: &Control,
+) -> Result<(), Error> {
+    // Transform the authored floating-point components together, before the
+    // editable RGB8 representation rounds them. Layer caches are independent.
+    let mut colors = Vec::with_capacity(styles.runs.len() * 4);
+    for run in &styles.runs {
+        control.check()?;
+        colors.extend(rgba(&run.controls)?);
+    }
+    crate::profiles::convert_f64(
+        &mut colors,
+        &crate::profiles::Profile::Icc {
+            data: STANDARD.encode(profile),
+        },
+        &crate::profiles::Profile::Builtin {
+            name: crate::profiles::Builtin::Srgb,
+        },
+        crate::profiles::Intent::RelativeColorimetric,
+        true,
+        Some(control),
+    )?;
+    for (run, color) in styles.runs.iter_mut().zip(colors.as_chunks::<4>().0) {
+        run.controls.get_mut("fill_color").unwrap()["components"] =
+            json!([color[3], color[0], color[1], color[2]]);
+    }
+    Ok(())
+}
 pub(super) fn frame(
     source: &str,
     styles: &Styles,
@@ -115,21 +162,7 @@ pub(super) fn frame(
                 + 1
         );
         fonts.insert(id.clone(), binding.font.clone());
-        let color = v
-            .get("fill_color")
-            .ok_or_else(|| missing("solid RGB fill"))?;
-        let components = color["components"].as_array().ok_or_else(malformed)?;
-        if color["type"] != 1 || components.len() != 4 || components[0].as_f64() != Some(1.0) {
-            return Err(missing("opaque type-1 RGB fill"));
-        }
-        let mut rgba = [255; 4];
-        for (out, value) in rgba.iter_mut().zip(&components[1..]) {
-            let n = value
-                .as_f64()
-                .filter(|n| (0.0..=1.0).contains(n))
-                .ok_or_else(|| missing("RGB components in 0..1"))?;
-            *out = (n * 255.0).round() as u8;
-        }
+        let rgba = rgba(v)?.map(|n| (n * 255.0).round() as u8);
         let kern = if global {
             if number(v, "kerning_code")? != 1.0 {
                 return Err(missing("font-metric kerning"));

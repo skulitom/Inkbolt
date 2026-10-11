@@ -154,7 +154,7 @@ fn description(command: &str) -> &'static str {
             "Discover command arguments and shared graphics types. Use name index for available names. Large schemas return an outline; select a listed variant or definition, or use full:true for all reachable definitions. Read-only. The original schema command still returns the entire engine schema."
         }
         "layered.import" => {
-            "Read a bounded local layered RGB file into editable native pixels, normal/pass-through groups and authored scalar masks. Preserves source bytes and uses explicit color policy. Inspect capabilities.layered_interchange for exact version, metadata and mask limits. Optional text_fonts checks explicit pinned font choices in unsupported-text diagnostics; it does not enable text import. Unsupported appearance semantics fail explicitly; no flattened-cache substitution."
+            "Read a bounded local layered RGB file into editable native pixels, normal/pass-through groups and authored scalar masks. Preserves source bytes and uses explicit color policy. Inspect capabilities.layered_interchange for exact limits. Optional text_fonts checks pinned font choices; adding reconstruction:engine_layout imports the declared editable point-text subset. Unsupported appearance semantics fail explicitly; no flattened-cache substitution."
         }
         "color.convert" => {
             "Convert up to 4096 finite device RGB, grayscale, CMYK or physical D50 Lab samples through explicit profiles. Returns directional table identities, PCS values and clipped component counts. Untagged RGB needs explicit assume_srgb; other device spaces require matching profiles. Original components and profile bytes remain unchanged. No document edit or publication is performed."

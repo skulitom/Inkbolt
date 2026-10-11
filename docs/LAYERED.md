@@ -186,6 +186,11 @@ unit adds no engine-checkpoint credit.
 
 `format:"layered_large"` publishes `.psb` with version-two framing. The importer selects framing from the file header. Layer-section, layer-info and channel lengths are unsigned 64-bit values; row-compression counts are 32-bit values. Only the format-defined tagged records use 64-bit lengths; all other sections retain their specified widths. The Rust library exposes `export_versioned` with `Version::Standard` or `Version::Large`.
 
+Empty external-link tables use their version-specific length framing and are
+listed in omission receipts. Nonempty external references remain unsupported.
+Text lookup and metadata validation share the same framing and bounds checks,
+including following tags, duplicate records, truncation and oversized lengths.
+
 This is partial extended interchange and adds no checkpoint credit. Version two currently supports axes through the existing engine limit of 32,768, including thin canvases wider or taller than the standard format's 30,000 limit. The 32 MiB file, 1,048,576 canvas-pixel and 65,536 stored-pixel limits remain. Larger engine axes, remaining group/mask semantics, text and full embedded-object exchange remain required; selecting a large container does not imply those semantics are supported.
 
 ```json

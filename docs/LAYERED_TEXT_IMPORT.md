@@ -39,8 +39,14 @@ to engine character indices without splitting
 surrogates; normal engine grapheme and range validation still applies. Global
 kerning admits font metrics only. Manual and optical modes fail. Other native
 features, inherited/default styles, distinct terminal insertion styles, unknown controls, native antialias settings,
-warps, paragraph/linked frames, variable fonts and profile-space paint conversion
+warps, paragraph/linked frames and variable fonts
 require additional mappings and fail explicitly.
+
+With `color_policy:"convert_srgb"`, the embedded RGB profile converts all authored
+fill components to working sRGB before eight-bit rounding. This includes every
+style range and uses each nested source's own profile. It does not convert text
+through its cached pixels. The existing explicit-profile and untagged-source
+policies apply; assumptions never replace a conflicting embedded profile.
 
 Without a global table, complete local authoring and geometry are required.
 With a global table, the explicit story index selects source text and styles;
@@ -62,7 +68,10 @@ Receipts report source text identity, local/global selection, chosen font-bindin
 identity, matrix, cached sample hash and reconstruction differences. Cached layer
 and composite pixels are decoded and checked but never become text content.
 Engine shaping, metrics and antialiasing can differ from the originating consumer.
-RGB components are rounded to eight bits. No native layout or pixel equality is
+RGB components are rounded to eight bits after any profile conversion. Conversion
+receipts identify the source profile, relative colorimetric intent, disabled black
+point compensation and clipping policy. The profile transform can clip internally;
+receipts explicitly report that a total clipping count is unavailable. No native layout or pixel equality is
 claimed. Existing file, item, run, pixel and nested-source budgets remain in force.
 
 The fixed-zero point form can be delivered again with explicit native text

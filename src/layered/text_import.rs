@@ -15,6 +15,7 @@ pub(super) fn prepare(
     tail: &Reader<'_>,
     version: Version,
     fonts: &TextFonts,
+    source_profile: Option<&[u8]>,
     control: &Control,
 ) -> Result<Prepared, Error> {
     let mut record = super::text_record::inspect(input, control)?;
@@ -28,7 +29,7 @@ pub(super) fn prepare(
         }
         let mut story_reference = None;
         let global = super::text_story::payload(tail, version, control)?;
-        let (source, styles, paragraphs) = if let Some(bytes) = global {
+        let (source, mut styles, paragraphs) = if let Some(bytes) = global {
             let global = super::text_data::parse_global(bytes, control)?;
             let stories = global.field("1")?.field("1")?.array()?;
             let index = usize::try_from(record.story_index).map_err(|_| malformed())?;
@@ -89,6 +90,9 @@ pub(super) fn prepare(
             }
             (record.source.clone(), record.styles, record.paragraphs)
         };
+        if let Some(bytes) = source_profile {
+            super::text_import_style::convert_colors(&mut styles, bytes, control)?;
+        }
         let (frame, used_fonts) = super::text_import_style::frame(
             &source,
             &styles,
@@ -121,6 +125,16 @@ pub(super) fn prepare(
             "text_sha256":assets::sha256(frame.text.as_bytes()),"characters":frame.text.chars().count(),"shape":"point","native_baseline_matrix":record.transform,
             "nominal_frame":[1,1],"font_bindings":binding_report,"cached_pixels_used":false,"native_layout_equality":false,
             "color_quantization":"opaque RGB components rounded to eight bits","missing_values_inherited":false});
+        receipt["color_interpretation"] = json!(if source_profile.is_some() {
+            "converted_srgb_before_quantization"
+        } else {
+            "source_is_srgb"
+        });
+        if let Some(bytes) = source_profile {
+            receipt["color_conversion"] = json!({"source_profile_sha256":assets::sha256(bytes),
+                "target":"srgb","intent":"relative_colorimetric","black_point_compensation":false,
+                "gamut_policy":"clip_to_srgb","clipping_count_available":false});
+        }
         if let Some((index, _, frame_index, _)) = story_reference {
             receipt["story_index"] = json!(index);
             receipt["frame_index"] = json!(frame_index);

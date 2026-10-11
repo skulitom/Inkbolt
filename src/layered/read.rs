@@ -42,6 +42,7 @@ fn record(
     version: Version,
     options: Options<'_>,
     global_tail: &Reader<'_>,
+    text_profile: Option<&[u8]>,
 ) -> Result<Layer, Error> {
     let embedded_objects = options.embedded_objects;
     let bounds = [
@@ -149,6 +150,7 @@ fn record(
                         global_tail,
                         version,
                         fonts,
+                        text_profile,
                         control,
                     )?);
                 } else {
@@ -584,6 +586,7 @@ pub(super) fn document(
             version,
             options,
             &section,
+            profile.as_deref().filter(|_| convert),
         )
         .map_err(|e| context(e, "Layer record"))?;
         if r.kind != Kind::Boundary && r.id.is_some_and(|id| !ids.insert(id)) {
@@ -655,12 +658,7 @@ pub(super) fn document(
         if r.placement.is_some() || r.text.is_some() {
             cache_hashes.insert(r.identity(index), assets::sha256(&rgba));
         }
-        if convert && r.text.is_some() {
-            return Err(unsupported(
-                "Editable text currently requires an explicit working-sRGB interpretation; profile-space text paint conversion remains unsupported",
-            ));
-        }
-        if convert && r.kind == Kind::Pixel {
+        if convert && r.kind == Kind::Pixel && r.text.is_none() {
             let mut values = rgba.iter().map(|v| *v as f64 / 255.0).collect::<Vec<_>>();
             crate::profiles::convert_f64(
                 &mut values,
