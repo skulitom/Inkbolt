@@ -169,6 +169,13 @@ Every root resource ceiling in `capabilities.limits` has a compiled-constant
 binding check; identity-scale semantics remain separate. The remaining parameter
 and diagnostic audit still precedes W0's fresh thorough gate.
 
+Stored stroke width/miter/tolerance, width-profile knots/factors, arrow dimensions,
+dash minima and brush placement controls now share catalog definitions with
+discovery and boundary fixtures. Width, arrow and brush spacing policies remain
+independent despite equal values. Every numeric stroke/brush capability is checked
+against its constant or explicit normalized/symmetric semantics. Numeric limits
+and source defaults are unchanged; the wider inline audit remains open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

@@ -93,6 +93,7 @@ impl Default for Style {
             rule: FillRule::Nonzero,
             cap: Cap::Butt,
             join: Join::Miter,
+            // SVG input defaults remain independent of engine authoring defaults.
             miter: 4.0,
             dash: crate::strokes::Dash {
                 array: vec![],

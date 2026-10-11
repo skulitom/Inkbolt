@@ -240,7 +240,7 @@ pub struct Stroke {
     pub curve_tolerance: f64,
 }
 fn miter() -> f64 {
-    4.0
+    f64::from(crate::limits::strokes::DEFAULT_MITER_LIMIT)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
@@ -854,13 +854,21 @@ pub fn validate_controlled(
                 }
                 if let Some(stroke) = stroke
                     && (!stroke.width.is_finite()
-                        || !(0.001..=1024.0).contains(&stroke.width)
+                        || !(crate::limits::strokes::MIN_WIDTH
+                            ..=f64::from(crate::limits::strokes::MAX_WIDTH))
+                            .contains(&stroke.width)
                         || !stroke.miter_limit.is_finite()
-                        || !(1.0..=16.0).contains(&stroke.miter_limit))
+                        || !(f64::from(crate::limits::strokes::MIN_MITER_LIMIT)
+                            ..=f64::from(crate::limits::strokes::MAX_MITER_LIMIT))
+                            .contains(&stroke.miter_limit))
                 {
-                    return Err(invalid(
-                        "Stroke width must be in 0.001..=1024 and miter limit in 1..=16",
-                    ));
+                    return Err(invalid(&format!(
+                        "Stroke width must be in {}..={} and miter limit in {}..={}",
+                        crate::limits::strokes::MIN_WIDTH,
+                        crate::limits::strokes::MAX_WIDTH,
+                        crate::limits::strokes::MIN_MITER_LIMIT,
+                        crate::limits::strokes::MAX_MITER_LIMIT
+                    )));
                 }
                 if let Some(stroke) = stroke {
                     segments += crate::strokes::brush_segments(stroke)?;

@@ -13,6 +13,27 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'vector_strokes/miter_limit/0': 'strokes.MIN_MITER_LIMIT',
+    'vector_strokes/miter_limit/1': 'strokes.MAX_MITER_LIMIT',
+    'vector_strokes/width/0': 'strokes.MIN_WIDTH',
+    'vector_strokes/width/1': 'strokes.MAX_WIDTH',
+    'vector_strokes/dash_intervals': 'strokes.MAX_INTERVALS',
+    'vector_strokes/dash_offset/1': 'model.MAX_COORDINATE',
+    'vector_strokes/curve_tolerance/default': 'strokes.DEFAULT_CURVE_TOLERANCE',
+    'vector_strokes/curve_tolerance/range/0': 'strokes.MIN_CURVE_TOLERANCE',
+    'vector_strokes/curve_tolerance/range/1': 'strokes.MAX_CURVE_TOLERANCE',
+    'vector_strokes/width_profile/knots/1': 'strokes.MAX_PROFILE_KNOTS',
+    'vector_strokes/width_profile/factor/1': 'strokes.MAX_PROFILE_FACTOR',
+    'vector_strokes/width_profile/maximum_resulting_width': 'strokes.MAX_WIDTH',
+    'vector_strokes/arrow_length_width/0': 'strokes.MIN_ARROW_EXTENT',
+    'vector_strokes/arrow_length_width/1': 'strokes.MAX_ARROW_EXTENT',
+    'vector_brushes/motif_coordinates/1': 'strokes_brush.MAX_MOTIF_COORDINATE',
+    'vector_brushes/spacing/0': 'strokes_brush.MIN_SPACING',
+    'vector_brushes/spacing/1': 'strokes_brush.MAX_SPACING',
+    'vector_brushes/phase/1': 'model.MAX_COORDINATE',
+    'vector_brushes/corner_angle/0': 'strokes_brush.MIN_CORNER_ANGLE',
+    'vector_brushes/corner_angle/1': 'strokes_brush.MAX_CORNER_ANGLE',
+    'vector_brushes/clearance/1': 'strokes_brush.MAX_CLEARANCE',
     'booleans/curve_contact_root_search_depth': 'booleans_topology_algebraic_roots.MAX_ROOT_DEPTH',
     'booleans/curve_contact_polynomial_coefficient_bits': 'booleans_topology_algebraic_roots.MAX_COEFFICIENT_BITS',
     'warps/map_count/1': 'warps.MAX_MAPS',
@@ -351,6 +372,26 @@ class ResourceLimitTests(unittest.TestCase):
         self.assertEqual(numeric_fields(capabilities()['limits'], 'limits')
                          - {'limits/render_scale/0'},
                          {p for p in BINDINGS if p.startswith('limits/')})
+
+        # Symmetric coordinates and normalized zero/endpoint semantics are
+        # checked separately; every other advertised stroke/brush bound is bound.
+        semantics = {'vector_strokes/dash_offset/0', 'vector_strokes/width_profile/knots/0',
+                     'vector_strokes/width_profile/factor/0', 'vector_brushes/motif_coordinates/0',
+                     'vector_brushes/phase/0', 'vector_brushes/clearance/0'}
+        for prefix in ('vector_strokes', 'vector_brushes'):
+            self.assertEqual(numeric_fields(capabilities()[prefix], prefix) - semantics,
+                             {p for p in BINDINGS if p.startswith(prefix+'/')})
+        stroke = capabilities()['vector_strokes']
+        brush = capabilities()['vector_brushes']
+        for bounds in (stroke['dash_offset'], brush['phase'], brush['motif_coordinates']):
+            self.assertEqual(bounds[0], -bounds[1])
+        self.assertEqual(stroke['width_profile']['knots'][0], 2)
+        self.assertEqual(stroke['width_profile']['factor'][0], 0)
+        self.assertEqual(brush['clearance'][0], 0)
+        self.assertEqual(stroke['dash_interval'],
+                         f"zero_or_{values['strokes.MIN_DASH_LENGTH']:g}_to_{values['model.MAX_COORDINATE']:g}")
+        self.assertEqual(stroke['curve_tolerance']['automatic_refinement'],
+                         f"min_saved_and_1_over_{1 / values['strokes.DEFAULT_CURVE_TOLERANCE']:g}_divided_by_max_1_and_{values['strokes.OUTLINE_RESOLUTION']}_times_world_stretch_bound")
 
         prefix = 'layered_interchange'
         reported = numeric_fields(capabilities()[prefix], prefix)

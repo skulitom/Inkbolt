@@ -1151,6 +1151,20 @@ pub mod stored_samples {
 
 /// Limits for `src/strokes/brush.rs`.
 pub mod strokes_brush {
+    /// Minimum repeat spacing in base stroke widths.
+    pub const MIN_SPACING: f64 = 0.001;
+    /// Maximum repeat spacing in base stroke widths; independent of stroke width and arrow dimensions.
+    pub const MAX_SPACING: u32 = 1024;
+    /// Maximum endpoint/corner clearance in base stroke widths.
+    pub const MAX_CLEARANCE: u32 = 1024;
+    /// Maximum absolute expanded motif control coordinate in normalized motif units.
+    pub const MAX_MOTIF_COORDINATE: u32 = 16;
+    /// Minimum corner classification angle in degrees.
+    pub const MIN_CORNER_ANGLE: f64 = 0.1;
+    /// Maximum corner classification angle in degrees.
+    pub const MAX_CORNER_ANGLE: u32 = 180;
+    /// Default corner classification angle in degrees.
+    pub const DEFAULT_CORNER_ANGLE: u32 = 30;
     /// Max placements (strokes brush).
     pub const MAX_PLACEMENTS: usize = 8192;
 }
@@ -1167,6 +1181,32 @@ pub mod strokes_outline {
 
 /// Limits for `src/strokes.rs`.
 pub mod strokes {
+    /// Minimum stored stroke width in the declared stroke space.
+    pub const MIN_WIDTH: f64 = 0.001;
+    /// Maximum stored or profile-expanded stroke width in the declared stroke space.
+    pub const MAX_WIDTH: u32 = 1024;
+    /// Minimum miter extension ratio.
+    pub const MIN_MITER_LIMIT: u32 = 1;
+    /// Maximum miter extension ratio.
+    pub const MAX_MITER_LIMIT: u32 = 16;
+    /// Default miter extension ratio shared by document authoring and brush compatibility.
+    pub const DEFAULT_MITER_LIMIT: u32 = 4;
+    /// Minimum caller-stored curve tolerance; internal placement refinement may be tighter.
+    pub const MIN_CURVE_TOLERANCE: f64 = 0.0000001;
+    /// Maximum caller-stored curve tolerance in the declared stroke space.
+    pub const MAX_CURVE_TOLERANCE: u32 = 1;
+    /// Default stored tolerance and numerator of placement-aware outline refinement.
+    pub const DEFAULT_CURVE_TOLERANCE: f64 = 1.0 / 64.0;
+    /// Maximum knots in one stored width profile.
+    pub const MAX_PROFILE_KNOTS: usize = 64;
+    /// Maximum width multiplier at a profile knot; resulting width has a separate bound.
+    pub const MAX_PROFILE_FACTOR: u32 = 1024;
+    /// Minimum arrow length or width in the declared stroke space.
+    pub const MIN_ARROW_EXTENT: f64 = 0.001;
+    /// Maximum arrow length or width; independent of shaft width and brush spacing.
+    pub const MAX_ARROW_EXTENT: u32 = 1024;
+    /// Minimum nonzero dash interval in the declared stroke space.
+    pub const MIN_DASH_LENGTH: f64 = 0.001;
     /// Outline resolution (strokes).
     pub const OUTLINE_RESOLUTION: u32 = 16;
     /// Max intervals (strokes).
