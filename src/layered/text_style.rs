@@ -9,8 +9,18 @@ pub(super) enum Kind {
     Number,
     Integer,
     NumberTriple,
+    NumberList,
 }
 impl Kind {
+    fn array_size(self, count: usize) -> Result<(), Error> {
+        if matches!(self, Self::NumberTriple) && count != 3 {
+            return Err(malformed());
+        }
+        if matches!(self, Self::NumberList) && count > 32 {
+            return Err(limit("Text stroke patterns exceed 32 source values"));
+        }
+        Ok(())
+    }
     pub fn read(self, value: &Value) -> Result<Value, Error> {
         Ok(match self {
             Self::Boolean => json!(value.as_bool().ok_or_else(malformed)?),
@@ -21,11 +31,9 @@ impl Kind {
                     .ok_or_else(malformed)?
             ),
             Self::Integer => json!(value.as_i64().ok_or_else(malformed)?),
-            Self::NumberTriple => {
+            Self::NumberTriple | Self::NumberList => {
                 let values = value.as_array().ok_or_else(malformed)?;
-                if values.len() != 3 {
-                    return Err(malformed());
-                }
+                self.array_size(values.len())?;
                 Value::Array(
                     values
                         .iter()
@@ -36,11 +44,9 @@ impl Kind {
         })
     }
     pub fn read_node(self, node: &Node) -> Result<Value, Error> {
-        if let Self::NumberTriple = self {
+        if matches!(self, Self::NumberTriple | Self::NumberList) {
             let values = node.array()?;
-            if values.len() != 3 {
-                return Err(malformed());
-            }
+            self.array_size(values.len())?;
             return Ok(Value::Array(
                 values
                     .iter()
@@ -191,6 +197,19 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
     ),
     (Some("64"), None, "stroke_miter_limit", Kind::Number),
     (Some("65"), None, "stroke_dash_phase", Kind::Number),
+    (Some("66"), None, "stroke_dash_pattern", Kind::NumberList),
+    (Some("61"), None, "stroke_cap_code", Kind::Integer),
+    (Some("62"), None, "stroke_join_code", Kind::Integer),
+    (Some("69"), None, "direction_override_code", Kind::Integer),
+    (Some("71"), None, "mark_position_code", Kind::Integer),
+    (Some("77"), None, "fill_visible", Kind::Boolean),
+    (Some("78"), None, "stroke_visible", Kind::Boolean),
+    (
+        Some("46"),
+        None,
+        "split_annotation_alignment_code",
+        Kind::Integer,
+    ),
     (Some("14"), None, "opentype_baseline_code", Kind::Integer),
     (Some("30"), None, "figure_style_code", Kind::Integer),
     (
@@ -362,11 +381,23 @@ impl Styles {
                     controls.insert(name, value);
                 }
             }
+            if let Some(value) = style.get("43") {
+                let Node::Dictionary(fields) = value else {
+                    return Err(malformed());
+                };
+                controls.insert("split_annotation_scale", json!(value.field("0")?.number()?));
+                out.unknown.extend(
+                    fields
+                        .keys()
+                        .filter(|k| k.as_str() != "0")
+                        .map(|k| format!("43/{k}")),
+                );
+            }
             out.unknown.extend(
                 style
                     .keys()
                     .filter(|k| {
-                        **k != "0"
+                        !matches!(**k, "0" | "43")
                             && !super::text_paint::FIELDS
                                 .iter()
                                 .any(|(global, _, _)| *global == **k)

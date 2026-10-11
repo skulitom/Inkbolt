@@ -1,5 +1,10 @@
 # Architecture
 
+Mapped source layout diagnostics include separate paint visibility, bounded dash
+patterns, typed annotation-scale records and additional paragraph controls. Nested
+unknown fields stay visible, source codes remain uninterpreted, and absent local
+equivalents are not invented. Recognition alone never permits editable conversion.
+
 Character diagnostics now identify individually observed rotation, annotation,
 spacing and paint controls. Source values participate in typed run comparisons
 and fingerprints; legacy feature switches remain distinct from modern codes.

@@ -109,7 +109,14 @@ stroke width, miter limit and dash phase have individual diagnostic mappings.
 The legacy figure switch remains distinct from the modern figure-style code.
 Fill/stroke switches, paint order and stroke width also compare against observed
 local cache fields. These are source values, with no unit
-conversion, shaping-tag translation, feature availability or layout acceptance.
+conversion. Separate fill/stroke visibility, dash patterns, cap/join codes,
+direction overrides, mark-position codes and annotation alignment/scale also
+have diagnostic mappings. Dash patterns retain order and at most 32 finite
+values, including an explicit empty pattern. The annotation scale uses its
+observed numeric record; extra record fields remain listed as unknown. These
+checks do not validate dash geometry, enum meanings or effective visibility.
+There is no
+shaping-tag translation, feature availability or layout acceptance.
 Several global feature switches can be absent from the local cache, so matching
 compared values does not imply complete style agreement. Each side reports
 observed/enabled controls, the number of unmapped fields and at most sixteen of
@@ -142,6 +149,11 @@ hyphenation switches and word-length controls, spacing/scaling triples, hanging
 punctuation and every-line composition. Leading direction, paragraph direction,
 line-breaking order, list tier and joining width retain their explicit codes.
 Global hanging-punctuation codes stay separate from the local Boolean cache.
+Hyphenation zone/preference, single-word justification, automatic inline
+grouping, line-keeping, repeated-character processing, default tab width and
+justification-method controls retain their explicit source values. The observed
+local hyphenation-zone value can compare with its global counterpart; other
+newly mapped controls do not invent local equivalents.
 Numeric triples require exactly three
 finite numbers. Values remain in their source units; no layout algorithm, enum
 translation or application default is inferred. Explicit source references can
