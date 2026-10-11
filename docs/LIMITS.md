@@ -275,12 +275,23 @@ capability literals and diagnostic messages remains in progress.
 | `pdf.MAX_COMMANDS` | `usize` | 262144 | `262_144` |
 | `pdf.MAX_IMAGE_PIXELS` | `u64` | 4194304 | `4_194_304` |
 | `pdf.MAX_OBJECTS` | `usize` | 32768 | `32_768` |
+| `pixel_brush.COVERAGE_TOLERANCE` | `f64` | 1e-07 | `0.0000001` |
+| `pixel_brush.DEFAULT_SPACING` | `f64` | 0.25 | `0.25` |
+| `pixel_brush.FIXED_WORKING_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |
+| `pixel_brush.MAX_COVERAGE_DEPTH` | `u32` | 20 | `20` |
 | `pixel_brush.MAX_DABS` | `usize` | 8192 | `8192` |
 | `pixel_brush.MAX_DIAMETER` | `u32` | 512 | `512` |
 | `pixel_brush.MAX_MEMORY_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
 | `pixel_brush.MAX_POINTS` | `usize` | 1024 | `1024` |
+| `pixel_brush.MAX_SCATTER` | `u32` | 4 | `4` |
+| `pixel_brush.MAX_SPACING` | `u32` | 4 | `4` |
 | `pixel_brush.MAX_TEXTURE_PIXELS` | `usize` | 4096 | `4096` |
+| `pixel_brush.MAX_TEXTURE_SCALE` | `u32` | 1024 | `1024` |
 | `pixel_brush.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
+| `pixel_brush.MIN_DIAMETER` | `f64` | 0.25 | `0.25` |
+| `pixel_brush.MIN_SPACING` | `f64` | 0.01 | `0.01` |
+| `pixel_brush.MIN_TEXTURE_SCALE` | `f64` | 0.001 | `0.001` |
+| `pixel_brush.WORKING_BYTES_PER_PIXEL` | `u64` | 256 | `256` |
 | `pixel_warps.MAX_AXIS` | `usize` | 16 | `16` |
 | `pixel_warps.MAX_JOINTS` | `usize` | 16 | `16` |
 | `pixel_warps.MAX_SAMPLES` | `usize` | 256 | `256` |
@@ -340,8 +351,16 @@ capability literals and diagnostic messages remains in progress.
 | `render_tiled.EDGE` | `u32` | 128 | `super::raster::TILE_EDGE` |
 | `render_tiled.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
 | `render_traversal.NEIGHBORHOOD_UNITS` | `u32` | 256 | `256` |
+| `repair.DEFAULT_SYNTHESIZED_WEIGHT` | `f64` | 0.5 | `0.5` |
+| `repair.MAX_CONTEXT_RADIUS` | `u32` | 4 | `4` |
+| `repair.MAX_EFFECTIVE_SAMPLES` | `u32` | 1089 | `(2 * MAX_GUIDE_RADIUS + 1) * (2 * MAX_GUIDE_RADIUS + 1)` |
+| `repair.MAX_FILL_PATCH_RADIUS` | `u32` | 4 | `4` |
+| `repair.MAX_GUIDE_RADIUS` | `u32` | 16 | `16` |
 | `repair.MAX_PATCHES` | `usize` | 4096 | `4096` |
+| `repair.MAX_SEARCH_RADIUS` | `u32` | 32 | `32` |
 | `repair.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
+| `repair.MIN_RANGE_SIGMA` | `f64` | 0.0001 | `0.0001` |
+| `repair.MIN_SYNTHESIZED_WEIGHT` | `f64` | 0.01 | `0.01` |
 | `repeats.MAX_COPIES` | `usize` | 128 | `128` |
 | `repeats.MIN_RADIUS` | `f64` | 0.001 | `0.001` |
 | `repeats.MIN_STEP` | `f64` | 0.001 | `0.001` |
@@ -349,9 +368,16 @@ capability literals and diagnostic messages remains in progress.
 | `resample.MAX_AXIS_TAPS` | `u64` | 65536 | `65_536` |
 | `resample.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `responses.COMPACT_TARGET_BYTES` | `usize` | 8192 | `8 * 1024` |
+| `retouch.DEFAULT_ITERATIONS` | `u32` | 2048 | `2048` |
+| `retouch.DEFAULT_RESIDUAL_TOLERANCE` | `f64` | 1e-09 | `1e-9` |
+| `retouch.FIXED_WORKING_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |
 | `retouch.MAX_ITERATIONS` | `u32` | 4096 | `4096` |
 | `retouch.MAX_MEMORY_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
+| `retouch.MAX_RESIDUAL_TOLERANCE` | `f64` | 0.0001 | `1e-4` |
+| `retouch.MAX_SCREENING` | `u32` | 16 | `16` |
 | `retouch.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
+| `retouch.MIN_RESIDUAL_TOLERANCE` | `f64` | 1e-12 | `1e-12` |
+| `retouch.WORKING_BYTES_PER_PIXEL` | `u64` | 256 | `256` |
 | `sample_import.MAX_INLINE_DECODER_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
 | `sample_import.MAX_NATIVE_DECODED_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
 | `sample_import.MAX_TIFF_PADDED_BYTES` | `u64` | 67108864 | `64 * 1024 * 1024` |

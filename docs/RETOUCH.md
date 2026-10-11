@@ -1,6 +1,10 @@
 # Region cloning and healing
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+Healing screening, residual tolerances and iteration limits/defaults share
+catalog definitions with `capabilities.retouch` and validation. Conservative
+working-window/region charges and the fixed preparation allowance also use the
+catalog. The solver, memory admission and current numeric settings are unchanged.
 
 The atomic `retouch` edit operates on an explicit target and `source_id` in the same document. Both may use `raster`, inline `samples` or immutable-block `stored_samples`; source and target may be the same item. Each operation freezes both input grids before sampling, so overlapping clones never read their own writes. Existing snapshots remain unchanged, and persistent sessions support undo/redo and retries. Stored edits retain exact native patches and create no resource files.
 

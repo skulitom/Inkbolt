@@ -799,6 +799,28 @@ pub mod pdf {
 
 /// Limits for `src/pixel_brush.rs`.
 pub mod pixel_brush {
+    /// Minimum unscaled brush diameter in native pixels.
+    pub const MIN_DIAMETER: f64 = 0.25;
+    /// Minimum distance between regular dabs as a fraction of base diameter.
+    pub const MIN_SPACING: f64 = 0.01;
+    /// Maximum distance between regular dabs as a multiple of base diameter.
+    pub const MAX_SPACING: u32 = 4;
+    /// Default distance between regular dabs as a fraction of base diameter.
+    pub const DEFAULT_SPACING: f64 = 0.25;
+    /// Maximum scatter displacement as a multiple of tip radius.
+    pub const MAX_SCATTER: u32 = 4;
+    /// Minimum texture scale on each native-grid axis.
+    pub const MIN_TEXTURE_SCALE: f64 = 0.001;
+    /// Maximum texture scale on each native-grid axis.
+    pub const MAX_TEXTURE_SCALE: u32 = 1024;
+    /// Absolute coverage integration tolerance allocated across squared-radius spans.
+    pub const COVERAGE_TOLERANCE: f64 = 0.0000001;
+    /// Maximum recursive bisections per adaptive coverage integral.
+    pub const MAX_COVERAGE_DEPTH: u32 = 20;
+    /// Conservative live preparation/output bytes charged per working-window pixel.
+    pub const WORKING_BYTES_PER_PIXEL: u64 = 256;
+    /// Fixed preparation allowance in addition to window, cache and replacement bytes.
+    pub const FIXED_WORKING_BYTES: u64 = 8 * 1024 * 1024;
     /// Maximum unscaled brush diameter in native pixels.
     pub const MAX_DIAMETER: u32 = 512;
     /// Max points (pixel brush).
@@ -993,6 +1015,22 @@ pub mod render {
 
 /// Limits for `src/repair.rs`.
 pub mod repair {
+    /// Maximum exemplar-fill patch radius, independent of patch placement context.
+    pub const MAX_FILL_PATCH_RADIUS: u32 = 4;
+    /// Minimum confidence weight for newly synthesized context samples.
+    pub const MIN_SYNTHESIZED_WEIGHT: f64 = 0.01;
+    /// Default confidence weight for newly synthesized context samples.
+    pub const DEFAULT_SYNTHESIZED_WEIGHT: f64 = 0.5;
+    /// Maximum integer displacement searched around a requested patch origin.
+    pub const MAX_SEARCH_RADIUS: u32 = 32;
+    /// Maximum radius used to gather surrounding patch-placement context.
+    pub const MAX_CONTEXT_RADIUS: u32 = 4;
+    /// Maximum guided-correction neighborhood radius.
+    pub const MAX_GUIDE_RADIUS: u32 = 16;
+    /// Minimum normalized range sigma for guided-correction weights.
+    pub const MIN_RANGE_SIGMA: f64 = 0.0001;
+    /// Theoretical support ceiling: cardinality of the largest square guide window.
+    pub const MAX_EFFECTIVE_SAMPLES: u32 = (2 * MAX_GUIDE_RADIUS + 1) * (2 * MAX_GUIDE_RADIUS + 1);
     /// Max work (repair).
     pub const MAX_WORK: u64 = 67_108_864;
     /// Max patches (repair).
@@ -1025,6 +1063,20 @@ pub mod responses {
 
 /// Limits for `src/retouch.rs`.
 pub mod retouch {
+    /// Maximum screening strength of the boundary-constrained healing system.
+    pub const MAX_SCREENING: u32 = 16;
+    /// Minimum requested true residual tolerance for healing.
+    pub const MIN_RESIDUAL_TOLERANCE: f64 = 1e-12;
+    /// Maximum requested true residual tolerance for healing.
+    pub const MAX_RESIDUAL_TOLERANCE: f64 = 1e-4;
+    /// Default requested true residual tolerance for healing.
+    pub const DEFAULT_RESIDUAL_TOLERANCE: f64 = 1e-9;
+    /// Default per-channel healing iteration allowance.
+    pub const DEFAULT_ITERATIONS: u32 = 2048;
+    /// Conservative bytes charged separately per window and region pixel.
+    pub const WORKING_BYTES_PER_PIXEL: u64 = 256;
+    /// Fixed solver/preparation allowance in addition to windows and native resources.
+    pub const FIXED_WORKING_BYTES: u64 = 8 * 1024 * 1024;
     /// Max work (retouch).
     pub const MAX_WORK: u64 = 67_108_864;
     /// Max memory bytes (retouch).

@@ -190,6 +190,14 @@ neighborhood and strength budgets remain independent. Boundary fixtures use
 advertised values, alongside the existing independent image-result checks.
 This does not change numeric admission or complete the remaining W0 audit.
 
+Pixel-brush and repair/healing parameters, numerical depth/tolerance, defaults
+and conservative memory charges now use the catalog. Discovery and boundary
+fixtures cover their existing ranges, including independent fill/context radii
+and guide support derived from maximum window cardinality. Native paint/heal
+precision, source preservation, memory refusal and durable history remain
+covered by focused Windows/Linux checks. The wider W0 audit and final fresh
+thorough gate remain open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

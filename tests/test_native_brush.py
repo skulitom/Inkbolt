@@ -66,7 +66,7 @@ class NativeBrushTests(unittest.TestCase):
                     receipt=r['changes'][0]['details'];self.assertEqual(receipt['working_window'],[0,0,131,3])
                     self.assertEqual(receipt['changed_pixels'],393);self.assertFalse(receipt['files_written'])
                     self.assertEqual(receipt['sample_type']['depth'],depth)
-                    self.assertLessEqual(receipt['processing_memory_bound_bytes'],128*1024*1024)
+                    self.assertLessEqual(receipt['processing_memory_bound_bytes'],capabilities()['pixel_brushes']['maximum_processing_memory_bytes'])
 
     def test_high_depth_fractional_soft_tip_matches_independent_vertical_integrals(self):
         w,h=8,7;center=[3.23,3.8];diameter=6.1;hardness=.45
@@ -218,15 +218,18 @@ class NativeBrushTests(unittest.TestCase):
         before=self.files();self.apply(d,s,error='SAMPLE_TILE_CORRUPT');self.assertEqual(self.files(),before)
 
     def test_window_and_replacement_memory_limits_fail_before_missing_resource_reads(self):
-        d=self.cli('document.create',id='bounded',kind='raster',resource_profile='large_raster',width=256,height=32768)
-        spec=dict(width=256,height=32768,depth='f32',channels='rgba',encoding='encoded_srgb');tiles=['0'*64]*512
-        header=b'INKTILE1'+struct.pack('<IIBBBB',256,32768,4,4,0,0)
-        identity=hashlib.sha256(b'INKGRID1'+header+struct.pack('<I',128)+bytes(32)*512).hexdigest()
+        caps=capabilities();edge=caps['native_sample_store_library']['tile_edge']
+        width=2*edge;height=caps['limits']['dimension_pixels']
+        d=self.cli('document.create',id='bounded',kind='raster',resource_profile='large_raster',width=width,height=height)
+        spec=dict(width=width,height=height,depth='f32',channels='rgba',encoding='encoded_srgb')
+        count=((width+edge-1)//edge)*((height+edge-1)//edge);tiles=['0'*64]*count
+        header=b'INKTILE1'+struct.pack('<IIBBBB',width,height,4,4,0,0)
+        identity=hashlib.sha256(b'INKGRID1'+header+struct.pack('<I',edge)+bytes(32)*count).hexdigest()
         d['items']=[dict(id='pixels',content=dict(type='stored_samples',grid=dict(base=dict(version=1,spec=spec,tiles=tiles,sha256=identity))))]
         before=self.files()
-        s=legacy.brush([[128,1.5],[128,32765.5]],diameter=1,spacing=4)
+        s=legacy.brush([[edge,1.5],[edge,height-2.5]],diameter=1,spacing=caps['pixel_brushes']['spacing_range'][1])
         error=self.apply(d,s,error='RESOURCE_LIMIT');self.assertIn('memory bound',error['message'])
-        error=self.apply(d,legacy.brush([[128,256]],diameter=512),error='RESOURCE_LIMIT')
+        error=self.apply(d,legacy.brush([[edge,2*edge]],diameter=caps['pixel_brushes']['diameter'][1]),error='RESOURCE_LIMIT')
         self.assertIn('local edit window',error['message']);self.assertEqual(self.files(),before)
 
 

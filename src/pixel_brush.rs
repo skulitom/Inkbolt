@@ -8,13 +8,14 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
+use crate::limits::pixel_brush as bounds;
+pub use crate::limits::pixel_brush::COVERAGE_TOLERANCE;
 pub use crate::limits::pixel_brush::MAX_DABS;
 use crate::limits::pixel_brush::MAX_DIAMETER;
 pub use crate::limits::pixel_brush::MAX_MEMORY_BYTES;
 pub use crate::limits::pixel_brush::MAX_POINTS;
 pub use crate::limits::pixel_brush::MAX_TEXTURE_PIXELS;
 pub use crate::limits::pixel_brush::MAX_WORK;
-pub const COVERAGE_TOLERANCE: f64 = 0.0000001;
 const ALGORITHM: &str = "inkbolt-pixel-brush-v1";
 fn one() -> f64 {
     1.0
@@ -23,7 +24,7 @@ fn yes() -> bool {
     true
 }
 fn spacing() -> f64 {
-    0.25
+    bounds::DEFAULT_SPACING
 }
 fn scale() -> Point {
     [1.0; 2]
@@ -126,17 +127,21 @@ fn validate_stroke(s: &Stroke) -> Result<(), Error> {
         )));
     }
     if !s.diameter.is_finite()
-        || !(0.25..=f64::from(MAX_DIAMETER)).contains(&s.diameter)
+        || !(bounds::MIN_DIAMETER..=f64::from(MAX_DIAMETER)).contains(&s.diameter)
         || !s.spacing.is_finite()
-        || !(0.01..=4.0).contains(&s.spacing)
+        || !(bounds::MIN_SPACING..=f64::from(bounds::MAX_SPACING)).contains(&s.spacing)
         || !unit(s.hardness)
         || !unit(s.opacity)
         || !unit(s.flow)
         || !s.scatter.is_finite()
-        || !(0.0..=4.0).contains(&s.scatter)
+        || !(0.0..=f64::from(bounds::MAX_SCATTER)).contains(&s.scatter)
     {
         return Err(invalid(&format!(
-            "Brush diameter requires 0.25..{MAX_DIAMETER}, spacing 0.01..4, scatter 0..4 and hardness/opacity/flow 0..1"
+            "Brush diameter requires {}..{MAX_DIAMETER}, spacing {}..{}, scatter 0..{} and hardness/opacity/flow 0..1",
+            bounds::MIN_DIAMETER,
+            bounds::MIN_SPACING,
+            bounds::MAX_SPACING,
+            bounds::MAX_SCATTER
         )));
     }
     for n in &s.points {
@@ -168,13 +173,17 @@ fn validate_stroke(s: &Stroke) -> Result<(), Error> {
             || t.origin
                 .iter()
                 .any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE)
-            || t.scale
-                .iter()
-                .any(|v| !v.is_finite() || !(0.001..=1024.0).contains(v))
+            || t.scale.iter().any(|v| {
+                !v.is_finite()
+                    || !(bounds::MIN_TEXTURE_SCALE..=f64::from(bounds::MAX_TEXTURE_SCALE))
+                        .contains(v)
+            })
         {
-            return Err(invalid(
-                "Brush texture requires exact grayscale bytes, bounded origin and scale 0.001..1024",
-            ));
+            return Err(invalid(&format!(
+                "Brush texture requires exact grayscale bytes, bounded origin and scale {}..{}",
+                bounds::MIN_TEXTURE_SCALE,
+                bounds::MAX_TEXTURE_SCALE
+            )));
         }
     }
     Ok(())
@@ -212,7 +221,7 @@ fn prepare(s: &Stroke, control: &Control) -> Result<Prepared, Error> {
     let step = s.diameter * s.spacing;
     let regular = (length / step).floor() as usize;
     if regular >= MAX_DABS {
-        return Err(limit("Stroke spacing exceeds 8192 dabs"));
+        return Err(limit(&format!("Stroke spacing exceeds {MAX_DABS} dabs")));
     }
     let mut positions = (0..=regular).map(|i| i as f64 * step).collect::<Vec<_>>();
     let last = positions.last_mut().unwrap();
@@ -222,7 +231,7 @@ fn prepare(s: &Stroke, control: &Control) -> Result<Prepared, Error> {
         positions.push(length);
     }
     if positions.len() > MAX_DABS {
-        return Err(limit("Stroke endpoint exceeds 8192 dabs"));
+        return Err(limit(&format!("Stroke endpoint exceeds {MAX_DABS} dabs")));
     }
     let mut dabs = Vec::with_capacity(positions.len());
     let mut bounds = [
@@ -457,7 +466,14 @@ fn coverage(dab: &Dab, hardness: f64, x: u32, y: u32, work: &mut Work) -> Result
             integral.value(z, work)?,
         ];
         let whole = (z - a) * (v[0] + 4.0 * v[1] + v[2]) / 6.0;
-        result += integral.integrate([a, z], v, whole, COVERAGE_TOLERANCE * (z - a), 20, work)?;
+        result += integral.integrate(
+            [a, z],
+            v,
+            whole,
+            COVERAGE_TOLERANCE * (z - a),
+            bounds::MAX_COVERAGE_DEPTH,
+            work,
+        )?;
     }
     Ok(result.clamp(0.0, 1.0))
 }
@@ -575,8 +591,8 @@ pub(crate) fn apply(
     }
     // Include original/working/frozen-dab/output windows, weights, exact hex
     // patches, source preparation/cache and complete replacement blocks.
-    let processing_memory_bytes = count * 256
-        + 8 * 1024 * 1024
+    let processing_memory_bytes = count * bounds::WORKING_BYTES_PER_PIXEL
+        + bounds::FIXED_WORKING_BYTES
         + pixels::memory(content)
         + pixels::replacement_memory(content, region);
     if processing_memory_bytes > MAX_MEMORY_BYTES {

@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
+use crate::limits::retouch as bounds;
 pub use crate::limits::retouch::MAX_ITERATIONS;
 pub use crate::limits::retouch::MAX_MEMORY_BYTES;
 pub use crate::limits::retouch::MAX_WORK;
@@ -14,10 +15,10 @@ fn one() -> f64 {
     1.0
 }
 fn tolerance() -> f64 {
-    1e-9
+    bounds::DEFAULT_RESIDUAL_TOLERANCE
 }
 fn iterations() -> u32 {
-    2048
+    bounds::DEFAULT_ITERATIONS
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
@@ -268,14 +269,18 @@ pub(crate) fn apply(
         max_iterations,
     } = o.mode
         && (!screening.is_finite()
-            || !(0.0..=16.0).contains(&screening)
+            || !(0.0..=f64::from(bounds::MAX_SCREENING)).contains(&screening)
             || !tolerance.is_finite()
-            || !(1e-12..=1e-4).contains(&tolerance)
+            || !(bounds::MIN_RESIDUAL_TOLERANCE..=bounds::MAX_RESIDUAL_TOLERANCE)
+                .contains(&tolerance)
             || !(1..=MAX_ITERATIONS).contains(&max_iterations))
     {
-        return Err(invalid(
-            "Healing requires screening0..16,tolerance1e-12..1e-4 and max_iterations1..4096",
-        ));
+        return Err(invalid(&format!(
+            "Healing requires screening0..{},tolerance{:e}..{:e} and max_iterations1..{MAX_ITERATIONS}",
+            bounds::MAX_SCREENING,
+            bounds::MIN_RESIDUAL_TOLERANCE,
+            bounds::MAX_RESIDUAL_TOLERANCE
+        )));
     }
     crate::pixel_warps::reject_native(&document.items[index])?;
     let source_index = scene::index(document, &o.source_id)?;
@@ -310,9 +315,9 @@ pub(crate) fn apply(
     // caches, prepared patch candidates and new complete replacement blocks.
     // A narrow edit can intersect many full blocks; region area alone is not
     // a safe memory estimate. Reject before loading or preparing resources.
-    let mut memory = n as u64 * 256
-        + r.width as u64 * r.height as u64 * 256
-        + 8 * 1024 * 1024
+    let mut memory = n as u64 * bounds::WORKING_BYTES_PER_PIXEL
+        + r.width as u64 * r.height as u64 * bounds::WORKING_BYTES_PER_PIXEL
+        + bounds::FIXED_WORKING_BYTES
         + pixels::memory(&document.items[index].content);
     if source_index != index {
         memory += pixels::memory(&document.items[source_index].content);

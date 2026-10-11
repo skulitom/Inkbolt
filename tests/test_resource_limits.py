@@ -13,6 +13,35 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'pixel_brushes/diameter/0': 'pixel_brush.MIN_DIAMETER',
+    'pixel_brushes/spacing_range/0': 'pixel_brush.MIN_SPACING',
+    'pixel_brushes/spacing_range/1': 'pixel_brush.MAX_SPACING',
+    'pixel_brushes/default_spacing': 'pixel_brush.DEFAULT_SPACING',
+    'pixel_brushes/scatter_range/1': 'pixel_brush.MAX_SCATTER',
+    'pixel_brushes/texture_scale/0': 'pixel_brush.MIN_TEXTURE_SCALE',
+    'pixel_brushes/texture_scale/1': 'pixel_brush.MAX_TEXTURE_SCALE',
+    'pixel_brushes/coverage_numeric_tolerance': 'pixel_brush.COVERAGE_TOLERANCE',
+    'pixel_brushes/coverage_max_depth': 'pixel_brush.MAX_COVERAGE_DEPTH',
+    'repair/fill_patch_radius/1': 'repair.MAX_FILL_PATCH_RADIUS',
+    'repair/guide_radius/1': 'repair.MAX_GUIDE_RADIUS',
+    'repair/maximum_patches': 'repair.MAX_PATCHES',
+    'repair/work': 'repair.MAX_WORK',
+    'repair/patch_search_radius/1': 'repair.MAX_SEARCH_RADIUS',
+    'repair/patch_context_radius/1': 'repair.MAX_CONTEXT_RADIUS',
+    'repair/patch_source_origin/1': 'model.MAX_COORDINATE',
+    'repair/synthesized_weight/0': 'repair.MIN_SYNTHESIZED_WEIGHT',
+    'repair/default_synthesized_weight': 'repair.DEFAULT_SYNTHESIZED_WEIGHT',
+    'repair/guide_range_sigma/0': 'repair.MIN_RANGE_SIGMA',
+    'repair/guide_minimum_effective_samples/1': 'repair.MAX_EFFECTIVE_SAMPLES',
+    'retouch/maximum_iterations_per_channel': 'retouch.MAX_ITERATIONS',
+    'retouch/default_iterations_per_channel': 'retouch.DEFAULT_ITERATIONS',
+    'retouch/default_residual_tolerance': 'retouch.DEFAULT_RESIDUAL_TOLERANCE',
+    'retouch/maximum_processing_memory_bytes': 'retouch.MAX_MEMORY_BYTES',
+    'retouch/maximum_region_pixels': 'sample_store.MAX_REGION_PIXELS',
+    'retouch/residual_tolerance/0': 'retouch.MIN_RESIDUAL_TOLERANCE',
+    'retouch/residual_tolerance/1': 'retouch.MAX_RESIDUAL_TOLERANCE',
+    'retouch/screening/1': 'retouch.MAX_SCREENING',
+    'retouch/work': 'retouch.MAX_WORK',
     'filters/median_radius/1': 'detail_filters.MAX_MEDIAN_RADIUS',
     'filters/sharpen_amount/1': 'detail_filters.MAX_SHARPEN_AMOUNT',
     'filters/spatial_offset/1': 'spatial_filters.MAX_OFFSET',
@@ -441,6 +470,27 @@ class ResourceLimitTests(unittest.TestCase):
         self.assertEqual(numeric_fields(filters, 'filters') - fixed.keys()
                          - {'filters/'+key+'/0' for key in symmetric},
                          {p for p in BINDINGS if p.startswith('filters/')})
+
+        # Nonempty windows and normalized weights have semantic endpoints.
+        # Every other numeric brush, repair and healing bound is catalog-backed.
+        fixed = {'pixel_brushes/scatter_range/0': 0, 'retouch/screening/0': 0,
+                 'repair/fill_patch_radius/0': 1, 'repair/guide_radius/0': 1,
+                 'repair/patch_search_radius/0': 0, 'repair/patch_context_radius/0': 1,
+                 'repair/patch_source_origin/0': 0, 'repair/synthesized_weight/1': 1,
+                 'repair/guide_range_sigma/1': 1, 'repair/guide_minimum_effective_samples/0': 1}
+        for path, expected in fixed.items():
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[int(part)] if isinstance(value, list) else value[part]
+            self.assertEqual(value, expected)
+        for prefix in ('pixel_brushes', 'retouch', 'repair'):
+            self.assertEqual(numeric_fields(capabilities()[prefix], prefix) - fixed.keys(),
+                             {p for p in BINDINGS if p.startswith(prefix+'/')})
+        brush = capabilities()['pixel_brushes']
+        self.assertEqual(brush['spacing'], f"{brush['spacing_range'][0]:g}_to_{brush['spacing_range'][1]:g}_times_base_diameter")
+        self.assertEqual(brush['scatter'], f"seeded_uniform_square;0_to_{brush['scatter_range'][1]:g}_radii")
+        repair = capabilities()['repair']
+        self.assertEqual(repair['guide_minimum_effective_samples'][1], (2*repair['guide_radius'][1]+1)**2)
 
         # Symmetric coordinates and normalized zero/endpoint semantics are
         # checked separately; every other advertised stroke/brush bound is bound.
