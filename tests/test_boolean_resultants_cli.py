@@ -105,13 +105,13 @@ class ResultantContactTests(unittest.TestCase):
                 if previous is not None:self.assertLess(error,previous)
                 previous=error
 
-    def test_irrational_node_at_a_corner_still_fails_without_partial_geometry(self):
+    def test_irrational_node_at_a_corner_retains_its_shared_world_point(self):
         control=[[18,2],[2,22],[2,-6],[18,14]]
         # Both preimages of (12,8) are 1/2 +/- sqrt(1/8).
         d=self.document([curve(control),rect(12,8,5,5)]);saved=copy.deepcopy(d)
-        error=self.combine(d,'xor',expected=1)
-        self.assertEqual(error['code'],'CURVE_TOPOLOGY_UNRESOLVED')
-        self.assertNotIn('geometry',error)
+        result=self.combine(d,'xor')
+        self.assertEqual(result['curves']['topology']['quadratic_contacts']['irrational_parameter_splits'],2)
+        self.assertIn((F(12),F(8)),{p for poly in polygons(result['geometry']) for p in poly})
         self.assertEqual(d,saved)
 
 

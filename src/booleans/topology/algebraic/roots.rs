@@ -136,6 +136,14 @@ pub(super) fn in_unit_interval(p: &[R], budget: &mut Budget) -> Result<Vec<R>, E
     if p.len() <= 1 {
         return Ok(vec![]);
     }
+    // Removing repeated factors can leave a linear or quadratic equation.
+    // Its exact formula also proves irrational roots are not rational candidates.
+    if p.len() <= 3 {
+        return Ok(rational_roots(&p, budget)?
+            .into_iter()
+            .filter(unit)
+            .collect());
+    }
     // Clearing all denominators gives an integer leading coefficient Q.
     // The rational-root theorem bounds a reduced root denominator by Q.
     // Not removing integer content only makes this bound more conservative.

@@ -66,6 +66,8 @@ fn eliminate(f: &[Poly], g: &[Poly], budget: &mut Budget) -> Result<Poly, Error>
 
 pub(super) fn contacts(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<Vec<(R, R)>, Error> {
     let p = eliminate(&coordinate(a, b, 0), &coordinate(a, b, 1), budget)?;
+    let repeated = gcd(p.clone(), derivative(&p), budget)?;
+    quadratic::reject_unrepresented_tangent(a, b, &repeated, budget)?;
     let mut out = Vec::new();
     for t in rational_roots(&p, budget)?.into_iter().filter(unit) {
         let point = at(a, &t);

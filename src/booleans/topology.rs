@@ -1,9 +1,15 @@
 //! Exact certificates for simultaneous deformation of curve arcs to chords.
 use super::*;
 mod algebraic;
+mod quadratic;
+
+enum Curve {
+    Rational(Box<Cubic>),
+    Quadratic(Box<quadratic::Span>),
+}
 
 pub(super) struct Arc {
-    c: Cubic,
+    curve: Curve,
     weights: Vec<i32>,
     depth: usize,
     curved: bool,
@@ -11,7 +17,7 @@ pub(super) struct Arc {
 impl Arc {
     pub(super) fn curved(c: Cubic, weights: Vec<i32>) -> Self {
         Self {
-            c,
+            curve: Curve::Rational(Box::new(c)),
             weights,
             depth: 0,
             curved: true,
@@ -25,14 +31,35 @@ impl Arc {
             e[1].clone(),
         ];
         Self {
-            c,
+            curve: Curve::Rational(Box::new(c)),
             weights,
             depth: 0,
             curved: false,
         }
     }
     fn chord(&self) -> Segment {
-        [self.c[0].clone(), self.c[3].clone()]
+        match &self.curve {
+            Curve::Rational(c) => [c[0].clone(), c[3].clone()],
+            Curve::Quadratic(span) => span.chord(),
+        }
+    }
+    fn rational(&self) -> Option<&Cubic> {
+        match &self.curve {
+            Curve::Rational(c) => Some(c),
+            Curve::Quadratic(_) => None,
+        }
+    }
+    fn deviation(&self) -> R {
+        match &self.curve {
+            Curve::Rational(c) => bound(c),
+            Curve::Quadratic(span) => span.deviation(),
+        }
+    }
+    fn monotone(&self) -> bool {
+        match &self.curve {
+            Curve::Rational(c) => monotone(c, &sub(&c[3], &c[0])),
+            Curve::Quadratic(span) => span.monotone(),
+        }
     }
 }
 fn bound(c: &Cubic) -> R {
@@ -266,7 +293,7 @@ fn contacts(arcs: Vec<Arc>, budget: &mut Budget) -> Result<Vec<Arc>, Error> {
     let points: BTreeSet<_> = arcs
         .iter()
         .filter(|v| v.curved)
-        .flat_map(|v| [v.c[0].clone(), v.c[3].clone()])
+        .flat_map(Arc::chord)
         .collect();
     let mut out = Vec::new();
     for arc in arcs {
@@ -301,7 +328,11 @@ fn contacts(arcs: Vec<Arc>, budget: &mut Budget) -> Result<Vec<Arc>, Error> {
     }
     Ok(out)
 }
-fn refine(arcs: Vec<Arc>, marked: &BTreeSet<usize>) -> Result<Vec<Arc>, Error> {
+fn refine(
+    arcs: Vec<Arc>,
+    marked: &BTreeSet<usize>,
+    budget: &mut Budget,
+) -> Result<Vec<Arc>, Error> {
     let mut out = Vec::new();
     for (i, arc) in arcs.into_iter().enumerate() {
         if !marked.contains(&i) {
@@ -314,10 +345,16 @@ fn refine(arcs: Vec<Arc>, marked: &BTreeSet<usize>) -> Result<Vec<Arc>, Error> {
                 "Curve topology cannot be certified within subdivision depth 20",
             ));
         }
-        let (a, b) = split(&arc.c);
-        for c in [a, b] {
+        let children = match &arc.curve {
+            Curve::Rational(c) => {
+                let (a, b) = split(c);
+                [Curve::Rational(Box::new(a)), Curve::Rational(Box::new(b))]
+            }
+            Curve::Quadratic(span) => span.split(arc.depth + 1, budget)?,
+        };
+        for curve in children {
             out.push(Arc {
-                c,
+                curve,
                 weights: arc.weights.clone(),
                 depth: arc.depth + 1,
                 curved: true,
@@ -339,6 +376,7 @@ pub(super) fn evaluate(
     let mut base = lines(inputs, budget)?;
     base.append(&mut arcs);
     let (prepared, algebraic, quadratic_directions) = algebraic::prepare(base, budget)?;
+    let (prepared, quadratic_report) = quadratic::prepare(prepared, budget)?;
     arcs = prepared;
     let mut refinements = 0;
     let mut aligned_splits = 0;
@@ -354,20 +392,20 @@ pub(super) fn evaluate(
         let mut marked = BTreeSet::new();
         for (i, a) in arcs.iter().enumerate().filter(|(_, a)| a.curved) {
             budget.spend(24)?;
-            let deviation = bound(&a.c);
+            let deviation = a.deviation();
             if tolerance.is_zero() && !deviation.is_zero() {
                 return Err(Error::new(
                     "UNSUPPORTED",
                     "A nonstraight cubic needs a positive curve_tolerance",
                 ));
             }
-            if deviation > *tolerance || !monotone(&a.c, &sub(&a.c[3], &a.c[0])) {
+            if deviation > *tolerance || !a.monotone() {
                 marked.insert(i);
             }
         }
         if !marked.is_empty() {
             refinements += marked.len();
-            arcs = refine(arcs, &marked)?;
+            arcs = refine(arcs, &marked, budget)?;
             continue;
         }
         arcs = contacts(arcs, budget)?;
@@ -385,26 +423,38 @@ pub(super) fn evaluate(
                 if !a.curved && !b.curved {
                     continue;
                 }
-                if separated(&a.c, &b.c, budget)? {
-                    separated_pairs += 1;
-                    continue;
-                }
-                if paired_coordinate(&a.c, &b.c, budget)? {
-                    paired_coordinates += 1;
-                    continue;
-                }
-                if let Some(crosses) = transverse(&a.c, &b.c, budget)? {
-                    if crosses {
-                        crossings[i] += 1;
-                        crossings[j] += 1;
-                        transverse_pairs += 1;
+                let certificate = if let (Some(a), Some(b)) = (a.rational(), b.rational()) {
+                    if separated(a, b, budget)? {
+                        Some(quadratic::Pair::Separated)
+                    } else if paired_coordinate(a, b, budget)? {
+                        Some(quadratic::Pair::Paired)
+                    } else {
+                        transverse(a, b, budget)?.map(quadratic::Pair::Transverse)
                     }
                 } else {
-                    if a.curved {
-                        marked.insert(i);
+                    quadratic::pair(a, b, budget)?
+                };
+                match certificate {
+                    Some(quadratic::Pair::Separated) => {
+                        separated_pairs += 1;
                     }
-                    if b.curved {
-                        marked.insert(j);
+                    Some(quadratic::Pair::Paired) => {
+                        paired_coordinates += 1;
+                    }
+                    Some(quadratic::Pair::Transverse(crosses)) => {
+                        if crosses {
+                            crossings[i] += 1;
+                            crossings[j] += 1;
+                            transverse_pairs += 1;
+                        }
+                    }
+                    None => {
+                        if a.curved {
+                            marked.insert(i);
+                        }
+                        if b.curved {
+                            marked.insert(j);
+                        }
                     }
                 }
             }
@@ -416,11 +466,16 @@ pub(super) fn evaluate(
         }
         if !marked.is_empty() {
             refinements += marked.len();
-            arcs = refine(arcs, &marked)?;
+            arcs = refine(arcs, &marked, budget)?;
             continue;
         }
         for arc in &arcs {
-            let deviation = if arc.curved { bound(&arc.c) } else { R::zero() };
+            let deviation = if arc.curved {
+                arc.deviation()
+            } else {
+                R::zero()
+            };
+            let chord = arc.chord();
             for (input, &weight) in inputs.iter_mut().zip(&arc.weights) {
                 if weight == 0 {
                     continue;
@@ -429,15 +484,15 @@ pub(super) fn evaluate(
                 for _ in 0..weight.unsigned_abs() {
                     budget.spend(1)?;
                     if weight > 0 {
-                        emit_edge(&mut input.edges, arc.c[0].clone(), arc.c[3].clone())?;
+                        emit_edge(&mut input.edges, chord[0].clone(), chord[1].clone())?;
                     } else {
-                        emit_edge(&mut input.edges, arc.c[3].clone(), arc.c[0].clone())?;
+                        emit_edge(&mut input.edges, chord[1].clone(), chord[0].clone())?;
                     }
                 }
             }
         }
         return Ok(
-            json!({"certificate":"exact_simultaneous_curve_to_chord_homotopy","curve_arcs":arcs.iter().filter(|a|a.curved).count(),"line_arcs":arcs.iter().filter(|a|!a.curved).count(),"subdivisions":refinements,"algebraic_contacts":algebraic,"aligned_splits":aligned_splits,"separated_pairs":separated_pairs,"paired_coordinate_pairs":paired_coordinates,"transverse_crossings":transverse_pairs,"crossings_per_curved_arc_maximum":crossings.iter().zip(&arcs).filter(|(_,a)|a.curved).map(|(n,_)|*n).max().unwrap_or(0)}),
+            json!({"certificate":"exact_simultaneous_curve_to_chord_homotopy","curve_arcs":arcs.iter().filter(|a|a.curved).count(),"line_arcs":arcs.iter().filter(|a|!a.curved).count(),"subdivisions":refinements,"algebraic_contacts":algebraic,"quadratic_contacts":quadratic_report,"aligned_splits":aligned_splits,"separated_pairs":separated_pairs,"paired_coordinate_pairs":paired_coordinates,"transverse_crossings":transverse_pairs,"crossings_per_curved_arc_maximum":crossings.iter().zip(&arcs).filter(|(_,a)|a.curved).map(|(n,_)|*n).max().unwrap_or(0)}),
         );
     }
 }

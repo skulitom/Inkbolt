@@ -1,5 +1,13 @@
 # Roadmap and verified scope
 
+Curve combinations now preserve rational crossing points whose positions along
+the source cubic are quadratic irrationals. Exact controls and comparisons across
+two quadratic fields retain small loops, shared junctions and source geometry;
+independent radical-area and inverse-coordinate checks verify the results.
+Proven unsupported tangencies with irrational world coordinates fail promptly.
+General fixed algebraic junctions remain unfinished, so the six original
+checkpoints and 161/167 registry remain unchanged.
+
 Certified curve combinations now locate rational contacts between general cubic
 pairs, align shared quadratic projections, and preserve non-dyadic nodes and
 cusps. Independent filled-region and area checks cover all four combinations,
