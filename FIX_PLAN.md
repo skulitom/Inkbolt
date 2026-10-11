@@ -133,167 +133,32 @@ Commit in small logical units, each with its tests, capability report and docs.
 
 ## W0. Limits single source of truth (P0, S)
 
-**Execution update, 11 October 2026.** The central catalog now includes the
-layered descriptor, local/global text parser, style-resolution and diagnostic
-budgets. Import, delivery, error messages and capability limits share those
-definitions. Existing layered boundary fixtures derive their thresholds from
-discovery, and every numeric layered budget has a compiled-constant binding
-check. Protocol versions, source code enumerations and exact format cardinalities
-remain format semantics. The broader inline-limit audit is still open; W0 is
-not complete and its final fresh thorough acceptance remains required.
+**Complete, 11 October 2026.** The central catalog contains 773 documented
+resource, admission, numerical and work-accounting constants. Shared raster/tile
+policies derive from common definitions; independent policies retain their own
+names even when values coincide. Existing module paths remain compatible and
+no ceiling increased. Discovery and diagnostics use the enforced values, with
+676 direct numeric capability bindings, derived/semantic checks and seven
+legacy descriptive bindings. The six specifically listed boundary-fixture
+modules now read advertised limits; 75 contract documents link to the generated
+[limit reference](docs/LIMITS.md).
 
-The request/session slice also centralizes path, identifier, inspection, metadata,
-review-tool and persistent-store budgets. SQLite page counts and bounded history
-queries derive from their existing storage limits; file formats and numeric
-ceilings remain unchanged. MCP descriptions and capability reports use the same
-definitions as validation. Focused Windows and Linux checks remain the routine
-feedback path; this slice does not replace W0's final thorough gate.
+The source audit covered named definitions, comparisons, bounded loops, batch
+extents, work charges and diagnostic/discovery strings. Remaining literals
+represent format widths/versions, channel and geometric cardinalities,
+mathematical definitions, actual operation counts or synthetic test data.
+They are not adjustable resource ceilings.
 
-The native-vector/SVG parser and geometry slice centralizes string, token,
-container, transform, contour, sampling and recursive work budgets. Limits with
-different counting rules remain independent (including decoded text bytes versus
-PDF literal-string parser steps). Existing discovery values and admission ceilings
-are unchanged; native import, interpolation and mesh boundary fixtures read their
-advertised bounds. The inline audit and final W0 acceptance remain open.
+Fresh acceptance at `53518fd` passed all 213 stages on both platforms:
+Windows ran 208 Rust and 2,278 Python tests in 1006.1 seconds;
+Linux ran 176 Rust and 2,244 Python tests in 494.5 seconds,
+with 34 explicit platform skips. No checks failed, remained pending or reused
+older results. The final focused change took 108.5 seconds on Windows and
+87.3 seconds on Linux. See [platform evidence](docs/PLATFORMS.md) and the
+[development loop](docs/DEVELOPMENT_LOOP.md). W0 completion does not complete
+W1, any additional engine checkpoint, the scale targets or the overall goal.
 
-Raster editing, ICC curve admission, sensor-row padding, preview dimensions and
-graphics-handoff budgets now use the same catalog. The native edit reader keeps
-its own tile-count cache policy. Capability bindings also cover native print,
-pixel warps and compound regions; unchanged numeric thresholds do not establish
-the larger scale targets. Windows and Linux focused checks continue for each slice.
-
-Boolean contact subdivision and coefficient limits, stroke subdivision, warp
-grids, hyphenation minima and publication/job staging budgets now use the catalog.
-Publication write chunks and recovery read buffers share a bounded I/O setting.
-Every root resource ceiling in `capabilities.limits` has a compiled-constant
-binding check; identity-scale semantics remain separate. The remaining parameter
-and diagnostic audit still precedes W0's fresh thorough gate.
-
-Stored stroke width/miter/tolerance, width-profile knots/factors, arrow dimensions,
-dash minima and brush placement controls now share catalog definitions with
-discovery and boundary fixtures. Width, arrow and brush spacing policies remain
-independent despite equal values. Every numeric stroke/brush capability is checked
-against its constant or explicit normalized/symmetric semantics. Numeric limits
-and source defaults are unchanged; the wider inline audit remains open.
-
-Warp conditioning/tolerance, repeat geometry and text/spine distance-table bounds
-also use the catalog. Interpolation endpoint strokes reuse ordinary stroke limits.
-Boolean discovery now exposes the existing tolerance range/default; numeric
-behavior, topology requirements and refusal codes remain unchanged. The remaining
-inline audit and fresh thorough W0 acceptance are still required.
-
-Viewport blur, detail, spatial and creative filter bounds now share catalog
-definitions with validation and capability reporting. Discovery includes the
-existing trajectory angles/default count, displacement-map axes and creative
-parameter ranges. Shared Gaussian kernels use one sigma policy; distinct
-neighborhood and strength budgets remain independent. Boundary fixtures use
-advertised values, alongside the existing independent image-result checks.
-This does not change numeric admission or complete the remaining W0 audit.
-
-Pixel-brush and repair/healing parameters, numerical depth/tolerance, defaults
-and conservative memory charges now use the catalog. Discovery and boundary
-fixtures cover their existing ranges, including independent fill/context radii
-and guide support derived from maximum window cardinality. Native paint/heal
-precision, source preservation, memory refusal and durable history remain
-covered by focused Windows/Linux checks. The wider W0 audit and final fresh
-thorough gate remain open.
-
-Measurement and logical-resize bounds, appearance warp tolerance, layer-effect
-kernels/scales/lighting and transfer naming now share their catalog definitions
-with discovery and boundary fixtures. Effect limits still apply both before and
-after scaling; appearance uses the shared warp evaluator's policy. Maximum
-logical dimensions derive from the geometry coordinate span. Existing values,
-rendering and identifier fallback are unchanged; W0's remaining inline audit and
-fresh thorough acceptance are still open.
-
-Text frame/style/flow admission, list notation bounds and layout comparison
-tolerance now use the catalog, with complete numeric bindings for their
-discovery groups. Coordinate precision reporting shares the same derived point
-domain as coefficient-error certification. Mathematical and notation rules
-remain distinct from resource budgets. Existing values and algorithms are
-unchanged; the remaining inline audit and fresh thorough W0 gate stay open.
-
-Document resolution now shares admission/default definitions across creation,
-canvas edits, raw development and sequence import. Swatch labels/counts/chains,
-HDR exposure/gain, raw calibration/correction bounds and reconstruction indexing
-use the catalog and capability bindings. Independent raw/HDR and lens/sensor
-policies remain separate; color equations, notation and filter kernels retain
-their fixed semantics. The remaining W0 audit and final thorough gate stay open.
-
-Primitive/viewport admission, snapping length/grid/parallelism, volume controls,
-layout placement error and pixel-selection coefficients now use the catalog.
-Volume source curves reuse the warp evaluator's tolerance bounds with their
-existing default. Independent physical and numerical policies remain distinct;
-unchanged numerical behavior is covered by focused Windows/Linux verification.
-The remaining inline audit and final fresh thorough W0 gate are still open.
-
-The delivery/discovery slice centralizes JPEG quality, fixed-width GIF output
-bounds, PDF page sizing and derived fallback-font capacity. Complete numeric
-binding checks now also cover import/export, publication, nested objects,
-components, resource profiles and delivery sampling. Format versions, identity
-endpoints and fixed topology remain explicit semantics. Existing advertised
-values and admission behavior stay unchanged; W0's wider inline audit and final
-fresh thorough gate remain open.
-
-The validation follow-up centralizes parametric and gradient minima, placed-image
-and warp-frame extents, baseline admission, print-mark controls and proof
-thresholds. SVG import reuses canvas/stroke/text definitions; all PDF writers use
-the shared physical-page bounds. ICC lookup-table curves, proof batches, native
-staging attempts and tiled receipt descriptions also use catalog definitions.
-Existing values remain unchanged. The remaining diagnostic audit and W0's final
-fresh thorough gate are still required.
-
-The diagnostic follow-up formats request, authoring, parser, hierarchy and
-export ceilings from the enforced constants, retaining error codes and ordinary
-message values. Directional-text diagnostics now report the actual entry-point
-limit, including the permitted generated scalar. Retained-object placement has
-an independently named and advertised minimum extent. Focused tests cover these
-boundaries on Windows and Linux; the remaining inline audit and final fresh W0
-thorough acceptance are still open.
-
-The batching/retry audit links every admitted RGB/CMYK conversion chunk and
-its output indexing to the profile sample limit, including native preparation's
-scratch-buffer allowance. Cancellation cadences and bounded launch, process,
-job-state and backup retries have named constants. Batch-boundary tests cross
-two full chunks and a final partial chunk without changing source data. These
-are unchanged policy values; the remaining inline numerical/work audit and
-fresh thorough W0 acceptance remain open.
-
-The numerical-policy audit names admission tolerances, conservative roundoff
-allowances and bounded approximation steps, keeping unrelated tolerances
-independent. Display and native blend tie handling share one policy; scanline
-cubic work derives from the root-step count, and the certified pi construction
-derives its next-term denominator from the even truncation count. Existing
-values are preserved. Tiled ellipse work derives from emitted arc cardinality;
-selection cancellation uses a named work interval. Boundary tests cover weight
-sums, both orientations of the profile determinant threshold, emitted ellipse
-controls across tile columns and cancellation across selection work boundaries.
-Remaining work-accounting review and fresh thorough W0 acceptance remain open.
-
-Filter/effect, native ink and reconstruction work charges now use named catalog
-policies with their existing values. Sparse, indexed and tiled planners share
-item setup, mask sampling and knockout charges. Spatial-index and deformation
-plan memory allowances are also catalog-backed. Structural channel counts,
-kernel cardinalities and actual buffer layout remain algorithm definitions.
-Geometry solver charges and the final inline audit still need review before
-the fresh Windows/Linux thorough W0 gate.
-
-Boolean, simplification and exact-warp solver charges now use the catalog.
-Quadratic root precision, refinement growth and contact receipts share their
-declared policies; exact enclosure checks cover their highest configured
-precisions. The GIF literal reset interval is named and constrained to the
-fixed code width, with independent decoding checks around reset boundaries.
-These values and geometric algorithms are unchanged. The final inline audit
-and fresh Windows/Linux thorough W0 acceptance are still required.
-
-The closing admission pass names joint/radial angle bounds and imported layer
-channel cardinality. Legacy descriptive capability strings format their limits
-from the enforced constants, including GIF timing, owner labels, PDF scaling,
-warp weights, gamut samples, backup steps and brush precision. Boundary fixtures
-cover both signed angle endpoints and excess layer channels. Final source
-classification and fresh Windows/Linux thorough acceptance remain pending.
-
-**Problem.** Ceilings are scattered literals, which makes raising them (W4)
+**Original problem (before implementation).** Scattered ceilings made W4
 error-prone.
 
 - **One value, five separate constants.** 16,777,216 is defined independently in
@@ -341,24 +206,20 @@ the end of W0.
 
 ## W1. Cross-platform build and CI (P0, M) [D2, D5]
 
-**Linux execution update, 11 October 2026.** The owner explicitly requested Linux
-build and test coverage using WSL. Execute this W1 tier-1 slice now, then resume
-the remaining W0 audit and the order above. Use `tools/verify_wsl.py` to test the
-current Windows candidate on native Linux storage with independent build/check
-caches and the unchanged mandatory private guard. Linux acceptance covers the
-core engine, CLI, MCP, sessions and durable publication/history receipts.
-Background jobs remain tier 2; capability-based skips must remain visible in
-reports. Fresh thorough checks passed on both Windows and Ubuntu under WSL2
-for this slice (170 Rust plus 2,190 executed Python tests on Linux; 202 Rust plus
-2,224 Python tests on Windows). Linux retains 34 explicit Python skips. The public CI guard, approved CI activation, macOS evidence and
-distribution remain separate open work; local WSL coverage does not complete W1.
+**Linux tier-1 complete, 11 October 2026.** The owner explicitly requested
+Linux build and test coverage using WSL. Native Linux core, CLI, MCP, sessions
+and durable publication/history receipts pass the full suite. The current
+W0 acceptance at `53518fd` ran 176 Rust and 2,244 Python tests on
+Ubuntu under WSL2, with 34 explicit platform skips; the matching Windows run
+passed 208 Rust and 2,278 Python tests without skips. See
+[platform evidence](docs/PLATFORMS.md).
 
-**Linux verification refresh, 11 October 2026.** After the shared-limit refactors,
-a fresh WSL thorough run passed 172 Rust and 2,229 Python tests, with the same
-34 explicit platform skips. It caught a missing shared helper in the benchmark
-dependency manifests; the fix passed focused checks on Linux and Windows before
-the full Linux rerun. See [the platform record](docs/PLATFORMS.md) for scope and
-timings. The remaining W0 audit and W1 work below stay open.
+`tools/verify_wsl.py` tests the current candidate on native Linux storage with
+independent caches, the mandatory private guard and the same quick/thorough
+selectors. Background jobs remain tier 2 and explicitly unsupported on Linux.
+Toolchain/MSRV verification, the separate public CI guard, approved CI activation,
+macOS evidence and distribution remain open. Linux tier-1 coverage does not
+complete W1; continue with the remaining tasks below after W0.
 
 **Original findings (before implementation).** Only Windows had evidence. The
 initial audit identified these gaps; the updates above record the Linux tier-1

@@ -85,8 +85,8 @@ def report(source):
         're-export the central constants. No limit is raised by this consolidation.', '',
         'The native store tile-count ceiling remains independent of its pixel ceiling:',
         'partial edge blocks consume tile entries too. W4 target sizes remain future work.',
-        'This first catalog consolidates named constants; the W0 audit of inline bounds,',
-        'capability literals and diagnostic messages remains in progress.', '',
+        'Resource policies share this catalog with validation, discovery and diagnostics.',
+        'Format cardinalities and mathematical definitions remain with their algorithms.', '',
         '| Constant | Rust type | Value | Definition |',
         '| --- | --- | ---: | --- |']
     for key, kind, number, expression in rows:

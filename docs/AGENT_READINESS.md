@@ -14,7 +14,7 @@ all A1-A7 acceptance gates, original checkpoint criteria, B01-B20 outcomes,
 matched sister-project comparisons and existing recovery guarantees remain
 required. W9's optional learned-model integration stays deferred.
 
-Start with W0's shared limit definitions, then W1 platform support, W2 actual
+W0's shared limit definitions are complete. Continue with W1 platform support, W2 actual
 model trials with a separate no-engine baseline, and W5.1 payload deduplication.
 Continue through everyday vector inputs, declared-tolerance curved booleans,
 larger native raster workflows, measured interface improvements, distribution,
@@ -39,19 +39,18 @@ and all original delivery gates have current acceptance evidence.
 The owner additionally requested Linux execution and testing using WSL.
 The current W1 slice adds native Linux verification of core/CLI/MCP, sessions and
 receipts, with visible capability-based job skips and independent caches.
-See [platform support](PLATFORMS.md). This slice precedes resuming the remaining
-W0 audit. macOS, CI activation, Linux jobs and release/scale evidence remain open.
+See [platform support](PLATFORMS.md). W0 now also has fresh full Windows/Linux
+acceptance. macOS, CI activation, Linux jobs and release/scale evidence remain open.
 
 ## Delivery gates
 
-W0 is in progress: the central catalog defines existing resource ceilings and
-bounded-evaluation settings across document admission, editing, parsers,
-rendering, delivery, storage and jobs. Existing Rust module paths are preserved.
-The generated [limit reference](LIMITS.md), compiled-value checks, capability
-bindings and boundary fixtures track the current definitions without duplicating
-counts in this plan. Remaining inline policies and diagnostic messages still
-require the W0 audit and its final fresh thorough acceptance. This consolidation
-raises no limits and establishes no new engine or readiness completion credit.
+W0 is complete: resource, admission, numerical and work-accounting policies
+share the central catalog across document admission, editing, parsers, rendering,
+delivery, storage and jobs. Existing Rust module paths are preserved. The
+generated [limit reference](LIMITS.md), compiled-value checks, capability bindings
+and boundary fixtures track the enforced definitions. The source audit and fresh
+full Windows/Linux acceptance are recorded in [FIX_PLAN.md](../FIX_PLAN.md).
+This consolidation raises no limits and awards no engine or readiness gate credit.
 
 | Gate | Required behavior and evidence | Current state |
 | --- | --- | --- |

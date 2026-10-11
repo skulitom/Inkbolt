@@ -12,7 +12,7 @@ import update_limits
 
 
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
-# Remaining inline policies outside these modules are still an open W0 audit.
+# Format and mathematical semantics are checked separately from resource policies below.
 BINDINGS = {
     'pixel_warps/maximum_absolute_joint_angle_degrees': 'pixel_warps.MAX_JOINT_ANGLE_DEGREES',
     'repeats/maximum_absolute_radial_angle_degrees': 'repeats.MAX_RADIAL_ANGLE_DEGREES',

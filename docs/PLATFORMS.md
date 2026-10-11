@@ -9,19 +9,34 @@ return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 The Unix file-identity implementation is shared source, but macOS remains
 unverified. This does not establish full W1, distribution or scale acceptance.
 
-The fresh WSL acceptance run on 11 October 2026 passed all 213 verification
-stages: **172 Rust tests and 2,229 executed Python tests** across 208 Python
-modules. Formatting, the locked build and all-target Clippy with warnings denied
-also passed. The 34 explicit Python skips comprise 28 job-dependent tests and
-six Windows memory/host-measurement tests. The run used Ubuntu 22.04 x86-64,
-Rust/Cargo 1.98.1 and Python 3.11.13, with a native Linux ELF executable.
+Fresh W0 acceptance on 11 October 2026 tested engine commit `53518fd`
+on both platforms. Every verification stage ran afresh, including formatting,
+the locked build, all-target Clippy with warnings denied, Rust tests and all
+208 Python modules. There were no failures, pending checks or reused passes.
 
-That run caught and repaired a missing shared-limit helper in the benchmark
-dependency manifests. All workload suites now pin `tests/advertised_limits.py`
-through their common manifest; historical budgets remain unchanged and changed
-helpers still require reviewed comparison evidence. The focused repair checks
-took 8.5 seconds on Linux and 14.1 seconds on Windows. The final fresh thorough
-run took 381.3 seconds; routine verification retains the quick budget below.
+| Platform | Stages passed | Rust tests | Python tests executed | Explicit skips | Duration |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Ubuntu 22.04 / WSL2 x86-64 | 213 | 176 | 2,244 | 34 | 494.5 s |
+| Windows | 213 | 208 | 2,278 | 0 | 1006.1 s |
+
+The 34 Linux skips comprise 28 job-dependent tests and six Windows memory/host
+measurement tests. Linux uses Rust/Cargo 1.98.1, Python 3.11.13 and a native ELF
+executable. WSL evidence does not establish macOS, other Linux distributions,
+Unix background jobs or the full scale/distribution goals.
+
+The final focused W0 change passed in 87.3 seconds on Linux and 108.5 seconds
+on Windows, with no skips. Thorough acceptance is a separate milestone gate;
+routine changes retain the three-minute budget and identical-pass reuse.
+An earlier Linux full run caught the benchmark manifests' missing shared-limit
+helper; all workload suites now pin `tests/advertised_limits.py` through their
+common manifest, while historical budgets remain unchanged.
+
+The initial simultaneous full runs retained one Linux print-render timeout at
+the existing 20-second fixture deadline. The isolated module rerun passed
+unchanged in 64.8 seconds, followed by the fresh full Linux pass
+above. Run full Windows and Linux acceptance consecutively on a shared host to
+avoid competing with these bounded render fixtures; quick focused runs retain
+their ordinary selectors and budget. No timeout or acceptance criterion changed.
 
 Use native Linux storage for sources, builds and generated fixtures. The WSL
 runner snapshots current candidate bytes, including uncommitted changes, into
