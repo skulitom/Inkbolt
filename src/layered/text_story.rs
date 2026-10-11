@@ -94,7 +94,8 @@ pub(super) fn diagnose(
         return Err(limit("Global text exceeds 256 stories"));
     }
     let index = usize::try_from(index).map_err(|_| malformed())?;
-    let authoring = stories.get(index).ok_or_else(malformed)?.field("0")?;
+    let story = stories.get(index).ok_or_else(malformed)?;
+    let authoring = story.field("0")?;
     let source = authoring.field("0")?.text()?;
     let text = source.strip_suffix('\r').ok_or_else(malformed)?;
     if text.chars().count() > crate::text::MAX_TEXT_CHARS {
@@ -137,12 +138,13 @@ pub(super) fn diagnose(
             "Global text story references more than eight font faces",
         ));
     }
+    let frame = super::text_frame::diagnose(&global, story)?;
     Ok(
         json!({"present":true,"version":14,"text_source":"global_story","story_index":index,"story_count":stories.len(),
         "text_characters":text.chars().count(),"text_utf16_units":units-1,"text_sha256":assets::sha256(text.as_bytes()),
         "local_text_matches":source==local,"font_face_names":faces,"font_file_identity_declared":false,
         "style_runs":style_runs.len(),"paragraph_runs":paragraph_runs.len(),"global_data_sha256":assets::sha256(bytes),
-        "global_tag_framing_validated":true,"selected_story_run_references_validated":true,
+        "global_tag_framing_validated":true,"selected_story_run_references_validated":true,"frame":frame,
         "other_stories_validated":false,"other_layer_references_validated":false,"layout_semantics_validated":false,
         "style_semantics_validated":false,"local_style_consistency_validated":false}),
     )

@@ -22,6 +22,29 @@ the local copy. Missing or invalid references never fall back to cached pixels o
 local text. Without global text data, the local record is identified as the text
 source; an absent table does not prove layout support.
 
+`global_story.frame` resolves the selected story's independent frame reference.
+It reports point or rectangular shape, encoded local bounds, a separate frame
+transform, first-baseline metric/minimum and whether that control was explicit.
+Frame indices are independent of story indices and layer IDs. Rectangle checks
+require four connected straight cubic segments, each corner exactly once, with
+no diagonal crossing; curves and other paths are not reduced to bounding boxes.
+Coordinates and affine entries must be finite and within -32768..32768; rectangle
+width/height must be 0.001..32768. The frame table permits at most 256 entries and
+the selected story currently requires exactly one reference. Missing story layout
+is reported as absent; an existing but broken reference never falls back to the
+local shape cache. Unknown explicit shape kinds or first-baseline metrics fail.
+
+The absent first-baseline control reports ascent and zero minimum. Explicit
+controls report `fixed`, `ascent`, `cap_height`, `leading` or `x_height`, with a
+minimum in 0..32768 local pixels. These values describe geometry requirements;
+they do not certify font metrics, shaping or placement. The frame transform and
+the outer layer transform remain separate. No density conversion or matrix
+composition is applied in the diagnostic. `other_frames_validated`,
+`remaining_frame_properties_validated`, `local_geometry_consistency_validated`
+and `layout_semantics_validated` stay false, including for a singular matrix.
+Columns, arbitrary shapes, other properties and complete reconstruction remain
+unimplemented. Named geometry-extension owners are still untrusted.
+
 These diagnostics check this local record's framing, matching local text sources, complete
 UTF-16 run coverage without splitting surrogate pairs, and explicit per-run font
 references. They do not validate layout semantics, later records or the whole

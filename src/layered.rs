@@ -7,6 +7,7 @@ mod object_write;
 mod objects;
 mod read;
 mod text_data;
+mod text_frame;
 mod text_record;
 mod text_story;
 mod text_write;

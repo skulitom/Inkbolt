@@ -188,7 +188,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         source: source.to_owned(),
         story_index,
         details: json!({"kind":"native_text_requirements","editable_import_supported":false,
-        "diagnostic_scope":"local_record_and_selected_global_story_framing_and_references_only",
+        "diagnostic_scope":"local_record_and_selected_global_story_references_and_frame_geometry_only",
         "reported_text_source":"local_record","native_story_index":story_index,
         "compatibility_markers":compatibility,
         "whole_file_validated":false,"layout_semantics_validated":false,

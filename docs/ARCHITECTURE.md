@@ -21,6 +21,11 @@ with typed Unicode, byte and named values. The descriptor's explicit story index
 selects canonical source text and per-run font references; local/global text
 differences remain visible. Only the selected story's structural references are
 checked, not style/layout semantics, other stories or the complete file.
+Its independent frame reference resolves bounded point/rectangle geometry,
+the separate frame transform and first-baseline settings. Rectangle recognition
+checks every segment, control, corner and closure; it does not replace a curved
+or crossed boundary with its bounding box. Remaining frame properties and local
+geometry consistency stay explicitly unvalidated.
 Incoming editable text and global story reconstruction remain open.
 
 `presets` provides pure versioned screen and physical-page recipes over the

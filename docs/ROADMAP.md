@@ -7,7 +7,9 @@ global style reconciliation and the import contract remain unfinished.
 
 Incoming text diagnostics now include the selected global story's authoritative
 characters, run/font references and comparison with the local record. Story
-indices are independent of layer order. Structural agreement does not establish
+indices are independent of layer order. Independent frame references now expose
+bounded point/rectangle geometry, frame transforms and first-baseline controls;
+unsupported paths and broken references fail explicitly. Structural agreement does not establish
 editable style or layout reconstruction; incoming text remains unsupported and
 the original six checkpoints remain open.
 

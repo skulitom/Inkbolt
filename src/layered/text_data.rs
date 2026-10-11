@@ -20,6 +20,12 @@ pub(super) enum Node {
     Scalar(Value),
 }
 impl Node {
+    pub fn optional(&self, key: &str) -> Result<Option<&Self>, Error> {
+        match self {
+            Self::Dictionary(d) => Ok(d.get(key)),
+            _ => Err(malformed()),
+        }
+    }
     pub fn field(&self, key: &str) -> Result<&Self, Error> {
         match self {
             Self::Dictionary(d) => d.get(key).ok_or_else(malformed),
@@ -44,6 +50,12 @@ impl Node {
                 .as_u64()
                 .and_then(|n| usize::try_from(n).ok())
                 .ok_or_else(malformed),
+            _ => Err(malformed()),
+        }
+    }
+    pub fn number(&self) -> Result<f64, Error> {
+        match self {
+            Self::Scalar(v) => v.as_f64().filter(|n| n.is_finite()).ok_or_else(malformed),
             _ => Err(malformed()),
         }
     }
