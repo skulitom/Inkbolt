@@ -12,7 +12,10 @@ pub(super) fn path_work(
 ) -> Result<u64, Error> {
     fn controls(g: &Geometry) -> u64 {
         match g {
-            Geometry::Ellipse { .. } => 97,
+            // One move point plus two controls and an endpoint per cubic arc.
+            Geometry::Ellipse { .. } => {
+                1 + 3 * u64::from(crate::limits::render_coverage_path::ELLIPSE_ARCS)
+            }
             Geometry::Compound { operands, .. } => {
                 operands.iter().map(|o| controls(&o.geometry)).sum()
             }
@@ -291,5 +294,39 @@ impl Neighborhood {
             ));
         }
         Ok((work, peak_pixels))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn limits_ellipse_path_charge_matches_emitted_controls_for_every_tile_column() {
+        let document: Document = serde_json::from_value(json!({
+            "schema_version": 1, "id": "ellipse-work", "kind": "vector",
+            "width": 600, "height": 300, "color_space": "srgb", "items": [{
+                "id": "ellipse", "content": {"type": "vector", "fill": [20, 60, 100, 255],
+                    "geometry": {"shape": "ellipse", "cx": 250.0, "cy": 150.0,
+                                 "rx": 180.0, "ry": 90.0}}
+            }]
+        }))
+        .unwrap();
+        let Content::Vector { geometry, .. } = &document.items[0].content else {
+            panic!()
+        };
+        let emitted =
+            super::super::coverage_path::path(geometry, [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]).unwrap();
+        for width in [1, EDGE, EDGE + 1, 2 * EDGE + 1] {
+            for height in [1, 7] {
+                let expected = emitted.points().len() as u64
+                    * u64::from(height)
+                    * u64::from(width.div_ceil(EDGE));
+                assert_eq!(
+                    path_work(&document, &BTreeMap::new(), [width, height]).unwrap(),
+                    expected
+                );
+            }
+        }
     }
 }

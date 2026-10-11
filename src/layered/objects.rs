@@ -241,7 +241,10 @@ impl Placement {
         ];
         crate::geometry::validate_matrix(m)?;
         let opposite = crate::geometry::map(m, [w, h]);
-        require((opposite[0] - p[4]).abs() <= 1e-9 && (opposite[1] - p[5]).abs() <= 1e-9)?;
+        require(
+            (opposite[0] - p[4]).abs() <= crate::limits::layered::AFFINE_CLOSURE_TOLERANCE
+                && (opposite[1] - p[5]).abs() <= crate::limits::layered::AFFINE_CLOSURE_TOLERANCE,
+        )?;
         Ok(m)
     }
 }

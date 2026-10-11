@@ -308,7 +308,7 @@ impl State {
                 let mut color = [0, 0, 0, 255];
                 for (i, v) in v[4..].iter().enumerate() {
                     let n = v * 255.0;
-                    if (n - n.round()).abs() > 1e-8 {
+                    if (n - n.round()).abs() > crate::limits::vector_native::INTEGER_TOLERANCE {
                         return Err(unsupported(
                             "Native fractional RGB components need a retained precision mapping",
                         ));

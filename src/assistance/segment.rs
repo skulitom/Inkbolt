@@ -45,12 +45,13 @@ impl Work<'_> {
                 format!("Local selection exceeds {MAX_WORK} work units"),
             ));
         }
-        if self.count >> 11 != before >> 11 {
+        if self.count / limits::CONTROL_WORK_INTERVAL != before / limits::CONTROL_WORK_INTERVAL {
             self.control.check()?;
         }
         Ok(())
     }
 }
+
 struct Grid {
     width: u32,
     height: u32,
@@ -454,4 +455,25 @@ pub(crate) fn apply(
     let (mask, report) = evaluate(document, id, options, root, control)?;
     document.items[i].mask = Some(Box::new(mask));
     Ok(report)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn limits_selection_checks_cancellation_at_and_across_work_boundaries() {
+        let interval = limits::CONTROL_WORK_INTERVAL;
+        for crossing in [1, interval, 2 * interval + 1] {
+            let control = Control::default();
+            let mut work = Work {
+                count: 0,
+                control: &control,
+            };
+            work.add(interval - 2).unwrap();
+            control.cancel();
+            work.add(1).unwrap();
+            assert_eq!(work.add(crossing).unwrap_err().code, "CANCELLED");
+        }
+    }
 }

@@ -259,6 +259,17 @@ two full chunks and a final partial chunk without changing source data. These
 are unchanged policy values; the remaining inline numerical/work audit and
 fresh thorough W0 acceptance remain open.
 
+The numerical-policy audit names admission tolerances, conservative roundoff
+allowances and bounded approximation steps, keeping unrelated tolerances
+independent. Display and native blend tie handling share one policy; scanline
+cubic work derives from the root-step count, and the certified pi construction
+derives its next-term denominator from the even truncation count. Existing
+values are preserved. Tiled ellipse work derives from emitted arc cardinality;
+selection cancellation uses a named work interval. Boundary tests cover weight
+sums, both orientations of the profile determinant threshold, emitted ellipse
+controls across tile columns and cancellation across selection work boundaries.
+Remaining work-accounting review and fresh thorough W0 acceptance remain open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

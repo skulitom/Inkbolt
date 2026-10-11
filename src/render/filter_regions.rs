@@ -24,7 +24,10 @@ pub(super) enum Step {
 }
 
 fn margin(values: &[f64]) -> f64 {
-    1e-9 + 64.0 * f64::EPSILON * values.iter().map(|v| v.abs()).sum::<f64>()
+    crate::limits::render_filter_regions::ABSOLUTE_MARGIN
+        + f64::from(crate::limits::render_filter_regions::ROUNDING_EPSILONS)
+            * f64::EPSILON
+            * values.iter().map(|v| v.abs()).sum::<f64>()
 }
 
 fn mapped_bounds(matrix: Matrix, bounds: [f64; 4]) -> [f64; 4] {

@@ -239,7 +239,10 @@ impl Measured {
         }
         // Include a conservative f64 accumulation/subdivision allowance. The
         // geometric interval is chord length through control-polygon length.
-        let rounding = 256.0 * f64::EPSILON * MAX_COORDINATE * build.leaves.len() as f64;
+        let rounding = f64::from(crate::limits::path_text::ROUNDING_EPSILONS)
+            * f64::EPSILON
+            * MAX_COORDINATE
+            * build.leaves.len() as f64;
         let report = Report {
             geometry_interpretation: if matches!(path.geometry, Geometry::Ellipse { .. }) {
                 "four_cubic_ellipse; distance_table_error_excludes_analytic_ellipse_conversion"

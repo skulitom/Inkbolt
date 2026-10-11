@@ -1,5 +1,7 @@
 # Coordinate fidelity
 
+Numerical admission and roundoff policies are named in `capabilities.numerical_limits` and the generated [limit reference](LIMITS.md). These are independent tolerances for their stated operations, not interchangeable global epsilons. Changing an error-proof bound or approximation count requires its numerical validation, even when allocation ceilings stay unchanged.
+
 Primitive admission minima and the existing cubic-bounds coefficient threshold are catalog-backed and reported in `capabilities.geometry_limits`. The threshold describes the existing binary64 branch decision, not a certified geometric error bound. Arithmetic and admission are unchanged.
 
 Negative and fractional positions remain editable throughout snapshots and the

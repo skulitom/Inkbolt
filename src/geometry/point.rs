@@ -7,7 +7,7 @@ pub(crate) use crate::limits::geometry_point::MAX_ROUNDOFF;
 // With rounded-product magnitudes summing to at most 2^20, the two products
 // and two additions have absolute forward error below 2^-31, including gradual
 // underflow. The factor-of-two margin covers the magnitude sum's own rounding.
-const SMALL_TERMS: f64 = 1_048_576.0;
+use crate::limits::geometry_point::FAST_TERM_BOUND;
 
 fn sum(a: f64, b: f64) -> (f64, f64) {
     let value = a + b;
@@ -23,7 +23,7 @@ pub(super) fn axis(a: f64, x: f64, b: f64, y: f64, t: f64) -> f64 {
     let by = b * y;
     let first = ax + by;
     let ordinary = first + t;
-    if ax.abs() + by.abs() + t.abs() <= SMALL_TERMS {
+    if ax.abs() + by.abs() + t.abs() <= FAST_TERM_BOUND {
         return ordinary;
     }
     if [ax, by, first, ordinary].iter().all(|v| v.is_finite()) {

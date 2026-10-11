@@ -14,6 +14,31 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'blending/comparison_tie_epsilons': 'blending.COMPARISON_TIE_EPSILONS',
+    'canvas_operations/sampling_boundary_epsilon_factor': 'assets.PIXEL_BOUNDARY_EPSILONS',
+    'numerical_limits/boards_guide_alignment_tolerance': 'boards.GUIDE_ALIGNMENT_TOLERANCE',
+    'numerical_limits/layered_affine_closure_tolerance': 'layered.AFFINE_CLOSURE_TOLERANCE',
+    'numerical_limits/meshes_control_inset_epsilons': 'meshes.CONTROL_INSET_EPSILONS',
+    'numerical_limits/meshes_inverse_tolerance': 'meshes.INVERSE_TOLERANCE',
+    'numerical_limits/meshes_svg_error_margin': 'meshes.SVG_ERROR_MARGIN',
+    'numerical_limits/path_text_rounding_epsilons': 'path_text.ROUNDING_EPSILONS',
+    'numerical_limits/pixel_brush_endpoint_epsilons': 'pixel_brush.ENDPOINT_EPSILONS',
+    'numerical_limits/pixel_warps_orientation_epsilons': 'pixel_warps.ORIENTATION_EPSILONS',
+    'numerical_limits/pixel_warps_weight_sum_tolerance': 'pixel_warps.WEIGHT_SUM_TOLERANCE',
+    'numerical_limits/profiles_min_matrix_determinant': 'profiles.MIN_MATRIX_DETERMINANT',
+    'numerical_limits/render_filter_regions_absolute_margin': 'render_filter_regions.ABSOLUTE_MARGIN',
+    'numerical_limits/render_filter_regions_rounding_epsilons': 'render_filter_regions.ROUNDING_EPSILONS',
+    'numerical_limits/strokes_brush_min_bisector_length': 'strokes_brush.MIN_BISECTOR_LENGTH',
+    'numerical_limits/strokes_brush_rounding_epsilons': 'strokes_brush.ROUNDING_EPSILONS',
+    'numerical_limits/strokes_outline_rounding_epsilons': 'strokes_outline.ROUNDING_EPSILONS',
+    'numerical_limits/vector_native_integer_tolerance': 'vector_native.INTEGER_TOLERANCE',
+    'numerical_limits/visual_diff_grid_phase_tolerance': 'visual_diff.GRID_PHASE_TOLERANCE',
+    'numerical_limits/volumes_partition_epsilons': 'volumes.PARTITION_EPSILONS',
+    'numerical_limits/render_coverage_path_ellipse_arcs': 'render_coverage_path.ELLIPSE_ARCS',
+    'numerical_limits/work_paths_coverage_max_root_steps': 'work_paths_coverage.MAX_ROOT_STEPS',
+    'numerical_limits/work_paths_coverage_cubic_crossing_work': 'work_paths_coverage.CUBIC_CROSSING_WORK',
+    'numerical_limits/dimensions_pi_atan_terms': 'dimensions.PI_ATAN_TERMS',
+    'numerical_limits/geometry_point_fast_term_bound': 'geometry_point.FAST_TERM_BOUND',
     'native_prepress/color_conversion_batch_samples': 'profiles.MAX_CONVERSION_SAMPLES',
     'native_prepress/color_buffer_values': 'prepress.COLOR_BUFFER_VALUES',
     'session_backups/lock_wait_ms': 'sqlite.BUSY_TIMEOUT_MS',
@@ -718,7 +743,7 @@ class ResourceLimitTests(unittest.TestCase):
                        'image_io','image_tracing','meshes','native_sample_store_library',
                        'objects','pdf','print_cmyk','print_proof','publication',
                        'render_quality','resource_profiles','sample_profiles','sequences',
-                       'supported/text','svg_import','variants','visual_comparison','paint_limits'):
+                       'supported/text','svg_import','variants','visual_comparison','paint_limits','numerical_limits'):
             value = capabilities()
             for part in prefix.split('/'): value = value[part]
             self.assertEqual(numeric_fields(value, prefix) - fixed.keys() - derived,

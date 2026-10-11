@@ -225,7 +225,9 @@ fn prepare(s: &Stroke, control: &Control) -> Result<Prepared, Error> {
     }
     let mut positions = (0..=regular).map(|i| i as f64 * step).collect::<Vec<_>>();
     let last = positions.last_mut().unwrap();
-    if (length - *last).abs() <= 16.0 * f64::EPSILON * length.max(1.0) {
+    if (length - *last).abs()
+        <= f64::from(crate::limits::pixel_brush::ENDPOINT_EPSILONS) * f64::EPSILON * length.max(1.0)
+    {
         *last = length;
     } else if s.include_end {
         positions.push(length);

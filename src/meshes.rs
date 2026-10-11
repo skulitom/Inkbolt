@@ -145,7 +145,9 @@ fn limit_colors(jets: &mut [Jet<4>], w: usize, h: usize) {
             }
             // A small inward margin protects the control bounds from rounding.
             if factor < 1.0 {
-                factor = (factor - 16.0 * f64::EPSILON).max(0.0);
+                factor = (factor
+                    - f64::from(crate::limits::meshes::CONTROL_INSET_EPSILONS) * f64::EPSILON)
+                    .max(0.0);
             }
             j.u[c] *= factor;
             j.v[c] *= factor;
@@ -371,7 +373,7 @@ impl Prepared {
             ];
             let delta = (uv[0] - next[0]).abs().max((uv[1] - next[1]).abs());
             uv = next;
-            if delta <= 1e-13 * (1.0 - self.contraction) {
+            if delta <= crate::limits::meshes::INVERSE_TOLERANCE * (1.0 - self.contraction) {
                 break;
             }
         }
@@ -510,7 +512,7 @@ pub fn texture(mesh: &Mesh, space: Interpolation) -> Result<Texture, Error> {
         } else {
             slopes[c] * encoding_slope + slopes[3]
         };
-        (slope * step + 1.0 / 255.0 + 1e-10).min(1.0)
+        (slope * step + 1.0 / 255.0 + crate::limits::meshes::SVG_ERROR_MARGIN).min(1.0)
     });
     Ok(Texture {
         size,

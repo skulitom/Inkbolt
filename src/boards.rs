@@ -209,7 +209,7 @@ pub fn guide_bounds(
     let m = scene::world_transform(document, i)?;
     let [a, b] = points.map(|p| geometry::map(m, p));
     let n = axis.index();
-    if (a[n] - b[n]).abs() > 1e-8 {
+    if (a[n] - b[n]).abs() > crate::limits::boards::GUIDE_ALIGNMENT_TOLERANCE {
         return Err(Error::new(
             "UNSUPPORTED",
             "Guide must be constant along the requested world alignment axis",

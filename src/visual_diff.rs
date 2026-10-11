@@ -281,7 +281,10 @@ pub fn compare(
     let s = options.scale as f64;
     let shift: [f64; 2] = std::array::from_fn(|i| (b.origin[i] - a.origin[i]) * s);
     // Tolerate only arithmetic roundoff, never an appreciable subpixel resampling.
-    if shift.iter().any(|v| (v - v.round()).abs() > 1e-9) {
+    if shift
+        .iter()
+        .any(|v| (v - v.round()).abs() > crate::limits::visual_diff::GRID_PHASE_TOLERANCE)
+    {
         return Err(Error::new(
             "INCOMPATIBLE_PIXEL_GRIDS",
             "View origins differ by fractional pixels at this scale; use a compatible scale or compare standalone artboards. No resampling was performed",
@@ -394,7 +397,7 @@ pub fn compare(
         "artifacts":{"before":artifact(width,height,&old)?,"after":artifact(width,height,&new)?,"mask":artifact(width,height,&mask)?},
         "source_changed":false,
         "semantics":{"color":"Common sRGB RGBA8 display view. Original output ICC profiles are recorded but not applied. This does not compare print delivery, perceptual color distance, or retained high-precision samples. Each side retains its explicit render/HDR view settings and loss annotations.",
-        "alignment":"Document world coordinates, or artboard-local coordinates for a standalone artboard. Union of rendered extents; missing pixels are transparent black. Equal grid phase required (1e-9 pixel arithmetic tolerance). No image registration or resampling.",
+        "alignment":format!("Document world coordinates, or artboard-local coordinates for a standalone artboard. Union of rendered extents; missing pixels are transparent black. Equal grid phase required ({:e} pixel arithmetic tolerance). No image registration or resampling.", crate::limits::visual_diff::GRID_PHASE_TOLERANCE),
         "focus":"Region crops outward on the before grid then clips to the union. Item focus unions unclipped geometry in both revisions (including added/removed/hidden items), excludes strokes/effects, and retains other artwork. Full source rendering limits and costs apply.",
         "mask":"Opaque magenta when maximum absolute RGBA8 channel delta is strictly greater than threshold; transparent black otherwise. Exact changed count/bounds remain independent of threshold. Bounds are end-exclusive.",
         "limitations":"Visual equality does not prove structural equality. Hidden, profile-only, sub-byte and off-view changes require structural or source-sample review; artboard placement is reported through the separate world mappings and structural diff."}});

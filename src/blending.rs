@@ -65,7 +65,11 @@ fn vivid(b: f64, s: f64) -> f64 {
 // Quantized-alpha round trips can move an exact comparison boundary by a few
 // ulps. Only discontinuous comparisons use this documented tie band.
 fn compare(a: f64, b: f64) -> std::cmp::Ordering {
-    if (a - b).abs() <= 8.0 * f64::EPSILON * a.abs().max(b.abs()).max(1.0) {
+    if (a - b).abs()
+        <= f64::from(crate::limits::blending::COMPARISON_TIE_EPSILONS)
+            * f64::EPSILON
+            * a.abs().max(b.abs()).max(1.0)
+    {
         std::cmp::Ordering::Equal
     } else {
         a.total_cmp(&b)

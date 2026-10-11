@@ -216,9 +216,12 @@ impl Centerline {
             if let Some((previous, at, previous_authored)) = nodes.last_mut()
                 && previous.p == node.p
             {
-                let coordinate_error =
-                    8.0 * f64::EPSILON * (node.p[0].abs().max(node.p[1].abs()) + self.length());
-                let radius_error = 8.0 * f64::EPSILON * previous.r.max(node.r).max(stroke.width);
+                let coordinate_error = f64::from(crate::limits::strokes_outline::ROUNDING_EPSILONS)
+                    * f64::EPSILON
+                    * (node.p[0].abs().max(node.p[1].abs()) + self.length());
+                let radius_error = f64::from(crate::limits::strokes_outline::ROUNDING_EPSILONS)
+                    * f64::EPSILON
+                    * previous.r.max(node.r).max(stroke.width);
                 if authored == *previous_authored
                     || (s - *at).abs() > coordinate_error
                     || (previous.r - node.r).abs() > radius_error

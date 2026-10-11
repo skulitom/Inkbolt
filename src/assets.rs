@@ -699,7 +699,9 @@ impl Pixels {
 /// eight machine epsilons with an absolute floor of eight epsilons.
 pub(crate) fn pixel_index(value: f64) -> i64 {
     let integer = value.round();
-    let tolerance = 8.0 * f64::EPSILON * value.abs().max(1.0);
+    let tolerance = f64::from(crate::limits::assets::PIXEL_BOUNDARY_EPSILONS)
+        * f64::EPSILON
+        * value.abs().max(1.0);
     if (value - integer).abs() <= tolerance {
         integer as i64
     } else {

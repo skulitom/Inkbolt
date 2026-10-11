@@ -1,5 +1,7 @@
 # Reusable paths and pixel regions
 
+Monotone cubic crossings use the catalogued root-step bound; their work charge derives from that bound plus the final evaluation. This is bounded scanline work, not a claim of exact algebraic roots or exact pixel area. See [central limits](LIMITS.md).
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 Work paths store named, nonprinting geometry in either document kind. Agents can keep an editable outline while deriving pixel selections or independently editable vector masks. They use ordinary stable item IDs, parents, transforms, locks, duplication, query, snapshots and session undo/redo.

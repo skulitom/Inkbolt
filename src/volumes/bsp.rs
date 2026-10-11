@@ -9,7 +9,7 @@ fn epsilon(f: &Face) -> f64 {
         .map(|v| v.abs())
         .fold(1., f64::max)
         * f64::EPSILON
-        * 2048.
+        * f64::from(crate::limits::volumes::PARTITION_EPSILONS)
 }
 fn split(f: &Face, n: Point3, d: f64, positive: bool, eps: f64) -> Option<Face> {
     let mut contours = vec![];

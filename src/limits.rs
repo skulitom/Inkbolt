@@ -49,6 +49,8 @@ pub mod artwork_masks {
 
 /// Limits for `src/assets.rs`.
 pub mod assets {
+    /// Machine-epsilon allowance for nearest-pixel boundary stabilization.
+    pub const PIXEL_BOUNDARY_EPSILONS: u32 = 8;
     /// Maximum temporary-file reservation attempts for an immutable image asset.
     pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Max assets (assets).
@@ -61,6 +63,8 @@ pub mod assets {
 
 /// Limits for `src/assistance/segment.rs`.
 pub mod assistance_segment {
+    /// Work units between cooperative cancellation checks in the selection solver.
+    pub const CONTROL_WORK_INTERVAL: u64 = 2048;
     /// Maximum integer smoothness coefficient in the selection energy.
     pub const MAX_SMOOTHNESS: u32 = 65535;
     /// Maximum squared distance across the four encoded-byte features.
@@ -85,6 +89,8 @@ pub mod assistance {
 
 /// Limits for `src/boards.rs`.
 pub mod boards {
+    /// Maximum absolute world-axis deviation of an aligned guide.
+    pub const GUIDE_ALIGNMENT_TOLERANCE: f64 = 1e-8;
     /// Max artboards (boards).
     pub const MAX_ARTBOARDS: usize = 32;
     /// Max guides (boards).
@@ -175,6 +181,26 @@ pub mod contact_sheets {
     pub const MAX_PIXELS: u64 = 4_194_304;
 }
 
+/// Numerical policy for `blending`.
+pub mod blending {
+    /// Shared relative comparison tie allowance for display and native ink blends.
+    pub const COMPARISON_TIE_EPSILONS: u32 = 8;
+}
+
+/// Numerical policy for `render_coverage_path`.
+pub mod render_coverage_path {
+    /// Number of tangent-matched cubic arcs used for output-space ellipse coverage.
+    pub const ELLIPSE_ARCS: u32 = 32;
+}
+
+/// Numerical policy for `work_paths_coverage`.
+pub mod work_paths_coverage {
+    /// Crossing work charge includes every bisection step and the final cubic evaluation.
+    pub const CUBIC_CROSSING_WORK: u64 = MAX_ROOT_STEPS as u64 + 1;
+    /// Maximum bisection steps for one monotone cubic scanline crossing.
+    pub const MAX_ROOT_STEPS: usize = 56;
+}
+
 /// Limits for `src/control.rs`.
 pub mod control {
     /// Pixels between cooperative cancellation checks in raster and ink evaluation loops.
@@ -189,6 +215,8 @@ pub mod control {
 
 /// Limits for `src/dimensions.rs`.
 pub mod dimensions {
+    /// Even positive truncation count for bounded Machin arctangent intervals; remainder uses the next term.
+    pub const PI_ATAN_TERMS: u32 = 32;
     /// Certified subdivision steps between cancellation checks.
     pub const MEASUREMENT_CHECK_INTERVAL: usize = 32;
     /// Maximum absolute measurement/resize projection angle in degrees.
@@ -349,6 +377,8 @@ pub mod geometry_affine {
 
 /// Limits for `src/geometry/point.rs`.
 pub mod geometry_point {
+    /// Sum-of-magnitudes fast-path bound proved against point roundoff; changing it requires a new forward-error proof.
+    pub const FAST_TERM_BOUND: f64 = 1_048_576.0;
     /// Max roundoff (geometry point).
     pub const MAX_ROUNDOFF: f64 = 1e-9;
 }
@@ -649,6 +679,8 @@ pub mod layered_text_preset_records {
 
 /// Limits for `src/layered.rs`.
 pub mod layered {
+    /// Maximum retained placement corner residual for admitted affine source geometry.
+    pub const AFFINE_CLOSURE_TOLERANCE: f64 = 1e-9;
     /// Text caches reserve one coordinate unit for their minimum pixel extent.
     pub const MAX_TEXT_CACHE_COORDINATE: f64 = super::model::MAX_COORDINATE - 1.0;
     /// Maximum UTF-16 units in a layer name or ordinary Unicode record.
@@ -723,6 +755,12 @@ pub mod measurements {
 
 /// Limits for `src/meshes.rs`.
 pub mod meshes {
+    /// Additional roundoff allowance in the SVG mesh reconstruction error bound.
+    pub const SVG_ERROR_MARGIN: f64 = 1e-10;
+    /// Contraction-scaled termination target for mesh inverse iteration.
+    pub const INVERSE_TOLERANCE: f64 = 1e-13;
+    /// Inward machine-epsilon margin for bounded color controls.
+    pub const CONTROL_INSET_EPSILONS: u32 = 16;
     /// Fixed maximum iterations for contraction-bounded inverse mesh sampling.
     pub const INVERSE_STEPS: usize = 128;
     /// Maximum samples on each cell axis in the SVG texture.
@@ -885,6 +923,8 @@ pub mod paint {
 
 /// Limits for `src/path_text.rs`.
 pub mod path_text {
+    /// Per-leaf accumulation/subdivision allowance in measured baseline bounds.
+    pub const ROUNDING_EPSILONS: u32 = 256;
     /// Minimum certified lower bound on text baseline length.
     pub const MIN_BASELINE_LENGTH: f64 = 0.001;
     /// Minimum caller-selected distance-table tolerance shared by text paths and interpolation spines.
@@ -947,6 +987,8 @@ pub mod pdf_marks {
 
 /// Limits for `src/pixel_brush.rs`.
 pub mod pixel_brush {
+    /// Relative roundoff allowance for a duplicate terminal dab.
+    pub const ENDPOINT_EPSILONS: u32 = 16;
     /// Accumulated brush work units between cancellation checks.
     pub const WORK_CHECK_INTERVAL: u64 = 1024;
     /// Brush placements between cancellation checks.
@@ -989,6 +1031,10 @@ pub mod pixel_brush {
 
 /// Limits for `src/pixel_warps.rs`.
 pub mod pixel_warps {
+    /// Maximum absolute departure of articulated weights from unity.
+    pub const WEIGHT_SUM_TOLERANCE: f64 = 1e-10;
+    /// Filtered orientation uncertainty before exact rational fallback.
+    pub const ORIENTATION_EPSILONS: u32 = 16;
     /// Minimum warp-frame width or height before deformation.
     pub const MIN_FRAME_EXTENT: f64 = 0.001;
     /// Max axis (pixel warps).
@@ -1061,6 +1107,8 @@ pub mod profiles_gamut {
 
 /// Limits for `src/profiles.rs`.
 pub mod profiles {
+    /// Minimum absolute destination-profile matrix determinant, independent of raw-camera admission.
+    pub const MIN_MATRIX_DETERMINANT: f64 = 1e-12;
     /// Maximum input/output entries in admitted LUT8/LUT16 curve tables; independent of standalone tone curves.
     pub const MAX_LUT_CURVE_ENTRIES: usize = 4096;
     /// Maximum entries in an ICC tone-reproduction curve, shared by profile admission and continuous table reconstruction.
@@ -1171,6 +1219,10 @@ pub mod render_coverage_cache {
 
 /// Limits for `src/render/filter_regions.rs`.
 pub mod render_filter_regions {
+    /// Relative accumulation allowance in filter dependency bounds.
+    pub const ROUNDING_EPSILONS: u32 = 64;
+    /// Absolute floor on conservative filter dependency coordinate margins.
+    pub const ABSOLUTE_MARGIN: f64 = 1e-9;
     /// Max references (render filter regions).
     pub const MAX_REFERENCES: usize = 131_072;
 }
@@ -1477,6 +1529,10 @@ pub mod stored_samples {
 
 /// Limits for `src/strokes/brush.rs`.
 pub mod strokes_brush {
+    /// Conservative centerline distance and coordinate roundoff allowance.
+    pub const ROUNDING_EPSILONS: u32 = 16;
+    /// Minimum bisector magnitude before using the outgoing tangent.
+    pub const MIN_BISECTOR_LENGTH: f64 = 1e-12;
     /// Minimum repeat spacing in base stroke widths.
     pub const MIN_SPACING: f64 = 0.001;
     /// Maximum repeat spacing in base stroke widths; independent of stroke width and arrow dimensions.
@@ -1497,6 +1553,8 @@ pub mod strokes_brush {
 
 /// Limits for `src/strokes/outline.rs`.
 pub mod strokes_outline {
+    /// Coordinate/radius roundoff allowance when joining outline nodes.
+    pub const ROUNDING_EPSILONS: u32 = 8;
     /// Maximum cubic subdivision depth while preparing stroke centerlines.
     pub const MAX_SUBDIVISION_DEPTH: usize = 24;
     /// Max outline commands (strokes outline).
@@ -1719,6 +1777,8 @@ pub mod vector_native_write {
 
 /// Limits for `src/vector_native.rs`.
 pub mod vector_native {
+    /// Maximum absolute residual when admitting an integer-valued native field.
+    pub const INTEGER_TOLERANCE: f64 = 1e-8;
     /// Parsed bytes or syntax nodes between cancellation checks.
     pub const PARSE_CHECK_INTERVAL: usize = 256;
     /// Maximum decoded bytes of the native metadata header stream.
@@ -1741,12 +1801,16 @@ pub mod vector_canvas {
 
 /// Limits for `src/visual_diff.rs`.
 pub mod visual_diff {
+    /// Maximum absolute output-pixel grid phase residual; no resampling.
+    pub const GRID_PHASE_TOLERANCE: f64 = 1e-9;
     /// Max pixels (visual diff).
     pub const MAX_PIXELS: u64 = super::render::MAX_RENDER_PIXELS;
 }
 
 /// Limits for `src/volumes.rs`.
 pub mod volumes {
+    /// Relative plane-partition roundoff allowance for projected volume faces.
+    pub const PARTITION_EPSILONS: u32 = 2048;
     /// Default source chord tolerance; admissible bounds come from the shared warp evaluator.
     pub const DEFAULT_SOURCE_TOLERANCE: f64 = 0.1;
     /// Maximum retained extrusion depth in local units.

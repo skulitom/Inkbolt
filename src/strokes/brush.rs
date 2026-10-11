@@ -201,7 +201,12 @@ fn corner_positions(center: &Centerline, closed: bool, b: &Brush) -> Vec<(f64, P
             let tangent = match b.corner_orientation {
                 Orientation::Incoming => incoming,
                 Orientation::Outgoing => outgoing,
-                Orientation::Bisector if bisector[0].hypot(bisector[1]) < 1e-12 => outgoing,
+                Orientation::Bisector
+                    if bisector[0].hypot(bisector[1])
+                        < crate::limits::strokes_brush::MIN_BISECTOR_LENGTH =>
+                {
+                    outgoing
+                }
                 Orientation::Bisector => direction([0.0, 0.0], bisector),
             };
             Some((center.lengths[i], tangent))
@@ -268,7 +273,7 @@ pub(super) fn generate(
         // Bound coordinate subtraction and accumulated distance roundoff.
         // Without this, decimal paths can retain an almost-duplicate seam
         // center or fail to replace a body motif at an authored corner.
-        let precision = 16.0
+        let precision = f64::from(crate::limits::strokes_brush::ROUNDING_EPSILONS)
             * f64::EPSILON
             * (center.points.len() as f64 * length
                 + center

@@ -1,5 +1,7 @@
 # Render quality and effect bounds
 
+Output-space ellipse coverage uses the catalogued tangent-matched arc count. Numerical policies, including conservative filter margins, are listed in [central limits](LIMITS.md) and `capabilities.numerical_limits`.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 HDR working-space rendering and explicit views follow [HDR.md](HDR.md). Linear radiance is averaged before tone mapping.
@@ -94,3 +96,6 @@ RGBA8 output retains one complete final byte image (at most 64 MiB), plus bounde
 `tests/test_tiled_render.py` checks complete 1080×1080 and 2480×3508 PNG pixels and every native channel of a 1920×1080 TIFF. Smaller fixtures cover multiple strips, independent uncompressed/Deflate TIFF decoding, LZW codec round trips, HDR, all native layouts/depths, all samplers, masks/groups/clips, fractional canvas, dissolve, curve/stroke and warp boundaries, artboards, rejection and no partial publication. `tests/test_spatial_render.py` additionally checks all pixels of 5,001 mixed objects, whole/indexed equivalence for text, strokes, cropped images, warps, groups, clipping, masks, knockout and native strips, plus source-preserving revision changes and dense-scene rejection. `tests/test_native_locality.py` preserves every native channel in a 2560x1440 source with 128 clipped annotations through local edits and historical output; it also checks wide thin sources, scale, padding, supersampling, reconstruction halos, partial strips and all depth/channel/compression combinations. These fixtures do not promise bit-identical edge coverage for all arbitrary geometry, establish measured scale gates, or complete A5.
 
 `tests/test_render_quality_cli.py` verifies exact rational triangle/pixel intersections, analytic rectangle area, independently integrated ellipse slices, exact premultiplied color/alpha averages, independently convolved shadows and blur, font outlines, masks, component definitions, profiles, density, artboard order/bleed, metadata, source preservation and durable agent publication. At 4 by 4 sampling the original fractional rectangle fixture differs from exact area by at most one alpha byte; triangle and small-ellipse fixtures use at most three alpha bytes. These are fixture tolerances, not universal error guarantees. Separate external decoder evidence checks PNG/TIFF pixels and profiles exactly and JPEG with explicit fixture error/PSNR limits. See the [original render-quality workflow](../examples/render_quality_workflow.py).
+
+Tiled ellipse work accounting derives from the same arc count as emitted coverage
+controls, including the initial move point and each cubic control/endpoint.

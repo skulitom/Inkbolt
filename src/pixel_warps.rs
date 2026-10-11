@@ -61,7 +61,11 @@ fn orientation(a: Point, b: Point, c: Point) -> i8 {
     let x = (b[0] - a[0]) * (c[1] - a[1]);
     let y = (b[1] - a[1]) * (c[0] - a[0]);
     let v = x - y;
-    if v.abs() > 16. * f64::EPSILON * (x.abs() + y.abs()) {
+    if v.abs()
+        > f64::from(crate::limits::pixel_warps::ORIENTATION_EPSILONS)
+            * f64::EPSILON
+            * (x.abs() + y.abs())
+    {
         return if v > 0. { 1 } else { -1 };
     }
     let v = (rational(b[0]) - rational(a[0])) * (rational(c[1]) - rational(a[1]))
@@ -270,8 +274,11 @@ impl Plan {
                         ));
                     }
                     let sum: f64 = w.iter().sum();
-                    if (sum - 1.).abs() > 1e-10 {
-                        return Err(invalid("Joint weights must sum to one within 1e-10"));
+                    if (sum - 1.).abs() > crate::limits::pixel_warps::WEIGHT_SUM_TOLERANCE {
+                        return Err(invalid(&format!(
+                            "Joint weights must sum to one within {:e}",
+                            crate::limits::pixel_warps::WEIGHT_SUM_TOLERANCE
+                        )));
                     }
                     let mut q = [0.; 2];
                     for (m, w) in joint_matrices.iter().zip(w) {

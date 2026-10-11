@@ -23,7 +23,10 @@ pub(super) fn mix(backdrop: &[f64], source: &[f64], mode: BlendMode, out: &mut [
         // More total subtractive ink is darker; the backdrop wins bounded ties.
         let b: f64 = backdrop[..4].iter().sum();
         let s: f64 = source[..4].iter().sum();
-        let tied = (b - s).abs() <= 8.0 * f64::EPSILON * b.abs().max(s.abs()).max(1.0);
+        let tied = (b - s).abs()
+            <= f64::from(crate::limits::blending::COMPARISON_TIE_EPSILONS)
+                * f64::EPSILON
+                * b.abs().max(s.abs()).max(1.0);
         let choose_source = !tied
             && if mode == BlendMode::DarkerColor {
                 s > b

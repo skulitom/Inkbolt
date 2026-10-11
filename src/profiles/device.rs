@@ -139,7 +139,7 @@ fn invert(columns: [[f64; 3]; 3]) -> Result<[[f64; 3]; 3], Error> {
     };
     let rows = [cross(b, c), cross(c, a), cross(a, b)];
     let det = (0..3).map(|i| a[i] * rows[0][i]).sum::<f64>();
-    if !det.is_finite() || det.abs() < 1e-12 {
+    if !det.is_finite() || det.abs() < crate::limits::profiles::MIN_MATRIX_DETERMINANT {
         return Err(Error::new(
             "UNSUPPORTED_PROFILE_MATRIX",
             "Destination matrix is singular or ill-conditioned",
@@ -540,4 +540,28 @@ pub fn convert_with_gamut(
         };
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn limits_destination_matrix_determinant_is_inclusive_in_both_orientations() {
+        let minimum = crate::limits::profiles::MIN_MATRIX_DETERMINANT;
+        for determinant in [0.0, minimum * 0.5, -minimum * 0.5] {
+            let matrix = [[determinant, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+            assert_eq!(
+                invert(matrix).unwrap_err().code,
+                "UNSUPPORTED_PROFILE_MATRIX"
+            );
+        }
+        for determinant in [minimum, -minimum, minimum * 2.0, -minimum * 2.0] {
+            let matrix = [[determinant, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+            let inverse = invert(matrix).unwrap();
+            assert!((inverse[0][0] * determinant - 1.0).abs() <= 2.0 * f64::EPSILON);
+            assert_eq!(inverse[1], [0.0, 1.0, 0.0]);
+            assert_eq!(inverse[2], [0.0, 0.0, 1.0]);
+        }
+    }
 }
