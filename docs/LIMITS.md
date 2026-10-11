@@ -119,6 +119,7 @@ capability literals and diagnostic messages remains in progress.
 | `fonts.MAX_LICENSE_BYTES` | `u64` | 65536 | `65536` |
 | `fonts.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `geometry_affine.MAX_FAST_POINT_ERROR` | `f64` | 1e-09 | `1e-9` |
+| `geometry_affine.MAX_POINT_COORDINATE` | `f64` | 65536.0 | `2.0 * super::model::MAX_COORDINATE` |
 | `geometry_affine.MAX_RELATIVE_FACTORS` | `usize` | 8 | `8` |
 | `geometry_affine.MAX_TRANSFORM_FACTORS` | `usize` | 9 | `MAX_RELATIVE_FACTORS + 1` |
 | `geometry_affine.MIN_DETERMINANT` | `f64` | 1e-08 | `1e-8` |
@@ -495,11 +496,21 @@ capability literals and diagnostic messages remains in progress.
 | `svg_import_definitions.MAX_REFERENCE_DEPTH` | `usize` | 16 | `16` |
 | `swatches.MAX_DEPTH` | `usize` | 8 | `8` |
 | `swatches.MAX_SWATCHES` | `usize` | 256 | `256` |
+| `text.LAYOUT_OVERFLOW_TOLERANCE` | `f64` | 1e-09 | `1e-9` |
+| `text.MAX_CHARACTER_SCALE` | `f64` | 10.0 | `10.0` |
+| `text.MAX_FONT_SIZE` | `u32` | 1024 | `1024` |
 | `text.MAX_GLYPHS` | `usize` | 8192 | `8192` |
+| `text.MAX_LANGUAGE_BYTES` | `usize` | 64 | `64` |
+| `text.MAX_LEADING` | `u32` | 4096 | `4096` |
 | `text.MAX_OUTLINE_COMMANDS` | `usize` | 131072 | `131072` |
 | `text.MAX_SHAPING_WORK` | `usize` | 1048576 | `1_048_576` |
 | `text.MAX_TEXT_CHARS` | `usize` | 4096 | `4096` |
 | `text.MAX_TEXT_RANGES` | `usize` | 64 | `64` |
+| `text.MAX_TRACKING` | `u32` | 1024 | `1024` |
+| `text.MIN_CHARACTER_SCALE` | `f64` | 0.01 | `0.01` |
+| `text.MIN_FONT_SIZE` | `f64` | 0.01 | `0.01` |
+| `text.MIN_FRAME_EXTENT` | `f64` | 0.001 | `0.001` |
+| `text.MIN_LEADING` | `f64` | 0.001 | `0.001` |
 | `text_flow.MAX_COLUMNS` | `usize` | 16 | `16` |
 | `text_flow.MAX_PARAGRAPHS` | `usize` | 256 | `256` |
 | `text_flow.MAX_SLOTS` | `usize` | 64 | `64` |
@@ -509,6 +520,7 @@ capability literals and diagnostic messages remains in progress.
 | `text_flow_lists.MAX_COUNTER` | `u32` | 999999 | `999_999` |
 | `text_flow_lists.MAX_LEVELS` | `usize` | 9 | `9` |
 | `text_flow_lists.MAX_LISTS` | `usize` | 64 | `64` |
+| `text_flow_lists.MAX_ROMAN_COUNTER` | `u32` | 3999 | `3999` |
 | `tracing.MAX_COLORS` | `usize` | 64 | `64` |
 | `tracing.MAX_EDGES` | `usize` | 262144 | `262_144` |
 | `tracing.MAX_PIXELS` | `usize` | 1048576 | `1_048_576` |

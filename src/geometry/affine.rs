@@ -157,7 +157,7 @@ fn certified(result: [Estimate; 6]) -> Option<Matrix> {
         let error = add_bound(
             product_bound(
                 add_bound(result[axis].error, result[axis + 2].error),
-                2.0 * MAX_COORDINATE,
+                crate::limits::geometry_affine::MAX_POINT_COORDINATE,
             ),
             result[axis + 4].error,
         );

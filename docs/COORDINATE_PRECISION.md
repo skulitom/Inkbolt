@@ -2,7 +2,11 @@
 
 Negative and fractional positions remain editable throughout snapshots and the
 supported SVG exchange. Inspect `capabilities.coordinate_precision` before
-choosing a numerical or image comparison.
+choosing a numerical or image comparison. All numeric precision budgets and
+expression/ancestor/cache limits in that group are bound to the shared
+[catalog](LIMITS.md). The coefficient-error point domain derives from twice the
+document control-coordinate limit. This consolidation changes no arithmetic
+proof, fallback algorithm, precision tier or admission bound.
 
 | Surface | Contract |
 | --- | --- |

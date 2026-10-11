@@ -309,6 +309,8 @@ pub mod fonts {
 
 /// Limits for `src/geometry/affine.rs`.
 pub mod geometry_affine {
+    /// Coordinate domain for the certified coefficient-error bound; twice the control limit.
+    pub const MAX_POINT_COORDINATE: f64 = 2.0 * super::model::MAX_COORDINATE;
     /// Min determinant (geometry affine).
     pub const MIN_DETERMINANT: f64 = 1e-8;
     /// Max fast point error (geometry affine).
@@ -1411,6 +1413,8 @@ pub mod text_flow_hyphens {
 
 /// Limits for `src/text/flow/lists.rs`.
 pub mod text_flow_lists {
+    /// Largest supported subtractive Roman numeral, without overbar notation.
+    pub const MAX_ROMAN_COUNTER: u32 = 3999;
     /// Max levels (text flow lists).
     pub const MAX_LEVELS: usize = 9;
     /// Max lists (text flow lists).
@@ -1435,6 +1439,26 @@ pub mod text_flow {
 
 /// Limits for `src/text.rs`.
 pub mod text {
+    /// Minimum ordinary frame and remaining flow-column extent in local pixels.
+    pub const MIN_FRAME_EXTENT: f64 = 0.001;
+    /// Minimum explicit or natural leading in local pixels.
+    pub const MIN_LEADING: f64 = 0.001;
+    /// Maximum explicit leading in local pixels.
+    pub const MAX_LEADING: u32 = 4096;
+    /// Smallest admitted font size in local pixels.
+    pub const MIN_FONT_SIZE: f64 = 0.01;
+    /// Largest admitted font size, independent of tracking.
+    pub const MAX_FONT_SIZE: u32 = 1024;
+    /// Absolute tracking bound in local pixels, independent of font size.
+    pub const MAX_TRACKING: u32 = 1024;
+    /// Minimum horizontal/vertical character scale.
+    pub const MIN_CHARACTER_SCALE: f64 = 0.01;
+    /// Maximum horizontal/vertical character scale.
+    pub const MAX_CHARACTER_SCALE: f64 = 10.0;
+    /// Maximum language-tag bytes; subtag syntax is checked separately.
+    pub const MAX_LANGUAGE_BYTES: usize = 64;
+    /// Layout fit/ink-overflow comparison tolerance, not a glyph-position accuracy guarantee.
+    pub const LAYOUT_OVERFLOW_TOLERANCE: f64 = 1e-9;
     /// Max text chars (text).
     pub const MAX_TEXT_CHARS: usize = 4096;
     /// Max text ranges (text).

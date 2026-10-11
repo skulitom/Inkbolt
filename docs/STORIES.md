@@ -1,6 +1,11 @@
 # Shared paragraph flow
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+`capabilities.paragraph_flow.layout_limits` reports slot/column extents, gutters,
+spacing, indents, list gaps and fit/ink-overflow tolerance. These reuse ordinary
+text and document-coordinate bounds. Structural list counts, Unicode-scalar
+affix lengths and the supported Roman numeral range also use the catalog;
+alphabet size and Roman symbol values remain notation rules.
 
 Stories retain original rich paragraphs and an ordered list of flow slots. Independent `story_frame` items place those slots in a vector or raster document. Moving or transforming a placement leaves source flow order unchanged. Editing a shared story updates all its placements; copying a story under another ID creates an independent source.
 

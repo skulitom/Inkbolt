@@ -5,6 +5,7 @@ pub use crate::limits::text_flow_lists::MAX_AFFIX;
 pub use crate::limits::text_flow_lists::MAX_COUNTER;
 pub use crate::limits::text_flow_lists::MAX_LEVELS;
 pub use crate::limits::text_flow_lists::MAX_LISTS;
+pub use crate::limits::text_flow_lists::MAX_ROMAN_COUNTER;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -82,9 +83,9 @@ fn literal(text: &str) -> Result<(), Error> {
                 || matches!(c, '\u{2028}' | '\u{2029}' | '\u{fffe}' | '\u{ffff}')
         })
     {
-        return Err(invalid(
-            "List bullet/prefix/suffix must have at most 32 scalars without controls or separators",
-        ));
+        return Err(invalid(&format!(
+            "List bullet/prefix/suffix must have at most {MAX_AFFIX} scalars without controls or separators"
+        )));
     }
     Ok(())
 }
@@ -106,8 +107,10 @@ fn number(mut value: u32, format: Format) -> Result<String, Error> {
             })
         }
         Format::LowerRoman | Format::UpperRoman => {
-            if value > 3999 {
-                return Err(invalid("Roman list counters must be in 1..=3999"));
+            if value > MAX_ROMAN_COUNTER {
+                return Err(invalid(&format!(
+                    "Roman list counters must be in 1..={MAX_ROMAN_COUNTER}"
+                )));
             }
             let mut text = String::new();
             for (n, symbol) in [
@@ -144,16 +147,16 @@ pub(super) fn resolve(story: &Story) -> Result<Vec<Option<Label>>, Error> {
         let Some(list) = &p.list else { return Ok(None); };
         if !valid_id(&list.id) || list.level >= MAX_LEVELS
             || list.restart.is_some_and(|v| !(1..=MAX_COUNTER).contains(&v))
-            || !list.gap.is_finite() || !(0.0..=32768.0).contains(&list.gap)
+            || !list.gap.is_finite() || !(0.0..=MAX_COORDINATE).contains(&list.gap)
         {
-            return Err(invalid("List requires a valid ID, level 0..=8, restart 1..=999999 and finite gap 0..=32768"));
+            return Err(invalid(&format!("List requires a valid ID, level 0..={}, restart 1..={MAX_COUNTER} and finite gap 0..={MAX_COORDINATE}", MAX_LEVELS - 1)));
         }
         let state = states.entry(&list.id).or_default();
         if list.level > state.len() {
             return Err(invalid("Nested list items require a preceding parent at every lower level"));
         }
         let value = list.restart.unwrap_or_else(|| state.get(list.level).map_or(1, |v| v + 1));
-        if value > MAX_COUNTER { return Err(invalid("List counter exceeds 999999; explicitly restart it")); }
+        if value > MAX_COUNTER { return Err(invalid(&format!("List counter exceeds {MAX_COUNTER}; explicitly restart it"))); }
         state.truncate(list.level);
         state.push(value);
         let text = match &list.marker {
@@ -169,7 +172,7 @@ pub(super) fn resolve(story: &Story) -> Result<Vec<Option<Label>>, Error> {
             }
         };
         let label = Label { id:list.id.clone(), level:list.level, counters:state.clone(), text };
-        if states.len() > MAX_LISTS { return Err(limit("Story exceeds 64 independent list IDs")); }
+        if states.len() > MAX_LISTS { return Err(limit(&format!("Story exceeds {MAX_LISTS} independent list IDs"))); }
         Ok(Some(label))
     }).collect()
 }

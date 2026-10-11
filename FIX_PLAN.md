@@ -206,6 +206,13 @@ logical dimensions derive from the geometry coordinate span. Existing values,
 rendering and identifier fallback are unchanged; W0's remaining inline audit and
 fresh thorough acceptance are still open.
 
+Text frame/style/flow admission, list notation bounds and layout comparison
+tolerance now use the catalog, with complete numeric bindings for their
+discovery groups. Coordinate precision reporting shares the same derived point
+domain as coefficient-error certification. Mathematical and notation rules
+remain distinct from resource budgets. Existing values and algorithms are
+unchanged; the remaining inline audit and fresh thorough W0 gate stay open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

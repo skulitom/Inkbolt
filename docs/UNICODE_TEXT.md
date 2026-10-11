@@ -1,6 +1,11 @@
 # Unicode shaping and explicit font fallback
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+`capabilities.text_limits` exposes frame extents, leading, font size, tracking,
+language-tag bytes and layout overflow tolerance. Character scales and baseline
+shift remain in `text_character_geometry`. Validation, ordinary frames, linked
+stories and diagnostic limits use the catalog. The overflow tolerance only
+governs fit/ink comparisons; it does not promise glyph-position accuracy.
 
 Both document kinds shape horizontal Unicode text using pinned monochrome local
 fonts. The source text stays in logical Unicode order. Scripts, glyph substitutions,

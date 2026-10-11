@@ -13,6 +13,53 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'text_limits/frame_extent/0': 'text.MIN_FRAME_EXTENT',
+    'text_limits/frame_extent/1': 'model.MAX_COORDINATE',
+    'text_limits/leading/0': 'text.MIN_LEADING',
+    'text_limits/leading/1': 'text.MAX_LEADING',
+    'text_limits/font_size/0': 'text.MIN_FONT_SIZE',
+    'text_limits/font_size/1': 'text.MAX_FONT_SIZE',
+    'text_limits/tracking/1': 'text.MAX_TRACKING',
+    'text_limits/language_bytes': 'text.MAX_LANGUAGE_BYTES',
+    'text_limits/layout_overflow_tolerance': 'text.LAYOUT_OVERFLOW_TOLERANCE',
+    'text_character_geometry/scale_range/0': 'text.MIN_CHARACTER_SCALE',
+    'text_character_geometry/scale_range/1': 'text.MAX_CHARACTER_SCALE',
+    'text_character_geometry/baseline_shift_range/1': 'model.MAX_COORDINATE',
+    'paragraph_flow/stories': 'text_flow.MAX_STORIES',
+    'paragraph_flow/paragraphs_per_story': 'text_flow.MAX_PARAGRAPHS',
+    'paragraph_flow/slots_per_story': 'text_flow.MAX_SLOTS',
+    'paragraph_flow/columns_per_slot': 'text_flow.MAX_COLUMNS',
+    'paragraph_flow/aggregate_characters': 'text.MAX_TEXT_CHARS',
+    'paragraph_flow/visible_hyphenation/rule_sets_per_story': 'text_flow_hyphens.MAX_RULE_SETS',
+    'paragraph_flow/structural_lists/levels': 'text_flow_lists.MAX_LEVELS',
+    'paragraph_flow/structural_lists/ids_per_story': 'text_flow_lists.MAX_LISTS',
+    'paragraph_flow/structural_lists/max_counter': 'text_flow_lists.MAX_COUNTER',
+    'paragraph_flow/structural_lists/roman_max': 'text_flow_lists.MAX_ROMAN_COUNTER',
+    'paragraph_flow/structural_lists/affix_characters': 'text_flow_lists.MAX_AFFIX',
+    'paragraph_flow/layout_limits/slot_extent/0': 'text.MIN_FRAME_EXTENT',
+    'paragraph_flow/layout_limits/slot_extent/1': 'model.MAX_COORDINATE',
+    'paragraph_flow/layout_limits/minimum_column_extent': 'text.MIN_FRAME_EXTENT',
+    'paragraph_flow/layout_limits/gutter/1': 'model.MAX_COORDINATE',
+    'paragraph_flow/layout_limits/spacing_and_indents/1': 'model.MAX_COORDINATE',
+    'paragraph_flow/layout_limits/first_indent/1': 'model.MAX_COORDINATE',
+    'paragraph_flow/layout_limits/list_gap/1': 'model.MAX_COORDINATE',
+    'paragraph_flow/layout_limits/layout_overflow_tolerance': 'text.LAYOUT_OVERFLOW_TOLERANCE',
+    'coordinate_precision/geometry_control_point_absolute_limit': 'model.MAX_COORDINATE',
+    'coordinate_precision/transform_component_absolute_limit': 'model.MAX_COORDINATE',
+    'coordinate_precision/point_arithmetic/ordinary_or_compensated_absolute_error': 'geometry_point.MAX_ROUNDOFF',
+    'coordinate_precision/hierarchy/fast_composition_point_error': 'scene_hierarchy.MAX_FAST_POINT_ERROR',
+    'coordinate_precision/hierarchy/maximum_ancestors': 'scene.MAX_DEPTH',
+    'coordinate_precision/hierarchy/shared_chain_cache_entries': 'scene.MAX_CACHED_CHAINS',
+    'coordinate_precision/affine_inverse/minimum_absolute_determinant': 'geometry_affine.MIN_DETERMINANT',
+    'coordinate_precision/relative_edits/maximum_factors': 'geometry_affine.MAX_RELATIVE_FACTORS',
+    'coordinate_precision/coordinate_conversions/maximum_expression_factors': 'geometry_affine.MAX_TRANSFORM_FACTORS',
+    'coordinate_precision/affine_inverse/fast_coefficient_point_error': 'geometry_affine.MAX_FAST_POINT_ERROR',
+    'coordinate_precision/affine_inverse/point_coordinate_absolute_limit': 'geometry_affine.MAX_POINT_COORDINATE',
+    'coordinate_precision/relative_edits/fast_coefficient_point_error': 'geometry_affine.MAX_FAST_POINT_ERROR',
+    'coordinate_precision/relative_edits/point_coordinate_absolute_limit': 'geometry_affine.MAX_POINT_COORDINATE',
+    'coordinate_precision/coordinate_conversions/fast_coefficient_point_error': 'geometry_affine.MAX_FAST_POINT_ERROR',
+    'coordinate_precision/coordinate_conversions/point_coordinate_absolute_limit': 'geometry_affine.MAX_POINT_COORDINATE',
+
     'dimensions/angle_degrees/1': 'dimensions.MAX_ANGLE_DEGREES',
     'dimensions/length_tolerance/0': 'dimensions.MIN_LENGTH_TOLERANCE',
     'dimensions/length_tolerance/1': 'dimensions.MAX_LENGTH_TOLERANCE',
@@ -544,6 +591,37 @@ class ResourceLimitTests(unittest.TestCase):
                          2*values['model.MAX_COORDINATE'])
         self.assertEqual(capabilities()['layer_effects']['contour'],
                          f"piecewise_linear_2_to_{values['effects.MAX_CONTOUR_KNOTS']}_knots_origin_zero")
+
+        # Identity/default endpoints and symmetric signed ranges are semantics;
+        # every text/flow and coordinate precision budget has a compiled binding.
+        fixed = {'coordinate_precision/direct_transport_absolute_error': 0,
+                 'text_character_geometry/scale_default': 1,
+                 'text_character_geometry/baseline_shift_default': 0,
+                 'paragraph_flow/layout_limits/gutter/0': 0,
+                 'paragraph_flow/layout_limits/spacing_and_indents/0': 0,
+                 'paragraph_flow/layout_limits/list_gap/0': 0}
+        symmetric = ('text_limits/tracking', 'text_character_geometry/baseline_shift_range',
+                     'paragraph_flow/layout_limits/first_indent')
+        for path, expected in fixed.items():
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[int(part)] if isinstance(value, list) else value[part]
+            self.assertEqual(value, expected)
+        for path in symmetric:
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[part]
+            self.assertEqual(value[0], -value[1])
+        for prefix in ('text_limits', 'text_character_geometry', 'paragraph_flow', 'coordinate_precision'):
+            self.assertEqual(numeric_fields(capabilities()[prefix], prefix) - fixed.keys()
+                             - {p+'/0' for p in symmetric},
+                             {p for p in BINDINGS if p.startswith(prefix+'/')})
+        self.assertEqual(values['geometry_affine.MAX_POINT_COORDINATE'],
+                         2*values['model.MAX_COORDINATE'])
+        self.assertEqual(capabilities()['coordinate_precision']['hierarchy']['error_scope'],
+                         f"composition_only;exact_application_to_controls_bounded_by_{values['model.MAX_COORDINATE']:g};final_point_arithmetic_and_coverage_are_separate")
+        self.assertEqual(capabilities()['text_first_baseline']['minimum'],
+                         f"finite_0_to_{values['model.MAX_COORDINATE']:g}_local_pixels")
 
         # Symmetric coordinates and normalized zero/endpoint semantics are
         # checked separately; every other advertised stroke/brush bound is bound.
