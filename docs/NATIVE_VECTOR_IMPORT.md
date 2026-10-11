@@ -14,9 +14,11 @@ Import returns a snapshot; use `session.create` to start durable editing.
 The receipt identifies source and decoded bytes, source-to-document coordinates,
 generated object IDs, names, counts and explicit losses. It writes no files.
 
-The admitted container has a classic PDF cross-reference table and one reachable
+Editable text requires declared creator major 30 and file format 14.0.
+The alternative admitted container has a classic PDF cross-reference table and one reachable
 editable data container, with container version 12, roundtrip version 24 and
-creator version 30. Numbered blocks are joined in numeric order. Uncompressed
+creator version 30. Numbered blocks are joined in numeric order; an absent count
+admits only the single first block, with undeclared extra blocks rejected. Uncompressed
 data and one Zstandard frame are supported; selected PDF block streams can be
 unfiltered or Flate encoded. Compression completion, checksums when present,
 declared sizes, object boundaries, reference cycles and metadata agreement are
@@ -28,8 +30,11 @@ straight or cubic segments. Source controls remain in native point coordinates.
 A shared layer transform converts the vertical axis and translates the artboard
 union to the document origin at 72 pixels per inch. Artboards remain independent
 scene views over the same editable objects. Visibility, locking and normal
-opacity are retained separately. ASCII labels support escaped delimiters and
-octal bytes. RGB values must resolve to eight-bit channels; fractional values
+opacity are retained separately. Literal ASCII labels support escaped delimiters
+and octal bytes. Path-name identities decode their distinct space and ASCII
+escape spelling; a layer's separate data identity never replaces its display
+label. Unmapped wide escapes fail. Artboards belong to the recorded document
+dictionary and require distinct UUIDs with valid syntax. RGB values must resolve to eight-bit channels; fractional values
 are rejected rather than rounded away.
 
 `encoded_srgb` declares the caller's interpretation of RGB numbers. Source
@@ -54,8 +59,9 @@ integer rectangles, two shared views, compression/framing failures, source
 preservation, saved retry/undo and create-only delivery. Controlled external
 source comparisons are retained privately under the research policy.
 
-Native file export and complete native roundtrip interoperability remain open.
-This subset does not complete either original native interchange checkpoint or
+[Native delivery](NATIVE_VECTOR_DELIVERY.md) writes an admitted editable-text
+subset through the ordinary export/publication path. Complete native
+interoperability remains open. This work does not complete either original native interchange checkpoint or
 change the 161/167 registry. Existing snapshot, SVG, PDF and image delivery use
 their own published contracts.
 

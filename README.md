@@ -56,8 +56,10 @@ Snapshot edits and ordinary exports return data. `document.publish` and `session
 
 [Native vector import](docs/NATIVE_VECTOR_IMPORT.md) supports an admitted subset
 of flat layers, closed RGB paths and shared artboards, with explicit color
-interpretation and loss reporting. Native delivery and complete interchange
-remain unfinished.
+interpretation and loss reporting. [Editable native delivery](docs/NATIVE_VECTOR_DELIVERY.md)
+adds original text output for the declared layer/path/artboard subset, including
+safe publication and native save/reopen comparisons. Complete interchange and
+both original native checkpoints remain unfinished.
 
 The engine covers vector geometry, typography, artboards, retained raster edits, masks, effects, color, print preparation and bounded interchange. Each capability has specific limits and unsupported cases; the registry's verified status applies to those exact acceptance criteria.
 

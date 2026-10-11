@@ -3,14 +3,17 @@
 Native vector import now maps an admitted editable stream into flat layers,
 closed line/cubic RGB paths and shared artboards, preserving visibility, locks
 and opacity. Explicit color interpretation, strict compression/framing checks
-and source-preserving failures bound this subset. Native delivery, broader
-semantics and both original interchange checkpoints remain unfinished. See
+and source-preserving failures bound this subset. Original editable-text
+[native delivery](NATIVE_VECTOR_DELIVERY.md) now supports the declared subset
+through CLI/MCP, pinned publication and durable jobs, with native save/reopen
+structure and pixel comparisons. Empty layers, broader semantics and both
+original interchange checkpoints remain unfinished. See
 [the import contract](NATIVE_VECTOR_IMPORT.md); the registry remains 161/167.
 
 Shared scene artboards now retain one editable vector layer tree across multiple
 views, with independent placement, bleed, saved history and image/SVG/PDF
 delivery. Existing owned-subtree artboards retain their behavior. This removes a
-model limitation for native interchange; native editable stream import/delivery
+model limitation for native interchange; complete native import/delivery
 and both original interchange checkpoints remain open. See
 [scene artboards](SCENE_ARTBOARDS.md).
 

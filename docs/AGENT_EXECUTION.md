@@ -28,6 +28,10 @@ Session comparisons capture both committed states in one read transaction, relea
 
 `document.publish` accepts document, optional resources, output, optional receipt and control. `session.publish` replaces document/resources with session_root, session_id and expected_revision. A new export requires the current head to match before capturing a snapshot; subsequent edits do not affect that export. A committed durable retry returns its original result without recapturing the source. Publication does not change session history.
 
+For the editable native vector subset, use `format:"native_vector"` with a
+`.vector` delivery filename. It shares pinned sources, create-only writes,
+durable receipts and jobs; see [native delivery](NATIVE_VECTOR_DELIVERY.md).
+
 The output object requires:
 
 ```json

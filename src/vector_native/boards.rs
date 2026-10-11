@@ -9,16 +9,50 @@ pub struct Board {
     pub name: String,
     pub bounds: [f64; 4],
     pub locked: bool,
+    uuid: String,
 }
 pub fn read(setup: &[u8], control: &Control) -> Result<Vec<Board>, Error> {
     let mut data = Vec::new();
+    let mut active = false;
+    let mut seen = false;
     for line in setup.split(|v| matches!(v, b'\r' | b'\n')) {
-        if let Some(line) = line.strip_prefix(b"%_") {
+        if line == b"%AI9_BeginDocumentData" {
+            if seen {
+                return Err(invalid("Duplicate native document data"));
+            }
+            active = true;
+            seen = true;
+        } else if line == b"%AI9_EndDocumentData" {
+            if !active {
+                return Err(invalid("Unmatched native document data end"));
+            }
+            active = false;
+        } else if active && let Some(line) = line.strip_prefix(b"%_") {
             data.extend_from_slice(line);
             data.push(b'\n');
+        } else if active && !line.trim_ascii().is_empty() {
+            return Err(invalid("Unexpected native document data line"));
         }
     }
+    if !seen || active {
+        return Err(invalid("Missing or unclosed native document data"));
+    }
     let tokens = tokens::lex(&data, control)?;
+    if tokens.first() != Some(&Token::Name("Document".into()))
+        || tokens::end(&tokens, 0)? != tokens.len() - 1
+        || tokens.get(2) != Some(&Token::Name("Dictionary".into()))
+    {
+        return Err(invalid("Native artboards require a document dictionary"));
+    }
+    let recorded_end = tokens::end(&tokens, 2)?;
+    if tokens.get(recorded_end + 1) != Some(&Token::Name("Recorded".into()))
+        || tokens.get(recorded_end + 2) != Some(&Token::Mark(b','))
+    {
+        return Err(invalid(
+            "Native artboards require the recorded document dictionary",
+        ));
+    }
+    let tokens = &tokens[4..recorded_end];
     let mut stack = Vec::new();
     let mut selected = None;
     let mut bleeds = BTreeSet::new();
@@ -34,6 +68,11 @@ pub fn read(setup: &[u8], control: &Control) -> Result<Vec<Board>, Error> {
                 .pop()
                 .ok_or_else(|| invalid("Unbalanced native setup data"))?;
             if tokens.get(i + 1) == Some(&Token::Bytes(b"ArtboardArray".to_vec())) {
+                if !stack.is_empty() {
+                    return Err(invalid(
+                        "Native artboards must belong directly to the recorded document",
+                    ));
+                }
                 if selected.replace((start, i)).is_some() {
                     return Err(invalid("Multiple native artboard arrays"));
                 }
@@ -51,7 +90,8 @@ pub fn read(setup: &[u8], control: &Control) -> Result<Vec<Board>, Error> {
             ]
             .contains(&key.as_slice())
         {
-            if !bleeds.insert(key.clone())
+            if !stack.is_empty()
+                || !bleeds.insert(key.clone())
                 || i < 2
                 || tokens[i - 1] != Token::Name("Real".into())
                 || tokens.get(i + 1) != Some(&Token::Mark(b','))
@@ -78,15 +118,20 @@ pub fn read(setup: &[u8], control: &Control) -> Result<Vec<Board>, Error> {
     }
     let mut at = start + 2;
     let mut boards = Vec::new();
+    let mut identities = BTreeSet::new();
     while at < finish {
         if tokens[at] != Token::Name("Dictionary".into()) {
             return Err(invalid("Native artboard must be a dictionary"));
         }
-        let stop = tokens::end(&tokens, at)?;
+        let stop = tokens::end(tokens, at)?;
         if stop >= finish || tokens.get(stop + 1) != Some(&Token::Mark(b',')) {
             return Err(invalid("Invalid native artboard element"));
         }
-        boards.push(board(&tokens[at + 2..stop])?);
+        let board = board(&tokens[at + 2..stop])?;
+        if !identities.insert(board.uuid.clone()) {
+            return Err(invalid("Duplicate native artboard identity"));
+        }
+        boards.push(board);
         at = stop + 2;
         if boards.len() > crate::boards::MAX_ARTBOARDS {
             return Err(limit("Native artboard count exceeds engine budget"));
@@ -182,7 +227,18 @@ fn board(tokens: &[Token]) -> Result<Board, Error> {
     if uuid.len() != 2 || uuid[1] != Token::Name("String".into()) {
         return Err(invalid("Invalid native artboard identity"));
     }
-    uuid[0].text()?;
+    let uuid = uuid[0].text()?.to_ascii_lowercase();
+    if uuid.len() != 36
+        || uuid.bytes().enumerate().any(|(i, b)| {
+            if [8, 13, 18, 23].contains(&i) {
+                b != b'-'
+            } else {
+                !b.is_ascii_hexdigit()
+            }
+        })
+    {
+        return Err(invalid("Malformed native artboard identity"));
+    }
     // This display-only style is admitted only in the observed transparent/default form.
     let style = fields
         .get("EachArtboardColor")
@@ -205,5 +261,6 @@ fn board(tokens: &[Token]) -> Result<Board, Error> {
         name,
         bounds: [a[0], a[1], b[0], b[1]],
         locked,
+        uuid,
     })
 }

@@ -115,6 +115,7 @@ pub const MAX_REQUEST_BYTES: u64 = 16 * 1024 * 1024;
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExportFormat {
+    NativeVector,
     Layered,
     LayeredLarge,
     Gif,
@@ -1220,16 +1221,17 @@ fn capability_report() -> Value {
     capabilities["svg_import"] = svg_import_contract;
     capabilities["native_vector_import"] = json!({
         "command":"vector.import","source":"local_regular_file;read_only",
-        "container":"classic_xref_PDF_with_one_reachable_editable_stream;container_12;roundtrip_24;creator_30",
+        "container":"editable_text_14_creator_30;or_classic_xref_PDF_with_one_reachable_editable_stream_container_12_roundtrip_24_creator_30",
         "source_bytes":vector_native::MAX_SOURCE_BYTES,"decoded_bytes":vector_native::MAX_DECODED_BYTES,
         "blocks":vector_native::MAX_BLOCKS,"compression":["none","single_zstandard_frame_checked_checksum_and_size"],
         "editable":["flat_named_layers","closed_line_and_cubic_RGB_paths","visibility","locks","opacity","shared_scene_artboards"],
         "color_policy":"required_encoded_srgb;source_profiles_not_imported",
         "coordinates":"native_points_at_72ppi;one_shared_y_flip_and_artboard_union_origin",
         "unsupported":["nested_layers","groups","open_or_stroked_or_compound_paths","gradients","text","images","links","effects","clipping","nondefault_blend_or_winding","fractional_RGB_components","nonzero_bleed","non_ASCII_labels","scaled_canvases","xref_streams","incremental_or_encrypted_PDF","unknown_artwork_operators_or_object_properties"],
-        "preview_pages":"never_used_as_editable_artwork","native_delivery":false,
+        "preview_pages":"never_used_as_editable_artwork","native_delivery":"native_vector_subset",
         "checkpoint_status":"both_original_native_interchange_criteria_remain_in_progress"
     });
+    capabilities["native_vector_delivery"] = json!({"format":"native_vector","transport":"editable_text","editable":["flat_named_layers","closed_line_and_cubic_RGB_paths","visibility","locks","opacity","shared_scene_artboards"],"geometry_conversion":["rectangles_to_paths","polygons_to_paths","affine_transforms_baked_into_controls"],"units":"points_at_72_per_inch","color":"encoded_RGB_without_profile","names":"nonempty_printable_ASCII","metadata":"explicit_strip_if_descriptive_metadata_present","normal_canvas_coordinate_limit":16383,"output_bytes":vector_native::MAX_DECODED_BYTES,"implicit_canvas_artboard":true,"snapshot_payload":false,"executable_prolog":false,"checkpoint_status":"original_interchange_acceptance_still_requires_full_audit"});
     capabilities["resource_profiles"] = json!({"field":"resource_profile","default":"standard","operation":"resource_profile","standard":{"items":model::MAX_ITEMS,"geometry_commands":model::MAX_SEGMENTS,"snapshot_bytes":model::MAX_DOCUMENT_BYTES,"svg_source_bytes":svg_import::MAX_BYTES,"svg_nodes":svg_import::MAX_NODES},"large_vector":{"items":model::MAX_LARGE_VECTOR_ITEMS,"geometry_commands":model::MAX_LARGE_VECTOR_COMMANDS,"snapshot_bytes":model::MAX_LARGE_VECTOR_BYTES,"svg_source_bytes":svg_import::MAX_LARGE_BYTES,"svg_nodes":svg_import::MAX_LARGE_NODES,"kind":"vector"},"scope":"stored_and_expanded_document_budgets;other_algorithm_and_transport_limits_remain_independent","per_path_commands":model::MAX_SEGMENTS,"checkpoint":"vector.resources.extended","checkpoint_status":"in_progress"});
     capabilities["resource_profiles"]["regional_rendering"] = json!({"profile":"large_vector","eligible":"ordinary_vector_fills_strokes_and_neutral_groups","bounds":"transformed_controls_and_generated_strokes_plus_two_evaluation_pixels","paint_coordinates":"original_item_space","work":"actual_region_scans_paints_composition_and_controls","other_scenes":"general_bounded_renderer","raises_processing_limits":false});
     capabilities["resource_profiles"]["large_raster"] = json!({"items":model::MAX_LARGE_RASTER_ITEMS,"geometry_commands":model::MAX_LARGE_RASTER_COMMANDS,"snapshot_bytes":model::MAX_LARGE_RASTER_BYTES,"kind":"raster","overlays":"ordinary_vector_geometry_with_fills_and_strokes","native_storage":"existing_immutable_blocks_and_pure_patches","rendering":"existing_whole_limits;opt_in_tiled_evaluation;conservative_spatial_membership;neighboring_source_reuse","raises_processing_limits":false});
@@ -1484,7 +1486,10 @@ fn capability_report() -> Value {
     capabilities["supported"]["exports"]
         .as_array_mut()
         .unwrap()
-        .push(json!("tiff_explicit_depth_gray_or_rgba"));
+        .extend([
+            json!("tiff_explicit_depth_gray_or_rgba"),
+            json!("native_vector_editable_subset"),
+        ]);
     capabilities["features"]["bmp_import"] = json!(true);
     capabilities["features"]["tga_import"] = json!(true);
     capabilities["features"]["gif_import"] = json!(true);
@@ -1563,7 +1568,11 @@ fn capability_report() -> Value {
     capabilities["publication"]["formats"]
         .as_array_mut()
         .unwrap()
-        .extend([json!("layered"), json!("layered_large")]);
+        .extend([
+            json!("layered"),
+            json!("layered_large"),
+            json!("native_vector"),
+        ]);
     capabilities["layered_interchange"] = json!({"status":"basic_interchange_verified","import":"layered.import","export_format":"layered","file_version":1,"additional_file_versions":[2],"large_export_format":"layered_large","dimensions_by_version":{"standard":30000,"large":32768},"extended_status":"partial_uncredited","mode":"rgb8","layer_order":"bottom_to_top","layer_sources":["inline_raster","encoded_srgb_rgba8_samples"],"import_compression":["raw","rle","zip","zip_prediction"],"export_compression":"rle;raw_available_in_Rust_library","preserved":["original_layer_pixels_including_hidden_RGB","integer_extents","names","visibility","byte_opacity","byte_fill_opacity","whole_layer_lock"],"source_changed":false,"canvas_pixels":layered::MAX_CANVAS_PIXELS,"stored_pixels":model::MAX_STORED_PIXELS,"file_bytes":layered::MAX_FILE_BYTES,"maximum_layers":model::MAX_ITEMS,"profile_policy":"exact_builtin_srgb;explicit_convert_srgb_for_other_profiles;explicit_assume_srgb_for_untagged","merged_preview":"white_matted_RGB_with_separate_alpha;8bit_unmatting_loss;layers_remain_original","metadata":"explicit_strip_if_descriptive_metadata_present","incoming_metadata":"strict_known_inactive_records_with_omission_receipts","descriptor_limits":{"bytes":65536,"depth":8,"values":512,"container_entries":128},"density_units":"fixed_values_always_ppi;unit_selectors_are_display_only","groups":{"modes":["normal_isolated","normal_pass_through"],"empty":true,"ancestor_levels":16,"serialized_records":512,"transforms":"absolute_integer_source_placements;imported_groups_identity","open_state":"omitted_UI_metadata","unsupported":["non_normal_group_blends","group_fill_opacity","knockout","cached_group_pixel_extents","layer_role_containers"]},"masks":{"authored_gray8":true,"independent_bounds":true,"constant_empty_planes":true,"controls":["linked","enabled","outside_black_or_white","exact_byte_density"],"sampling":"nearest_integer_translation","unsupported":["nonzero_native_feather","obsolete_invert_flag","derived_masks","combined_real_vector_masks","implicit_resampling"]},"empty_layer_names":"encoded_exactly;native_consumers_may_generate_names;receipt_lists_empty_name_source_ids","unsupported":["large_axes_above_32768","empty_pixel_layers","native_mask_feather","derived_or_combined_masks","incoming_text_and_unmapped_text_layout","unsupported_embedded_source_semantics","non_normal_blends","extra_channels","nonempty_guides","unknown_appearance_records"],"checkpoint":"raster.interchange.basic"});
     capabilities["layered_interchange"]["embedded_objects"] = json!({
         "import":"explicit_policy_required","export":"explicit_policy_required",

@@ -54,6 +54,7 @@ pub(crate) fn destination(options: &Options) -> Result<PathBuf, Error> {
         ));
     }
     let extensions: &[&str] = match options.format {
+        ExportFormat::NativeVector => &[".vector", ".ai"],
         ExportFormat::Layered => &[".psd"],
         ExportFormat::LayeredLarge => &[".psb"],
         ExportFormat::Gif => &[".gif"],
@@ -233,7 +234,7 @@ pub fn export_with_render_options(
         value["delivery"]["render_settings"] = plan.receipt();
         *packet = value.to_string();
     }
-    let sanitized = if snapshot {
+    let sanitized = if snapshot || matches!(format, ExportFormat::NativeVector) {
         metadata_policy.map(|p| crate::metadata::sanitized(document, p.mode))
     } else {
         None
@@ -241,6 +242,15 @@ pub fn export_with_render_options(
     let document = sanitized.as_ref().unwrap_or(document);
     crate::image_io::validate_options(format, image_options)?;
     let mut artifact = match format {
+        ExportFormat::NativeVector => {
+            if scale != 1 || packet.is_some() {
+                return Err(Error::new(
+                    "UNSUPPORTED",
+                    "Native vector delivery requires scale 1 and explicit stripped descriptive metadata",
+                ));
+            }
+            crate::vector_native::export(document, control.unwrap_or(&Control::default()))
+        }
         ExportFormat::Layered | ExportFormat::LayeredLarge => {
             if scale != 1 || packet.is_some() {
                 return Err(Error::new(
@@ -384,10 +394,13 @@ pub(crate) fn prepare_publication(
     let board = if single_pdf {
         None
     } else if let Some(id) = &options.artboard_id {
-        if matches!(options.format, ExportFormat::Snapshot | ExportFormat::Apng) {
+        if matches!(
+            options.format,
+            ExportFormat::Snapshot | ExportFormat::Apng | ExportFormat::NativeVector
+        ) {
             return Err(Error::new(
                 "UNSUPPORTED",
-                "Artboard publication requires a still image or SVG; publish the complete snapshot or sequence separately",
+                "Artboard publication requires a still image or SVG; publish the complete snapshot, sequence or native vector separately",
             ));
         }
         Some(crate::boards::standalone(

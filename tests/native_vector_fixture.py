@@ -1,18 +1,19 @@
 """Original tiny editable data and PDF/Zstandard framing, using only stdlib."""
 import zlib
+import uuid
 
 
 def board(name, rect, locked=False):
     left, top, right, bottom = rect
     return f'''/Dictionary :
-1 /Real (PAR), ({name}) /UnicodeString (Name),
-{left} {top} /RealPointRelToROrigin (PositionPoint1),
-{right} {bottom} /RealPointRelToROrigin (PositionPoint2),
-0 0 /RealPoint (RulerOrigin), 0 /Bool (IsArtboardDefaultName),
-0 /Int (DisplayMark), {int(locked)} /Bool (IsArtboardLocked),
-0 /Bool (IsArtboardSelected), (fixture-{name}) /String (ArtboardUUID),
-/FillStyle : 0 1 0 0 0 Xy 0 J 0 j 1 w 10 M []0 d 0 XR 0 0 Xd /Def ; (EachArtboardColor),
-;,
+1 /Real (PAR) , ({name}) /UnicodeString (Name) ,
+{left} {top} /RealPointRelToROrigin (PositionPoint1) ,
+{right} {bottom} /RealPointRelToROrigin (PositionPoint2) ,
+0 0 /RealPoint (RulerOrigin) , 0 /Bool (IsArtboardDefaultName) ,
+0 /Int (DisplayMark) , {int(locked)} /Bool (IsArtboardLocked) ,
+0 /Bool (IsArtboardSelected) , ({uuid.uuid5(uuid.NAMESPACE_URL, 'inkbolt-fixture-'+name)}) /String (ArtboardUUID) ,
+/FillStyle : 0 1 0 0 0 Xy 0 J 0 j 1 w 10 M []0 d 0 XR 0 0 Xd /Def ; (EachArtboardColor) ,
+; ,
 '''
 
 
@@ -43,9 +44,10 @@ f
 def artwork(curve=False, visible=True, locked=False, opacity=1, layer_visible=True,
             layer_locked=False, board_locked=False):
     # Nonzero origin and two separated views over one layer tree.
-    typed = '/Dictionary :\n/Array :\n' + board('first', (-4, 12, 8, 4))
-    typed += board('detail', (12, 10, 20, 4), board_locked) + '; (ArtboardArray),\n'
-    typed += ''.join(f'0 /Real (Bleed{edge}Value),\n' for edge in ('Top','Right','Bottom','Left')) + ';'
+    typed = '/Document : /Dictionary :\n/Array :\n' + board('first', (-4, 12, 8, 4))
+    typed += board('detail', (12, 10, 20, 4), board_locked) + '; (ArtboardArray) ,\n'
+    typed += ''.join(f'0 /Real (Bleed{edge}Value) ,\n' for edge in ('Top','Right','Bottom','Left'))
+    typed += '; /Recorded , /Dictionary : ; /NotRecorded , ;'
     setup = '\n'.join('%_' + line for line in typed.splitlines())
     first = path('underlay', '-4 12 m 8 12 L 8 4 L -4 4 L -4 12 L', (0,0,1))
     first += path('detail-fill', '14 9 m 18 9 L 18 6 L 14 6 L 14 9 L', (0,1,0))
@@ -53,13 +55,16 @@ def artwork(curve=False, visible=True, locked=False, opacity=1, layer_visible=Tr
               else '-2 10 m 4 10 L 4 6 L -2 6 L -2 10 L')
     top = path('overlay', points, visible=visible, locked=locked, opacity=opacity)
     return ('''%!PS-Original-Inkbolt-Fixture
+%%AI8_CreatorVersion: 30.0.0
+%AI5_FileFormat 14.0
 %AI9_ColorModel: 1
 %AI24_LargeCanvasScale: 1
 %AI5_NumLayers: 2
 %%BeginProlog
 %%EndProlog
 %%BeginSetup
-''' + setup + '\n%%EndSetup\n' + layer('Base', first) +
+%AI9_BeginDocumentData
+''' + setup + '\n%AI9_EndDocumentData\n%%EndSetup\n' + layer('Base', first) +
             layer('Top', top, layer_visible, layer_locked) +
             '%%PageTrailer\ngsave annotatepage grestore showpage\n%%Trailer\n%%EOF\n').encode('ascii')
 

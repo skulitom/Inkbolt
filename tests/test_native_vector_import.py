@@ -188,10 +188,10 @@ class NativeVectorImport(unittest.TestCase):
                 self.assertNotIn('document',error)
 
     def test_syntax_damage_string_escaping_and_resource_bounds(self):
-        data = fixture.artwork().replace(b'(overlay)',b'(over\\(lay\\)\\040name)')
+        data = fixture.artwork().replace(b'(overlay)',b'(over_x28_lay_x29__name)')
         d = self.read(fixture.source(data=data))['document']
         self.assertEqual(next(i for i in d['items'] if i['id']=='path-2')['name'], 'over(lay) name')
-        for old,new in [(b'(ArtboardArray),',b'(ArtboardArray)'),(b'/Array :',b'/Array '),
+        for old,new in [(b'(ArtboardArray) ,',b'(ArtboardArray)'),(b'/Array :',b'/Array '),
                          (b'%%EndSetup',b'%%EndProlog\n%%EndSetup'),(b'4 10 L',b'NaN 10 L'),
                          (b'0 /Bool (IsArtboardSelected)',b'2 /Bool (IsArtboardSelected)')]:
             self.read(fixture.source(data=fixture.artwork().replace(old,new)),1)
@@ -213,7 +213,7 @@ class NativeVectorImport(unittest.TestCase):
             self.assertIn('color_policy',schema['required'])
             cap = client.tool('run',command='capabilities',arguments={})['structuredContent']['result']
             self.assertIn('vector.import',cap['commands'])
-            self.assertFalse(cap['native_vector_import']['native_delivery'])
+            self.assertEqual(cap['native_vector_import']['native_delivery'],'native_vector_subset')
             del args['color_policy']
             failed = client.tool('run',command='vector.import',arguments=args)
             self.assertEqual(failed['structuredContent']['error']['code'],'INVALID_REQUEST')

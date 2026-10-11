@@ -424,12 +424,10 @@ impl State {
                     return Err(invalid("Invalid native object identity metadata"));
                 }
                 let name = t[at + 2].text()?;
-                if Some(target) == self.layer && self.items[target]["name"] != name {
-                    return Err(unsupported(
-                        "Native layer names and source identities disagree",
-                    ));
+                // A layer's separate data identity is not its display label.
+                if Some(target) != self.layer {
+                    self.items[target]["name"] = json!(names::decode(&name)?);
                 }
-                self.items[target]["name"] = json!(name);
                 at += 6;
             } else {
                 let value = t
