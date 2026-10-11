@@ -59,6 +59,23 @@ class RepositoryGuardTests(unittest.TestCase):
         self.write("fake.rs", b"\0payload")
         self.assertTrue(any("Binary" in issue for issue in guard.check_repository(self.root)[0]))
 
+    def test_only_reviewed_workflow_path_is_admitted_with_all_other_checks(self):
+        workflow = '.github/workflows/ci.yml'
+        for public in (False, True):
+            self.assertEqual(guard.inspect_file(workflow, b'name: Original\n', []), [])
+            self.assertTrue(guard.inspect_file('.github/workflows/extra.yml', b'name: Original\n', []))
+            self.assertTrue(guard.inspect_file('elsewhere/ci.yml', b'name: Original\n', []))
+            self.write(workflow, b'BlockedVendorToken\n')
+            issues, _ = guard.check_repository(self.root, public=public)
+            self.assertEqual(bool(issues), not public)
+            self.write(workflow, b'\0')
+            self.assertTrue(guard.check_repository(self.root, public=public)[0])
+        self.write(workflow, b'name: Original\n')
+        self.write('.gitignore', b'/.github/\n')
+        self.git('add', '-f', workflow)
+        for public in (False, True):
+            self.assertTrue(any('Ignored material' in issue for issue in guard.check_repository(self.root, public=public)[0]))
+
     def test_missing_or_empty_policy_fails_closed(self):
         policy = self.root / ".git/private-content-policy.json"
         policy.unlink()

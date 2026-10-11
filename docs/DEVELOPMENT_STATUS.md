@@ -32,7 +32,7 @@ older results. The final focused change took 108.5 seconds on Windows and
 [development loop](DEVELOPMENT_LOOP.md). W0 completion does not complete
 W1, any additional engine checkpoint, the scale targets or the overall goal.
 
-## W1: verified preparation, approval and hosted evidence pending
+## W1: verified preparation, hosted evidence pending
 
 Linux tier 1 covers core/library/CLI/MCP, sessions and durable publication/history
 receipts on Ubuntu 22.04 under WSL2, using native Linux storage. Background jobs
@@ -67,9 +67,10 @@ keeps only the latest pending run. Dependency/build caches do not contain verifi
 state or waive any test. The exact workflow path is the only newly admitted YAML
 path; private content checks remain mandatory locally.
 
-CI activation and that publication-rule change await the owner's explicit
-approval. Local verification does not establish GitHub cache behavior, macOS or
-a passing hosted matrix. See [platform coverage](PLATFORMS.md).
+The owner approved activation, the exact workflow-path rule and Cargo cache on
+11 October 2026. Hosted matrix results remain pending. Local verification does
+not establish GitHub cache behavior, macOS or a passing hosted matrix. See
+[platform coverage](PLATFORMS.md).
 
 ## W2 and the next behavior increments
 

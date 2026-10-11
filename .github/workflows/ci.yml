@@ -1,0 +1,116 @@
+name: Verify
+
+'on':
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+      RUST_BACKTRACE: '1'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11.13'
+      - name: Install the declared development toolchain
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess, tomllib
+          toolchain = tomllib.loads(Path('rust-toolchain.toml').read_text(encoding='utf-8'))['toolchain']
+          subprocess.run(['rustup', 'toolchain', 'install', toolchain['channel'],
+                          '--profile', toolchain['profile'], '--component', ','.join(toolchain['components']),
+                          '--no-self-update'], check=True)
+          PY
+          rustc -vV
+          cargo --version
+          python --version
+      - name: Cache Cargo dependencies and build metadata
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          # Cache dependency outputs, not workspace executables or verification results.
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/registry/src
+            ~/.cargo/git/db
+            target/debug/.fingerprint
+            target/debug/build
+            target/debug/deps/*.rlib
+            target/debug/deps/*.rmeta
+            target/debug/deps/*.d
+            target/debug/deps/*.dll
+            target/debug/deps/*.lib
+            target/debug/deps/*.so
+            target/debug/deps/*.dylib
+            !target/debug/deps/*inkbolt*
+            ${{ runner.temp }}/inkbolt-msrv
+          key: cargo-v1-${{ matrix.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml', 'Cargo.toml', 'Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            cargo-v1-${{ matrix.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml', 'Cargo.toml', 'Cargo.lock') }}-
+      - name: Check the minimum supported compiler
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os, subprocess, tomllib
+          minimum = tomllib.loads(Path('Cargo.toml').read_text(encoding='utf-8'))['package']['rust-version']
+          version = minimum + '.0' if minimum.count('.') == 1 else minimum
+          subprocess.run(['rustup', 'toolchain', 'install', version, '--profile', 'minimal', '--no-self-update'], check=True)
+          subprocess.run(['cargo', '+'+version, 'check', '--locked', '--all-targets',
+                          '--target-dir', str(Path(os.environ['RUNNER_TEMP'])/'inkbolt-msrv')], check=True)
+          PY
+      - name: Run complete public-clone verification
+        run: python -X utf8 tools/verify.py --public --thorough --jobs 2 --report "$RUNNER_TEMP/inkbolt-verification/report.json"
+      - name: Collect verification logs
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, os, shutil, subprocess
+          output = Path(os.environ['RUNNER_TEMP'])/'inkbolt-verification'
+          report = output/'report.json'
+          if report.is_file():
+              state = Path(subprocess.check_output(['git', 'rev-parse', '--absolute-git-dir'], text=True).strip())/'inkbolt-verify'
+              logs = output/'logs'
+              logs.mkdir(exist_ok=True)
+              for row in json.loads(report.read_text(encoding='utf-8'))['checks'].values():
+                  if not row.get('log'):
+                      continue
+                  source = Path(row['log'])
+                  if source.is_file() and not source.is_symlink() and source.resolve().is_relative_to(state.resolve()):
+                      shutil.copyfile(source, logs/source.name)
+          PY
+      - name: Retain verification evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-${{ matrix.os }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/inkbolt-verification/
+          if-no-files-found: warn
+          retention-days: 14

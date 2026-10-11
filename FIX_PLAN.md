@@ -25,7 +25,7 @@ standing authorization.
 | Workstream | Current status | Next action |
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
-| W1 | Linux tier 1, toolchain pinning and public guard verified; CI activation/macOS and Unix jobs remain open | Finish CI review and obtain its required approval; this does not block W2 preparation |
+| W1 | Linux tier 1, toolchain pinning and public guard verified; CI approved; hosted matrix/macOS and Unix jobs remain open | Activate the reviewed workflow and assess hosted results; this does not block W2 preparation |
 | W2 | Model/baseline harness and retained trials remain open | Build fixture/prompt/solve/judge separation, both arms and fake-driver tests; owner involvement starts at real trial execution |
 | W5.1 | Payload duplication remains open | Remove repeated image bytes; add explicit structured responses while preserving default text compatibility |
 | W3a.1-2 / W3b | Arcs, rounded rectangles and SVG insertion remain open | Deliver these bounded input/authoring increments alongside W2 preparation |
@@ -118,7 +118,7 @@ selecting a target or platform tier does not establish support.
 | Order | Work | Delivery unit / dependency |
 | --- | --- | --- |
 | Closed | W0 | Complete; no additional cleanup gate for later work |
-| 1 | W1 CI review and platform verification | Approval and hosted evidence remain; do not hold independent harness work behind them |
+| 1 | W1 CI and platform verification | Activation approved; hosted evidence remains; do not hold independent harness work behind it |
 | 2 | W2 harness | Several milestones across 20 adapters; no model credentials needed for fixtures, prompts, judges, fake drivers or baseline plumbing |
 | 3 | W5.1 payloads, W3a.1-2 arcs/rounded rectangles, W3b SVG insertion | Separate bounded behavior changes with focused tests; can proceed while real trials await the owner's environment |
 | 4 | W2 real model and baseline trials | Owner-provided execution environment or transcript/workspace imports; matched settings and retained failures |
@@ -154,8 +154,9 @@ capability or safety requirement, not reopen a consolidation campaign.
 See the status table, [platform support](docs/PLATFORMS.md) and
 [milestone evidence](docs/DEVELOPMENT_STATUS.md) for verified coverage.
 Linux tier 1 does not establish macOS, Unix jobs or full W1 completion.
-CI activation and the workflow-path publication rule still need owner approval
-under task 6; D2 authorizes their preparation, not activation.
+The owner approved the reviewed three-platform CI workflow, its narrow path
+allowance and Cargo cache on 11 October 2026. Task 6's activation approval is
+satisfied; hosted matrix evidence remains pending.
 
 **Tasks**
 
