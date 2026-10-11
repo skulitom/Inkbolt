@@ -12,6 +12,7 @@ import test_boards_cli as boards
 import test_render_quality_cli as quality
 import test_instances_cli as instances
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 rect=quality.rect
@@ -228,11 +229,37 @@ class DimensionsSnappingTests(unittest.TestCase):
         self.assertEqual(self.resize(locked,width=8,expected=1)['code'],'LOCKED');self.metric(locked)
         self.assertEqual(self.snap(d,targets=[dict(type='item',id='art')],max_distance=10,expected=1)['code'],'INVALID_OPERATION')
 
+    def test_advertised_measurement_and_resize_boundaries(self):
+        caps = capabilities()['dimensions']
+        d = self.document([rect(x=-2, y=-2)])
+        default = self.measure(d)
+        self.assertEqual(default['length_tolerance'], caps['default_length_tolerance'])
+        self.assertEqual(default['area_tolerance'], caps['default_area_tolerance'])
+        for key, field in [('angle', 'angle_degrees'), ('tolerance', 'length_tolerance'),
+                           ('area_tolerance', 'area_tolerance')]:
+            lo, hi = caps[field]
+            for value in (lo, hi):
+                with self.subTest(key=key, accepted=value):
+                    self.measure(d, **{key: value})
+            for value in (lo-1 if key == 'angle' else lo/2, hi+1):
+                error = self.measure(d, expected=1, **{key: value})
+                self.assertEqual(error['code'], 'INVALID_OPERATION' if key == 'angle' else 'INVALID_REQUEST')
+        lo, hi = caps['requested_logical_dimensions']
+        for key in ('width', 'height'):
+            for value in (lo, hi):
+                with self.subTest(key=key, accepted=value):
+                    out = self.resize(d, **{key: value})
+                    self.assertAlmostEqual(self.metric(out)[key], value, delta=max(1e-12, value*1e-12))
+            for value in (lo/2, hi+1):
+                error = self.resize(d, expected=1, **{key: value})
+                self.assertEqual(error['code'], 'INVALID_OPERATION')
+                self.assertIn(f'{lo:g}..{hi:g}', error['message'])
+
     def test_invalid_dimensions_targets_and_measurement_settings_fail_without_source_changes(self):
         d=self.document([rect()]);source=copy.deepcopy(d)
-        for kw in [{},dict(width=0),dict(width=3,height=4,preserve_aspect=True),dict(width=3,angle=360001),dict(width=3,unit='furlong')]:self.resize(d,expected=1,**kw)
+        for kw in [{},dict(width=0),dict(width=3,height=4,preserve_aspect=True),dict(width=3,angle=capabilities()['dimensions']['angle_degrees'][1]+1),dict(width=3,unit='furlong')]:self.resize(d,expected=1,**kw)
         for kw in [dict(targets=[],max_distance=1),dict(targets=[dict(type='grid',origin=[0,0],spacing=[0,1])],max_distance=1),dict(targets=[dict(type='point',point=[0,0])],max_distance=-1)]:self.snap(d,expected=1,**kw)
-        for kw in [dict(tolerance=0),dict(area_tolerance=0),dict(angle=360001)]:self.measure(d,expected=1,**kw)
+        for kw in [dict(tolerance=0),dict(area_tolerance=0),dict(angle=capabilities()['dimensions']['angle_degrees'][1]+1)]:self.measure(d,expected=1,**kw)
         self.measure(d,['art','art'],expected=1)
         self.assertEqual(d,source)
 

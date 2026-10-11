@@ -1,6 +1,10 @@
 # Retained vector appearance
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+`capabilities.appearance` reports the retained pass limit and vector tolerance
+range/default from the same catalog as validation. Appearance passes share the
+warp evaluator's tolerance policy; existing pass order and numeric bounds remain
+unchanged.
 
 An appearance object gives one editable source geometry several ordered fills and strokes. Agents can build outlined icons, layered diagram nodes and offset paint treatments without maintaining duplicate source paths. Each pass has a stable ID, and the document snapshot retains every source control.
 

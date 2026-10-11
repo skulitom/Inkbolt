@@ -13,6 +13,35 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'dimensions/angle_degrees/1': 'dimensions.MAX_ANGLE_DEGREES',
+    'dimensions/length_tolerance/0': 'dimensions.MIN_LENGTH_TOLERANCE',
+    'dimensions/length_tolerance/1': 'dimensions.MAX_LENGTH_TOLERANCE',
+    'dimensions/default_length_tolerance': 'dimensions.DEFAULT_LENGTH_TOLERANCE',
+    'dimensions/area_tolerance/0': 'dimensions.MIN_AREA_TOLERANCE',
+    'dimensions/area_tolerance/1': 'dimensions.MAX_AREA_TOLERANCE',
+    'dimensions/default_area_tolerance': 'dimensions.DEFAULT_AREA_TOLERANCE',
+    'dimensions/requested_logical_dimensions/0': 'dimensions.MIN_LOGICAL_DIMENSION',
+    'dimensions/requested_logical_dimensions/1': 'dimensions.MAX_LOGICAL_DIMENSION',
+    'layer_effects/effect_scale/0': 'effects.MIN_SCALE',
+    'layer_effects/effect_scale/1': 'effects.MAX_SCALE',
+    'layer_effects/shadow_sigma/1': 'effects.MAX_SHADOW_SIGMA',
+    'layer_effects/shadow_offset/1': 'effects.MAX_SHADOW_OFFSET',
+    'layer_effects/shadow_distance/1': 'effects.MAX_SHADOW_OFFSET',
+    'layer_effects/stroke_radius/1': 'effects.MAX_STROKE_RADIUS',
+    'layer_effects/light_azimuth/1': 'effects.MAX_LIGHT_AZIMUTH',
+    'layer_effects/default_light_azimuth': 'effects.DEFAULT_LIGHT_AZIMUTH',
+    'layer_effects/contour_knots/1': 'effects.MAX_CONTOUR_KNOTS',
+    'layer_effects/max_per_item': 'effects.MAX_STACK',
+    'layer_effects/max_per_document': 'effects.MAX_DOCUMENT_EFFECTS',
+    'layer_effects/max_work': 'effects.MAX_WORK',
+    'appearance/passes/1': 'appearance.MAX_PASSES',
+    'appearance/vector_tolerance/0': 'warps.MIN_TOLERANCE',
+    'appearance/vector_tolerance/1': 'warps.MAX_TOLERANCE',
+    'appearance/default_vector_tolerance': 'warps.DEFAULT_TOLERANCE',
+    'appearance/bake/pixels': 'model.MAX_STORED_PIXELS',
+    'appearance/bake/scale/1': 'render_quality.MAX_SCALE',
+    'document_transfer/prefix_characters/1': 'transfer.MAX_PREFIX_BYTES',
+    'document_transfer/item_id_bytes': 'model.MAX_ID_BYTES',
     'pixel_brushes/diameter/0': 'pixel_brush.MIN_DIAMETER',
     'pixel_brushes/spacing_range/0': 'pixel_brush.MIN_SPACING',
     'pixel_brushes/spacing_range/1': 'pixel_brush.MAX_SPACING',
@@ -491,6 +520,30 @@ class ResourceLimitTests(unittest.TestCase):
         self.assertEqual(brush['scatter'], f"seeded_uniform_square;0_to_{brush['scatter_range'][1]:g}_radii")
         repair = capabilities()['repair']
         self.assertEqual(repair['guide_minimum_effective_samples'][1], (2*repair['guide_radius'][1]+1)**2)
+
+        fixed = {'layer_effects/shadow_sigma/0': 0, 'layer_effects/shadow_distance/0': 0,
+                 'layer_effects/stroke_radius/0': 0, 'layer_effects/contour_knots/0': 2,
+                 'appearance/passes/0': 1, 'appearance/bake/scale/0': 1,
+                 'document_transfer/prefix_characters/0': 1}
+        symmetric = ('dimensions/angle_degrees', 'layer_effects/shadow_offset', 'layer_effects/light_azimuth')
+        for path, expected in fixed.items():
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[int(part)] if isinstance(value, list) else value[part]
+            self.assertEqual(value, expected)
+        for path in symmetric:
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[part]
+            self.assertEqual(value[0], -value[1])
+        for prefix in ('dimensions', 'layer_effects', 'appearance', 'document_transfer'):
+            self.assertEqual(numeric_fields(capabilities()[prefix], prefix) - fixed.keys()
+                             - {p+'/0' for p in symmetric},
+                             {p for p in BINDINGS if p.startswith(prefix+'/')})
+        self.assertEqual(capabilities()['dimensions']['requested_logical_dimensions'][1],
+                         2*values['model.MAX_COORDINATE'])
+        self.assertEqual(capabilities()['layer_effects']['contour'],
+                         f"piecewise_linear_2_to_{values['effects.MAX_CONTOUR_KNOTS']}_knots_origin_zero")
 
         # Symmetric coordinates and normalized zero/endpoint semantics are
         # checked separately; every other advertised stroke/brush bound is bound.

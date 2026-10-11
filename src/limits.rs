@@ -177,6 +177,24 @@ pub mod control {
 
 /// Limits for `src/dimensions.rs`.
 pub mod dimensions {
+    /// Maximum absolute measurement/resize projection angle in degrees.
+    pub const MAX_ANGLE_DEGREES: u32 = 360_000;
+    /// Minimum caller-selected certified boundary-length tolerance.
+    pub const MIN_LENGTH_TOLERANCE: f64 = 0.000001;
+    /// Maximum caller-selected certified boundary-length tolerance.
+    pub const MAX_LENGTH_TOLERANCE: u32 = 100;
+    /// Default certified boundary-length tolerance.
+    pub const DEFAULT_LENGTH_TOLERANCE: f64 = 0.0001;
+    /// Minimum caller-selected signed-area tolerance.
+    pub const MIN_AREA_TOLERANCE: f64 = 0.000000001;
+    /// Maximum caller-selected signed-area tolerance.
+    pub const MAX_AREA_TOLERANCE: u32 = 10_000;
+    /// Default signed-area tolerance.
+    pub const DEFAULT_AREA_TOLERANCE: f64 = 0.000001;
+    /// Minimum requested nondegenerate dimension after physical-unit conversion.
+    pub const MIN_LOGICAL_DIMENSION: f64 = 0.001;
+    /// Largest possible span between the negative and positive geometry bounds.
+    pub const MAX_LOGICAL_DIMENSION: f64 = 2.0 * super::model::MAX_COORDINATE;
     /// Maximum certified length subdivision depth for cubic curves and ellipses.
     pub const MAX_SUBDIVISION_DEPTH: usize = 32;
     /// Max work (dimensions).
@@ -191,6 +209,20 @@ pub mod edit {
 
 /// Limits for `src/effects.rs`.
 pub mod effects {
+    /// Minimum retained layer-effect kernel scale.
+    pub const MIN_SCALE: f64 = 0.001;
+    /// Maximum retained layer-effect kernel scale; effective kernel bounds also apply.
+    pub const MAX_SCALE: u32 = 1024;
+    /// Maximum shadow sigma, applied independently before and after effect scaling.
+    pub const MAX_SHADOW_SIGMA: u32 = 16;
+    /// Maximum shadow offset component or lit-shadow distance, before and after scaling.
+    pub const MAX_SHADOW_OFFSET: u32 = 256;
+    /// Maximum disk-stroke radius, before and after effect scaling.
+    pub const MAX_STROKE_RADIUS: u32 = 32;
+    /// Maximum absolute global or local lighting azimuth in degrees.
+    pub const MAX_LIGHT_AZIMUTH: u32 = 360;
+    /// Default document lighting azimuth in degrees.
+    pub const DEFAULT_LIGHT_AZIMUTH: u32 = 225;
     /// Maximum explicitly stored contour knots per retained layer effect.
     pub const MAX_CONTOUR_KNOTS: usize = 64;
     /// Max stack (effects).

@@ -1,6 +1,10 @@
 # Dimensions, measurements and snapping
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+Measurement angles, length/area tolerances and defaults, and requested logical
+dimensions share catalog definitions with `capabilities.dimensions` and
+validation. The maximum logical dimension is the span between the two geometry
+coordinate bounds. Physical-unit definitions and all numeric ranges are unchanged.
 
 Agents can inspect rotated geometry bounds, set physical dimensions and snap selected artwork to explicit points, grids, guides or item anchors. All operations use the document's declared resolution. Measurements are read-only; dimension and snap edits retain source geometry, pixels, shared definitions and existing appearance controls. These commands also work through MCP stdio and durable sessions.
 

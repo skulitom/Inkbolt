@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 mod measure;
+use crate::limits::dimensions as bounds;
 pub use crate::limits::dimensions::MAX_WORK;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -36,10 +37,10 @@ impl Unit {
     }
 }
 fn tolerance() -> f64 {
-    0.0001
+    bounds::DEFAULT_LENGTH_TOLERANCE
 }
 fn area_tolerance() -> f64 {
-    0.000001
+    bounds::DEFAULT_AREA_TOLERANCE
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -81,10 +82,13 @@ impl Anchor {
     }
 }
 pub(crate) fn basis(angle: f64) -> Result<Matrix, Error> {
-    if !angle.is_finite() || angle.abs() > 360_000.0 {
+    if !angle.is_finite() || angle.abs() > f64::from(bounds::MAX_ANGLE_DEGREES) {
         return Err(Error::new(
             "INVALID_OPERATION",
-            "Measurement angle must be finite within +/-360000 degrees",
+            format!(
+                "Measurement angle must be finite within +/-{} degrees",
+                bounds::MAX_ANGLE_DEGREES
+            ),
         ));
     }
     let reduced = angle.rem_euclid(360.0);
@@ -198,13 +202,21 @@ pub fn inspect(document: &Document, options: &Options, control: &Control) -> Res
     crate::validate(document)?;
     let axes = basis(options.angle)?;
     if !options.tolerance.is_finite()
-        || !(0.000001..=100.0).contains(&options.tolerance)
+        || !(bounds::MIN_LENGTH_TOLERANCE..=f64::from(bounds::MAX_LENGTH_TOLERANCE))
+            .contains(&options.tolerance)
         || !options.area_tolerance.is_finite()
-        || !(0.000000001..=10000.0).contains(&options.area_tolerance)
+        || !(bounds::MIN_AREA_TOLERANCE..=f64::from(bounds::MAX_AREA_TOLERANCE))
+            .contains(&options.area_tolerance)
     {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Length tolerance must be 1e-6..100 units; area tolerance must be 1e-9..10000 square units",
+            format!(
+                "Length tolerance must be {:e}..{} units; area tolerance must be {:e}..{} square units",
+                bounds::MIN_LENGTH_TOLERANCE,
+                bounds::MAX_LENGTH_TOLERANCE,
+                bounds::MIN_AREA_TOLERANCE,
+                bounds::MAX_AREA_TOLERANCE
+            ),
         ));
     }
     scene::selection(document, &options.ids, true)?;
@@ -304,15 +316,18 @@ pub(crate) fn resize(d: &mut Document, id: &str, options: &Resize) -> Result<Val
             "Specify at least one dimension, or exactly one when preserving aspect",
         ));
     }
-    if options
-        .width
-        .into_iter()
-        .chain(options.height)
-        .any(|v| !v.is_finite() || v * f < 0.001 || v * f > MAX_COORDINATE * 2.0)
-    {
+    if options.width.into_iter().chain(options.height).any(|v| {
+        !v.is_finite()
+            || v * f < bounds::MIN_LOGICAL_DIMENSION
+            || v * f > bounds::MAX_LOGICAL_DIMENSION
+    }) {
         return Err(Error::new(
             "INVALID_OPERATION",
-            "Requested dimensions must be finite within 0.001..65536 logical pixels",
+            format!(
+                "Requested dimensions must be finite within {}..{} logical pixels",
+                bounds::MIN_LOGICAL_DIMENSION,
+                bounds::MAX_LOGICAL_DIMENSION
+            ),
         ));
     }
     let evaluated = evaluated(d)?;

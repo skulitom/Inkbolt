@@ -198,6 +198,14 @@ precision, source preservation, memory refusal and durable history remain
 covered by focused Windows/Linux checks. The wider W0 audit and final fresh
 thorough gate remain open.
 
+Measurement and logical-resize bounds, appearance warp tolerance, layer-effect
+kernels/scales/lighting and transfer naming now share their catalog definitions
+with discovery and boundary fixtures. Effect limits still apply both before and
+after scaling; appearance uses the shared warp evaluator's policy. Maximum
+logical dimensions derive from the geometry coordinate span. Existing values,
+rendering and identifier fallback are unchanged; W0's remaining inline audit and
+fresh thorough acceptance are still open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

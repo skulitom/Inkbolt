@@ -19,7 +19,7 @@ pub struct Transfer {
 
 fn renamed(prefix: &str, id: &str) -> String {
     let readable = format!("{prefix}-{id}");
-    if readable.len() <= 128 {
+    if readable.len() <= crate::limits::model::MAX_ID_BYTES {
         readable
     } else {
         format!("{prefix}-{}", crate::assets::sha256(id.as_bytes()))

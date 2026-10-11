@@ -10,6 +10,7 @@ import test_editing_cli as editing
 import test_variants_cli as variants
 from test_mcp import Client
 import test_transfer_cli as transfer
+from advertised_limits import capabilities, over_pixel_budget
 
 
 def original():
@@ -102,11 +103,36 @@ class AppearanceTests(unittest.TestCase):
         self.assertEqual(self.edit(locked,dict(op='swatch',id='shared',swatch=None),expected=1)['code'],'LOCKED')
         bad=copy.deepcopy(d);bad['items'][0]['content']['appearance']['passes'][0].update(enabled=False,opacity=2);self.invoke(dict(command='document.validate',document=bad),1)
 
+    def test_advertised_tolerance_and_pass_count_boundaries(self):
+        caps = capabilities()['appearance']
+        d = self.valid(original())
+        self.assertTrue(all(p['tolerance'] == caps['default_vector_tolerance']
+                            for p in d['items'][0]['content']['appearance']['passes']))
+        for maps in ([], [dict(type='affine', matrix=[1, 0, 0, 1, 0, 0])]):
+            lo, hi = caps['vector_tolerance']
+            for value in (lo, hi, lo/2, hi+1):
+                spec = copy.deepcopy(d['items'][0]['content']['appearance'])
+                spec['passes'] = [dict(id='bounds', fill=[0, 0, 0, 255], maps=maps, tolerance=value)]
+                with self.subTest(maps=maps, tolerance=value):
+                    if lo <= value <= hi:
+                        self.edit(d, dict(op='appearance', id='icon', appearance=spec))
+                    else:
+                        self.assertEqual(self.edit(d, dict(op='appearance', id='icon', appearance=spec), expected=1)['code'], 'INVALID_APPEARANCE')
+        spec = copy.deepcopy(d['items'][0]['content']['appearance'])
+        maximum = caps['passes'][1]
+        spec['passes'] = [dict(id=f'f{i}', fill=[0, 0, 0, 255]) for i in range(maximum)]
+        self.edit(d, dict(op='appearance', id='icon', appearance=spec))
+        spec['passes'].append(dict(id='overflow', fill=[0, 0, 0, 255]))
+        error = self.edit(d, dict(op='appearance', id='icon', appearance=spec), expected=1)
+        self.assertEqual(error['code'], 'RESOURCE_LIMIT')
+        self.assertIn(str(maximum), error['message'])
+
     def test_resource_limits_unknown_fields_and_atomic_failed_bake(self):
-        d=self.valid(original());s=copy.deepcopy(d['items'][0]['content']['appearance']);s['passes']=[dict(id=f'f{i}',fill=[0,0,0,255]) for i in range(17)]
+        d=self.valid(original());s=copy.deepcopy(d['items'][0]['content']['appearance']);s['passes']=[dict(id=f'f{i}',fill=[0,0,0,255]) for i in range(capabilities()['appearance']['passes'][1]+1)]
         self.assertEqual(self.edit(d,dict(op='appearance',id='icon',appearance=s),expected=1)['code'],'RESOURCE_LIMIT')
         bad=copy.deepcopy(d);bad['items'][0]['content']['appearance']['passes'][0]['extra']=True;self.assertEqual(self.invoke(dict(command='document.validate',document=bad),1)['code'],'INVALID_REQUEST')
-        for region in [dict(origin=[0,0],width=257,height=256,scale=1),dict(origin=[0,0],width=24,height=20,scale=0)]:
+        width,height=over_pixel_budget(capabilities()['appearance']['bake']['pixels'])
+        for region in [dict(origin=[0,0],width=width,height=height,scale=1),dict(origin=[0,0],width=24,height=20,scale=0)]:
             self.assertEqual(self.edit(d,dict(op='appearance_bake',id='icon',asset_id='pixels',image_id='image',region=region),expected=1)['code'],'RESOURCE_LIMIT')
         self.assertNotIn('pixels',d.get('assets',{}));self.assertEqual(self.image(d),opaque_reference())
 
