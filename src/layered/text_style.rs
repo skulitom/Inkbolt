@@ -58,47 +58,96 @@ impl Kind {
 // This is an explicit mapping of individually observed controls, not a table of
 // native defaults. Missing entries remain missing. Feature names do not imply
 // a mapping to shaping tags or support by the selected font.
-const CONTROLS: &[(&str, Option<&str>, &str, Kind)] = &[
-    ("1", Some("FontSize"), "size", Kind::Number),
-    ("2", Some("FauxBold"), "faux_bold", Kind::Boolean),
-    ("3", Some("FauxItalic"), "faux_italic", Kind::Boolean),
-    ("4", Some("AutoLeading"), "automatic_leading", Kind::Boolean),
-    ("5", Some("Leading"), "leading", Kind::Number),
+const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
+    (Some("1"), Some("FontSize"), "size", Kind::Number),
+    (Some("2"), Some("FauxBold"), "faux_bold", Kind::Boolean),
+    (Some("3"), Some("FauxItalic"), "faux_italic", Kind::Boolean),
     (
-        "6",
+        Some("4"),
+        Some("AutoLeading"),
+        "automatic_leading",
+        Kind::Boolean,
+    ),
+    (Some("5"), Some("Leading"), "leading", Kind::Number),
+    (
+        Some("6"),
         Some("HorizontalScale"),
         "horizontal_scale",
         Kind::Number,
     ),
-    ("7", Some("VerticalScale"), "vertical_scale", Kind::Number),
     (
-        "8",
+        Some("7"),
+        Some("VerticalScale"),
+        "vertical_scale",
+        Kind::Number,
+    ),
+    (
+        Some("8"),
         Some("Tracking"),
         "tracking_thousandths_em",
         Kind::Integer,
     ),
-    ("9", Some("BaselineShift"), "baseline_shift", Kind::Number),
-    ("12", Some("FontCaps"), "capitalization_code", Kind::Integer),
-    ("18", Some("Ligatures"), "ligatures", Kind::Boolean),
     (
-        "19",
+        Some("9"),
+        Some("BaselineShift"),
+        "baseline_shift",
+        Kind::Number,
+    ),
+    (
+        Some("12"),
+        Some("FontCaps"),
+        "capitalization_code",
+        Kind::Integer,
+    ),
+    (
+        Some("13"),
+        Some("FontBaseline"),
+        "baseline_code",
+        Kind::Integer,
+    ),
+    // These legacy booleans/codes do not encode all global modes.
+    (Some("11"), None, "kerning_code", Kind::Integer),
+    (
+        None,
+        Some("AutoKerning"),
+        "local_auto_kerning",
+        Kind::Boolean,
+    ),
+    (Some("15"), None, "strikethrough_code", Kind::Integer),
+    (
+        None,
+        Some("Strikethrough"),
+        "local_strikethrough",
+        Kind::Boolean,
+    ),
+    (Some("16"), None, "underline_code", Kind::Integer),
+    (None, Some("Underline"), "local_underline", Kind::Boolean),
+    (
+        None,
+        Some("YUnderline"),
+        "local_underline_position",
+        Kind::Integer,
+    ),
+    (Some("18"), Some("Ligatures"), "ligatures", Kind::Boolean),
+    (
+        Some("19"),
         Some("DLigatures"),
         "discretionary_ligatures",
         Kind::Boolean,
     ),
-    ("20", None, "contextual_ligatures", Kind::Boolean),
-    ("23", None, "fractions", Kind::Boolean),
-    ("24", None, "ordinals", Kind::Boolean),
-    ("25", None, "swash", Kind::Boolean),
-    ("26", None, "titling", Kind::Boolean),
-    ("27", None, "connection_forms", Kind::Boolean),
-    ("28", None, "stylistic_alternates", Kind::Boolean),
-    ("29", None, "ornaments", Kind::Boolean),
-    ("75", None, "justification_alternates", Kind::Boolean),
-    ("31", None, "proportional_metrics", Kind::Boolean),
-    ("32", None, "kana", Kind::Boolean),
-    ("33", None, "italics", Kind::Boolean),
-    ("52", Some("NoBreak"), "no_break", Kind::Boolean),
+    (Some("20"), None, "contextual_ligatures", Kind::Boolean),
+    (Some("23"), None, "fractions", Kind::Boolean),
+    (Some("24"), None, "ordinals", Kind::Boolean),
+    (Some("25"), None, "swash", Kind::Boolean),
+    (Some("26"), None, "titling", Kind::Boolean),
+    (Some("27"), None, "connection_forms", Kind::Boolean),
+    (Some("28"), None, "stylistic_alternates", Kind::Boolean),
+    (Some("29"), None, "ornaments", Kind::Boolean),
+    (Some("75"), None, "justification_alternates", Kind::Boolean),
+    (Some("31"), None, "proportional_metrics", Kind::Boolean),
+    (Some("32"), None, "kana", Kind::Boolean),
+    (Some("33"), None, "italics", Kind::Boolean),
+    (Some("52"), Some("NoBreak"), "no_break", Kind::Boolean),
 ];
 
 fn face_name(name: &str) -> Result<Value, Error> {
@@ -153,11 +202,21 @@ impl Styles {
                     controls.insert(name, kind.read(v)?);
                 }
             }
+            for &(_, local, name) in super::text_paint::FIELDS {
+                if let Some(value) = properties.get(local)
+                    && let Some(value) = super::text_paint::local(value, local, &mut out.unknown)?
+                {
+                    controls.insert(name, value);
+                }
+            }
             out.unknown.extend(
                 properties
                     .keys()
                     .filter(|k| {
                         k.as_str() != "Font"
+                            && !super::text_paint::FIELDS
+                                .iter()
+                                .any(|(_, local, _)| *local == k.as_str())
                             && !CONTROLS
                                 .iter()
                                 .any(|(_, local, _, _)| *local == Some(k.as_str()))
@@ -192,8 +251,17 @@ impl Styles {
                 .text()?;
             let mut controls = BTreeMap::from([("font_face_name", face_name(name)?)]);
             for &(key, _, name, kind) in CONTROLS {
-                if let Some(v) = style.optional(key)? {
+                if let Some(key) = key
+                    && let Some(v) = style.optional(key)?
+                {
                     controls.insert(name, kind.read_node(v)?);
+                }
+            }
+            for &(global, _, name) in super::text_paint::FIELDS {
+                if let Some(value) = style.optional(global)?
+                    && let Some(value) = super::text_paint::global(value, global, &mut out.unknown)?
+                {
+                    controls.insert(name, value);
                 }
             }
             let Node::Dictionary(properties) = style else {
@@ -204,7 +272,12 @@ impl Styles {
                     .keys()
                     .filter(|k| {
                         k.as_str() != "0"
-                            && !CONTROLS.iter().any(|(key, _, _, _)| *key == k.as_str())
+                            && !super::text_paint::FIELDS
+                                .iter()
+                                .any(|(global, _, _)| *global == k.as_str())
+                            && !CONTROLS
+                                .iter()
+                                .any(|(key, _, _, _)| *key == Some(k.as_str()))
                     })
                     .cloned(),
             );

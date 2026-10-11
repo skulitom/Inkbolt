@@ -1,5 +1,11 @@
 # Architecture
 
+Character diagnostics compare explicit type-1 fill/stroke components without
+color conversion. Paint classes remain typed names, and unknown classes, modes
+and nested fields stay visible. Baseline codes compare directly; global kerning
+and decoration codes stay separate from less expressive local cache controls.
+None of these structural checks establishes editable text or rendering equality.
+
 Selected native paragraph controls now share the character diagnostic's typed
 value, run-fingerprint and UTF-16 overlap comparison. Missing property containers
 and carriage-return run endings are reported without assuming inheritance or

@@ -115,7 +115,9 @@ pub(super) fn diagnose(
     let fonts = global.field("0")?.field("1")?.field("0")?.array()?;
     let styles = super::text_style::Styles::global(style_runs, fonts, control)?;
     let faces = styles.faces()?;
-    let character_styles = styles.compare(local_styles, source == local, control)?;
+    let mut character_styles = styles.compare(local_styles, source == local, control)?;
+    character_styles["color_conversion_validated"] = json!(false);
+    character_styles["legacy_code_conversion_validated"] = json!(false);
     let paragraph_styles = paragraphs.compare(local_paragraphs, source == local, control)?;
     let frame = super::text_frame::diagnose(&global, story)?;
     Ok(

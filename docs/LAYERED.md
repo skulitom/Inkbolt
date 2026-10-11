@@ -64,7 +64,7 @@ skipped. The report counts differing spans and names conflicting or missing
 controls. A missing value stays missing; it is never replaced with a default.
 
 Known controls include size, faux styles, automatic/explicit leading, horizontal
-and vertical scales, tracking, baseline shift, capitalization codes, no-break
+and vertical scales, tracking, baseline shift, capitalization/baseline codes, no-break
 and observed character-feature switches. These are source values, with no unit
 conversion, shaping-tag translation, feature availability or layout acceptance.
 Several global feature switches can be absent from the local cache, so matching
@@ -73,8 +73,24 @@ observed/enabled controls, the number of unmapped fields and at most sixteen of
 their untrusted names. `run_controls_sha256` binds only mapped values and run
 boundaries; it is not an identity for the complete style. The existing complete
 text-data hashes also bind unknown fields. Full style, font-file and rendering
-validation remain false. Inherited controls, colors, decorations, other fields
-and paragraph semantics still require complete reconstruction.
+validation remain false. Inherited controls, other fields and paragraph semantics
+still require complete reconstruction.
+
+Explicit type-1 fill and stroke colors compare four finite source components.
+The known global paint wrapper requires a named class token; Unicode/byte strings
+cannot impersonate it. Numeric components normalize integer/decimal syntax but
+are never clamped, converted to sRGB or interpreted as rendered pixels. The first
+component is retained without assigning opacity semantics. Unknown classes and
+color types stay unmapped; additional known-wrapper fields are listed with their
+nested paths. Component fingerprints remain partial style identities.
+
+Global kerning, underline and strikethrough codes stay separate from
+`local_auto_kerning`, `local_underline`, `local_underline_position` and
+`local_strikethrough`. These legacy cache fields cannot establish all global
+modes, so the comparison reports them as missing on the other side instead of
+inventing conversions. Both `color_conversion_validated` and
+`legacy_code_conversion_validated` remain false. Decoration geometry, font
+features and profile-dependent paint reconstruction still require verification.
 
 `global_story.paragraph_styles` similarly compares explicit paragraph controls:
 justification codes, indents, before/after spacing, automatic-leading factors,

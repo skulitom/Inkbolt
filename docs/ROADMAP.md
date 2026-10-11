@@ -1,5 +1,11 @@
 # Roadmap and verified scope
 
+Native character diagnostics now reconcile explicit type-1 fill/stroke values
+and baseline codes. Global kerning and decoration modes remain distinct from
+legacy local flags; unknown paint data is reported without interpretation.
+Color conversion, decoration geometry, inheritance and editable text import
+remain open. The six original checkpoints are unchanged.
+
 Native paragraph diagnostics now reconcile explicit alignment, indentation,
 spacing, hyphenation and observed composition controls across local caches and
 global stories. Missing values remain unknown, and the differently encoded
