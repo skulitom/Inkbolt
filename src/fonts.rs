@@ -1,5 +1,6 @@
 //! Explicit pinned local font resources and their retained license text.
 pub use crate::limits::fonts::MAX_AXES;
+pub use crate::limits::fonts::MAX_FALLBACK_FONTS;
 pub use crate::limits::fonts::MAX_FEATURES;
 pub use crate::limits::fonts::MAX_FONT_BYTES;
 pub use crate::limits::fonts::MAX_FONTS;

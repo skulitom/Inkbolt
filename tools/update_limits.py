@@ -18,7 +18,7 @@ def catalog(source):
         if group[1] in groups:
             raise ValueError('Duplicate limit group: ' + group[1])
         groups.add(group[1])
-        for row in re.finditer(r'(?m)^\s*pub const (\w+): (usize|u64|u32|i64|f64) = ([^;]+);', group[2]):
+        for row in re.finditer(r'(?m)^\s*pub const (\w+): (usize|u64|u32|u8|i64|f64) = ([^;]+);', group[2]):
             key = group[1] + '.' + row[1]
             if key in definitions:
                 raise ValueError('Duplicate limit: ' + key)
@@ -32,7 +32,7 @@ def catalog(source):
             raise ValueError('Cyclic limit expression: ' + key)
         visiting.add(key)
         kind, expression = definitions[key]
-        expression = re.sub(r'\bas (?:usize|u64|u32|i64)\b', '', expression)
+        expression = re.sub(r'\bas (?:usize|u64|u32|u8|i64)\b', '', expression)
         expression = expression.replace('super::', '').replace('::', '.')
         tree = ast.parse(' '.join(expression.split()), mode='eval')
 

@@ -358,7 +358,7 @@ pub(crate) fn encode(
     if animation.frames.is_empty()
         || animation.frames.len() > crate::sequences::MAX_FRAMES
         || count as u64 * animation.frames.len() as u64 > crate::sequences::MAX_PIXELS
-        || animation.plays > 65536
+        || animation.plays > crate::limits::image_io_gif::MAX_PLAYS
     {
         return Err(limit(
             "GIF exceeds frame, aggregate pixel or play-count limits",
@@ -413,10 +413,15 @@ pub(crate) fn encode(
             frame.delay.denominator
         });
         let ticks = u32::from(frame.delay.numerator) * 100;
-        if ticks % denominator != 0 || ticks / denominator > 65535 {
+        if ticks % denominator != 0
+            || ticks / denominator > crate::limits::image_io_gif::MAX_DELAY_TICKS
+        {
             return Err(Error::new(
                 "UNSUPPORTED_GIF_TIMING",
-                "GIF delays must be exactly representable in 0..65535 centiseconds",
+                format!(
+                    "GIF delays must be exactly representable in 0..{} centiseconds",
+                    crate::limits::image_io_gif::MAX_DELAY_TICKS
+                ),
             ));
         }
         let mut colors = BTreeMap::new();
@@ -426,18 +431,28 @@ pub(crate) fn encode(
             }
             if p[3] != 0 {
                 colors.insert([p[0], p[1], p[2]], 0u8);
-                if colors.len() + usize::from(transparent) > 256 {
+                if colors.len() + usize::from(transparent)
+                    > crate::limits::image_io_gif::MAX_PALETTE_ENTRIES
+                {
                     return Err(Error::new(
                         "UNSUPPORTED_GIF_PALETTE",
-                        "GIF palette exceeds 256 entries including transparency; no automatic color quantization is performed",
+                        format!(
+                            "GIF palette exceeds {} entries including transparency; no automatic color quantization is performed",
+                            crate::limits::image_io_gif::MAX_PALETTE_ENTRIES
+                        ),
                     ));
                 }
             }
         }
-        if colors.len() + usize::from(transparent) > 256 {
+        if colors.len() + usize::from(transparent)
+            > crate::limits::image_io_gif::MAX_PALETTE_ENTRIES
+        {
             return Err(Error::new(
                 "UNSUPPORTED_GIF_PALETTE",
-                "GIF palette exceeds 256 entries including transparency; no automatic color quantization is performed",
+                format!(
+                    "GIF palette exceeds {} entries including transparency; no automatic color quantization is performed",
+                    crate::limits::image_io_gif::MAX_PALETTE_ENTRIES
+                ),
             ));
         }
         let entries = (colors.len() + usize::from(transparent))

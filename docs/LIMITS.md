@@ -117,6 +117,7 @@ capability literals and diagnostic messages remains in progress.
 | `filters.MIN_TRAJECTORY_SAMPLES` | `u32` | 3 | `3` |
 | `fonts.MAX_AXES` | `usize` | 16 | `16` |
 | `fonts.MAX_FACE_INDEX` | `u32` | 255 | `255` |
+| `fonts.MAX_FALLBACK_FONTS` | `usize` | 7 | `MAX_FONTS - 1` |
 | `fonts.MAX_FEATURES` | `usize` | 64 | `64` |
 | `fonts.MAX_FONTS` | `usize` | 8 | `8` |
 | `fonts.MAX_FONT_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |
@@ -148,6 +149,12 @@ capability literals and diagnostic messages remains in progress.
 | `hyphenation.MAX_WORDS` | `usize` | 256 | `256` |
 | `hyphenation.MAX_WORD_CHARS` | `usize` | 256 | `256` |
 | `hyphenation.MAX_WORK` | `usize` | 4194304 | `4_194_304` |
+| `image_io.DEFAULT_JPEG_QUALITY` | `u8` | 90 | `90` |
+| `image_io.MAX_JPEG_QUALITY` | `u8` | 100 | `100` |
+| `image_io.MIN_JPEG_QUALITY` | `u8` | 1 | `1` |
+| `image_io_gif.MAX_DELAY_TICKS` | `u32` | 65535 | `65535` |
+| `image_io_gif.MAX_PALETTE_ENTRIES` | `usize` | 256 | `256` |
+| `image_io_gif.MAX_PLAYS` | `u32` | 65536 | `65536` |
 | `ink_recipes.MAX_INKS` | `usize` | 8 | `8` |
 | `ink_recipes.MAX_KNOTS` | `usize` | 64 | `64` |
 | `ink_recipes.MAX_NAME_BYTES` | `usize` | 256 | `256` |
@@ -304,6 +311,8 @@ capability literals and diagnostic messages remains in progress.
 | `pdf.MAX_COMMANDS` | `usize` | 262144 | `262_144` |
 | `pdf.MAX_IMAGE_PIXELS` | `u64` | 4194304 | `4_194_304` |
 | `pdf.MAX_OBJECTS` | `usize` | 32768 | `32_768` |
+| `pdf.MAX_PAGE_COORDINATE` | `f64` | 14400.0 | `14400.0` |
+| `pdf.MAX_USER_UNIT` | `u32` | 75000 | `75000` |
 | `pixel_brush.COVERAGE_TOLERANCE` | `f64` | 1e-07 | `0.0000001` |
 | `pixel_brush.DEFAULT_SPACING` | `f64` | 0.25 | `0.25` |
 | `pixel_brush.FIXED_WORKING_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |

@@ -1,6 +1,9 @@
 # PDF appearance and page delivery
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+`capabilities.pdf.maximum_page_coordinate` and `maximum_user_unit` report the
+existing page sizing bounds used by the writer. These coordinate and multiplier
+limits remain separate from document dimensions and output byte budgets.
 
 Explicit `pdf_options.print` instead produces flattened calibrated CMYK image pages using a supplied output profile, matte and sample density. See [PRINT_CMYK.md](PRINT_CMYK.md). The native path contracts and restrictions below apply when print settings are omitted.
 

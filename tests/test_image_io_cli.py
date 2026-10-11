@@ -12,6 +12,7 @@ import test_editing_cli as editing
 from test_images_cli import canonical, png
 import test_boards_cli as boards
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def tiff_fixture(width, height, pixels, channels=4, endian='<', planar=False, photo=None, compression=1, extra=None, bits=8, tags=None):
@@ -152,7 +153,7 @@ class ImageInterchangeTests(unittest.TestCase):
     def test_opaque_jpeg_default_quality_scale_density_and_grayscale_framing(self):
         d,_=self.document(16,16,True);d['resolution_ppi']=123.4
         artifact=self.exported(d,'jpeg',scale=2);markers=dict(jpeg_segments(base64.b64decode(artifact['data'])))
-        self.assertEqual(artifact['settings'],dict(quality=90,chroma='full',matte=None,resolution_ppi=247.0))
+        self.assertEqual(artifact['settings'],dict(quality=capabilities()['image_io']['jpeg']['default_quality'],chroma='full',matte=None,resolution_ppi=247.0))
         self.assertEqual(markers[0xe0][:5],b'JFIF\0');self.assertEqual(markers[0xe0][7],1);self.assertEqual(struct.unpack('>HH',markers[0xe0][8:12]),(247,247))
 
     def test_jpeg_original_smooth_chart_obeys_declared_fixture_error_bounds(self):
@@ -175,7 +176,11 @@ class ImageInterchangeTests(unittest.TestCase):
 
     def test_strict_format_specific_options_and_unknown_fields_fail(self):
         d,_=self.document(2,2,True)
-        cases=[('jpeg',dict(quality=0)),('jpeg',dict(quality=101)),('jpeg',dict(quality=1.5)),('jpeg',dict(chroma='quarter')),('jpeg',dict(matte=[0,0])),('jpeg',dict(compression='lzw')),('tiff',dict(quality=90)),('tiff',dict(matte=[0,0,0])),('tiff',dict(chroma='full')),('tiff',dict(compression='lossy')),('png',{}),('snapshot',{}),('svg',{}),('jpeg',dict(unexpected=True))]
+        low, high = capabilities()['image_io']['jpeg']['quality']
+        for quality in (low, high):
+            artifact = self.exported(d, 'jpeg', image_options=dict(quality=quality))
+            self.assertEqual(artifact['settings']['quality'], quality)
+        cases=[('jpeg',dict(quality=low-1)),('jpeg',dict(quality=high+1)),('jpeg',dict(quality=1.5)),('jpeg',dict(chroma='quarter')),('jpeg',dict(matte=[0,0])),('jpeg',dict(compression='lzw')),('tiff',dict(quality=90)),('tiff',dict(matte=[0,0,0])),('tiff',dict(chroma='full')),('tiff',dict(compression='lossy')),('png',{}),('snapshot',{}),('svg',{}),('jpeg',dict(unexpected=True))]
         for format,options in cases:
             with self.subTest(format=format,options=options):self.assertEqual(self.exported(d,format,1,image_options=options)['code'],'INVALID_REQUEST')
 

@@ -227,6 +227,14 @@ existing default. Independent physical and numerical policies remain distinct;
 unchanged numerical behavior is covered by focused Windows/Linux verification.
 The remaining inline audit and final fresh thorough W0 gate are still open.
 
+The delivery/discovery slice centralizes JPEG quality, fixed-width GIF output
+bounds, PDF page sizing and derived fallback-font capacity. Complete numeric
+binding checks now also cover import/export, publication, nested objects,
+components, resource profiles and delivery sampling. Format versions, identity
+endpoints and fixed topology remain explicit semantics. Existing advertised
+values and admission behavior stay unchanged; W0's wider inline audit and final
+fresh thorough gate remain open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

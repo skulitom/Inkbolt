@@ -162,6 +162,19 @@ class TextCliTests(unittest.TestCase):
         self.assertEqual(self.invoke(dict(command='font.import',source_path=str(self.source),license_path=str(self.license),store_root=str(self.store)),1)['code'],'FONT_CORRUPT')
         self.assertNotEqual(file.read_bytes(),data)
 
+    def test_fallback_font_count_reserves_the_primary_binding(self):
+        d = self.document(text='A')
+        maximum = capabilities()['supported']['text']['fallback_fonts']
+        fallback = [f'fallback{i}' for i in range(maximum)]
+        for name in fallback: d['fonts'][name] = copy.deepcopy(self.font)
+        frame = d['items'][0]['content']['frame']
+        frame['style']['fallback_fonts'] = fallback
+        self.invoke(dict(command='document.validate', document=d))
+        frame['style']['fallback_fonts'] = fallback + ['geometry']
+        error = self.invoke(dict(command='document.validate', document=d), 1)
+        self.assertEqual(error['code'], 'RESOURCE_LIMIT')
+        self.assertIn(f'at most {maximum} fallback fonts', error['message'])
+
     def test_ranges_grapheme_boundaries_limits_and_unsupported_controls(self):
         d=self.document(text='A\u0301');style=dict(font_id='geometry',size=10,fill=[0,0,0,255])
         self.assertEqual(self.edit(d,[dict(op='text_range',id='label',start=1,end=2,style=style)],1)['code'],'INVALID_DOCUMENT')

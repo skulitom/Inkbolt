@@ -1,6 +1,8 @@
 # Image import and delivery
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+JPEG quality admission, its omitted-option default and capability reporting use
+the same `image_io` catalog entries. Codec ranges and encoded behavior are unchanged.
 
 Additional BMP, TGA, GIF and associated TIFF alpha contracts are in [EXTENDED_IMAGE_IO.md](EXTENDED_IMAGE_IO.md).
 

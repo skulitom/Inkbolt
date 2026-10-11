@@ -307,6 +307,8 @@ pub mod fonts {
     pub const MAX_FONT_BYTES: u64 = 8 * 1024 * 1024;
     /// Max fonts (fonts).
     pub const MAX_FONTS: usize = 8;
+    /// Maximum fallback entries after reserving one primary font binding.
+    pub const MAX_FALLBACK_FONTS: usize = MAX_FONTS - 1;
     /// Max license bytes (fonts).
     pub const MAX_LICENSE_BYTES: u64 = 65536;
     /// Max axes (fonts).
@@ -419,6 +421,26 @@ pub mod inspection {
     pub const MAX_PAGE_BYTES: usize = 32 * 1024;
     /// Record bytes (inspection).
     pub const RECORD_BYTES: usize = MAX_PAGE_BYTES - 4096;
+}
+
+/// JPEG codec admission and defaults in `src/image_io.rs`.
+pub mod image_io {
+    /// Minimum admitted JPEG encoder quality.
+    pub const MIN_JPEG_QUALITY: u8 = 1;
+    /// Maximum admitted JPEG encoder quality.
+    pub const MAX_JPEG_QUALITY: u8 = 100;
+    /// JPEG quality when the caller omits the option.
+    pub const DEFAULT_JPEG_QUALITY: u8 = 90;
+}
+
+/// Fixed-width GIF output bounds in `src/image_io/gif.rs`.
+pub mod image_io_gif {
+    /// Palette cardinality including any reserved transparent entry.
+    pub const MAX_PALETTE_ENTRIES: usize = 256;
+    /// Largest positive play count encoded as repetitions after the first play.
+    pub const MAX_PLAYS: u32 = 65536;
+    /// Largest delay representable in the centisecond timing field.
+    pub const MAX_DELAY_TICKS: u32 = 65535;
 }
 
 /// Limits for `src/instances.rs`.
@@ -851,6 +873,10 @@ pub mod path_text {
 
 /// Limits for `src/pdf.rs`.
 pub mod pdf {
+    /// Existing page-coordinate span used to select a per-page UserUnit.
+    pub const MAX_PAGE_COORDINATE: f64 = 14400.0;
+    /// Existing upper bound on the per-page UserUnit multiplier.
+    pub const MAX_USER_UNIT: u32 = 75000;
     /// Max commands (pdf).
     pub const MAX_COMMANDS: usize = 262_144;
     /// Max objects (pdf).

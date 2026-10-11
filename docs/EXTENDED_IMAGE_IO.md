@@ -1,5 +1,11 @@
 # Additional image formats and alpha policies
 
+GIF palette, play-count and centisecond-delay bounds share the fixed-width
+definitions in the [limit reference](LIMITS.md). Discovery reports them in
+`capabilities.image_io.gif`, including `maximum_delay_centiseconds`; encoding
+checks and refusal messages use those same bounds. No quantization or timing
+rounding is added.
+
 The Rust library, JSON CLI and MCP stdio now share BMP, TGA and exact-palette GIF exchange. Existing PNG/JPEG/TIFF metadata and ICC contracts remain in [IMAGE_IO.md](IMAGE_IO.md) and [COLOR_PROFILES.md](COLOR_PROFILES.md). These formats deliver flattened images; editable artwork remains in snapshots. Imports preserve source files and their byte identities. Publication is create-only.
 
 ## BMP and TGA

@@ -242,10 +242,10 @@ pub fn validate(
     let mut pixels = 0;
     let mut samples = 0;
     for style in styles(frame) {
-        if style.fallback_fonts.len() >= fonts::MAX_FONTS {
+        if style.fallback_fonts.len() > fonts::MAX_FALLBACK_FONTS {
             return Err(limit(&format!(
                 "Text allows at most {} fallback fonts",
-                fonts::MAX_FONTS - 1
+                fonts::MAX_FALLBACK_FONTS
             )));
         }
         if style.font_ids().collect::<BTreeSet<_>>().len() != style.fallback_fonts.len() + 1 {

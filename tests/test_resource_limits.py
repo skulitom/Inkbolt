@@ -14,6 +14,77 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'agent_inputs/document_file/file_bytes': 'request.MAX_REQUEST_BYTES',
+    'agent_inputs/expanded_request_bytes': 'request.MAX_REQUEST_BYTES',
+    'agent_inputs/request_bytes': 'request.MAX_REQUEST_BYTES',
+    'agent_outputs/compact_target_bytes': 'responses.COMPACT_TARGET_BYTES',
+    'blending/knockout_max_work': 'render.MAX_RENDER_WORK',
+    'components/max_definitions': 'instances.MAX_DEFINITIONS',
+    'components/max_evaluated_items': 'model.MAX_ITEMS',
+    'components/max_evaluated_items_by_profile/large_raster': 'model.MAX_LARGE_RASTER_ITEMS',
+    'components/max_evaluated_items_by_profile/large_vector': 'model.MAX_LARGE_VECTOR_ITEMS',
+    'components/max_evaluated_items_by_profile/standard': 'model.MAX_ITEMS',
+    'components/max_nesting': 'instances.MAX_NESTING',
+    'durable_publication/maximum_ledger_payload_bytes': 'publications.MAX_LEDGER_BYTES',
+    'durable_publication/maximum_output_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'durable_publication/maximum_receipt_bytes': 'publications.MAX_RECEIPT_BYTES',
+    'durable_publication/maximum_receipts': 'publications.MAX_RECORDS',
+    'image_io/gif/maximum_delay_centiseconds': 'image_io_gif.MAX_DELAY_TICKS',
+    'image_io/gif/palette_entries': 'image_io_gif.MAX_PALETTE_ENTRIES',
+    'image_io/gif/plays/1': 'image_io_gif.MAX_PLAYS',
+    'image_io/jpeg/default_quality': 'image_io.DEFAULT_JPEG_QUALITY',
+    'image_io/jpeg/quality/0': 'image_io.MIN_JPEG_QUALITY',
+    'image_io/jpeg/quality/1': 'image_io.MAX_JPEG_QUALITY',
+    'image_tracing/output_commands': 'model.MAX_SEGMENTS',
+    'image_tracing/result_colors': 'tracing.MAX_COLORS',
+    'image_tracing/source_pixels': 'tracing.MAX_PIXELS',
+    'image_tracing/unit_edges': 'tracing.MAX_EDGES',
+    'meshes/max_contraction': 'meshes.MAX_CONTRACTION',
+    'native_sample_store_library/import/max_decoded_bytes': 'sample_import.MAX_NATIVE_DECODED_BYTES',
+    'objects/max_nesting': 'objects.MAX_NESTING',
+    'objects/max_rendered_objects': 'objects.MAX_RENDERED_OBJECTS',
+    'objects/surface_scale/1': 'render_quality.MAX_SCALE',
+    'pdf/image_pixels': 'pdf.MAX_IMAGE_PIXELS',
+    'pdf/maximum_page_coordinate': 'pdf.MAX_PAGE_COORDINATE',
+    'pdf/maximum_user_unit': 'pdf.MAX_USER_UNIT',
+    'pdf/objects': 'pdf.MAX_OBJECTS',
+    'pdf/output_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'pdf/pages': 'boards.MAX_ARTBOARDS',
+    'pdf/path_commands': 'pdf.MAX_COMMANDS',
+    'print_cmyk/max_profile_bytes': 'profiles_cmyk.MAX_PROFILE_BYTES',
+    'print_proof/output_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'print_proof/samples': 'proof.MAX_SAMPLES',
+    'publication/output_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'render_quality/evaluation/encoded_output_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'render_quality/evaluation/traversal/neighborhood_document_units': 'render_traversal.NEIGHBORHOOD_UNITS',
+    'render_quality/supersample_factors/1': 'render_quality.MAX_ANTIALIAS_FACTOR',
+    'resource_profiles/large_vector/svg_nodes': 'svg_import.MAX_LARGE_NODES',
+    'resource_profiles/large_vector/svg_source_bytes': 'svg_import.MAX_LARGE_BYTES',
+    'resource_profiles/per_path_commands': 'model.MAX_SEGMENTS',
+    'resource_profiles/standard/geometry_commands': 'model.MAX_SEGMENTS',
+    'resource_profiles/standard/items': 'model.MAX_ITEMS',
+    'resource_profiles/standard/snapshot_bytes': 'model.MAX_DOCUMENT_BYTES',
+    'resource_profiles/standard/svg_nodes': 'svg_import.MAX_NODES',
+    'resource_profiles/standard/svg_source_bytes': 'svg_import.MAX_BYTES',
+    'sample_profiles/profile_encoded_bytes_per_document': 'sample_profiles.MAX_ENCODED_PROFILE_BYTES',
+    'sequences/max_distinct_import_states': 'variants.MAX_DATASETS',
+    'sequences/max_evaluated_scene_work': 'render.MAX_RENDER_WORK',
+    'sequences/max_frames': 'sequences.MAX_FRAMES',
+    'sequences/max_output_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'sequences/max_total_output_or_import_pixels': 'sequences.MAX_PIXELS',
+    'supported/text/axis_controls': 'fonts.MAX_AXES',
+    'supported/text/fallback_fonts': 'fonts.MAX_FALLBACK_FONTS',
+    'supported/text/feature_controls': 'fonts.MAX_FEATURES',
+    'svg_import/definition_limit': 'svg_import_definitions.MAX_DEFINITIONS',
+    'svg_import/reference_depth': 'svg_import_definitions.MAX_REFERENCE_DEPTH',
+    'svg_import/source_bytes': 'svg_import.MAX_BYTES',
+    'svg_import/text/font_bindings': 'fonts.MAX_FONTS',
+    'svg_import/xml_nodes': 'svg_import.MAX_NODES',
+    'variants/max_bindings': 'variants.MAX_BINDINGS',
+    'variants/max_datasets': 'variants.MAX_DATASETS',
+    'variants/max_inheritance': 'variants.MAX_INHERITANCE',
+    'visual_comparison/maximum_output_pixels': 'visual_diff.MAX_PIXELS',
+
     'geometry_limits/minimum_rectangle_extent': 'geometry.MIN_RECTANGLE_EXTENT',
     'geometry_limits/minimum_ellipse_radius': 'geometry.MIN_ELLIPSE_RADIUS',
     'geometry_limits/cubic_linear_threshold': 'geometry.CUBIC_LINEAR_THRESHOLD',
@@ -579,6 +650,37 @@ class ResourceLimitTests(unittest.TestCase):
                          - {'limits/render_scale/0'},
                          {p for p in BINDINGS if p.startswith('limits/')})
 
+        # Versions, connectivity, a single page, identity scale and zero/infinite
+        # endpoints are format or structural semantics, not adjustable budgets.
+        fixed = {'durable_publication/payload_versions/output':1,
+                 'durable_publication/payload_versions/history':2,
+                 'image_io/tiff/pages':1, 'image_io/gif/plays/0':0,
+                 'image_tracing/foreground_connectivity':4,
+                 'image_tracing/background_connectivity':8,
+                 'meshes/axis_range/0':2, 'meshes/svg_samples_per_cell/0':1,
+                 'native_sample_store_library/manifest_version':1,
+                 'objects/surface_scale/0':1, 'pdf/scale':1,
+                 'render_quality/padding_document_units/0':0,
+                 'render_quality/supersample_factors/0':2}
+        for path, expected in fixed.items():
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[int(part)] if isinstance(value, list) else value[part]
+            self.assertEqual(value, expected)
+        scales = capabilities()['print_cmyk']['raster_scale']
+        self.assertEqual(scales, list(range(1, values['render_quality.MAX_SCALE']+1)))
+        derived = {f'print_cmyk/raster_scale/{i}' for i in range(len(scales))}
+        for prefix in ('agent_inputs','agent_outputs','components','durable_publication',
+                       'image_io','image_tracing','meshes','native_sample_store_library',
+                       'objects','pdf','print_cmyk','print_proof','publication',
+                       'render_quality','resource_profiles','sample_profiles','sequences',
+                       'supported/text','svg_import','variants','visual_comparison'):
+            value = capabilities()
+            for part in prefix.split('/'): value = value[part]
+            self.assertEqual(numeric_fields(value, prefix) - fixed.keys() - derived,
+                             {p for p in BINDINGS if p.startswith(prefix+'/')}, prefix)
+        self.assertEqual(values['fonts.MAX_FALLBACK_FONTS'], values['fonts.MAX_FONTS']-1)
+
         # Format depth, normalized endpoints and symmetric angle/offset bounds
         # have fixed semantics; every other numeric filter budget is bound.
         filters = capabilities()['filters']
@@ -795,7 +897,7 @@ class ResourceLimitTests(unittest.TestCase):
                          {p for p in BINDINGS if p.startswith(prefix+'/')})
 
     def test_named_limit_definitions_stay_in_the_catalog(self):
-        pattern = re.compile(r'\bconst\s+(?:MAX|MIN)_[A-Z_]+\s*:\s*(?:usize|u64|u32|i64|f64)\s*=')
+        pattern = re.compile(r'\bconst\s+(?:MAX|MIN)_[A-Z_]+\s*:\s*(?:usize|u64|u32|u8|i64|f64)\s*=')
         for path in (ROOT/'src').rglob('*.rs'):
             if path.name != 'limits.rs':
                 self.assertIsNone(pattern.search(path.read_text(encoding='utf-8')), str(path))
@@ -823,6 +925,12 @@ class ResourceLimitTests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertEqual(response['error']['code'], 'INVALID_REQUEST')
             self.assertIn(str(scale), response['error']['message'])
+
+    def test_generator_preserves_byte_codec_constants_and_casts(self):
+        source = 'pub mod codec {\n    pub const MAX_QUALITY: u8 = 100;\n    pub const MAX_COPY: usize = MAX_QUALITY as usize;\n}\n'
+        self.assertEqual(update_limits.catalog(source), [
+            ('codec.MAX_COPY', 'usize', 100, 'MAX_QUALITY as usize'),
+            ('codec.MAX_QUALITY', 'u8', 100, '100')])
 
     def test_generator_rejects_cycles_duplicates_and_executable_expressions(self):
         def source(body):
