@@ -42,6 +42,7 @@ capability literals and diagnostic messages remains in progress.
 | `booleans.MAX_WORK` | `usize` | 2000000 | `2_000_000` |
 | `booleans_topology_algebraic_roots.MAX_COEFFICIENT_BITS` | `u64` | 4096 | `4096` |
 | `booleans_topology_algebraic_roots.MAX_ROOT_DEPTH` | `usize` | 96 | `96` |
+| `booleans_topology_quadratic.MAX_PARAMETER_BITS` | `usize` | 4096 | `4096` |
 | `channels.MAX_CHANNELS` | `usize` | 16 | `16` |
 | `channels.MAX_SAMPLES` | `usize` | 262144 | `262_144` |
 | `checks.DEFAULT_ISSUES` | `usize` | 64 | `64` |
@@ -59,6 +60,7 @@ capability literals and diagnostic messages remains in progress.
 | `contact_sheets.MAX_VIEWS` | `usize` | 16 | `16` |
 | `control.MAX_CANCEL_FILES` | `usize` | 4 | `4` |
 | `control.MAX_TIMEOUT_MS` | `u64` | 60000 | `60_000` |
+| `dimensions.MAX_SUBDIVISION_DEPTH` | `usize` | 32 | `32` |
 | `dimensions.MAX_WORK` | `usize` | 65536 | `65_536` |
 | `edit.MAX_OPERATIONS` | `usize` | 64 | `64` |
 | `effects.MAX_DOCUMENT_EFFECTS` | `usize` | 64 | `64` |
@@ -101,6 +103,7 @@ capability literals and diagnostic messages remains in progress.
 | `inspection.RECORD_BYTES` | `usize` | 28672 | `MAX_PAGE_BYTES - 4096` |
 | `instances.MAX_DEFINITIONS` | `usize` | 32 | `32` |
 | `instances.MAX_NESTING` | `usize` | 8 | `8` |
+| `interpolation.MAX_CONTOUR_PAIRS` | `usize` | 512 | `512` |
 | `interpolation.MAX_COUNT` | `usize` | 128 | `128` |
 | `interpolation.MAX_DOCUMENT_SPINE_LEAVES` | `usize` | 65536 | `65536` |
 | `job_process.DEFAULT_LIFETIME_MS` | `u64` | 300000 | `300_000` |
@@ -189,9 +192,12 @@ capability literals and diagnostic messages remains in progress.
 | `mcp_preview.MAX_IMAGES` | `usize` | 4 | `4` |
 | `mcp_preview.MAX_IMAGE_BASE64_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `measurements.MAX_SAMPLES` | `usize` | 256 | `256` |
+| `meshes.DEFAULT_SVG_SAMPLES_PER_CELL` | `u32` | 16 | `16` |
+| `meshes.INVERSE_STEPS` | `usize` | 128 | `128` |
 | `meshes.MAX_AXIS` | `usize` | 8 | `8` |
 | `meshes.MAX_CONTRACTION` | `f64` | 0.75 | `0.75` |
 | `meshes.MAX_SAMPLES` | `usize` | 1024 | `1024` |
+| `meshes.MAX_SVG_SAMPLES_PER_CELL` | `u32` | 256 | `256` |
 | `meshes.MAX_SVG_TEXTURE_PIXELS` | `usize` | 131072 | `131072` |
 | `meshes.MAX_TEXTURE_PIXELS` | `usize` | 65536 | `65536` |
 | `metadata.JPEG_PART_BYTES` | `usize` | 60000 | `60000` |
@@ -225,6 +231,7 @@ capability literals and diagnostic messages remains in progress.
 | `path_text.MAX_COMMANDS` | `usize` | 1024 | `1024` |
 | `path_text.MAX_DOCUMENT_LEAVES` | `usize` | 65536 | `65536` |
 | `path_text.MAX_LEAVES` | `usize` | 32768 | `32768` |
+| `path_text.MAX_SUBDIVISION_DEPTH` | `usize` | 24 | `24` |
 | `paths.MAX_PATH_UNITS` | `usize` | 4096 | `4096` |
 | `pdf.MAX_COMMANDS` | `usize` | 262144 | `262_144` |
 | `pdf.MAX_IMAGE_PIXELS` | `u64` | 4194304 | `4_194_304` |
@@ -339,6 +346,7 @@ capability literals and diagnostic messages remains in progress.
 | `sessions.MAX_STATE_BYTES` | `usize` | 8404992 | `super::model::MAX_LARGE_VECTOR_BYTES + 16384` |
 | `simplify.MAX_SPAN` | `usize` | 32 | `32` |
 | `simplify.MAX_WORK` | `usize` | 400000 | `400_000` |
+| `snapping.MAX_TARGETS` | `usize` | 64 | `64` |
 | `spatial_filters.MAX_MAP_PIXELS` | `usize` | 4096 | `4096` |
 | `sqlite.BUSY_TIMEOUT_MS` | `u64` | 250 | `250` |
 | `sqlite.CACHE_KIB` | `u64` | 4096 | `4096` |
@@ -361,9 +369,11 @@ capability literals and diagnostic messages remains in progress.
 | `strokes_outline.MAX_OUTLINE_COMMANDS` | `usize` | 65536 | `65_536` |
 | `strokes_outline.MAX_POINTS` | `usize` | 16384 | `16_384` |
 | `svg_import.MAX_BYTES` | `usize` | 262144 | `256 * 1024` |
+| `svg_import.MAX_FONT_FAMILY_BYTES` | `usize` | 256 | `256` |
 | `svg_import.MAX_LARGE_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `svg_import.MAX_LARGE_NODES` | `u32` | 65536 | `65536` |
 | `svg_import.MAX_NODES` | `u32` | 4096 | `4096` |
+| `svg_import.MAX_TRANSFORMS` | `usize` | 64 | `64` |
 | `svg_import_definitions.MAX_DEFINITIONS` | `usize` | 64 | `64` |
 | `svg_import_definitions.MAX_REFERENCE_DEPTH` | `usize` | 16 | `16` |
 | `swatches.MAX_DEPTH` | `usize` | 8 | `8` |
@@ -391,15 +401,27 @@ capability literals and diagnostic messages remains in progress.
 | `variants.MAX_INHERITANCE` | `usize` | 8 | `8` |
 | `vector_native.MAX_BLOCKS` | `usize` | 256 | `256` |
 | `vector_native.MAX_DECODED_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
+| `vector_native.MAX_METADATA_BYTES` | `usize` | 65536 | `65536` |
+| `vector_native.MAX_OPERANDS` | `usize` | 32 | `32` |
 | `vector_native.MAX_SOURCE_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
 | `vector_native_pdf_read.MAX_DEPTH` | `usize` | 32 | `32` |
+| `vector_native_pdf_read.MAX_HEX_DIGITS` | `usize` | 131072 | `131072` |
+| `vector_native_pdf_read.MAX_NAME_BYTES` | `usize` | 256 | `256` |
 | `vector_native_pdf_read.MAX_NODES` | `usize` | 131072 | `131072` |
 | `vector_native_pdf_read.MAX_OBJECTS` | `usize` | 4096 | `4096` |
+| `vector_native_pdf_read.MAX_PAGES` | `usize` | 32 | `32` |
+| `vector_native_pdf_read.MAX_STRING_STEPS` | `usize` | 65536 | `65536` |
+| `vector_native_pdf_read.MAX_TOKEN_BYTES` | `usize` | 128 | `128` |
+| `vector_native_tokens.MAX_CONTAINER_DEPTH` | `usize` | 32 | `32` |
+| `vector_native_tokens.MAX_STRING_BYTES` | `usize` | 65536 | `65536` |
+| `vector_native_tokens.MAX_STRING_DEPTH` | `usize` | 32 | `32` |
 | `vector_native_tokens.MAX_TOKENS` | `usize` | 262144 | `262144` |
+| `vector_native_tokens.MAX_WORD_BYTES` | `usize` | 1024 | `1024` |
 | `vector_native_write.MAX_COORDINATE` | `f64` | 16383.0 | `16383.0` |
 | `visual_diff.MAX_PIXELS` | `u64` | 1048576 | `super::render::MAX_RENDER_PIXELS` |
 | `volumes.MAX_EDGES` | `usize` | 128 | `128` |
 | `volumes.MAX_FACES` | `usize` | 192 | `192` |
+| `volumes.MAX_PARTITION_DEPTH` | `usize` | 128 | `128` |
 | `warps.MAX_BITS` | `u64` | 8192 | `8192` |
 | `warps.MAX_DEGREE` | `usize` | 128 | `128` |
 | `warps.MAX_DEPTH` | `usize` | 24 | `24` |

@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 import tempfile
+from advertised_limits import capabilities
 import unittest
 import xml.etree.ElementTree as ET
 import test_editing_cli as editing
@@ -258,7 +259,7 @@ class InterpolationTests(unittest.TestCase):
             self.assertTrue(stale['isError'])
 
     def test_strict_pairing_stroke_spine_limits_atomic_failure_and_cancellation(self):
-        for patch in [dict(count=1),dict(count=129),dict(count=3.5),dict(extra=1),dict(orientation='upright'),dict(contours=[{'from':0,'to':0,'to_start':4}]),dict(contours=[{'from':None,'to':None}]),dict(contours=[{'from':0,'to':0},{'from':0,'to':0}]),dict(contours=[{'from':0,'to':None}]),dict(contours=[{'from':1,'to':0}])]:
+        for patch in [dict(count=1),dict(count=capabilities()['interpolation']['count'][1]+1),dict(count=3.5),dict(extra=1),dict(orientation='upright'),dict(contours=[{'from':0,'to':0,'to_start':4}]),dict(contours=[{'from':None,'to':None}]),dict(contours=[{'from':0,'to':0},{'from':0,'to':0}]),dict(contours=[{'from':0,'to':None}]),dict(contours=[{'from':1,'to':0}])]:
             self.inspect(spec(**patch),expected=1)
         for patch in [dict(start=-.1),dict(end=1.1),dict(start=.5,end=.5),dict(tolerance=0),dict(normal_offset=32769)]:
             self.inspect(spec(spine=dict(geometry=line([[0,0],[1,0]]),**patch)),expected=1)
@@ -275,10 +276,10 @@ class InterpolationTests(unittest.TestCase):
         self.assertEqual(self.inspect(spec(),control=dict(timeout_ms=0),expected=1)['code'],'TIMEOUT')
 
     def test_hidden_generated_command_item_and_world_limits_are_enforced(self):
-        d=self.document(spec(count=128));node(d)['visible']=False
+        d=self.document(spec(count=capabilities()['interpolation']['count'][1]));node(d)['visible']=False
         d['items'].append(dict(copy.deepcopy(node(d)),id='second'))
         self.assertEqual(self.invoke(dict(command='document.validate',document=d),1)['code'],'RESOURCE_LIMIT')
-        s=spec(count=128);s['from']['geometry']=path([[k/10,k%2] for k in range(40)])
+        s=spec(count=capabilities()['interpolation']['count'][1]);s['from']['geometry']=path([[k/10,k%2] for k in range(40)])
         self.assertEqual(self.inspect(s,expected=1)['code'],'RESOURCE_LIMIT')
         d=self.document();node(d)['visible']=False;node(d)['transform']=[2000,0,0,1,0,0]
         self.assertEqual(self.invoke(dict(command='document.validate',document=d),1)['code'],'RESOURCE_LIMIT')
@@ -300,12 +301,12 @@ class InterpolationTests(unittest.TestCase):
 
     def test_spine_subdivision_limits_are_shared_even_for_hidden_objects(self):
         s=spec(count=2,spine=curved([[0,0],[100,100],[-100,100],[0,0]],tolerance=.00001))
-        leaves=self.inspect(s)['spine']['leaves'];self.assertGreater(leaves,65536/3);self.assertLess(leaves,32768)
+        leaves=self.inspect(s)['spine']['leaves'];self.assertGreater(leaves,capabilities()['interpolation']['document_spine_leaves']/3);self.assertLess(leaves,capabilities()['interpolation']['spine_leaves'])
         d=self.document(s);node(d)['visible']=False
         d['items']+=[dict(copy.deepcopy(node(d)),id='second')]
         self.invoke(dict(command='document.validate',document=d))
         d['items']+=[dict(copy.deepcopy(node(d)),id='third')]
-        r=self.invoke(dict(command='document.validate',document=d),1);self.assertEqual(r['code'],'RESOURCE_LIMIT');self.assertIn('65536',r['message'])
+        r=self.invoke(dict(command='document.validate',document=d),1);self.assertEqual(r['code'],'RESOURCE_LIMIT');self.assertIn(str(capabilities()['interpolation']['document_spine_leaves']),r['message'])
         s['spine']['geometry']=curved([[0,0],[32000,32000],[-32000,32000],[0,0]])['geometry'];s['spine']['tolerance']=.000001
         self.assertEqual(self.inspect(s,expected=1)['code'],'RESOURCE_LIMIT')
 

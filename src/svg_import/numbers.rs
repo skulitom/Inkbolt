@@ -159,10 +159,13 @@ pub(super) fn transform(s: &str) -> Result<Matrix, Error> {
     let mut count = 0;
     while !rest.is_empty() {
         count += 1;
-        if count > 64 {
+        if count > crate::limits::svg_import::MAX_TRANSFORMS {
             return Err(Error::new(
                 "LIMIT_EXCEEDED",
-                "At most 64 transforms per element",
+                format!(
+                    "At most {} transforms per element",
+                    crate::limits::svg_import::MAX_TRANSFORMS
+                ),
             ));
         }
         let open = rest

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 mod geometry;
 
+use crate::limits::interpolation::MAX_CONTOUR_PAIRS;
 pub use crate::limits::interpolation::MAX_COUNT;
 pub use crate::limits::interpolation::MAX_DOCUMENT_SPINE_LEAVES;
 fn one() -> f64 {
@@ -120,10 +121,10 @@ fn stroke_color(s: &Stroke) -> Result<Color, Error> {
     }
 }
 pub(crate) fn stored(spec: &Spec) -> Result<usize, Error> {
-    if !(2..=MAX_COUNT).contains(&spec.count) || spec.contours.len() > 512 {
-        return Err(limit(
-            "Interpolation requires 2..128 objects and at most 512 contour pairs",
-        ));
+    if !(2..=MAX_COUNT).contains(&spec.count) || spec.contours.len() > MAX_CONTOUR_PAIRS {
+        return Err(limit(&format!(
+            "Interpolation requires 2..{MAX_COUNT} objects and at most {MAX_CONTOUR_PAIRS} contour pairs"
+        )));
     }
     let mut commands = 0;
     for e in [&spec.from, &spec.to] {
@@ -167,9 +168,9 @@ pub(crate) fn stored(spec: &Spec) -> Result<usize, Error> {
         commands += crate::path_text::validate(&baseline(s)).map_err(spine_error)?;
     }
     if commands > MAX_SEGMENTS {
-        return Err(limit(
-            "Interpolation endpoints and spine exceed 4096 stored commands",
-        ));
+        return Err(limit(&format!(
+            "Interpolation endpoints and spine exceed {MAX_SEGMENTS} stored commands"
+        )));
     }
     // A missing stroke fades an otherwise identical style. Two present strokes
     // can change width and solid color; their other controls must agree.
@@ -480,9 +481,9 @@ pub(crate) fn evaluate(d: &Document) -> Result<Option<Document>, Error> {
             let (generated, cost) = generated(item, &mut used)?;
             leaves += cost;
             if leaves > MAX_DOCUMENT_SPINE_LEAVES {
-                return Err(limit(
-                    "Interpolation spines exceed 65536 document measurement leaves",
-                ));
+                return Err(limit(&format!(
+                    "Interpolation spines exceed {MAX_DOCUMENT_SPINE_LEAVES} document measurement leaves"
+                )));
             }
             items.extend(generated);
         } else {

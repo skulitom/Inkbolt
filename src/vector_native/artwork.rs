@@ -156,7 +156,7 @@ pub fn read(
             }
             v => {
                 operands.push(v);
-                if operands.len() > 32 {
+                if operands.len() > crate::limits::vector_native::MAX_OPERANDS {
                     return Err(limit("Native operator operand budget exceeded"));
                 }
             }

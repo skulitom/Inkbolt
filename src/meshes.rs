@@ -8,14 +8,15 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+pub use crate::limits::meshes::INVERSE_STEPS;
 pub use crate::limits::meshes::MAX_AXIS;
-pub use crate::limits::meshes::MAX_SAMPLES;
-pub const INVERSE_STEPS: usize = 128;
 pub use crate::limits::meshes::MAX_CONTRACTION;
+pub use crate::limits::meshes::MAX_SAMPLES;
 pub use crate::limits::meshes::MAX_SVG_TEXTURE_PIXELS;
 pub use crate::limits::meshes::MAX_TEXTURE_PIXELS;
+use crate::limits::meshes::{DEFAULT_SVG_SAMPLES_PER_CELL, MAX_SVG_SAMPLES_PER_CELL};
 fn texture_samples() -> u32 {
-    16
+    DEFAULT_SVG_SAMPLES_PER_CELL
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -223,18 +224,20 @@ impl Mesh {
     pub fn texture_size(&self) -> Result<[usize; 2], Error> {
         if !(2..=MAX_AXIS).contains(&self.columns)
             || !(2..=MAX_AXIS).contains(&self.rows)
-            || !(1..=256).contains(&self.svg_samples_per_cell)
+            || !(1..=MAX_SVG_SAMPLES_PER_CELL).contains(&self.svg_samples_per_cell)
         {
-            return Err(limit(
-                "Mesh requires 2..8 rows/columns and 1..256 texture samples per cell",
-            ));
+            return Err(limit(&format!(
+                "Mesh requires 2..{MAX_AXIS} rows/columns and 1..{MAX_SVG_SAMPLES_PER_CELL} texture samples per cell"
+            )));
         }
         let size = [
             (self.columns - 1) * self.svg_samples_per_cell as usize,
             (self.rows - 1) * self.svg_samples_per_cell as usize,
         ];
         if size[0] * size[1] > MAX_TEXTURE_PIXELS {
-            return Err(limit("Mesh texture exceeds 65536 samples"));
+            return Err(limit(&format!(
+                "Mesh texture exceeds {MAX_TEXTURE_PIXELS} samples"
+            )));
         }
         Ok(size)
     }

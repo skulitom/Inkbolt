@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import tempfile
+from advertised_limits import capabilities
 import unittest
 import zlib
 
@@ -195,8 +196,8 @@ class NativeVectorImport(unittest.TestCase):
                          (b'%%EndSetup',b'%%EndProlog\n%%EndSetup'),(b'4 10 L',b'NaN 10 L'),
                          (b'0 /Bool (IsArtboardSelected)',b'2 /Bool (IsArtboardSelected)')]:
             self.read(fixture.source(data=fixture.artwork().replace(old,new)),1)
-        self.assertEqual(self.read(b'x'*(16*1024*1024+1),1)['code'], 'RESOURCE_LIMIT')
-        objects = fixture.objects(); objects[5] = objects[5].replace(b'/NumBlock 1',b'/NumBlock 257')
+        self.assertEqual(self.read(b'x'*(capabilities()['native_vector_import']['source_bytes']+1),1)['code'], 'RESOURCE_LIMIT')
+        objects = fixture.objects(); objects[5] = objects[5].replace(b'/NumBlock 1',f"/NumBlock {capabilities()['native_vector_import']['blocks']+1}".encode())
         self.assertEqual(self.read(fixture.pdf(objects),1)['code'], 'RESOURCE_LIMIT')
         self.assertEqual(self.read(expected=1,resource_profile='large_raster')['code'], 'INVALID_REQUEST')
 

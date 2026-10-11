@@ -145,6 +145,13 @@ ceilings remain unchanged. MCP descriptions and capability reports use the same
 definitions as validation. Focused Windows and Linux checks remain the routine
 feedback path; this slice does not replace W0's final thorough gate.
 
+The native-vector/SVG parser and geometry slice centralizes string, token,
+container, transform, contour, sampling and recursive work budgets. Limits with
+different counting rules remain independent (including decoded text bytes versus
+PDF literal-string parser steps). Existing discovery values and admission ceilings
+are unchanged; native import, interpolation and mesh boundary fixtures read their
+advertised bounds. The inline audit and final W0 acceptance remain open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

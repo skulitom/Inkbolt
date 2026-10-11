@@ -1,5 +1,6 @@
 //! Bounded original plane partitioning orders concave opaque extrusion faces.
 use super::*;
+use crate::limits::volumes::MAX_PARTITION_DEPTH;
 fn epsilon(f: &Face) -> f64 {
     f.contours
         .iter()
@@ -51,8 +52,10 @@ fn recurse(
     if faces.is_empty() {
         return Ok(vec![]);
     }
-    if depth > 128 {
-        return Err(limit("Volume face partition exceeds 128 levels"));
+    if depth > MAX_PARTITION_DEPTH {
+        return Err(limit(&format!(
+            "Volume face partition exceeds {MAX_PARTITION_DEPTH} levels"
+        )));
     }
     let root = faces.remove(0);
     let n = root.normal;

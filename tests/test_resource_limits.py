@@ -10,9 +10,28 @@ sys.path.insert(0, str(ROOT/'tools'))
 import update_limits
 
 
-# These paths cover document, raster, delivery, jobs and layered-parser budgets.
+# These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'native_vector_import/source_bytes': 'vector_native.MAX_SOURCE_BYTES',
+    'native_vector_import/decoded_bytes': 'vector_native.MAX_DECODED_BYTES',
+    'native_vector_import/blocks': 'vector_native.MAX_BLOCKS',
+    'native_vector_delivery/output_bytes': 'vector_native.MAX_DECODED_BYTES',
+    'native_vector_delivery/normal_canvas_coordinate_limit': 'vector_native_write.MAX_COORDINATE',
+    'interpolation/count/1': 'interpolation.MAX_COUNT',
+    'interpolation/spine_leaves': 'path_text.MAX_LEAVES',
+    'interpolation/document_spine_leaves': 'interpolation.MAX_DOCUMENT_SPINE_LEAVES',
+    'dimensions/work': 'dimensions.MAX_WORK',
+    'dimensions/subdivision_depth': 'dimensions.MAX_SUBDIVISION_DEPTH',
+    'snapping/target_limit': 'snapping.MAX_TARGETS',
+    'snapping/maximum_logical_distance': 'model.MAX_COORDINATE',
+    'meshes/axis_range/1': 'meshes.MAX_AXIS',
+    'meshes/inverse_steps': 'meshes.INVERSE_STEPS',
+    'meshes/inspection_samples': 'meshes.MAX_SAMPLES',
+    'meshes/svg_samples_per_cell/1': 'meshes.MAX_SVG_SAMPLES_PER_CELL',
+    'meshes/svg_default_samples_per_cell': 'meshes.DEFAULT_SVG_SAMPLES_PER_CELL',
+    'meshes/max_texture_pixels': 'meshes.MAX_TEXTURE_PIXELS',
+    'meshes/max_svg_texture_pixels': 'meshes.MAX_SVG_TEXTURE_PIXELS',
     'limits/request_bytes': 'request.MAX_REQUEST_BYTES',
     'limits/document_bytes': 'model.MAX_DOCUMENT_BYTES',
     'limits/dimension_pixels': 'model.MAX_DIMENSION',

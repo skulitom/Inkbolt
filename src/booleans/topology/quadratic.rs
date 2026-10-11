@@ -113,6 +113,7 @@ impl Span {
         let lower = self.from.scale(&n(3)).add(&self.to).scale(&(n(1) / n(4)));
         let upper = self.from.add(&self.to.scale(&n(3))).scale(&(n(1) / n(4)));
         let mut bits = 4;
+        use crate::limits::booleans_topology_quadratic::MAX_PARAMETER_BITS;
         loop {
             budget.spend(bits / 8 + 128)?;
             let enclosure = mid.enclosure(&root_enclosure(&self.d, 128.max(bits + 32)));
@@ -146,12 +147,12 @@ impl Span {
                     ]);
                 }
             }
-            if bits >= 4096 {
-                return Err(limit(
-                    "Quadratic parameter separation exceeds 4096 dyadic parameter bits",
-                ));
+            if bits >= MAX_PARAMETER_BITS {
+                return Err(limit(&format!(
+                    "Quadratic parameter separation exceeds {MAX_PARAMETER_BITS} dyadic parameter bits"
+                )));
             }
-            bits = (bits * 2).min(4096);
+            bits = (bits * 2).min(MAX_PARAMETER_BITS);
         }
     }
 }

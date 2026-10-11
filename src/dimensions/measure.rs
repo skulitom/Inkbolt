@@ -100,7 +100,7 @@ fn cubic_length(c: C, tol: R, budget: &mut Budget<'_>) -> Result<(R, R), Error> 
             lower += lo;
             upper += hi;
         } else {
-            if depth == 32 {
+            if depth == crate::limits::dimensions::MAX_SUBDIVISION_DEPTH {
                 return Err(limit(
                     "Curve length cannot meet tolerance within subdivision depth",
                 ));
@@ -152,7 +152,7 @@ fn ellipse_length(
             lower += lo;
             upper += hi;
         } else {
-            if depth == 32 {
+            if depth == crate::limits::dimensions::MAX_SUBDIVISION_DEPTH {
                 return Err(limit(
                     "Ellipse length cannot meet tolerance within subdivision depth",
                 ));

@@ -167,7 +167,11 @@ pub fn decode(bytes: &[u8], control: &Control) -> Result<Decoded, Error> {
     if container.keys().any(|key| !known.contains(key)) {
         return Err(unsupported("Unknown editable-vector container field"));
     }
-    let metadata = pdf.stream(pdf_read::field(container, b"AIMetaData")?, 65536, control)?;
+    let metadata = pdf.stream(
+        pdf_read::field(container, b"AIMetaData")?,
+        crate::limits::vector_native::MAX_METADATA_BYTES,
+        control,
+    )?;
     let data = if compressed {
         let source = encoded
             .strip_prefix(b"%AI24_ZStandard_Data")

@@ -156,7 +156,9 @@ impl Build {
         let deviation = norm(sub(c[1], mix(c[0], c[3], 1.0 / 3.0)))
             .max(norm(sub(c[2], mix(c[0], c[3], 2.0 / 3.0))));
         if polygon - chord > error || deviation > position || chord == 0.0 {
-            if depth >= 24 || self.leaves.len() >= MAX_LEAVES {
+            if depth >= crate::limits::path_text::MAX_SUBDIVISION_DEPTH
+                || self.leaves.len() >= MAX_LEAVES
+            {
                 return Err(limit("Text baseline subdivision exceeds bounded work"));
             }
             let (left, right) = split(c);

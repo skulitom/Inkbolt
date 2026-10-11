@@ -167,6 +167,8 @@ pub mod control {
 
 /// Limits for `src/dimensions.rs`.
 pub mod dimensions {
+    /// Maximum certified length subdivision depth for cubic curves and ellipses.
+    pub const MAX_SUBDIVISION_DEPTH: usize = 32;
     /// Max work (dimensions).
     pub const MAX_WORK: usize = 65_536;
 }
@@ -299,6 +301,8 @@ pub mod instances {
 
 /// Limits for `src/interpolation.rs`.
 pub mod interpolation {
+    /// Maximum explicitly paired contours in an interpolation.
+    pub const MAX_CONTOUR_PAIRS: usize = 512;
     /// Max count (interpolation).
     pub const MAX_COUNT: usize = 128;
     /// Max document spine leaves (interpolation).
@@ -541,6 +545,12 @@ pub mod measurements {
 
 /// Limits for `src/meshes.rs`.
 pub mod meshes {
+    /// Fixed maximum iterations for contraction-bounded inverse mesh sampling.
+    pub const INVERSE_STEPS: usize = 128;
+    /// Maximum samples on each cell axis in the SVG texture.
+    pub const MAX_SVG_SAMPLES_PER_CELL: u32 = 256;
+    /// Default samples on each cell axis in the SVG texture.
+    pub const DEFAULT_SVG_SAMPLES_PER_CELL: u32 = 16;
     /// Max axis (meshes).
     pub const MAX_AXIS: usize = 8;
     /// Max samples (meshes).
@@ -667,6 +677,8 @@ pub mod paint {
 
 /// Limits for `src/path_text.rs`.
 pub mod path_text {
+    /// Maximum path measurement subdivision depth shared with interpolation spines.
+    pub const MAX_SUBDIVISION_DEPTH: usize = 24;
     /// Max commands (path text).
     pub const MAX_COMMANDS: usize = 1024;
     /// Max leaves (path text).
@@ -1045,6 +1057,18 @@ pub mod spatial_filters {
     pub const MAX_MAP_PIXELS: usize = 4096;
 }
 
+/// Limits for explicit geometry snapping.
+pub mod snapping {
+    /// Maximum frozen reference targets in one snap operation.
+    pub const MAX_TARGETS: usize = 64;
+}
+
+/// Limits for exact quadratic parameter separation.
+pub mod booleans_topology_quadratic {
+    /// Maximum dyadic parameter bits while seeking a certified interior cut.
+    pub const MAX_PARAMETER_BITS: usize = 4096;
+}
+
 /// Limits for `src/stored_samples.rs`.
 pub mod stored_samples {
     /// Aggregate decoded source pixels may cover each native image twice.
@@ -1103,6 +1127,10 @@ pub mod svg_import_definitions {
 
 /// Limits for `src/svg_import.rs`.
 pub mod svg_import {
+    /// Maximum transform functions on one SVG element.
+    pub const MAX_TRANSFORMS: usize = 64;
+    /// Maximum UTF-8 bytes of an SVG font family or explicit family binding.
+    pub const MAX_FONT_FAMILY_BYTES: usize = 256;
     /// Max bytes (svg import).
     pub const MAX_BYTES: usize = 256 * 1024;
     /// Max nodes (svg import).
@@ -1187,6 +1215,16 @@ pub mod variants {
 
 /// Limits for `src/vector_native/pdf_read.rs`.
 pub mod vector_native_pdf_read {
+    /// Maximum bytes scanned for a PDF keyword or numeric token.
+    pub const MAX_TOKEN_BYTES: usize = 128;
+    /// Maximum decoded bytes in one PDF name.
+    pub const MAX_NAME_BYTES: usize = 256;
+    /// Maximum literal-string parser steps, counting a closing delimiter but not the byte skipped after an escape.
+    pub const MAX_STRING_STEPS: usize = 65536;
+    /// Maximum non-whitespace hex digits in one PDF byte string.
+    pub const MAX_HEX_DIGITS: usize = 131072;
+    /// Maximum preview pages counted in the admitted PDF page tree.
+    pub const MAX_PAGES: usize = 32;
     /// Max objects (vector native pdf read).
     pub const MAX_OBJECTS: usize = 4096;
     /// Max nodes (vector native pdf read).
@@ -1197,6 +1235,14 @@ pub mod vector_native_pdf_read {
 
 /// Limits for `src/vector_native/tokens.rs`.
 pub mod vector_native_tokens {
+    /// Maximum nesting of an editable-text literal string.
+    pub const MAX_STRING_DEPTH: usize = 32;
+    /// Maximum decoded bytes in one editable-text literal string.
+    pub const MAX_STRING_BYTES: usize = 65536;
+    /// Maximum scanned bytes of a native word or name, including its leading slash.
+    pub const MAX_WORD_BYTES: usize = 1024;
+    /// Maximum native typed-container depth during end lookup and artboard traversal.
+    pub const MAX_CONTAINER_DEPTH: usize = 32;
     /// Max tokens (vector native tokens).
     pub const MAX_TOKENS: usize = 262144;
 }
@@ -1209,6 +1255,10 @@ pub mod vector_native_write {
 
 /// Limits for `src/vector_native.rs`.
 pub mod vector_native {
+    /// Maximum decoded bytes of the native metadata header stream.
+    pub const MAX_METADATA_BYTES: usize = 65536;
+    /// Maximum pending operands before an editable artwork operator.
+    pub const MAX_OPERANDS: usize = 32;
     /// Max source bytes (vector native).
     pub const MAX_SOURCE_BYTES: usize = 16 * 1024 * 1024;
     /// Max decoded bytes (vector native).
@@ -1225,6 +1275,8 @@ pub mod visual_diff {
 
 /// Limits for `src/volumes.rs`.
 pub mod volumes {
+    /// Maximum recursive face-partition depth for volume ordering.
+    pub const MAX_PARTITION_DEPTH: usize = 128;
     /// Max edges (volumes).
     pub const MAX_EDGES: usize = 128;
     /// Max faces (volumes).

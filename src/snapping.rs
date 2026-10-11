@@ -1,4 +1,5 @@
 //! Deterministic explicit snapping against frozen points, grids and guide lines.
+use crate::limits::snapping::MAX_TARGETS;
 use crate::{
     Error,
     dimensions::{self, Anchor, Unit},
@@ -114,15 +115,17 @@ pub(crate) fn apply(
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
     control.check()?;
-    if options.targets.is_empty() || options.targets.len() > 64 {
-        return Err(invalid("Snap requires 1..64 explicit targets"));
+    if options.targets.is_empty() || options.targets.len() > MAX_TARGETS {
+        return Err(invalid(&format!(
+            "Snap requires 1..{MAX_TARGETS} explicit targets"
+        )));
     }
     let f = options.unit.pixels(document.resolution_ppi);
     let limit = options.max_distance * f;
     if !limit.is_finite() || !(0.0..=MAX_COORDINATE).contains(&limit) {
-        return Err(invalid(
-            "Snap distance must be finite within 0..32768 logical pixels",
-        ));
+        return Err(invalid(&format!(
+            "Snap distance must be finite within 0..{MAX_COORDINATE} logical pixels"
+        )));
     }
     let axes = dimensions::basis(options.angle)?;
     let inverse = geometry::inverse(axes)?;
@@ -153,7 +156,9 @@ pub(crate) fn apply(
                     .iter()
                     .any(|v| !v.is_finite() || !(0.001..=MAX_COORDINATE).contains(v))
                 {
-                    return Err(invalid("Grid spacing must be 0.001..32768 logical pixels"));
+                    return Err(invalid(&format!(
+                        "Grid spacing must be 0.001..{MAX_COORDINATE} logical pixels"
+                    )));
                 }
                 Prepared::Grid(point(*origin, f)?, spacing, dimensions::basis(*angle)?)
             }

@@ -3,9 +3,11 @@ use super::{invalid, unsupported};
 use crate::{Error, control::Control};
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::limits::vector_native_pdf_read::MAX_DEPTH;
 use crate::limits::vector_native_pdf_read::MAX_NODES;
 pub use crate::limits::vector_native_pdf_read::MAX_OBJECTS;
+use crate::limits::vector_native_pdf_read::{
+    MAX_DEPTH, MAX_HEX_DIGITS, MAX_NAME_BYTES, MAX_PAGES, MAX_STRING_STEPS, MAX_TOKEN_BYTES,
+};
 type Id = (u32, u16);
 #[derive(Debug)]
 pub enum Value {
@@ -74,7 +76,7 @@ impl Parser<'_, '_> {
         while self.data.get(self.at).is_some_and(|v| !delimiter(*v)) {
             self.at += 1;
         }
-        if start == self.at || self.at - start > 128 {
+        if start == self.at || self.at - start > MAX_TOKEN_BYTES {
             return Err(invalid("Invalid PDF token"));
         }
         Ok(&self.data[start..self.at])
@@ -124,7 +126,7 @@ impl Parser<'_, '_> {
                     } else {
                         b
                     });
-                    if name.len() > 256 {
+                    if name.len() > MAX_NAME_BYTES {
                         return Err(super::limit("PDF name exceeds budget"));
                     }
                 }
@@ -140,7 +142,7 @@ impl Parser<'_, '_> {
                         .ok_or_else(|| invalid("Truncated PDF string"))?;
                     self.at += 1;
                     length += 1;
-                    if length > 65536 {
+                    if length > MAX_STRING_STEPS {
                         return Err(super::limit("PDF string exceeds budget"));
                     }
                     match b {
@@ -199,7 +201,7 @@ impl Parser<'_, '_> {
                         return Err(invalid("Invalid PDF hex string"));
                     }
                     n += 1;
-                    if n > 131072 {
+                    if n > MAX_HEX_DIGITS {
                         return Err(super::limit("PDF hex string exceeds budget"));
                     }
                 }
@@ -601,7 +603,7 @@ impl<'a> Container<'a> {
         let mut count = 0;
         for child in kids {
             count += self.pages(child, seen, found, depth + 1)?;
-            if count > 32 {
+            if count > MAX_PAGES {
                 return Err(super::limit("PDF page budget exceeded"));
             }
         }

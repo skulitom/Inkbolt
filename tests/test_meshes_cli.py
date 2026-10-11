@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 import random
 import tempfile
+from advertised_limits import capabilities
 import unittest
 import xml.etree.ElementTree as ET
 import test_editing_cli as editing
@@ -238,14 +239,14 @@ class MeshTests(unittest.TestCase):
 
     def test_invalid_grids_offsets_folds_fields_and_sample_limits_fail(self):
         candidates=[]
-        for key,value in [('columns',1),('rows',9),('knots',[]),('size',[0,1]),('origin',[32768,0]),('svg_samples_per_cell',0),('svg_samples_per_cell',257)]:
+        for key,value in [('columns',1),('rows',capabilities()['meshes']['axis_range'][1]+1),('knots',[]),('size',[0,1]),('origin',[32768,0]),('svg_samples_per_cell',0),('svg_samples_per_cell',capabilities()['meshes']['svg_samples_per_cell'][1]+1)]:
             m=mesh();m[key]=value;candidates.append(m)
         m=mesh();m['knots'][0]['offset']=[.1,0];candidates.append(m)
         m=mesh(3,3);m['knots'][4]['offset']=[10,10];candidates.append(m)
-        m=mesh(8,8);m['svg_samples_per_cell']=256;candidates.append(m)
+        m=mesh(*[capabilities()['meshes']['axis_range'][1]]*2);m['svg_samples_per_cell']=capabilities()['meshes']['svg_samples_per_cell'][1];candidates.append(m)
         for m in candidates:self.inspect(m,[],expected=1)
         self.assertEqual(self.inspect(candidates[-2],[],expected=1)['code'],'MESH_GEOMETRY_LIMIT')
-        self.inspect(mesh(),[[1.1,0]],expected=1);self.inspect(mesh(),[[0,0]]*1025,expected=1)
+        self.inspect(mesh(),[[1.1,0]],expected=1);self.inspect(mesh(),[[0,0]]*(capabilities()['meshes']['inspection_samples']+1),expected=1)
         m=mesh();m['unknown']=True;self.assertEqual(self.inspect(m,[],expected=1)['code'],'INVALID_REQUEST')
 
     def test_knot_edit_locks_atomic_rollback_and_strict_targets(self):
