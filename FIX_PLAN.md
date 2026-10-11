@@ -25,7 +25,7 @@ standing authorization.
 | Workstream | Current status | Next action |
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
-| W1 | Linux tier 1, toolchain pinning and public guard verified; CI approved; hosted matrix/macOS and Unix jobs remain open | Activate the reviewed workflow and assess hosted results; this does not block W2 preparation |
+| W1 | Linux tier 1, toolchain pinning and public guard verified; CI active; hosted matrix/macOS and Unix jobs remain open | Correct hosted setup and assess matrix results; this does not block W2 preparation |
 | W2 | Model/baseline harness and retained trials remain open | Build fixture/prompt/solve/judge separation, both arms and fake-driver tests; owner involvement starts at real trial execution |
 | W5.1 | Payload duplication remains open | Remove repeated image bytes; add explicit structured responses while preserving default text compatibility |
 | W3a.1-2 / W3b | Arcs, rounded rectangles and SVG insertion remain open | Deliver these bounded input/authoring increments alongside W2 preparation |

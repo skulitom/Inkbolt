@@ -59,7 +59,7 @@ exclusions. Candidate source fingerprint:
 The engine and locked dependencies remain those checked before the subsequent
 planning/workflow-only revision; that revision receives focused verification.
 
-The proposed three-platform CI workflow uses pinned actions, read-only repository
+The active three-platform CI workflow uses pinned actions, read-only repository
 permissions, explicit public verification and the minimum-compiler check. It
 retains verification reports/logs. Running main checks survive later pushes;
 obsolete pull-request runs can be cancelled. The default concurrency queue still
@@ -68,7 +68,11 @@ state or waive any test. The exact workflow path is the only newly admitted YAML
 path; private content checks remain mandatory locally.
 
 The owner approved activation, the exact workflow-path rule and Cargo cache on
-11 October 2026. Hosted matrix results remain pending. Local verification does
+11 October 2026. The first hosted run failed Python setup on Windows/macOS:
+the initial 3.11.13 pin has only Linux hosted distributions. CI now pins 3.13.16,
+whose official setup manifest includes all three runner platforms/architectures;
+Python 3.11 remains the supported minimum and the locally verified version.
+Hosted matrix results remain pending. Local verification does
 not establish GitHub cache behavior, macOS or a passing hosted matrix. See
 [platform coverage](PLATFORMS.md).
 
