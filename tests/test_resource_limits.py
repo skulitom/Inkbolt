@@ -14,6 +14,15 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'native_prepress/color_conversion_batch_samples': 'profiles.MAX_CONVERSION_SAMPLES',
+    'native_prepress/color_buffer_values': 'prepress.COLOR_BUFFER_VALUES',
+    'session_backups/lock_wait_ms': 'sqlite.BUSY_TIMEOUT_MS',
+    'session_backups/retry_interval_ms': 'sessions.BACKUP_RETRY_INTERVAL_MS',
+    'jobs/launch_lock_timeout_ms': 'jobs.LAUNCH_LOCK_TIMEOUT_MS',
+    'jobs/launch_retry_interval_ms': 'jobs.LAUNCH_RETRY_INTERVAL_MS',
+    'jobs/monitor_interval_ms': 'jobs.MONITOR_INTERVAL_MS',
+    'jobs/state_poll_interval_ms': 'jobs.STATE_POLL_INTERVAL_MS',
+    'job_process/maximum_wait_slice_ms': 'job_process.MAX_WAIT_SLICE_MS',
     'objects/minimum_extent': 'objects.MIN_EXTENT',
     'geometry_limits/primitives/minimum_extent': 'primitives.MIN_EXTENT',
     'geometry_limits/primitives/rotation_degrees/1': 'primitives.MAX_ROTATION_DEGREES',

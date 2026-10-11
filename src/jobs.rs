@@ -509,7 +509,7 @@ pub fn wait(root: &Path, id: &str, wait_ms: u64, control: &Control) -> Result<Va
         std::thread::sleep(
             until
                 .saturating_duration_since(Instant::now())
-                .min(Duration::from_millis(50)),
+                .min(Duration::from_millis(bounds::STATE_POLL_INTERVAL_MS)),
         );
     }
 }

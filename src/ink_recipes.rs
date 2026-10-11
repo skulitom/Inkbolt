@@ -106,7 +106,7 @@ pub fn combine<'a>(
         .zip(named.samples.chunks_exact(n))
         .enumerate()
     {
-        if index.is_multiple_of(4096) {
+        if index.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
             control.check()?;
         }
         samples.extend_from_slice(p);
@@ -278,7 +278,7 @@ impl Prepared<'_> {
         let n = self.recipe.inks.len();
         let mut rgba = Vec::with_capacity(self.width as usize * self.height as usize * 4);
         for (index, p) in self.samples.chunks_exact(n).enumerate() {
-            if index.is_multiple_of(4096) {
+            if index.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 control.check()?;
             }
             let mut weights = [0.0; 1 << MAX_INKS];

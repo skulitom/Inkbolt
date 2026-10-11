@@ -419,9 +419,9 @@ impl Context<'_> {
         let inverse = geometry::inverse(world)?;
         let mut result = surface.clone();
         let pixels = (self.width * self.height) as usize;
-        for start in (0..pixels).step_by(4096) {
+        for start in (0..pixels).step_by(crate::limits::profiles::MAX_CONVERSION_SAMPLES) {
             self.control.check()?;
-            let end = (start + 4096).min(pixels);
+            let end = (start + crate::limits::profiles::MAX_CONVERSION_SAMPLES).min(pixels);
             let mut rgb = Vec::with_capacity((end - start) * 3);
             for i in start..end {
                 let q = geometry::map(inverse, self.point(i));

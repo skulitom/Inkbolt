@@ -145,7 +145,7 @@ pub(super) fn schedule(
     }
     let mut selected = Vec::with_capacity(count);
     for i in 0..count {
-        if i % 32 == 0 {
+        if i % crate::limits::control::ITEM_CHECK_INTERVAL == 0 {
             control.check()?;
         }
         let mut time = R::from_integer(i.into()) / &rate;

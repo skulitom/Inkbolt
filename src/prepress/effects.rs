@@ -13,7 +13,7 @@ impl Context<'_> {
         let count = (self.width * self.height) as usize;
         if let Some(solid) = self.solid(source)? {
             for pixel in 0..count {
-                if pixel.is_multiple_of(4096) {
+                if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     self.control.check()?;
                 }
                 visit(pixel, &solid.values, &solid.addressed, solid.opacity);
@@ -22,9 +22,9 @@ impl Context<'_> {
             let sampler = paint::Sampler::new(source, world)?;
             let addressed = vec![true; self.channels()];
             let mut values = vec![0.0; self.channels()];
-            for start in (0..count).step_by(4096) {
+            for start in (0..count).step_by(crate::limits::profiles::MAX_CONVERSION_SAMPLES) {
                 self.control.check()?;
-                let end = (start + 4096).min(count);
+                let end = (start + crate::limits::profiles::MAX_CONVERSION_SAMPLES).min(count);
                 let mut rgb = Vec::with_capacity((end - start) * 3);
                 let mut alpha = Vec::with_capacity(end - start);
                 for pixel in start..end {
@@ -60,7 +60,7 @@ impl Context<'_> {
         for phase in 0..3 {
             if phase == 1 {
                 for (pixel, src) in surface.values.chunks_exact_mut(n + 1).enumerate() {
-                    if pixel.is_multiple_of(4096) {
+                    if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                         self.control.check()?;
                     }
                     for value in src {
@@ -137,7 +137,7 @@ impl Context<'_> {
                 .zip(surface.values.chunks_exact(n + 1))
                 .enumerate()
             {
-                if pixel.is_multiple_of(4096) {
+                if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     self.control.check()?;
                 }
                 *f = f.max(src[n]);
@@ -150,7 +150,7 @@ impl Context<'_> {
                 .zip(surface.removal.chunks_exact_mut(n))
                 .enumerate()
             {
-                if pixel.is_multiple_of(4096) {
+                if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     self.control.check()?;
                 }
                 removed.fill(src[n]);

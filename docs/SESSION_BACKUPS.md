@@ -1,5 +1,7 @@
 # Checked session backup and restoration
 
+Backup lock waiting shares the SQLite busy timeout; the retry interval is named separately. Both are reported under `capabilities.session_backups` and listed in [central limits](LIMITS.md).
+
 `session.backup` captures a specified current revision and creates a standalone SQLite backup containing the entire session history. `session.recover` restores an exact backup into an unused session destination. They share the Rust library, JSON CLI and MCP stdio executor. Neither command replaces existing files or migrates storage implicitly.
 
 ```json

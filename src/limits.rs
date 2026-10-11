@@ -177,6 +177,10 @@ pub mod contact_sheets {
 
 /// Limits for `src/control.rs`.
 pub mod control {
+    /// Pixels between cooperative cancellation checks in raster and ink evaluation loops.
+    pub const PIXEL_CHECK_INTERVAL: usize = 4096;
+    /// Items or scheduled frames between cooperative cancellation checks.
+    pub const ITEM_CHECK_INTERVAL: usize = 32;
     /// Maximum distinct cancellation markers inherited by a scoped request.
     pub const MAX_CANCEL_FILES: usize = 4;
     /// Max timeout ms (control).
@@ -185,6 +189,8 @@ pub mod control {
 
 /// Limits for `src/dimensions.rs`.
 pub mod dimensions {
+    /// Certified subdivision steps between cancellation checks.
+    pub const MEASUREMENT_CHECK_INTERVAL: usize = 32;
     /// Maximum absolute measurement/resize projection angle in degrees.
     pub const MAX_ANGLE_DEGREES: u32 = 360_000;
     /// Minimum caller-selected certified boundary-length tolerance.
@@ -435,6 +441,8 @@ pub mod image_io {
 
 /// Fixed-width GIF output bounds in `src/image_io/gif.rs`.
 pub mod image_io_gif {
+    /// Decoder codes or delivery pixels between cancellation checks; independent of the fixed LZW dictionary size.
+    pub const CONTROL_INTERVAL: usize = 4096;
     /// Palette cardinality including any reserved transparent entry.
     pub const MAX_PALETTE_ENTRIES: usize = 256;
     /// Largest positive play count encoded as repetitions after the first play.
@@ -463,6 +471,10 @@ pub mod interpolation {
 
 /// Limits for `src/job_process.rs`.
 pub mod job_process {
+    /// Maximum delay between owned-process completion probes.
+    pub const PROCESS_POLL_INTERVAL_MS: u64 = 5;
+    /// Maximum duration of one process wait slice.
+    pub const MAX_WAIT_SLICE_MS: u64 = 1000;
     /// Default wall-clock lifetime for a worker, in milliseconds.
     pub const DEFAULT_LIFETIME_MS: u64 = 300_000;
     /// Default committed-memory ceiling for a worker, in MiB.
@@ -509,6 +521,14 @@ pub mod jobs_store {
 
 /// Limits for `src/jobs.rs`.
 pub mod jobs {
+    /// Polling interval for synchronous saved-job waits.
+    pub const STATE_POLL_INTERVAL_MS: u64 = 50;
+    /// Worker process/progress/cancellation polling interval.
+    pub const MONITOR_INTERVAL_MS: u64 = 100;
+    /// Delay between queue launch-lease attempts.
+    pub const LAUNCH_RETRY_INTERVAL_MS: u64 = 10;
+    /// Maximum wait for the queue launch lease, independent of cancellation grace.
+    pub const LAUNCH_LOCK_TIMEOUT_MS: u64 = 2000;
     /// Maximum Unicode characters retained from a worker failure message.
     pub const MAX_ERROR_CHARACTERS: usize = 1024;
     /// Maximum UTF-8 bytes in a stored progress phase label.
@@ -927,6 +947,10 @@ pub mod pdf_marks {
 
 /// Limits for `src/pixel_brush.rs`.
 pub mod pixel_brush {
+    /// Accumulated brush work units between cancellation checks.
+    pub const WORK_CHECK_INTERVAL: u64 = 1024;
+    /// Brush placements between cancellation checks.
+    pub const DAB_CHECK_INTERVAL: usize = 64;
     /// Minimum unscaled brush diameter in native pixels.
     pub const MIN_DIAMETER: f64 = 0.25;
     /// Minimum distance between regular dabs as a fraction of base diameter.
@@ -995,6 +1019,8 @@ pub mod prepress_images {
 
 /// Limits for `src/prepress.rs`.
 pub mod prepress {
+    /// Conservative live scalar allowance for color conversion scratch arrays; follows the shared batch size.
+    pub const COLOR_BUFFER_VALUES: u64 = super::profiles::MAX_CONVERSION_SAMPLES as u64 * 16;
     /// Maximum requested output sample positions in native ink preparation.
     pub const MAX_SAMPLES: usize = 64;
     /// Max spots (prepress).
@@ -1027,6 +1053,8 @@ pub mod profiles_cmyk {
 
 /// Limits for `src/profiles/gamut.rs`.
 pub mod profiles_gamut {
+    /// Gamut samples between cancellation checks.
+    pub const SAMPLE_CHECK_INTERVAL: usize = 256;
     /// Max samples (profiles gamut).
     pub const MAX_SAMPLES: usize = 4096;
 }
@@ -1233,6 +1261,8 @@ pub mod responses {
 
 /// Limits for `src/retouch.rs`.
 pub mod retouch {
+    /// Source sample positions between cancellation checks.
+    pub const SAMPLE_CHECK_INTERVAL: usize = 1024;
     /// Maximum screening strength of the boundary-constrained healing system.
     pub const MAX_SCREENING: u32 = 16;
     /// Minimum requested true residual tolerance for healing.
@@ -1345,6 +1375,8 @@ pub mod sequences {
 
 /// Limits for `src/sessions.rs`.
 pub mod sessions {
+    /// Delay between backup retries within the shared SQLite lock-wait budget.
+    pub const BACKUP_RETRY_INTERVAL_MS: u64 = 5;
     /// Maximum receipts requested in one history page.
     pub const MAX_PAGE_RECEIPTS: usize = 128;
     /// Maximum exclusive filename reservations attempted for a new database.
@@ -1625,6 +1657,8 @@ pub mod text {
 
 /// Limits for `src/tracing.rs`.
 pub mod tracing {
+    /// Classification or boundary traversal steps between cancellation checks.
+    pub const CONTROL_INTERVAL: usize = 4096;
     /// Max pixels (tracing).
     pub const MAX_PIXELS: usize = 1_048_576;
     /// Max colors (tracing).
@@ -1685,6 +1719,8 @@ pub mod vector_native_write {
 
 /// Limits for `src/vector_native.rs`.
 pub mod vector_native {
+    /// Parsed bytes or syntax nodes between cancellation checks.
+    pub const PARSE_CHECK_INTERVAL: usize = 256;
     /// Maximum decoded bytes of the native metadata header stream.
     pub const MAX_METADATA_BYTES: usize = 65536;
     /// Maximum pending operands before an editable artwork operator.
@@ -1745,6 +1781,8 @@ pub mod volumes {
 
 /// Limits for `src/warps.rs`.
 pub mod warps {
+    /// Charged exact-arithmetic work units between cancellation checks.
+    pub const EXACT_WORK_CHECK_INTERVAL: usize = 1024;
     /// Minimum positive domain width/height for perspective, envelope and inspected grids.
     pub const MIN_DOMAIN_EXTENT: f64 = 0.001;
     /// Minimum requested certified chord deviation in warp-local units.

@@ -310,7 +310,7 @@ pub fn inspect(
     })?;
     let mut samples = Vec::with_capacity(xyz.len());
     for (i, p) in xyz.iter().enumerate() {
-        if i.is_multiple_of(256) {
+        if i.is_multiple_of(crate::limits::profiles_gamut::SAMPLE_CHECK_INTERVAL) {
             control.check()?;
         }
         let mut value = gamut.classify(*p)?.receipt();

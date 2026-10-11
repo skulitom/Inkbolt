@@ -1,5 +1,7 @@
 # Explicit RGB color profiles
 
+Color conversion chunking shares `profiles.MAX_CONVERSION_SAMPLES` with admission; native preparation derives its scratch allowance from the same batch size. See [central limits](LIMITS.md).
+
 `capabilities.color_profiles.lut_curve_entries` reports the existing input/output
 curve cardinality range for admitted LUT8/LUT16 tables. This bound is separate
 from standalone tone curves and conversion batch limits; definitions are in the

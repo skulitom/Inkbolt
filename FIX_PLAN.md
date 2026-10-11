@@ -251,6 +251,14 @@ an independently named and advertised minimum extent. Focused tests cover these
 boundaries on Windows and Linux; the remaining inline audit and final fresh W0
 thorough acceptance are still open.
 
+The batching/retry audit links every admitted RGB/CMYK conversion chunk and
+its output indexing to the profile sample limit, including native preparation's
+scratch-buffer allowance. Cancellation cadences and bounded launch, process,
+job-state and backup retries have named constants. Batch-boundary tests cross
+two full chunks and a final partial chunk without changing source data. These
+are unchanged policy values; the remaining inline numerical/work audit and
+fresh thorough W0 acceptance remain open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

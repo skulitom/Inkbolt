@@ -7,6 +7,7 @@ import itertools
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import pdf_reader
 import test_native_objects_cli as objects
 import test_native_images_cli as images
@@ -46,6 +47,17 @@ class NativeAdjustmentTests(unittest.TestCase):
     def values(self,d,**kw):return [p['ink_fractions'] for p in self.planes(d,samples=[[x,y] for y in range(d['height']) for x in range(d['width'])],**kw)['samples']]
     def scene(self,w=1,h=1):
         d=self.document(w,h);d['swatches']=dict(p=color([.25,.5,.125,.375]),s=spot());d['items']=[images.fill('p',named('p'),box=(0,0,w,h)),images.fill('s',named('s',tint=.625,overprint='preserve'),box=(0,0,w,h))];return d
+
+    def test_adjustment_batches_preserve_last_partial_batch_and_spots(self):
+        batch = capabilities()['native_prepress']['color_conversion_batch_samples']
+        width = 2*batch+3; document = self.scene(width, 1)
+        document['items'].append(adjustment(operators=[dict(type='invert')]))
+        before = copy.deepcopy(document)
+        points = [[x, 0] for x in [0, batch-1, batch, batch+1, 2*batch-1, 2*batch, width-1]]
+        result = self.planes(document, samples=points)
+        expected = adjusted([.25,.5,.125,.375], lambda p:[1-v for v in p])+[.625]
+        self.assertRows([p['ink_fractions'] for p in result['samples']], [expected]*len(points), 8e-5)
+        self.assertEqual(document, before)
 
     def test_process_observation_rgb_operators_and_spot_identity(self):
         for operation,fn in [(dict(type='invert'),lambda p:[1-v for v in p]),(dict(type='threshold',level=.2),lambda p:[1]*3),(dict(type='color',adjustment=dict(type='channel_mixer',matrix=[[0,0,1],[1,0,0],[0,1,0]])),lambda p:[p[2],p[0],p[1]])]:

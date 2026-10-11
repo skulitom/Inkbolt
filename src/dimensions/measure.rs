@@ -82,7 +82,7 @@ impl Budget<'_> {
                 "Geometry measurement exceeds certified subdivision budget",
             ));
         }
-        if self.used % 32 == 1 {
+        if self.used % crate::limits::dimensions::MEASUREMENT_CHECK_INTERVAL == 1 {
             self.control.check()?;
         }
         Ok(())

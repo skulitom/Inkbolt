@@ -221,7 +221,7 @@ fn regions(
     let mut seen = vec![false; grid.len()];
     let mut result = Vec::new();
     for seed in 0..grid.len() {
-        if seed % 4096 == 0 {
+        if seed % crate::limits::tracing::CONTROL_INTERVAL == 0 {
             control.check()?;
         }
         if seen[seed] || (grid[seed][3] == 0) != holes {
@@ -234,7 +234,7 @@ fn regions(
         let mut boundary = None;
         let mut mixed = false;
         while at < points.len() {
-            if at % 4096 == 0 {
+            if at % crate::limits::tracing::CONTROL_INTERVAL == 0 {
                 control.check()?;
             }
             let p = points[at];
@@ -356,7 +356,7 @@ fn contours(
             let mut d = first;
             let mut points = Vec::new();
             loop {
-                if steps % 4096 == 0 {
+                if steps % crate::limits::tracing::CONTROL_INTERVAL == 0 {
                     control.check()?;
                 }
                 steps += 1;
@@ -485,7 +485,7 @@ pub fn trace(
     let h = pixels.height as usize;
     let mut grid = Vec::with_capacity(w * h);
     for (i, c) in pixels.rgba.as_chunks::<4>().0.iter().enumerate() {
-        if i % 4096 == 0 {
+        if i % crate::limits::tracing::CONTROL_INTERVAL == 0 {
             control.check()?;
         }
         grid.push(classify(*c, options));
@@ -523,7 +523,7 @@ pub fn trace(
     let mut max_error = 0i64;
     let mut squared_error = 0i64;
     for (i, (a, b)) in pixels.rgba.as_chunks::<4>().0.iter().zip(&grid).enumerate() {
-        if i % 4096 == 0 {
+        if i % crate::limits::tracing::CONTROL_INTERVAL == 0 {
             control.check()?;
         }
         let a = *a;

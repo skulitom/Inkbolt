@@ -71,9 +71,9 @@ impl Context<'_> {
             .transpose()?;
         let n = self.channels();
         let pixels = surface.values.len() / (n + 1);
-        for start in (0..pixels).step_by(4096) {
+        for start in (0..pixels).step_by(crate::limits::profiles::MAX_CONVERSION_SAMPLES) {
             self.control.check()?;
-            let end = (start + 4096).min(pixels);
+            let end = (start + crate::limits::profiles::MAX_CONVERSION_SAMPLES).min(pixels);
             let mut inks = Vec::with_capacity((end - start) * 4);
             let mut weights = Vec::with_capacity(end - start);
             let mut alphas = Vec::with_capacity(end - start);

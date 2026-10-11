@@ -164,7 +164,7 @@ fn painted_region(
             .zip(coverage.pixels())
             .enumerate()
         {
-            if i.is_multiple_of(4096)
+            if i.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL)
                 && let Some(control) = control
             {
                 control.check()?;
@@ -317,7 +317,7 @@ fn image_map_region(
         crate::resample::footprint(crop, frame, world, scale)?,
     )?;
     for i in 0..width as usize * height as usize {
-        if i.is_multiple_of(4096)
+        if i.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL)
             && let Some(control) = control
         {
             control.check()?;

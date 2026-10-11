@@ -337,7 +337,9 @@ impl Runner {
             if remaining.is_zero() {
                 return Ok(None);
             }
-            std::thread::sleep(remaining.min(Duration::from_millis(5)));
+            std::thread::sleep(remaining.min(Duration::from_millis(
+                crate::limits::job_process::PROCESS_POLL_INTERVAL_MS,
+            )));
         }
     }
     fn finish_watchdog(&mut self) {

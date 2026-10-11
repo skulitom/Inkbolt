@@ -81,7 +81,7 @@ fn expand(data: &[u8], minimum: u8, count: usize, control: &Control) -> Result<V
     let mut initialized = false;
     let mut codes = 0usize;
     loop {
-        if codes.is_multiple_of(4096) {
+        if codes.is_multiple_of(crate::limits::image_io_gif::CONTROL_INTERVAL) {
             control.check()?;
         }
         codes += 1;
@@ -370,7 +370,7 @@ pub(crate) fn encode(
             return Err(malformed());
         }
         for (i, p) in frame.rgba.as_chunks::<4>().0.iter().enumerate() {
-            if i.is_multiple_of(4096) {
+            if i.is_multiple_of(crate::limits::image_io_gif::CONTROL_INTERVAL) {
                 control.check()?;
             }
             if p[3] != 0 && p[3] != 255 {
@@ -426,7 +426,7 @@ pub(crate) fn encode(
         }
         let mut colors = BTreeMap::new();
         for (i, p) in frame.rgba.as_chunks::<4>().0.iter().enumerate() {
-            if i.is_multiple_of(4096) {
+            if i.is_multiple_of(crate::limits::image_io_gif::CONTROL_INTERVAL) {
                 control.check()?;
             }
             if p[3] != 0 {

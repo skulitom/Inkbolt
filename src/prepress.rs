@@ -232,7 +232,7 @@ impl Surface {
                 .zip(initial.values.chunks_exact(n + 1))
                 .enumerate()
             {
-                if pixel.is_multiple_of(4096) {
+                if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     control.check()?;
                 }
                 for c in 0..n {
@@ -377,7 +377,7 @@ impl Context<'_> {
                 ));
             }
             for (pixel, &amount) in coverage.data().iter().enumerate() {
-                if pixel.is_multiple_of(4096) {
+                if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     self.control.check()?;
                 }
                 if amount != 0 {
@@ -390,12 +390,17 @@ impl Context<'_> {
             let n = self.channels();
             let addressed = vec![true; n];
             let mut values = vec![0.0; n];
-            for (batch, chunk) in coverage.data().chunks(4096).enumerate() {
+            for (batch, chunk) in coverage
+                .data()
+                .chunks(crate::limits::profiles::MAX_CONVERSION_SAMPLES)
+                .enumerate()
+            {
                 self.control.check()?;
                 let mut rgb = Vec::with_capacity(chunk.len() * 3);
                 let mut alphas = Vec::with_capacity(chunk.len());
                 for (j, &amount) in chunk.iter().enumerate() {
-                    let point = self.point(batch * 4096 + j);
+                    let point =
+                        self.point(batch * crate::limits::profiles::MAX_CONVERSION_SAMPLES + j);
                     let rgba =
                         paint::dither(sampler.sample(point), geometry::map(inverse, point), dither);
                     rgb.extend_from_slice(&rgba[..3]);
@@ -405,7 +410,12 @@ impl Context<'_> {
                 for (j, (cmyk, alpha)) in process.as_chunks::<4>().0.iter().zip(alphas).enumerate()
                 {
                     values[..4].copy_from_slice(cmyk);
-                    surface.paint(batch * 4096 + j, &values, &addressed, alpha);
+                    surface.paint(
+                        batch * crate::limits::profiles::MAX_CONVERSION_SAMPLES + j,
+                        &values,
+                        &addressed,
+                        alpha,
+                    );
                 }
             }
         }
@@ -427,7 +437,7 @@ impl Context<'_> {
             .zip(source.values.chunks_exact(n + 1))
             .enumerate()
         {
-            if pixel.is_multiple_of(4096) {
+            if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 self.control.check()?;
             }
             let base_alpha = dst[n];
@@ -485,7 +495,7 @@ impl Context<'_> {
             .zip(backdrop.values.chunks_exact(n + 1))
             .enumerate()
         {
-            if pixel.is_multiple_of(4096) {
+            if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 self.control.check()?;
             }
             let a = src[n];
@@ -658,7 +668,7 @@ impl Context<'_> {
                 item.fill_opacity
             };
         for (pixel, src) in surface.values.chunks_exact_mut(n + 1).enumerate() {
-            if pixel.is_multiple_of(4096) {
+            if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 self.control.check()?;
             }
             let mut g = opacity;
@@ -1454,7 +1464,7 @@ fn native_plan(
     } else {
         pixels * 4 + source_pixels * 8
     };
-    let color_buffers = 4096 * 16;
+    let color_buffers = crate::limits::prepress::COLOR_BUFFER_VALUES;
     // One surface per active ancestor and current leaf, root, masks, and the
     // final averaged surface. Batch color arrays are independently bounded.
     let clipping_depth = if document.items.iter().any(|i| i.clip_to.is_some()) {

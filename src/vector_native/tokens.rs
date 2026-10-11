@@ -44,7 +44,10 @@ pub fn lex(bytes: &[u8], control: &Control) -> Result<Vec<Token>, Error> {
         if out.len() >= MAX_TOKENS {
             return Err(limit("Native syntax token budget exceeded"));
         }
-        if out.len().is_multiple_of(256) {
+        if out
+            .len()
+            .is_multiple_of(crate::limits::vector_native::PARSE_CHECK_INTERVAL)
+        {
             control.check()?;
         }
         let b = bytes[at];

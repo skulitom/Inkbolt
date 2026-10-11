@@ -305,10 +305,13 @@ pub fn process_state(_identity: ProcessIdentity) -> Result<ProcessState, Error> 
 
 #[cfg(windows)]
 fn slice_duration(duration: Duration) -> Result<(), Error> {
-    if duration > Duration::from_secs(1) {
+    if duration > Duration::from_millis(crate::limits::job_process::MAX_WAIT_SLICE_MS) {
         return Err(failure(
             "INVALID_REQUEST",
-            "A process wait slice cannot exceed one second",
+            &format!(
+                "A process wait slice cannot exceed {} milliseconds",
+                crate::limits::job_process::MAX_WAIT_SLICE_MS
+            ),
         ));
     }
     Ok(())

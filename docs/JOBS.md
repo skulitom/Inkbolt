@@ -1,5 +1,7 @@
 # Durable local export jobs
 
+Queue launch waiting, retry cadence, worker monitoring and synchronous state polling are named separately in [central limits](LIMITS.md) and reported under `capabilities.jobs`. Process wait slices expose their maximum under `capabilities.job_process`.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 `job.start` captures a document and resource bindings into a local persistent queue, returns a compact ticket, and launches a hidden Windows supervisor. The submitting CLI or MCP process can close. The supervisor runs one bounded export process at a time and exits when the queue is empty. No listener, account, network service or telemetry is used.

@@ -29,7 +29,9 @@ impl Budget {
         if self.used > MAX_WORK {
             return Err(limit("Warp exceeds its exact arithmetic work budget"));
         }
-        if previous / 1024 != self.used / 1024 {
+        if previous / crate::limits::warps::EXACT_WORK_CHECK_INTERVAL
+            != self.used / crate::limits::warps::EXACT_WORK_CHECK_INTERVAL
+        {
             self.control.check()?;
         }
         Ok(())

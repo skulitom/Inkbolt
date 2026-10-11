@@ -288,7 +288,9 @@ fn start_gate_identity_and_natural_exit_are_real_process_boundaries() {
     assert!(owned.root.join("started").exists());
     assert_eq!(
         runner
-            .wait_slice(Duration::from_millis(1001))
+            .wait_slice(Duration::from_millis(
+                crate::limits::job_process::MAX_WAIT_SLICE_MS + 1
+            ))
             .unwrap_err()
             .code,
         "INVALID_REQUEST"
@@ -437,6 +439,12 @@ fn persistent_lease_survives_contention_and_is_released_on_process_death() {
 
 #[test]
 fn executable_identity_limits_and_gate_errors_preserve_inputs_without_launching() {
+    let maximum = crate::limits::job_process::MAX_WAIT_SLICE_MS;
+    assert!(slice_duration(Duration::ZERO).is_ok());
+    assert!(slice_duration(Duration::from_millis(maximum)).is_ok());
+    let error = slice_duration(Duration::from_millis(maximum + 1)).unwrap_err();
+    assert_eq!(error.code, "INVALID_REQUEST");
+    assert!(error.message.contains(&maximum.to_string()));
     let owned = Owned::new();
     let path = owned.root.join("original.bin");
     fs::write(&path, b"original synthetic executable identity fixture").unwrap();

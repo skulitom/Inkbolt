@@ -67,7 +67,7 @@ pub(crate) fn world_transforms(
     let mut cache = std::collections::HashMap::<Vec<[u64; 6]>, Matrix>::new();
     let mut worlds = Vec::with_capacity(document.items.len());
     for (i, item) in document.items.iter().enumerate() {
-        if i % 32 == 0 {
+        if i % crate::limits::control::ITEM_CHECK_INTERVAL == 0 {
             control.check()?;
         }
         let parents = ancestors(document, i)?;

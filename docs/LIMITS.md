@@ -68,8 +68,10 @@ capability literals and diagnostic messages remains in progress.
 | `contact_sheets.MAX_GAP` | `u32` | 64 | `64` |
 | `contact_sheets.MAX_PIXELS` | `u64` | 4194304 | `4_194_304` |
 | `contact_sheets.MAX_VIEWS` | `usize` | 16 | `16` |
+| `control.ITEM_CHECK_INTERVAL` | `usize` | 32 | `32` |
 | `control.MAX_CANCEL_FILES` | `usize` | 4 | `4` |
 | `control.MAX_TIMEOUT_MS` | `u64` | 60000 | `60_000` |
+| `control.PIXEL_CHECK_INTERVAL` | `usize` | 4096 | `4096` |
 | `creative_filters.MAX_CELL_SIZE` | `u32` | 4096 | `4096` |
 | `creative_filters.MAX_EDGE_STRENGTH` | `u32` | 8 | `8` |
 | `creative_filters.MAX_EXTREMA_RADIUS` | `u32` | 8 | `8` |
@@ -88,6 +90,7 @@ capability literals and diagnostic messages remains in progress.
 | `dimensions.MAX_LOGICAL_DIMENSION` | `f64` | 65536.0 | `2.0 * super::model::MAX_COORDINATE` |
 | `dimensions.MAX_SUBDIVISION_DEPTH` | `usize` | 32 | `32` |
 | `dimensions.MAX_WORK` | `usize` | 65536 | `65_536` |
+| `dimensions.MEASUREMENT_CHECK_INTERVAL` | `usize` | 32 | `32` |
 | `dimensions.MIN_AREA_TOLERANCE` | `f64` | 1e-09 | `0.000000001` |
 | `dimensions.MIN_LENGTH_TOLERANCE` | `f64` | 1e-06 | `0.000001` |
 | `dimensions.MIN_LOGICAL_DIMENSION` | `f64` | 0.001 | `0.001` |
@@ -152,6 +155,7 @@ capability literals and diagnostic messages remains in progress.
 | `image_io.DEFAULT_JPEG_QUALITY` | `u8` | 90 | `90` |
 | `image_io.MAX_JPEG_QUALITY` | `u8` | 100 | `100` |
 | `image_io.MIN_JPEG_QUALITY` | `u8` | 1 | `1` |
+| `image_io_gif.CONTROL_INTERVAL` | `usize` | 4096 | `4096` |
 | `image_io_gif.MAX_DELAY_TICKS` | `u32` | 65535 | `65535` |
 | `image_io_gif.MAX_PALETTE_ENTRIES` | `usize` | 256 | `256` |
 | `image_io_gif.MAX_PLAYS` | `u32` | 65536 | `65536` |
@@ -176,8 +180,12 @@ capability literals and diagnostic messages remains in progress.
 | `job_process.MAX_EXECUTABLE_BYTES` | `u64` | 536870912 | `512 * 1024 * 1024` |
 | `job_process.MAX_LIFETIME_MS` | `u64` | 3600000 | `3_600_000` |
 | `job_process.MAX_MEMORY_MIB` | `u32` | 2048 | `2048` |
+| `job_process.MAX_WAIT_SLICE_MS` | `u64` | 1000 | `1000` |
 | `job_process.MIN_MEMORY_MIB` | `u32` | 64 | `64` |
+| `job_process.PROCESS_POLL_INTERVAL_MS` | `u64` | 5 | `5` |
 | `jobs.CANCEL_GRACE_MS` | `u64` | 2000 | `2_000` |
+| `jobs.LAUNCH_LOCK_TIMEOUT_MS` | `u64` | 2000 | `2000` |
+| `jobs.LAUNCH_RETRY_INTERVAL_MS` | `u64` | 10 | `10` |
 | `jobs.MAX_ACTIVE` | `usize` | 32 | `32` |
 | `jobs.MAX_ATTEMPTS` | `u32` | 8 | `8` |
 | `jobs.MAX_ERROR_CHARACTERS` | `usize` | 1024 | `1024` |
@@ -190,6 +198,8 @@ capability literals and diagnostic messages remains in progress.
 | `jobs.MAX_STORE_BYTES` | `usize` | 268435456 | `256 * 1024 * 1024` |
 | `jobs.MAX_WAIT_MS` | `u64` | 30000 | `30_000` |
 | `jobs.MAX_WORKER_PATH_LENGTH` | `usize` | 4096 | `super::paths::MAX_PATH_UNITS` |
+| `jobs.MONITOR_INTERVAL_MS` | `u64` | 100 | `100` |
+| `jobs.STATE_POLL_INTERVAL_MS` | `u64` | 50 | `50` |
 | `jobs_listing.DEFAULT_PAGE_RECORDS` | `usize` | 8 | `8` |
 | `jobs_listing.MAX_CURSOR_BYTES` | `usize` | 1024 | `1024` |
 | `jobs_listing.MAX_FINGERPRINT_BYTES` | `usize` | 32768 | `32768` |
@@ -332,6 +342,7 @@ capability literals and diagnostic messages remains in progress.
 | `pdf_marks.MIN_LINE_WIDTH` | `f64` | 0.05 | `0.05` |
 | `pdf_marks.MIN_REGISTRATION_RADIUS` | `f64` | 0.5 | `0.5` |
 | `pixel_brush.COVERAGE_TOLERANCE` | `f64` | 1e-07 | `0.0000001` |
+| `pixel_brush.DAB_CHECK_INTERVAL` | `usize` | 64 | `64` |
 | `pixel_brush.DEFAULT_SPACING` | `f64` | 0.25 | `0.25` |
 | `pixel_brush.FIXED_WORKING_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |
 | `pixel_brush.MAX_COVERAGE_DEPTH` | `u32` | 20 | `20` |
@@ -348,6 +359,7 @@ capability literals and diagnostic messages remains in progress.
 | `pixel_brush.MIN_SPACING` | `f64` | 0.01 | `0.01` |
 | `pixel_brush.MIN_TEXTURE_SCALE` | `f64` | 0.001 | `0.001` |
 | `pixel_brush.WORKING_BYTES_PER_PIXEL` | `u64` | 256 | `256` |
+| `pixel_brush.WORK_CHECK_INTERVAL` | `u64` | 1024 | `1024` |
 | `pixel_warps.MAX_AXIS` | `usize` | 16 | `16` |
 | `pixel_warps.MAX_JOINTS` | `usize` | 16 | `16` |
 | `pixel_warps.MAX_SAMPLES` | `usize` | 256 | `256` |
@@ -355,6 +367,7 @@ capability literals and diagnostic messages remains in progress.
 | `pixel_warps.MIN_ALTITUDE` | `f64` | 0.0009765625 | `1. / 1024.` |
 | `pixel_warps.MIN_FRAME_EXTENT` | `f64` | 0.001 | `0.001` |
 | `pixel_warps.MIN_RELATIVE_AREA` | `f64` | 9.5367431640625e-07 | `1. / 1_048_576.` |
+| `prepress.COLOR_BUFFER_VALUES` | `u64` | 65536 | `super::profiles::MAX_CONVERSION_SAMPLES as u64 * 16` |
 | `prepress.MAX_BUFFER_VALUES` | `u64` | 16777216 | `16_777_216` |
 | `prepress.MAX_SAMPLES` | `usize` | 64 | `64` |
 | `prepress.MAX_SPOTS` | `usize` | 28 | `28` |
@@ -377,6 +390,7 @@ capability literals and diagnostic messages remains in progress.
 | `profiles.TRANSFORM_STACK_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
 | `profiles_cmyk.MAX_PROFILE_BYTES` | `usize` | 4194304 | `4 * 1024 * 1024` |
 | `profiles_gamut.MAX_SAMPLES` | `usize` | 4096 | `4096` |
+| `profiles_gamut.SAMPLE_CHECK_INTERVAL` | `usize` | 256 | `256` |
 | `proof.MAX_DELTA_E76_THRESHOLD` | `u32` | 1000 | `1000` |
 | `proof.MAX_SAMPLES` | `usize` | 64 | `64` |
 | `publications.MAX_LEDGER_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
@@ -452,6 +466,7 @@ capability literals and diagnostic messages remains in progress.
 | `retouch.MAX_SCREENING` | `u32` | 16 | `16` |
 | `retouch.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `retouch.MIN_RESIDUAL_TOLERANCE` | `f64` | 1e-12 | `1e-12` |
+| `retouch.SAMPLE_CHECK_INTERVAL` | `usize` | 1024 | `1024` |
 | `retouch.WORKING_BYTES_PER_PIXEL` | `u64` | 256 | `256` |
 | `sample_import.MAX_INLINE_DECODER_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
 | `sample_import.MAX_NATIVE_DECODED_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
@@ -478,6 +493,7 @@ capability literals and diagnostic messages remains in progress.
 | `sequences.MAX_FRAMES` | `usize` | 256 | `256` |
 | `sequences.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
 | `sessions.BACKUP_BUFFER_BYTES` | `usize` | 65536 | `65536` |
+| `sessions.BACKUP_RETRY_INTERVAL_MS` | `u64` | 5 | `5` |
 | `sessions.BACKUP_STEP_PAGES` | `usize` | 256 | `256` |
 | `sessions.FAULT_CACHE_KIB` | `usize` | 64 | `64` |
 | `sessions.MAX_DATABASE_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
@@ -585,6 +601,7 @@ capability literals and diagnostic messages remains in progress.
 | `text_flow_lists.MAX_LEVELS` | `usize` | 9 | `9` |
 | `text_flow_lists.MAX_LISTS` | `usize` | 64 | `64` |
 | `text_flow_lists.MAX_ROMAN_COUNTER` | `u32` | 3999 | `3999` |
+| `tracing.CONTROL_INTERVAL` | `usize` | 4096 | `4096` |
 | `tracing.MAX_COLORS` | `usize` | 64 | `64` |
 | `tracing.MAX_EDGES` | `usize` | 262144 | `262_144` |
 | `tracing.MAX_PIXELS` | `usize` | 1048576 | `1_048_576` |
@@ -598,6 +615,7 @@ capability literals and diagnostic messages remains in progress.
 | `vector_native.MAX_METADATA_BYTES` | `usize` | 65536 | `65536` |
 | `vector_native.MAX_OPERANDS` | `usize` | 32 | `32` |
 | `vector_native.MAX_SOURCE_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
+| `vector_native.PARSE_CHECK_INTERVAL` | `usize` | 256 | `256` |
 | `vector_native_pdf_read.MAX_DEPTH` | `usize` | 32 | `32` |
 | `vector_native_pdf_read.MAX_HEX_DIGITS` | `usize` | 131072 | `131072` |
 | `vector_native_pdf_read.MAX_NAME_BYTES` | `usize` | 256 | `256` |
@@ -629,6 +647,7 @@ capability literals and diagnostic messages remains in progress.
 | `volumes.MIN_CAMERA_NEAR` | `f64` | 0.01 | `0.01` |
 | `volumes.MIN_DIRECTION_NORM` | `f64` | 1e-08 | `1e-8` |
 | `warps.DEFAULT_TOLERANCE` | `f64` | 0.01 | `0.01` |
+| `warps.EXACT_WORK_CHECK_INTERVAL` | `usize` | 1024 | `1024` |
 | `warps.MAX_BITS` | `u64` | 8192 | `8192` |
 | `warps.MAX_DEGREE` | `usize` | 128 | `128` |
 | `warps.MAX_DEPTH` | `usize` | 24 | `24` |

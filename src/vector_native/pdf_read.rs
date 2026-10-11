@@ -103,7 +103,7 @@ impl Parser<'_, '_> {
             return Err(super::limit("PDF syntax depth or node budget exceeded"));
         }
         *self.nodes += 1;
-        if (*self.nodes).is_multiple_of(256) {
+        if (*self.nodes).is_multiple_of(crate::limits::vector_native::PARSE_CHECK_INTERVAL) {
             self.control.check()?;
         }
         self.skip();

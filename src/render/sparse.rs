@@ -183,7 +183,7 @@ impl Plan {
                 None,
             )?;
             for (i, src) in pixels.as_chunks::<4>().0.iter().enumerate() {
-                if i.is_multiple_of(4096) {
+                if i.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     resources.control.check()?;
                 }
                 if src[3] == 0.0 {

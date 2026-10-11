@@ -640,7 +640,7 @@ impl Prepared {
         let mut image = self.samples()?;
         let source_linear = crate::hdr::linear(&self.document);
         for (i, p) in image.rgba.as_chunks_mut::<4>().0.iter_mut().enumerate() {
-            if i.is_multiple_of(4096) {
+            if i.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 self.resources.control.check()?;
             }
             if let Some(view) = object.view {

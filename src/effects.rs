@@ -263,7 +263,7 @@ impl Effect {
             let blurred = blur_or_borrow(alpha, w, h, sigma * s, Some(control))?;
             let mut result = vec![0.0; alpha.len()];
             for (n, value) in result.iter_mut().enumerate() {
-                if n.is_multiple_of(4096) {
+                if n.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     control.check()?;
                 }
                 *value = shifted(
@@ -281,7 +281,7 @@ impl Effect {
             alpha.to_vec()
         };
         for (n, value) in result.iter_mut().enumerate() {
-            if n.is_multiple_of(4096) {
+            if n.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 control.check()?;
             }
             *value = self.contour(*value);

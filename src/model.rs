@@ -679,7 +679,7 @@ pub fn validate_controlled(
     }
     let worlds = scene::world_transforms(document, control)?;
     for (i, item) in document.items.iter().enumerate() {
-        if i % 32 == 0 {
+        if i % crate::limits::control::ITEM_CHECK_INTERVAL == 0 {
             control.check()?;
         }
         if item.name.len() > bounds::MAX_NAME_BYTES

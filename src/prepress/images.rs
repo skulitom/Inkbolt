@@ -191,7 +191,10 @@ impl Context<'_> {
             .profiles
             .get(id)
             .map(|id| &self.images.converters[id]);
-        for (batch, row) in rgba.chunks(4096 * 4).enumerate() {
+        for (batch, row) in rgba
+            .chunks(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4)
+            .enumerate()
+        {
             self.control.check()?;
             let rgb: Vec<f64> = row
                 .as_chunks::<4>()
@@ -214,7 +217,12 @@ impl Context<'_> {
                 .enumerate()
             {
                 values[..4].copy_from_slice(cmyk);
-                surface.paint(batch * 4096 + j, &values, &addressed, p[3]);
+                surface.paint(
+                    batch * crate::limits::profiles::MAX_CONVERSION_SAMPLES + j,
+                    &values,
+                    &addressed,
+                    p[3],
+                );
             }
         }
         Ok(())

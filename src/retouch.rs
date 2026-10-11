@@ -478,7 +478,7 @@ pub(crate) fn apply(
     let mut field = vec![[0.0; 4]; n];
     if o.opacity > 0.0 {
         for (i, &required) in needed.iter().enumerate() {
-            if i % 1024 == 0 {
+            if i % crate::limits::retouch::SAMPLE_CHECK_INTERVAL == 0 {
                 control.check()?;
             }
             if required {

@@ -232,9 +232,9 @@ pub(crate) fn prepare_backup(
                 StepResult::Done => break,
                 StepResult::More => {}
                 StepResult::Busy | StepResult::Locked
-                    if started.elapsed() < Duration::from_millis(250) =>
+                    if started.elapsed() < Duration::from_millis(sqlite::BUSY_TIMEOUT_MS) =>
                 {
-                    std::thread::sleep(Duration::from_millis(5))
+                    std::thread::sleep(Duration::from_millis(bounds::BACKUP_RETRY_INTERVAL_MS))
                 }
                 _ => {
                     return Err(Error::new(

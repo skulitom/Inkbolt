@@ -1858,6 +1858,20 @@ fn capability_report() -> Value {
     });
     capabilities["agent_outputs"] = json!({"response_mode_default":"full","compact_commands":responses::COMMANDS,"compact_target_bytes":responses::COMPACT_TARGET_BYTES,"compact_target_scope":"ordinary_result_JSON;long_explicit_paths_can_exceed_target","compact_omissions":["document","receipt.changes","snapshots"],"compact_recovery":"pinned_document_ref_and_receipt_ref;request_response_mode_full","presentation_in_retry_fingerprint":false,"inline_snapshot_results":"full_only"});
     capabilities["geometry_limits"]["primitives"] = json!({"minimum_extent":limits::primitives::MIN_EXTENT,"rotation_degrees":[-i64::from(limits::primitives::MAX_ROTATION_DEGREES),limits::primitives::MAX_ROTATION_DEGREES]});
+    capabilities["native_prepress"]["color_conversion_batch_samples"] =
+        json!(limits::profiles::MAX_CONVERSION_SAMPLES);
+    capabilities["native_prepress"]["color_buffer_values"] =
+        json!(limits::prepress::COLOR_BUFFER_VALUES);
+    capabilities["session_backups"]["lock_wait_ms"] = json!(limits::sqlite::BUSY_TIMEOUT_MS);
+    capabilities["session_backups"]["retry_interval_ms"] =
+        json!(limits::sessions::BACKUP_RETRY_INTERVAL_MS);
+    capabilities["jobs"]["launch_lock_timeout_ms"] = json!(limits::jobs::LAUNCH_LOCK_TIMEOUT_MS);
+    capabilities["jobs"]["launch_retry_interval_ms"] =
+        json!(limits::jobs::LAUNCH_RETRY_INTERVAL_MS);
+    capabilities["jobs"]["monitor_interval_ms"] = json!(limits::jobs::MONITOR_INTERVAL_MS);
+    capabilities["jobs"]["state_poll_interval_ms"] = json!(limits::jobs::STATE_POLL_INTERVAL_MS);
+    capabilities["job_process"]["maximum_wait_slice_ms"] =
+        json!(limits::job_process::MAX_WAIT_SLICE_MS);
     capabilities["objects"]["minimum_extent"] = json!(limits::objects::MIN_EXTENT);
     capabilities["geometry_limits"]["minimum_placed_image_extent"] =
         json!(limits::model::MIN_PLACED_IMAGE_EXTENT);

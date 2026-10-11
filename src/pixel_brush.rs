@@ -242,7 +242,7 @@ fn prepare(s: &Stroke, control: &Control) -> Result<Prepared, Error> {
     ];
     let mut segment = 0;
     for (i, distance) in positions.into_iter().enumerate() {
-        if i % 64 == 0 {
+        if i % crate::limits::pixel_brush::DAB_CHECK_INTERVAL == 0 {
             control.check()?;
         }
         while segment + 1 < distances.len() - 1 && distances[segment + 1] < distance {
@@ -310,7 +310,9 @@ impl Work<'_> {
                 "Brush evaluation exceeds {MAX_WORK} work units"
             )));
         }
-        if old / 1024 != self.count / 1024 {
+        if old / crate::limits::pixel_brush::WORK_CHECK_INTERVAL
+            != self.count / crate::limits::pixel_brush::WORK_CHECK_INTERVAL
+        {
             self.control.check()?;
         }
         Ok(())
@@ -554,7 +556,7 @@ pub(crate) fn apply(
     let (mut low, mut high) = ([w, h], [0, 0]);
     let mut minimum_work = 0u64;
     for (i, dab) in prepared.dabs.iter().enumerate() {
-        if i % 64 == 0 {
+        if i % crate::limits::pixel_brush::DAB_CHECK_INTERVAL == 0 {
             control.check()?;
         }
         if dab.diameter == 0.0 || dab.opacity == 0.0 || s.flow == 0.0 || s.opacity == 0.0 {

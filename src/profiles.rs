@@ -497,7 +497,7 @@ pub(crate) fn convert_f64(
         None
     };
     let mut clipped = 0;
-    for row in rgba.chunks_mut(4096 * 4) {
+    for row in rgba.chunks_mut(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4) {
         if let Some(c) = control {
             c.check()?;
         }
@@ -587,7 +587,7 @@ fn convert(
 ) -> Result<(), Error> {
     let transform = transform(source, destination)?;
     // Bounded rows of RGB protect alpha, including hidden RGB at zero alpha.
-    for row in rgba.chunks_mut(4096 * 4) {
+    for row in rgba.chunks_mut(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4) {
         let rgb: Vec<f64> = row
             .as_chunks::<4>()
             .0

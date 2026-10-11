@@ -187,7 +187,7 @@ impl Converter {
             return Err(limit("CMYK conversion exceeds the page image pixel budget"));
         }
         let mut result = Vec::with_capacity(rgba.len());
-        for row in rgba.chunks(4096 * 4) {
+        for row in rgba.chunks(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4) {
             if let Some(c) = control {
                 c.check()?;
             }
