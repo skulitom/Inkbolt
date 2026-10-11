@@ -140,7 +140,7 @@ impl Recipe {
             if !crate::model::valid_id(&ink.id)
                 || !ids.insert(&ink.id)
                 || ink.name.is_empty()
-                || ink.name.len() > 256
+                || ink.name.len() > crate::limits::ink_recipes::MAX_NAME_BYTES
                 || ink
                     .name
                     .chars()

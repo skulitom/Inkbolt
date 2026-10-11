@@ -49,6 +49,8 @@ pub mod artwork_masks {
 
 /// Limits for `src/assets.rs`.
 pub mod assets {
+    /// Maximum temporary-file reservation attempts for an immutable image asset.
+    pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Max assets (assets).
     pub const MAX_ASSETS: usize = 64;
     /// Max asset pixels (assets).
@@ -181,6 +183,8 @@ pub mod edit {
 
 /// Limits for `src/effects.rs`.
 pub mod effects {
+    /// Maximum explicitly stored contour knots per retained layer effect.
+    pub const MAX_CONTOUR_KNOTS: usize = 64;
     /// Max stack (effects).
     pub const MAX_STACK: usize = 8;
     /// Max document effects (effects).
@@ -201,6 +205,8 @@ pub mod filters {
 
 /// Limits for `src/fonts.rs`.
 pub mod fonts {
+    /// Maximum temporary-file reservation attempts for a font or license blob.
+    pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Maximum face index admitted in a pinned font collection.
     pub const MAX_FACE_INDEX: u32 = 255;
     /// Max font bytes (fonts).
@@ -235,10 +241,20 @@ pub mod geometry_point {
 
 /// Limits for `src/handoff.rs`.
 pub mod handoff {
+    /// Maximum output canvas dimension in a graphics handoff.
+    pub const MAX_AXIS: u32 = 4096;
+    /// Maximum handoff duration in seconds, separate from its frame-count budget.
+    pub const MAX_SECONDS: u32 = 120;
     /// Max pixels (handoff).
     pub const MAX_PIXELS: u64 = 8_000_000;
     /// Max bytes (handoff).
     pub const MAX_BYTES: usize = super::publish::MAX_OUTPUT_BYTES;
+}
+
+/// Limits for scene-linear sample inspection.
+pub mod hdr {
+    /// Maximum requested in-canvas positions per sample measurement.
+    pub const MAX_SAMPLES: usize = 256;
 }
 
 /// Limits for `src/hyphenation.rs`.
@@ -265,6 +281,8 @@ pub mod hyphenation {
 
 /// Limits for `src/ink_recipes.rs`.
 pub mod ink_recipes {
+    /// Maximum UTF-8 bytes in a named recipe ink.
+    pub const MAX_NAME_BYTES: usize = 256;
     /// Max inks (ink recipes).
     pub const MAX_INKS: usize = 8;
     /// Max knots (ink recipes).
@@ -623,6 +641,20 @@ pub mod objects {
     pub const MAX_RENDERED_OBJECTS: usize = 32;
 }
 
+/// Limits for the native pixel editor's independent source cache.
+pub mod native_pixels {
+    /// Maximum decoded source tiles retained by one native pixel edit reader.
+    pub const CACHE_TILES: usize = 16;
+}
+
+/// Limits for full-canvas vector overview images.
+pub mod previews {
+    /// Smallest requested overview axis in pixels.
+    pub const MIN_OVERVIEW_AXIS: u32 = 8;
+    /// Largest requested overview axis in pixels before supersampling.
+    pub const MAX_OVERVIEW_AXIS: u32 = 1024;
+}
+
 /// Runtime filesystem paths, measured by the platform's `OsStr::len` units.
 pub mod paths {
     /// Maximum encoded path units; does not change host filesystem limits.
@@ -699,6 +731,8 @@ pub mod pdf {
 
 /// Limits for `src/pixel_brush.rs`.
 pub mod pixel_brush {
+    /// Maximum unscaled brush diameter in native pixels.
+    pub const MAX_DIAMETER: u32 = 512;
     /// Max points (pixel brush).
     pub const MAX_POINTS: usize = 1024;
     /// Max dabs (pixel brush).
@@ -741,6 +775,8 @@ pub mod prepress_images {
 
 /// Limits for `src/prepress.rs`.
 pub mod prepress {
+    /// Maximum requested output sample positions in native ink preparation.
+    pub const MAX_SAMPLES: usize = 64;
     /// Max spots (prepress).
     pub const MAX_SPOTS: usize = 28;
     /// Max buffer values (prepress).
@@ -773,6 +809,10 @@ pub mod profiles_gamut {
 
 /// Limits for `src/profiles.rs`.
 pub mod profiles {
+    /// Maximum entries in an ICC tone-reproduction curve, shared by profile admission and continuous table reconstruction.
+    pub const MAX_CURVE_ENTRIES: usize = 65536;
+    /// Fixed bisection steps for continuous parametric curve inversion; changing this also requires numerical accuracy verification.
+    pub const CURVE_INVERSE_STEPS: usize = 64;
     /// Maximum colors in a device or elementary ink conversion batch.
     pub const MAX_CONVERSION_SAMPLES: usize = 4096;
     /// Max profile bytes (profiles).
@@ -825,6 +865,8 @@ pub mod raw_retained {
 
 /// Limits for `src/raw.rs`.
 pub mod raw {
+    /// Maximum bytes of padding after a row of sensor samples.
+    pub const MAX_ROW_PADDING_BYTES: usize = 4096;
     /// Max pixels (raw).
     pub const MAX_PIXELS: usize = 16384;
 }
@@ -1053,6 +1095,8 @@ pub mod simplify {
 
 /// Limits for `src/spatial_filters.rs`.
 pub mod spatial_filters {
+    /// Maximum dimension of a displacement field, independent of its total-vector budget.
+    pub const MAX_MAP_AXIS: u32 = 256;
     /// Max map pixels (spatial filters).
     pub const MAX_MAP_PIXELS: usize = 4096;
 }
@@ -1303,6 +1347,8 @@ pub mod warps {
 
 /// Limits for `src/work_paths.rs`.
 pub mod work_paths {
+    /// Maximum operands of one compound region or explicit region combination.
+    pub const MAX_OPERANDS: usize = 16;
     /// Max components (work paths).
     pub const MAX_COMPONENTS: usize = 64;
     /// Max component depth (work paths).

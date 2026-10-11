@@ -60,7 +60,7 @@ impl Curve {
             return Ok(((lo - 1) as f64 + (y - a) / (b - a)) / scale);
         }
         let (mut lo, mut hi) = (0.0, 1.0);
-        for _ in 0..64 {
+        for _ in 0..crate::limits::profiles::CURVE_INVERSE_STEPS {
             let mid = (lo + hi) * 0.5;
             let q = self.value(mid)? * sign;
             if q < y || (!terminal && q == y) {
@@ -202,8 +202,11 @@ impl Reader<'_> {
             let (curve, end) = match signature {
                 b"curv" => {
                     let n = self.word(at + 8)?;
-                    if n > 65536 {
-                        return Err(limit("ICC curve exceeds 65536 entries"));
+                    if n > crate::limits::profiles::MAX_CURVE_ENTRIES {
+                        return Err(limit(&format!(
+                            "ICC curve exceeds {} entries",
+                            crate::limits::profiles::MAX_CURVE_ENTRIES
+                        )));
                     }
                     let v = match n {
                         0 => Curve::Identity,

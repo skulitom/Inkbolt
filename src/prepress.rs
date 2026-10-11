@@ -1104,10 +1104,15 @@ fn native_plan(
             "Native ink preparation requires an encoded document without a separate channel recipe or RGB output profile",
         ));
     }
-    if options.samples.len() > 64 || (options.include_bleed && options.artboard_id.is_none()) {
+    if options.samples.len() > crate::limits::prepress::MAX_SAMPLES
+        || (options.include_bleed && options.artboard_id.is_none())
+    {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "At most 64 output samples are supported; bleed needs an artboard",
+            format!(
+                "At most {} output samples are supported; bleed needs an artboard",
+                crate::limits::prepress::MAX_SAMPLES
+            ),
         ));
     }
     // A selected board can place a definition stored outside its subtree.

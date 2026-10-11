@@ -8,6 +8,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 from test_images_cli import canonical
 from test_mcp import Client
@@ -173,9 +174,9 @@ class PixelBrushTests(unittest.TestCase):
         other=copy.deepcopy(d);other['items'][0]['content']=dict(type='group');self.assertEqual(self.apply(other,brush(),1)['code'],'INVALID_OPERATION')
 
     def test_invalid_brush_fields_dimensions_textures_points_and_dab_budget(self):
-        for kw in [dict(diameter=0),dict(diameter=513),dict(hardness=1.01),dict(flow=-1),dict(spacing=.001),dict(scatter=4.1),dict(mode=dict(type='mixer',color=INK,pickup=2,load=0)),dict(texture=dict(width=1,height=1,gray_hex='zz'))]:self.assertEqual(self.inspect(brush(**kw),1)['code'],'INVALID_BRUSH')
+        for kw in [dict(diameter=0),dict(diameter=capabilities()['pixel_brushes']['diameter'][1]+1),dict(hardness=1.01),dict(flow=-1),dict(spacing=.001),dict(scatter=4.1),dict(mode=dict(type='mixer',color=INK,pickup=2,load=0)),dict(texture=dict(width=1,height=1,gray_hex='zz'))]:self.assertEqual(self.inspect(brush(**kw),1)['code'],'INVALID_BRUSH')
         self.assertEqual(self.inspect(brush([[0,0],[32768,0]],diameter=.25,spacing=.01),1)['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.inspect(brush([[0,0]]*1025),1)['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.inspect(brush([[0,0]]*(capabilities()['pixel_brushes']['points']+1)),1)['code'],'RESOURCE_LIMIT')
         self.assertEqual(self.inspect(brush(unsupported=True),1)['code'],'INVALID_REQUEST')
 
     def test_native_boundaries_hidden_rgb_and_extreme_hardness_remain_explicit(self):
@@ -207,7 +208,7 @@ class PixelBrushTests(unittest.TestCase):
         self.assertLessEqual(max(abs(a-b) for a,b in zip(actual,expected)),1)
 
     def test_large_fractional_tip_edges_match_independent_vertical_integrals(self):
-        for diameter in [.25,1.3,15,128,512]:
+        for diameter in [.25,1.3,15,128,capabilities()['pixel_brushes']['diameter'][1]]:
             for hardness in [0,.65,.95,1]:
                 center=[diameter/2+.137,1.619];s=brush([center],diameter=diameter,hardness=hardness);actual=self.raw(self.apply(self.document(4,4),s)['document'])
                 for y in range(4):

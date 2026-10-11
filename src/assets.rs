@@ -315,7 +315,7 @@ pub(crate) fn publish(asset: &ImageAsset, rgba: &[u8], root: &Path) -> Result<bo
     let mut attempts = 0;
     let (temporary, mut f) = loop {
         attempts += 1;
-        if attempts > 64 {
+        if attempts > crate::limits::assets::MAX_STAGE_ATTEMPTS {
             return Err(Error::new(
                 "ASSET_STORE_ERROR",
                 "Unable to reserve a temporary asset name within the retry limit",

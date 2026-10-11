@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 import test_boards_cli as boards
 from test_images_cli import canonical
@@ -222,7 +223,7 @@ class PixelWarpTests(unittest.TestCase):
         d=self.document(s)
         for k in range(14):d['items'].append(dict(copy.deepcopy(node(d)),id='copy'+str(k),visible=False))
         self.assertEqual(self.invoke(dict(command='document.validate',document=d),1)['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.inspect(dict(s,columns=17),expected=1)['code'],'RESOURCE_LIMIT');self.assertEqual(self.inspect(mesh(),expected=1,samples=[[1,1]]*257)['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.inspect(dict(s,columns=capabilities()['pixel_warps']['axis_intervals'][1]+1),expected=1)['code'],'RESOURCE_LIMIT');self.assertEqual(self.inspect(mesh(),expected=1,samples=[[1,1]]*(capabilities()['pixel_warps']['sample_limit']+1))['code'],'RESOURCE_LIMIT')
         self.assertEqual(self.inspect(mesh(),expected=1,control=dict(timeout_ms=0))['code'],'TIMEOUT')
         with tempfile.TemporaryDirectory() as root:
             p=Path(root)/'cancel';p.write_text('cancel');self.assertEqual(self.inspect(mesh(),expected=1,control=dict(cancel_file=str(p)))['code'],'CANCELLED')

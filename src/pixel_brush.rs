@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 use std::path::Path;
 
 pub use crate::limits::pixel_brush::MAX_DABS;
+use crate::limits::pixel_brush::MAX_DIAMETER;
 pub use crate::limits::pixel_brush::MAX_MEMORY_BYTES;
 pub use crate::limits::pixel_brush::MAX_POINTS;
 pub use crate::limits::pixel_brush::MAX_TEXTURE_PIXELS;
@@ -120,10 +121,12 @@ fn unit(value: f64) -> bool {
 }
 fn validate_stroke(s: &Stroke) -> Result<(), Error> {
     if s.points.is_empty() || s.points.len() > MAX_POINTS {
-        return Err(limit("Brush strokes require 1..1024 control points"));
+        return Err(limit(&format!(
+            "Brush strokes require 1..{MAX_POINTS} control points"
+        )));
     }
     if !s.diameter.is_finite()
-        || !(0.25..=512.0).contains(&s.diameter)
+        || !(0.25..=f64::from(MAX_DIAMETER)).contains(&s.diameter)
         || !s.spacing.is_finite()
         || !(0.01..=4.0).contains(&s.spacing)
         || !unit(s.hardness)
@@ -132,9 +135,9 @@ fn validate_stroke(s: &Stroke) -> Result<(), Error> {
         || !s.scatter.is_finite()
         || !(0.0..=4.0).contains(&s.scatter)
     {
-        return Err(invalid(
-            "Brush diameter requires 0.25..512, spacing 0.01..4, scatter 0..4 and hardness/opacity/flow 0..1",
-        ));
+        return Err(invalid(&format!(
+            "Brush diameter requires 0.25..{MAX_DIAMETER}, spacing 0.01..4, scatter 0..4 and hardness/opacity/flow 0..1"
+        )));
     }
     for n in &s.points {
         if !unit(n.size)

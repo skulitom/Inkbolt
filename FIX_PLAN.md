@@ -152,6 +152,12 @@ PDF literal-string parser steps). Existing discovery values and admission ceilin
 are unchanged; native import, interpolation and mesh boundary fixtures read their
 advertised bounds. The inline audit and final W0 acceptance remain open.
 
+Raster editing, ICC curve admission, sensor-row padding, preview dimensions and
+graphics-handoff budgets now use the same catalog. The native edit reader keeps
+its own tile-count cache policy. Capability bindings also cover native print,
+pixel warps and compound regions; unchanged numeric thresholds do not establish
+the larger scale targets. Windows and Linux focused checks continue for each slice.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

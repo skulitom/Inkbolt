@@ -175,7 +175,7 @@ fn parse_model(bytes: &[u8], space: DataColorSpace, printing: bool) -> Result<Co
         ParsingOptions {
             max_profile_size: max_bytes + 1,
             max_allowed_clut_size: max_bytes,
-            max_allowed_trc_size: 65536,
+            max_allowed_trc_size: crate::limits::profiles::MAX_CURVE_ENTRIES,
         },
     )
     .map_err(|_| invalid())?;

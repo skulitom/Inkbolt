@@ -246,10 +246,13 @@ pub fn measure(
     asset_root: Option<&std::path::Path>,
     font_root: Option<&std::path::Path>,
 ) -> Result<Value, Error> {
-    if points.len() > 256 || points.iter().any(|p| p[0] >= d.width || p[1] >= d.height) {
-        return Err(invalid(
-            "Sample measurement accepts at most 256 in-canvas pixel positions",
-        ));
+    if points.len() > crate::limits::hdr::MAX_SAMPLES
+        || points.iter().any(|p| p[0] >= d.width || p[1] >= d.height)
+    {
+        return Err(invalid(&format!(
+            "Sample measurement accepts at most {} in-canvas pixel positions",
+            crate::limits::hdr::MAX_SAMPLES
+        )));
     }
     let image = crate::render::rasterize_samples_with_options(d, 1, asset_root, font_root, None)?;
     let mut minimum = [f64::INFINITY; 4];

@@ -92,7 +92,7 @@ fn publish(root: &Path, digest: &str, suffix: &str, bytes: &[u8]) -> Result<bool
         load_blob(root, digest, suffix, bytes.len() as u64)?;
         return Ok(false);
     }
-    for _ in 0..64 {
+    for _ in 0..crate::limits::fonts::MAX_STAGE_ATTEMPTS {
         let p = root.join(format!(
             ".inkbolt-font-{}-{}.tmp",
             std::process::id(),

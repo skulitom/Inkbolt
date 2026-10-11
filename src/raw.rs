@@ -104,21 +104,31 @@ impl Capture {
     fn validate(&self) -> Result<usize, Error> {
         if !(2..=MAX_DIMENSION).contains(&self.width) || !(2..=MAX_DIMENSION).contains(&self.height)
         {
-            return Err(invalid_raw("Bayer dimensions must be in 2..=32768"));
+            return Err(invalid_raw(&format!(
+                "Bayer dimensions must be in 2..={MAX_DIMENSION}"
+            )));
         }
         let count = self.width as u64 * self.height as u64;
         if count > MAX_PIXELS as u64 {
-            return Err(limit("Raw development exceeds 16384 sensor pixels"));
+            return Err(limit(&format!(
+                "Raw development exceeds {MAX_PIXELS} sensor pixels"
+            )));
         }
         let minimum = self.width as usize * self.packing.bytes();
-        if self.row_stride < minimum || self.row_stride > minimum + 4096 {
-            return Err(invalid_raw(
-                "Raw row stride must include every sample and at most 4096 padding bytes",
-            ));
+        if self.row_stride < minimum
+            || self.row_stride > minimum + crate::limits::raw::MAX_ROW_PADDING_BYTES
+        {
+            return Err(invalid_raw(&format!(
+                "Raw row stride must include every sample and at most {} padding bytes",
+                crate::limits::raw::MAX_ROW_PADDING_BYTES
+            )));
         }
         let length = self.row_stride as u64 * self.height as u64;
         if length > assets::MAX_IMPORT_BYTES {
-            return Err(limit("Raw buffer exceeds 32 MiB"));
+            return Err(limit(&format!(
+                "Raw buffer exceeds {} bytes",
+                assets::MAX_IMPORT_BYTES
+            )));
         }
         let max = if matches!(self.packing, Packing::U8) {
             255.0

@@ -42,16 +42,19 @@ impl Operator {
                         "Displacement fields currently support nearest and bilinear sampling",
                     ));
                 }
-                if !(1..=256).contains(&map.width)
-                    || !(1..=256).contains(&map.height)
+                if !(1..=crate::limits::spatial_filters::MAX_MAP_AXIS).contains(&map.width)
+                    || !(1..=crate::limits::spatial_filters::MAX_MAP_AXIS).contains(&map.height)
                     || map.vectors.len() != map.width as usize * map.height as usize
                 {
-                    return Err(invalid(
-                        "Displacement field requires exact width*height vectors and dimensions in 1..=256",
-                    ));
+                    return Err(invalid(&format!(
+                        "Displacement field requires exact width*height vectors and dimensions in 1..={}",
+                        crate::limits::spatial_filters::MAX_MAP_AXIS
+                    )));
                 }
                 if map.vectors.len() > MAX_MAP_PIXELS {
-                    return Err(limit("Displacement field exceeds 4096 vectors"));
+                    return Err(limit(&format!(
+                        "Displacement field exceeds {MAX_MAP_PIXELS} vectors"
+                    )));
                 }
                 geometry::validate_matrix(map.transform)?;
                 let placement = geometry::multiply(world, map.transform);

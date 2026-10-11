@@ -38,14 +38,15 @@ pub(super) fn options(options: &Options) -> Result<usize, Error> {
     }
     let duration = rational(options.duration)?;
     let count = &duration * &rate;
-    if duration > R::from_integer(120.into())
+    if duration > R::from_integer(crate::limits::handoff::MAX_SECONDS.into())
         || !count.is_integer()
         || count < R::from_integer(1.into())
         || !(&duration * R::from_integer(48000.into())).is_integer()
     {
-        return Err(invalid(
-            "Duration must contain at least one complete video frame, last at most 120 seconds, and land on a 48 kHz sample boundary",
-        ));
+        return Err(invalid(&format!(
+            "Duration must contain at least one complete video frame, last at most {} seconds, and land on a 48 kHz sample boundary",
+            crate::limits::handoff::MAX_SECONDS
+        )));
     }
     count
         .to_integer()

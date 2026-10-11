@@ -11,6 +11,7 @@ mod clock;
 mod verify;
 
 pub const VERSION: u32 = 1;
+use crate::limits::handoff::MAX_AXIS;
 pub use crate::limits::handoff::MAX_BYTES;
 pub use crate::limits::handoff::MAX_PIXELS;
 pub const LOSSES: &[&str] = &[
@@ -212,10 +213,10 @@ pub fn export(
         options.render_options.as_ref(),
     )?;
     let [width, height] = plan.output;
-    if width > 4096 || height > 4096 || width as u64 * height as u64 > MAX_PIXELS {
-        return Err(model::limit(
-            "Handoff canvas exceeds 4096 per axis or eight million pixels",
-        ));
+    if width > MAX_AXIS || height > MAX_AXIS || width as u64 * height as u64 > MAX_PIXELS {
+        return Err(model::limit(&format!(
+            "Handoff canvas exceeds {MAX_AXIS} per axis or {MAX_PIXELS} pixels"
+        )));
     }
     let specs = clock::source_frames(document, options)?;
     clock::schedule(
@@ -336,8 +337,8 @@ fn validate(pin: &Pinned, control: &Control) -> Result<Vec<Option<usize>>, Error
     if !model::valid_id(&m.source.document_id)
         || m.width == 0
         || m.height == 0
-        || m.width > 4096
-        || m.height > 4096
+        || m.width > MAX_AXIS
+        || m.height > MAX_AXIS
         || m.width as u64 * m.height as u64 > MAX_PIXELS
         || m.frames.is_empty()
         || m.frames.len() > crate::sequences::MAX_FRAMES

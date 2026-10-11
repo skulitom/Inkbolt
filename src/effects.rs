@@ -149,10 +149,12 @@ pub(crate) fn validate(document: &Document) -> Result<(), Error> {
                 );
             }
             if !e.contour.is_empty() {
-                if !(2..=64).contains(&e.contour.len()) {
-                    return Err(
-                        limit("Effect contour requires 2 through 64 knots").at_item(&item.id)
-                    );
+                if !(2..=crate::limits::effects::MAX_CONTOUR_KNOTS).contains(&e.contour.len()) {
+                    return Err(limit(&format!(
+                        "Effect contour requires 2 through {} knots",
+                        crate::limits::effects::MAX_CONTOUR_KNOTS
+                    ))
+                    .at_item(&item.id));
                 }
                 if e.contour.first() != Some(&[0.0, 0.0])
                     || e.contour.last().unwrap()[0] != 1.0

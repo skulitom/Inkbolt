@@ -7,6 +7,7 @@ pub(crate) mod coverage;
 
 pub use crate::limits::work_paths::MAX_COMPONENT_DEPTH;
 pub use crate::limits::work_paths::MAX_COMPONENTS;
+use crate::limits::work_paths::MAX_OPERANDS;
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Operand {
@@ -32,11 +33,15 @@ pub(crate) fn validate_compound(g: &Geometry) -> Result<usize, Error> {
         leaves: &mut usize,
     ) -> Result<usize, Error> {
         if depth > MAX_COMPONENT_DEPTH {
-            return Err(limit("Compound region exceeds eight nested operations"));
+            return Err(limit(&format!(
+                "Compound region exceeds {MAX_COMPONENT_DEPTH} nested operations"
+            )));
         }
         if let Geometry::Compound { operands, .. } = g {
-            if !(2..=16).contains(&operands.len()) {
-                return Err(invalid("Compound operations require 2..16 operands"));
+            if !(2..=MAX_OPERANDS).contains(&operands.len()) {
+                return Err(invalid(&format!(
+                    "Compound operations require 2..{MAX_OPERANDS} operands"
+                )));
             }
             let mut commands = 0;
             for v in operands {
@@ -46,14 +51,18 @@ pub(crate) fn validate_compound(g: &Geometry) -> Result<usize, Error> {
                 geometry::validate_matrix(matrix)?;
                 commands += visit(&v.geometry, matrix, depth + 1, leaves)?;
                 if commands > MAX_SEGMENTS {
-                    return Err(limit("Compound region exceeds 4096 commands"));
+                    return Err(limit(&format!(
+                        "Compound region exceeds {MAX_SEGMENTS} commands"
+                    )));
                 }
             }
             Ok(commands)
         } else {
             *leaves += 1;
             if *leaves > MAX_COMPONENTS {
-                return Err(limit("Compound region exceeds 64 leaf components"));
+                return Err(limit(&format!(
+                    "Compound region exceeds {MAX_COMPONENTS} leaf components"
+                )));
             }
             let commands = geometry::validate_geometry(g)?;
             validate_world_geometry(g, world)?;
@@ -68,12 +77,12 @@ pub(crate) fn combine(
     new_id: &str,
     mode: crate::booleans::Mode,
 ) -> Result<Item, Error> {
-    if !(2..=16).contains(&ids.len())
+    if !(2..=MAX_OPERANDS).contains(&ids.len())
         || ids.iter().collect::<std::collections::HashSet<_>>().len() != ids.len()
     {
         return Err(Error::new(
             "INVALID_OPERATION",
-            "Region combination requires 2..16 distinct source IDs",
+            format!("Region combination requires 2..{MAX_OPERANDS} distinct source IDs"),
         ));
     }
     let operands = ids

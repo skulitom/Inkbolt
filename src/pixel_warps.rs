@@ -45,9 +45,9 @@ fn limit(m: &str) -> Error {
 }
 fn finite(p: Point) -> Result<(), Error> {
     if p.iter().any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE) {
-        return Err(invalid(
-            "Pixel warp coordinates must be finite within +/-32768",
-        ));
+        return Err(invalid(&format!(
+            "Pixel warp coordinates must be finite within +/-{MAX_COORDINATE}"
+        )));
     }
     Ok(())
 }
@@ -136,7 +136,9 @@ fn contains(t: [Point; 3], p: Point) -> bool {
 }
 fn grid(columns: usize, rows: usize, frame: Point) -> Result<Vec<Point>, Error> {
     if !(1..=MAX_AXIS).contains(&columns) || !(1..=MAX_AXIS).contains(&rows) {
-        return Err(limit("Pixel warp grid requires 1..16 intervals per axis"));
+        return Err(limit(&format!(
+            "Pixel warp grid requires 1..{MAX_AXIS} intervals per axis"
+        )));
     }
     Ok((0..=rows)
         .flat_map(|r| {
@@ -151,7 +153,9 @@ fn grid(columns: usize, rows: usize, frame: Point) -> Result<Vec<Point>, Error> 
 }
 fn pose(joints: &[Joint]) -> Result<Vec<Matrix>, Error> {
     if joints.is_empty() || joints.len() > MAX_JOINTS {
-        return Err(limit("Articulated warps require 1..16 ordered joints"));
+        return Err(limit(&format!(
+            "Articulated warps require 1..{MAX_JOINTS} ordered joints"
+        )));
     }
     let mut out = vec![];
     for (i, j) in joints.iter().enumerate() {
@@ -204,7 +208,9 @@ impl Plan {
     pub fn new(spec: &Spec, frame: Point) -> Result<Self, Error> {
         finite(frame)?;
         if frame.iter().any(|v| *v < 0.001) {
-            return Err(invalid("Pixel warp source dimensions require .001..32768"));
+            return Err(invalid(&format!(
+                "Pixel warp source dimensions require .001..{MAX_COORDINATE}"
+            )));
         }
         let mut projective = None;
         let mut joint_matrices = vec![];
@@ -563,7 +569,9 @@ pub fn inspect(
 ) -> Result<serde_json::Value, Error> {
     control.check()?;
     if samples.len() + inverse_samples.len() > MAX_SAMPLES {
-        return Err(limit("Pixel warp inspection exceeds256samples"));
+        return Err(limit(&format!(
+            "Pixel warp inspection exceeds {MAX_SAMPLES} samples"
+        )));
     }
     for p in samples.iter().chain(inverse_samples) {
         finite(*p)?;
