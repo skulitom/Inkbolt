@@ -179,6 +179,7 @@ pub(crate) fn evaluate(
     world: Matrix,
     op: &Operator,
     border: Border,
+    viewport_origin: [u32; 2],
 ) -> Vec<f64> {
     let [w, h, scale] = size;
     let s = scale as f64;
@@ -208,7 +209,15 @@ pub(crate) fn evaluate(
             };
             let sample = |dx: f64, dy: f64| {
                 color(
-                    filters::sample(pixels, [w, h], [x as f64 + dx, y as f64 + dy], border),
+                    filters::sample(
+                        pixels,
+                        [w, h],
+                        [
+                            (x + viewport_origin[0]) as f64 + dx - viewport_origin[0] as f64,
+                            (y + viewport_origin[1]) as f64 + dy - viewport_origin[1] as f64,
+                        ],
+                        border,
+                    ),
                     center,
                 )
             };
@@ -289,7 +298,12 @@ pub(crate) fn evaluate(
                         let q = filters::sample(
                             pixels,
                             [w, h],
-                            [x as f64 + cs * d as f64, y as f64 + sn * d as f64],
+                            [
+                                (x + viewport_origin[0]) as f64 + cs * d as f64
+                                    - viewport_origin[0] as f64,
+                                (y + viewport_origin[1]) as f64 + sn * d as f64
+                                    - viewport_origin[1] as f64,
+                            ],
                             border,
                         );
                         if q[3] > 0.0 {
@@ -313,7 +327,13 @@ pub(crate) fn evaluate(
                     low,
                     high,
                 } => {
-                    let q = geometry::map(inverse, [(x as f64 + 0.5) / s, (y as f64 + 0.5) / s]);
+                    let q = geometry::map(
+                        inverse,
+                        [
+                            ((x + viewport_origin[0]) as f64 + 0.5) / s,
+                            ((y + viewport_origin[1]) as f64 + 0.5) / s,
+                        ],
+                    );
                     let t = field(
                         seed,
                         [

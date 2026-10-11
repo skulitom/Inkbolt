@@ -63,7 +63,19 @@ pub(crate) fn evaluate(
     border: Border,
     control: Option<&Control>,
 ) -> Result<Vec<f64>, Error> {
+    evaluate_region(source, (size, [0; 2]), world, operator, border, control)
+}
+
+pub(crate) fn evaluate_region(
+    source: &[f64],
+    region: ([u32; 3], [u32; 2]),
+    world: Matrix,
+    operator: &Operator,
+    border: Border,
+    control: Option<&Control>,
+) -> Result<Vec<f64>, Error> {
     check(control)?;
+    let (size, origin) = region;
     let [w, h, scale] = size;
     let channels = source.len() / (w as usize * h as usize);
     let s = scale as f64;
@@ -134,6 +146,7 @@ pub(crate) fn evaluate(
                 let dst = &mut result[offset..offset + channels];
                 match **operator {
                     Creative::FieldRepair { keep_parity } => {
+                        let keep_parity = (keep_parity + 2 - origin[1] % 2) % 2;
                         if y % 2 == keep_parity || h == 1 {
                             dst.copy_from_slice(&source[offset..offset + channels]);
                             continue;
@@ -153,8 +166,13 @@ pub(crate) fn evaluate(
                         radius,
                         angle,
                     } => {
-                        let q =
-                            geometry::map(inverse, [(x as f64 + 0.5) / s, (y as f64 + 0.5) / s]);
+                        let q = geometry::map(
+                            inverse,
+                            [
+                                ((x + origin[0]) as f64 + 0.5) / s,
+                                ((y + origin[1]) as f64 + 0.5) / s,
+                            ],
+                        );
                         let dx = q[0] - center[0];
                         let dy = q[1] - center[1];
                         let r = dx.hypot(dy) / radius;
@@ -168,6 +186,7 @@ pub(crate) fn evaluate(
                             [center[0] + cs * dx - sn * dy, center[1] + sn * dx + cs * dy],
                         )
                         .map(|v| v * s - 0.5);
+                        let point = std::array::from_fn(|i| point[i] - origin[i] as f64);
                         add_sample(source, [w, h], point, border, dst);
                     }
                     _ => {
@@ -191,11 +210,14 @@ pub(crate) fn evaluate(
         let n = size * scale;
         let mut result = vec![0.0; source.len()];
         let mut sum = vec![0.0; channels];
-        for by in (0..h).step_by(n as usize) {
-            for bx in (0..w).step_by(n as usize) {
+        let start = origin.map(|v| -((v % n) as i64));
+        for by in (start[1]..h as i64).step_by(n as usize) {
+            for bx in (start[0]..w as i64).step_by(n as usize) {
                 sum.fill(0.0);
-                let ex = (bx + n).min(w);
-                let ey = (by + n).min(h);
+                let ex = (bx + n as i64).min(w as i64) as u32;
+                let ey = (by + n as i64).min(h as i64) as u32;
+                let bx = bx.max(0) as u32;
+                let by = by.max(0) as u32;
                 for y in by..ey {
                     check(control)?;
                     for x in bx..ex {
@@ -236,6 +258,8 @@ pub(crate) fn evaluate(
     for y in 0..h {
         check(control)?;
         for x in 0..w {
+            let gx = (x + origin[0]) as f64;
+            let gy = (y + origin[1]) as f64;
             let offset = (y as usize * w as usize + x as usize) * channels;
             let dst = &mut result[offset..offset + channels];
             let count = match operator {
@@ -259,39 +283,32 @@ pub(crate) fn evaluate(
                 let point = match operator {
                     Operator::Directional { length, angle, .. } => {
                         let (sn, cs) = angle.to_radians().sin_cos();
-                        [
-                            x as f64 + cs * length * s * t,
-                            y as f64 + sn * length * s * t,
-                        ]
+                        [gx + cs * length * s * t, gy + sn * length * s * t]
                     }
                     Operator::Radial { angle, zoom, .. } => {
                         let (sn, cs) = (angle.to_radians() * t).sin_cos();
-                        let a = x as f64 - center[0];
-                        let b = y as f64 - center[1];
+                        let a = gx - center[0];
+                        let b = gy - center[1];
                         [
                             center[0] + (a * cs - b * sn) * (1.0 + zoom * t),
                             center[1] + (a * sn + b * cs) * (1.0 + zoom * t),
                         ]
                     }
                     Operator::Spatial { operator } => match &**operator {
-                        Spatial::Offset { offset } => {
-                            [x as f64 - offset[0] * s, y as f64 - offset[1] * s]
-                        }
+                        Spatial::Offset { offset } => [gx - offset[0] * s, gy - offset[1] * s],
                         Spatial::Displace { map, amount } => {
-                            let local = geometry::map(
-                                inverse,
-                                [(x as f64 + 0.5) / s, (y as f64 + 0.5) / s],
-                            );
+                            let local = geometry::map(inverse, [(gx + 0.5) / s, (gy + 0.5) / s]);
                             let vector = crate::spatial_filters::field(map, local);
                             [
-                                x as f64 + vector[0] * amount[0] * s,
-                                y as f64 + vector[1] * amount[1] * s,
+                                gx + vector[0] * amount[0] * s,
+                                gy + vector[1] * amount[1] * s,
                             ]
                         }
                         _ => unreachable!(),
                     },
                     _ => unreachable!(),
                 };
+                let point = std::array::from_fn(|i| point[i] - origin[i] as f64);
                 sample.fill(0.0);
                 add_sample(source, [w, h], point, border, &mut sample);
                 for c in 0..channels {

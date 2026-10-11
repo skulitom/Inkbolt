@@ -315,7 +315,13 @@ impl Prepared {
         let mut depth = 0;
         let mut work = own_work + mask_plan.work;
         let mut buffers = (buffer_pixels * 4).max(mask_plan.buffer_values)
-            + spatial.as_ref().map_or(0, |p| p.buffer_values);
+            + spatial.as_ref().map_or(0, |p| p.buffer_values)
+            + document
+                .items
+                .iter()
+                .map(|item| crate::filters::scratch(item, scale))
+                .max()
+                .unwrap_or(0);
         for (i, item) in document.items.iter().enumerate() {
             control.check()?;
             if !scene::effective_visible(document, i)? {

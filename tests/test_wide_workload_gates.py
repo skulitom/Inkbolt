@@ -121,7 +121,8 @@ class WideWorkloadGateTests(unittest.TestCase):
                                 ('tools/measure_native_filter.py', gates.FILTER_HARNESS),
                                 ('tools/measure_native_shadow.py', gates.SHADOW_HARNESS),
                                 ('tools/measure_native_retouch.py', gates.RETOUCH_HARNESS),
-                                ('tools/measure_native_brush.py', gates.BRUSH_HARNESS)]:
+                                ('tools/measure_native_brush.py', gates.BRUSH_HARNESS),
+                                ('tools/measure_native_detail.py', gates.DETAIL_HARNESS)]:
             pending = [driver]; seen = set()
             while pending:
                 name = pending.pop()
@@ -224,6 +225,24 @@ class WideWorkloadGateTests(unittest.TestCase):
                 broken=copy.deepcopy(r);broken['rows'][0][field].pop(i)
                 self.assertEqual(gates.check(gate,broken)['status'],'ineligible')
         for name in gates.BRUSH_HARNESS:
+            changed=copy.deepcopy(r);changed['candidate_files'][name]='9'*64
+            self.assertEqual(gates.check(gate,changed)['status'],'ineligible')
+
+
+    def test_native_detail_requires_all_outputs_and_its_independent_integer_oracle(self):
+        r=copy.deepcopy(self.report)
+        r['suite']='native-detail-v1';r['selected_cases']=['native-sharpen-history']
+        for row in r['rows']:row['case']='native-sharpen-history'
+        r['candidate_files'].update({name:'3'*64 for name in gates.DETAIL_HARNESS})
+        gate=gates.create(r,'4'*64,'Original native detail records only')
+        self.assertEqual(gates.check(gate,r)['status'],'passed')
+        self.assertEqual(gates.check(self.gate,r)['status'],'ineligible')
+        self.assertEqual(gates.check(gate,self.report)['status'],'ineligible')
+        for field in ('calls','checks'):
+            for i in range(len(r['rows'][0][field])):
+                broken=copy.deepcopy(r);broken['rows'][0][field].pop(i)
+                self.assertEqual(gates.check(gate,broken)['status'],'ineligible')
+        for name in gates.DETAIL_HARNESS:
             changed=copy.deepcopy(r);changed['candidate_files'][name]='9'*64
             self.assertEqual(gates.check(gate,changed)['status'],'ineligible')
 

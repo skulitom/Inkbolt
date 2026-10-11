@@ -1,5 +1,7 @@
 # Architecture
 
+Tiled filter neighborhoods now include detail, local creative and spatial operators. Shared regional evaluation retains full-viewport noise cells, mosaic blocks, alternating-row parity and global displacement/value-field transforms. Rank scratch is charged separately from image temporaries. A full normal unmasked filter directly replaces bounded premultiplied samples, avoiding redundant color conversions and their work charge. Nonlocal radial/twist and wrapped borders remain explicit failures.
+
 Optional native text font bindings validate chosen content-addressed fonts and
 retained licenses against exact face names in the selected authoritative story.
 The compact binding digest records this explicit choice, not the source's

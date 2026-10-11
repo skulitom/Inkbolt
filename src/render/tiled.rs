@@ -70,8 +70,61 @@ pub(super) fn validate(document: &Document, scale: u32) -> Result<Option<Neighbo
             let support = match filter.operator {
                 Operator::Box { radius } | Operator::Surface { radius, .. } => radius * scale,
                 Operator::Gaussian { sigma } => (3.0 * sigma * scale as f64).ceil() as u32,
-                Operator::Directional { length, .. } => (length * scale as f64 * 0.5).ceil() as u32 + 1,
-                _ => return Err(Error::new("UNSUPPORTED_TILED_RENDER", "Tiled filters currently support box, Gaussian, directional and surface neighborhoods").at_item(&item.id)),
+                Operator::Directional { length, .. } => {
+                    (length * scale as f64 * 0.5).ceil() as u32 + 1
+                }
+                Operator::Detail { ref operator } => {
+                    use crate::detail_filters::Operator as Detail;
+                    match **operator {
+                        Detail::Sharpen { .. } => scale,
+                        Detail::Unsharp { sigma, .. } => (3.0 * sigma * scale as f64).ceil() as u32,
+                        Detail::Median { radius } => radius * scale,
+                        Detail::Noise { .. } => 0,
+                    }
+                }
+                Operator::Spatial { ref operator } => {
+                    use crate::spatial_filters::Operator as Spatial;
+                    match **operator {
+                        Spatial::Offset { offset } | Spatial::Displace { amount: offset, .. } => {
+                            (offset[0].abs().max(offset[1].abs()) * scale as f64).ceil() as u32 + 1
+                        }
+                        Spatial::Mosaic { size } => {
+                            if size == 1 {
+                                0
+                            } else {
+                                size * scale - 1
+                            }
+                        }
+                    }
+                }
+                Operator::Creative { ref operator } => {
+                    use crate::creative_filters::Operator as Creative;
+                    match **operator {
+                        Creative::Relief { distance, .. } => {
+                            (distance * scale as f64).ceil() as u32 + 1
+                        }
+                        Creative::HighPass { sigma } => (3.0 * sigma * scale as f64).ceil() as u32,
+                        Creative::Extrema { radius, .. } => radius * scale,
+                        Creative::ToneFold { .. } | Creative::ValueField { .. } => 0,
+                        Creative::EdgeInk { .. } => scale,
+                        Creative::StrokeRank { radius, .. } => radius * scale + 1,
+                        Creative::FieldRepair { .. } => 1,
+                        Creative::Twist { .. } => {
+                            return Err(Error::new(
+                                "UNSUPPORTED_TILED_RENDER",
+                                "Tiled twist needs a bounded nonlocal source mapping",
+                            )
+                            .at_item(&item.id));
+                        }
+                    }
+                }
+                Operator::Radial { .. } => {
+                    return Err(Error::new(
+                        "UNSUPPORTED_TILED_RENDER",
+                        "Tiled radial filtering needs a bounded nonlocal source mapping",
+                    )
+                    .at_item(&item.id));
+                }
             };
             if filter.border == Border::Wrap {
                 return Err(Error::new(

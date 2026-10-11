@@ -142,8 +142,39 @@ impl Operator {
 pub fn work(item: &Item, scale: u32) -> u64 {
     item.filters
         .iter()
-        .map(|f| f.operator.work(scale) + 4 * u64::from(f.mask.is_some()))
+        .map(|f| {
+            f.operator.work(scale) - 4 * u64::from(direct_replacement(f))
+                + 4 * u64::from(f.mask.is_some())
+        })
         .sum()
+}
+fn direct_replacement(filter: &Filter) -> bool {
+    filter.opacity == 1.0
+        && filter.blend == BlendMode::Normal
+        && filter.mask.as_ref().is_none_or(|mask| !mask.enabled)
+}
+/// Additional scalar rank storage beyond the two charged image temporaries.
+/// Filter stages execute serially; only the largest rank neighborhood is live.
+pub(crate) fn scratch(item: &Item, scale: u32) -> u64 {
+    item.filters
+        .iter()
+        .map(|f| match &f.operator {
+            Operator::Detail { operator } => match **operator {
+                crate::detail_filters::Operator::Median { radius } => {
+                    3 * (2 * radius as u64 * scale as u64 + 1).pow(2)
+                }
+                _ => 0,
+            },
+            Operator::Creative { operator } => match **operator {
+                crate::creative_filters::Operator::StrokeRank { radius, .. } => {
+                    3 * (2 * radius as u64 * scale as u64 + 1)
+                }
+                _ => 0,
+            },
+            _ => 0,
+        })
+        .max()
+        .unwrap_or(0)
 }
 pub fn validate(item: &Item, world: Matrix) -> Result<usize, Error> {
     if item.filters.len() > MAX_STACK {
@@ -241,17 +272,29 @@ pub(crate) fn evaluate(
     operator: &Operator,
     border: Border,
 ) -> Vec<f64> {
+    evaluate_region(pixels, size, world, operator, border, [0; 2])
+}
+fn evaluate_region(
+    pixels: &[f64],
+    size: [u32; 3],
+    world: Matrix,
+    operator: &Operator,
+    border: Border,
+    origin: [u32; 2],
+) -> Vec<f64> {
     let [w, h, scale] = size;
     if transport::supports(operator) {
-        return transport::evaluate(pixels, size, world, operator, border, None)
+        return transport::evaluate_region(pixels, (size, origin), world, operator, border, None)
             .expect("Validated spatial filter without cancellation");
     }
     match operator {
         Operator::Creative { operator } => {
-            return crate::creative_filters::evaluate(pixels, size, world, operator, border);
+            return crate::creative_filters::evaluate(
+                pixels, size, world, operator, border, origin,
+            );
         }
         Operator::Detail { operator } => {
-            return crate::detail_filters::evaluate(pixels, size, operator, border);
+            return crate::detail_filters::evaluate(pixels, size, operator, border, origin);
         }
         _ => {}
     }
@@ -297,7 +340,23 @@ pub(crate) fn apply_region(
         .iter()
         .filter(|f| f.enabled && f.opacity != 0.0)
     {
-        let filtered = evaluate(pixels, size, world, &f.operator, f.border);
+        let filtered = evaluate_region(pixels, size, world, &f.operator, f.border, origin);
+        if direct_replacement(f) {
+            // At full normal replacement, the original source has zero weight.
+            // Keep premultiplied samples directly, with the same output bounds.
+            for (dst, src) in pixels
+                .as_chunks_mut::<4>()
+                .0
+                .iter_mut()
+                .zip(filtered.as_chunks::<4>().0)
+            {
+                dst[3] = src[3].clamp(0.0, 1.0);
+                for c in 0..3 {
+                    dst[c] = src[c].clamp(0.0, dst[3]);
+                }
+            }
+            continue;
+        }
         let mask = f
             .mask
             .as_ref()

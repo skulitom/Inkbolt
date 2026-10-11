@@ -123,6 +123,7 @@ pub(crate) fn evaluate(
     size: [u32; 3],
     operator: &Operator,
     border: Border,
+    origin: [u32; 2],
 ) -> Vec<f64> {
     let [w, h, scale] = size;
     let mut blurred = if let Operator::Unsharp { sigma, .. } = *operator {
@@ -140,7 +141,12 @@ pub(crate) fn evaluate(
     if blurred.is_empty() {
         blurred.resize(pixels.len(), 0.0);
     }
-    let mut values: [Vec<f64>; 3] = std::array::from_fn(|_| Vec::new());
+    let capacity = if let Operator::Median { radius } = *operator {
+        (2 * radius as usize * scale as usize + 1).pow(2)
+    } else {
+        0
+    };
+    let mut values: [Vec<f64>; 3] = std::array::from_fn(|_| Vec::with_capacity(capacity));
     for y in 0..h {
         for x in 0..w {
             let i = (y as usize * w as usize + x as usize) * 4;
@@ -202,13 +208,15 @@ pub(crate) fn evaluate(
                     if p[3] == 0.0 {
                         [0.0; 4]
                     } else {
-                        let shared = noise(seed, x / scale, y / scale, 0, distribution);
+                        let nx = (x + origin[0]) / scale;
+                        let ny = (y + origin[1]) / scale;
+                        let shared = noise(seed, nx, ny, 0, distribution);
                         let mut result = p;
                         for c in 0..3 {
                             let v = if monochrome || c == 0 {
                                 shared
                             } else {
-                                noise(seed, x / scale, y / scale, c as u8, distribution)
+                                noise(seed, nx, ny, c as u8, distribution)
                             };
                             result[c] = (p[c] / p[3] + amount * v).clamp(0.0, 1.0) * p[3];
                         }

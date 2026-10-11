@@ -1,5 +1,13 @@
 # Roadmap and verified scope
 
+Tiled rendering now covers detail, local creative and spatial filter families,
+preserving global noise, mosaic, row-parity and field coordinates across tile and
+codec-strip boundaries. Full normal replacement avoids redundant blend work;
+rank scratch remains charged under unchanged memory/work limits. Independent
+native-depth and two-megapixel edit/history checks extend the scale evidence.
+Nonlocal/wrapped filtering, broader production compositions and complete A5
+acceptance remain open; the six original engine checkpoints are unchanged.
+
 Native PNG import now decodes Adam7 pass rows directly into final block buffers.
 Exact coverage checks preserve every sample across all seven passes, with no
 separate complete decoded or normalized frame. PNG sample imports also require
