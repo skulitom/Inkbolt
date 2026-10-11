@@ -1,5 +1,9 @@
 # PDF appearance and page delivery
 
+Print-mark ranges and omitted-option defaults are reported in
+`capabilities.pdf.mark_limits`. Marked, process and ink-recipe writers share the
+same page-coordinate and UserUnit bounds as ordinary PDF delivery.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 `capabilities.pdf.maximum_page_coordinate` and `maximum_user_unit` report the
 existing page sizing bounds used by the writer. These coordinate and multiplier

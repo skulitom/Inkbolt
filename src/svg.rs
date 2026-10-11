@@ -137,7 +137,7 @@ fn mesh_definition(
     if lo
         .iter()
         .chain(hi.iter())
-        .any(|v| !v.is_finite() || v.abs() > 1e9)
+        .any(|v| !v.is_finite() || v.abs() > crate::limits::svg::MAX_MESH_COVERAGE_COORDINATE)
     {
         return Err(crate::model::limit(
             "SVG mesh paint coverage exceeds coordinate budget",

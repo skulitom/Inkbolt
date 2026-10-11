@@ -235,6 +235,14 @@ endpoints and fixed topology remain explicit semantics. Existing advertised
 values and admission behavior stay unchanged; W0's wider inline audit and final
 fresh thorough gate remain open.
 
+The validation follow-up centralizes parametric and gradient minima, placed-image
+and warp-frame extents, baseline admission, print-mark controls and proof
+thresholds. SVG import reuses canvas/stroke/text definitions; all PDF writers use
+the shared physical-page bounds. ICC lookup-table curves, proof batches, native
+staging attempts and tiled receipt descriptions also use catalog definitions.
+Existing values remain unchanged. The remaining diagnostic audit and W0's final
+fresh thorough gate are still required.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

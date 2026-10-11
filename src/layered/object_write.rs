@@ -217,7 +217,10 @@ pub(super) fn prepare(
         corners[i * 2] = mapped[4];
         corners[i * 2 + 1] = mapped[5];
     }
-    if corners.iter().any(|v| !(-32768.0..=32768.0).contains(v)) {
+    if corners
+        .iter()
+        .any(|v| !(-crate::model::MAX_COORDINATE..=crate::model::MAX_COORDINATE).contains(v))
+    {
         return Err(limit(
             "Embedded native placement corners exceed coordinate limits",
         ));

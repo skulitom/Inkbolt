@@ -16,7 +16,7 @@ fn finite(value: f64) -> bool {
     value.is_finite() && value.abs() <= MAX_COORDINATE
 }
 fn radius(value: f64) -> bool {
-    finite(value) && value >= 0.001
+    finite(value) && value >= crate::limits::primitives::MIN_EXTENT
 }
 fn three_distinct(points: &[Point]) -> bool {
     let mut distinct = Vec::new();
@@ -62,7 +62,7 @@ pub fn validate(g: &Geometry) -> Result<(), Error> {
                 && radius(*r)
                 && (3..=MAX_SIDES).contains(sides)
                 && rotation.is_finite()
-                && rotation.abs() <= 360000.0
+                && rotation.abs() <= f64::from(crate::limits::primitives::MAX_ROTATION_DEGREES)
         }
         Geometry::Star {
             cx,
@@ -79,7 +79,7 @@ pub fn validate(g: &Geometry) -> Result<(), Error> {
                 && inner_radius <= outer_radius
                 && (3..=MAX_STAR_POINTS).contains(points)
                 && rotation.is_finite()
-                && rotation.abs() <= 360000.0
+                && rotation.abs() <= f64::from(crate::limits::primitives::MAX_ROTATION_DEGREES)
         }
         _ => true,
     };

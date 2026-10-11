@@ -1,5 +1,9 @@
 # Editable SVG import
 
+The numeric ranges in `capabilities.svg_import.validation_limits` share the
+engine's canvas, stroke and text definitions. SVG source units and the fixed CSS
+96-ppi conversion remain unchanged.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 Negative and fractional coordinate fidelity, normalization tolerance and consumer-preview boundaries are documented in [COORDINATE_PRECISION.md](COORDINATE_PRECISION.md).

@@ -115,10 +115,11 @@ pub(super) fn export(
         }
         let logical = crate::vector_canvas::logical_size(page);
         let physical = 72.0 / page.resolution_ppi;
-        let user_unit = (logical[0].max(logical[1]) * physical / 14400.0)
+        let user_unit = (logical[0].max(logical[1]) * physical
+            / crate::limits::pdf::MAX_PAGE_COORDINATE)
             .ceil()
             .max(1.0);
-        if user_unit > 75000.0 {
+        if user_unit > f64::from(crate::limits::pdf::MAX_USER_UNIT) {
             return Err(limit("PDF page exceeds the supported physical size"));
         }
         let factor = physical / user_unit;

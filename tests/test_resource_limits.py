@@ -14,6 +14,38 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'geometry_limits/primitives/minimum_extent': 'primitives.MIN_EXTENT',
+    'geometry_limits/primitives/rotation_degrees/1': 'primitives.MAX_ROTATION_DEGREES',
+    'geometry_limits/minimum_placed_image_extent': 'model.MIN_PLACED_IMAGE_EXTENT',
+    'paint_limits/minimum_linear_span': 'paint.MIN_LINEAR_SPAN',
+    'paint_limits/minimum_radial_radius': 'paint.MIN_RADIAL_RADIUS',
+    'paint_limits/maximum_radial_radius': 'model.MAX_COORDINATE',
+    'paint_limits/minimum_anchor_separation': 'paint.MIN_ANCHOR_SEPARATION',
+    'pixel_warps/minimum_frame_extent': 'pixel_warps.MIN_FRAME_EXTENT',
+    'path_text/minimum_baseline_length': 'path_text.MIN_BASELINE_LENGTH',
+    'print_proof/delta_e76_threshold/1': 'proof.MAX_DELTA_E76_THRESHOLD',
+    'color_profiles/lut_curve_entries/1': 'profiles.MAX_LUT_CURVE_ENTRIES',
+    'meshes/maximum_svg_coverage_coordinate': 'svg.MAX_MESH_COVERAGE_COORDINATE',
+    'svg_import/validation_limits/canvas_extent/0': 'vector_canvas.MIN_LOGICAL_SIZE',
+    'svg_import/validation_limits/canvas_extent/1': 'model.MAX_DIMENSION',
+    'svg_import/validation_limits/stroke_width/1': 'strokes.MAX_WIDTH',
+    'svg_import/validation_limits/miter_limit/0': 'strokes.MIN_MITER_LIMIT',
+    'svg_import/validation_limits/miter_limit/1': 'strokes.MAX_MITER_LIMIT',
+    'svg_import/validation_limits/font_size/0': 'text.MIN_FONT_SIZE',
+    'svg_import/validation_limits/font_size/1': 'text.MAX_FONT_SIZE',
+    'pdf/mark_limits/gap_pt/0': 'pdf_marks.MIN_GAP',
+    'pdf/mark_limits/gap_pt/1': 'pdf_marks.MAX_GAP',
+    'pdf/mark_limits/defaults/gap_pt': 'pdf_marks.DEFAULT_GAP',
+    'pdf/mark_limits/length_pt/0': 'pdf_marks.MIN_LENGTH',
+    'pdf/mark_limits/length_pt/1': 'pdf_marks.MAX_LENGTH',
+    'pdf/mark_limits/defaults/length_pt': 'pdf_marks.DEFAULT_LENGTH',
+    'pdf/mark_limits/line_width_pt/0': 'pdf_marks.MIN_LINE_WIDTH',
+    'pdf/mark_limits/line_width_pt/1': 'pdf_marks.MAX_LINE_WIDTH',
+    'pdf/mark_limits/defaults/line_width_pt': 'pdf_marks.DEFAULT_LINE_WIDTH',
+    'pdf/mark_limits/registration_radius_pt/0': 'pdf_marks.MIN_REGISTRATION_RADIUS',
+    'pdf/mark_limits/registration_radius_pt/1': 'pdf_marks.MAX_REGISTRATION_RADIUS',
+    'pdf/mark_limits/defaults/registration_radius_pt': 'pdf_marks.DEFAULT_REGISTRATION_RADIUS',
+
     'agent_inputs/document_file/file_bytes': 'request.MAX_REQUEST_BYTES',
     'agent_inputs/expanded_request_bytes': 'request.MAX_REQUEST_BYTES',
     'agent_inputs/request_bytes': 'request.MAX_REQUEST_BYTES',
@@ -661,7 +693,9 @@ class ResourceLimitTests(unittest.TestCase):
                  'native_sample_store_library/manifest_version':1,
                  'objects/surface_scale/0':1, 'pdf/scale':1,
                  'render_quality/padding_document_units/0':0,
-                 'render_quality/supersample_factors/0':2}
+                 'render_quality/supersample_factors/0':2,
+                 'svg_import/validation_limits/stroke_width/0':0,
+                 'print_proof/delta_e76_threshold/0':0}
         for path, expected in fixed.items():
             value = capabilities()
             for part in path.split('/'):
@@ -674,7 +708,7 @@ class ResourceLimitTests(unittest.TestCase):
                        'image_io','image_tracing','meshes','native_sample_store_library',
                        'objects','pdf','print_cmyk','print_proof','publication',
                        'render_quality','resource_profiles','sample_profiles','sequences',
-                       'supported/text','svg_import','variants','visual_comparison'):
+                       'supported/text','svg_import','variants','visual_comparison','paint_limits'):
             value = capabilities()
             for part in prefix.split('/'): value = value[part]
             self.assertEqual(numeric_fields(value, prefix) - fixed.keys() - derived,
@@ -764,12 +798,15 @@ class ResourceLimitTests(unittest.TestCase):
             for part in path.split('/'):
                 value = value[int(part)] if isinstance(value, list) else value[part]
             self.assertEqual(value, expected)
+        rotation = capabilities()['geometry_limits']['primitives']['rotation_degrees']
+        self.assertEqual(rotation[0], -rotation[1])
+        self.assertEqual(capabilities()['color_profiles']['lut_curve_entries'][0], 2)
         angles = capabilities()['volumes']['rotation_degrees']
         self.assertEqual(angles[0], -angles[1])
         self.assertEqual(capabilities()['pixel_assistance']['edge_scale'][1], 4*255**2)
         for prefix in ('geometry_limits','assistance','snapping','vector_canvas','pixel_assistance','volumes'):
             self.assertEqual(numeric_fields(capabilities()[prefix], prefix) - fixed.keys()
-                             - {'volumes/rotation_degrees/0'},
+                             - {'volumes/rotation_degrees/0', 'geometry_limits/primitives/rotation_degrees/0'},
                              {p for p in BINDINGS if p.startswith(prefix+'/')})
 
         # Fixed kernel definitions, normalized ranges and symmetric/reciprocal

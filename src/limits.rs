@@ -743,6 +743,8 @@ pub mod metadata {
 
 /// Limits for `src/model.rs`.
 pub mod model {
+    /// Minimum placed-image width or height in document units.
+    pub const MIN_PLACED_IMAGE_EXTENT: f64 = 0.001;
     /// Minimum document resolution in pixels per inch, shared by every authoring route.
     pub const MIN_RESOLUTION_PPI: u32 = 1;
     /// Maximum document resolution in pixels per inch.
@@ -843,6 +845,12 @@ pub mod workspace {
 
 /// Limits for `src/paint.rs`.
 pub mod paint {
+    /// Minimum separation of linear-gradient endpoints.
+    pub const MIN_LINEAR_SPAN: f64 = 0.001;
+    /// Minimum radial-gradient radius.
+    pub const MIN_RADIAL_RADIUS: f64 = 0.001;
+    /// Minimum pairwise freeform-gradient anchor separation.
+    pub const MIN_ANCHOR_SEPARATION: f64 = 0.001;
     /// Max paint samples (paint).
     pub const MAX_PAINT_SAMPLES: usize = 4096;
     /// Max stops (paint).
@@ -855,6 +863,8 @@ pub mod paint {
 
 /// Limits for `src/path_text.rs`.
 pub mod path_text {
+    /// Minimum certified lower bound on text baseline length.
+    pub const MIN_BASELINE_LENGTH: f64 = 0.001;
     /// Minimum caller-selected distance-table tolerance shared by text paths and interpolation spines.
     pub const MIN_TOLERANCE: f64 = 0.000001;
     /// Maximum caller-selected distance-table tolerance shared by text paths and interpolation spines.
@@ -883,6 +893,34 @@ pub mod pdf {
     pub const MAX_OBJECTS: usize = 32_768;
     /// Max image pixels (pdf).
     pub const MAX_IMAGE_PIXELS: u64 = 4_194_304;
+}
+
+/// Existing print-mark admission and omitted-option defaults.
+pub mod pdf_marks {
+    /// Min gap in physical points.
+    pub const MIN_GAP: f64 = 0.1;
+    /// Max gap in physical points.
+    pub const MAX_GAP: f64 = 72.0;
+    /// Default gap in physical points.
+    pub const DEFAULT_GAP: f64 = 3.0;
+    /// Min length in physical points.
+    pub const MIN_LENGTH: f64 = 1.0;
+    /// Max length in physical points.
+    pub const MAX_LENGTH: f64 = 144.0;
+    /// Default length in physical points.
+    pub const DEFAULT_LENGTH: f64 = 6.0;
+    /// Min line width in physical points.
+    pub const MIN_LINE_WIDTH: f64 = 0.05;
+    /// Max line width in physical points.
+    pub const MAX_LINE_WIDTH: f64 = 4.0;
+    /// Default line width in physical points.
+    pub const DEFAULT_LINE_WIDTH: f64 = 0.25;
+    /// Min registration radius in physical points.
+    pub const MIN_REGISTRATION_RADIUS: f64 = 0.5;
+    /// Max registration radius in physical points.
+    pub const MAX_REGISTRATION_RADIUS: f64 = 36.0;
+    /// Default registration radius in physical points.
+    pub const DEFAULT_REGISTRATION_RADIUS: f64 = 3.0;
 }
 
 /// Limits for `src/pixel_brush.rs`.
@@ -925,6 +963,8 @@ pub mod pixel_brush {
 
 /// Limits for `src/pixel_warps.rs`.
 pub mod pixel_warps {
+    /// Minimum warp-frame width or height before deformation.
+    pub const MIN_FRAME_EXTENT: f64 = 0.001;
     /// Max axis (pixel warps).
     pub const MAX_AXIS: usize = 16;
     /// Max joints (pixel warps).
@@ -965,6 +1005,10 @@ pub mod prepress {
 
 /// Limits for `src/primitives.rs`.
 pub mod primitives {
+    /// Minimum parametric radius or rounded-rectangle dimension.
+    pub const MIN_EXTENT: f64 = 0.001;
+    /// Maximum absolute saved rotation for regular polygons and stars.
+    pub const MAX_ROTATION_DEGREES: u32 = 360000;
     /// Max polygon points (primitives).
     pub const MAX_POLYGON_POINTS: usize = 1024;
     /// Max sides (primitives).
@@ -987,6 +1031,8 @@ pub mod profiles_gamut {
 
 /// Limits for `src/profiles.rs`.
 pub mod profiles {
+    /// Maximum input/output entries in admitted LUT8/LUT16 curve tables; independent of standalone tone curves.
+    pub const MAX_LUT_CURVE_ENTRIES: usize = 4096;
     /// Maximum entries in an ICC tone-reproduction curve, shared by profile admission and continuous table reconstruction.
     pub const MAX_CURVE_ENTRIES: usize = 65536;
     /// Fixed bisection steps for continuous parametric curve inversion; changing this also requires numerical accuracy verification.
@@ -1003,6 +1049,8 @@ pub mod profiles {
 
 /// Limits for `src/proof.rs`.
 pub mod proof {
+    /// Maximum caller-selected color-loss classification threshold.
+    pub const MAX_DELTA_E76_THRESHOLD: u32 = 1000;
     /// Max samples (proof).
     pub const MAX_SAMPLES: usize = 64;
 }
@@ -1223,6 +1271,8 @@ pub mod sample_profiles {
 
 /// Limits for `src/sample_store.rs`.
 pub mod sample_store {
+    /// Maximum create-only temporary-file reservation attempts for one native tile.
+    pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Tile edge (sample store).
     pub const TILE_EDGE: u32 = super::raster::TILE_EDGE;
     /// Max pixels (sample store).
@@ -1463,6 +1513,12 @@ pub mod strokes {
     pub const MAX_SVG_COMMANDS: u64 = 131_072;
     /// Max svg range commands (strokes).
     pub const MAX_SVG_RANGE_COMMANDS: u64 = 262_144;
+}
+
+/// Bounds on derived SVG delivery geometry.
+pub mod svg {
+    /// Maximum absolute coordinate of a derived mesh-paint coverage rectangle.
+    pub const MAX_MESH_COVERAGE_COORDINATE: f64 = 1e9;
 }
 
 /// Limits for `src/svg_import/definitions.rs`.

@@ -192,8 +192,12 @@ impl Plan {
             value["evaluation_tile_edge"] = json!(crate::render::tiled::EDGE);
             value["evaluation_neighborhood_units"] =
                 json!(crate::render::traversal::NEIGHBORHOOD_UNITS);
-            value["evaluation_tile_policy"] =
-                json!("maximum_128;8_for_at_least_128_expanded_items");
+            value["evaluation_tile_policy"] = json!(format!(
+                "maximum_{};{}_for_at_least_{}_expanded_items",
+                crate::limits::render_tiled::EDGE,
+                crate::limits::render_spatial::EDGE,
+                crate::limits::render_spatial::MIN_ITEMS
+            ));
         }
         if let Some(canvas) = self.canvas {
             value["vector_canvas"] = json!(canvas);

@@ -155,7 +155,7 @@ impl Observer {
     /// Continuous encoded RGB observation for an explicitly selected print adjustment policy.
     pub(crate) fn process_rgb(&self, ink: &[f64]) -> Result<Vec<f64>, Error> {
         if !ink.len().is_multiple_of(4)
-            || ink.len() > 4096 * 4
+            || ink.len() > crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4
             || ink
                 .iter()
                 .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
@@ -211,7 +211,11 @@ impl Observer {
         if rgba.len() as u64 / 4 > crate::render::MAX_RENDER_PIXELS {
             return Err(limit("Proof exceeds the render pixel budget"));
         }
-        for (chunk, (source, ink)) in rgba.chunks(4096 * 4).zip(inks.chunks(4096 * 4)).enumerate() {
+        for (chunk, (source, ink)) in rgba
+            .chunks(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4)
+            .zip(inks.chunks(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4))
+            .enumerate()
+        {
             control.check()?;
             let rgb: Vec<f64> = source
                 .as_chunks::<4>()
@@ -270,7 +274,7 @@ impl Observer {
                     (encoded * 255.0).round() as u8
                 });
                 visit(
-                    chunk * 4096 + i,
+                    chunk * crate::limits::profiles::MAX_CONVERSION_SAMPLES + i,
                     Sample {
                         source_xyz,
                         proof_xyz,

@@ -1,5 +1,9 @@
 # Editable text on a path
 
+`capabilities.path_text.minimum_baseline_length` reports the minimum accepted
+certified length lower bound from the [limit catalog](LIMITS.md). Stored source
+curves, distance-table tolerances and placement behavior are unchanged.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 Text frames in either document kind can retain an optional `path` baseline. Agents can place curved labels and badge text, edit the original baseline or characters, inspect every glyph, and publish outlines while keeping an editable snapshot.

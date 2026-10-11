@@ -292,6 +292,7 @@ capability literals and diagnostic messages remains in progress.
 | `model.MAX_RESOLUTION_PPI` | `u32` | 9600 | `9600` |
 | `model.MAX_SEGMENTS` | `usize` | 4096 | `4096` |
 | `model.MAX_STORED_PIXELS` | `usize` | 65536 | `65536` |
+| `model.MIN_PLACED_IMAGE_EXTENT` | `f64` | 0.001 | `0.001` |
 | `model.MIN_RESOLUTION_PPI` | `u32` | 1 | `1` |
 | `native_pixels.CACHE_TILES` | `usize` | 16 | `16` |
 | `objects.MAX_NESTING` | `usize` | 4 | `4` |
@@ -300,12 +301,16 @@ capability literals and diagnostic messages remains in progress.
 | `paint.MAX_PAINT_WORK` | `u64` | 134217728 | `134_217_728` |
 | `paint.MAX_PATTERN_PIXELS` | `usize` | 4096 | `4096` |
 | `paint.MAX_STOPS` | `usize` | 64 | `64` |
+| `paint.MIN_ANCHOR_SEPARATION` | `f64` | 0.001 | `0.001` |
+| `paint.MIN_LINEAR_SPAN` | `f64` | 0.001 | `0.001` |
+| `paint.MIN_RADIAL_RADIUS` | `f64` | 0.001 | `0.001` |
 | `path_text.DEFAULT_TOLERANCE` | `f64` | 0.001 | `0.001` |
 | `path_text.MAX_COMMANDS` | `usize` | 1024 | `1024` |
 | `path_text.MAX_DOCUMENT_LEAVES` | `usize` | 65536 | `65536` |
 | `path_text.MAX_LEAVES` | `usize` | 32768 | `32768` |
 | `path_text.MAX_SUBDIVISION_DEPTH` | `usize` | 24 | `24` |
 | `path_text.MAX_TOLERANCE` | `f64` | 0.25 | `0.25` |
+| `path_text.MIN_BASELINE_LENGTH` | `f64` | 0.001 | `0.001` |
 | `path_text.MIN_TOLERANCE` | `f64` | 1e-06 | `0.000001` |
 | `paths.MAX_PATH_UNITS` | `usize` | 4096 | `4096` |
 | `pdf.MAX_COMMANDS` | `usize` | 262144 | `262_144` |
@@ -313,6 +318,18 @@ capability literals and diagnostic messages remains in progress.
 | `pdf.MAX_OBJECTS` | `usize` | 32768 | `32_768` |
 | `pdf.MAX_PAGE_COORDINATE` | `f64` | 14400.0 | `14400.0` |
 | `pdf.MAX_USER_UNIT` | `u32` | 75000 | `75000` |
+| `pdf_marks.DEFAULT_GAP` | `f64` | 3.0 | `3.0` |
+| `pdf_marks.DEFAULT_LENGTH` | `f64` | 6.0 | `6.0` |
+| `pdf_marks.DEFAULT_LINE_WIDTH` | `f64` | 0.25 | `0.25` |
+| `pdf_marks.DEFAULT_REGISTRATION_RADIUS` | `f64` | 3.0 | `3.0` |
+| `pdf_marks.MAX_GAP` | `f64` | 72.0 | `72.0` |
+| `pdf_marks.MAX_LENGTH` | `f64` | 144.0 | `144.0` |
+| `pdf_marks.MAX_LINE_WIDTH` | `f64` | 4.0 | `4.0` |
+| `pdf_marks.MAX_REGISTRATION_RADIUS` | `f64` | 36.0 | `36.0` |
+| `pdf_marks.MIN_GAP` | `f64` | 0.1 | `0.1` |
+| `pdf_marks.MIN_LENGTH` | `f64` | 1.0 | `1.0` |
+| `pdf_marks.MIN_LINE_WIDTH` | `f64` | 0.05 | `0.05` |
+| `pdf_marks.MIN_REGISTRATION_RADIUS` | `f64` | 0.5 | `0.5` |
 | `pixel_brush.COVERAGE_TOLERANCE` | `f64` | 1e-07 | `0.0000001` |
 | `pixel_brush.DEFAULT_SPACING` | `f64` | 0.25 | `0.25` |
 | `pixel_brush.FIXED_WORKING_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |
@@ -335,6 +352,7 @@ capability literals and diagnostic messages remains in progress.
 | `pixel_warps.MAX_SAMPLES` | `usize` | 256 | `256` |
 | `pixel_warps.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `pixel_warps.MIN_ALTITUDE` | `f64` | 0.0009765625 | `1. / 1024.` |
+| `pixel_warps.MIN_FRAME_EXTENT` | `f64` | 0.001 | `0.001` |
 | `pixel_warps.MIN_RELATIVE_AREA` | `f64` | 9.5367431640625e-07 | `1. / 1_048_576.` |
 | `prepress.MAX_BUFFER_VALUES` | `u64` | 16777216 | `16_777_216` |
 | `prepress.MAX_SAMPLES` | `usize` | 64 | `64` |
@@ -345,16 +363,20 @@ capability literals and diagnostic messages remains in progress.
 | `previews.MAX_OVERVIEW_AXIS` | `u32` | 1024 | `1024` |
 | `previews.MIN_OVERVIEW_AXIS` | `u32` | 8 | `8` |
 | `primitives.MAX_POLYGON_POINTS` | `usize` | 1024 | `1024` |
+| `primitives.MAX_ROTATION_DEGREES` | `u32` | 360000 | `360000` |
 | `primitives.MAX_SIDES` | `u32` | 256 | `256` |
 | `primitives.MAX_STAR_POINTS` | `u32` | 128 | `128` |
+| `primitives.MIN_EXTENT` | `f64` | 0.001 | `0.001` |
 | `profiles.CURVE_INVERSE_STEPS` | `usize` | 64 | `64` |
 | `profiles.MAX_CONVERSION_SAMPLES` | `usize` | 4096 | `4096` |
 | `profiles.MAX_CURVE_ENTRIES` | `usize` | 65536 | `65536` |
+| `profiles.MAX_LUT_CURVE_ENTRIES` | `usize` | 4096 | `4096` |
 | `profiles.MAX_PROFILE_BYTES` | `usize` | 262144 | `256 * 1024` |
 | `profiles.MAX_PROFILE_TAGS` | `usize` | 128 | `128` |
 | `profiles.TRANSFORM_STACK_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
 | `profiles_cmyk.MAX_PROFILE_BYTES` | `usize` | 4194304 | `4 * 1024 * 1024` |
 | `profiles_gamut.MAX_SAMPLES` | `usize` | 4096 | `4096` |
+| `proof.MAX_DELTA_E76_THRESHOLD` | `u32` | 1000 | `1000` |
 | `proof.MAX_SAMPLES` | `usize` | 64 | `64` |
 | `publications.MAX_LEDGER_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
 | `publications.MAX_RECEIPT_BYTES` | `usize` | 1048576 | `1024 * 1024` |
@@ -436,6 +458,7 @@ capability literals and diagnostic messages remains in progress.
 | `sample_profiles.MAX_ENCODED_PROFILE_BYTES` | `usize` | 524288 | `512 * 1024` |
 | `sample_store.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
 | `sample_store.MAX_REGION_PIXELS` | `u64` | 65536 | `65_536` |
+| `sample_store.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `sample_store.MAX_TILES` | `usize` | 2048 | `2048` |
 | `sample_store.TILE_EDGE` | `u32` | 128 | `super::raster::TILE_EDGE` |
 | `sample_tiff_tiled.MAX_STRIP_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
@@ -524,6 +547,7 @@ capability literals and diagnostic messages remains in progress.
 | `strokes_outline.MAX_OUTLINE_COMMANDS` | `usize` | 65536 | `65_536` |
 | `strokes_outline.MAX_POINTS` | `usize` | 16384 | `16_384` |
 | `strokes_outline.MAX_SUBDIVISION_DEPTH` | `usize` | 24 | `24` |
+| `svg.MAX_MESH_COVERAGE_COORDINATE` | `f64` | 1000000000.0 | `1e9` |
 | `svg_import.MAX_BYTES` | `usize` | 262144 | `256 * 1024` |
 | `svg_import.MAX_FONT_FAMILY_BYTES` | `usize` | 256 | `256` |
 | `svg_import.MAX_LARGE_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |

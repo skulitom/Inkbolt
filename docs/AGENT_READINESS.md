@@ -44,14 +44,14 @@ W0 audit. macOS, CI activation, Linux jobs and release/scale evidence remain ope
 
 ## Delivery gates
 
-W0 is in progress: the central catalog holds 311 existing resource ceilings and
-bounded-evaluation settings, including shared native pixel/tile geometry and
-core document, decoder, delivery and job bounds. Existing Rust module paths are
-preserved. The generated [limit reference](LIMITS.md), compiled-value check,
-65 selected capability bindings and boundary fixtures guard this first migration.
-Remaining inline/parser limits, additional capability literals and diagnostics
-still require the W0 audit; this consolidation raises no limits and establishes
-no new engine or readiness completion credit.
+W0 is in progress: the central catalog defines existing resource ceilings and
+bounded-evaluation settings across document admission, editing, parsers,
+rendering, delivery, storage and jobs. Existing Rust module paths are preserved.
+The generated [limit reference](LIMITS.md), compiled-value checks, capability
+bindings and boundary fixtures track the current definitions without duplicating
+counts in this plan. Remaining inline policies and diagnostic messages still
+require the W0 audit and its final fresh thorough acceptance. This consolidation
+raises no limits and establishes no new engine or readiness completion credit.
 
 | Gate | Required behavior and evidence | Current state |
 | --- | --- | --- |

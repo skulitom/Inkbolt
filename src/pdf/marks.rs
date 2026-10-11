@@ -1,5 +1,6 @@
 //! Original physical page bounds and outside-bleed crop/registration geometry.
 use super::*;
+use crate::limits::pdf_marks as limits;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
@@ -16,10 +17,10 @@ impl Default for Marks {
         Self {
             crop: true,
             registration: true,
-            gap_pt: 3.0,
-            length_pt: 6.0,
-            line_width_pt: 0.25,
-            registration_radius_pt: 3.0,
+            gap_pt: limits::DEFAULT_GAP,
+            length_pt: limits::DEFAULT_LENGTH,
+            line_width_pt: limits::DEFAULT_LINE_WIDTH,
+            registration_radius_pt: limits::DEFAULT_REGISTRATION_RADIUS,
         }
     }
 }
@@ -27,16 +28,34 @@ impl Marks {
     fn validate(self) -> Result<(), Error> {
         let bounded = |v: f64, a: f64, b: f64| v.is_finite() && (a..=b).contains(&v);
         if (!self.crop && !self.registration)
-            || !bounded(self.gap_pt, 0.1, 72.0)
-            || !bounded(self.length_pt, 1.0, 144.0)
-            || !bounded(self.line_width_pt, 0.05, 4.0)
-            || !bounded(self.registration_radius_pt, 0.5, 36.0)
+            || !bounded(self.gap_pt, limits::MIN_GAP, limits::MAX_GAP)
+            || !bounded(self.length_pt, limits::MIN_LENGTH, limits::MAX_LENGTH)
+            || !bounded(
+                self.line_width_pt,
+                limits::MIN_LINE_WIDTH,
+                limits::MAX_LINE_WIDTH,
+            )
+            || !bounded(
+                self.registration_radius_pt,
+                limits::MIN_REGISTRATION_RADIUS,
+                limits::MAX_REGISTRATION_RADIUS,
+            )
             || self.line_width_pt * 2.0 > self.length_pt
             || (self.registration && self.line_width_pt * 2.0 > self.registration_radius_pt)
         {
             return Err(Error::new(
                 "INVALID_REQUEST",
-                "Print marks need crop or registration, gap 0.1..72 pt, length 1..144 pt, line width 0.05..4 pt and radius 0.5..36 pt; strokes must fit their marks",
+                format!(
+                    "Print marks need crop or registration, gap {}..{} pt, length {}..{} pt, line width {}..{} pt and radius {}..{} pt; strokes must fit their marks",
+                    limits::MIN_GAP,
+                    limits::MAX_GAP,
+                    limits::MIN_LENGTH,
+                    limits::MAX_LENGTH,
+                    limits::MIN_LINE_WIDTH,
+                    limits::MAX_LINE_WIDTH,
+                    limits::MIN_REGISTRATION_RADIUS,
+                    limits::MAX_REGISTRATION_RADIUS
+                ),
             ));
         }
         Ok(())
@@ -92,8 +111,10 @@ impl Layout {
             margin + w - pad[2],
             margin + h - pad[3],
         ];
-        let user_unit = (media[2].max(media[3]) / 14400.0).ceil().max(1.0);
-        if user_unit > 75000.0 {
+        let user_unit = (media[2].max(media[3]) / crate::limits::pdf::MAX_PAGE_COORDINATE)
+            .ceil()
+            .max(1.0);
+        if user_unit > f64::from(crate::limits::pdf::MAX_USER_UNIT) {
             return Err(limit("Marked PDF page exceeds physical size limits"));
         }
         let mut layout = Self {

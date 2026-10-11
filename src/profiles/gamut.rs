@@ -112,7 +112,9 @@ impl Gamut {
                 } else {
                     (52, reader.short(48)?, reader.short(50)?, 2)
                 };
-                if !(2..=4096).contains(&ni) || !(2..=4096).contains(&no) {
+                if !(2..=crate::limits::profiles::MAX_LUT_CURVE_ENTRIES).contains(&ni)
+                    || !(2..=crate::limits::profiles::MAX_LUT_CURVE_ENTRIES).contains(&no)
+                {
                     return Err(invalid());
                 }
                 let input = (0..3)

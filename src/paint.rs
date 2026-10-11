@@ -152,10 +152,12 @@ pub fn validate(paint: &Paint) -> Result<(usize, usize), Error> {
         } => {
             point(*start)?;
             point(*end)?;
-            if (end[0] - start[0]).hypot(end[1] - start[1]) < 0.001 {
-                return Err(invalid(
-                    "Linear gradient endpoints must be at least 0.001 apart",
-                ));
+            if (end[0] - start[0]).hypot(end[1] - start[1]) < crate::limits::paint::MIN_LINEAR_SPAN
+            {
+                return Err(invalid(&format!(
+                    "Linear gradient endpoints must be at least {} apart",
+                    crate::limits::paint::MIN_LINEAR_SPAN
+                )));
             }
             stops
         }
@@ -166,22 +168,32 @@ pub fn validate(paint: &Paint) -> Result<(usize, usize), Error> {
             ..
         } => {
             point(*center)?;
-            if !radius.is_finite() || !(0.001..=MAX_COORDINATE).contains(radius) {
-                return Err(invalid("Radial gradient radius must be in 0.001..=32768"));
+            if !radius.is_finite()
+                || !(crate::limits::paint::MIN_RADIAL_RADIUS..=MAX_COORDINATE).contains(radius)
+            {
+                return Err(invalid(&format!(
+                    "Radial gradient radius must be in {}..={MAX_COORDINATE}",
+                    crate::limits::paint::MIN_RADIAL_RADIUS
+                )));
             }
             stops
         }
         Field::Freeform { anchors, .. } => {
             if !(2..=MAX_STOPS).contains(&anchors.len()) {
-                return Err(limit("Freeform paint requires 2 through 64 anchors"));
+                return Err(limit(&format!(
+                    "Freeform paint requires 2 through {MAX_STOPS} anchors"
+                )));
             }
             for (i, a) in anchors.iter().enumerate() {
                 point(a.point)?;
-                if anchors[..i]
-                    .iter()
-                    .any(|b| (a.point[0] - b.point[0]).hypot(a.point[1] - b.point[1]) < 0.001)
-                {
-                    return Err(invalid("Freeform anchors must be at least 0.001 apart"));
+                if anchors[..i].iter().any(|b| {
+                    (a.point[0] - b.point[0]).hypot(a.point[1] - b.point[1])
+                        < crate::limits::paint::MIN_ANCHOR_SEPARATION
+                }) {
+                    return Err(invalid(&format!(
+                        "Freeform anchors must be at least {} apart",
+                        crate::limits::paint::MIN_ANCHOR_SEPARATION
+                    )));
                 }
             }
             return Ok((0, anchors.len()));

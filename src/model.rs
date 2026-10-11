@@ -1029,9 +1029,12 @@ pub fn validate_controlled(
                     .get(asset_id)
                     .ok_or_else(|| invalid("Image refers to an undefined asset"))?;
                 for value in [width, height] {
-                    if !value.is_finite() || !(0.001..=MAX_COORDINATE).contains(value) {
+                    if !value.is_finite()
+                        || !(bounds::MIN_PLACED_IMAGE_EXTENT..=MAX_COORDINATE).contains(value)
+                    {
                         return Err(invalid(&format!(
-                            "Placed image dimensions must be in 0.001..={MAX_COORDINATE}"
+                            "Placed image dimensions must be in {}..={MAX_COORDINATE}",
+                            bounds::MIN_PLACED_IMAGE_EXTENT
                         )));
                     }
                 }

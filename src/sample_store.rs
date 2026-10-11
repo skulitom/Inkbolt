@@ -581,7 +581,7 @@ fn publish_blob(
         read_blob(Some(root), id, spec, tile)?;
         return Ok(false);
     }
-    let (mut file, owned) = (0..64)
+    let (mut file, owned) = (0..crate::limits::sample_store::MAX_STAGE_ATTEMPTS)
         .find_map(|_| {
             let path = root.join(format!(
                 ".inkbolt-native-{}-{}.tmp",

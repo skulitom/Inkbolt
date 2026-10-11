@@ -1,5 +1,9 @@
 # Retained pixel deformation
 
+`capabilities.pixel_warps.minimum_frame_extent` reports the existing local-frame
+admission threshold from the [limit catalog](LIMITS.md). It is independent of
+triangle conditioning and pixel-work budgets.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 An image or inline pixel item can carry an optional `pixel_warp`. Original

@@ -207,7 +207,10 @@ pub(crate) struct Plan {
 impl Plan {
     pub fn new(spec: &Spec, frame: Point) -> Result<Self, Error> {
         finite(frame)?;
-        if frame.iter().any(|v| *v < 0.001) {
+        if frame
+            .iter()
+            .any(|v| *v < crate::limits::pixel_warps::MIN_FRAME_EXTENT)
+        {
             return Err(invalid(&format!(
                 "Pixel warp source dimensions require .001..{MAX_COORDINATE}"
             )));

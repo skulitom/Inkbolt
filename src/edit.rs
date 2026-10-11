@@ -1966,10 +1966,18 @@ fn apply_one(
             Ok((document.id.clone(), "output_profile"))
         }
         Operation::EffectsScale { ids, factor } => {
-            if !factor.is_finite() || !(0.001..=1024.0).contains(factor) {
+            if !factor.is_finite()
+                || !(crate::limits::effects::MIN_SCALE
+                    ..=f64::from(crate::limits::effects::MAX_SCALE))
+                    .contains(factor)
+            {
                 return Err(Error::new(
                     "INVALID_OPERATION",
-                    "Effect scale factor must be in 0.001..=1024",
+                    format!(
+                        "Effect scale factor must be in {}..={}",
+                        crate::limits::effects::MIN_SCALE,
+                        crate::limits::effects::MAX_SCALE
+                    ),
                 ));
             }
             let selected = scene::selection(document, ids, false)?;

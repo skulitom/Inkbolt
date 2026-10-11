@@ -231,8 +231,11 @@ impl Measured {
         for curve in curves {
             build.visit(curve, error, path.tolerance / 8.0, 0)?;
         }
-        if build.lower < 0.001 {
-            return Err(invalid("Text baseline must have at least 0.001 length"));
+        if build.lower < crate::limits::path_text::MIN_BASELINE_LENGTH {
+            return Err(invalid(&format!(
+                "Text baseline must have at least {} length",
+                crate::limits::path_text::MIN_BASELINE_LENGTH
+            )));
         }
         // Include a conservative f64 accumulation/subdivision allowance. The
         // geometric interval is chord length through control-polygon length.

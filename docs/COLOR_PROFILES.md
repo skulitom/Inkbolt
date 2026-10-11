@@ -1,5 +1,10 @@
 # Explicit RGB color profiles
 
+`capabilities.color_profiles.lut_curve_entries` reports the existing input/output
+curve cardinality range for admitted LUT8/LUT16 tables. This bound is separate
+from standalone tone curves and conversion batch limits; definitions are in the
+[limit catalog](LIMITS.md).
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 For explicit CMYK page output, use [PRINT_CMYK.md](PRINT_CMYK.md). Its supplied four-channel printing profile is separate from document RGB output association.

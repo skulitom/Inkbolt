@@ -8,6 +8,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import zlib
 from cmyk_fixtures import cmyk_profile, proof_profile, lookup, fixed
 import test_print_cmyk_cli as print_tests
@@ -204,7 +205,9 @@ class ProofTests(unittest.TestCase):
 
     def test_invalid_options_profiles_and_controls_fail_without_mutation(self):
         d,_=self.document();original=copy.deepcopy(d)
-        for kw in [dict(delta_e76_threshold=-1),dict(delta_e76_threshold=1001),dict(samples=[[16,0]]),dict(samples=[[0,0]]*65),dict(include_bleed=True)]:
+        bounds = capabilities()['print_proof']
+        for threshold in bounds['delta_e76_threshold']: self.proof(d, delta_e76_threshold=threshold)
+        for kw in [dict(delta_e76_threshold=-1),dict(delta_e76_threshold=bounds['delta_e76_threshold'][1]+1),dict(samples=[[16,0]]),dict(samples=[[0,0]]*(bounds['samples']+1)),dict(include_bleed=True)]:
             self.assertEqual(self.proof(d,expected=1,**kw)['code'],'INVALID_REQUEST')
         for intent in ['perceptual','saturation']:
             self.assertEqual(self.proof(d,expected=1,view_intent=intent)['code'],'UNSUPPORTED_PROFILE_INTENT')

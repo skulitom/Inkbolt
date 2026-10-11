@@ -217,10 +217,15 @@ pub(super) fn styled(parent: &LabelStyle, p: &BTreeMap<&str, &str>) -> Result<La
             "font-family" => s.families = families(v)?,
             "font-size" => {
                 s.size = relative_length(v, parent.size, parent.size)?;
-                if !(0.01..=1024.0).contains(&s.size) {
-                    return Err(unsupported(
-                        "Font size must resolve to 0.01..1024 user units",
-                    ));
+                if !(crate::limits::text::MIN_FONT_SIZE
+                    ..=f64::from(crate::limits::text::MAX_FONT_SIZE))
+                    .contains(&s.size)
+                {
+                    return Err(unsupported(format!(
+                        "Font size must resolve to {}..{} user units",
+                        crate::limits::text::MIN_FONT_SIZE,
+                        crate::limits::text::MAX_FONT_SIZE
+                    )));
                 }
             }
             "font-style" => {

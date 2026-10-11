@@ -1857,6 +1857,22 @@ fn capability_report() -> Value {
         "workspace_is_os_sandbox":false
     });
     capabilities["agent_outputs"] = json!({"response_mode_default":"full","compact_commands":responses::COMMANDS,"compact_target_bytes":responses::COMPACT_TARGET_BYTES,"compact_target_scope":"ordinary_result_JSON;long_explicit_paths_can_exceed_target","compact_omissions":["document","receipt.changes","snapshots"],"compact_recovery":"pinned_document_ref_and_receipt_ref;request_response_mode_full","presentation_in_retry_fingerprint":false,"inline_snapshot_results":"full_only"});
+    capabilities["geometry_limits"]["primitives"] = json!({"minimum_extent":limits::primitives::MIN_EXTENT,"rotation_degrees":[-i64::from(limits::primitives::MAX_ROTATION_DEGREES),limits::primitives::MAX_ROTATION_DEGREES]});
+    capabilities["geometry_limits"]["minimum_placed_image_extent"] =
+        json!(limits::model::MIN_PLACED_IMAGE_EXTENT);
+    capabilities["paint_limits"] = json!({"minimum_linear_span":limits::paint::MIN_LINEAR_SPAN,"minimum_radial_radius":limits::paint::MIN_RADIAL_RADIUS,"maximum_radial_radius":model::MAX_COORDINATE,"minimum_anchor_separation":limits::paint::MIN_ANCHOR_SEPARATION});
+    capabilities["pixel_warps"]["minimum_frame_extent"] =
+        json!(limits::pixel_warps::MIN_FRAME_EXTENT);
+    capabilities["path_text"]["minimum_baseline_length"] =
+        json!(limits::path_text::MIN_BASELINE_LENGTH);
+    capabilities["pdf"]["mark_limits"] = json!({"gap_pt":[limits::pdf_marks::MIN_GAP,limits::pdf_marks::MAX_GAP],"length_pt":[limits::pdf_marks::MIN_LENGTH,limits::pdf_marks::MAX_LENGTH],"line_width_pt":[limits::pdf_marks::MIN_LINE_WIDTH,limits::pdf_marks::MAX_LINE_WIDTH],"registration_radius_pt":[limits::pdf_marks::MIN_REGISTRATION_RADIUS,limits::pdf_marks::MAX_REGISTRATION_RADIUS],"defaults":{"gap_pt":limits::pdf_marks::DEFAULT_GAP,"length_pt":limits::pdf_marks::DEFAULT_LENGTH,"line_width_pt":limits::pdf_marks::DEFAULT_LINE_WIDTH,"registration_radius_pt":limits::pdf_marks::DEFAULT_REGISTRATION_RADIUS}});
+    capabilities["print_proof"]["delta_e76_threshold"] =
+        json!([0, limits::proof::MAX_DELTA_E76_THRESHOLD]);
+    capabilities["color_profiles"]["lut_curve_entries"] =
+        json!([2, limits::profiles::MAX_LUT_CURVE_ENTRIES]);
+    capabilities["meshes"]["maximum_svg_coverage_coordinate"] =
+        json!(limits::svg::MAX_MESH_COVERAGE_COORDINATE);
+    capabilities["svg_import"]["validation_limits"] = json!({"canvas_extent":[limits::vector_canvas::MIN_LOGICAL_SIZE,model::MAX_DIMENSION],"stroke_width":[0,limits::strokes::MAX_WIDTH],"miter_limit":[limits::strokes::MIN_MITER_LIMIT,limits::strokes::MAX_MITER_LIMIT],"font_size":[limits::text::MIN_FONT_SIZE,limits::text::MAX_FONT_SIZE]});
     capabilities
 }
 pub fn execute(request: Request) -> Result<Value, Error> {
