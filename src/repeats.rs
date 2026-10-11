@@ -197,14 +197,15 @@ pub fn count(layout: &Layout) -> Result<usize, Error> {
         } => {
             radius(r)?;
             if !start_angle.is_finite()
-                || start_angle.abs() > 360.0
+                || start_angle.abs() > f64::from(limits::MAX_RADIAL_ANGLE_DEGREES)
                 || !sweep.is_finite()
                 || sweep == 0.0
-                || sweep.abs() > 360.0
+                || sweep.abs() > f64::from(limits::MAX_RADIAL_ANGLE_DEGREES)
             {
-                return Err(invalid(
-                    "Radial angles must be finite within +/-360 and sweep must be nonzero",
-                ));
+                return Err(invalid(&format!(
+                    "Radial angles must be finite within +/-{} and sweep must be nonzero",
+                    limits::MAX_RADIAL_ANGLE_DEGREES
+                )));
             }
             if (closed && sweep.abs() != 360.0) || (!closed && (sweep.abs() >= 360.0 || count < 2))
             {

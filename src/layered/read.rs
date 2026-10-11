@@ -65,7 +65,7 @@ fn record(
         ));
     }
     let count = input.short()?;
-    if count > 5 {
+    if usize::from(count) > crate::limits::layered::MAX_IMPORT_LAYER_CHANNELS {
         return Err(unsupported(
             "Layered import requires RGB with optional transparency and one authored scalar mask",
         ));

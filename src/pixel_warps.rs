@@ -165,10 +165,14 @@ fn pose(joints: &[Joint]) -> Result<Vec<Matrix>, Error> {
     for (i, j) in joints.iter().enumerate() {
         finite(j.pivot)?;
         finite(j.translation)?;
-        if !j.angle.is_finite() || j.angle.abs() > 360. || j.parent.is_some_and(|p| p >= i) {
-            return Err(invalid(
-                "Joint angles require +/-360 degrees and parents must precede children",
-            ));
+        if !j.angle.is_finite()
+            || j.angle.abs() > f64::from(crate::limits::pixel_warps::MAX_JOINT_ANGLE_DEGREES)
+            || j.parent.is_some_and(|p| p >= i)
+        {
+            return Err(invalid(&format!(
+                "Joint angles require +/-{} degrees and parents must precede children",
+                crate::limits::pixel_warps::MAX_JOINT_ANGLE_DEGREES
+            )));
         }
         let (s, c) = if j.angle % 90. == 0. {
             match (j.angle as i32 / 90).rem_euclid(4) {

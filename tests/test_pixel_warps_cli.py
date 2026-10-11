@@ -208,6 +208,18 @@ class PixelWarpTests(unittest.TestCase):
                     self.assertIn('sum to one', result['message'])
                 self.assertEqual(spec, before)
 
+    def test_advertised_joint_angle_endpoints_preserve_pose_and_reject_excess(self):
+        maximum = capabilities()['pixel_warps']['maximum_absolute_joint_angle_degrees']
+        for sign in (-1,1):
+            for angle,expected in ((sign*maximum,0),(sign*(maximum+1),1)):
+                source = articulated()
+                source['joints'][0]['angle'] = angle
+                before = copy.deepcopy(source)
+                result = self.inspect(source,expected=expected)
+                if expected:self.assertEqual(result['code'],'INVALID_PIXEL_WARP')
+                else:self.points(result['destination_points'],mesh_points(source,[8,8])[1])
+                self.assertEqual(source,before)
+
     def test_invalid_joint_weights_parent_cycles_and_strict_controls(self):
         for modify in [lambda s:s['weights'][0].__setitem__(0,.2),lambda s:s['weights'][0].__setitem__(0,-1),lambda s:s['joints'][0].update(parent=1),lambda s:s['joints'][1].update(parent=1),lambda s:s['joints'][0].update(angle=361),lambda s:s['weights'].pop()]:
             s=articulated();modify(s);self.assertEqual(self.inspect(s,expected=1)['code'],'INVALID_PIXEL_WARP')

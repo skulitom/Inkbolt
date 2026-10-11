@@ -90,6 +90,23 @@ class RepeatTests(unittest.TestCase):
                 self.assertEqual(placement['reflected'],sx*sy<0)
                 self.assertEqual(sum(winding(poly,12+12*c-sx,12+10*row) for poly in [outer,hole]),0)
                 self.assertNotEqual(sum(winding(poly,12+12*c+2*sx,12+10*row) for poly in [outer,hole]),0)
+    def test_advertised_radial_angle_admission_preserves_endpoints_and_rejects_excess(self):
+        maximum = capabilities()['repeats']['maximum_absolute_radial_angle_degrees']
+        for field in ('start_angle','sweep'):
+            for sign in (-1,1):
+                for value,expected in ((sign*maximum,0),(sign*(maximum+1),1)):
+                    layout = dict(type='radial',count=4,radius=10,**{field:value})
+                    source = spec(layout)
+                    before = copy.deepcopy(source)
+                    result = self.inspect(source,expected=expected)
+                    if expected:self.assertEqual(result['code'],'INVALID_REPEAT')
+                    else:
+                        start = layout.get('start_angle',0)
+                        sweep = layout.get('sweep',360)
+                        centers = [[12+10*math.cos(math.radians(start+sweep*i/4)),12+10*math.sin(math.radians(start+sweep*i/4))] for i in range(4)]
+                        self.points([p['center'] for p in result['placements']],centers)
+                    self.assertEqual(source,before)
+
     def test_closed_radial_count_quadrants_orientation_and_seam_exclusion(self):
         for mode in ['fixed','radial','tangent']:
             s=spec(dict(type='radial',count=4,radius=10,orientation=mode),rect(-3,-1,6,2));s['origin']=[32,32]

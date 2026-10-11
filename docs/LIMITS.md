@@ -281,6 +281,7 @@ capability literals and diagnostic messages remains in progress.
 | `layered.MAX_DECODED_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `layered.MAX_DECODED_ITEMS` | `usize` | 1024 | `1024` |
 | `layered.MAX_FILE_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
+| `layered.MAX_IMPORT_LAYER_CHANNELS` | `usize` | 5 | `3 + 1 + 1` |
 | `layered.MAX_LINK_ID_BYTES` | `usize` | 128 | `128` |
 | `layered.MAX_METADATA_RECORDS` | `u32` | 16 | `16` |
 | `layered.MAX_NAME_UNITS` | `usize` | 1024 | `1024` |
@@ -437,6 +438,7 @@ capability literals and diagnostic messages remains in progress.
 | `pixel_warps.JOINT_BUFFER_VALUES` | `usize` | 16 | `16` |
 | `pixel_warps.MAX_AXIS` | `usize` | 16 | `16` |
 | `pixel_warps.MAX_JOINTS` | `usize` | 16 | `16` |
+| `pixel_warps.MAX_JOINT_ANGLE_DEGREES` | `u32` | 360 | `360` |
 | `pixel_warps.MAX_SAMPLES` | `usize` | 256 | `256` |
 | `pixel_warps.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `pixel_warps.MIN_ALTITUDE` | `f64` | 0.0009765625 | `1. / 1024.` |
@@ -553,6 +555,7 @@ capability literals and diagnostic messages remains in progress.
 | `repair.MIN_RANGE_SIGMA` | `f64` | 0.0001 | `0.0001` |
 | `repair.MIN_SYNTHESIZED_WEIGHT` | `f64` | 0.01 | `0.01` |
 | `repeats.MAX_COPIES` | `usize` | 128 | `128` |
+| `repeats.MAX_RADIAL_ANGLE_DEGREES` | `u32` | 360 | `360` |
 | `repeats.MIN_RADIUS` | `f64` | 0.001 | `0.001` |
 | `repeats.MIN_STEP` | `f64` | 0.001 | `0.001` |
 | `request.MAX_REQUEST_BYTES` | `u64` | 16777216 | `16 * 1024 * 1024` |

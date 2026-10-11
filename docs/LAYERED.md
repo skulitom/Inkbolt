@@ -1,5 +1,9 @@
 # Layered pixel interchange
 
+`capabilities.layered_interchange.maximum_import_channels_per_layer` reports
+the admitted RGB, transparency and authored scalar-mask channel cardinality.
+Extra or duplicate channels remain explicit unsupported-semantics failures.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 Native delivery retains explicit character scale factors and baseline shifts;

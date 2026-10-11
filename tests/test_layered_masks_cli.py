@@ -5,6 +5,7 @@ import layered_fixtures as f
 import test_layered_cli as core
 from test_layered_groups_cli import marker
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def masked(layer,gray=b'\x00\x40\xff\x80\xc0\x20',box=(2,3,4,6),outside=0,flags=0,parameters=b'',compression=0,version=1):
@@ -23,6 +24,19 @@ class LayeredMaskTests(unittest.TestCase):
     pixels=core.LayeredTests.pixels
     export=core.LayeredTests.export
     def layer(self):return dict(name='authored',width=6,height=4,xy=(1,1),rgba=[210,40,80,255]*24)
+
+    def test_advertised_import_channel_bound_retains_rgb_alpha_and_mask(self):
+        maximum = capabilities()['layered_interchange']['maximum_import_channels_per_layer']
+        source = masked(self.layer())
+        self.assertEqual(len(source['channel_ids']),maximum)
+        result = self.read(f.make([source]),color_policy='assume_srgb')['document']['items'][0]
+        self.assertEqual(result['content']['rgba_hex'],bytes(source['rgba']).hex())
+        self.assertEqual(result['mask']['gray_hex'],'0040ff80c020')
+        excess = copy.deepcopy(source)
+        excess['channel_ids'].append(-3)
+        excess['channel_data'].append(excess['channel_data'][-1])
+        self.assertEqual(len(excess['channel_ids']),maximum+1)
+        self.assertEqual(self.read(f.make([excess]),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
     def test_independent_inputs_keep_scalar_bytes_bounds_and_link_controls(self):
         for version in [1,2]:
             for compression in range(4):

@@ -286,6 +286,13 @@ fixed code width, with independent decoding checks around reset boundaries.
 These values and geometric algorithms are unchanged. The final inline audit
 and fresh Windows/Linux thorough W0 acceptance are still required.
 
+The closing admission pass names joint/radial angle bounds and imported layer
+channel cardinality. Legacy descriptive capability strings format their limits
+from the enforced constants, including GIF timing, owner labels, PDF scaling,
+warp weights, gamut samples, backup steps and brush precision. Boundary fixtures
+cover both signed angle endpoints and excess layer channels. Final source
+classification and fresh Windows/Linux thorough acceptance remain pending.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

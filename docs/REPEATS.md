@@ -1,5 +1,9 @@
 # Editable motif layouts
 
+`capabilities.repeats.maximum_absolute_radial_angle_degrees` reports the
+shared admission bound for authored radial start angles and sweeps. Closed
+layouts still require a full turn; open layouts require less than a full turn.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 A repeat item retains original closed vector geometry, a fill and structured placement controls. Use it for pattern fields, tiled backgrounds, repeated icons and radial diagram markers:

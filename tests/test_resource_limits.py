@@ -14,6 +14,9 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'pixel_warps/maximum_absolute_joint_angle_degrees': 'pixel_warps.MAX_JOINT_ANGLE_DEGREES',
+    'repeats/maximum_absolute_radial_angle_degrees': 'repeats.MAX_RADIAL_ANGLE_DEGREES',
+    'layered_interchange/maximum_import_channels_per_layer': 'layered.MAX_IMPORT_LAYER_CHANNELS',
     'numerical_limits/booleans_quadratic_min_root_enclosure_bits': 'booleans_topology_quadratic.MIN_ROOT_ENCLOSURE_BITS',
     'numerical_limits/booleans_quadratic_root_bits_per_depth': 'booleans_topology_quadratic.ROOT_BITS_PER_DEPTH',
     'numerical_limits/booleans_quadratic_root_guard_bits': 'booleans_topology_quadratic.ROOT_GUARD_BITS',
@@ -697,6 +700,24 @@ BINDINGS = {
 
 class ResourceLimitTests(unittest.TestCase):
     invoke = test_cli.CliTests.invoke
+
+    def test_descriptive_capability_limits_follow_catalog_values(self):
+        values = {key: value for key, _, value, _ in update_limits.catalog((ROOT/'src/limits.rs').read_text(encoding='utf-8'))}
+        bindings = (
+            ('image_io/gif/timing','exact_centiseconds_0_to_','','image_io_gif.MAX_DELAY_TICKS'),
+            ('layered_interchange/text_delivery/shape_owner','required_consumer_geometry_identifier;1_to_','_ASCII_letters_or_digits;unrecognized_labels_may_fail_geometry','layered_text.MAX_SHAPE_OWNER_BYTES'),
+            ('pdf/user_unit','ceil_largest_physical_dimension_divided_by_','_minimum_1','pdf.MAX_PAGE_COORDINATE'),
+            ('pixel_warps/weights','per_vertex_normalized_sum_one_within_','','pixel_warps.WEIGHT_SUM_TOLERANCE'),
+            ('profile_gamut/inputs','D50_XYZ;finite;','_samples','profiles_gamut.MAX_SAMPLES'),
+            ('session_backups/capture','expected_head_read_transaction;bounded_','_page_steps;writers_may_receive_SESSION_BUSY','sessions.BACKUP_STEP_PAGES'),
+            ('vector_brushes/distance_precision','','_epsilon_times_point_count_times_length_plus_sum_max_abs_evaluated_coordinates','strokes_brush.ROUNDING_EPSILONS'),
+        )
+        for path,prefix,suffix,key in bindings:
+            with self.subTest(path=path):
+                value = capabilities()
+                for part in path.split('/'):value = value[part]
+                self.assertTrue(value.startswith(prefix) and value.endswith(suffix))
+                self.assertEqual(float(value.removeprefix(prefix).removesuffix(suffix)),values[key])
 
     def test_generated_reference_is_current_and_discovery_matches_constants(self):
         source = (ROOT/'src/limits.rs').read_text(encoding='utf-8')

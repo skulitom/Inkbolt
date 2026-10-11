@@ -795,6 +795,8 @@ pub mod layered_text_preset_records {
 
 /// Limits for `src/layered.rs`.
 pub mod layered {
+    /// Imported RGB layer channels, including optional transparency and one authored scalar mask.
+    pub const MAX_IMPORT_LAYER_CHANNELS: usize = 3 + 1 + 1;
     /// Maximum retained placement corner residual for admitted affine source geometry.
     pub const AFFINE_CLOSURE_TOLERANCE: f64 = 1e-9;
     /// Text caches reserve one coordinate unit for their minimum pixel extent.
@@ -1149,6 +1151,8 @@ pub mod pixel_brush {
 
 /// Limits for `src/pixel_warps.rs`.
 pub mod pixel_warps {
+    /// Maximum absolute authored articulated-joint rotation in degrees.
+    pub const MAX_JOINT_ANGLE_DEGREES: u32 = 360;
     /// Conservative live scalar allowance per deformation-grid vertex, including vector growth.
     pub const VERTEX_BUFFER_VALUES: usize = 32;
     /// Conservative live scalar allowance per deformation-grid cell.
@@ -1455,6 +1459,8 @@ pub mod repair {
 
 /// Limits for `src/repeats.rs`.
 pub mod repeats {
+    /// Maximum absolute authored radial start angle and sweep; full-turn closure is a separate geometric rule.
+    pub const MAX_RADIAL_ANGLE_DEGREES: u32 = 360;
     /// Minimum hexagonal/radial layout radius in repeat-local units.
     pub const MIN_RADIUS: f64 = 0.001;
     /// Minimum absolute grid/brick step on each axis in repeat-local units.
