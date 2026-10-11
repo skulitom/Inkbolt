@@ -1,5 +1,10 @@
 # Filled geometry combinations
 
+Exact solver work charges and quadratic root-enclosure precision are listed in
+the [limit reference](LIMITS.md). The enclosure policies are also reported in
+`capabilities.numerical_limits`; quadratic contact receipts use that same minimum
+precision. Enclosure width remains certified by exact rational arithmetic.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 `capabilities.booleans.curve_tolerance` and `default_curve_tolerance` report the

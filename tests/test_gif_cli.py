@@ -43,6 +43,16 @@ class GifTests(unittest.TestCase):
         pixels=bytes(c for i in range(256) for c in [i,255-i,(i*37)%256,255]);d=self.document(256,1,pixels)
         self.assertEqual(gif.decode(base64.b64decode(self.export(d)['data']))['frames'],[pixels])
 
+    def test_advertised_literal_run_boundaries_decode_without_pixel_changes(self):
+        run = capabilities()['image_io']['gif']['literal_run']
+        for count in (run-1, run, run+1, 3*run+1):
+            pixels = bytes(c for i in range(count) for c in ([0,0,0,0] if i%7 == 0 else [i%13,80,160,255]))
+            document = self.document(count,1,pixels)
+            before = copy.deepcopy(document)
+            data = base64.b64decode(self.export(document)['data'])
+            self.assertEqual(gif.decode(data)['frames'],[pixels])
+            self.assertEqual(document,before)
+
     def test_compressed_dictionary_width_growth_deferred_clear_and_kwkwk(self):
         palette=[(i,255-i,(i*31)%256) for i in range(256)]
         indices=bytes(i%256 for i in range(12000))

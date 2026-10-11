@@ -204,7 +204,7 @@ pub(super) fn source(e: &crate::paths::Edge) -> Curve {
     }
 }
 fn unit(c: &Curve, domain: &[R; 4], budget: &mut Budget) -> Result<[Poly; 3], Error> {
-    budget.spend(c.len() * 8)?;
+    budget.spend(c.len() * crate::limits::warps::UNIT_CONTROL_WORK)?;
     let mut u = Vec::with_capacity(c.len());
     let mut v = Vec::with_capacity(c.len());
     let mut w = Vec::with_capacity(c.len());
@@ -294,7 +294,7 @@ pub(super) fn encode(p: &H) -> Result<Point, Error> {
     Ok(out)
 }
 fn split(c: &Curve, budget: &mut Budget) -> Result<(Curve, Curve), Error> {
-    budget.spend(c.len() * c.len() * 3)?;
+    budget.spend(c.len() * c.len() * crate::limits::warps::SPLIT_PAIR_WORK)?;
     let mut row = c.clone();
     let mut left = vec![row[0].clone()];
     let mut right = vec![row.last().unwrap().clone()];
@@ -311,7 +311,7 @@ fn split(c: &Curve, budget: &mut Budget) -> Result<(Curve, Curve), Error> {
     Ok((left, right))
 }
 fn certificate(c: &Curve, a: Point, b: Point, budget: &mut Budget) -> Result<R, Error> {
-    budget.spend(c.len() * 20)?;
+    budget.spend(c.len() * crate::limits::warps::CERTIFICATE_CONTROL_WORK)?;
     let n = c.len() - 1;
     let minimum = c.iter().map(|p| &p[2]).min().unwrap();
     if minimum <= &R::zero() {

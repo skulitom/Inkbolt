@@ -123,6 +123,10 @@ pub mod booleans_topology_algebraic_roots {
 
 /// Limits for `src/booleans.rs`.
 pub mod booleans {
+    /// Work charge per incident neighbor when certifying junction ray order.
+    pub const JUNCTION_NEIGHBOR_WORK: usize = 8;
+    /// Work charge for canonicalizing one source cubic.
+    pub const CANONICAL_CUBIC_WORK: usize = 128;
     /// Maximum requested curve-flattening deviation in root document units.
     pub const MAX_CURVE_TOLERANCE: u32 = 64;
     /// Default requested curve-flattening deviation; topology certification remains mandatory.
@@ -209,6 +213,60 @@ pub mod work_paths_coverage {
     pub const CUBIC_CROSSING_WORK: u64 = MAX_ROOT_STEPS as u64 + 1;
     /// Maximum bisection steps for one monotone cubic scanline crossing.
     pub const MAX_ROOT_STEPS: usize = 56;
+}
+
+/// Exact geometry work policies for `booleans_topology`.
+pub mod booleans_topology {
+    /// Work charge for projecting two cubic control hulls onto one separating axis.
+    pub const SEPARATING_AXIS_WORK: usize = 8;
+    /// Work charge per candidate direction in paired-coordinate certification.
+    pub const PAIRED_COORDINATE_WORK: usize = 24;
+    /// Work charge per direction for a point outside a cubic control hull.
+    pub const OUTSIDE_HULL_WORK: usize = 5;
+    /// Work charge for the derivative cross products in a transverse certificate.
+    pub const TRANSVERSE_WORK: usize = 9;
+    /// Work charge per curved arc when checking chord error and monotonicity.
+    pub const REFINEMENT_ARC_WORK: usize = 24;
+}
+
+/// Exact geometry work policies for `booleans_topology_algebraic`.
+pub mod booleans_topology_algebraic {
+    /// Setup work charge for bounded rational contact roots.
+    pub const RATIONAL_ROOTS_WORK: usize = 32;
+    /// Work charge per direction when matching quadratic coordinates.
+    pub const QUADRATIC_DIRECTION_WORK: usize = 32;
+    /// Setup work charge per curved arc for algebraic contact preparation.
+    pub const CONTACT_ARC_WORK: usize = 32;
+    /// Work charge per rational arc pair during contact preparation and synchronization.
+    pub const ARC_PAIR_WORK: usize = 8;
+    /// Work charge for synchronizing endpoints along a shared linear coordinate.
+    pub const LINEAR_SYNC_WORK: usize = 64;
+    /// Work charge for synchronizing endpoints along a shared quadratic coordinate.
+    pub const QUADRATIC_SYNC_WORK: usize = 64;
+}
+
+/// Exact geometry work policies for `booleans_quadratic_contacts`.
+pub mod booleans_quadratic_contacts {
+    /// Work charge per coefficient for monic normalization in a quadratic field.
+    pub const MONIC_COEFFICIENT_WORK: usize = 16;
+    /// Work charge per divisor coefficient during quadratic polynomial remainder reduction.
+    pub const REMAINDER_COEFFICIENT_WORK: usize = 32;
+    /// Work charge per candidate quadratic tangency root.
+    pub const TANGENCY_ROOT_WORK: usize = 256;
+}
+
+/// Exact geometry work policies for `booleans_quadratic_predicates`.
+pub mod booleans_quadratic_predicates {
+    /// Work charge per separating axis for quadratic-field control hulls.
+    pub const SEPARATING_AXIS_WORK: usize = 32;
+    /// Work charge per paired-coordinate direction across quadratic fields.
+    pub const PAIRED_COORDINATE_WORK: usize = 48;
+    /// Work charge per direction for a rational point outside a quadratic hull.
+    pub const OUTSIDE_HULL_WORK: usize = 24;
+    /// Work charge for transverse derivative signs across quadratic fields.
+    pub const TRANSVERSE_WORK: usize = 72;
+    /// Setup work charge for a pair of algebraic arc views.
+    pub const PAIR_SETUP_WORK: usize = 64;
 }
 
 /// Limits for `src/control.rs`.
@@ -527,6 +585,8 @@ pub mod image_io {
 
 /// Fixed-width GIF output bounds in `src/image_io/gif.rs`.
 pub mod image_io_gif {
+    /// Literal-only encoder run before a dictionary reset; must stay in 1..=254 for fixed nine-bit codes.
+    pub const LITERAL_RUN: usize = 128;
     /// Decoder codes or delivery pixels between cancellation checks; independent of the fixed LZW dictionary size.
     pub const CONTROL_INTERVAL: usize = 4096;
     /// Palette cardinality including any reserved transparent entry.
@@ -1583,6 +1643,12 @@ pub mod sessions {
 
 /// Limits for `src/simplify.rs`.
 pub mod simplify {
+    /// Work charge per source point in simplification hull preparation.
+    pub const HULL_POINT_WORK: usize = 8;
+    /// Work charge per source cubic for a candidate replacement error certificate.
+    pub const CERTIFICATE_CURVE_WORK: usize = 64;
+    /// Work charge per source cubic for simplification monotonicity admission.
+    pub const MONOTONICITY_CURVE_WORK: usize = 16;
     /// Max span (simplify).
     pub const MAX_SPAN: usize = 32;
     /// Max work (simplify).
@@ -1621,6 +1687,24 @@ pub mod snapping {
 
 /// Limits for exact quadratic parameter separation.
 pub mod booleans_topology_quadratic {
+    /// Minimum certified quadratic-root enclosure precision, shared with contact receipts.
+    pub const MIN_ROOT_ENCLOSURE_BITS: usize = 128;
+    /// Additional quadratic-root enclosure bits per geometric subdivision level.
+    pub const ROOT_BITS_PER_DEPTH: usize = 16;
+    /// Additional root enclosure bits beyond the current dyadic parameter search.
+    pub const ROOT_GUARD_BITS: usize = 32;
+    /// Initial dyadic parameter precision before bounded refinement.
+    pub const INITIAL_PARAMETER_BITS: usize = 4;
+    /// Dyadic parameter precision growth factor, capped by MAX_PARAMETER_BITS.
+    pub const PARAMETER_GROWTH_FACTOR: usize = 2;
+    /// Work charge per attempted quadratic span split, in addition to parameter bytes.
+    pub const SPLIT_SETUP_WORK: usize = 128;
+    /// Work charge per rational cubic when locating quadratic node parameters.
+    pub const NODE_ARC_WORK: usize = 128;
+    /// Setup work charge per arc when finding preimages of a quadratic node.
+    pub const NODE_PREIMAGE_WORK: usize = 8;
+    /// Work charge per reconstructed span between quadratic contact cuts.
+    pub const CONTACT_SPAN_WORK: usize = 128;
     /// Maximum numerator or denominator bits in one quadratic contact coefficient; independent of dyadic cut search.
     pub const MAX_COEFFICIENT_BITS: u64 = 4096;
     /// Maximum dyadic parameter bits while seeking a certified interior cut.
@@ -1961,6 +2045,12 @@ pub mod volumes {
 
 /// Limits for `src/warps.rs`.
 pub mod warps {
+    /// Work charge per homogeneous control when preparing a unit-domain warp.
+    pub const UNIT_CONTROL_WORK: usize = 8;
+    /// Work charge per control pair in homogeneous subdivision.
+    pub const SPLIT_PAIR_WORK: usize = 3;
+    /// Work charge per homogeneous control for the exact chord certificate.
+    pub const CERTIFICATE_CONTROL_WORK: usize = 20;
     /// Charged exact-arithmetic work units between cancellation checks.
     pub const EXACT_WORK_CHECK_INTERVAL: usize = 1024;
     /// Minimum positive domain width/height for perspective, envelope and inspected grids.

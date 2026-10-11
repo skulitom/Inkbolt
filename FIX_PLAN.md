@@ -278,6 +278,14 @@ kernel cardinalities and actual buffer layout remain algorithm definitions.
 Geometry solver charges and the final inline audit still need review before
 the fresh Windows/Linux thorough W0 gate.
 
+Boolean, simplification and exact-warp solver charges now use the catalog.
+Quadratic root precision, refinement growth and contact receipts share their
+declared policies; exact enclosure checks cover their highest configured
+precisions. The GIF literal reset interval is named and constrained to the
+fixed code width, with independent decoding checks around reset boundaries.
+These values and geometric algorithms are unchanged. The final inline audit
+and fresh Windows/Linux thorough W0 acceptance are still required.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

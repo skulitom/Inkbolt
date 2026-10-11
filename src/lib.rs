@@ -1873,6 +1873,17 @@ fn capability_report() -> Value {
     capabilities["job_process"]["maximum_wait_slice_ms"] =
         json!(limits::job_process::MAX_WAIT_SLICE_MS);
     capabilities["numerical_limits"] = json!({"boards_guide_alignment_tolerance":limits::boards::GUIDE_ALIGNMENT_TOLERANCE,"layered_affine_closure_tolerance":limits::layered::AFFINE_CLOSURE_TOLERANCE,"meshes_control_inset_epsilons":limits::meshes::CONTROL_INSET_EPSILONS,"meshes_inverse_tolerance":limits::meshes::INVERSE_TOLERANCE,"meshes_svg_error_margin":limits::meshes::SVG_ERROR_MARGIN,"path_text_rounding_epsilons":limits::path_text::ROUNDING_EPSILONS,"pixel_brush_endpoint_epsilons":limits::pixel_brush::ENDPOINT_EPSILONS,"pixel_warps_orientation_epsilons":limits::pixel_warps::ORIENTATION_EPSILONS,"pixel_warps_weight_sum_tolerance":limits::pixel_warps::WEIGHT_SUM_TOLERANCE,"profiles_min_matrix_determinant":limits::profiles::MIN_MATRIX_DETERMINANT,"render_filter_regions_absolute_margin":limits::render_filter_regions::ABSOLUTE_MARGIN,"render_filter_regions_rounding_epsilons":limits::render_filter_regions::ROUNDING_EPSILONS,"strokes_brush_min_bisector_length":limits::strokes_brush::MIN_BISECTOR_LENGTH,"strokes_brush_rounding_epsilons":limits::strokes_brush::ROUNDING_EPSILONS,"strokes_outline_rounding_epsilons":limits::strokes_outline::ROUNDING_EPSILONS,"vector_native_integer_tolerance":limits::vector_native::INTEGER_TOLERANCE,"visual_diff_grid_phase_tolerance":limits::visual_diff::GRID_PHASE_TOLERANCE,"volumes_partition_epsilons":limits::volumes::PARTITION_EPSILONS,"render_coverage_path_ellipse_arcs":limits::render_coverage_path::ELLIPSE_ARCS,"work_paths_coverage_max_root_steps":limits::work_paths_coverage::MAX_ROOT_STEPS,"work_paths_coverage_cubic_crossing_work":limits::work_paths_coverage::CUBIC_CROSSING_WORK,"dimensions_pi_atan_terms":limits::dimensions::PI_ATAN_TERMS,"geometry_point_fast_term_bound":limits::geometry_point::FAST_TERM_BOUND});
+    capabilities["numerical_limits"]["booleans_quadratic_min_root_enclosure_bits"] =
+        json!(limits::booleans_topology_quadratic::MIN_ROOT_ENCLOSURE_BITS);
+    capabilities["numerical_limits"]["booleans_quadratic_root_bits_per_depth"] =
+        json!(limits::booleans_topology_quadratic::ROOT_BITS_PER_DEPTH);
+    capabilities["numerical_limits"]["booleans_quadratic_root_guard_bits"] =
+        json!(limits::booleans_topology_quadratic::ROOT_GUARD_BITS);
+    capabilities["numerical_limits"]["booleans_quadratic_initial_parameter_bits"] =
+        json!(limits::booleans_topology_quadratic::INITIAL_PARAMETER_BITS);
+    capabilities["numerical_limits"]["booleans_quadratic_parameter_growth_factor"] =
+        json!(limits::booleans_topology_quadratic::PARAMETER_GROWTH_FACTOR);
+    capabilities["image_io"]["gif"]["literal_run"] = json!(limits::image_io_gif::LITERAL_RUN);
     capabilities["objects"]["minimum_extent"] = json!(limits::objects::MIN_EXTENT);
     capabilities["geometry_limits"]["minimum_placed_image_extent"] =
         json!(limits::model::MIN_PLACED_IMAGE_EXTENT);

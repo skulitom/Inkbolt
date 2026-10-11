@@ -14,6 +14,12 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'numerical_limits/booleans_quadratic_min_root_enclosure_bits': 'booleans_topology_quadratic.MIN_ROOT_ENCLOSURE_BITS',
+    'numerical_limits/booleans_quadratic_root_bits_per_depth': 'booleans_topology_quadratic.ROOT_BITS_PER_DEPTH',
+    'numerical_limits/booleans_quadratic_root_guard_bits': 'booleans_topology_quadratic.ROOT_GUARD_BITS',
+    'numerical_limits/booleans_quadratic_initial_parameter_bits': 'booleans_topology_quadratic.INITIAL_PARAMETER_BITS',
+    'numerical_limits/booleans_quadratic_parameter_growth_factor': 'booleans_topology_quadratic.PARAMETER_GROWTH_FACTOR',
+    'image_io/gif/literal_run': 'image_io_gif.LITERAL_RUN',
     'blending/comparison_tie_epsilons': 'blending.COMPARISON_TIE_EPSILONS',
     'canvas_operations/sampling_boundary_epsilon_factor': 'assets.PIXEL_BOUNDARY_EPSILONS',
     'numerical_limits/boards_guide_alignment_tolerance': 'boards.GUIDE_ALIGNMENT_TOLERANCE',

@@ -67,7 +67,11 @@ fn geometry(source: Cubic, from: Q, to: Q, d: R, depth: usize) -> Result<Curve, 
         }
     }
     let endpoints = [rational_point(&start)?, rational_point(&end)?];
-    let root = root_enclosure(&d, 128 + 16 * depth);
+    let root = root_enclosure(
+        &d,
+        crate::limits::booleans_topology_quadratic::MIN_ROOT_ENCLOSURE_BITS
+            + crate::limits::booleans_topology_quadratic::ROOT_BITS_PER_DEPTH * depth,
+    );
     Ok(Curve::Quadratic(Box::new(Span {
         source,
         from,
@@ -109,14 +113,25 @@ impl Span {
             })
     }
     pub fn split(&self, depth: usize, budget: &mut Budget) -> Result<[Curve; 2], Error> {
+        const {
+            use crate::limits::booleans_topology_quadratic as policy;
+            assert!(policy::INITIAL_PARAMETER_BITS > 0);
+            assert!(policy::INITIAL_PARAMETER_BITS <= policy::MAX_PARAMETER_BITS);
+            assert!(policy::PARAMETER_GROWTH_FACTOR > 1);
+        }
         let mid = self.from.add(&self.to).scale(&(n(1) / n(2)));
         let lower = self.from.scale(&n(3)).add(&self.to).scale(&(n(1) / n(4)));
         let upper = self.from.add(&self.to.scale(&n(3))).scale(&(n(1) / n(4)));
-        let mut bits = 4;
+        let mut bits = crate::limits::booleans_topology_quadratic::INITIAL_PARAMETER_BITS;
         use crate::limits::booleans_topology_quadratic::MAX_PARAMETER_BITS;
         loop {
-            budget.spend(bits / 8 + 128)?;
-            let enclosure = mid.enclosure(&root_enclosure(&self.d, 128.max(bits + 32)));
+            budget
+                .spend(bits / 8 + crate::limits::booleans_topology_quadratic::SPLIT_SETUP_WORK)?;
+            let enclosure = mid.enclosure(&root_enclosure(
+                &self.d,
+                crate::limits::booleans_topology_quadratic::MIN_ROOT_ENCLOSURE_BITS
+                    .max(bits + crate::limits::booleans_topology_quadratic::ROOT_GUARD_BITS),
+            ));
             let denominator = n(1).numer() << bits;
             let approximate =
                 (enclosure.0 + enclosure.1) * R::from_integer(denominator.clone()) / n(2);
@@ -152,7 +167,8 @@ impl Span {
                     "Quadratic parameter separation exceeds {MAX_PARAMETER_BITS} dyadic parameter bits"
                 )));
             }
-            bits = (bits * 2).min(MAX_PARAMETER_BITS);
+            bits = (bits * crate::limits::booleans_topology_quadratic::PARAMETER_GROWTH_FACTOR)
+                .min(MAX_PARAMETER_BITS);
         }
     }
 }
@@ -181,7 +197,7 @@ pub(super) fn prepare(arcs: Vec<Arc>, budget: &mut Budget) -> Result<(Vec<Arc>, 
     let mut fields = vec![n(0); arcs.len()];
     let mut nodes: BTreeMap<P, Vec<(usize, Q)>> = BTreeMap::new();
     for (i, arc) in arcs.iter().enumerate().filter(|(_, a)| a.curved) {
-        budget.spend(128)?;
+        budget.spend(crate::limits::booleans_topology_quadratic::NODE_ARC_WORK)?;
         let p = curves::coefficients(
             arc.rational()
                 .expect("quadratic preparation starts with rational curves"),
@@ -216,7 +232,7 @@ pub(super) fn prepare(arcs: Vec<Arc>, budget: &mut Budget) -> Result<(Vec<Arc>, 
     for (point, preimages) in nodes {
         let mut rational = vec![];
         for (i, arc) in arcs.iter().enumerate() {
-            budget.spend(8)?;
+            budget.spend(crate::limits::booleans_topology_quadratic::NODE_PREIMAGE_WORK)?;
             for t in algebraic::preimages(
                 arc.rational().expect("rational preparation input"),
                 &point,
@@ -266,7 +282,7 @@ pub(super) fn prepare(arcs: Vec<Arc>, budget: &mut Budget) -> Result<(Vec<Arc>, 
         split_count += times.len() - 2;
         let source = curves::coefficients(arc.rational().expect("rational preparation input"));
         for pair in times.windows(2) {
-            budget.spend(128)?;
+            budget.spend(crate::limits::booleans_topology_quadratic::CONTACT_SPAN_WORK)?;
             out.push(Arc {
                 curve: geometry(
                     source.clone(),
@@ -289,6 +305,6 @@ pub(super) fn prepare(arcs: Vec<Arc>, budget: &mut Budget) -> Result<(Vec<Arc>, 
     let count = out.iter().filter(|a| a.rational().is_none()).count();
     Ok((
         out,
-        json!({"method":"exact_quadratic_parameters_with_rational_junctions","contact_points":contacts,"irrational_parameter_splits":irrational_splits,"parameter_splits":split_count,"initial_algebraic_arcs":count,"minimum_root_enclosure_bits":128,"all_algebraic_contacts_located":false}),
+        json!({"method":"exact_quadratic_parameters_with_rational_junctions","contact_points":contacts,"irrational_parameter_splits":irrational_splits,"parameter_splits":split_count,"initial_algebraic_arcs":count,"minimum_root_enclosure_bits":crate::limits::booleans_topology_quadratic::MIN_ROOT_ENCLOSURE_BITS,"all_algebraic_contacts_located":false}),
     ))
 }

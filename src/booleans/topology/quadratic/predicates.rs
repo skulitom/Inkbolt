@@ -71,7 +71,7 @@ fn directions(views: &[&View]) -> Vec<P> {
 }
 fn separated(a: &View, b: &View, budget: &mut Budget) -> Result<bool, Error> {
     for normal in directions(&[a, b]) {
-        budget.spend(32)?;
+        budget.spend(crate::limits::booleans_quadratic_predicates::SEPARATING_AXIS_WORK)?;
         let (amin, amax) = a.projections(&normal);
         let (bmin, bmax) = b.projections(&normal);
         let ab = compare(&amax, &a.d, &bmin, &b.d);
@@ -142,7 +142,7 @@ fn paired(a: &View, b: &View, budget: &mut Budget) -> Result<bool, Error> {
             }
         }
         for mut direction in directions {
-            budget.spend(48)?;
+            budget.spend(crate::limits::booleans_quadratic_predicates::PAIRED_COORDINATE_WORK)?;
             if dot(&sub(&a.chord[1], &a.chord[0]), &direction) < n(0) {
                 direction = direction.map(|v| -v);
             }
@@ -179,7 +179,7 @@ fn paired(a: &View, b: &View, budget: &mut Budget) -> Result<bool, Error> {
 }
 fn outside(p: &P, view: &View, budget: &mut Budget) -> Result<bool, Error> {
     for direction in directions(&[view]) {
-        budget.spend(24)?;
+        budget.spend(crate::limits::booleans_quadratic_predicates::OUTSIDE_HULL_WORK)?;
         let projected = Q::rational(dot(p, &direction));
         let (lo, hi) = view.projections(&direction);
         if projected.cmp(&lo, &view.d) == Ordering::Less
@@ -196,7 +196,7 @@ fn cross_sign(a: &PointQ, d: &R, b: &PointQ, e: &R) -> Ordering {
     combined_sign(&x, &y, d, e)
 }
 fn transverse(a: &View, b: &View, budget: &mut Budget) -> Result<Option<bool>, Error> {
-    budget.spend(72)?;
+    budget.spend(crate::limits::booleans_quadratic_predicates::TRANSVERSE_WORK)?;
     let mut signs = vec![];
     for aa in a.c.windows(2) {
         for bb in b.c.windows(2) {
@@ -238,7 +238,7 @@ fn transverse(a: &View, b: &View, budget: &mut Budget) -> Result<Option<bool>, E
     Ok(None)
 }
 pub(super) fn pair(a: &Arc, b: &Arc, budget: &mut Budget) -> Result<Option<Pair>, Error> {
-    budget.spend(64)?;
+    budget.spend(crate::limits::booleans_quadratic_predicates::PAIR_SETUP_WORK)?;
     let a = View::new(a);
     let b = View::new(b);
     if separated(&a, &b, budget)? {

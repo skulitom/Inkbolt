@@ -96,7 +96,7 @@ fn separated(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
         }
     }
     for normal in normals {
-        budget.spend(8)?;
+        budget.spend(crate::limits::booleans_topology::SEPARATING_AXIS_WORK)?;
         let ap = a.clone().map(|p| dot(&p, &normal));
         let bp = b.clone().map(|p| dot(&p, &normal));
         let amin = ap.iter().min().unwrap();
@@ -159,7 +159,7 @@ fn paired_coordinate(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<bool, 
             }
         }
         for mut direction in directions {
-            budget.spend(24)?;
+            budget.spend(crate::limits::booleans_topology::PAIRED_COORDINATE_WORK)?;
             if dot(&sub(&a[3], &a[0]), &direction) < R::zero() {
                 direction = direction.map(|v| -v);
             }
@@ -193,7 +193,7 @@ fn outside(p: &P, c: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
         }
     }
     for direction in directions {
-        budget.spend(5)?;
+        budget.spend(crate::limits::booleans_topology::OUTSIDE_HULL_WORK)?;
         let q = dot(p, &direction);
         let values: Vec<_> = points.iter().map(|v| dot(v, &direction)).collect();
         if q < *values.iter().min().unwrap() || q > *values.iter().max().unwrap() {
@@ -208,7 +208,7 @@ fn outside(p: &P, c: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
 // Endpoints outside the opposite control hull keep its boundary away from zero.
 // The chord boundary degree therefore counts exactly zero or one intersection.
 fn transverse(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<Option<bool>, Error> {
-    budget.spend(9)?;
+    budget.spend(crate::limits::booleans_topology::TRANSVERSE_WORK)?;
     let values: Vec<_> = a
         .windows(2)
         .flat_map(|u| {
@@ -398,7 +398,7 @@ pub(super) fn evaluate(
         }
         let mut marked = BTreeSet::new();
         for (i, a) in arcs.iter().enumerate().filter(|(_, a)| a.curved) {
-            budget.spend(24)?;
+            budget.spend(crate::limits::booleans_topology::REFINEMENT_ARC_WORK)?;
             let deviation = a.deviation();
             if tolerance.is_zero() && !deviation.is_zero() {
                 return Err(Error::new(

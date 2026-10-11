@@ -91,7 +91,7 @@ pub(super) fn evaluate(
     for (source, input) in inputs.iter_mut().enumerate() {
         for c in std::mem::take(&mut input.cubics) {
             source_cubics += 1;
-            budget.spend(128)?;
+            budget.spend(crate::limits::booleans::CANONICAL_CUBIC_WORK)?;
             if let Some((p, from, to)) = canonical(&c) {
                 let events = groups.entry(p).or_default();
                 let (lo, hi, sign) = if from < to {

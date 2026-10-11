@@ -451,7 +451,7 @@ fn rounding(loops: &[Vec<P>], budget: &mut Budget) -> Result<(Vec<Vec<Point>>, R
     for (p, neighbors) in rays {
         let mut old: Vec<_> = (0..neighbors.len()).collect();
         let mut new = old.clone();
-        budget.spend(neighbors.len() * 8)?;
+        budget.spend(neighbors.len() * crate::limits::booleans::JUNCTION_NEIGHBOR_WORK)?;
         old.sort_by(|&a, &b| angle(&sub(&neighbors[a], &p), &sub(&neighbors[b], &p)));
         new.sort_by(|&a, &b| {
             angle(

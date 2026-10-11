@@ -325,6 +325,12 @@ fn blocks(out: &mut Vec<u8>, bytes: &[u8]) {
 // Literal-only LZW with explicit resets is deterministic and bounded. Full dictionary
 // expansion above accepts externally compressed input, including deferred clears.
 fn pack(indices: &[u8]) -> Vec<u8> {
+    // A clear resets the next dictionary code to 258. Every literal after
+    // the first adds an entry; clear again before the reader switches to ten bits.
+    const {
+        assert!(crate::limits::image_io_gif::LITERAL_RUN > 0);
+        assert!(crate::limits::image_io_gif::LITERAL_RUN <= 254);
+    }
     let mut out = Vec::new();
     let mut buffer = 0u32;
     let mut bits = 0;
@@ -337,7 +343,7 @@ fn pack(indices: &[u8]) -> Vec<u8> {
             bits -= 8;
         }
     };
-    for part in indices.chunks(128) {
+    for part in indices.chunks(crate::limits::image_io_gif::LITERAL_RUN) {
         emit(256);
         for &v in part {
             emit(u32::from(v));
