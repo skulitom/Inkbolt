@@ -622,7 +622,7 @@ pub fn export_controlled(
                     options.format,
                     Format::Png | Format::Jpeg | Format::Tiff | Format::Bmp | Format::Tga
                 ) {
-                    work += area * 4;
+                    work += area * crate::limits::render::MASK_SAMPLE_WORK;
                 } else {
                     image_pixels += n;
                 }

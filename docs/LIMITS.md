@@ -15,9 +15,11 @@ capability literals and diagnostic messages remains in progress.
 
 | Constant | Rust type | Value | Definition |
 | --- | --- | ---: | --- |
+| `adjustments.CURVE_WORK` | `u64` | 8 | `8` |
 | `adjustments.MAX_CURVE_POINTS` | `usize` | 64 | `64` |
 | `adjustments.MAX_DOCUMENT_OPERATORS` | `usize` | 256 | `256` |
 | `adjustments.MAX_OPERATORS` | `usize` | 16 | `16` |
+| `adjustments.SIMPLE_OPERATOR_WORK` | `u64` | 4 | `4` |
 | `appearance.MAX_PASSES` | `usize` | 16 | `16` |
 | `artwork_masks.MAX_COVERAGE_PIXELS` | `u64` | 1048576 | `1_048_576` |
 | `artwork_masks.MAX_MASKS` | `usize` | 32 | `32` |
@@ -63,10 +65,13 @@ capability literals and diagnostic messages remains in progress.
 | `checks.MAX_ISSUES` | `usize` | 256 | `256` |
 | `checks.MAX_REPORT_BYTES` | `usize` | 131072 | `128 * 1024` |
 | `checks.REPORT_ENVELOPE_BYTES` | `usize` | 8192 | `8192` |
+| `color_adjustments.BASE_WORK` | `u64` | 16 | `16` |
+| `color_adjustments.LUT_3D_WORK` | `u64` | 32 | `32` |
 | `color_adjustments.MAX_DOCUMENT_LUT_ENTRIES` | `usize` | 65536 | `65536` |
 | `color_adjustments.MAX_LUT_1D` | `usize` | 4096 | `4096` |
 | `color_adjustments.MAX_LUT_3D_SIDE` | `u32` | 33 | `33` |
 | `color_adjustments.MAX_MAP_STOPS` | `usize` | 64 | `64` |
+| `color_adjustments.SELECTIVE_CORRECTION_WORK` | `u64` | 4 | `4` |
 | `contact_sheets.MAX_CELL_AXIS` | `u32` | 512 | `512` |
 | `contact_sheets.MAX_COLUMNS` | `u32` | 8 | `8` |
 | `contact_sheets.MAX_GAP` | `u32` | 64 | `64` |
@@ -76,6 +81,10 @@ capability literals and diagnostic messages remains in progress.
 | `control.MAX_CANCEL_FILES` | `usize` | 4 | `4` |
 | `control.MAX_TIMEOUT_MS` | `u64` | 60000 | `60_000` |
 | `control.PIXEL_CHECK_INTERVAL` | `usize` | 4096 | `4096` |
+| `creative_filters.EDGE_INK_WORK` | `u64` | 96 | `96` |
+| `creative_filters.EXTREMA_NEIGHBOR_WORK` | `u64` | 8 | `8` |
+| `creative_filters.FIELD_REPAIR_WORK` | `u64` | 8 | `8` |
+| `creative_filters.HIGH_PASS_COMBINE_WORK` | `u64` | 8 | `8` |
 | `creative_filters.MAX_CELL_SIZE` | `u32` | 4096 | `4096` |
 | `creative_filters.MAX_EDGE_STRENGTH` | `u32` | 8 | `8` |
 | `creative_filters.MAX_EXTREMA_RADIUS` | `u32` | 8 | `8` |
@@ -84,8 +93,17 @@ capability literals and diagnostic messages remains in progress.
 | `creative_filters.MAX_RELIEF_STRENGTH` | `u32` | 8 | `8` |
 | `creative_filters.MAX_STROKE_RADIUS` | `u32` | 8 | `8` |
 | `creative_filters.MIN_TWIST_RADIUS` | `f64` | 0.0001 | `0.0001` |
+| `creative_filters.RELIEF_WORK` | `u64` | 32 | `32` |
+| `creative_filters.STROKE_RANK_SAMPLE_WORK` | `u64` | 32 | `32` |
+| `creative_filters.TONE_FOLD_WORK` | `u64` | 4 | `4` |
+| `creative_filters.TWIST_WORK` | `u64` | 48 | `48` |
+| `creative_filters.VALUE_FIELD_OCTAVE_WORK` | `u64` | 256 | `256` |
 | `detail_filters.MAX_MEDIAN_RADIUS` | `u32` | 8 | `8` |
 | `detail_filters.MAX_SHARPEN_AMOUNT` | `u32` | 8 | `8` |
+| `detail_filters.MEDIAN_NEIGHBOR_WORK` | `u64` | 8 | `8` |
+| `detail_filters.NOISE_WORK` | `u64` | 64 | `64` |
+| `detail_filters.SHARPEN_WORK` | `u64` | 16 | `16` |
+| `detail_filters.UNSHARP_COMBINE_WORK` | `u64` | 8 | `8` |
 | `dimensions.DEFAULT_AREA_TOLERANCE` | `f64` | 1e-06 | `0.000001` |
 | `dimensions.DEFAULT_LENGTH_TOLERANCE` | `f64` | 0.0001 | `0.0001` |
 | `dimensions.MAX_ANGLE_DEGREES` | `u32` | 360000 | `360_000` |
@@ -101,6 +119,7 @@ capability literals and diagnostic messages remains in progress.
 | `dimensions.PI_ATAN_TERMS` | `u32` | 32 | `32` |
 | `edit.MAX_OPERATIONS` | `usize` | 64 | `64` |
 | `effects.DEFAULT_LIGHT_AZIMUTH` | `u32` | 225 | `225` |
+| `effects.DIRECT_SHADOW_WORK` | `u64` | 16 | `16` |
 | `effects.MAX_CONTOUR_KNOTS` | `usize` | 64 | `64` |
 | `effects.MAX_DOCUMENT_EFFECTS` | `usize` | 64 | `64` |
 | `effects.MAX_LIGHT_AZIMUTH` | `u32` | 360 | `360` |
@@ -111,7 +130,14 @@ capability literals and diagnostic messages remains in progress.
 | `effects.MAX_STROKE_RADIUS` | `u32` | 32 | `32` |
 | `effects.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `effects.MIN_SCALE` | `f64` | 0.001 | `0.001` |
+| `effects.OVERLAY_WORK` | `u64` | 12 | `12` |
+| `effects.PAINT_SETUP_WORK` | `u64` | 8 | `8` |
+| `effects.SOFT_SHADOW_OVERHEAD` | `u64` | 24 | `24` |
+| `effects.STROKE_OVERHEAD` | `u64` | 16 | `16` |
+| `filters.BASE_WORK` | `u64` | 8 | `8` |
 | `filters.DEFAULT_TRAJECTORY_SAMPLES` | `u32` | 33 | `33` |
+| `filters.DIRECT_REPLACEMENT_CREDIT` | `u64` | 4 | `4` |
+| `filters.MASK_SAMPLE_WORK` | `u64` | 4 | `4` |
 | `filters.MAX_ANGLE_DEGREES` | `u32` | 360000 | `360_000` |
 | `filters.MAX_BOX_RADIUS` | `u32` | 32 | `32` |
 | `filters.MAX_DIRECTIONAL_LENGTH` | `u32` | 64 | `64` |
@@ -123,6 +149,8 @@ capability literals and diagnostic messages remains in progress.
 | `filters.MAX_TRAJECTORY_SAMPLES` | `u32` | 129 | `129` |
 | `filters.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `filters.MIN_TRAJECTORY_SAMPLES` | `u32` | 3 | `3` |
+| `filters.SURFACE_NEIGHBOR_WORK` | `u64` | 8 | `8` |
+| `filters.TRAJECTORY_SAMPLE_WORK` | `u64` | 4 | `4` |
 | `fonts.MAX_AXES` | `usize` | 16 | `16` |
 | `fonts.MAX_FACE_INDEX` | `u32` | 255 | `255` |
 | `fonts.MAX_FALLBACK_FONTS` | `usize` | 7 | `MAX_FONTS - 1` |
@@ -325,6 +353,7 @@ capability literals and diagnostic messages remains in progress.
 | `paint.MIN_ANCHOR_SEPARATION` | `f64` | 0.001 | `0.001` |
 | `paint.MIN_LINEAR_SPAN` | `f64` | 0.001 | `0.001` |
 | `paint.MIN_RADIAL_RADIUS` | `f64` | 0.001 | `0.001` |
+| `paint.REGULAR_MESH_WORK` | `u64` | 16 | `16` |
 | `path_text.DEFAULT_TOLERANCE` | `f64` | 0.001 | `0.001` |
 | `path_text.MAX_COMMANDS` | `usize` | 1024 | `1024` |
 | `path_text.MAX_DOCUMENT_LEAVES` | `usize` | 65536 | `65536` |
@@ -372,6 +401,9 @@ capability literals and diagnostic messages remains in progress.
 | `pixel_brush.MIN_TEXTURE_SCALE` | `f64` | 0.001 | `0.001` |
 | `pixel_brush.WORKING_BYTES_PER_PIXEL` | `u64` | 256 | `256` |
 | `pixel_brush.WORK_CHECK_INTERVAL` | `u64` | 1024 | `1024` |
+| `pixel_warps.CELL_BUFFER_VALUES` | `usize` | 16 | `16` |
+| `pixel_warps.FIXED_BUFFER_VALUES` | `usize` | 128 | `128` |
+| `pixel_warps.JOINT_BUFFER_VALUES` | `usize` | 16 | `16` |
 | `pixel_warps.MAX_AXIS` | `usize` | 16 | `16` |
 | `pixel_warps.MAX_JOINTS` | `usize` | 16 | `16` |
 | `pixel_warps.MAX_SAMPLES` | `usize` | 256 | `256` |
@@ -380,12 +412,26 @@ capability literals and diagnostic messages remains in progress.
 | `pixel_warps.MIN_FRAME_EXTENT` | `f64` | 0.001 | `0.001` |
 | `pixel_warps.MIN_RELATIVE_AREA` | `f64` | 9.5367431640625e-07 | `1. / 1_048_576.` |
 | `pixel_warps.ORIENTATION_EPSILONS` | `u32` | 16 | `16` |
+| `pixel_warps.VERTEX_BUFFER_VALUES` | `usize` | 32 | `32` |
 | `pixel_warps.WEIGHT_SUM_TOLERANCE` | `f64` | 1e-10 | `1e-10` |
+| `prepress.ADJUSTMENT_CONVERSION_WORK` | `u64` | 256 | `256` |
+| `prepress.BLEND_CHANNEL_WORK` | `usize` | 8 | `8` |
+| `prepress.BLEND_PIXEL_OVERHEAD` | `usize` | 32 | `32` |
 | `prepress.COLOR_BUFFER_VALUES` | `u64` | 65536 | `super::profiles::MAX_CONVERSION_SAMPLES as u64 * 16` |
+| `prepress.DISSOLVE_WORK` | `u64` | 128 | `128` |
+| `prepress.FILTER_PIXEL_OVERHEAD` | `u64` | 40 | `40` |
+| `prepress.IMAGE_PIXEL_OVERHEAD` | `u64` | 16 | `16` |
 | `prepress.MAX_BUFFER_VALUES` | `u64` | 16777216 | `16_777_216` |
 | `prepress.MAX_SAMPLES` | `usize` | 64 | `64` |
 | `prepress.MAX_SPOTS` | `usize` | 28 | `28` |
 | `prepress.MAX_WORK` | `u64` | 134217728 | `134_217_728` |
+| `prepress.NORMAL_CHANNEL_WORK` | `usize` | 2 | `2` |
+| `prepress.NORMAL_PIXEL_OVERHEAD` | `usize` | 1 | `1` |
+| `prepress.OBJECT_RECONSTRUCTION_WORK` | `u64` | 16 | `16` |
+| `prepress.PROJECTED_SOURCE_WORK` | `u64` | 16 | `16` |
+| `prepress.SHAPE_CHANNEL_WORK` | `usize` | 4 | `4` |
+| `prepress.SHAPE_DISSOLVE_WORK` | `u64` | 256 | `2 * DISSOLVE_WORK` |
+| `prepress.SHAPE_PIXEL_OVERHEAD` | `usize` | 8 | `8` |
 | `prepress_bindings.MAX_BINDINGS` | `usize` | 1024 | `1024` |
 | `prepress_images.MAX_SOURCE_PROFILES` | `usize` | 16 | `16` |
 | `previews.MAX_OVERVIEW_AXIS` | `u32` | 1024 | `1024` |
@@ -439,6 +485,9 @@ capability literals and diagnostic messages remains in progress.
 | `raw_corrections.MIN_FOCAL_LENGTH` | `u32` | 1 | `1` |
 | `raw_retained.MAX_RECIPE_BYTES` | `u64` | 16384 | `16384` |
 | `raw_retained.MAX_SOURCE_BYTES` | `usize` | 131072 | `131072` |
+| `render.ITEM_SETUP_WORK` | `u64` | 2 | `2` |
+| `render.KNOCKOUT_ITEM_WORK` | `u64` | 24 | `24` |
+| `render.MASK_SAMPLE_WORK` | `u64` | 4 | `4` |
 | `render.MAX_BUFFER_PIXELS` | `u64` | 4194304 | `4_194_304` |
 | `render.MAX_RENDER_PIXELS` | `u64` | 1048576 | `1_048_576` |
 | `render.MAX_RENDER_WORK` | `u64` | 67108864 | `67_108_864` |
@@ -446,14 +495,19 @@ capability literals and diagnostic messages remains in progress.
 | `render_coverage_path.ELLIPSE_ARCS` | `u32` | 32 | `32` |
 | `render_filter_regions.ABSOLUTE_MARGIN` | `f64` | 1e-09 | `1e-9` |
 | `render_filter_regions.MAX_REFERENCES` | `usize` | 131072 | `131_072` |
+| `render_filter_regions.RADIAL_SAMPLE_WORK` | `u64` | 32 | `32` |
 | `render_filter_regions.ROUNDING_EPSILONS` | `u32` | 64 | `64` |
+| `render_filter_regions.TWIST_WORK` | `u64` | 128 | `128` |
 | `render_quality.MAX_ANTIALIAS_FACTOR` | `u32` | 4 | `4` |
 | `render_quality.MAX_INTERNAL_SCALE` | `u32` | 16 | `MAX_SCALE * MAX_ANTIALIAS_FACTOR` |
 | `render_quality.MAX_PADDING` | `u32` | 256 | `256` |
 | `render_quality.MAX_SCALE` | `u32` | 4 | `4` |
+| `render_spatial.CELL_VALUES` | `u64` | 4 | `4` |
 | `render_spatial.EDGE` | `u32` | 8 | `8` |
+| `render_spatial.ITEM_VALUES` | `u64` | 24 | `24` |
 | `render_spatial.MAX_REFERENCES` | `u64` | 1048576 | `1_048_576` |
 | `render_spatial.MIN_ITEMS` | `usize` | 128 | `128` |
+| `render_spatial.REFERENCE_VALUES` | `u64` | 8 | `8` |
 | `render_tiled.EDGE` | `u32` | 128 | `super::raster::TILE_EDGE` |
 | `render_tiled.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
 | `render_traversal.NEIGHBORHOOD_UNITS` | `u32` | 256 | `256` |
@@ -471,6 +525,7 @@ capability literals and diagnostic messages remains in progress.
 | `repeats.MIN_RADIUS` | `f64` | 0.001 | `0.001` |
 | `repeats.MIN_STEP` | `f64` | 0.001 | `0.001` |
 | `request.MAX_REQUEST_BYTES` | `u64` | 16777216 | `16 * 1024 * 1024` |
+| `resample.AXIS_TAP_WORK` | `u64` | 4 | `4` |
 | `resample.MAX_AXIS_TAPS` | `u64` | 65536 | `65_536` |
 | `resample.MAX_INDEX_COORDINATE` | `f64` | 1000000000000.0 | `1e12` |
 | `resample.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
@@ -537,10 +592,13 @@ capability literals and diagnostic messages remains in progress.
 | `snapping.MIN_GRID_SPACING` | `f64` | 0.001 | `0.001` |
 | `snapping.MIN_GUIDE_LENGTH` | `f64` | 1e-10 | `1e-10` |
 | `snapping.PARALLEL_THRESHOLD` | `f64` | 1e-10 | `1e-10` |
+| `spatial_filters.DISPLACE_WORK` | `u64` | 16 | `16` |
 | `spatial_filters.MAX_MAP_AXIS` | `u32` | 256 | `256` |
 | `spatial_filters.MAX_MAP_PIXELS` | `usize` | 4096 | `4096` |
 | `spatial_filters.MAX_MOSAIC_SIZE` | `u32` | 128 | `128` |
 | `spatial_filters.MAX_OFFSET` | `u32` | 256 | `256` |
+| `spatial_filters.MOSAIC_WORK` | `u64` | 4 | `4` |
+| `spatial_filters.OFFSET_WORK` | `u64` | 4 | `4` |
 | `sqlite.BUSY_TIMEOUT_MS` | `u64` | 250 | `250` |
 | `sqlite.CACHE_KIB` | `u64` | 4096 | `4096` |
 | `sqlite.MAX_COLUMNS` | `usize` | 32 | `32` |

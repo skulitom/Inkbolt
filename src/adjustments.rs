@@ -130,8 +130,8 @@ impl Layer {
             .iter()
             .map(|op| match op {
                 Operator::Color { adjustment } => adjustment.work(),
-                Operator::Curve { .. } => 8,
-                _ => 4,
+                Operator::Curve { .. } => crate::limits::adjustments::CURVE_WORK,
+                _ => crate::limits::adjustments::SIMPLE_OPERATOR_WORK,
             })
             .sum()
     }

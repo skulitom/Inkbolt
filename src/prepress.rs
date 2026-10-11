@@ -1207,7 +1207,8 @@ fn native_plan(
             }
             adjustments = true;
             blending = true;
-            adjustment_work += adjustment.work() + 256;
+            adjustment_work +=
+                adjustment.work() + crate::limits::prepress::ADJUSTMENT_CONVERSION_WORK;
         }
         track_shape |= item.content.is_knockout();
         dissolve_count += u64::from(!item.coverage.is_smooth());
@@ -1307,7 +1308,7 @@ fn native_plan(
                 let source_pixels =
                     child.sampling.output[0] as u64 * child.sampling.output[1] as u64;
                 object_work += child.work
-                    + source_pixels * 16
+                    + source_pixels * crate::limits::prepress::PROJECTED_SOURCE_WORK
                     + objects::work(
                         object,
                         &child.sampling,
@@ -1432,7 +1433,8 @@ fn native_plan(
     let n = 4 + spot_definitions.len();
     let reconstruction_work = crate::resample::document_work(document, plan.internal_scale)?;
     let pixel_warp_work = crate::pixel_warps::work(document, plan.internal_scale)?;
-    let image_work = pixels * image_count * (n as u64 + 16);
+    let image_work =
+        pixels * image_count * (n as u64 + crate::limits::prepress::IMAGE_PIXEL_OVERHEAD);
     let outline_work = crate::strokes::generated_work(document)? * height as u64;
     let mask_plan = crate::render::plan_artwork_masks(
         document,
@@ -1441,8 +1443,18 @@ fn native_plan(
         options.antialias,
         [0, 0, 0],
     )?;
-    let channel_work =
-        if blending { 8 * n + 32 } else { 2 * n + 1 } + if track_shape { 4 * n + 8 } else { 0 };
+    let channel_work = if blending {
+        crate::limits::prepress::BLEND_CHANNEL_WORK * n
+            + crate::limits::prepress::BLEND_PIXEL_OVERHEAD
+    } else {
+        crate::limits::prepress::NORMAL_CHANNEL_WORK * n
+            + crate::limits::prepress::NORMAL_PIXEL_OVERHEAD
+    } + if track_shape {
+        crate::limits::prepress::SHAPE_CHANNEL_WORK * n
+            + crate::limits::prepress::SHAPE_PIXEL_OVERHEAD
+    } else {
+        0
+    };
     let total_work = pixels * work * channel_work as u64
         + pixels * adjustment_work
         + image_work
@@ -1451,12 +1463,23 @@ fn native_plan(
         + reconstruction_work
         + pixel_warp_work
         + outline_work
-        + pixels * dissolve_count * if track_shape { 256 } else { 128 }
         + pixels
-            * (effect_work * if track_shape { 2 } else { 1 } + effect_count * (8 * n as u64 + 32))
+            * dissolve_count
+            * if track_shape {
+                crate::limits::prepress::SHAPE_DISSOLVE_WORK
+            } else {
+                crate::limits::prepress::DISSOLVE_WORK
+            }
+        + pixels
+            * (effect_work * if track_shape { 2 } else { 1 }
+                + effect_count
+                    * (crate::limits::prepress::BLEND_CHANNEL_WORK as u64 * n as u64
+                        + crate::limits::prepress::BLEND_PIXEL_OVERHEAD as u64))
         + pixels
             * (filter_work * (2 * n as u64 + 1 + u64::from(track_shape))
-                + filter_count * (8 * n as u64 + 40))
+                + filter_count
+                    * (crate::limits::prepress::BLEND_CHANNEL_WORK as u64 * n as u64
+                        + crate::limits::prepress::FILTER_PIXEL_OVERHEAD))
         + filter_mask_work
         + mask_plan.work;
     let image_buffers = if image_count == 0 {

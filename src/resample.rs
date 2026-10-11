@@ -48,7 +48,8 @@ impl Plan {
         })
     }
     pub fn work(self) -> u64 {
-        self.taps[0] * self.taps[1] + 4 * (self.taps[0] + self.taps[1])
+        self.taps[0] * self.taps[1]
+            + crate::limits::resample::AXIS_TAP_WORK * (self.taps[0] + self.taps[1])
     }
     fn weights(self, point: f64, axis: usize) -> Result<Vec<(i64, f64)>, Error> {
         if !point.is_finite() || point.abs() > crate::limits::resample::MAX_INDEX_COORDINATE {

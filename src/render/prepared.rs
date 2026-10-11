@@ -204,7 +204,7 @@ impl Prepared {
             .iter()
             .filter(|i| i.mask.as_ref().is_some_and(|m| m.enabled))
             .count() as u64
-            * 4;
+            * crate::limits::render::MASK_SAMPLE_WORK;
         if sparse.is_none()
             && spatial.is_none()
             && count * (paint_work + mask_work) > crate::paint::MAX_PAINT_WORK

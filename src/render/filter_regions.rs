@@ -127,8 +127,10 @@ impl Step {
     fn cost(&self) -> u64 {
         match self {
             Self::Local(_) => 1,
-            Self::Radial { samples, .. } => 32 * samples.len() as u64,
-            Self::Twist { .. } => 128,
+            Self::Radial { samples, .. } => {
+                crate::limits::render_filter_regions::RADIAL_SAMPLE_WORK * samples.len() as u64
+            }
+            Self::Twist { .. } => crate::limits::render_filter_regions::TWIST_WORK,
         }
     }
 

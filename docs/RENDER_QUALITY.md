@@ -99,3 +99,11 @@ RGBA8 output retains one complete final byte image (at most 64 MiB), plus bounde
 
 Tiled ellipse work accounting derives from the same arc count as emitted coverage
 controls, including the initial move point and each cubic control/endpoint.
+
+Admission work charges for filters, effects, native inks, reconstruction and
+render planning are named in the [limit reference](LIMITS.md). Shared item,
+mask and knockout charges apply across the regional planners. These are
+conservative accounting policies, with separate ceilings for the affected
+operations; they are not timings or measured CPU instruction counts. Spatial
+index and deformation-plan memory allowances are expressed in eight-byte
+scalar values. Their existing charges and admission behavior are preserved.

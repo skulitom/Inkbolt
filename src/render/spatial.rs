@@ -190,19 +190,19 @@ impl Plan {
                 Content::Adjustment { adjustment } => adjustment.work(),
                 _ => 1,
             } + if item.mask.as_ref().is_some_and(|m| m.enabled) {
-                4
+                crate::limits::render::MASK_SAMPLE_WORK
             } else {
                 0
             };
             paint_work += pixels[i] * paint;
             let passes = texts.get(&item.id).map_or(1, |t| 1 + t.paths.len()) as u64;
             let shape = if crate::knockout::active(document) {
-                24
+                crate::limits::render::KNOCKOUT_ITEM_WORK
             } else {
                 0
             };
-            work +=
-                pixels[i] * (2 + passes + paint + shape) + refs * EDGE as u64 * controls[i] * phase;
+            work += pixels[i] * (crate::limits::render::ITEM_SETUP_WORK + passes + paint + shape)
+                + refs * EDGE as u64 * controls[i] * phase;
             if work > MAX_RENDER_WORK || paint_work > crate::paint::MAX_PAINT_WORK {
                 return Err(limit("Spatial render exceeds visited tile work limit"));
             }
@@ -247,7 +247,9 @@ impl Plan {
                 }
             }
         }
-        let index_values = references * 8 + cells.len() as u64 * 4 + n as u64 * 24;
+        let index_values = references * crate::limits::render_spatial::REFERENCE_VALUES
+            + cells.len() as u64 * crate::limits::render_spatial::CELL_VALUES
+            + n as u64 * crate::limits::render_spatial::ITEM_VALUES;
         if index_values > MAX_BUFFER_PIXELS * 4 {
             return Err(limit("Spatial render index exceeds memory limit"));
         }

@@ -141,23 +141,33 @@ impl Operator {
     }
     pub fn work(&self, scale: u32) -> u64 {
         let s = scale as u64;
-        8 + match *self {
-            Self::Creative { ref operator } => operator.work(scale),
-            Self::Detail { ref operator } => operator.work(scale),
-            Self::Spatial { ref operator } => operator.work(),
-            Self::Box { radius } => 2 * (2 * radius as u64 * s + 1),
-            Self::Gaussian { sigma } => 2 * (2 * (3.0 * sigma * scale as f64).ceil() as u64 + 1),
-            Self::Directional { samples, .. } | Self::Radial { samples, .. } => 4 * samples as u64,
-            Self::Surface { radius, .. } => 8 * (2 * radius as u64 * s + 1).pow(2),
-        }
+        crate::limits::filters::BASE_WORK
+            + match *self {
+                Self::Creative { ref operator } => operator.work(scale),
+                Self::Detail { ref operator } => operator.work(scale),
+                Self::Spatial { ref operator } => operator.work(),
+                Self::Box { radius } => 2 * (2 * radius as u64 * s + 1),
+                Self::Gaussian { sigma } => {
+                    2 * (2 * (3.0 * sigma * scale as f64).ceil() as u64 + 1)
+                }
+                Self::Directional { samples, .. } | Self::Radial { samples, .. } => {
+                    crate::limits::filters::TRAJECTORY_SAMPLE_WORK * samples as u64
+                }
+                Self::Surface { radius, .. } => {
+                    crate::limits::filters::SURFACE_NEIGHBOR_WORK
+                        * (2 * radius as u64 * s + 1).pow(2)
+                }
+            }
     }
 }
 pub fn work(item: &Item, scale: u32) -> u64 {
     item.filters
         .iter()
         .map(|f| {
-            f.operator.work(scale) - 4 * u64::from(direct_replacement(f))
-                + 4 * u64::from(f.mask.is_some())
+            f.operator.work(scale)
+                - crate::limits::filters::DIRECT_REPLACEMENT_CREDIT
+                    * u64::from(direct_replacement(f))
+                + crate::limits::filters::MASK_SAMPLE_WORK * u64::from(f.mask.is_some())
         })
         .sum()
 }

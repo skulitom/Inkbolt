@@ -203,10 +203,14 @@ impl Adjustment {
     }
     pub fn work(&self) -> u64 {
         match self {
-            Self::Selective { corrections, .. } => 16 + corrections.len() as u64 * 4,
-            Self::Lut3d { .. } => 32,
-            Self::GradientMap { .. } => 16,
-            _ => 16,
+            Self::Selective { corrections, .. } => {
+                crate::limits::color_adjustments::BASE_WORK
+                    + corrections.len() as u64
+                        * crate::limits::color_adjustments::SELECTIVE_CORRECTION_WORK
+            }
+            Self::Lut3d { .. } => crate::limits::color_adjustments::LUT_3D_WORK,
+            Self::GradientMap { .. } => crate::limits::color_adjustments::BASE_WORK,
+            _ => crate::limits::color_adjustments::BASE_WORK,
         }
     }
 }

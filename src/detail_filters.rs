@@ -77,10 +77,16 @@ impl Operator {
     }
     pub fn work(&self, scale: u32) -> u64 {
         match *self {
-            Self::Sharpen { .. } => 16,
-            Self::Unsharp { sigma, .. } => filters::Operator::Gaussian { sigma }.work(scale) + 8,
-            Self::Median { radius } => 8 * (2 * radius as u64 * scale as u64 + 1).pow(2),
-            Self::Noise { .. } => 64,
+            Self::Sharpen { .. } => crate::limits::detail_filters::SHARPEN_WORK,
+            Self::Unsharp { sigma, .. } => {
+                filters::Operator::Gaussian { sigma }.work(scale)
+                    + crate::limits::detail_filters::UNSHARP_COMBINE_WORK
+            }
+            Self::Median { radius } => {
+                crate::limits::detail_filters::MEDIAN_NEIGHBOR_WORK
+                    * (2 * radius as u64 * scale as u64 + 1).pow(2)
+            }
+            Self::Noise { .. } => crate::limits::detail_filters::NOISE_WORK,
         }
     }
 }

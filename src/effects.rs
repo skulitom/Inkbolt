@@ -333,21 +333,23 @@ pub(crate) fn work(item: &Item, scale: u32) -> u64 {
                 {
                     // Borrow original alpha and read one exact tap instead of
                     // allocating a blur copy and four weighted source taps.
-                    16
+                    crate::limits::effects::DIRECT_SHADOW_WORK
                 }
                 Operator::Shadow { sigma, .. } | Operator::LitShadow { sigma, .. } => {
-                    2 * (2 * (3.0 * sigma * s).ceil() as u64 + 1) + 24
+                    2 * (2 * (3.0 * sigma * s).ceil() as u64 + 1)
+                        + crate::limits::effects::SOFT_SHADOW_OVERHEAD
                 }
                 Operator::Stroke { radius, .. } => {
-                    (2 * (radius as f64 * s).ceil() as u64 + 1).pow(2) + 16
+                    (2 * (radius as f64 * s).ceil() as u64 + 1).pow(2)
+                        + crate::limits::effects::STROKE_OVERHEAD
                 }
-                Operator::Overlay {} => 12,
+                Operator::Overlay {} => crate::limits::effects::OVERLAY_WORK,
             };
             base + e.contour.len() as u64
                 + if matches!(e.color, Paint::Solid(_)) {
                     0
                 } else {
-                    8 + paint::work(&e.color)
+                    crate::limits::effects::PAINT_SETUP_WORK + paint::work(&e.color)
                 }
         })
         .sum::<u64>()

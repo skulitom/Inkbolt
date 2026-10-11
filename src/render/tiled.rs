@@ -207,7 +207,7 @@ impl Neighborhood {
         let mut filter_work = 0u64;
         let mut effect_work = 0u64;
         let shape = if crate::knockout::active(document) {
-            24
+            crate::limits::render::KNOCKOUT_ITEM_WORK
         } else {
             0
         };
@@ -229,12 +229,14 @@ impl Neighborhood {
                     .sum(),
                 _ => 1,
             };
-            let paint = paint + 4 * u64::from(item.mask.as_ref().is_some_and(|m| m.enabled));
+            let paint = paint
+                + crate::limits::render::MASK_SAMPLE_WORK
+                    * u64::from(item.mask.as_ref().is_some_and(|m| m.enabled));
             let filter = crate::filters::work(item, scale) * shape_passes;
             let effect = crate::effects::work(item, scale) * shape_passes;
             let passes = 1 + texts.get(&item.id).map_or(0, |t| t.paths.len()) as u64;
             costs.push((
-                2 + passes + paint + filter + effect + shape,
+                crate::limits::render::ITEM_SETUP_WORK + passes + paint + filter + effect + shape,
                 paint,
                 filter,
                 effect,

@@ -23,6 +23,10 @@ macro_rules! define_limits {
 define_limits! {
 /// Limits for `src/adjustments.rs`.
 pub mod adjustments {
+    /// Per-pixel work charge for one curve adjustment.
+    pub const CURVE_WORK: u64 = 8;
+    /// Per-pixel work charge for a simple adjustment operator.
+    pub const SIMPLE_OPERATOR_WORK: u64 = 4;
     /// Max operators (adjustments).
     pub const MAX_OPERATORS: usize = 16;
     /// Max document operators (adjustments).
@@ -157,6 +161,12 @@ pub mod checks {
 
 /// Limits for `src/color_adjustments.rs`.
 pub mod color_adjustments {
+    /// Per-pixel base work for color adjustments, including gradient maps and selective corrections.
+    pub const BASE_WORK: u64 = 16;
+    /// Additional per-pixel work for each selective color correction.
+    pub const SELECTIVE_CORRECTION_WORK: u64 = 4;
+    /// Per-pixel work charge for a three-dimensional color lookup.
+    pub const LUT_3D_WORK: u64 = 32;
     /// Max lut 1d (color adjustments).
     pub const MAX_LUT_1D: usize = 4096;
     /// Max lut 3d side (color adjustments).
@@ -251,6 +261,16 @@ pub mod edit {
 
 /// Limits for `src/effects.rs`.
 pub mod effects {
+    /// Per-pixel shadow work for one exact integer tap with borrowed alpha.
+    pub const DIRECT_SHADOW_WORK: u64 = 16;
+    /// Per-pixel shadow work beyond the two-pass Gaussian kernel.
+    pub const SOFT_SHADOW_OVERHEAD: u64 = 24;
+    /// Per-pixel stroke-effect work beyond its neighborhood samples.
+    pub const STROKE_OVERHEAD: u64 = 16;
+    /// Per-pixel overlay-effect work.
+    pub const OVERLAY_WORK: u64 = 12;
+    /// Additional per-pixel preparation work for nonsolid effect paints.
+    pub const PAINT_SETUP_WORK: u64 = 8;
     /// Minimum retained layer-effect kernel scale.
     pub const MIN_SCALE: f64 = 0.001;
     /// Maximum retained layer-effect kernel scale; effective kernel bounds also apply.
@@ -277,6 +297,16 @@ pub mod effects {
 
 /// Limits for `src/filters.rs`.
 pub mod filters {
+    /// Per-pixel filter composition overhead before any direct-replacement credit.
+    pub const BASE_WORK: u64 = 8;
+    /// Per-pixel work saved when a filter directly replaces its input.
+    pub const DIRECT_REPLACEMENT_CREDIT: u64 = 4;
+    /// Additional per-pixel charge for filter-mask sampling.
+    pub const MASK_SAMPLE_WORK: u64 = 4;
+    /// Work charge per bilinear directional or radial trajectory sample.
+    pub const TRAJECTORY_SAMPLE_WORK: u64 = 4;
+    /// Work charge per surface-filter neighborhood sample.
+    pub const SURFACE_NEIGHBOR_WORK: u64 = 8;
     /// Maximum document-space box-kernel radius.
     pub const MAX_BOX_RADIUS: u32 = 32;
     /// Maximum sigma for the shared Gaussian blur, unsharp and high-pass kernel.
@@ -305,6 +335,14 @@ pub mod filters {
 
 /// Admission limits for detail-filter kernels.
 pub mod detail_filters {
+    /// Per-pixel work for the fixed sharpen stencil.
+    pub const SHARPEN_WORK: u64 = 16;
+    /// Per-pixel unsharp combination work beyond Gaussian evaluation.
+    pub const UNSHARP_COMBINE_WORK: u64 = 8;
+    /// Work charge per median neighborhood sample.
+    pub const MEDIAN_NEIGHBOR_WORK: u64 = 8;
+    /// Per-pixel work charge for deterministic noise generation.
+    pub const NOISE_WORK: u64 = 64;
     /// Maximum strength for the shared sharpen and unsharp calculation.
     pub const MAX_SHARPEN_AMOUNT: u32 = 8;
     /// Maximum square median-neighborhood radius.
@@ -313,6 +351,24 @@ pub mod detail_filters {
 
 /// Admission limits for creative-filter kernels.
 pub mod creative_filters {
+    /// Per-pixel twist evaluation and reconstruction work.
+    pub const TWIST_WORK: u64 = 48;
+    /// Per-pixel relief evaluation work.
+    pub const RELIEF_WORK: u64 = 32;
+    /// Per-pixel high-pass combination work beyond Gaussian evaluation.
+    pub const HIGH_PASS_COMBINE_WORK: u64 = 8;
+    /// Work charge per extrema neighborhood sample.
+    pub const EXTREMA_NEIGHBOR_WORK: u64 = 8;
+    /// Per-pixel tone-fold work.
+    pub const TONE_FOLD_WORK: u64 = 4;
+    /// Per-pixel edge-ink work.
+    pub const EDGE_INK_WORK: u64 = 96;
+    /// Work charge per line-neighborhood sample in stroke-rank evaluation.
+    pub const STROKE_RANK_SAMPLE_WORK: u64 = 32;
+    /// Per-pixel work charge per procedural value-field octave.
+    pub const VALUE_FIELD_OCTAVE_WORK: u64 = 256;
+    /// Per-pixel field-repair work.
+    pub const FIELD_REPAIR_WORK: u64 = 8;
     /// Minimum nondegenerate local twist radius.
     pub const MIN_TWIST_RADIUS: f64 = 0.0001;
     /// Maximum opposing relief sample displacement in document units.
@@ -905,6 +961,8 @@ pub mod workspace {
 
 /// Limits for `src/paint.rs`.
 pub mod paint {
+    /// Per-pixel mesh-paint work when no inverse deformation is required.
+    pub const REGULAR_MESH_WORK: u64 = 16;
     /// Minimum separation of linear-gradient endpoints.
     pub const MIN_LINEAR_SPAN: f64 = 0.001;
     /// Minimum radial-gradient radius.
@@ -1031,6 +1089,14 @@ pub mod pixel_brush {
 
 /// Limits for `src/pixel_warps.rs`.
 pub mod pixel_warps {
+    /// Conservative live scalar allowance per deformation-grid vertex, including vector growth.
+    pub const VERTEX_BUFFER_VALUES: usize = 32;
+    /// Conservative live scalar allowance per deformation-grid cell.
+    pub const CELL_BUFFER_VALUES: usize = 16;
+    /// Conservative live scalar allowance per articulated joint.
+    pub const JOINT_BUFFER_VALUES: usize = 16;
+    /// Fixed live scalar allowance for projective coefficients and plan construction.
+    pub const FIXED_BUFFER_VALUES: usize = 128;
     /// Maximum absolute departure of articulated weights from unity.
     pub const WEIGHT_SUM_TOLERANCE: f64 = 1e-10;
     /// Filtered orientation uncertainty before exact rational fallback.
@@ -1065,6 +1131,32 @@ pub mod prepress_images {
 
 /// Limits for `src/prepress.rs`.
 pub mod prepress {
+    /// Per-pixel profile-conversion overhead for native adjustments.
+    pub const ADJUSTMENT_CONVERSION_WORK: u64 = 256;
+    /// Per-source-pixel work for a declared display projection before native composition.
+    pub const PROJECTED_SOURCE_WORK: u64 = 16;
+    /// Per-channel native object placement work beyond the reconstruction kernel.
+    pub const OBJECT_RECONSTRUCTION_WORK: u64 = 16;
+    /// Per-pixel native image work in addition to the destination ink channels.
+    pub const IMAGE_PIXEL_OVERHEAD: u64 = 16;
+    /// Per-channel work for native blend and effect composition.
+    pub const BLEND_CHANNEL_WORK: usize = 8;
+    /// Per-pixel overhead for native blend and effect composition.
+    pub const BLEND_PIXEL_OVERHEAD: usize = 32;
+    /// Per-channel work for normal native composition.
+    pub const NORMAL_CHANNEL_WORK: usize = 2;
+    /// Per-pixel overhead for normal native composition.
+    pub const NORMAL_PIXEL_OVERHEAD: usize = 1;
+    /// Additional per-channel work when native shape coverage is tracked.
+    pub const SHAPE_CHANNEL_WORK: usize = 4;
+    /// Additional per-pixel work when native shape coverage is tracked.
+    pub const SHAPE_PIXEL_OVERHEAD: usize = 8;
+    /// Per-pixel native dissolve work for one coverage field.
+    pub const DISSOLVE_WORK: u64 = 128;
+    /// Native dissolve charges both color and shape coverage fields when shape is tracked.
+    pub const SHAPE_DISSOLVE_WORK: u64 = 2 * DISSOLVE_WORK;
+    /// Per-pixel native filter composition overhead beyond per-channel blend work.
+    pub const FILTER_PIXEL_OVERHEAD: u64 = 40;
     /// Conservative live scalar allowance for color conversion scratch arrays; follows the shared batch size.
     pub const COLOR_BUFFER_VALUES: u64 = super::profiles::MAX_CONVERSION_SAMPLES as u64 * 16;
     /// Maximum requested output sample positions in native ink preparation.
@@ -1219,6 +1311,10 @@ pub mod render_coverage_cache {
 
 /// Limits for `src/render/filter_regions.rs`.
 pub mod render_filter_regions {
+    /// Dependency-region mapping work per radial trajectory sample.
+    pub const RADIAL_SAMPLE_WORK: u64 = 32;
+    /// Dependency-region mapping work for a twist step.
+    pub const TWIST_WORK: u64 = 128;
     /// Relative accumulation allowance in filter dependency bounds.
     pub const ROUNDING_EPSILONS: u32 = 64;
     /// Absolute floor on conservative filter dependency coordinate margins.
@@ -1229,6 +1325,12 @@ pub mod render_filter_regions {
 
 /// Limits for `src/render/spatial.rs`.
 pub mod render_spatial {
+    /// Conservative eight-byte scalar allowance per spatial-index reference.
+    pub const REFERENCE_VALUES: u64 = 8;
+    /// Conservative eight-byte scalar allowance per spatial-index cell.
+    pub const CELL_VALUES: u64 = 4;
+    /// Conservative eight-byte scalar allowance per spatial-index item.
+    pub const ITEM_VALUES: u64 = 24;
     /// Expanded item count at which tiled rendering builds a spatial index.
     pub const MIN_ITEMS: usize = 128;
     /// Edge (render spatial).
@@ -1253,6 +1355,12 @@ pub mod render_traversal {
 
 /// Limits for `src/render.rs`.
 pub mod render {
+    /// Per-pixel item setup shared by sparse, indexed and tiled composition.
+    pub const ITEM_SETUP_WORK: u64 = 2;
+    /// Per-output-pixel item-mask sampling work shared by render planners.
+    pub const MASK_SAMPLE_WORK: u64 = 4;
+    /// Per-pixel item work for color and shape knockout composition across planners.
+    pub const KNOCKOUT_ITEM_WORK: u64 = 24;
     /// Max render pixels (render).
     pub const MAX_RENDER_PIXELS: u64 = 1_048_576;
     /// Max render work (render).
@@ -1297,6 +1405,8 @@ pub mod repeats {
 
 /// Limits for `src/resample.rs`.
 pub mod resample {
+    /// Per-axis-tap reconstruction preparation work in addition to the two-dimensional sample product.
+    pub const AXIS_TAP_WORK: u64 = 4;
     /// Absolute source coordinate supported by advanced-kernel stable index arithmetic.
     pub const MAX_INDEX_COORDINATE: f64 = 1e12;
     /// Max axis taps (resample).
@@ -1481,6 +1591,12 @@ pub mod simplify {
 
 /// Limits for `src/spatial_filters.rs`.
 pub mod spatial_filters {
+    /// Per-pixel mosaic evaluation work.
+    pub const MOSAIC_WORK: u64 = 4;
+    /// Per-pixel offset reconstruction work.
+    pub const OFFSET_WORK: u64 = 4;
+    /// Per-pixel displacement-field evaluation and reconstruction work.
+    pub const DISPLACE_WORK: u64 = 16;
     /// Maximum absolute document-space offset or displacement amplitude.
     pub const MAX_OFFSET: u32 = 256;
     /// Maximum mosaic block size in document units.

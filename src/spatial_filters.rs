@@ -92,9 +92,9 @@ impl Operator {
     }
     pub fn work(&self) -> u64 {
         match self {
-            Self::Mosaic { .. } => 4,
-            Self::Offset { .. } => 4,
-            Self::Displace { .. } => 16,
+            Self::Mosaic { .. } => crate::limits::spatial_filters::MOSAIC_WORK,
+            Self::Offset { .. } => crate::limits::spatial_filters::OFFSET_WORK,
+            Self::Displace { .. } => crate::limits::spatial_filters::DISPLACE_WORK,
         }
     }
 }

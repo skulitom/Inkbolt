@@ -28,7 +28,11 @@ pub(crate) fn work(document: &Document, scale: u32) -> u64 {
     document
         .items
         .iter()
-        .map(|i| 24 + crate::filters::work(i, scale) + crate::effects::work(i, scale))
+        .map(|i| {
+            crate::limits::render::KNOCKOUT_ITEM_WORK
+                + crate::filters::work(i, scale)
+                + crate::effects::work(i, scale)
+        })
         .sum()
 }
 pub(crate) fn composite(

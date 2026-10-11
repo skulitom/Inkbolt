@@ -135,15 +135,26 @@ impl Operator {
     }
     pub fn work(&self, scale: u32) -> u64 {
         match *self {
-            Self::Twist { .. } => 48,
-            Self::Relief { .. } => 32,
-            Self::HighPass { sigma } => filters::Operator::Gaussian { sigma }.work(scale) + 8,
-            Self::Extrema { radius, .. } => 8 * (2 * radius as u64 * scale as u64 + 1).pow(2),
-            Self::ToneFold { .. } => 4,
-            Self::EdgeInk { .. } => 96,
-            Self::StrokeRank { radius, .. } => 32 * (2 * radius as u64 * scale as u64 + 1),
-            Self::ValueField { octaves, .. } => 256 * octaves as u64,
-            Self::FieldRepair { .. } => 8,
+            Self::Twist { .. } => crate::limits::creative_filters::TWIST_WORK,
+            Self::Relief { .. } => crate::limits::creative_filters::RELIEF_WORK,
+            Self::HighPass { sigma } => {
+                filters::Operator::Gaussian { sigma }.work(scale)
+                    + crate::limits::creative_filters::HIGH_PASS_COMBINE_WORK
+            }
+            Self::Extrema { radius, .. } => {
+                crate::limits::creative_filters::EXTREMA_NEIGHBOR_WORK
+                    * (2 * radius as u64 * scale as u64 + 1).pow(2)
+            }
+            Self::ToneFold { .. } => crate::limits::creative_filters::TONE_FOLD_WORK,
+            Self::EdgeInk { .. } => crate::limits::creative_filters::EDGE_INK_WORK,
+            Self::StrokeRank { radius, .. } => {
+                crate::limits::creative_filters::STROKE_RANK_SAMPLE_WORK
+                    * (2 * radius as u64 * scale as u64 + 1)
+            }
+            Self::ValueField { octaves, .. } => {
+                crate::limits::creative_filters::VALUE_FIELD_OCTAVE_WORK * octaves as u64
+            }
+            Self::FieldRepair { .. } => crate::limits::creative_filters::FIELD_REPAIR_WORK,
         }
     }
     pub(crate) fn rebase(&mut self, delta: Point) {

@@ -568,7 +568,10 @@ pub(crate) fn buffer_values(spec: &Spec) -> u64 {
     };
     // Source/destination vertices, outer path commands, triangle indices and
     // vector capacity growth; fixed projective coefficients and joint matrices.
-    (32 * (columns + 1) * (rows + 1) + 16 * columns * rows + 16 * joints + 128) as u64
+    (crate::limits::pixel_warps::VERTEX_BUFFER_VALUES * (columns + 1) * (rows + 1)
+        + crate::limits::pixel_warps::CELL_BUFFER_VALUES * columns * rows
+        + crate::limits::pixel_warps::JOINT_BUFFER_VALUES * joints
+        + crate::limits::pixel_warps::FIXED_BUFFER_VALUES) as u64
 }
 pub fn inspect(
     spec: &Spec,

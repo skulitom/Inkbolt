@@ -270,6 +270,14 @@ sums, both orientations of the profile determinant threshold, emitted ellipse
 controls across tile columns and cancellation across selection work boundaries.
 Remaining work-accounting review and fresh thorough W0 acceptance remain open.
 
+Filter/effect, native ink and reconstruction work charges now use named catalog
+policies with their existing values. Sparse, indexed and tiled planners share
+item setup, mask sampling and knockout charges. Spatial-index and deformation
+plan memory allowances are also catalog-backed. Structural channel counts,
+kernel cardinalities and actual buffer layout remain algorithm definitions.
+Geometry solver charges and the final inline audit still need review before
+the fresh Windows/Linux thorough W0 gate.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

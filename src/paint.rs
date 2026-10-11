@@ -242,7 +242,7 @@ pub fn work(paint: &Paint) -> u64 {
             if mesh.knots.iter().any(|k| k.offset != [0.0; 2]) {
                 crate::meshes::INVERSE_STEPS as u64
             } else {
-                16
+                crate::limits::paint::REGULAR_MESH_WORK
             }
         }
         Paint::Field(Field::Freeform { anchors, .. }) => anchors.len() as u64,
