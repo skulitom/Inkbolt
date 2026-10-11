@@ -1,5 +1,12 @@
 # Roadmap and verified scope
 
+Native vector import now maps an admitted editable stream into flat layers,
+closed line/cubic RGB paths and shared artboards, preserving visibility, locks
+and opacity. Explicit color interpretation, strict compression/framing checks
+and source-preserving failures bound this subset. Native delivery, broader
+semantics and both original interchange checkpoints remain unfinished. See
+[the import contract](NATIVE_VECTOR_IMPORT.md); the registry remains 161/167.
+
 Shared scene artboards now retain one editable vector layer tree across multiple
 views, with independent placement, bleed, saved history and image/SVG/PDF
 delivery. Existing owned-subtree artboards retain their behavior. This removes a

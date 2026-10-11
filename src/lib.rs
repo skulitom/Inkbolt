@@ -98,6 +98,7 @@ pub mod tracing;
 pub mod transfer;
 pub mod variants;
 pub mod vector_canvas;
+pub mod vector_native;
 pub mod visual_diff;
 pub mod volumes;
 pub mod warps;
@@ -395,6 +396,16 @@ pub enum Request {
         font_bindings: Vec<svg_import::FontBinding>,
         #[serde(default)]
         font_root: Option<PathBuf>,
+    },
+    #[serde(rename = "vector.import")]
+    VectorImport {
+        id: String,
+        source_path: PathBuf,
+        color_policy: vector_native::ColorPolicy,
+        #[serde(default)]
+        resource_profile: model::ResourceProfile,
+        #[serde(default)]
+        control: control::Options,
     },
     #[serde(rename = "capabilities")]
     Capabilities {},
@@ -1042,6 +1053,7 @@ fn capability_report() -> Value {
         "image.trace",
         "mesh.inspect",
         "svg.import",
+        "vector.import",
         "document.boolean",
         "channel.export",
         "document.diff",
@@ -1206,6 +1218,18 @@ fn capability_report() -> Value {
     capabilities["reconstruction"] = json!({"methods":["area","bicubic","lanczos3"],"bicubic_parameter":-0.5,"lanczos_radius":3,"footprint":"inverse_pixel_source_axis_bounds","downsample":"widen_and_normalize_each_axis","area":"exact_box_cell_overlap","alpha":"premultiplied_with_final_valid_rgba_projection","border":"clamp_to_source_crop","max_axis_taps":resample::MAX_AXIS_TAPS,"max_work":resample::MAX_WORK,"svg":false,"scalar_masks":false,"displacement_maps":false});
     capabilities["canvas_operations"] = json!({"document_kinds":["raster"],"operation":"canvas","actions":["crop","extent","scale","resolution"],"sampling":["nearest","bilinear","area","bicubic","lanczos3"],"sampling_boundary_epsilon_factor":8,"extent_anchors":"nine_positions_with_floor_half_delta","content":"retained_layers_and_source_pixels","auxiliary_planes":"canvas_bound_crop_pad_or_resample","filters":"explicit_preserve_parameters_policy_required","resolution_only":true,"advanced_resamplers":true});
     capabilities["svg_import"] = svg_import_contract;
+    capabilities["native_vector_import"] = json!({
+        "command":"vector.import","source":"local_regular_file;read_only",
+        "container":"classic_xref_PDF_with_one_reachable_editable_stream;container_12;roundtrip_24;creator_30",
+        "source_bytes":vector_native::MAX_SOURCE_BYTES,"decoded_bytes":vector_native::MAX_DECODED_BYTES,
+        "blocks":vector_native::MAX_BLOCKS,"compression":["none","single_zstandard_frame_checked_checksum_and_size"],
+        "editable":["flat_named_layers","closed_line_and_cubic_RGB_paths","visibility","locks","opacity","shared_scene_artboards"],
+        "color_policy":"required_encoded_srgb;source_profiles_not_imported",
+        "coordinates":"native_points_at_72ppi;one_shared_y_flip_and_artboard_union_origin",
+        "unsupported":["nested_layers","groups","open_or_stroked_or_compound_paths","gradients","text","images","links","effects","clipping","nondefault_blend_or_winding","fractional_RGB_components","nonzero_bleed","non_ASCII_labels","scaled_canvases","xref_streams","incremental_or_encrypted_PDF","unknown_artwork_operators_or_object_properties"],
+        "preview_pages":"never_used_as_editable_artwork","native_delivery":false,
+        "checkpoint_status":"both_original_native_interchange_criteria_remain_in_progress"
+    });
     capabilities["resource_profiles"] = json!({"field":"resource_profile","default":"standard","operation":"resource_profile","standard":{"items":model::MAX_ITEMS,"geometry_commands":model::MAX_SEGMENTS,"snapshot_bytes":model::MAX_DOCUMENT_BYTES,"svg_source_bytes":svg_import::MAX_BYTES,"svg_nodes":svg_import::MAX_NODES},"large_vector":{"items":model::MAX_LARGE_VECTOR_ITEMS,"geometry_commands":model::MAX_LARGE_VECTOR_COMMANDS,"snapshot_bytes":model::MAX_LARGE_VECTOR_BYTES,"svg_source_bytes":svg_import::MAX_LARGE_BYTES,"svg_nodes":svg_import::MAX_LARGE_NODES,"kind":"vector"},"scope":"stored_and_expanded_document_budgets;other_algorithm_and_transport_limits_remain_independent","per_path_commands":model::MAX_SEGMENTS,"checkpoint":"vector.resources.extended","checkpoint_status":"in_progress"});
     capabilities["resource_profiles"]["regional_rendering"] = json!({"profile":"large_vector","eligible":"ordinary_vector_fills_strokes_and_neutral_groups","bounds":"transformed_controls_and_generated_strokes_plus_two_evaluation_pixels","paint_coordinates":"original_item_space","work":"actual_region_scans_paints_composition_and_controls","other_scenes":"general_bounded_renderer","raises_processing_limits":false});
     capabilities["resource_profiles"]["large_raster"] = json!({"items":model::MAX_LARGE_RASTER_ITEMS,"geometry_commands":model::MAX_LARGE_RASTER_COMMANDS,"snapshot_bytes":model::MAX_LARGE_RASTER_BYTES,"kind":"raster","overlays":"ordinary_vector_geometry_with_fills_and_strokes","native_storage":"existing_immutable_blocks_and_pure_patches","rendering":"existing_whole_limits;opt_in_tiled_evaluation;conservative_spatial_membership;neighboring_source_reuse","raises_processing_limits":false});
@@ -1982,6 +2006,19 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             source,
             font_bindings,
             font_root,
+            resource_profile,
+            &context.scoped(&control)?,
+        ),
+        Request::VectorImport {
+            id,
+            source_path,
+            color_policy,
+            resource_profile,
+            control,
+        } => vector_native::import(
+            id,
+            &source_path,
+            color_policy,
             resource_profile,
             &context.scoped(&control)?,
         ),

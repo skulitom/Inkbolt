@@ -87,6 +87,8 @@ Dependencies remain in the external package cache; this file preserves their dis
 | moxcms | 0.9.1 | BSD-3-Clause OR Apache-2.0 | LICENSE-APACHE.md: notice-90bf2d659c430451; LICENSE.md: notice-2aa92cada6431e75 |
 | pxfm | 0.1.30 | BSD-3-Clause OR Apache-2.0 | LICENSE-APACHE.md: notice-90bf2d659c430451; LICENSE.md: notice-2aa92cada6431e75 |
 | unicode-bidi | 0.3.18 | MIT OR Apache-2.0 | LICENSE-APACHE: notice-a60eea8175145316; LICENSE-MIT: notice-7b63ecd5f1902af1 |
+| ruzstd | 0.9.0 | MIT | LICENSE: notice-d715eb0d9cfe1cc0 |
+| twox-hash | 2.1.5 | MIT | LICENSE.txt: notice-f59bcb1c02654665 |
 
 ## notice-033a9383ff21d1e4
 
@@ -5423,4 +5425,56 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+```
+
+## notice-d715eb0d9cfe1cc0
+
+```text
+MIT License
+
+Copyright (c) 2019 Moritz Borcherding
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## notice-f59bcb1c02654665
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2015 Jake Goulding
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```

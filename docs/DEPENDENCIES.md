@@ -1,5 +1,15 @@
 # Dependencies and provenance
 
+Native vector import adds pinned MIT-licensed ruzstd 0.9.0 and its checksum
+dependency twox-hash 2.1.5. Their supplied license texts are retained in
+THIRD_PARTY_NOTICES.md; package sources remain in the external Cargo cache.
+Only `std` and `hash` decoder features are enabled. The engine uses the public
+[bounded-window streaming interface](https://docs.rs/ruzstd/0.9.0/ruzstd/decoding/struct.StreamingDecoder.html),
+then explicitly verifies frame completion, declared size, checksum when present
+and absence of trailing frames. Container interpretation, editable geometry and
+synthetic fixtures are original project code. Existing package versions are
+unchanged.
+
 The Windows `job_process` backend adds no package or copied SDK source. Original bindings use documented Windows job-object, process-time and memory APIs linked in [JOB_PROCESSES.md](JOB_PROCESSES.md). Persistent leases use the standard Rust file locking API available since Rust 1.89. Runtime dependencies, locked versions and licenses are unchanged.
 
 Durable output receipts add no external package. An original Windows binding calls the documented GetFileInformationByHandleEx/FileIdInfo interface to identify retained staging links; SQLite uses the existing pinned rusqlite dependency. No SDK source is included. See [publication receipts](PUBLICATION_RECEIPTS.md) for public interface references and verified platform limits.
@@ -28,6 +38,7 @@ Cargo.lock records exact versions and checksums. Packages remain in Cargo's exte
 | unicode-script 0.5.8 | Unicode script and script-extension itemization | MIT OR Apache-2.0 |
 | unicode-bidi 0.3.18 | Unicode 16 paragraph levels and line reordering | MIT OR Apache-2.0 |
 | roxmltree 0.21.1 | Bounded read-only XML parsing for original SVG import mapping | MIT OR Apache-2.0 |
+| ruzstd 0.9.0 | Bounded single-frame Zstandard decoding for native vector data; std and hash features only | MIT |
 | rusqlite 0.40.2 | Local transactional sessions; bundled SQLite through libsqlite3-sys 0.38.2 | MIT (SQLite public domain) |
 
 Rust/Cargo, Python 3.11+ and Git are development tools. Python checks use only the standard library. Ghidra, Java and Anode are optional external research tools; exact local installations and verification receipts belong in the private research root. They are not runtime dependencies.

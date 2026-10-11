@@ -15,6 +15,7 @@ png = "=0.18.1"
 base64 = "=0.22.1"
 sha2 = "=0.10.9"
 crc32fast = "=1.5.2"
+ruzstd = { version = "=0.9.0", default-features = false, features = ["std", "hash"] }
 flate2 = { version = "=1.1.10", default-features = false, features = ["rust_backend"] }
 rustybuzz = "=0.20.1"
 unicode-segmentation = "=1.12.0"

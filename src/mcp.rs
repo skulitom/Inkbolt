@@ -244,6 +244,9 @@ fn description(command: &str) -> &'static str {
         "svg.import" => {
             "Import a bounded local UTF-8 SVG file or text as a new editable vector document. Supports geometry, gradients, clips, shared editable artwork masks and single-line editable text with explicit font_bindings and font_root. No installed-font lookup or substitution. Returns source hash, ID mapping and normalization losses. Preserves source files; rejects unsupported semantics and malformed XML."
         }
+        "vector.import" => {
+            "Import supported native vector layers, closed RGB line/cubic paths and shared artboards from a local file. Requires an explicit encoded_srgb color interpretation. Returns editable objects and source hashes without writing files. Uses the editable data stream, never PDF preview artwork; unknown semantics and malformed framing fail explicitly. Native delivery and broader interoperability remain incomplete."
+        }
         "capabilities" => {
             "Inspect implemented graphics features, command names, limits and explicit unsupported semantics before planning work."
         }

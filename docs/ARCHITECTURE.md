@@ -1,5 +1,14 @@
 # Architecture
 
+`vector_native` reads bounded classic-xref containers and their authoritative
+editable stream into flat layers, original path controls and shared scene
+artboards. It never interprets preview page artwork or executes source programs.
+The original PDF/data parsers enforce framing and syntax budgets; external
+Zstandard/Flate codecs enforce completion and explicit checksum/size checks.
+Caller-declared RGB interpretation and losses remain in the receipt. See
+[native vector import](NATIVE_VECTOR_IMPORT.md); complete native interchange
+and native delivery remain open.
+
 Artboards can select an owned subtree or a shared vector scene. Scene scope is a
 nonpainting root viewport with translation-only placement and no children. The
 shared standalone path translates a temporary scene copy, rebases world masks
