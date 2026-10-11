@@ -1,4 +1,5 @@
 //! Original retained profile extrusion, rigid rotation and flat-lit vector projection.
+use crate::limits::{volumes as limits, warps as curve_limits};
 use crate::{Error, geometry, model::*, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,7 @@ pub use crate::limits::volumes::MAX_EDGES;
 pub use crate::limits::volumes::MAX_FACES;
 pub type Point3 = [f64; 3];
 fn tolerance() -> f64 {
-    0.1
+    limits::DEFAULT_SOURCE_TOLERANCE
 }
 #[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -80,7 +81,11 @@ fn sub(a: Point3, b: Point3) -> Point3 {
 }
 fn normalized(v: Point3) -> Result<Point3, Error> {
     let n = dot(v, v).sqrt();
-    if !range(n, 1e-8, 65536.) {
+    if !range(
+        n,
+        limits::MIN_DIRECTION_NORM,
+        f64::from(limits::MAX_DIRECTION_NORM),
+    ) {
         return Err(invalid("A finite nonzero bounded direction is required"));
     }
     Ok(v.map(|v| v / n))
@@ -149,9 +154,19 @@ fn project(camera: &Camera, p: Point3) -> Result<Point, Error> {
 }
 pub(crate) fn stored(s: &Spec) -> Result<usize, Error> {
     let commands = geometry::validate_geometry(&s.geometry)?;
-    if !range(s.depth, 0., 4096.)
-        || !range(s.tolerance, 0.000001, 1.)
-        || s.rotation.iter().any(|&v| !range(v, -360000., 360000.))
+    if !range(s.depth, 0., f64::from(limits::MAX_DEPTH))
+        || !range(
+            s.tolerance,
+            curve_limits::MIN_TOLERANCE,
+            f64::from(curve_limits::MAX_TOLERANCE),
+        )
+        || s.rotation.iter().any(|&v| {
+            !range(
+                v,
+                -f64::from(limits::MAX_ROTATION),
+                f64::from(limits::MAX_ROTATION),
+            )
+        })
         || s.pivot
             .iter()
             .chain(&s.translation)
@@ -170,30 +185,43 @@ pub(crate) fn stored(s: &Spec) -> Result<usize, Error> {
         && (principal
             .iter()
             .any(|&v| !range(v, -MAX_COORDINATE, MAX_COORDINATE))
-            || !range(distance, 1., 32768.)
-            || !range(near, 0.01, distance)
-            || !range(far, distance, 65536.)
-            || distance / near > 128.)
+            || !range(
+                distance,
+                f64::from(limits::MIN_CAMERA_DISTANCE),
+                f64::from(limits::MAX_CAMERA_DISTANCE),
+            )
+            || !range(near, limits::MIN_CAMERA_NEAR, distance)
+            || !range(far, distance, f64::from(limits::MAX_CAMERA_FAR))
+            || distance / near > f64::from(limits::MAX_MAGNIFICATION))
     {
-        return Err(invalid(
-            "Perspective requires finite distance 1..32768, near 0.01..distance, far distance..65536 and magnification at most 128",
-        ));
+        return Err(invalid(&format!(
+            "Perspective requires finite distance {}..{}, near {}..distance, far distance..{} and magnification at most {}",
+            limits::MIN_CAMERA_DISTANCE,
+            limits::MAX_CAMERA_DISTANCE,
+            limits::MIN_CAMERA_NEAR,
+            limits::MAX_CAMERA_FAR,
+            limits::MAX_MAGNIFICATION
+        )));
     }
     if let Material::Diffuse {
         ambient, lights, ..
     } = &s.material
     {
-        if ambient.iter().any(|&v| !range(v, 0., 1.)) || lights.len() > 8 {
-            return Err(invalid(
-                "Diffuse material requires bounded ambient RGB and at most eight lights",
-            ));
+        if ambient.iter().any(|&v| !range(v, 0., 1.)) || lights.len() > limits::MAX_LIGHTS {
+            return Err(invalid(&format!(
+                "Diffuse material requires bounded ambient RGB and at most {} lights",
+                limits::MAX_LIGHTS
+            )));
         }
         for light in lights {
             normalized(light.direction)?;
-            if light.color.iter().any(|&v| !range(v, 0., 1.)) || !range(light.intensity, 0., 8.) {
-                return Err(invalid(
-                    "Light color must be linear RGB 0..1 and intensity 0..8",
-                ));
+            if light.color.iter().any(|&v| !range(v, 0., 1.))
+                || !range(light.intensity, 0., f64::from(limits::MAX_LIGHT_INTENSITY))
+            {
+                return Err(invalid(&format!(
+                    "Light color must be linear RGB 0..1 and intensity 0..{}",
+                    limits::MAX_LIGHT_INTENSITY
+                )));
             }
         }
     }
@@ -359,7 +387,9 @@ fn plan_controlled(s: &Spec, control: &crate::control::Control) -> Result<Plan, 
         commands += geometry::validate_geometry(&f.geometry(&s.camera)?)?;
     }
     if commands > MAX_SEGMENTS {
-        return Err(limit("Projected volume exceeds 4096 commands"));
+        return Err(limit(&format!(
+            "Projected volume exceeds {MAX_SEGMENTS} commands"
+        )));
     }
     Ok(Plan {
         faces,

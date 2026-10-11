@@ -1,4 +1,5 @@
 //! Original logical vector viewports; pixel storage is a derived bounded preview grid.
+use crate::limits::vector_canvas::MIN_LOGICAL_SIZE;
 use crate::{Error, dimensions::Unit, geometry, model::*};
 use num_rational::BigRational;
 use num_traits::ToPrimitive;
@@ -89,15 +90,15 @@ impl Canvas {
             || self
                 .size_px
                 .iter()
-                .any(|v| *v < 0.000001 || *v > MAX_DIMENSION as f64)
+                .any(|v| *v < MIN_LOGICAL_SIZE || *v > MAX_DIMENSION as f64)
             || (0..2).any(|i| {
                 self.origin_px[i].abs() > MAX_COORDINATE
                     || (self.origin_px[i] + self.size_px[i]).abs() > MAX_COORDINATE
             })
         {
-            return Err(invalid(
-                "Canvas origin and far edges must stay within coordinate limits; sizes must be between 0.000001 and 32768 logical pixels",
-            ));
+            return Err(invalid(&format!(
+                "Canvas origin and far edges must stay within coordinate limits; sizes must be between {MIN_LOGICAL_SIZE} and {MAX_DIMENSION} logical pixels"
+            )));
         }
         Ok(self.size_px.map(|v| v.ceil() as u32))
     }

@@ -4,6 +4,7 @@ import copy
 import random
 import tempfile
 import unittest
+from advertised_limits import capabilities
 from pathlib import Path
 import test_editing_cli as editing
 import test_variants_cli as variants
@@ -17,6 +18,25 @@ class SegmentTests(unittest.TestCase):
     edit=variants.VariantTests.edit
     def valid(self,d):return self.invoke(dict(command='document.validate',document=d))
     def segment(self,d,options,expected=0,**kw):return self.invoke(dict(command='assist.segment',document=d,id='pixels',options=options,**kw),expected)
+
+    def test_advertised_selection_parameters_defaults_and_seed_counts(self):
+        caps = capabilities()['pixel_assistance']
+        d = self.valid(original_document([[20,40,60,255],[160,180,200,255]],2,1))
+        options = dict(foreground=[[0,0]],background=[[1,0]])
+        self.assertEqual(self.segment(d,options),self.segment(d,dict(options,**caps['defaults'])))
+        for field in ('smoothness','edge_scale'):
+            lo,hi = caps[field]
+            for value,expected in [(lo,0),(hi,0),(hi+1,1)]+([(lo-1,1)] if lo else []):
+                result = self.segment(d,dict(options,**{field:value}),expected)
+                if expected:self.assertEqual(result['code'],'INVALID_ASSISTANCE')
+        maximum = caps['maximum_seeds_per_class']
+        for count,expected in [(maximum,0),(maximum+1,1)]:
+            width = count+maximum
+            source = self.valid(original_document([[40,40,40,255]]*width,width,1))
+            opts = dict(foreground=[[x,0] for x in range(count)],background=[[x,0] for x in range(count,width)])
+            result = self.segment(source,opts,expected)
+            if expected:self.assertEqual(result['code'],'INVALID_ASSISTANCE')
+
 
     def test_minimum_energy_and_canonical_ties_against_all_labelings(self):
         rng=random.Random(718)

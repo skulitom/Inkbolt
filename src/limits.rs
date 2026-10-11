@@ -61,6 +61,12 @@ pub mod assets {
 
 /// Limits for `src/assistance/segment.rs`.
 pub mod assistance_segment {
+    /// Maximum integer smoothness coefficient in the selection energy.
+    pub const MAX_SMOOTHNESS: u32 = 65535;
+    /// Maximum squared distance across the four encoded-byte features.
+    pub const MAX_EDGE_SCALE: u32 = 4 * 255 * 255;
+    /// Shared default smoothness and edge scale, retained by the options schema.
+    pub const DEFAULT_WEIGHT: u32 = 4096;
     /// Max pixels (assistance segment).
     pub const MAX_PIXELS: usize = 65_536;
     /// Max seeds (assistance segment).
@@ -71,6 +77,8 @@ pub mod assistance_segment {
 
 /// Limits for `src/assistance.rs`.
 pub mod assistance {
+    /// Maximum checked absolute geometry error after layout placement.
+    pub const PLACEMENT_ERROR: f64 = 1e-7;
     /// Max items (assistance).
     pub const MAX_ITEMS: usize = 64;
 }
@@ -305,6 +313,16 @@ pub mod fonts {
     pub const MAX_AXES: usize = 16;
     /// Max features (fonts).
     pub const MAX_FEATURES: usize = 64;
+}
+
+/// Limits for primitive admission and legacy binary64 bounds in `src/geometry.rs`.
+pub mod geometry {
+    /// Minimum rectangle width and height in local units.
+    pub const MIN_RECTANGLE_EXTENT: f64 = 0.001;
+    /// Minimum ellipse radius, independent of rectangle admission.
+    pub const MIN_ELLIPSE_RADIUS: f64 = 0.001;
+    /// Absolute derivative coefficient threshold for the existing cubic-bounds linear branch.
+    pub const CUBIC_LINEAR_THRESHOLD: f64 = 1e-12;
 }
 
 /// Limits for `src/geometry/affine.rs`.
@@ -1313,6 +1331,12 @@ pub mod spatial_filters {
 
 /// Limits for explicit geometry snapping.
 pub mod snapping {
+    /// Minimum transformed guide-segment length in document units.
+    pub const MIN_GUIDE_LENGTH: f64 = 1e-10;
+    /// Pairs at or below this absolute normalized direction cross product are parallel.
+    pub const PARALLEL_THRESHOLD: f64 = 1e-10;
+    /// Minimum grid spacing in logical document pixels.
+    pub const MIN_GRID_SPACING: f64 = 0.001;
     /// Maximum frozen reference targets in one snap operation.
     pub const MAX_TARGETS: usize = 64;
 }
@@ -1589,6 +1613,12 @@ pub mod vector_native {
     pub const MAX_BLOCKS: usize = 256;
 }
 
+/// Limits for logical vector viewport admission.
+pub mod vector_canvas {
+    /// Minimum positive logical canvas size per axis; storage uses its ceiling.
+    pub const MIN_LOGICAL_SIZE: f64 = 0.000001;
+}
+
 /// Limits for `src/visual_diff.rs`.
 pub mod visual_diff {
     /// Max pixels (visual diff).
@@ -1597,6 +1627,30 @@ pub mod visual_diff {
 
 /// Limits for `src/volumes.rs`.
 pub mod volumes {
+    /// Default source chord tolerance; admissible bounds come from the shared warp evaluator.
+    pub const DEFAULT_SOURCE_TOLERANCE: f64 = 0.1;
+    /// Maximum retained extrusion depth in local units.
+    pub const MAX_DEPTH: u32 = 4096;
+    /// Maximum absolute rigid rotation angle in degrees.
+    pub const MAX_ROTATION: u32 = 360000;
+    /// Minimum norm accepted by direction and derived-normal normalization.
+    pub const MIN_DIRECTION_NORM: f64 = 1e-8;
+    /// Maximum norm accepted by direction and derived-normal normalization.
+    pub const MAX_DIRECTION_NORM: u32 = 65536;
+    /// Minimum perspective camera distance in local units.
+    pub const MIN_CAMERA_DISTANCE: u32 = 1;
+    /// Maximum perspective camera distance, independent of scene-coordinate limits.
+    pub const MAX_CAMERA_DISTANCE: u32 = 32768;
+    /// Minimum positive near-plane distance.
+    pub const MIN_CAMERA_NEAR: f64 = 0.01;
+    /// Maximum far-plane distance, independent of direction normalization.
+    pub const MAX_CAMERA_FAR: u32 = 65536;
+    /// Maximum distance/near-plane ratio accepted for perspective projection.
+    pub const MAX_MAGNIFICATION: u32 = 128;
+    /// Maximum directional lights in a diffuse material.
+    pub const MAX_LIGHTS: usize = 8;
+    /// Maximum nonnegative linear-light intensity per light.
+    pub const MAX_LIGHT_INTENSITY: u32 = 8;
     /// Maximum recursive face-partition depth for volume ordering.
     pub const MAX_PARTITION_DEPTH: usize = 128;
     /// Max edges (volumes).

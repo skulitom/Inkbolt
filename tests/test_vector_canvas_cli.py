@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import xml.etree.ElementTree as ET
 import pdf_reader
 import test_editing_cli as editing
@@ -41,6 +42,16 @@ class VectorCanvasTests(unittest.TestCase):
     def export(self,d,format='png',**kw):return self.invoke(dict(command='document.export',document=d,format=format,**kw))
     def full(self,d,paint=None):
         d['items']=[rect('paint',[48,112,192,255] if paint is None else paint,(-100,-100,200,200))];d.update(self.invoke(dict(command='document.validate',document=d)));return d
+
+    def test_advertised_logical_canvas_extent_boundaries(self):
+        lo, hi = capabilities()['vector_canvas']['size_range_px']; d = self.document()
+        for value, expected in [(lo,0),(hi,0),(lo/2,1),(hi+1,1)]:
+            result = self.edit(d,action(origin=(0,0),size=(value,1)),expected)
+            if expected:self.assertEqual(result['code'],'INVALID_CANVAS')
+            else:
+                self.assertEqual(result['vector_canvas']['size_px'],[value,1])
+                self.assertEqual(result['width'],math.ceil(value))
+
 
     def test_exact_physical_unit_conversion_and_preference_do_not_move_artwork(self):
         for unit,ppi in itertools.product(FACTORS,[72,96,300]):

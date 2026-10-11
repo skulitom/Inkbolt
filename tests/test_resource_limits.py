@@ -14,6 +14,39 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'geometry_limits/minimum_rectangle_extent': 'geometry.MIN_RECTANGLE_EXTENT',
+    'geometry_limits/minimum_ellipse_radius': 'geometry.MIN_ELLIPSE_RADIUS',
+    'geometry_limits/cubic_linear_threshold': 'geometry.CUBIC_LINEAR_THRESHOLD',
+    'assistance/geometry_error_limit': 'assistance.PLACEMENT_ERROR',
+    'assistance/maximum_items': 'assistance.MAX_ITEMS',
+    'snapping/guide_parallel_threshold': 'snapping.PARALLEL_THRESHOLD',
+    'snapping/minimum_guide_length': 'snapping.MIN_GUIDE_LENGTH',
+    'snapping/grid_spacing/0': 'snapping.MIN_GRID_SPACING',
+    'snapping/grid_spacing/1': 'model.MAX_COORDINATE',
+    'vector_canvas/size_range_px/0': 'vector_canvas.MIN_LOGICAL_SIZE',
+    'vector_canvas/size_range_px/1': 'model.MAX_DIMENSION',
+    'pixel_assistance/smoothness/1': 'assistance_segment.MAX_SMOOTHNESS',
+    'pixel_assistance/edge_scale/1': 'assistance_segment.MAX_EDGE_SCALE',
+    'pixel_assistance/defaults/smoothness': 'assistance_segment.DEFAULT_WEIGHT',
+    'pixel_assistance/defaults/edge_scale': 'assistance_segment.DEFAULT_WEIGHT',
+    'pixel_assistance/maximum_seeds_per_class': 'assistance_segment.MAX_SEEDS',
+    'volumes/source_tolerance/0': 'warps.MIN_TOLERANCE',
+    'volumes/source_tolerance/1': 'warps.MAX_TOLERANCE',
+    'volumes/default_source_tolerance': 'volumes.DEFAULT_SOURCE_TOLERANCE',
+    'volumes/depth/1': 'volumes.MAX_DEPTH',
+    'volumes/rotation_degrees/1': 'volumes.MAX_ROTATION',
+    'volumes/normalization_norm/0': 'volumes.MIN_DIRECTION_NORM',
+    'volumes/normalization_norm/1': 'volumes.MAX_DIRECTION_NORM',
+    'volumes/perspective_distance/0': 'volumes.MIN_CAMERA_DISTANCE',
+    'volumes/perspective_distance/1': 'volumes.MAX_CAMERA_DISTANCE',
+    'volumes/minimum_camera_near': 'volumes.MIN_CAMERA_NEAR',
+    'volumes/maximum_camera_far': 'volumes.MAX_CAMERA_FAR',
+    'volumes/maximum_perspective_magnification': 'volumes.MAX_MAGNIFICATION',
+    'volumes/lights': 'volumes.MAX_LIGHTS',
+    'volumes/light_intensity/1': 'volumes.MAX_LIGHT_INTENSITY',
+    'volumes/maximum_profile_edges': 'volumes.MAX_EDGES',
+    'volumes/maximum_projected_faces': 'volumes.MAX_FACES',
+
     'limits/resolution_ppi/0': 'model.MIN_RESOLUTION_PPI',
     'limits/resolution_ppi/1': 'model.MAX_RESOLUTION_PPI',
     'limits/default_resolution_ppi': 'model.DEFAULT_RESOLUTION_PPI',
@@ -619,6 +652,23 @@ class ResourceLimitTests(unittest.TestCase):
                          2*values['model.MAX_COORDINATE'])
         self.assertEqual(capabilities()['layer_effects']['contour'],
                          f"piecewise_linear_2_to_{values['effects.MAX_CONTOUR_KNOTS']}_knots_origin_zero")
+
+        # Selection zero/required-positive and normalized volume endpoints are
+        # structural semantics; all other numeric controls have catalog bindings.
+        fixed = {'pixel_assistance/smoothness/0':0, 'pixel_assistance/edge_scale/0':1,
+                 'volumes/depth/0':0, 'volumes/light_intensity/0':0}
+        for path, expected in fixed.items():
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[int(part)] if isinstance(value, list) else value[part]
+            self.assertEqual(value, expected)
+        angles = capabilities()['volumes']['rotation_degrees']
+        self.assertEqual(angles[0], -angles[1])
+        self.assertEqual(capabilities()['pixel_assistance']['edge_scale'][1], 4*255**2)
+        for prefix in ('geometry_limits','assistance','snapping','vector_canvas','pixel_assistance','volumes'):
+            self.assertEqual(numeric_fields(capabilities()[prefix], prefix) - fixed.keys()
+                             - {'volumes/rotation_degrees/0'},
+                             {p for p in BINDINGS if p.startswith(prefix+'/')})
 
         # Fixed kernel definitions, normalized ranges and symmetric/reciprocal
         # bounds are explicit; all other numeric color/raw/reconstruction limits bind.

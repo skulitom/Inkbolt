@@ -220,6 +220,13 @@ use the catalog and capability bindings. Independent raw/HDR and lens/sensor
 policies remain separate; color equations, notation and filter kernels retain
 their fixed semantics. The remaining W0 audit and final thorough gate stay open.
 
+Primitive/viewport admission, snapping length/grid/parallelism, volume controls,
+layout placement error and pixel-selection coefficients now use the catalog.
+Volume source curves reuse the warp evaluator's tolerance bounds with their
+existing default. Independent physical and numerical policies remain distinct;
+unchanged numerical behavior is covered by focused Windows/Linux verification.
+The remaining inline audit and final fresh thorough W0 gate are still open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

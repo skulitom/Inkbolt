@@ -1,3 +1,4 @@
+use crate::limits::geometry as limits;
 use crate::{Error, model::*};
 
 mod affine;
@@ -156,14 +157,26 @@ pub(crate) fn validate_geometry(g: &Geometry) -> Result<usize, Error> {
     }
     match g {
         Geometry::Rect { width, height, .. }
-            if !width.is_finite() || !height.is_finite() || *width < 0.001 || *height < 0.001 =>
+            if !width.is_finite()
+                || !height.is_finite()
+                || *width < limits::MIN_RECTANGLE_EXTENT
+                || *height < limits::MIN_RECTANGLE_EXTENT =>
         {
-            Err(invalid("Rectangle dimensions must be at least 0.001"))
+            Err(invalid(&format!(
+                "Rectangle dimensions must be at least {}",
+                limits::MIN_RECTANGLE_EXTENT
+            )))
         }
         Geometry::Ellipse { rx, ry, .. }
-            if !rx.is_finite() || !ry.is_finite() || *rx < 0.001 || *ry < 0.001 =>
+            if !rx.is_finite()
+                || !ry.is_finite()
+                || *rx < limits::MIN_ELLIPSE_RADIUS
+                || *ry < limits::MIN_ELLIPSE_RADIUS =>
         {
-            Err(invalid("Ellipse radii must be at least 0.001"))
+            Err(invalid(&format!(
+                "Ellipse radii must be at least {}",
+                limits::MIN_ELLIPSE_RADIUS
+            )))
         }
         Geometry::Path { commands } => {
             let mut active = false;
@@ -223,8 +236,8 @@ fn cubic_bounds(bounds: &mut Bounds, p: [Point; 4]) {
         let b = 2.0 * (p[0][axis] - 2.0 * p[1][axis] + p[2][axis]);
         let c = p[1][axis] - p[0][axis];
         let mut roots = Vec::new();
-        if a.abs() < 1e-12 {
-            if b.abs() >= 1e-12 {
+        if a.abs() < limits::CUBIC_LINEAR_THRESHOLD {
+            if b.abs() >= limits::CUBIC_LINEAR_THRESHOLD {
                 roots.push(-c / b);
             }
         } else {

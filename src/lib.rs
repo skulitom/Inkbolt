@@ -1357,23 +1357,23 @@ fn capability_report() -> Value {
         .unwrap()
         .clone(),
     );
-    capabilities["snapping"] = json!({"operation":"snap","targets":["point","grid","guide","item"],"target_limit":limits::snapping::MAX_TARGETS,"reference_state":"frozen_before_operation","source_modes":["together","individual"],"rotated_bounds":true,"oblique_guides":true,"intersections_default":true,"priority":"point_grid_item_intersection_then_guide_projection;distance_then_input_order","grid_tie":"lower_index_per_axis","guide_parallel_threshold":1e-10,"units":["px","pt","pc","mm","cm","in"],"maximum_logical_distance":model::MAX_COORDINATE,"no_match":"explicit_receipt_without_item_mutation","source_geometry_retained":true});
+    capabilities["snapping"] = json!({"operation":"snap","targets":["point","grid","guide","item"],"target_limit":limits::snapping::MAX_TARGETS,"reference_state":"frozen_before_operation","source_modes":["together","individual"],"rotated_bounds":true,"oblique_guides":true,"intersections_default":true,"priority":"point_grid_item_intersection_then_guide_projection;distance_then_input_order","grid_tie":"lower_index_per_axis","guide_parallel_threshold":limits::snapping::PARALLEL_THRESHOLD,"units":["px","pt","pc","mm","cm","in"],"maximum_logical_distance":model::MAX_COORDINATE,"no_match":"explicit_receipt_without_item_mutation","source_geometry_retained":true});
     capabilities["swatches"] = json!({"dictionary":"document.swatches","inspect":"swatch.inspect","edit":"swatch","bake":"swatch_bake","convert":"swatch_convert_process_or_spot_retaining_components_or_explicit_replacement","definitions":["process","spot","tint"],"declaration_spaces":["srgb","gray","cmyk","lab","device"],"storage":"exact_declared_binary64;no_implicit_conversion","gray":"encoded_srgb_neutral","lab":"D50_L0..100_a_b_minus128..127","non_rgb_preview":"legacy_CMYK_Lab_require_explicit_preview;device_declarations_convert_source_profile_to_srgb","reference":{"swatch":"stable_id","tint":[0,1],"opacity":[0,1],"overprint":["knockout","preserve","preserve_nonzero"]},"precise_solid":"rgba_normalized_binary64_without_early_byte_rounding","preview_tint":"encoded_white_plus_effective_tint_times_alternate_minus_white","max_swatches":swatches::MAX_SWATCHES,"max_chain":swatches::MAX_DEPTH,"name_bytes":limits::swatches::MAX_NAME_BYTES,"locks":"direct_transitive_resource_and_saved_variant_dependents","deletion":"in_use_references_rejected","transfer":"independent_ID_remap_with_transitive_color_dependencies","vector_delivery":"display_srgb_gray;pdf_options.color_native_inks_preserves_spot_CMYK_Lab_and_overprint","image_delivery":"display_preview_with_explicit_losses","spot_separations":"native_PDF_Separation_resources;document_prepress_scalar_planes","overprint":"native_PDF_OP_op_OPM;display_requires_explicit_bake","separation_diagnostics":"swatch.inspect.ink_diagnostics_and_per_page_PDF_receipts;structural_not_plate_coverage","profile_driven_non_rgb_conversion":true});
     capabilities["assistance"] = json!({"inspect":"assist.layout","edit":"assist_layout","algorithm":"ordered_shelves_v1","objective":"minimum_total_row_height_then_fewest_rows_then_lexicographic_row_ends","arithmetic":"exact_rational_optimization_of_binary64_scene_bounds;binary64_placement","geometry_error_limit":assistance::PLACEMENT_ERROR,"maximum_items":assistance::MAX_ITEMS,"selection":"visible_printing_antichain;positive_bounds;unlocked_descendants_and_dependents","bounds":"unclipped_geometry;no_strokes_effects_or_alpha;text_frames","dependencies":"builtin_cpu;no_models_GPU_network_or_external_resource_loading","scope":"fixed_size_ordered_rows;explicit_area_gaps_and_alignment;unselected_artwork_ignored","unsupported":["semantic_generation","learned_models","free_reordering","automatic_resizing","painted_bounds_packing","obstacle_avoidance"]});
-    capabilities["pixel_assistance"] = json!({"inspect":"assist.segment","edit":"assist_mask","algorithm":"seeded_color_cut_v1","input":"native_unfiltered_inline_RGBA8_or_u8_RGBA_gray_alpha_samples_or_verified_image_crop;encoded_srgb","objective":"minimum_integer_color_cost_plus_4_neighbor_boundary_cost;hard_class_seeds","features":"rounded_byte_premultiplied_encoded_RGB_plus_alpha","color_cost":"minimum_squared_distance_to_each_class_seed","neighbor_cost":"floor(smoothness*edge_scale/(edge_scale+squared_feature_distance))","smoothness":[0,65535],"edge_scale":[1,260100],"defaults":{"smoothness":4096,"edge_scale":4096},"ties":"smallest_foreground_set_among_minimum_cuts","certificate":"minimum_energy_equals_max_flow;optional_full_integer_costs","maximum_pixels":assistance::segment::MAX_PIXELS,"maximum_seeds_per_class":assistance::segment::MAX_SEEDS,"maximum_work":assistance::segment::MAX_WORK,"mask":"binary_native_grid;linked_display_scale;original_pixels_preserved;explicit_existing_mask_replacement","dependencies":"builtin_cpu;no_models_GPU_network;explicit_image_store_when_needed","unsupported":["semantic_recognition","alpha_matting","learned_models","remote_services","high_depth_or_HDR_input","retained_pixel_warps"]});
+    capabilities["pixel_assistance"] = json!({"inspect":"assist.segment","edit":"assist_mask","algorithm":"seeded_color_cut_v1","input":"native_unfiltered_inline_RGBA8_or_u8_RGBA_gray_alpha_samples_or_verified_image_crop;encoded_srgb","objective":"minimum_integer_color_cost_plus_4_neighbor_boundary_cost;hard_class_seeds","features":"rounded_byte_premultiplied_encoded_RGB_plus_alpha","color_cost":"minimum_squared_distance_to_each_class_seed","neighbor_cost":"floor(smoothness*edge_scale/(edge_scale+squared_feature_distance))","smoothness":[0,limits::assistance_segment::MAX_SMOOTHNESS],"edge_scale":[1,limits::assistance_segment::MAX_EDGE_SCALE],"defaults":{"smoothness":limits::assistance_segment::DEFAULT_WEIGHT,"edge_scale":limits::assistance_segment::DEFAULT_WEIGHT},"ties":"smallest_foreground_set_among_minimum_cuts","certificate":"minimum_energy_equals_max_flow;optional_full_integer_costs","maximum_pixels":assistance::segment::MAX_PIXELS,"maximum_seeds_per_class":assistance::segment::MAX_SEEDS,"maximum_work":assistance::segment::MAX_WORK,"mask":"binary_native_grid;linked_display_scale;original_pixels_preserved;explicit_existing_mask_replacement","dependencies":"builtin_cpu;no_models_GPU_network;explicit_image_store_when_needed","unsupported":["semantic_recognition","alpha_matting","learned_models","remote_services","high_depth_or_HDR_input","retained_pixel_warps"]});
     capabilities["pixel_assistance"]["workflows"] = json!({"remove":{"op":"repair","action":"fill","region":"explicit_native_mask","source":"frozen_local_donors","quality":"context_and_boundary_RMS_limits"},"denoise":{"op":"repair","action":"edge_correct","guide":"explicit_self_or_local_guide","estimator":"guided_weighted_median","quality":"change_RMS_and_effective_support_limits"},"upscale":{"op":"canvas","action":"scale","sampling":"explicit_reconstruction_kernel","source":"retained_native_samples","border":"existing_clamped_sampling"},"models":[],"remote_fallback":false});
     capabilities["volumes"] = json!({
         "content":"volume","inspect":"volume.inspect","edits":["volume","volume_expand"],
         "profile":"retained_closed_geometry;simple_nonintersecting_polygonal_contours;concavity_holes_disjoint_regions",
         "fill_rules":["nonzero","even_odd"],"source_curves":"existing_certified_identity_map_chords",
-        "source_tolerance":[0.000001,1],"default_source_tolerance":0.1,
-        "extrusion":"front_z_zero_to_back_z_negative_depth","depth":[0,4096],
+        "source_tolerance":[limits::warps::MIN_TOLERANCE,limits::warps::MAX_TOLERANCE],"default_source_tolerance":limits::volumes::DEFAULT_SOURCE_TOLERANCE,
+        "extrusion":"front_z_zero_to_back_z_negative_depth","depth":[0,limits::volumes::MAX_DEPTH],
         "rotation":"degrees_about_pivot_in_X_then_Y_then_Z_order","placement":"rotation_then_pivot_plus_translation;outer_item_transform_after_projection",
         "cameras":["orthographic_positive_Z","perspective_explicit_principal_distance_near_far"],
-        "perspective_distance":[1,32768],"maximum_perspective_magnification":128,
+        "perspective_distance":[limits::volumes::MIN_CAMERA_DISTANCE,limits::volumes::MAX_CAMERA_DISTANCE],"maximum_perspective_magnification":limits::volumes::MAX_MAGNIFICATION,
         "camera_clipping":"whole_request_rejected_when_vertices_cross_depth_range",
         "materials":["unlit_srgb8","flat_diffuse_linear_srgb_with_explicit_ambient_and_directional_lights"],
-        "lights":8,"light_intensity":[0,8],"light_space":"post_rotation_3D;direction_toward_light",
+        "lights":limits::volumes::MAX_LIGHTS,"light_intensity":[0,limits::volumes::MAX_LIGHT_INTENSITY],"light_space":"post_rotation_3D;direction_toward_light",
         "opacity":"opaque_surface;outer_item_opacity_after_solid_compositing",
         "maximum_profile_edges":volumes::MAX_EDGES,"maximum_projected_faces":volumes::MAX_FACES,
         "early_profile_limit":"exact_nonredundant_interior_vertex_lower_bound;collinear_subdivision_does_not_spend_edges",
@@ -1615,7 +1615,7 @@ fn capability_report() -> Value {
         json!(["srgb", "gray", "cmyk", "lab", "device"]);
     capabilities["swatches"]["profile_driven_non_rgb_conversion"] =
         json!("explicit_device_declarations");
-    capabilities["vector_canvas"] = json!({"operation":"vector_canvas","actions":["set","unit","clear"],"units":["px","pt","pc","mm","cm","in"],"canonical_coordinates":"logical_pixels_binary64","unit_conversion":"exact_rational_then_one_binary64_round","origin":"finite_nonzero_supported","size_range_px":[0.000001,32768],"preview_storage":"ceiling_of_logical_size","fractional_edge":"area_coverage_except_none_point_sampling","artboards":"optional_logical_size_with_ceiling_cache","process_spaces":["rgb","cmyk"],"colour_semantics":"typed_paints_unchanged;CMYK_pages_require_native_or_profile_managed_inks","unit_changes_preserve_artwork":true,"svg":"physical_units_and_logical_viewBox","pdf":"physical_fractional_page_and_translated_evaluation_copy","source_unchanged":true});
+    capabilities["vector_canvas"] = json!({"operation":"vector_canvas","actions":["set","unit","clear"],"units":["px","pt","pc","mm","cm","in"],"canonical_coordinates":"logical_pixels_binary64","unit_conversion":"exact_rational_then_one_binary64_round","origin":"finite_nonzero_supported","size_range_px":[limits::vector_canvas::MIN_LOGICAL_SIZE,model::MAX_DIMENSION],"preview_storage":"ceiling_of_logical_size","fractional_edge":"area_coverage_except_none_point_sampling","artboards":"optional_logical_size_with_ceiling_cache","process_spaces":["rgb","cmyk"],"colour_semantics":"typed_paints_unchanged;CMYK_pages_require_native_or_profile_managed_inks","unit_changes_preserve_artwork":true,"svg":"physical_units_and_logical_viewBox","pdf":"physical_fractional_page_and_translated_evaluation_copy","source_unchanged":true});
     capabilities["features"]["native_import"] = json!(true);
     capabilities["supported"]["imports"]
         .as_array_mut()
@@ -1712,6 +1712,25 @@ fn capability_report() -> Value {
         "tangential_coefficient":[-limits::raw_corrections::MAX_TANGENTIAL_COEFFICIENT,limits::raw_corrections::MAX_TANGENTIAL_COEFFICIENT],
         "jacobian_perturbation_maximum_exclusive":limits::raw_corrections::MAX_JACOBIAN_PERTURBATION
     });
+    capabilities["geometry_limits"] = json!({
+        "minimum_rectangle_extent":limits::geometry::MIN_RECTANGLE_EXTENT,
+        "minimum_ellipse_radius":limits::geometry::MIN_ELLIPSE_RADIUS,
+        "cubic_linear_threshold":limits::geometry::CUBIC_LINEAR_THRESHOLD,
+        "threshold_scope":"legacy_binary64_derivative_coefficient_branch_for_geometric_bounds;not_an_error_certificate"
+    });
+    capabilities["snapping"]["grid_spacing"] =
+        json!([limits::snapping::MIN_GRID_SPACING, model::MAX_COORDINATE]);
+    capabilities["snapping"]["minimum_guide_length"] = json!(limits::snapping::MIN_GUIDE_LENGTH);
+    capabilities["volumes"]["rotation_degrees"] = json!([
+        -i64::from(limits::volumes::MAX_ROTATION),
+        limits::volumes::MAX_ROTATION
+    ]);
+    capabilities["volumes"]["normalization_norm"] = json!([
+        limits::volumes::MIN_DIRECTION_NORM,
+        limits::volumes::MAX_DIRECTION_NORM
+    ]);
+    capabilities["volumes"]["minimum_camera_near"] = json!(limits::volumes::MIN_CAMERA_NEAR);
+    capabilities["volumes"]["maximum_camera_far"] = json!(limits::volumes::MAX_CAMERA_FAR);
     capabilities["text_limits"] = json!({
         "frame_extent":[limits::text::MIN_FRAME_EXTENT,model::MAX_COORDINATE],
         "leading":[limits::text::MIN_LEADING,limits::text::MAX_LEADING],

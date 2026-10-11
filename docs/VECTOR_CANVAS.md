@@ -1,5 +1,7 @@
 # Logical vector canvases
 
+Logical minimum size comes from the catalog; the maximum uses the document dimension bound. SVG CSS physical scaling remains a format rule, independent of the document resolution default.
+
 `vector_canvas` is a document edit operation available through the library, JSON CLI and durable MCP sessions. It retains a logical viewport independently of the integer preview grid. Existing documents without the optional declaration keep their zero-origin integer canvas.
 
 ```json

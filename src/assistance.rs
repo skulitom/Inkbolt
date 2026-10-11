@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 pub use crate::limits::assistance::MAX_ITEMS;
-pub const PLACEMENT_ERROR: f64 = 1e-7;
+pub use crate::limits::assistance::PLACEMENT_ERROR;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]

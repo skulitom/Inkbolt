@@ -1,5 +1,7 @@
 # Dimensions, measurements and snapping
 
+Snapping grid spacing, minimum transformed guide length and the normalized parallel-guide threshold come from the catalog and discovery. Length and parallelism remain independent policies with different units.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 Measurement angles, length/area tolerances and defaults, and requested logical
 dimensions share catalog definitions with `capabilities.dimensions` and

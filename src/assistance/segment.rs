@@ -8,11 +8,12 @@ use std::{
     path::Path,
 };
 
+use crate::limits::assistance_segment as limits;
 pub use crate::limits::assistance_segment::MAX_PIXELS;
 pub use crate::limits::assistance_segment::MAX_SEEDS;
 pub use crate::limits::assistance_segment::MAX_WORK;
 fn default_weight() -> u32 {
-    4096
+    limits::DEFAULT_WEIGHT
 }
 fn invalid(message: &str) -> Error {
     Error::new("INVALID_ASSISTANCE", message)
@@ -286,16 +287,18 @@ fn evaluate(
             "Local selection currently requires encoded sRGB input",
         ));
     }
-    if options.smoothness > 65535
-        || !(1..=260100).contains(&options.edge_scale)
+    if options.smoothness > limits::MAX_SMOOTHNESS
+        || !(1..=limits::MAX_EDGE_SCALE).contains(&options.edge_scale)
         || options.foreground.is_empty()
         || options.background.is_empty()
         || options.foreground.len() > MAX_SEEDS
         || options.background.len() > MAX_SEEDS
     {
-        return Err(invalid(
-            "Provide 1..32 seeds per class, smoothness 0..65535 and edge_scale 1..260100",
-        ));
+        return Err(invalid(&format!(
+            "Provide 1..{MAX_SEEDS} seeds per class, smoothness 0..{} and edge_scale 1..{}",
+            limits::MAX_SMOOTHNESS,
+            limits::MAX_EDGE_SCALE
+        )));
     }
     let grid = grid(document, id, root)?;
     let n = grid.width as usize * grid.height as usize;

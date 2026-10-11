@@ -1,5 +1,7 @@
 # Dimensional vector artwork
 
+Depth, rotation, camera planes/magnification, normalization and light bounds share catalog definitions with validation and discovery. Source-chord tolerance uses the common warp evaluator bounds, with a separate volume default. Camera distance, far plane and normalization maxima remain independent policies; the lighting and projection equations are unchanged.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 Both dimensional vector checkpoints are verified. The original engine retains closed geometry, extrudes it along negative Z, rotates it around a declared pivot, projects it and generates flat-lit vector faces. Forty-eight independent inverse-ray cases check orthographic/perspective visibility, concavity, holes, disconnected regions and lighting. Actual SVG/PDF path parsing, source preservation, expansion, resource rejection and isolated offline execution have separate evidence.

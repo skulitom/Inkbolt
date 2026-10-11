@@ -4,6 +4,7 @@ import copy
 import json
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 import test_variants_cli as variants
 from test_mcp import Client
@@ -37,6 +38,44 @@ class VolumeTests(unittest.TestCase):
         interior=[abs(a-b) for i,(a,b) in enumerate(zip(actual,expected)) if distances[i//4]>1/32]
         self.assertGreater(len(interior),len(actual)*.85);self.assertLessEqual(max(interior),1)
         return report
+    def test_advertised_volume_controls_and_independent_camera_bounds(self):
+        caps = capabilities()['volumes']
+        source,_ = original([[[0,0],[2,0],[2,2],[0,2]]])
+        spec = source['items'][0]['content']['volume']
+        spec.update(depth=0,rotation=[0,0,0],pivot=[0,0,0])
+        def check(change,expected):
+            document = copy.deepcopy(source); document['items'][0]['content']['volume'].update(change)
+            result = self.invoke(dict(command='document.validate',document=document),expected)
+            if expected:self.assertEqual(result['code'],'INVALID_VOLUME')
+            return result
+        result = check({},0)
+        self.assertEqual(result['items'][0]['content']['volume']['tolerance'],caps['default_source_tolerance'])
+        for field, bounds in [('depth',caps['depth']),('tolerance',caps['source_tolerance']),('rotation',caps['rotation_degrees'])]:
+            lo,hi = bounds
+            for value,expected in [(lo,0),(hi,0),(lo-(abs(lo)/2 or 1),1),(hi+1,1)]:
+                check({field:[value,0,0] if field=='rotation' else value},expected)
+        light = dict(direction=[0,0,1],color=[1,1,1],intensity=1)
+        for count,expected in [(caps['lights'],0),(caps['lights']+1,1)]:
+            check(dict(material=dict(type='diffuse',color=[1,2,3],ambient=[0,0,0],lights=[light]*count)),expected)
+        for field,bounds in [('intensity',caps['light_intensity']),('direction',caps['normalization_norm'])]:
+            lo,hi=bounds
+            for value,expected in [(lo,0),(hi,0),(lo/2 if lo else -1,1),(hi+1,1)]:
+                current=dict(light,**{field:[value,0,0] if field=='direction' else value})
+                check(dict(material=dict(type='diffuse',color=[1,2,3],ambient=[0,0,0],lights=[current])),expected)
+        lo,hi=caps['perspective_distance']
+        for value,expected in [(lo,0),(hi,0),(lo/2,1),(hi+1,1)]:
+            check(dict(camera=dict(type='perspective',principal=[0,0],distance=value,near=value,far=value)),expected)
+        near=caps['minimum_camera_near']; far=caps['maximum_camera_far']; ratio=caps['maximum_perspective_magnification']
+        for camera,expected in [
+            (dict(distance=lo,near=near,far=lo),0),
+            (dict(distance=lo,near=near*.9,far=lo),1),
+            (dict(distance=lo,near=lo,far=far),0),
+            (dict(distance=lo,near=lo,far=far+1),1),
+            (dict(distance=ratio,near=1,far=ratio),0),
+            (dict(distance=ratio+1,near=1,far=ratio+1),1)]:
+            check(dict(camera=dict(type='perspective',principal=[0,0],**camera)),expected)
+
+
     def test_box_rotation_visibility_and_linear_lighting_against_inverse_rays(self):
         d,loops=original();d=self.valid(d);spec=d['items'][0]['content']['volume']
         result=self.check_rays(d,loops);self.assertGreaterEqual(len(result['faces']),3);self.assertEqual(result['source'],spec)
@@ -90,8 +129,8 @@ class VolumeTests(unittest.TestCase):
         report=self.invoke(dict(command='volume.inspect',document=d,id='solid'));self.assertLessEqual(report['source_curve_error_bound'],.1);self.assertGreater(report['profile_edges'],8);self.assertTrue(any(self.image(d)))
         s=copy.deepcopy(d['items'][0]['content']['volume']);s['material']=dict(type='unlit',color=[1,120,220]);changed=self.edit(d,dict(op='volume',id='solid',volume=s))
         self.assertNotEqual(self.image(changed),self.image(d));self.assertEqual(self.image(changed)[3::4],self.image(d)[3::4])
-        s['tolerance']=.000001;self.assertEqual(self.edit(d,dict(op='volume',id='solid',volume=s),expected=1)['code'],'RESOURCE_LIMIT')
-        s=copy.deepcopy(d['items'][0]['content']['volume']);s['material']['lights']*=9;self.assertEqual(self.edit(d,dict(op='volume',id='solid',volume=s),expected=1)['code'],'INVALID_VOLUME')
+        s['tolerance']=capabilities()['volumes']['source_tolerance'][0];self.assertEqual(self.edit(d,dict(op='volume',id='solid',volume=s),expected=1)['code'],'RESOURCE_LIMIT')
+        s=copy.deepcopy(d['items'][0]['content']['volume']);s['material']['lights']*=capabilities()['volumes']['lights']+1;self.assertEqual(self.edit(d,dict(op='volume',id='solid',volume=s),expected=1)['code'],'INVALID_VOLUME')
 
     def test_parent_transform_components_masks_and_artboard_export_match_expansion(self):
         d,_=original();d['items'][0].update(transform=[1,.1,.2,1,-2,-1],opacity=.6,clip=dict(geometry=dict(shape='rect',x=5,y=5,width=22,height=22)));d=self.valid(d)

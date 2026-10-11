@@ -42,6 +42,17 @@ class DimensionsSnappingTests(unittest.TestCase):
         self.assertLessEqual(abs(F(metric['value'])-exact),F(metric['absolute_error_bound']))
         self.assertLessEqual(metric['absolute_error_bound'],tolerance)
 
+    def test_advertised_grid_spacing_boundaries(self):
+        caps = capabilities()['snapping']; d = self.document([rect()])
+        lo, hi = caps['grid_spacing']
+        for value, expected in [(lo,0),(hi,0),(lo/2,1),(hi+1,1)]:
+            result = self.snap(d,targets=[dict(type='grid',origin=[0,0],spacing=[value,value])],max_distance=0,expected=expected)
+            if expected:self.assertEqual(result['code'],'INVALID_OPERATION')
+            else:
+                self.assertEqual(result['document']['items'],d['items'])
+                self.assertEqual(result['changes'][0]['details']['guide_parallel_threshold'],caps['guide_parallel_threshold'])
+
+
     def test_exact_rectangle_dimensions_area_perimeter_and_all_physical_units(self):
         d=self.document([rect(x=-1.25,y=2.75,w=3,h=4,transform=[3,4,-4,3,10,20])]);d['resolution_ppi']=144
         source=copy.deepcopy(d)

@@ -1,5 +1,7 @@
 # Coordinate fidelity
 
+Primitive admission minima and the existing cubic-bounds coefficient threshold are catalog-backed and reported in `capabilities.geometry_limits`. The threshold describes the existing binary64 branch decision, not a certified geometric error bound. Arithmetic and admission are unchanged.
+
 Negative and fractional positions remain editable throughout snapshots and the
 supported SVG exchange. Inspect `capabilities.coordinate_precision` before
 choosing a numerical or image comparison. All numeric precision budgets and

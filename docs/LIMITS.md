@@ -27,8 +27,12 @@ capability literals and diagnostic messages remains in progress.
 | `assets.MAX_IMPORT_BYTES` | `u64` | 33554432 | `32 * 1024 * 1024` |
 | `assets.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `assistance.MAX_ITEMS` | `usize` | 64 | `64` |
+| `assistance.PLACEMENT_ERROR` | `f64` | 1e-07 | `1e-7` |
+| `assistance_segment.DEFAULT_WEIGHT` | `u32` | 4096 | `4096` |
+| `assistance_segment.MAX_EDGE_SCALE` | `u32` | 260100 | `4 * 255 * 255` |
 | `assistance_segment.MAX_PIXELS` | `usize` | 65536 | `65_536` |
 | `assistance_segment.MAX_SEEDS` | `usize` | 32 | `32` |
+| `assistance_segment.MAX_SMOOTHNESS` | `u32` | 65535 | `65535` |
 | `assistance_segment.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `boards.MAX_ARTBOARDS` | `usize` | 32 | `32` |
 | `boards.MAX_BATCH_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
@@ -118,6 +122,9 @@ capability literals and diagnostic messages remains in progress.
 | `fonts.MAX_FONT_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |
 | `fonts.MAX_LICENSE_BYTES` | `u64` | 65536 | `65536` |
 | `fonts.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
+| `geometry.CUBIC_LINEAR_THRESHOLD` | `f64` | 1e-12 | `1e-12` |
+| `geometry.MIN_ELLIPSE_RADIUS` | `f64` | 0.001 | `0.001` |
+| `geometry.MIN_RECTANGLE_EXTENT` | `f64` | 0.001 | `0.001` |
 | `geometry_affine.MAX_FAST_POINT_ERROR` | `f64` | 1e-09 | `1e-9` |
 | `geometry_affine.MAX_POINT_COORDINATE` | `f64` | 65536.0 | `2.0 * super::model::MAX_COORDINATE` |
 | `geometry_affine.MAX_RELATIVE_FACTORS` | `usize` | 8 | `8` |
@@ -460,6 +467,9 @@ capability literals and diagnostic messages remains in progress.
 | `simplify.MAX_SPAN` | `usize` | 32 | `32` |
 | `simplify.MAX_WORK` | `usize` | 400000 | `400_000` |
 | `snapping.MAX_TARGETS` | `usize` | 64 | `64` |
+| `snapping.MIN_GRID_SPACING` | `f64` | 0.001 | `0.001` |
+| `snapping.MIN_GUIDE_LENGTH` | `f64` | 1e-10 | `1e-10` |
+| `snapping.PARALLEL_THRESHOLD` | `f64` | 1e-10 | `1e-10` |
 | `spatial_filters.MAX_MAP_AXIS` | `u32` | 256 | `256` |
 | `spatial_filters.MAX_MAP_PIXELS` | `usize` | 4096 | `4096` |
 | `spatial_filters.MAX_MOSAIC_SIZE` | `u32` | 128 | `128` |
@@ -548,6 +558,7 @@ capability literals and diagnostic messages remains in progress.
 | `variants.MAX_BINDINGS` | `usize` | 64 | `64` |
 | `variants.MAX_DATASETS` | `usize` | 32 | `32` |
 | `variants.MAX_INHERITANCE` | `usize` | 8 | `8` |
+| `vector_canvas.MIN_LOGICAL_SIZE` | `f64` | 1e-06 | `0.000001` |
 | `vector_native.MAX_BLOCKS` | `usize` | 256 | `256` |
 | `vector_native.MAX_DECODED_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
 | `vector_native.MAX_METADATA_BYTES` | `usize` | 65536 | `65536` |
@@ -568,9 +579,21 @@ capability literals and diagnostic messages remains in progress.
 | `vector_native_tokens.MAX_WORD_BYTES` | `usize` | 1024 | `1024` |
 | `vector_native_write.MAX_COORDINATE` | `f64` | 16383.0 | `16383.0` |
 | `visual_diff.MAX_PIXELS` | `u64` | 1048576 | `super::render::MAX_RENDER_PIXELS` |
+| `volumes.DEFAULT_SOURCE_TOLERANCE` | `f64` | 0.1 | `0.1` |
+| `volumes.MAX_CAMERA_DISTANCE` | `u32` | 32768 | `32768` |
+| `volumes.MAX_CAMERA_FAR` | `u32` | 65536 | `65536` |
+| `volumes.MAX_DEPTH` | `u32` | 4096 | `4096` |
+| `volumes.MAX_DIRECTION_NORM` | `u32` | 65536 | `65536` |
 | `volumes.MAX_EDGES` | `usize` | 128 | `128` |
 | `volumes.MAX_FACES` | `usize` | 192 | `192` |
+| `volumes.MAX_LIGHTS` | `usize` | 8 | `8` |
+| `volumes.MAX_LIGHT_INTENSITY` | `u32` | 8 | `8` |
+| `volumes.MAX_MAGNIFICATION` | `u32` | 128 | `128` |
 | `volumes.MAX_PARTITION_DEPTH` | `usize` | 128 | `128` |
+| `volumes.MAX_ROTATION` | `u32` | 360000 | `360000` |
+| `volumes.MIN_CAMERA_DISTANCE` | `u32` | 1 | `1` |
+| `volumes.MIN_CAMERA_NEAR` | `f64` | 0.01 | `0.01` |
+| `volumes.MIN_DIRECTION_NORM` | `f64` | 1e-08 | `1e-8` |
 | `warps.DEFAULT_TOLERANCE` | `f64` | 0.01 | `0.01` |
 | `warps.MAX_BITS` | `u64` | 8192 | `8192` |
 | `warps.MAX_DEGREE` | `usize` | 128 | `128` |
