@@ -1,5 +1,25 @@
 # Roadmap and verified scope
 
+**Current engine scope: 162/167 verified (97.01%); five checkpoints remain.**
+The original basic native vector requirement is now independently verified:
+the original layers, paths and artboard survive native import, editable delivery,
+native save/reopen and reimport, with exact structure and every pixel checked
+against the original fixture and an independent calculation. See
+[the acceptance audit](NATIVE_VECTOR_ACCEPTANCE.md).
+
+The remaining original checkpoints cover extended curve combinations, extended
+native vector interchange, page interchange, large/extreme-scale vector
+resources and extended layered raster interchange. All 167 original acceptance
+criteria remain unchanged. The separate [agent-readiness plan](AGENT_READINESS.md)
+still requires its remaining scale, model-trial, comparison and final workflow
+evidence; the engine percentage does not measure completion of that goal.
+
+## Earlier implementation milestones
+
+The notes below retain their original milestone counts and limitations.
+[features.json](features.json) and the current feature contracts govern present
+status; historical counts are not the current total.
+
 Native vector import now maps an admitted editable stream into flat layers,
 closed line/cubic RGB paths and shared artboards, preserving visibility, locks
 and opacity. Explicit color interpretation, strict compression/framing checks

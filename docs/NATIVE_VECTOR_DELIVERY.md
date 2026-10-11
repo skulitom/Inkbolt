@@ -76,6 +76,8 @@ external comparisons remain private under the research policy.
 
 External antialiasing, color management and opacity quantization can differ.
 Matching controls do not establish cross-application pixel equality. Retain
-source documents, snapshots and loss receipts. Empty layers, broader geometry,
-complex text/effects/links and complete interchange acceptance remain open;
-neither original native interchange checkpoint is newly credited by this subset.
+source documents, snapshots and loss receipts. The original basic
+layer/path/artboard requirement is [independently verified](NATIVE_VECTOR_ACCEPTANCE.md),
+including exact pixels for its original opaque rectangular fixture. Empty
+delivery layers, broader geometry, complex text/effects/links and complete
+extended interchange acceptance remain open.

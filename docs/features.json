@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope_version": "agent-graphics-implementation-v1",
   "target": 167,
-  "verified": 161,
-  "percent": 96.40718562874252,
+  "verified": 162,
+  "percent": 97.0059880239521,
   "counting": "A whole checkpoint counts only after implemented behavior, full acceptance and independent verification. Partial work receives no fractional credit. Audit evidence is not engine implementation evidence. Scope may change only by explicit versioned user direction.",
   "features": [
     {
@@ -1179,8 +1179,23 @@
       "area": "Editable vector interchange",
       "checkpoint": "basic",
       "acceptance": "Save and reopen the required vector interchange subset with layers, paths and artboards; verify structure and bounded pixels.",
-      "status": "planned",
-      "evidence": []
+      "status": "verified",
+      "evidence": [
+        "tests/test_native_vector_delivery.py::test_original_layer_path_artboard_acceptance_exact_pixels_and_editable_reopen",
+        "tests/test_native_vector_delivery.py::test_independent_encoded_geometry_and_exact_integer_board_pixels",
+        "tests/test_native_vector_delivery.py::test_cubic_controls_flags_and_opacity_survive_delivery",
+        "tests/test_native_vector_delivery.py::test_physical_units_affine_placement_and_fractional_controls",
+        "tests/test_native_vector_delivery.py::test_native_identity_name_encoding_is_distinct_from_layer_display_strings",
+        "tests/test_native_vector_delivery.py::test_unsupported_appearance_geometry_names_and_state_fail_explicitly",
+        "tests/test_native_vector_delivery.py::test_create_only_publication_and_mcp_agree_without_source_edits",
+        "tests/test_native_vector_delivery.py::test_saved_revision_receipt_recovery_and_background_job_preserve_bytes",
+        "tests/test_native_vector_import.py::test_direct_geometry_and_every_pixel_use_native_data_not_preview",
+        "tests/test_native_vector_import.py::test_raw_zstandard_flate_many_blocks_indirect_lengths_and_name_escapes_agree",
+        "tests/test_native_vector_import.py::test_saved_revision_retry_undo_and_create_only_delivery_preserve_sources",
+        "tests/test_native_vector_import.py::test_compression_checksum_completion_declared_size_and_trailing_data",
+        "tests/test_native_vector_import.py::test_container_framing_duplicate_fields_refs_and_wrong_metadata_fail",
+        "tests/test_native_vector_import.py::test_unsupported_artwork_is_rejected_without_partial_document"
+      ]
     },
     {
       "id": "vector.interchange.extended",

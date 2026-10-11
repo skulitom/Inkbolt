@@ -107,4 +107,4 @@ It is a scripted contract example, not an autonomous model benchmark.
 Independent tests verify all physical paper/orientation/resolution combinations,
 asymmetric PDF boxes, exact alpha/background pixels, native CMYK declarations,
 CLI/MCP parity, validation, history, retries and create-only output. This advances
-A7; it awards none of the six original unfinished engine checkpoints.
+A7; it awards none of the original engine checkpoints.

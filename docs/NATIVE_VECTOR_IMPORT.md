@@ -60,10 +60,10 @@ preservation, saved retry/undo and create-only delivery. Controlled external
 source comparisons are retained privately under the research policy.
 
 [Native delivery](NATIVE_VECTOR_DELIVERY.md) writes an admitted editable-text
-subset through the ordinary export/publication path. Complete native
-interoperability remains open. This work does not complete either original native interchange checkpoint or
-change the 161/167 registry. Existing snapshot, SVG, PDF and image delivery use
-their own published contracts.
+subset through the ordinary export/publication path. The original basic
+layer/path/artboard requirement is [independently verified](NATIVE_VECTOR_ACCEPTANCE.md).
+Extended native interoperability remains in progress. Existing snapshot, SVG,
+PDF and image delivery use their own published contracts.
 
 The original PDF data reader follows the public
 [PDF specification archive](https://pdfa.org/resource/pdf-specification-archive/).

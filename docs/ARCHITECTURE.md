@@ -10,8 +10,9 @@ Caller-declared RGB interpretation and losses remain in the receipt. See
 [native writer](NATIVE_VECTOR_DELIVERY.md) emits resource-free editable text with
 flat layers, point controls and shared artboards through the central publication
 path. Physical placement, name encodings and distinct artboard identities are
-explicit; empty layers and unmapped semantics fail. Complete native interchange
-and both original checkpoints remain open.
+explicit; empty layers and unmapped semantics fail. The original basic
+layer/path/artboard checkpoint is [independently verified](NATIVE_VECTOR_ACCEPTANCE.md).
+Extended native interchange remains in progress.
 
 Artboards can select an owned subtree or a shared vector scene. Scene scope is a
 nonpainting root viewport with translation-only placement and no children. The
@@ -440,4 +441,4 @@ Color meshes use original shared-knot bicubic geometry/color fields. Bounded der
 
 The original repair module adds exhaustive context-scored patch translations, frozen-donor exemplar fill, source-hole reconstruction followed by frozen-object moves, and guide-weighted channel medians. Explicit region masks, matching/edge-support/final-change limits, final boundary gates, deterministic decisions and bounded work use the ordinary atomic edit/session machinery. Same-source donor pools exclude the complete positive domain. Independent global minima, analytic textures, dense healing references and guided quantiles verify the contract. See REPAIR.md.
 
-Managed colour integration now supplies explicit per-paint RGB/gray/CMYK or D50 Lab encodings, assignment/conversion, four rendering intents, v4 reference-medium connections, supplied gamut diagnostics and exact profile embedding. Document RGB output association calibrates native PDF page/group blending; print exports select their own output condition and intent. Native and flattened print separation support all four intents, with independent colourimetric physical observation. The unchanged extended vector colour criterion is verified; the current full total is 161/167. Independent evidence includes exact equations, source/history retention, external profile and PDF consumers, and actual agent-interface workflows. See [DEVICE_COLOR.md](DEVICE_COLOR.md).
+Managed colour integration now supplies explicit per-paint RGB/gray/CMYK or D50 Lab encodings, assignment/conversion, four rendering intents, v4 reference-medium connections, supplied gamut diagnostics and exact profile embedding. Document RGB output association calibrates native PDF page/group blending; print exports select their own output condition and intent. Native and flattened print separation support all four intents, with independent colourimetric physical observation. The unchanged extended vector colour criterion is verified; current totals are tracked in the implementation report. Independent evidence includes exact equations, source/history retention, external profile and PDF consumers, and actual agent-interface workflows. See [DEVICE_COLOR.md](DEVICE_COLOR.md).

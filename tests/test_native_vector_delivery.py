@@ -1,5 +1,6 @@
 """Original editable delivery: independent controls, pixels, framing and safe publication."""
 import copy
+import base64
 import hashlib
 import re
 import uuid
@@ -11,6 +12,7 @@ import test_native_vector_import as native
 import test_agent_workspace as workspace
 import test_jobs as jobs
 from test_mcp import Client
+from test_editing_cli import png_pixels
 
 
 class NativeVectorDelivery(unittest.TestCase):
@@ -19,6 +21,7 @@ class NativeVectorDelivery(unittest.TestCase):
     read = native.NativeVectorImport.read
     pixels = native.NativeVectorImport.pixels
     exports = native.NativeVectorImport.exports
+    edit = native.NativeVectorImport.edit
     cli = workspace.AgentWorkspaceTests.cli
     ledger = jobs.JobTests.ledger
     stop_owned = jobs.JobTests.stop_owned
@@ -34,6 +37,38 @@ class NativeVectorDelivery(unittest.TestCase):
                                   format='native_vector',**kw),expected)
         self.assertEqual(document,before)
         return result
+
+    def test_original_layer_path_artboard_acceptance_exact_pixels_and_editable_reopen(self):
+        # Fixed original acceptance geometry: two named layers, one artboard,
+        # blue full-page path and an opaque red rectangular patch.
+        d=dict(schema_version=2,id='basic-reference',kind='vector',width=128,height=96,
+               resolution_ppi=72,color_space='srgb',items=[
+            dict(id='page',name='Artboard 1',content=dict(type='frame',frame=dict(role='artboard',scope='scene',width=128,height=96))),
+            dict(id='base',name='base',content=dict(type='group',role='layer')),
+            dict(id='base-fill',name='base-fill',parent='base',content=dict(type='vector',geometry=dict(shape='rect',x=0,y=0,width=128,height=96),fill=[0,0,255,255])),
+            dict(id='top',name='top',content=dict(type='group',role='layer')),
+            dict(id='patch',name='patch',parent='top',content=dict(type='vector',geometry=dict(shape='rect',x=8,y=8,width=32,height=24),fill=[255,0,0,255]))])
+        before=copy.deepcopy(d)
+        output=dict(output_root=str(self.root),file_name='basic.vector',format='native_vector')
+        receipt=self.invoke(dict(command='document.publish',document=d,output=output))
+        data=(self.root/'basic.vector').read_bytes()
+        out=self.read(data)['document']
+        self.assertEqual(receipt['sha256'],hashlib.sha256(data).hexdigest())
+        self.assertEqual([i['name'] for i in out['items']],['Artboard 1','base','base-fill','top','patch'])
+        self.assertEqual(out['items'][-1]['parent'],out['items'][-2]['id'])
+        self.assertEqual(out['items'][-1]['content']['geometry']['commands'],[
+            dict(verb='move',to=[8,-8]),dict(verb='line',to=[40,-8]),
+            dict(verb='line',to=[40,-32]),dict(verb='line',to=[8,-32]),dict(verb='close')])
+        expected=bytes(channel for y in range(96) for x in range(128)
+                       for channel in ([255,0,0,255] if 8<=x<40 and 8<=y<32 else [0,0,255,255]))
+        for document in [d,out]:
+            image=self.exports(document)['artifacts'][0]['artifact']
+            self.assertEqual(png_pixels(base64.b64decode(image['data']))[:3],(128,96,expected))
+        edited=self.edit(out,[dict(op='properties',id=out['items'][-1]['id'],visible=False)])
+        image=self.exports(edited)['artifacts'][0]['artifact']
+        self.assertEqual(png_pixels(base64.b64decode(image['data']))[:3],(128,96,bytes([0,0,255,255])*128*96))
+        self.assertEqual(d,before)
+        self.assertEqual((self.root/'basic.vector').read_bytes(),data)
 
     def test_independent_encoded_geometry_and_exact_integer_board_pixels(self):
         d = self.document()

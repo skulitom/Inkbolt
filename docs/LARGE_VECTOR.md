@@ -71,4 +71,4 @@ precision audit. Shared point application now has its own absolute-roundoff or
 nearest-binary64 contract, including cancellation and intermediate overflow; see
 the point-placement section of [coordinate fidelity](COORDINATE_PRECISION.md).
 
-This remains partial implementation of `vector.resources.extended`. Complete independent resource and extreme-scale acceptance review is still required before the checkpoint earns credit. The total remains **161/167 (96.41%)**.
+This remains partial implementation of `vector.resources.extended`. Complete independent resource and extreme-scale acceptance review is still required before the checkpoint earns credit. Current totals are tracked in the [implementation report](IMPLEMENTATION.md).
