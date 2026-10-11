@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import xml.etree.ElementTree as ET
 import test_editing_cli as editing
 import test_instances_cli as instances
@@ -38,6 +39,22 @@ class SwatchTests(unittest.TestCase):
     def pixels(self,d,**kw):
         r=self.invoke(dict(command='document.render',document=d,**kw));return r,bytes.fromhex(r['data'])
     def export(self,d,format='snapshot',expected=0,**kw):return self.invoke(dict(command='document.export',document=d,format=format,**kw),expected)
+
+    def test_advertised_name_bytes_and_palette_count(self):
+        bounds = capabilities()['swatches']; d = self.document()
+        maximum = bounds['name_bytes']
+        # The multibyte name fits in scalars but crosses the byte ceiling.
+        name = 'é'*(maximum//2)+'A'*(maximum%2)
+        self.assertEqual(len(name.encode('utf-8')), maximum)
+        self.assertEqual(self.set(d, 'ink', spot(name))['swatches']['ink']['name'], name)
+        error = self.set(d, 'ink', spot(name+'A'), 1)
+        self.assertEqual(error['code'], 'INVALID_SWATCH'); self.assertIn(str(maximum), error['message'])
+        for count, expected in [(bounds['max_swatches'], 0), (bounds['max_swatches']+1, 1)]:
+            candidate = copy.deepcopy(d)
+            candidate['swatches'].update({f's{i}':spot() for i in range(count-1)})
+            result = self.invoke(dict(command='document.validate', document=candidate), expected)
+            if expected: self.assertEqual(result['code'], 'RESOURCE_LIMIT')
+
 
     def test_exact_process_spot_and_named_tint_declarations_survive_snapshot(self):
         values={'rgb':process('Signal <&> \u03bb','srgb',[.12345678901234567,.4567890123456789,.8765432109876543]),
@@ -109,12 +126,12 @@ class SwatchTests(unittest.TestCase):
         for s in [tint('missing',.5),tint('ink',.5),tint('ink',-1),process(components=[0,2,0]),process(space='lab',components=[101,0,0]),spot('')]:
             self.set(d,'ink',s,1)
         bad=copy.deepcopy(d);bad['items'][0]['content']['fill']=paint('missing');self.assertEqual(self.invoke(dict(command='document.validate',document=bad),1)['code'],'SWATCH_NOT_FOUND')
-        for n in range(7):d=self.set(d,'t'+str(n),tint('ink' if n==0 else 't'+str(n-1),.5))
-        self.assertEqual(self.set(d,'too-deep',tint('t6',.5),1)['code'],'RESOURCE_LIMIT')
+        for n in range(capabilities()['swatches']['max_chain']-1):d=self.set(d,'t'+str(n),tint('ink' if n==0 else 't'+str(n-1),.5))
+        self.assertEqual(self.set(d,'too-deep',tint('t'+str(capabilities()['swatches']['max_chain']-2),.5),1)['code'],'RESOURCE_LIMIT')
         self.assertEqual(before['swatches'],{'ink':spot()})
 
     def test_palette_limit_legacy_and_strict_reference_fields(self):
-        d=self.document();d['swatches'].update({f's{i}':process(components=[0,0,0]) for i in range(256)})
+        d=self.document();d['swatches'].update({f's{i}':process(components=[0,0,0]) for i in range(capabilities()['swatches']['max_swatches'])})
         self.assertEqual(self.invoke(dict(command='document.validate',document=d),1)['code'],'RESOURCE_LIMIT')
         d=self.document();d['schema_version']=1;d['items']=[];self.invoke(dict(command='document.validate',document=d),1)
         for extra in [dict(unknown=True),dict(tint=1.1),dict(opacity=-.1)]:

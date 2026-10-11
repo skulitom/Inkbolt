@@ -213,6 +213,13 @@ domain as coefficient-error certification. Mathematical and notation rules
 remain distinct from resource budgets. Existing values and algorithms are
 unchanged; the remaining inline audit and fresh thorough W0 gate stay open.
 
+Document resolution now shares admission/default definitions across creation,
+canvas edits, raw development and sequence import. Swatch labels/counts/chains,
+HDR exposure/gain, raw calibration/correction bounds and reconstruction indexing
+use the catalog and capability bindings. Independent raw/HDR and lens/sensor
+policies remain separate; color equations, notation and filter kernels retain
+their fixed semantics. The remaining W0 audit and final thorough gate stay open.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

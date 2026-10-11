@@ -341,6 +341,10 @@ pub mod handoff {
 
 /// Limits for scene-linear sample inspection.
 pub mod hdr {
+    /// Absolute exposure bound for both HDR grading and display views.
+    pub const MAX_EXPOSURE_STOPS: u32 = 32;
+    /// Maximum nonnegative linear HDR channel multiplier.
+    pub const MAX_CHANNEL_GAIN: u32 = 16;
     /// Maximum requested in-canvas positions per sample measurement.
     pub const MAX_SAMPLES: usize = 256;
 }
@@ -699,6 +703,12 @@ pub mod metadata {
 
 /// Limits for `src/model.rs`.
 pub mod model {
+    /// Minimum document resolution in pixels per inch, shared by every authoring route.
+    pub const MIN_RESOLUTION_PPI: u32 = 1;
+    /// Maximum document resolution in pixels per inch.
+    pub const MAX_RESOLUTION_PPI: u32 = 9600;
+    /// Default resolution for current documents; legacy snapshot rules stay versioned.
+    pub const DEFAULT_RESOLUTION_PPI: u32 = 96;
     /// Maximum ASCII bytes in a portable engine identifier.
     pub const MAX_ID_BYTES: usize = 128;
     /// Maximum UTF-8 bytes in an item or channel name.
@@ -985,6 +995,26 @@ pub mod publish {
     pub const MAX_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
 }
 
+/// Limits for `src/raw/corrections.rs`.
+pub mod raw_corrections {
+    /// Maximum denoise/detail neighborhood radius in sensor pixels.
+    pub const MAX_RADIUS: u32 = 4;
+    /// Maximum linear-light range/detail threshold.
+    pub const MAX_THRESHOLD: u32 = 16;
+    /// Maximum detail enhancement multiplier; denoise amount stays normalized.
+    pub const MAX_DETAIL_AMOUNT: u32 = 4;
+    /// Minimum calibrated focal length in sensor pixels.
+    pub const MIN_FOCAL_LENGTH: u32 = 1;
+    /// Maximum calibrated focal length, independent of sensor dimensions.
+    pub const MAX_FOCAL_LENGTH: u32 = 32768;
+    /// Absolute admitted radial lens coefficient.
+    pub const MAX_RADIAL_COEFFICIENT: f64 = 1.0;
+    /// Absolute admitted tangential lens coefficient.
+    pub const MAX_TANGENTIAL_COEFFICIENT: f64 = 0.25;
+    /// Exclusive global Jacobian-perturbation admission bound for no-fold certification.
+    pub const MAX_JACOBIAN_PERTURBATION: f64 = 0.95;
+}
+
 /// Limits for `src/raw/retained.rs`.
 pub mod raw_retained {
     /// Max source bytes (raw retained).
@@ -995,6 +1025,16 @@ pub mod raw_retained {
 
 /// Limits for `src/raw.rs`.
 pub mod raw {
+    /// Absolute camera-to-linear-RGB matrix coefficient bound.
+    pub const MAX_CAMERA_COEFFICIENT: u32 = 16;
+    /// Smallest admitted absolute camera calibration determinant.
+    pub const MIN_CAMERA_DETERMINANT: f64 = 1e-12;
+    /// Absolute sensor-development exposure bound, independent of HDR grading.
+    pub const MAX_EXPOSURE_STOPS: u32 = 32;
+    /// Maximum positive input white-balance component before neutral normalization.
+    pub const MAX_WHITE_BALANCE_COMPONENT: u32 = 64;
+    /// Maximum effective gain; its reciprocal is the minimum effective gain.
+    pub const MAX_WHITE_BALANCE_GAIN: u32 = 64;
     /// Maximum bytes of padding after a row of sensor samples.
     pub const MAX_ROW_PADDING_BYTES: usize = 4096;
     /// Max pixels (raw).
@@ -1083,6 +1123,8 @@ pub mod repeats {
 
 /// Limits for `src/resample.rs`.
 pub mod resample {
+    /// Absolute source coordinate supported by advanced-kernel stable index arithmetic.
+    pub const MAX_INDEX_COORDINATE: f64 = 1e12;
     /// Max axis taps (resample).
     pub const MAX_AXIS_TAPS: u64 = 65_536;
     /// Max work (resample).
@@ -1399,6 +1441,8 @@ pub mod svg_import {
 
 /// Limits for `src/swatches.rs`.
 pub mod swatches {
+    /// Maximum UTF-8 bytes in a nonempty printable swatch label.
+    pub const MAX_NAME_BYTES: usize = 256;
     /// Max swatches (swatches).
     pub const MAX_SWATCHES: usize = 256;
     /// Max depth (swatches).

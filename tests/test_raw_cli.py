@@ -9,6 +9,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 from test_editing_cli import png_pixels
 from test_sample_conversion_cli import values
@@ -103,6 +104,32 @@ class RawTests(unittest.TestCase):
                 self.assertEqual(r['source_bytes'],len(data));self.assertEqual(r['recipe']['capture'],capture)
                 self.assertEqual(r['recipe']['settings'],options or settings())
             return r
+
+    def test_advertised_resolution_exposure_and_calibration_bounds(self):
+        caps = capabilities()['raw_development']; limits = caps['calibration_limits']
+        data, capture, _ = fixture(2, 2)
+        for field in ('resolution_ppi', 'exposure_stops'):
+            lo, hi = caps[field]
+            for value, expected in [(lo, 0), (hi, 0), (lo-1, 1), (hi+1, 1)]:
+                result = self.develop(data, capture, settings(**{field:value}), expected)
+                if expected: self.assertEqual(result['code'], 'INVALID_RAW')
+        lo, hi = limits['camera_coefficient']
+        for value, expected in [(lo, 0), (hi, 0), (lo-1, 1), (hi+1, 1),
+                                (limits['minimum_absolute_determinant'], 0),
+                                (limits['minimum_absolute_determinant']/2, 1)]:
+            c = copy.deepcopy(capture); c['camera_to_linear_srgb'][0][0] = value
+            result = self.develop(data, c, expected=expected)
+            if expected: self.assertEqual(result['code'], 'INVALID_RAW')
+        lo, hi = limits['effective_white_balance_gain']
+        for value, expected in [(lo, 0), (hi, 0), (lo/2, 1), (hi+1, 1)]:
+            result = self.develop(data, capture, settings(white_balance=dict(type='gains', rgb=[value,1,1])), expected)
+            if expected: self.assertEqual(result['code'], 'INVALID_RAW')
+        maximum = limits['white_balance_component'][1]
+        for rgb, expected in [([maximum]*3, 0), ([maximum+1]*3, 1), ([0,1,1], 1),
+                              ([1,hi,1], 0), ([hi,1,1], 0)]:
+            result = self.develop(data, capture, settings(white_balance=dict(type='neutral', rgb=rgb)), expected)
+            if expected: self.assertEqual(result['code'], 'INVALID_RAW')
+
 
     def test_all_four_patterns_three_packings_odd_dimensions_and_padding(self):
         for pattern in PATTERNS:

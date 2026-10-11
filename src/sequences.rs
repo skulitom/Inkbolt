@@ -55,7 +55,9 @@ pub(crate) fn validate(state: &variants::State) -> Result<(), Error> {
         return Ok(());
     };
     if timeline.frames.is_empty() || timeline.frames.len() > MAX_FRAMES {
-        return Err(limit("A sequence requires 1..256 ordered frames"));
+        return Err(limit(&format!(
+            "A sequence requires 1..{MAX_FRAMES} ordered frames"
+        )));
     }
     let mut ids = HashSet::new();
     for frame in &timeline.frames {

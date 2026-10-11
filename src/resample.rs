@@ -51,7 +51,7 @@ impl Plan {
         self.taps[0] * self.taps[1] + 4 * (self.taps[0] + self.taps[1])
     }
     fn weights(self, point: f64, axis: usize) -> Result<Vec<(i64, f64)>, Error> {
-        if !point.is_finite() || point.abs() > 1e12 {
+        if !point.is_finite() || point.abs() > crate::limits::resample::MAX_INDEX_COORDINATE {
             return Err(Error::new(
                 "RENDER_ERROR",
                 "Resampling coordinates exceed stable indexing range",
@@ -357,4 +357,33 @@ pub(crate) fn associated<const N: usize>(
         }
         _ => plan.sample(point, get)?,
     })
+}
+
+#[cfg(test)]
+mod limits_tests {
+    use super::*;
+
+    #[test]
+    fn tap_and_index_limits_are_inclusive_and_fail_outside() {
+        let width = MAX_AXIS_TAPS as f64 - 2.0;
+        let plan = Plan::new(Sampling::Area, [width, 1.0]).unwrap();
+        assert_eq!(plan.taps[0], MAX_AXIS_TAPS);
+        assert_eq!(
+            Plan::new(Sampling::Area, [width + 1.0, 1.0])
+                .err()
+                .unwrap()
+                .code,
+            "RESOURCE_LIMIT"
+        );
+        let plan = Plan::new(Sampling::Area, [1.0, 1.0]).unwrap();
+        let maximum = crate::limits::resample::MAX_INDEX_COORDINATE;
+        for sign in [-1.0, 1.0] {
+            let weights = plan.weights(sign * maximum, 0).unwrap();
+            assert_eq!(weights.iter().map(|(_, weight)| weight).sum::<f64>(), 1.0);
+            assert_eq!(
+                plan.weights(sign * (maximum + 1.0), 0).err().unwrap().code,
+                "RENDER_ERROR"
+            );
+        }
+    }
 }

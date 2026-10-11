@@ -1,5 +1,7 @@
 # Explicit raw sensor development
 
+`capabilities.raw_development.calibration_limits` reports camera coefficients, determinant admission, input white-balance components and effective gains. The latter uses reciprocal minimum/maximum gains; the input-component lower bound is exclusive. Development exposure remains independent of HDR grading. Resolution uses the common document policy.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 `raw.develop` reads an original Bayer sensor buffer and returns a new editable raster document, a versioned recipe, source identity and range diagnostics. The Rust library exposes `raw::develop` for byte slices and `raw::import` for an absolute local path. CLI and MCP stdio share the implementation. Nothing writes to the input file.

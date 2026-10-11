@@ -7,6 +7,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from advertised_limits import capabilities
 from external_workspace import files as workspace_files
 import test_editing_cli as editing
 from test_layer_clipping_cli import layer, group
@@ -34,6 +35,24 @@ class CanvasTests(unittest.TestCase):
         return editing.png_pixels(base64.b64decode(r['data']))
     def crop_bytes(self,p,w,h,x,y,nw,nh):
         return b''.join(p[(sy*w+sx)*4:(sy*w+sx+1)*4] if 0<=sx<w and 0<=sy<h else bytes(4) for sy in range(y,y+nh) for sx in range(x,x+nw))
+
+    def test_shared_resolution_bounds_preserve_pixels(self):
+        bounds = capabilities()['limits']; lo, hi = bounds['resolution_ppi']
+        d = self.document(1, 1)
+        self.assertEqual(d['resolution_ppi'], bounds['default_resolution_ppi'])
+        original = self.pixels(d)[2]
+        for value, expected in [(lo, 0), (hi, 0), (lo/2, 1), (hi+1, 1)]:
+            with self.subTest(ppi=value):
+                result = self.invoke(dict(command='document.create', id='ppi', kind='raster',
+                                          width=1, height=1, resolution_ppi=value), expected)
+                if expected: self.assertEqual(result['code'], 'INVALID_DOCUMENT')
+                else: self.assertEqual(result['resolution_ppi'], value)
+                result = self.edit(d, [dict(op='canvas', action=dict(type='resolution', ppi=value))], expected)
+                if expected: self.assertEqual(result['code'], 'INVALID_OPERATION')
+                else:
+                    self.assertEqual(result['resolution_ppi'], value)
+                    self.assertEqual(self.pixels(result)[2], original)
+
 
     def test_crop_every_pixel_and_reveal_retained_outside_layer_content(self):
         d=self.document();original=copy.deepcopy(d);p=self.pixels(d)[2]

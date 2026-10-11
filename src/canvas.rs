@@ -151,10 +151,18 @@ pub(crate) fn edit(document: &mut Document, action: &Action) -> Result<Value, Er
         ));
     }
     if let Action::Resolution { ppi } = action {
-        if !ppi.is_finite() || !(1.0..=9600.0).contains(ppi) {
+        if !ppi.is_finite()
+            || !(f64::from(crate::limits::model::MIN_RESOLUTION_PPI)
+                ..=f64::from(crate::limits::model::MAX_RESOLUTION_PPI))
+                .contains(ppi)
+        {
             return Err(Error::new(
                 "INVALID_OPERATION",
-                "Resolution must be in 1..=9600 pixels per inch",
+                format!(
+                    "Resolution must be in {}..={} pixels per inch",
+                    crate::limits::model::MIN_RESOLUTION_PPI,
+                    crate::limits::model::MAX_RESOLUTION_PPI
+                ),
             ));
         }
         let old = document.resolution_ppi;

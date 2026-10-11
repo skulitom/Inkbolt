@@ -13,7 +13,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def catalog(source):
     definitions = {}
+    groups = set()
     for group in re.finditer(r'(?ms)^pub mod (\w+) \{(.*?)^\}', source):
+        if group[1] in groups:
+            raise ValueError('Duplicate limit group: ' + group[1])
+        groups.add(group[1])
         for row in re.finditer(r'(?m)^\s*pub const (\w+): (usize|u64|u32|i64|f64) = ([^;]+);', group[2]):
             key = group[1] + '.' + row[1]
             if key in definitions:

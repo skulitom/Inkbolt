@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub mod device;
 
 pub use crate::limits::swatches::MAX_DEPTH;
+use crate::limits::swatches::MAX_NAME_BYTES;
 pub use crate::limits::swatches::MAX_SWATCHES;
 fn one() -> f64 {
     1.0
@@ -24,7 +25,7 @@ fn unit(v: f64) -> bool {
 }
 fn name(v: &str) -> bool {
     !v.is_empty()
-        && v.len() <= 256
+        && v.len() <= MAX_NAME_BYTES
         && !v
             .chars()
             .any(|c| c.is_control() || matches!(c, '\u{fffe}' | '\u{ffff}'))
@@ -204,15 +205,17 @@ fn resolve(table: &BTreeMap<String, Swatch>, id: &str) -> Result<Resolved, Error
             return Err(invalid("Tint definitions contain a cycle"));
         }
         if dependencies.len() > MAX_DEPTH {
-            return Err(limit("Swatch reference chain exceeds eight definitions"));
+            return Err(limit(&format!(
+                "Swatch reference chain exceeds {MAX_DEPTH} definitions"
+            )));
         }
         let swatch = table.get(next).ok_or_else(|| {
             Error::new("SWATCH_NOT_FOUND", format!("Swatch {next} does not exist"))
         })?;
         if !valid_id(next) || !name(&swatch.name) {
-            return Err(invalid(
-                "Swatch requires a valid ID and a nonempty printable name of at most 256 bytes",
-            ));
+            return Err(invalid(&format!(
+                "Swatch requires a valid ID and a nonempty printable name of at most {MAX_NAME_BYTES} bytes"
+            )));
         }
         let (color, spot) = match &swatch.definition {
             Definition::Tint { base, tint: amount } => {
@@ -405,7 +408,9 @@ fn variants(
 }
 pub fn validate(d: &Document) -> Result<(), Error> {
     if d.swatches.len() > MAX_SWATCHES {
-        return Err(limit("Document exceeds 256 named swatches"));
+        return Err(limit(&format!(
+            "Document exceeds {MAX_SWATCHES} named swatches"
+        )));
     }
     for id in d.swatches.keys() {
         resolve(&d.swatches, id)?;

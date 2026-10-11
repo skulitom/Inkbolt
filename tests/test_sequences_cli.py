@@ -8,6 +8,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 import test_variants_cli as variants
 from test_images_cli import chunk, png
@@ -35,6 +36,20 @@ class SequenceTests(unittest.TestCase):
             dict(size=(3,1),offset=(0,2),rgba=bytes([210,0,50,192])*3,blend=1,dispose=2,delay=(0,0)),
             dict(size=(1,2),offset=(3,0),rgba=bytes([10,20,240,0])*2,dispose=1,delay=(65535,65535)),
             dict(size=(2,1),offset=(2,2),rgba=bytes([40,200,120,255])*2,blend=1,delay=(1,24))]
+
+    def test_sequence_import_uses_document_resolution_bounds(self):
+        lo, hi = capabilities()['limits']['resolution_ppi']
+        data = fixtures.apng(1, 1, [dict(rgba=bytes([20,40,80,255]), delay=(1,10))])
+        for value, expected in [(lo, 0), (hi, 0), (lo/2, 1), (hi+1, 1)]:
+            with tempfile.TemporaryDirectory() as root:
+                path = Path(root)/'input.png'; path.write_bytes(data)
+                result = self.invoke(dict(command='sequence.import', id='ppi', resolution_ppi=value,
+                                          source=dict(type='apng', source_path=str(path), compositing_space='linear_srgb'),
+                                          store_root=str(Path(root)/'assets')), expected)
+                if expected: self.assertEqual(result['code'], 'INVALID_SEQUENCE')
+                else: self.assertEqual(result['document']['resolution_ppi'], value)
+                self.assertEqual(path.read_bytes(), data)
+
 
     def test_subframes_disposal_alpha_default_poster_and_interlacing(self):
         frames=self.originals();expected=fixtures.reference(4,3,frames)

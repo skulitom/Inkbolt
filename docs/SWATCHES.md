@@ -1,5 +1,7 @@
 # Named colors and spot tints
 
+Swatch label byte lengths, palette counts and reference depth share their catalog definitions with discovery, validation and diagnostics. Labels count UTF-8 bytes; tint/opacity endpoints and color-space encoding ranges keep their format semantics.
+
 Explicit `device` declarations additionally retain source profiles and intent, with profile assignment/conversion edits, source-component tints and exact ICCBased native PDF delivery. See [DEVICE_COLOR.md](DEVICE_COLOR.md). The legacy declarations below retain their existing preview rules.
 
 `document.swatches` retains named process colors, spot-color declarations and reusable tints. Paints refer to stable IDs. Editing a definition updates its live users without rewriting their geometry, source pixels or text. Names are labels and can repeat; distinct IDs remain distinct resources. Snapshots, atomic batches and durable sessions preserve the declarations, references and original numeric values.

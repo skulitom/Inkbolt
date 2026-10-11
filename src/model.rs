@@ -34,7 +34,7 @@ fn is_one(value: &f64) -> bool {
     *value == 1.0
 }
 fn resolution() -> f64 {
-    96.0
+    f64::from(bounds::DEFAULT_RESOLUTION_PPI)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
@@ -545,8 +545,15 @@ pub fn validate_controlled(
             "Width and height must each be in 1..={MAX_DIMENSION} pixels"
         )));
     }
-    if !document.resolution_ppi.is_finite() || !(1.0..=9600.0).contains(&document.resolution_ppi) {
-        return Err(invalid("Resolution must be finite and in 1..=9600 ppi"));
+    if !document.resolution_ppi.is_finite()
+        || !(f64::from(bounds::MIN_RESOLUTION_PPI)..=f64::from(bounds::MAX_RESOLUTION_PPI))
+            .contains(&document.resolution_ppi)
+    {
+        return Err(invalid(&format!(
+            "Resolution must be finite and in {}..={} ppi",
+            bounds::MIN_RESOLUTION_PPI,
+            bounds::MAX_RESOLUTION_PPI
+        )));
     }
     if document.items.len() > budget.items() {
         return Err(limit(&format!(

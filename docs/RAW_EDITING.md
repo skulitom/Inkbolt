@@ -1,5 +1,7 @@
 # Retained raw development
 
+`capabilities.raw_development.retained.correction_limits` reports threshold, amount, focal-length and lens-coefficient bounds. The global Jacobian perturbation maximum is exclusive; the original no-fold proof and correction equations are unchanged. Focal-length limits are independent of sensor dimensions.
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 `raw.retain` embeds exact sensor bytes and a versioned recipe in `content.type:"raw"`. `raw_settings` changes development without replacing the original capture; rendering always starts from that capture. `raw_expand` explicitly replaces the layer with ordinary developed samples. Snapshots and undo preserve either representation. The basic `raw.develop` command continues to return an ordinary sample document as documented in [RAW.md](RAW.md).

@@ -128,6 +128,8 @@ capability literals and diagnostic messages remains in progress.
 | `handoff.MAX_BYTES` | `usize` | 33554432 | `super::publish::MAX_OUTPUT_BYTES` |
 | `handoff.MAX_PIXELS` | `u64` | 8000000 | `8_000_000` |
 | `handoff.MAX_SECONDS` | `u32` | 120 | `120` |
+| `hdr.MAX_CHANNEL_GAIN` | `u32` | 16 | `16` |
+| `hdr.MAX_EXPOSURE_STOPS` | `u32` | 32 | `32` |
 | `hdr.MAX_SAMPLES` | `usize` | 256 | `256` |
 | `hyphenation.MAX_EXCEPTIONS` | `usize` | 4096 | `4_096` |
 | `hyphenation.MAX_EXCEPTION_CHARS` | `usize` | 65536 | `65_536` |
@@ -260,6 +262,7 @@ capability literals and diagnostic messages remains in progress.
 | `metadata.MAX_RECORD_BYTES` | `usize` | 16384 | `16 * 1024` |
 | `metadata.MAX_TAG_BYTES` | `usize` | 128 | `128` |
 | `metadata.MAX_TEXT_BYTES` | `usize` | 8192 | `8192` |
+| `model.DEFAULT_RESOLUTION_PPI` | `u32` | 96 | `96` |
 | `model.MAX_COORDINATE` | `f64` | 32768.0 | `32768.0` |
 | `model.MAX_DIMENSION` | `u32` | 32768 | `32768` |
 | `model.MAX_DOCUMENT_BYTES` | `usize` | 786432 | `768 * 1024` |
@@ -272,8 +275,10 @@ capability literals and diagnostic messages remains in progress.
 | `model.MAX_LARGE_VECTOR_COMMANDS` | `usize` | 131072 | `131072` |
 | `model.MAX_LARGE_VECTOR_ITEMS` | `usize` | 8192 | `8192` |
 | `model.MAX_NAME_BYTES` | `usize` | 1024 | `1024` |
+| `model.MAX_RESOLUTION_PPI` | `u32` | 9600 | `9600` |
 | `model.MAX_SEGMENTS` | `usize` | 4096 | `4096` |
 | `model.MAX_STORED_PIXELS` | `usize` | 65536 | `65536` |
+| `model.MIN_RESOLUTION_PPI` | `u32` | 1 | `1` |
 | `native_pixels.CACHE_TILES` | `usize` | 16 | `16` |
 | `objects.MAX_NESTING` | `usize` | 4 | `4` |
 | `objects.MAX_RENDERED_OBJECTS` | `usize` | 32 | `32` |
@@ -349,8 +354,21 @@ capability literals and diagnostic messages remains in progress.
 | `query.MAX_TYPES` | `usize` | 12 | `12` |
 | `raster.MAX_PIXELS` | `u64` | 16777216 | `16_777_216` |
 | `raster.TILE_EDGE` | `u32` | 128 | `128` |
+| `raw.MAX_CAMERA_COEFFICIENT` | `u32` | 16 | `16` |
+| `raw.MAX_EXPOSURE_STOPS` | `u32` | 32 | `32` |
 | `raw.MAX_PIXELS` | `usize` | 16384 | `16384` |
 | `raw.MAX_ROW_PADDING_BYTES` | `usize` | 4096 | `4096` |
+| `raw.MAX_WHITE_BALANCE_COMPONENT` | `u32` | 64 | `64` |
+| `raw.MAX_WHITE_BALANCE_GAIN` | `u32` | 64 | `64` |
+| `raw.MIN_CAMERA_DETERMINANT` | `f64` | 1e-12 | `1e-12` |
+| `raw_corrections.MAX_DETAIL_AMOUNT` | `u32` | 4 | `4` |
+| `raw_corrections.MAX_FOCAL_LENGTH` | `u32` | 32768 | `32768` |
+| `raw_corrections.MAX_JACOBIAN_PERTURBATION` | `f64` | 0.95 | `0.95` |
+| `raw_corrections.MAX_RADIAL_COEFFICIENT` | `f64` | 1.0 | `1.0` |
+| `raw_corrections.MAX_RADIUS` | `u32` | 4 | `4` |
+| `raw_corrections.MAX_TANGENTIAL_COEFFICIENT` | `f64` | 0.25 | `0.25` |
+| `raw_corrections.MAX_THRESHOLD` | `u32` | 16 | `16` |
+| `raw_corrections.MIN_FOCAL_LENGTH` | `u32` | 1 | `1` |
 | `raw_retained.MAX_RECIPE_BYTES` | `u64` | 16384 | `16384` |
 | `raw_retained.MAX_SOURCE_BYTES` | `usize` | 131072 | `131072` |
 | `render.MAX_BUFFER_PIXELS` | `u64` | 4194304 | `4_194_304` |
@@ -383,6 +401,7 @@ capability literals and diagnostic messages remains in progress.
 | `repeats.MIN_STEP` | `f64` | 0.001 | `0.001` |
 | `request.MAX_REQUEST_BYTES` | `u64` | 16777216 | `16 * 1024 * 1024` |
 | `resample.MAX_AXIS_TAPS` | `u64` | 65536 | `65_536` |
+| `resample.MAX_INDEX_COORDINATE` | `f64` | 1000000000000.0 | `1e12` |
 | `resample.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `responses.COMPACT_TARGET_BYTES` | `usize` | 8192 | `8 * 1024` |
 | `retouch.DEFAULT_ITERATIONS` | `u32` | 2048 | `2048` |
@@ -495,6 +514,7 @@ capability literals and diagnostic messages remains in progress.
 | `svg_import_definitions.MAX_DEFINITIONS` | `usize` | 64 | `64` |
 | `svg_import_definitions.MAX_REFERENCE_DEPTH` | `usize` | 16 | `16` |
 | `swatches.MAX_DEPTH` | `usize` | 8 | `8` |
+| `swatches.MAX_NAME_BYTES` | `usize` | 256 | `256` |
 | `swatches.MAX_SWATCHES` | `usize` | 256 | `256` |
 | `text.LAYOUT_OVERFLOW_TOLERANCE` | `f64` | 1e-09 | `1e-9` |
 | `text.MAX_CHARACTER_SCALE` | `f64` | 10.0 | `10.0` |

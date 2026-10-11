@@ -394,7 +394,12 @@ pub fn import(
 ) -> Result<Value, Error> {
     control.check()?;
     assets::absolute(root)?;
-    if !valid_id(&id) || !ppi.is_finite() || !(1.0..=9600.0).contains(&ppi) {
+    if !valid_id(&id)
+        || !ppi.is_finite()
+        || !(f64::from(crate::limits::model::MIN_RESOLUTION_PPI)
+            ..=f64::from(crate::limits::model::MAX_RESOLUTION_PPI))
+            .contains(&ppi)
+    {
         return Err(error("Sequence document ID or resolution is invalid"));
     }
     let prepared = match source {

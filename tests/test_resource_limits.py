@@ -1,4 +1,5 @@
 """Prevent drift between compiled limits, discovery, generated docs and admission."""
+import ast
 import re
 import sys
 import unittest
@@ -13,6 +14,34 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'limits/resolution_ppi/0': 'model.MIN_RESOLUTION_PPI',
+    'limits/resolution_ppi/1': 'model.MAX_RESOLUTION_PPI',
+    'limits/default_resolution_ppi': 'model.DEFAULT_RESOLUTION_PPI',
+    'hdr/exposure_stops/1': 'hdr.MAX_EXPOSURE_STOPS',
+    'hdr/channel_gain/1': 'hdr.MAX_CHANNEL_GAIN',
+    'swatches/max_swatches': 'swatches.MAX_SWATCHES',
+    'swatches/max_chain': 'swatches.MAX_DEPTH',
+    'swatches/name_bytes': 'swatches.MAX_NAME_BYTES',
+    'reconstruction/max_axis_taps': 'resample.MAX_AXIS_TAPS',
+    'reconstruction/max_work': 'resample.MAX_WORK',
+    'reconstruction/max_index_coordinate': 'resample.MAX_INDEX_COORDINATE',
+    'raw_development/exposure_stops/1': 'raw.MAX_EXPOSURE_STOPS',
+    'raw_development/resolution_ppi/0': 'model.MIN_RESOLUTION_PPI',
+    'raw_development/resolution_ppi/1': 'model.MAX_RESOLUTION_PPI',
+    'raw_development/calibration_limits/camera_coefficient/1': 'raw.MAX_CAMERA_COEFFICIENT',
+    'raw_development/calibration_limits/minimum_absolute_determinant': 'raw.MIN_CAMERA_DETERMINANT',
+    'raw_development/calibration_limits/white_balance_component/1': 'raw.MAX_WHITE_BALANCE_COMPONENT',
+    'raw_development/calibration_limits/effective_white_balance_gain/1': 'raw.MAX_WHITE_BALANCE_GAIN',
+    'raw_development/calibration_limits/max_source_bytes': 'assets.MAX_IMPORT_BYTES',
+    'raw_development/retained/neighborhood_radius/1': 'raw_corrections.MAX_RADIUS',
+    'raw_development/retained/correction_limits/threshold/1': 'raw_corrections.MAX_THRESHOLD',
+    'raw_development/retained/correction_limits/detail_amount/1': 'raw_corrections.MAX_DETAIL_AMOUNT',
+    'raw_development/retained/correction_limits/focal_length/0': 'raw_corrections.MIN_FOCAL_LENGTH',
+    'raw_development/retained/correction_limits/focal_length/1': 'raw_corrections.MAX_FOCAL_LENGTH',
+    'raw_development/retained/correction_limits/radial_coefficient/1': 'raw_corrections.MAX_RADIAL_COEFFICIENT',
+    'raw_development/retained/correction_limits/tangential_coefficient/1': 'raw_corrections.MAX_TANGENTIAL_COEFFICIENT',
+    'raw_development/retained/correction_limits/jacobian_perturbation_maximum_exclusive': 'raw_corrections.MAX_JACOBIAN_PERTURBATION',
+
     'text_limits/frame_extent/0': 'text.MIN_FRAME_EXTENT',
     'text_limits/frame_extent/1': 'model.MAX_COORDINATE',
     'text_limits/leading/0': 'text.MIN_LEADING',
@@ -193,7 +222,6 @@ BINDINGS = {
     'repeats/generated_commands': 'model.MAX_SEGMENTS',
     'vector_strokes/dash_document_work': 'strokes.MAX_DOCUMENT_WORK',
     'vector_strokes/dash_instance_work': 'strokes.MAX_INSTANCE_WORK',
-    'vector_strokes/dash_intervals': 'strokes.MAX_INTERVALS',
     'vector_strokes/dash_range_work': 'strokes.MAX_RANGE_WORK',
     'vector_strokes/curve_tolerance/outline_resolution': 'strokes.OUTLINE_RESOLUTION',
     'vector_strokes/generated_document_commands': 'strokes_outline.MAX_OUTLINE_COMMANDS',
@@ -592,6 +620,45 @@ class ResourceLimitTests(unittest.TestCase):
         self.assertEqual(capabilities()['layer_effects']['contour'],
                          f"piecewise_linear_2_to_{values['effects.MAX_CONTOUR_KNOTS']}_knots_origin_zero")
 
+        # Fixed kernel definitions, normalized ranges and symmetric/reciprocal
+        # bounds are explicit; all other numeric color/raw/reconstruction limits bind.
+        fixed = {'hdr/channel_gain/0': 0, 'swatches/reference/tint/0': 0,
+                 'swatches/reference/tint/1': 1, 'swatches/reference/opacity/0': 0,
+                 'swatches/reference/opacity/1': 1, 'reconstruction/bicubic_parameter': -.5,
+                 'reconstruction/lanczos_radius': 3,
+                 'raw_development/calibration_limits/white_balance_component/0': 0,
+                 'raw_development/retained/neighborhood_radius/0': 1,
+                 'raw_development/retained/correction_limits/threshold/0': 0,
+                 'raw_development/retained/correction_limits/denoise_amount/0': 0,
+                 'raw_development/retained/correction_limits/denoise_amount/1': 1,
+                 'raw_development/retained/correction_limits/detail_amount/0': 0}
+        symmetric = ('hdr/exposure_stops', 'raw_development/exposure_stops',
+                     'raw_development/calibration_limits/camera_coefficient',
+                     'raw_development/retained/correction_limits/radial_coefficient',
+                     'raw_development/retained/correction_limits/tangential_coefficient')
+        for path, expected in fixed.items():
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[int(part)] if isinstance(value, list) else value[part]
+            self.assertEqual(value, expected)
+        for path in symmetric:
+            value = capabilities()
+            for part in path.split('/'): value = value[part]
+            self.assertEqual(value[0], -value[1])
+        reciprocal = 'raw_development/calibration_limits/effective_white_balance_gain/0'
+        raw = capabilities()['raw_development']
+        self.assertEqual(raw['calibration_limits']['effective_white_balance_gain'][0],
+                         1/raw['calibration_limits']['effective_white_balance_gain'][1])
+        self.assertTrue(raw['calibration_limits']['component_minimum_exclusive'])
+        self.assertEqual(raw['source_bytes'],
+                         f"exact_row_stride_times_height_max_{values['assets.MAX_IMPORT_BYTES']/(1024*1024):g}_MiB")
+        self.assertEqual(raw['retained']['lens_no_fold'],
+                         f"global_normalized_Jacobian_perturbation_bound_less_than_{values['raw_corrections.MAX_JACOBIAN_PERTURBATION']:g}")
+        for prefix in ('hdr', 'swatches', 'reconstruction', 'raw_development'):
+            self.assertEqual(numeric_fields(capabilities()[prefix], prefix) - fixed.keys()
+                             - {p+'/0' for p in symmetric} - {reciprocal},
+                             {p for p in BINDINGS if p.startswith(prefix+'/')})
+
         # Identity/default endpoints and symmetric signed ranges are semantics;
         # every text/flow and coordinate precision budget has a compiled binding.
         fixed = {'coordinate_precision/direct_transport_absolute_error': 0,
@@ -710,6 +777,10 @@ class ResourceLimitTests(unittest.TestCase):
     def test_generator_rejects_cycles_duplicates_and_executable_expressions(self):
         def source(body):
             return 'pub mod example {\n'+body+'\n}\n'
+        for content in [source('')+source(''),
+                        source('pub const MAX_A: usize = 1;')+source('pub const MAX_B: usize = 2;')]:
+            with self.assertRaisesRegex(ValueError, 'Duplicate limit group'):
+                update_limits.catalog(content)
         for body in [
             'pub const MAX_A: usize = MAX_A;',
             'pub const MAX_A: usize = 1;\npub const MAX_A: usize = 2;',
@@ -721,6 +792,13 @@ class ResourceLimitTests(unittest.TestCase):
         ]:
             with self.subTest(body=body), self.assertRaises(ValueError):
                 update_limits.catalog(source(body))
+
+    def test_capability_binding_paths_are_unique(self):
+        tree = ast.parse((ROOT/'tests/test_resource_limits.py').read_text(encoding='utf-8'))
+        bindings = next(node.value for node in tree.body if isinstance(node, ast.Assign)
+                        and any(getattr(target, 'id', '') == 'BINDINGS' for target in node.targets))
+        keys = [ast.literal_eval(key) for key in bindings.keys]
+        self.assertEqual(len(keys), len(set(keys)), 'Duplicate keys would silently hide a binding')
 
 
 if __name__ == '__main__':
