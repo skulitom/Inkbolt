@@ -1,5 +1,12 @@
 # Creative filters
 
+`capabilities.filters.creative_limits` reports the radius, angle, strength,
+distance, cell-size and octave bounds from the shared [limit catalog](LIMITS.md).
+High-pass shares the Gaussian sigma policy; square extrema and line-rank
+neighborhoods retain independent radius policies. These are the existing
+admission ranges; normalized thresholds, quantiles and scanline parity remain
+operator semantics.
+
 Original editable graphic treatments use the existing `filters` edit, library,
 JSON CLI and MCP stdio. Wrap each operator as
 `{"type":"creative","operator":{"type":"edge_ink","strength":1.5}}`.

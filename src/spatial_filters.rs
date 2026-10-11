@@ -31,10 +31,16 @@ impl Operator {
         }
     }
     pub fn validate(&self, world: Matrix) -> Result<(), Error> {
-        let bounded = |p: Point| p.iter().all(|v| v.is_finite() && v.abs() <= 256.0);
+        let bounded = |p: Point| {
+            p.iter().all(|v| {
+                v.is_finite() && v.abs() <= f64::from(crate::limits::spatial_filters::MAX_OFFSET)
+            })
+        };
         let valid = match self {
             Self::Offset { offset } => bounded(*offset),
-            Self::Mosaic { size } => (1..=128).contains(size),
+            Self::Mosaic { size } => {
+                (1..=crate::limits::spatial_filters::MAX_MOSAIC_SIZE).contains(size)
+            }
             Self::Displace { map, amount } => {
                 if map.sampling.advanced() {
                     return Err(Error::new(

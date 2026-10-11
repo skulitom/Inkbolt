@@ -1,4 +1,5 @@
 //! Original bounded, editable viewport filters over premultiplied encoded-sRGB buffers.
+use crate::limits::filters as bounds;
 use crate::{Error, model::*};
 pub(crate) mod transport;
 use schemars::JsonSchema;
@@ -15,7 +16,7 @@ fn one() -> f64 {
     1.0
 }
 fn samples() -> u32 {
-    33
+    bounds::DEFAULT_TRAJECTORY_SAMPLES
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
@@ -90,16 +91,21 @@ impl Operator {
             Self::Creative { ref operator } => return operator.validate(world),
             Self::Detail { ref operator } => return operator.validate(),
             Self::Spatial { ref operator } => return operator.validate(world),
-            Self::Box { radius } => radius <= 32,
-            Self::Gaussian { sigma } => range(sigma, 0.0, 16.0),
+            Self::Box { radius } => radius <= bounds::MAX_BOX_RADIUS,
+            Self::Gaussian { sigma } => range(sigma, 0.0, f64::from(bounds::MAX_GAUSSIAN_SIGMA)),
             Self::Directional {
                 length,
                 angle,
                 samples,
             } => {
-                range(length, 0.0, 64.0)
-                    && range(angle, -360000.0, 360000.0)
-                    && (3..=129).contains(&samples)
+                range(length, 0.0, f64::from(bounds::MAX_DIRECTIONAL_LENGTH))
+                    && range(
+                        angle,
+                        -f64::from(bounds::MAX_ANGLE_DEGREES),
+                        f64::from(bounds::MAX_ANGLE_DEGREES),
+                    )
+                    && (bounds::MIN_TRAJECTORY_SAMPLES..=bounds::MAX_TRAJECTORY_SAMPLES)
+                        .contains(&samples)
                     && samples % 2 == 1
             }
             Self::Radial {
@@ -111,12 +117,19 @@ impl Operator {
                 center
                     .iter()
                     .all(|v| range(*v, -MAX_COORDINATE, MAX_COORDINATE))
-                    && range(angle, -180.0, 180.0)
+                    && range(
+                        angle,
+                        -f64::from(bounds::MAX_RADIAL_ANGLE),
+                        f64::from(bounds::MAX_RADIAL_ANGLE),
+                    )
                     && range(zoom, -1.0, 1.0)
-                    && (3..=129).contains(&samples)
+                    && (bounds::MIN_TRAJECTORY_SAMPLES..=bounds::MAX_TRAJECTORY_SAMPLES)
+                        .contains(&samples)
                     && samples % 2 == 1
             }
-            Self::Surface { radius, threshold } => radius <= 16 && range(threshold, 0.0, 1.0),
+            Self::Surface { radius, threshold } => {
+                radius <= bounds::MAX_SURFACE_RADIUS && range(threshold, 0.0, 1.0)
+            }
         };
         if valid {
             Ok(())
@@ -178,7 +191,7 @@ pub(crate) fn scratch(item: &Item, scale: u32) -> u64 {
 }
 pub fn validate(item: &Item, world: Matrix) -> Result<usize, Error> {
     if item.filters.len() > MAX_STACK {
-        return Err(limit("Item exceeds 8 filters"));
+        return Err(limit(&format!("Item exceeds {MAX_STACK} filters")));
     }
     if !item.filters.is_empty()
         && matches!(

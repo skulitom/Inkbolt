@@ -1,6 +1,12 @@
 # Editable viewport filters
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+Kernel radii, trajectory lengths/angles/counts, sharpening and spatial bounds
+share catalog definitions with validation and `capabilities.filters`.
+Discovery also reports the default trajectory count and displacement-map axis
+range. Unsharp and high-pass use the shared Gaussian sigma limit; normalized
+thresholds and the odd trajectory-count requirement remain operator semantics.
+The existing numeric ranges and rendering algorithms are unchanged.
 
 Items carry an optional `filters` array in first-to-last evaluation order. Each filter has a stable item-local `id`, an `operator`, `enabled` (default true), `opacity` (default 1), `blend` (one of the 26 modes in [BLENDING.md](BLENDING.md); default normal), `border` (default transparent) and an optional grayscale `mask`. The `filters` edit operation atomically replaces the complete array, allowing settings changes, reordering, insertion and removal through the same CLI/library/MCP contract. An empty array removes the effects. Snapshots, duplication, semantic comparisons and durable session history retain all settings and original source content.
 

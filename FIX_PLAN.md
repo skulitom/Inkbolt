@@ -182,6 +182,14 @@ Boolean discovery now exposes the existing tolerance range/default; numeric
 behavior, topology requirements and refusal codes remain unchanged. The remaining
 inline audit and fresh thorough W0 acceptance are still required.
 
+Viewport blur, detail, spatial and creative filter bounds now share catalog
+definitions with validation and capability reporting. Discovery includes the
+existing trajectory angles/default count, displacement-map axes and creative
+parameter ranges. Shared Gaussian kernels use one sigma policy; distinct
+neighborhood and strength budgets remain independent. Boundary fixtures use
+advertised values, alongside the existing independent image-result checks.
+This does not change numeric admission or complete the remaining W0 audit.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

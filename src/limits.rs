@@ -203,12 +203,58 @@ pub mod effects {
 
 /// Limits for `src/filters.rs`.
 pub mod filters {
+    /// Maximum document-space box-kernel radius.
+    pub const MAX_BOX_RADIUS: u32 = 32;
+    /// Maximum sigma for the shared Gaussian blur, unsharp and high-pass kernel.
+    pub const MAX_GAUSSIAN_SIGMA: u32 = 16;
+    /// Maximum document-space directional trajectory length.
+    pub const MAX_DIRECTIONAL_LENGTH: u32 = 64;
+    /// Maximum absolute freely rotating directional or creative angle in degrees.
+    pub const MAX_ANGLE_DEGREES: u32 = 360_000;
+    /// Maximum absolute radial trajectory angle in degrees.
+    pub const MAX_RADIAL_ANGLE: u32 = 180;
+    /// Minimum trajectory samples, with a separate odd-count requirement.
+    pub const MIN_TRAJECTORY_SAMPLES: u32 = 3;
+    /// Maximum trajectory samples, with a separate odd-count requirement.
+    pub const MAX_TRAJECTORY_SAMPLES: u32 = 129;
+    /// Default directional and radial trajectory sample count.
+    pub const DEFAULT_TRAJECTORY_SAMPLES: u32 = 33;
+    /// Maximum document-space surface-filter radius.
+    pub const MAX_SURFACE_RADIUS: u32 = 16;
     /// Max stack (filters).
     pub const MAX_STACK: usize = 8;
     /// Max document filters (filters).
     pub const MAX_DOCUMENT_FILTERS: usize = 64;
     /// Max work (filters).
     pub const MAX_WORK: u64 = 67_108_864;
+}
+
+/// Admission limits for detail-filter kernels.
+pub mod detail_filters {
+    /// Maximum strength for the shared sharpen and unsharp calculation.
+    pub const MAX_SHARPEN_AMOUNT: u32 = 8;
+    /// Maximum square median-neighborhood radius.
+    pub const MAX_MEDIAN_RADIUS: u32 = 8;
+}
+
+/// Admission limits for creative-filter kernels.
+pub mod creative_filters {
+    /// Minimum nondegenerate local twist radius.
+    pub const MIN_TWIST_RADIUS: f64 = 0.0001;
+    /// Maximum opposing relief sample displacement in document units.
+    pub const MAX_RELIEF_DISTANCE: u32 = 32;
+    /// Maximum relief contrast strength.
+    pub const MAX_RELIEF_STRENGTH: u32 = 8;
+    /// Maximum square extrema-neighborhood radius.
+    pub const MAX_EXTREMA_RADIUS: u32 = 8;
+    /// Maximum line-neighborhood radius for stroke-rank sampling.
+    pub const MAX_STROKE_RADIUS: u32 = 8;
+    /// Maximum edge-ink strength, independent of relief contrast.
+    pub const MAX_EDGE_STRENGTH: u32 = 8;
+    /// Maximum item-local value-field cell size.
+    pub const MAX_CELL_SIZE: u32 = 4096;
+    /// Maximum value-field octave count.
+    pub const MAX_OCTAVES: u32 = 4;
 }
 
 /// Limits for `src/fonts.rs`.
@@ -1127,6 +1173,10 @@ pub mod simplify {
 
 /// Limits for `src/spatial_filters.rs`.
 pub mod spatial_filters {
+    /// Maximum absolute document-space offset or displacement amplitude.
+    pub const MAX_OFFSET: u32 = 256;
+    /// Maximum mosaic block size in document units.
+    pub const MAX_MOSAIC_SIZE: u32 = 128;
     /// Maximum dimension of a displacement field, independent of its total-vector budget.
     pub const MAX_MAP_AXIS: u32 = 256;
     /// Max map pixels (spatial filters).

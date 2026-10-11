@@ -658,7 +658,10 @@ pub fn validate_controlled(
         .sum::<usize>()
         > crate::filters::MAX_DOCUMENT_FILTERS
     {
-        return Err(limit("Document exceeds 64 filters"));
+        return Err(limit(&format!(
+            "Document exceeds {} filters",
+            crate::filters::MAX_DOCUMENT_FILTERS
+        )));
     }
     let worlds = scene::world_transforms(document, control)?;
     for (i, item) in document.items.iter().enumerate() {

@@ -13,6 +13,31 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
+    'filters/median_radius/1': 'detail_filters.MAX_MEDIAN_RADIUS',
+    'filters/sharpen_amount/1': 'detail_filters.MAX_SHARPEN_AMOUNT',
+    'filters/spatial_offset/1': 'spatial_filters.MAX_OFFSET',
+    'filters/mosaic_size/1': 'spatial_filters.MAX_MOSAIC_SIZE',
+    'filters/displacement_map_dimension/1': 'spatial_filters.MAX_MAP_AXIS',
+    'filters/box_radius/1': 'filters.MAX_BOX_RADIUS',
+    'filters/gaussian_sigma/1': 'filters.MAX_GAUSSIAN_SIGMA',
+    'filters/surface_radius/1': 'filters.MAX_SURFACE_RADIUS',
+    'filters/directional_length/1': 'filters.MAX_DIRECTIONAL_LENGTH',
+    'filters/directional_angle_degrees/1': 'filters.MAX_ANGLE_DEGREES',
+    'filters/radial_angle_degrees/1': 'filters.MAX_RADIAL_ANGLE',
+    'filters/trajectory_samples_odd/0': 'filters.MIN_TRAJECTORY_SAMPLES',
+    'filters/trajectory_samples_odd/1': 'filters.MAX_TRAJECTORY_SAMPLES',
+    'filters/trajectory_samples_default': 'filters.DEFAULT_TRAJECTORY_SAMPLES',
+    'filters/creative_limits/angle_degrees/1': 'filters.MAX_ANGLE_DEGREES',
+    'filters/creative_limits/twist_radius/0': 'creative_filters.MIN_TWIST_RADIUS',
+    'filters/creative_limits/twist_radius/1': 'model.MAX_COORDINATE',
+    'filters/creative_limits/relief_distance/1': 'creative_filters.MAX_RELIEF_DISTANCE',
+    'filters/creative_limits/relief_strength/1': 'creative_filters.MAX_RELIEF_STRENGTH',
+    'filters/creative_limits/high_pass_sigma/1': 'filters.MAX_GAUSSIAN_SIGMA',
+    'filters/creative_limits/extrema_radius/1': 'creative_filters.MAX_EXTREMA_RADIUS',
+    'filters/creative_limits/stroke_rank_radius/1': 'creative_filters.MAX_STROKE_RADIUS',
+    'filters/creative_limits/edge_ink_strength/1': 'creative_filters.MAX_EDGE_STRENGTH',
+    'filters/creative_limits/value_cell_size/1': 'creative_filters.MAX_CELL_SIZE',
+    'filters/creative_limits/value_octaves/1': 'creative_filters.MAX_OCTAVES',
     'booleans/curve_tolerance/1': 'booleans.MAX_CURVE_TOLERANCE',
     'booleans/default_curve_tolerance': 'booleans.DEFAULT_CURVE_TOLERANCE',
     'warps/perspective_weights/1': 'warps.MAX_PERSPECTIVE_WEIGHT',
@@ -387,6 +412,35 @@ class ResourceLimitTests(unittest.TestCase):
         self.assertEqual(numeric_fields(capabilities()['limits'], 'limits')
                          - {'limits/render_scale/0'},
                          {p for p in BINDINGS if p.startswith('limits/')})
+
+        # Format depth, normalized endpoints and symmetric angle/offset bounds
+        # have fixed semantics; every other numeric filter budget is bound.
+        filters = capabilities()['filters']
+        fixed = {'filters/input_depth': 8, 'filters/mosaic_size/0': 1,
+                 'filters/displacement_map_dimension/0': 1,
+                 'filters/creative_limits/value_cell_size/0': 1,
+                 'filters/creative_limits/value_octaves/0': 1}
+        zero = ('median_radius', 'sharpen_amount', 'box_radius', 'gaussian_sigma',
+                'surface_radius', 'directional_length',
+                'creative_limits/relief_distance', 'creative_limits/relief_strength',
+                'creative_limits/high_pass_sigma', 'creative_limits/extrema_radius',
+                'creative_limits/stroke_rank_radius', 'creative_limits/edge_ink_strength')
+        fixed.update({'filters/'+key+'/0': 0 for key in zero})
+        symmetric = ('spatial_offset', 'directional_angle_degrees', 'radial_angle_degrees',
+                     'creative_limits/angle_degrees')
+        for path, expected in fixed.items():
+            value = capabilities()
+            for part in path.split('/'):
+                value = value[int(part)] if isinstance(value, list) else value[part]
+            self.assertEqual(value, expected)
+        for key in symmetric:
+            bounds = filters
+            for part in key.split('/'):
+                bounds = bounds[part]
+            self.assertEqual(bounds[0], -bounds[1])
+        self.assertEqual(numeric_fields(filters, 'filters') - fixed.keys()
+                         - {'filters/'+key+'/0' for key in symmetric},
+                         {p for p in BINDINGS if p.startswith('filters/')})
 
         # Symmetric coordinates and normalized zero/endpoint semantics are
         # checked separately; every other advertised stroke/brush bound is bound.
