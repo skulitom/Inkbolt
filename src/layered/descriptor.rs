@@ -1,5 +1,6 @@
 //! Bounded original reader for the public typed descriptor framing.
 use super::{binary::Reader, *};
+use crate::limits::layered_descriptor as bounds;
 use std::collections::BTreeMap;
 
 pub(super) struct Descriptor {
@@ -75,8 +76,11 @@ impl Datum {
 }
 fn identifier(input: &mut Reader<'_>) -> Result<String, Error> {
     let count = input.word()? as usize;
-    if count > 128 {
-        return Err(limit("Descriptor identifier exceeds 128 bytes"));
+    if count > bounds::MAX_IDENTIFIER_BYTES {
+        return Err(limit(&format!(
+            "Descriptor identifier exceeds {} bytes",
+            bounds::MAX_IDENTIFIER_BYTES
+        )));
     }
     let bytes = input.take(if count == 0 { 4 } else { count })?;
     if bytes.iter().any(|b| !(32..=126).contains(b)) {
@@ -101,21 +105,28 @@ impl Budget<'_> {
     fn charge(&mut self, depth: usize) -> Result<(), Error> {
         self.control.check()?;
         self.nodes += 1;
-        if depth > 8 || self.nodes > 512 {
-            return Err(limit("Descriptor exceeds depth 8 or 512 values"));
+        if depth > bounds::MAX_DEPTH || self.nodes > bounds::MAX_NODES {
+            return Err(limit(&format!(
+                "Descriptor exceeds depth {} or {} values",
+                bounds::MAX_DEPTH,
+                bounds::MAX_NODES
+            )));
         }
         Ok(())
     }
     fn count(input: &mut Reader<'_>) -> Result<usize, Error> {
         let count = input.word()? as usize;
-        if count > 128 {
-            return Err(limit("Descriptor container exceeds 128 entries"));
+        if count > bounds::MAX_CONTAINER {
+            return Err(limit(&format!(
+                "Descriptor container exceeds {} entries",
+                bounds::MAX_CONTAINER
+            )));
         }
         Ok(count)
     }
     fn object(&mut self, input: &mut Reader<'_>, depth: usize) -> Result<Descriptor, Error> {
         self.charge(depth)?;
-        text(input, 1024)?;
+        text(input, bounds::MAX_TEXT_UNITS)?;
         let class = identifier(input)?;
         let count = Self::count(input)?;
         let mut fields = BTreeMap::new();
@@ -155,8 +166,11 @@ impl Budget<'_> {
             b"TEXT" => Datum::Text(text(input, self.text_units)?),
             b"tdta" => {
                 let count = input.word()? as usize;
-                if count > 65536 {
-                    return Err(limit("Raw descriptor data exceeds 64 KiB"));
+                if count > bounds::MAX_BYTES {
+                    return Err(limit(&format!(
+                        "Raw descriptor data exceeds {} KiB",
+                        bounds::MAX_BYTES / 1024
+                    )));
                 }
                 Datum::Raw(input.take(count)?.to_vec())
             }
@@ -175,21 +189,24 @@ impl Budget<'_> {
     }
 }
 pub(super) fn versioned(input: &mut Reader<'_>, control: &Control) -> Result<Descriptor, Error> {
-    with_text_limit(input, control, 1024)
+    with_text_limit(input, control, bounds::MAX_TEXT_UNITS)
 }
 pub(super) fn text_versioned(
     input: &mut Reader<'_>,
     control: &Control,
 ) -> Result<Descriptor, Error> {
-    with_text_limit(input, control, 8193)
+    with_text_limit(input, control, crate::limits::layered_text::MAX_UTF16_UNITS)
 }
 fn with_text_limit(
     input: &mut Reader<'_>,
     control: &Control,
     text_units: usize,
 ) -> Result<Descriptor, Error> {
-    if input.left() > 65536 {
-        return Err(limit("Descriptor record exceeds 64 KiB"));
+    if input.left() > bounds::MAX_BYTES {
+        return Err(limit(&format!(
+            "Descriptor record exceeds {} KiB",
+            bounds::MAX_BYTES / 1024
+        )));
     }
     if input.word()? != 16 {
         return Err(unsupported("Unknown descriptor version"));
@@ -204,7 +221,7 @@ fn with_text_limit(
 
 pub(super) fn prefix(input: &mut Reader<'_>, control: &Control) -> Result<Descriptor, Error> {
     let bytes = &input.data[input.at..];
-    let mut bounded = Reader::new(&bytes[..bytes.len().min(65536)]);
+    let mut bounded = Reader::new(&bytes[..bytes.len().min(bounds::MAX_BYTES)]);
     let result = versioned(&mut bounded, control)?;
     input.take(bounded.at)?;
     Ok(result)

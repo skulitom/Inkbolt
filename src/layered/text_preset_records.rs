@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 pub(super) use crate::limits::layered_text_preset_records::MAX_NAME_BYTES;
 pub(super) use crate::limits::layered_text_preset_records::MAX_RECORDS;
 use crate::limits::layered_text_preset_records::MAX_REPORTED;
-const PREVIEW_CHARACTERS: usize = 16;
+use crate::limits::layered_text_preset_records::PREVIEW_CHARACTERS;
 
 #[derive(Default)]
 pub(super) struct Records(BTreeMap<(&'static str, usize), String>);
@@ -24,7 +24,9 @@ impl Records {
         let index = value.unsigned()?;
         let entries = global.field("0")?.field(table)?.field("0")?.array()?;
         if entries.len() > MAX_RECORDS {
-            return Err(limit("Paragraph preset table exceeds 256 records"));
+            return Err(limit(&format!(
+                "Paragraph preset table exceeds {MAX_RECORDS} records"
+            )));
         }
         // The reference addresses record slots directly. Auxiliary ordering
         // arrays neither remap this index nor supply missing records.
@@ -35,7 +37,9 @@ impl Records {
             .field("0")?
             .text()?;
         if name.len() > MAX_NAME_BYTES {
-            return Err(limit("Paragraph preset name exceeds 128 UTF-8 bytes"));
+            return Err(limit(&format!(
+                "Paragraph preset name exceeds {MAX_NAME_BYTES} UTF-8 bytes"
+            )));
         }
         self.0.insert((control, index), name.to_owned());
         Ok(json!({"index":index,"name":name}))

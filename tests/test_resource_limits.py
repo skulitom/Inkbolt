@@ -10,8 +10,8 @@ sys.path.insert(0, str(ROOT/'tools'))
 import update_limits
 
 
-# These paths cover the document, native-raster, delivery and job budgets wired
-# in the first W0 consolidation. Remaining inline policies are still an open audit.
+# These paths cover document, raster, delivery, jobs and layered-parser budgets.
+# Remaining inline policies outside these modules are still an open W0 audit.
 BINDINGS = {
     'limits/request_bytes': 'request.MAX_REQUEST_BYTES',
     'limits/document_bytes': 'model.MAX_DOCUMENT_BYTES',
@@ -61,6 +61,17 @@ BINDINGS = {
     'render_quality/evaluation/tiled_filters/mapping_limits/radial_samples': 'render_filter_regions.MAX_REFERENCES',
     'layered_interchange/dimensions_by_version/standard': 'layered.MAX_STANDARD_DIMENSION',
     'layered_interchange/dimensions_by_version/large': 'model.MAX_DIMENSION',
+    'layered_interchange/canvas_pixels': 'layered.MAX_CANVAS_PIXELS',
+    'layered_interchange/file_bytes': 'layered.MAX_FILE_BYTES',
+    'layered_interchange/maximum_layers': 'model.MAX_ITEMS',
+    'layered_interchange/stored_pixels': 'model.MAX_STORED_PIXELS',
+    'layered_interchange/embedded_objects/limits/nesting': 'objects.MAX_NESTING',
+    'layered_interchange/embedded_objects/limits/decoded_sample_bytes': 'layered.MAX_DECODED_BYTES',
+    'layered_interchange/embedded_objects/limits/source_snapshot_bytes': 'model.MAX_DOCUMENT_BYTES',
+    'layered_interchange/embedded_objects/limits/aggregate_snapshot_allocation_bytes': 'layered.MAX_DECODED_BYTES',
+    'layered_interchange/text_delivery/limits/characters': 'text.MAX_TEXT_CHARS',
+    'layered_interchange/text_delivery/limits/font_faces_across_nested_sources': 'fonts.MAX_FONTS',
+    'layered_interchange/text_diagnostics/font_bindings/maximum_faces': 'fonts.MAX_FONTS',
     'pixel_brushes/maximum_window_pixels': 'sample_store.MAX_REGION_PIXELS',
     'pixel_brushes/maximum_processing_memory_bytes': 'pixel_brush.MAX_MEMORY_BYTES',
     'pixel_assistance/maximum_pixels': 'assistance_segment.MAX_PIXELS',
@@ -78,6 +89,47 @@ BINDINGS = {
     'jobs/maximum_database_bytes': 'jobs_store.DATABASE_BYTES',
     'jobs/maximum_wait_ms': 'jobs.MAX_WAIT_MS',
     'jobs/cancel_grace_ms': 'jobs.CANCEL_GRACE_MS',
+    'layered_interchange/descriptor_limits/bytes': 'layered_descriptor.MAX_BYTES',
+    'layered_interchange/descriptor_limits/depth': 'layered_descriptor.MAX_DEPTH',
+    'layered_interchange/descriptor_limits/values': 'layered_descriptor.MAX_NODES',
+    'layered_interchange/descriptor_limits/container_entries': 'layered_descriptor.MAX_CONTAINER',
+    'layered_interchange/groups/ancestor_levels': 'scene.MAX_DEPTH',
+    'layered_interchange/groups/serialized_records': 'layered.MAX_SERIALIZED_RECORDS',
+    'layered_interchange/embedded_objects/limits/decoded_items': 'layered.MAX_DECODED_ITEMS',
+    'layered_interchange/text_diagnostics/limits/record_bytes': 'layered_text.MAX_RECORD_BYTES',
+    'layered_interchange/text_diagnostics/limits/data_values': 'layered_text_data.MAX_NODES',
+    'layered_interchange/text_diagnostics/limits/data_depth': 'layered_text_data.MAX_DEPTH',
+    'layered_interchange/text_diagnostics/limits/container_entries': 'layered_text_data.MAX_CONTAINER',
+    'layered_interchange/text_diagnostics/limits/string_bytes': 'layered_text_data.MAX_STRING_BYTES',
+    'layered_interchange/text_diagnostics/limits/runs': 'layered_text.MAX_RUNS',
+    'layered_interchange/text_diagnostics/limits/referenced_fonts': 'fonts.MAX_FONTS',
+    'layered_interchange/text_diagnostics/global_story/limits/data_bytes': 'layered_text_data.MAX_GLOBAL_BYTES',
+    'layered_interchange/text_diagnostics/global_story/limits/data_values': 'layered_text_data.MAX_GLOBAL_NODES',
+    'layered_interchange/text_diagnostics/global_story/limits/data_depth': 'layered_text_data.MAX_GLOBAL_DEPTH',
+    'layered_interchange/text_diagnostics/global_story/limits/container_entries': 'layered_text_data.MAX_GLOBAL_CONTAINER',
+    'layered_interchange/text_diagnostics/global_story/limits/tagged_records': 'layered_text.MAX_TAGGED_RECORDS',
+    'layered_interchange/text_diagnostics/global_story/limits/stories': 'model.MAX_ITEMS',
+    'layered_interchange/text_diagnostics/global_story/limits/characters': 'text.MAX_TEXT_CHARS',
+    'layered_interchange/text_diagnostics/global_story/limits/runs': 'layered_text.MAX_RUNS',
+    'layered_interchange/text_diagnostics/global_story/limits/referenced_fonts': 'fonts.MAX_FONTS',
+    'layered_interchange/text_diagnostics/global_story/frame/frame_resources': 'model.MAX_ITEMS',
+    'layered_interchange/text_diagnostics/global_story/frame/coordinate_bound': 'model.MAX_COORDINATE',
+    'layered_interchange/text_diagnostics/character_controls/source_dash_values': 'layered_text.MAX_DASH_VALUES',
+    'layered_interchange/text_diagnostics/character_controls/unmapped_fields_reported': 'layered_text.MAX_UNMAPPED_FIELDS',
+    'layered_interchange/text_diagnostics/paragraph_controls/preset_table_records': 'layered_text_preset_records.MAX_RECORDS',
+    'layered_interchange/text_diagnostics/paragraph_controls/preset_name_utf8_bytes': 'layered_text_preset_records.MAX_NAME_BYTES',
+    'layered_interchange/text_diagnostics/paragraph_controls/reported_preset_records': 'layered_text_preset_records.MAX_REPORTED',
+    'layered_interchange/text_diagnostics/paragraph_controls/preset_name_preview_characters': 'layered_text_preset_records.PREVIEW_CHARACTERS',
+    'layered_interchange/text_diagnostics/paragraph_controls/unmapped_fields_reported': 'layered_text.MAX_UNMAPPED_FIELDS',
+    'layered_interchange/text_import/inheritance/max_reference_depth': 'layered_text.MAX_REFERENCE_DEPTH',
+    'layered_interchange/text_import/inheritance/max_resolved_character_runs': 'layered_text.MAX_RUNS',
+    'layered_interchange/text_import/inheritance/max_property_references': 'layered_text.MAX_PROPERTY_REFERENCES',
+    'layered_interchange/text_import/source_fonts/table_records': 'layered_text_font_records.MAX_RECORDS',
+    'layered_interchange/text_import/source_fonts/selected_records': 'layered_text_font_records.MAX_SELECTED',
+    'layered_interchange/text_import/source_fonts/version_utf8_bytes': 'layered_text_font_records.MAX_VERSION_BYTES',
+    'layered_interchange/text_delivery/limits/runs': 'layered_text.MAX_RUNS',
+    'layered_interchange/text_delivery/limits/paragraphs': 'layered_text.MAX_RUNS',
+    'layered_interchange/text_delivery/limits/text_record_bytes': 'layered_text.MAX_RECORD_BYTES',
 }
 
 
@@ -94,6 +146,29 @@ class ResourceLimitTests(unittest.TestCase):
                 for part in path.split('/'):
                     value = value[int(part)] if isinstance(value, list) else value[part]
                 self.assertEqual(value, values[key])
+
+        def numeric_fields(value, path):
+            if isinstance(value, dict):
+                return set().union(*(numeric_fields(v, path+'/'+k) for k, v in value.items()))
+            if isinstance(value, list):
+                return set().union(*(numeric_fields(v, path+'/'+str(i)) for i, v in enumerate(value)))
+            return {path} if type(value) in (int, float) else set()
+
+        prefix = 'layered_interchange'
+        reported = numeric_fields(capabilities()[prefix], prefix)
+        # Version/code enumerations and the single selected frame are format
+        # semantics, not tunable allocation or traversal ceilings.
+        semantics = {
+            'file_version', 'additional_file_versions/0',
+            'embedded_objects/export_source_record_version',
+            *(f'embedded_objects/source_record_versions/{i}' for i in range(8)),
+            'text_diagnostics/global_story/versions/0',
+            'text_diagnostics/global_story/frame/selected_frames',
+            'text_import/source_fonts/technology_codes/0',
+            'text_import/source_fonts/technology_codes/1',
+        }
+        self.assertEqual(reported - {prefix+'/'+p for p in semantics},
+                         {p for p in BINDINGS if p.startswith(prefix+'/')})
 
     def test_named_limit_definitions_stay_in_the_catalog(self):
         pattern = re.compile(r'\bconst\s+(?:MAX|MIN)_[A-Z_]+\s*:\s*(?:usize|u64|u32|i64|f64)\s*=')

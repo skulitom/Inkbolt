@@ -1,4 +1,5 @@
 """Original folder grammar, independent records, pixels and durable workflows."""
+from advertised_limits import capabilities
 import base64,copy,hashlib,tempfile,unittest
 from pathlib import Path
 import layered_fixtures as f
@@ -62,15 +63,19 @@ class GroupLayeredTests(unittest.TestCase):
             self.assertEqual(self.read(f.make([marker(3),folder]),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
         bad=marker(1,channel_data=[b'\0\0x']*4);self.assertEqual(self.read(f.make([marker(3),bad]),1,color_policy='assume_srgb')['code'],'INVALID_LAYERED_FILE')
     def test_folder_record_budget_is_separate_from_editable_items_and_depth(self):
-        records=[r for i in range(256) for r in [marker(3,id=0),marker(1,str(i),id=i+1)]]
-        r=self.read(f.make(records),color_policy='assume_srgb');self.assertEqual((r['layers'],r['serialized_records']),(256,512))
+        cap = capabilities()['layered_interchange']
+        maximum = cap['maximum_layers']
+        records=[r for i in range(maximum) for r in [marker(3,id=0),marker(1,str(i),id=i+1)]]
+        r=self.read(f.make(records),color_policy='assume_srgb');self.assertEqual((r['layers'],r['serialized_records']),(maximum,cap['groups']['serialized_records']))
         self.assertEqual(self.read(f.make(records+[pixel(id=5000)]),1,color_policy='assume_srgb')['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.read(f.make([pixel(id=i+1) for i in range(257)]),1,color_policy='assume_srgb')['code'],'RESOURCE_LIMIT')
-        for depth,wanted in [(16,0),(17,1)]:
+        self.assertEqual(self.read(f.make([pixel(id=i+1) for i in range(maximum+1)]),1,color_policy='assume_srgb')['code'],'RESOURCE_LIMIT')
+        maximum_depth = cap['groups']['ancestor_levels']
+        for depth,wanted in [(maximum_depth,0),(maximum_depth+1,1)]:
             records=[marker(3) for _ in range(depth)]+[pixel()]+[marker(1,str(i)) for i in range(depth)]
             r=self.read(f.make(records),wanted,color_policy='assume_srgb')
             if wanted:self.assertEqual(r['code'],'RESOURCE_LIMIT')
         self.assertEqual(self.read(f.make([marker(3,id=9),pixel(id=1),marker(1,id=1)]),1,color_policy='assume_srgb')['code'],'INVALID_LAYERED_FILE')
+
     def test_folder_opacity_visibility_and_transform_losses_are_explicit(self):
         d=self.scene()
         for visible in [True,False]:

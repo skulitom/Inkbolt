@@ -115,18 +115,49 @@ capability literals and diagnostic messages remains in progress.
 | `jobs_store.DATABASE_BYTES` | `u64` | 536870912 | `512 * 1024 * 1024` |
 | `layered.MAX_CANVAS_PIXELS` | `usize` | 1048576 | `1_048_576` |
 | `layered.MAX_DECODED_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
+| `layered.MAX_DECODED_ITEMS` | `usize` | 1024 | `1024` |
 | `layered.MAX_FILE_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
+| `layered.MAX_LINK_ID_BYTES` | `usize` | 128 | `128` |
+| `layered.MAX_METADATA_RECORDS` | `u32` | 16 | `16` |
+| `layered.MAX_NAME_UNITS` | `usize` | 1024 | `1024` |
+| `layered.MAX_SERIALIZED_RECORDS` | `usize` | 512 | `super::model::MAX_ITEMS * 2` |
 | `layered.MAX_STANDARD_DIMENSION` | `u32` | 30000 | `30_000` |
+| `layered.MAX_TEXT_CACHE_COORDINATE` | `f64` | 32767.0 | `super::model::MAX_COORDINATE - 1.0` |
+| `layered_descriptor.MAX_BYTES` | `usize` | 65536 | `64 * 1024` |
+| `layered_descriptor.MAX_CONTAINER` | `usize` | 128 | `128` |
+| `layered_descriptor.MAX_DEPTH` | `usize` | 8 | `8` |
+| `layered_descriptor.MAX_IDENTIFIER_BYTES` | `usize` | 128 | `128` |
+| `layered_descriptor.MAX_NODES` | `usize` | 512 | `512` |
+| `layered_descriptor.MAX_TEXT_UNITS` | `usize` | 1024 | `1024` |
+| `layered_text.MAX_BRIEF_FIELDS` | `usize` | 8 | `8` |
+| `layered_text.MAX_DASH_VALUES` | `usize` | 32 | `32` |
+| `layered_text.MAX_FACE_NAME_BYTES` | `usize` | 128 | `128` |
+| `layered_text.MAX_PROPERTY_REFERENCES` | `usize` | 8192 | `8192` |
+| `layered_text.MAX_RECORD_BYTES` | `usize` | 65536 | `64 * 1024` |
+| `layered_text.MAX_REFERENCE_DEPTH` | `usize` | 2 | `2` |
+| `layered_text.MAX_RUNS` | `usize` | 65 | `65` |
+| `layered_text.MAX_SHAPE_OWNER_BYTES` | `usize` | 128 | `128` |
+| `layered_text.MAX_SHAPE_OWNER_LABELS` | `usize` | 8 | `8` |
+| `layered_text.MAX_TAGGED_RECORDS` | `usize` | 512 | `512` |
+| `layered_text.MAX_UNMAPPED_FIELDS` | `usize` | 16 | `16` |
+| `layered_text.MAX_UTF16_UNITS` | `usize` | 8193 | `2 * super::text::MAX_TEXT_CHARS + 1` |
+| `layered_text_data.MAX_BYTES` | `usize` | 65536 | `64 * 1024` |
 | `layered_text_data.MAX_CONTAINER` | `usize` | 512 | `512` |
 | `layered_text_data.MAX_DEPTH` | `usize` | 16 | `16` |
+| `layered_text_data.MAX_GLOBAL_BYTES` | `usize` | 262144 | `256 * 1024` |
+| `layered_text_data.MAX_GLOBAL_CONTAINER` | `usize` | 4096 | `4096` |
+| `layered_text_data.MAX_GLOBAL_DEPTH` | `usize` | 32 | `32` |
+| `layered_text_data.MAX_GLOBAL_NODES` | `usize` | 32768 | `32768` |
 | `layered_text_data.MAX_NODES` | `usize` | 4096 | `4096` |
-| `layered_text_data.MAX_STRING_BYTES` | `usize` | 16388 | `16388` |
+| `layered_text_data.MAX_STRING_BYTES` | `usize` | 16388 | `2 * super::layered_text::MAX_UTF16_UNITS + 2` |
+| `layered_text_data.MAX_TOKEN_BYTES` | `usize` | 128 | `128` |
 | `layered_text_font_records.MAX_RECORDS` | `usize` | 256 | `256` |
 | `layered_text_font_records.MAX_SELECTED` | `usize` | 8 | `8` |
 | `layered_text_font_records.MAX_VERSION_BYTES` | `usize` | 512 | `512` |
 | `layered_text_preset_records.MAX_NAME_BYTES` | `usize` | 128 | `128` |
 | `layered_text_preset_records.MAX_RECORDS` | `usize` | 256 | `256` |
 | `layered_text_preset_records.MAX_REPORTED` | `usize` | 4 | `4` |
+| `layered_text_preset_records.PREVIEW_CHARACTERS` | `usize` | 16 | `16` |
 | `masks.MAX_DOCUMENT_PIXELS` | `u64` | 1048576 | `1_048_576` |
 | `masks.MAX_FEATHER` | `u32` | 32 | `32` |
 | `masks.MAX_FEATHER_WORK` | `u64` | 67108864 | `67_108_864` |

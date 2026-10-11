@@ -1,4 +1,5 @@
 use super::{binary::*, *};
+use crate::limits::layered as bounds;
 use std::collections::BTreeSet;
 
 #[derive(Clone, Copy)]
@@ -53,7 +54,12 @@ fn record(
     ];
     let width = bounds[3] as i64 - bounds[1] as i64;
     let height = bounds[2] as i64 - bounds[0] as i64;
-    if width < 0 || height < 0 || bounds.iter().any(|v| v.unsigned_abs() > 32768) {
+    if width < 0
+        || height < 0
+        || bounds
+            .iter()
+            .any(|v| v.unsigned_abs() > MAX_COORDINATE as u32)
+    {
         return Err(unsupported(
             "Layered pixel records require positive bounded extents",
         ));
@@ -372,7 +378,10 @@ fn hierarchy(records: &[Layer]) -> Result<Vec<Option<String>>, Error> {
             continue;
         }
         if stack.len() > crate::scene::MAX_DEPTH {
-            return Err(limit("Layered hierarchy exceeds 16 ancestor levels"));
+            return Err(limit(&format!(
+                "Layered hierarchy exceeds {} ancestor levels",
+                crate::scene::MAX_DEPTH
+            )));
         }
         parents[index] = stack.last().map(|&parent| records[parent].identity(parent));
         if matches!(record.kind, Kind::Group { .. }) {
@@ -563,10 +572,14 @@ pub(super) fn document(
         return Err(malformed());
     }
     let count = layers.short()? as i16;
-    if count == 0 || count == i16::MIN || count.unsigned_abs() as usize > MAX_ITEMS * 2 {
-        return Err(limit(
-            "Layered input exceeds 512 serialized layer and boundary records",
-        ));
+    if count == 0
+        || count == i16::MIN
+        || count.unsigned_abs() as usize > bounds::MAX_SERIALIZED_RECORDS
+    {
+        return Err(limit(&format!(
+            "Layered input exceeds {} serialized layer and boundary records",
+            bounds::MAX_SERIALIZED_RECORDS
+        )));
     }
     if (channels == 4) != (count < 0) {
         return Err(unsupported(
@@ -606,20 +619,24 @@ pub(super) fn document(
     }
     budget.pixels += total + canvas;
     if budget.pixels > MAX_DECODED_BYTES / 4 {
-        return Err(limit(
-            "Nested layered source, mask and merged cache samples exceed 8 MiB",
-        ));
+        return Err(limit(&format!(
+            "Nested layered source, mask and merged cache samples exceed {} MiB",
+            MAX_DECODED_BYTES / (1024 * 1024)
+        )));
     }
     let parents = hierarchy(&records)?;
     let editable = records.iter().filter(|r| r.kind != Kind::Boundary).count();
     budget.items += editable;
-    if budget.items > 1024 {
-        return Err(limit(
-            "Nested layered documents exceed 1024 decoded editable items",
-        ));
+    if budget.items > bounds::MAX_DECODED_ITEMS {
+        return Err(limit(&format!(
+            "Nested layered documents exceed {} decoded editable items",
+            bounds::MAX_DECODED_ITEMS
+        )));
     }
     if editable > MAX_ITEMS {
-        return Err(limit("Layered input exceeds 256 editable items"));
+        return Err(limit(&format!(
+            "Layered input exceeds {MAX_ITEMS} editable items"
+        )));
     }
     let mut items = Vec::new();
     let mut fonts = std::collections::BTreeMap::new();
@@ -769,7 +786,10 @@ pub(super) fn document(
             serde_json::from_value(imported["document"].clone()).map_err(|_| malformed())?;
         let snapshot = serde_json::to_string(&d).map_err(|_| malformed())?;
         if snapshot.len() > MAX_DOCUMENT_BYTES {
-            return Err(limit("Embedded editable snapshot exceeds 768 KiB"));
+            return Err(limit(&format!(
+                "Embedded editable snapshot exceeds {} KiB",
+                MAX_DOCUMENT_BYTES / 1024
+            )));
         }
         budget.snapshot_bytes += snapshot.len();
         if budget.snapshot_bytes > MAX_DECODED_BYTES {

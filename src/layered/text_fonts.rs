@@ -1,6 +1,7 @@
 //! Explicit chosen font identities. A face name does not identify the source file.
 use super::*;
 use crate::fonts;
+use crate::limits::layered_text as bounds;
 use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
@@ -37,7 +38,9 @@ pub enum TextImportRendering {
 }
 
 fn valid_name(name: &str) -> bool {
-    !name.is_empty() && name.len() <= 128 && name.bytes().all(|b| (33..=126).contains(&b))
+    !name.is_empty()
+        && name.len() <= bounds::MAX_FACE_NAME_BYTES
+        && name.bytes().all(|b| (33..=126).contains(&b))
 }
 
 pub(super) fn face_name(face: &rustybuzz::Face<'_>) -> Result<String, Error> {
@@ -54,9 +57,10 @@ pub(super) fn face_name(face: &rustybuzz::Face<'_>) -> Result<String, Error> {
     }
     let name = names.into_iter().next().unwrap();
     if !valid_name(&name) {
-        return Err(unsupported(
-            "Native font face name must contain 1..128 printable nonspace ASCII bytes",
-        ));
+        return Err(unsupported(&format!(
+            "Native font face name must contain 1..{} printable nonspace ASCII bytes",
+            bounds::MAX_FACE_NAME_BYTES
+        )));
     }
     Ok(name)
 }
@@ -70,9 +74,10 @@ impl TextFonts {
             ));
         }
         if self.bindings.is_empty() || self.bindings.len() > fonts::MAX_FONTS {
-            return Err(limit(
-                "Native text bindings require one to eight explicit font faces",
-            ));
+            return Err(limit(&format!(
+                "Native text bindings require 1..={} explicit font faces",
+                fonts::MAX_FONTS
+            )));
         }
         let mut names = std::collections::BTreeSet::new();
         for binding in &self.bindings {

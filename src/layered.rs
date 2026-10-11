@@ -255,7 +255,10 @@ pub fn decode_with_objects(
     control: &Control,
 ) -> Result<Value, Error> {
     if bytes.len() > MAX_FILE_BYTES {
-        return Err(limit("Layered input exceeds 32 MiB"));
+        return Err(limit(&format!(
+            "Layered input exceeds {} MiB",
+            MAX_FILE_BYTES / (1024 * 1024)
+        )));
     }
     control.check()?;
     read::document(

@@ -1,5 +1,6 @@
 """Structured text diagnostics without opting into editable reconstruction."""
 import hashlib,json,struct,tempfile,unittest
+from advertised_limits import capabilities
 from pathlib import Path
 import layered_text_fixtures as t
 import test_layered_metadata_cli as m
@@ -68,19 +69,26 @@ class LayeredTextTests(unittest.TestCase):
             error=self.load(**kw);self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS');self.assertNotIn('details',error)
 
     def test_limits_reject_before_large_allocations_or_receipts(self):
-        for raw in [b' '*65537,b'<< /X '+b'['*18+b'0'+b']'*18+b' >>',
-                    b'<< /X ['+b'0 '*513+b'] >>',
-                    b'<< '+b' '.join(b'/K'+str(i).encode()+b' 1' for i in range(513))+b' >>',
-                    b'<< /X '+t.data('A'*8194)+b' >>']:
+        cap = capabilities()['layered_interchange']
+        limits = cap['text_diagnostics']['limits']
+        entries = limits['container_entries']
+        depth = limits['data_depth'] + 2
+        for raw in [b' '*(limits['record_bytes']+1),
+                    b'<< /X '+b'['*depth+b'0'+b']'*depth+b' >>',
+                    b'<< /X ['+b'0 '*(entries+1)+b'] >>',
+                    b'<< '+b' '.join(b'/K'+str(i).encode()+b' 1' for i in range(entries+1))+b' >>',
+                    b'<< /X '+t.data('A'*(limits['string_bytes']//2))+b' >>']:
             self.assertEqual(self.load(engine=raw)['code'],'RESOURCE_LIMIT')
-        tree={f'K{i}':[0]*512 for i in range(8)}
+        tree={f'K{i}':[0]*entries for i in range(limits['data_values']//entries)}
         self.assertEqual(self.load(engine=t.data(tree))['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.load(text='A'*4097)['code'],'RESOURCE_LIMIT')
-        p=t.payload('A'*65,lengths=[1]*66)
-        self.assertEqual(self.load(text='A'*65,engine=t.data(p))['code'],'RESOURCE_LIMIT')
-        p=t.payload('A'*8,lengths=[1]*9,font_indices=list(range(9)))
-        p['ResourceDict']['FontSet']=[dict(Name=f'Original-{i}') for i in range(9)]
-        self.assertEqual(self.load(text='A'*8,engine=t.data(p))['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.load(text='A'*(cap['text_delivery']['limits']['characters']+1))['code'],'RESOURCE_LIMIT')
+        runs = limits['runs']
+        p=t.payload('A'*runs,lengths=[1]*(runs+1))
+        self.assertEqual(self.load(text='A'*runs,engine=t.data(p))['code'],'RESOURCE_LIMIT')
+        faces = limits['referenced_fonts']
+        p=t.payload('A'*faces,lengths=[1]*(faces+1),font_indices=list(range(faces+1)))
+        p['ResourceDict']['FontSet']=[dict(Name=f'Original-{i}') for i in range(faces+1)]
+        self.assertEqual(self.load(text='A'*faces,engine=t.data(p))['code'],'RESOURCE_LIMIT')
 
     def test_optional_bounds_descriptors_require_matching_class_and_finite_values(self):
         fields=[(k,b'UntF#Pnt'+struct.pack('>d',v)) for k,v in [('Left',0),('Top ',-3),('Rght',15),('Btom',4)]]

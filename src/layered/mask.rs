@@ -27,7 +27,12 @@ impl Record {
         ];
         let width = bounds[3] as i64 - bounds[1] as i64;
         let height = bounds[2] as i64 - bounds[0] as i64;
-        if width < 0 || height < 0 || bounds.iter().any(|v| v.unsigned_abs() > 32768) {
+        if width < 0
+            || height < 0
+            || bounds
+                .iter()
+                .any(|v| v.unsigned_abs() > MAX_COORDINATE as u32)
+        {
             return Err(unsupported(
                 "Mask bounds exceed the supported coordinate range",
             ));
@@ -111,7 +116,9 @@ pub(super) fn encode_mask(
         ));
     }
     let [a, b, c, d, x, y] = mask.world_transform(world);
-    if !(-32768.0..=32768.0).contains(&x) || !(-32768.0..=32768.0).contains(&y) {
+    if !(-MAX_COORDINATE..=MAX_COORDINATE).contains(&x)
+        || !(-MAX_COORDINATE..=MAX_COORDINATE).contains(&y)
+    {
         return Err(limit("Native mask placement exceeds the coordinate range"));
     }
     if [a, b, c, d] != [1.0, 0.0, 0.0, 1.0] || x.fract() != 0.0 || y.fract() != 0.0 {
@@ -128,7 +135,10 @@ pub(super) fn encode_mask(
         y as i64 + mask.height as i64,
         x as i64 + mask.width as i64,
     ];
-    if bounds.iter().any(|v| !(-32768..=32768).contains(v)) {
+    if bounds
+        .iter()
+        .any(|v| !(-(MAX_COORDINATE as i64)..=MAX_COORDINATE as i64).contains(v))
+    {
         return Err(limit("Native mask bounds exceed the coordinate range"));
     }
     let density = (mask.density * 255.0).round() as u8;

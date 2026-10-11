@@ -94,7 +94,9 @@ pub(super) fn diagnose(global: &Node, story: &Node) -> Result<Value, Error> {
     }
     let frames = global.field("0")?.field("8")?.field("0")?.array()?;
     if frames.len() > MAX_ITEMS {
-        return Err(limit("Global text exceeds 256 frame resources"));
+        return Err(limit(&format!(
+            "Global text exceeds {MAX_ITEMS} frame resources"
+        )));
     }
     let index = refs[0].field("0")?.unsigned()?;
     let shape = frames.get(index).ok_or_else(malformed)?.field("0")?;

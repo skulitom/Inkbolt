@@ -1,6 +1,7 @@
 //! Original bounded parser for dictionary-based text data. Parsing grants no
 //! permission to discard unknown layout semantics or use a cached image.
 use super::*;
+use crate::limits::layered_text_data as bounds;
 use serde_json::Number;
 use std::collections::BTreeMap;
 
@@ -126,7 +127,7 @@ impl Parser<'_> {
         {
             self.at += 1;
         }
-        if start == self.at || self.at - start > 128 {
+        if start == self.at || self.at - start > bounds::MAX_TOKEN_BYTES {
             return Err(malformed());
         }
         Ok(&self.bytes[start..self.at])
@@ -162,7 +163,9 @@ impl Parser<'_> {
                 _ => bytes.push(b),
             }
             if bytes.len() > MAX_STRING_BYTES {
-                return Err(limit("Text-data string exceeds 16388 bytes"));
+                return Err(limit(&format!(
+                    "Text-data string exceeds {MAX_STRING_BYTES} bytes"
+                )));
             }
         }
         if self.global && !bytes.starts_with(&[254, 255]) {
@@ -182,7 +185,11 @@ impl Parser<'_> {
             .map_err(|_| malformed())
     }
     fn container_limit(&self) -> usize {
-        if self.global { 4096 } else { MAX_CONTAINER }
+        if self.global {
+            bounds::MAX_GLOBAL_CONTAINER
+        } else {
+            MAX_CONTAINER
+        }
     }
     fn dictionary(&mut self, depth: usize, implicit: bool) -> Result<Node, Error> {
         let mut fields = BTreeMap::new();
@@ -206,7 +213,7 @@ impl Parser<'_> {
         self.control.check()?;
         self.nodes += 1;
         let (nodes, levels) = if self.global {
-            (32768, 32)
+            (bounds::MAX_GLOBAL_NODES, bounds::MAX_GLOBAL_DEPTH)
         } else {
             (MAX_NODES, MAX_DEPTH)
         };
@@ -260,8 +267,11 @@ impl Parser<'_> {
     }
 }
 pub(super) fn parse(bytes: &[u8], control: &Control) -> Result<Value, Error> {
-    if bytes.len() > 65536 {
-        return Err(limit("Text data exceeds 64 KiB"));
+    if bytes.len() > bounds::MAX_BYTES {
+        return Err(limit(&format!(
+            "Text data exceeds {} KiB",
+            bounds::MAX_BYTES / 1024
+        )));
     }
     let mut parser = Parser {
         bytes,
@@ -279,8 +289,11 @@ pub(super) fn parse(bytes: &[u8], control: &Control) -> Result<Value, Error> {
 }
 
 pub(super) fn parse_global(bytes: &[u8], control: &Control) -> Result<Node, Error> {
-    if bytes.len() > 262144 {
-        return Err(limit("Global text data exceeds 256 KiB"));
+    if bytes.len() > bounds::MAX_GLOBAL_BYTES {
+        return Err(limit(&format!(
+            "Global text data exceeds {} KiB",
+            bounds::MAX_GLOBAL_BYTES / 1024
+        )));
     }
     let mut parser = Parser {
         bytes,

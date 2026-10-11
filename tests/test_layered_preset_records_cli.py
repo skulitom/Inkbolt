@@ -1,4 +1,5 @@
 """Independent preset slots, bounded source names and list control diagnostics."""
+from advertised_limits import capabilities
 import copy,hashlib,json,tempfile,unittest
 from pathlib import Path
 import layered_editable_text_fixtures as p
@@ -48,17 +49,20 @@ class PresetRecordTests(unittest.TestCase):
             self.assertEqual(self.controls(g,local)['preset_records']['selected_count'],0)
 
     def test_table_and_unicode_name_budgets_are_exact(self):
-        g,local=para.inputs();q.preset_tables(g,256);para.gp(g)['36']=255
-        self.assertEqual(self.controls(g,local)['preset_records']['selected'][0]['index'],255)
+        cap = capabilities()['layered_interchange']['text_diagnostics']['paragraph_controls']
+        records, size, preview = cap['preset_table_records'], cap['preset_name_utf8_bytes'], cap['preset_name_preview_characters']
+        g,local=para.inputs();q.preset_tables(g,records);para.gp(g)['36']=records-1
+        self.assertEqual(self.controls(g,local)['preset_records']['selected'][0]['index'],records-1)
         g['0']['9']['0'].append({'0':{'0':'OriginalExtra'}})
         self.assertEqual(self.load(g,local)['code'],'RESOURCE_LIMIT')
-        for name,valid in [('',True),('x'*128,True),('\u00e9'*64,True),('x'*129,False),('\u00e9'*65,False)]:
+        unicode_name = '\u00e9'*(size//2) + 'x'*(size%2)
+        for name,valid in [('',True),('x'*size,True),(unicode_name,True),('x'*(size+1),False),(unicode_name+'x',False)]:
             g,local=para.inputs();q.preset_tables(g);para.gp(g)['27']=0;g['0']['4']['0'][0]['0']['0']=name
             if valid:
                 record=self.controls(g,local)['preset_records']['selected'][0]
                 self.assertEqual(record['name_utf8_bytes'],len(name.encode()))
                 self.assertEqual(record['name_sha256'],hashlib.sha256(name.encode()).hexdigest())
-                self.assertEqual(record['name_preview'],name[:16]);self.assertEqual(record['name_truncated'],len(name)>16)
+                self.assertEqual(record['name_preview'],name[:preview]);self.assertEqual(record['name_truncated'],len(name)>preview)
             else:self.assertEqual(self.load(g,local)['code'],'RESOURCE_LIMIT')
 
     def test_names_bind_full_value_without_normalization_or_definition_claims(self):

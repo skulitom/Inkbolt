@@ -129,6 +129,15 @@ Commit in small logical units, each with its tests, capability report and docs.
 
 ## W0. Limits single source of truth (P0, S)
 
+**Execution update, 11 October 2026.** The central catalog now includes the
+layered descriptor, local/global text parser, style-resolution and diagnostic
+budgets. Import, delivery, error messages and capability limits share those
+definitions. Existing layered boundary fixtures derive their thresholds from
+discovery, and every numeric layered budget has a compiled-constant binding
+check. Protocol versions, source code enumerations and exact format cardinalities
+remain format semantics. The broader inline-limit audit is still open; W0 is
+not complete and its final fresh thorough acceptance remains required.
+
 **Problem.** Ceilings are scattered literals, which makes raising them (W4)
 error-prone.
 

@@ -17,8 +17,11 @@ fn require(ok: bool) -> Result<(), Error> {
 }
 pub(super) fn layer(input: &mut Reader<'_>, control: &Control) -> Result<(), Error> {
     let count = input.word()?;
-    if count > 16 {
-        return Err(limit("Layer metadata exceeds 16 records"));
+    if count > crate::limits::layered::MAX_METADATA_RECORDS {
+        return Err(limit(&format!(
+            "Layer metadata exceeds {} records",
+            crate::limits::layered::MAX_METADATA_RECORDS
+        )));
     }
     let mut keys = BTreeSet::new();
     for _ in 0..count {

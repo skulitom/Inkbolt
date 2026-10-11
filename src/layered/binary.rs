@@ -31,7 +31,10 @@ impl<'a> Reader<'a> {
             self.word()? as u64
         };
         if value > MAX_FILE_BYTES as u64 {
-            return Err(limit("Layered section or channel exceeds 32 MiB"));
+            return Err(limit(&format!(
+                "Layered section or channel exceeds {} MiB",
+                MAX_FILE_BYTES / (1024 * 1024)
+            )));
         }
         usize::try_from(value).map_err(|_| limit("Layered length exceeds address space"))
     }
@@ -66,7 +69,7 @@ impl<'a> Reader<'a> {
         Ok(())
     }
     pub fn unicode(&mut self) -> Result<String, Error> {
-        self.unicode_limit(1024)
+        self.unicode_limit(crate::limits::layered::MAX_NAME_UNITS)
     }
     pub fn unicode_limit(&mut self, maximum: usize) -> Result<String, Error> {
         let n = self.word()? as usize;

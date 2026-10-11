@@ -1,6 +1,7 @@
 //! Original editable text delivery. Font files stay external and compatibility
 //! caches stay separate from text, ranges and authoring geometry.
 use super::{binary::*, object_write as descriptor, *};
+use crate::limits::{layered_text as bounds, layered_text_data as data_bounds};
 use crate::{fonts, text};
 use std::collections::BTreeMap;
 
@@ -14,15 +15,16 @@ pub(super) struct Prepared {
 }
 pub(super) fn policy(options: &TextDelivery) -> Result<(), Error> {
     if options.shape_owner.is_empty()
-        || options.shape_owner.len() > 128
+        || options.shape_owner.len() > bounds::MAX_SHAPE_OWNER_BYTES
         || !options
             .shape_owner
             .bytes()
             .all(|b| b.is_ascii_alphanumeric())
     {
-        return Err(unsupported(
-            "Text delivery requires an explicit geometry-extension owner identifier of 1..128 ASCII letters or digits for the receiving consumer",
-        ));
+        return Err(unsupported(&format!(
+            "Text delivery requires an explicit geometry-extension owner identifier of 1..{} ASCII letters or digits for the receiving consumer",
+            bounds::MAX_SHAPE_OWNER_BYTES
+        )));
     }
     Ok(())
 }
@@ -49,7 +51,7 @@ fn encode(value: &Value, out: &mut Vec<u8>, control: &Control) -> Result<(), Err
             out.extend(b"<< ");
             for (key, value) in fields {
                 if key.is_empty()
-                    || key.len() > 128
+                    || key.len() > data_bounds::MAX_TOKEN_BYTES
                     || !key.bytes().all(|b| b.is_ascii_alphanumeric())
                 {
                     return Err(unsupported("Unsupported text dictionary key"));
@@ -120,17 +122,21 @@ fn encode(value: &Value, out: &mut Vec<u8>, control: &Control) -> Result<(), Err
                     out.extend(b".0");
                 }
             }
-            if out.len() - start > 128 {
-                return Err(unsupported(
-                    "Native text decimal values must fit the bounded 128-byte token grammar",
-                ));
+            if out.len() - start > data_bounds::MAX_TOKEN_BYTES {
+                return Err(unsupported(&format!(
+                    "Native text decimal values must fit the bounded {}-byte token grammar",
+                    data_bounds::MAX_TOKEN_BYTES
+                )));
             }
         }
         Value::Number(n) => out.extend(n.to_string().as_bytes()),
         Value::Null => return Err(malformed()),
     }
-    if out.len() > 65536 {
-        return Err(limit("Native text data exceeds 64 KiB"));
+    if out.len() > data_bounds::MAX_BYTES {
+        return Err(limit(&format!(
+            "Native text data exceeds {} KiB",
+            data_bounds::MAX_BYTES / 1024
+        )));
     }
     Ok(())
 }
@@ -288,16 +294,22 @@ pub(super) fn prepare(
     } else {
         *lengths.last_mut().unwrap() += 1;
     }
-    if runs.len() > 65 {
-        return Err(limit("Native character-style run table exceeds 65 entries"));
+    if runs.len() > bounds::MAX_RUNS {
+        return Err(limit(&format!(
+            "Native character-style run table exceeds {} entries",
+            bounds::MAX_RUNS
+        )));
     }
     let text = format!("{}\r", frame.text.replace('\n', "\r"));
     let paragraph_lengths = text
         .split_inclusive('\r')
         .map(|s| s.encode_utf16().count())
         .collect::<Vec<_>>();
-    if paragraph_lengths.len() > 65 {
-        return Err(limit("Native text exceeds 65 paragraphs"));
+    if paragraph_lengths.len() > bounds::MAX_RUNS {
+        return Err(limit(&format!(
+            "Native text exceeds {} paragraphs",
+            bounds::MAX_RUNS
+        )));
     }
     let paragraph = json!({"ParagraphSheet":{"DefaultStyleSheet":0,"Properties":{"Justification":0,"AutoHyphenate":false}}});
     let shape_type = u32::from(frame.wrap);
@@ -377,10 +389,12 @@ pub(super) fn prepare(
         },
         world,
     );
-    if mapped
-        .iter()
-        .any(|v| !v.is_finite() || !(-32767.0..=32767.0).contains(v))
-    {
+    if mapped.iter().any(|v| {
+        !v.is_finite()
+            || !(-crate::limits::layered::MAX_TEXT_CACHE_COORDINATE
+                ..=crate::limits::layered::MAX_TEXT_CACHE_COORDINATE)
+                .contains(v)
+    }) {
         return Err(limit("Native text cache exceeds bounded layer coordinates"));
     }
     let left = mapped[0].floor() as i32;

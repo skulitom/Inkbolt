@@ -341,8 +341,56 @@ pub mod jobs {
     pub const MAX_STORE_BYTES: usize = 256 * 1024 * 1024;
 }
 
+/// Typed descriptor framing, independent of complete text-record budgets.
+pub mod layered_descriptor {
+    /// Maximum bytes inspected for one descriptor, including its version.
+    pub const MAX_BYTES: usize = 64 * 1024;
+    /// Maximum recursively nested descriptor value depth.
+    pub const MAX_DEPTH: usize = 8;
+    /// Maximum charged object and value nodes in one descriptor.
+    pub const MAX_NODES: usize = 512;
+    /// Maximum entries in one descriptor object or list.
+    pub const MAX_CONTAINER: usize = 128;
+    /// Maximum bytes in one descriptor class, key or enum identifier.
+    pub const MAX_IDENTIFIER_BYTES: usize = 128;
+    /// Maximum UTF-16 units in ordinary descriptor names and text values.
+    pub const MAX_TEXT_UNITS: usize = 1024;
+}
+
+/// Shared layered text admission, resolution and diagnostic budgets.
+pub mod layered_text {
+    /// Complete native text record bytes, including transforms and descriptors.
+    pub const MAX_RECORD_BYTES: usize = 64 * 1024;
+    /// UTF-16 capacity for all admitted Unicode characters plus a terminator.
+    pub const MAX_UTF16_UNITS: usize = 2 * super::text::MAX_TEXT_CHARS + 1;
+    /// Maximum character or paragraph spans; shared by import and delivery.
+    pub const MAX_RUNS: usize = 65;
+    /// Maximum references followed in a named-style inheritance chain.
+    pub const MAX_REFERENCE_DEPTH: usize = 2;
+    /// Maximum borrowed property references in resolved character spans.
+    pub const MAX_PROPERTY_REFERENCES: usize = 8192;
+    /// Maximum printable ASCII bytes in a source or chosen font face name.
+    pub const MAX_FACE_NAME_BYTES: usize = 128;
+    /// Maximum ASCII bytes in an untrusted geometry-extension owner label.
+    pub const MAX_SHAPE_OWNER_BYTES: usize = 128;
+    /// Maximum distinct owner labels included in diagnostics.
+    pub const MAX_SHAPE_OWNER_LABELS: usize = 8;
+    /// Maximum source dash-pattern components accepted by diagnostics.
+    pub const MAX_DASH_VALUES: usize = 32;
+    /// Maximum unknown field names included in a style diagnostic.
+    pub const MAX_UNMAPPED_FIELDS: usize = 16;
+    /// Maximum unknown field names in compact geometry and rendering diagnostics.
+    pub const MAX_BRIEF_FIELDS: usize = 8;
+    /// Maximum records scanned while locating the global story payload.
+    pub const MAX_TAGGED_RECORDS: usize = 512;
+}
+
 /// Limits for `src/layered/text_data.rs`.
 pub mod layered_text_data {
+    /// Maximum bytes in the local text-data dictionary.
+    pub const MAX_BYTES: usize = 64 * 1024;
+    /// Maximum bytes in an identifier or numeric token.
+    pub const MAX_TOKEN_BYTES: usize = 128;
     /// Max nodes (layered text data).
     pub const MAX_NODES: usize = 4096;
     /// Max container (layered text data).
@@ -350,7 +398,15 @@ pub mod layered_text_data {
     /// Max depth (layered text data).
     pub const MAX_DEPTH: usize = 16;
     /// Max string bytes (layered text data).
-    pub const MAX_STRING_BYTES: usize = 16388;
+    pub const MAX_STRING_BYTES: usize = 2 * super::layered_text::MAX_UTF16_UNITS + 2;
+    /// Maximum bytes in the independent global text-data stream.
+    pub const MAX_GLOBAL_BYTES: usize = 256 * 1024;
+    /// Maximum charged nodes in the global stream, including its implicit root.
+    pub const MAX_GLOBAL_NODES: usize = 32768;
+    /// Maximum entries in one global dictionary or array.
+    pub const MAX_GLOBAL_CONTAINER: usize = 4096;
+    /// Maximum nesting depth in the global stream.
+    pub const MAX_GLOBAL_DEPTH: usize = 32;
 }
 
 /// Limits for `src/layered/text_font_records.rs`.
@@ -365,6 +421,8 @@ pub mod layered_text_font_records {
 
 /// Limits for `src/layered/text_preset_records.rs`.
 pub mod layered_text_preset_records {
+    /// Maximum Unicode characters shown in each untrusted preset name preview.
+    pub const PREVIEW_CHARACTERS: usize = 16;
     /// Max records (layered text preset records).
     pub const MAX_RECORDS: usize = 256;
     /// Max name bytes (layered text preset records).
@@ -375,6 +433,18 @@ pub mod layered_text_preset_records {
 
 /// Limits for `src/layered.rs`.
 pub mod layered {
+    /// Text caches reserve one coordinate unit for their minimum pixel extent.
+    pub const MAX_TEXT_CACHE_COORDINATE: f64 = super::model::MAX_COORDINATE - 1.0;
+    /// Maximum UTF-16 units in a layer name or ordinary Unicode record.
+    pub const MAX_NAME_UNITS: usize = 1024;
+    /// Each editable item can contribute a layer and a folder boundary record.
+    pub const MAX_SERIALIZED_RECORDS: usize = super::model::MAX_ITEMS * 2;
+    /// Aggregate editable items across nested sources; independent of each document.
+    pub const MAX_DECODED_ITEMS: usize = 1024;
+    /// Maximum metadata entries attached to one layer.
+    pub const MAX_METADATA_RECORDS: u32 = 16;
+    /// Maximum ASCII bytes in an embedded-source link identifier.
+    pub const MAX_LINK_ID_BYTES: usize = 128;
     /// Maximum axis in the standard layered container version.
     pub const MAX_STANDARD_DIMENSION: u32 = 30_000;
     /// Max file bytes (layered).
