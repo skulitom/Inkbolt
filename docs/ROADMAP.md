@@ -11,7 +11,10 @@ indices are independent of layer order. Independent frame references now expose
 bounded point/rectangle geometry, frame transforms and first-baseline controls;
 unsupported paths and broken references fail explicitly. Structural agreement does not establish
 editable style or layout reconstruction; incoming text remains unsupported and
-the original six checkpoints remain open.
+the original six checkpoints remain open. Character diagnostics now compare
+explicit known controls across independently partitioned runs, report stale or
+missing local values and expose global-only feature switches. Unmapped style
+and paragraph semantics, pinned font binding and reconstruction remain open.
 
 The [agent task benchmark](AGENT_BENCHMARK.md) now has twenty independently
 judged scripted CLI/MCP adapters within the unchanged twenty-task inventory.

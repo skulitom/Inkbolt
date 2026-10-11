@@ -1539,12 +1539,13 @@ fn capability_report() -> Value {
     capabilities["layered_interchange"]["text_diagnostics"] = json!({
         "status":"unsupported_import_with_structural_diagnostics",
         "error_details":"native_text_requirements;first_local_record_and_its_selected_global_story;not_a_complete_import",
-        "checks":["descriptor_framing","bounded_text_data_syntax","matching_local_text_sources","utf16_run_boundaries","explicit_run_font_references","global_tag_framing","explicit_global_story_index","selected_global_story_run_references","local_global_text_comparison","selected_global_frame_reference","point_or_rectangular_frame_geometry","separate_frame_transform","first_baseline_control"],
+        "checks":["descriptor_framing","bounded_text_data_syntax","matching_local_text_sources","utf16_run_boundaries","explicit_run_font_references","global_tag_framing","explicit_global_story_index","selected_global_story_run_references","local_global_text_comparison","selected_global_frame_reference","point_or_rectangular_frame_geometry","separate_frame_transform","first_baseline_control","known_character_control_types","local_global_character_control_comparison"],
         "limits":{"record_bytes":65536,"data_values":4096,"data_depth":16,"container_entries":512,"string_bytes":16388,"runs":65,"referenced_fonts":8},
         "layout_semantics_validated":false,"whole_file_validated":false,"cached_pixel_fallback":false,
         "global_story":{"versions":[14],"text_source":"global_story_when_present;local_record_otherwise","style_semantics_validated":false,"other_stories_validated":false,"other_layer_references_validated":false,
             "limits":{"data_bytes":262144,"data_values":32768,"data_depth":32,"container_entries":4096,"tagged_records":512,"stories":256,"characters":4096,"runs":65,"referenced_fonts":8},
             "frame":{"source":"independent_global_frame_reference","shapes":["point","rectangle"],"frame_resources":256,"selected_frames":1,"coordinate_bound":32768,"first_baseline_metrics":["fixed","ascent","cap_height","leading","x_height"],"remaining_properties_validated":false,"local_geometry_consistency_validated":false,"other_frames_validated":false,"layout_semantics_validated":false}},
+        "character_controls":{"scope":"explicit_observed_controls_only;unknown_fields_uninterpreted","comparison":"matching_text_utf16_spans;independent_run_partitions;resolved_face_names","missing_controls":"reported_without_defaults","run_fingerprints":"known_controls_and_boundaries_only;not_complete_style_identity","unmapped_fields_reported":16,"complete_style_semantics_validated":false},
         "shape_owner_labels":"at_most_eight_bounded_untrusted_identifiers;not_geometry_validation",
         "compatibility_markers":"optional_boolean_and_bounded_enum_source_data;untrusted;semantics_not_validated",
         "editable_text_import":false,"editable_text_export":true

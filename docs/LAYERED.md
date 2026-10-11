@@ -45,6 +45,28 @@ and `layout_semantics_validated` stay false, including for a singular matrix.
 Columns, arbitrary shapes, other properties and complete reconstruction remain
 unimplemented. Named geometry-extension owners are still untrusted.
 
+`global_story.character_styles` checks types for individually mapped character
+controls and compares their explicit values with the local cache. It resolves
+font names through each independent font table, then compares intersecting UTF-16
+spans, including the terminal marker; different run partitions are allowed.
+Numbers use a common numeric representation, while Boolean and integral controls
+are never coerced. If the source characters differ, comparison is explicitly
+skipped. The report counts differing spans and names conflicting or missing
+controls. A missing value stays missing; it is never replaced with a default.
+
+Known controls include size, faux styles, automatic/explicit leading, horizontal
+and vertical scales, tracking, baseline shift, capitalization codes, no-break
+and observed character-feature switches. These are source values, with no unit
+conversion, shaping-tag translation, feature availability or layout acceptance.
+Several global feature switches can be absent from the local cache, so matching
+compared values does not imply complete style agreement. Each side reports
+observed/enabled controls, the number of unmapped fields and at most sixteen of
+their untrusted names. `run_controls_sha256` binds only mapped values and run
+boundaries; it is not an identity for the complete style. The existing complete
+text-data hashes also bind unknown fields. Full style, font-file and rendering
+validation remain false. Inherited controls, colors, decorations, other fields
+and paragraph semantics still require complete reconstruction.
+
 These diagnostics check this local record's framing, matching local text sources, complete
 UTF-16 run coverage without splitting surrogate pairs, and explicit per-run font
 references. They do not validate layout semantics, later records or the whole

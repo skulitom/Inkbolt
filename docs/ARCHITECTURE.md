@@ -26,6 +26,11 @@ the separate frame transform and first-baseline settings. Rectangle recognition
 checks every segment, control, corner and closure; it does not replace a curved
 or crossed boundary with its bounding box. Remaining frame properties and local
 geometry consistency stay explicitly unvalidated.
+Known character controls are type checked independently on both sides. A bounded
+sweep compares intersecting UTF-16 runs using resolved face names, preserving
+missing values and unrecognized fields as explicit limitations. Global-only
+feature switches cannot disappear into cache defaults. Compact summaries and
+partial run fingerprints never certify full style or rendering agreement.
 Incoming editable text and global story reconstruction remain open.
 
 `presets` provides pure versioned screen and physical-page recipes over the

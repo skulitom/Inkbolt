@@ -53,6 +53,7 @@ pub(super) struct Record {
     details: Value,
     source: String,
     story_index: i32,
+    styles: super::text_style::Styles,
 }
 pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Record, Error> {
     if input.left() > 65536 {
@@ -138,30 +139,8 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
     let style_runs = runs(engine, "StyleRun", source)?;
     let paragraph_runs = runs(engine, "ParagraphRun", source)?;
     let fonts = array(object(&parsed, "ResourceDict")?, "FontSet")?;
-    let mut referenced_fonts = BTreeSet::new();
-    for run in style_runs {
-        control.check()?;
-        let style = object(object(run, "StyleSheet")?, "StyleSheetData")?;
-        let font_index = style.get("Font").ok_or_else(|| unsupported("Native text diagnostics require explicit per-run font references; inherited styles need a layout mapping"))?;
-        let index = font_index
-            .as_u64()
-            .and_then(|n| usize::try_from(n).ok())
-            .ok_or_else(malformed)?;
-        let font = fonts
-            .get(index)
-            .and_then(|v| v.get("Name"))
-            .and_then(Value::as_str)
-            .ok_or_else(malformed)?;
-        if font.is_empty() || font.len() > 128 || !font.bytes().all(|b| (33..=126).contains(&b)) {
-            return Err(unsupported(
-                "Native font identity is not a bounded printable face name",
-            ));
-        }
-        referenced_fonts.insert(font);
-    }
-    if referenced_fonts.len() > crate::fonts::MAX_FONTS {
-        return Err(limit("Native text references more than eight font faces"));
-    }
+    let styles = super::text_style::Styles::local(engine, fonts, control)?;
+    let referenced_fonts = styles.faces()?;
     // Report bounded identifiers as untrusted source data. This does not certify
     // their geometry, select an application, or make an unknown layout editable.
     let mut owners = BTreeSet::new();
@@ -188,7 +167,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         source: source.to_owned(),
         story_index,
         details: json!({"kind":"native_text_requirements","editable_import_supported":false,
-        "diagnostic_scope":"local_record_and_selected_global_story_references_and_frame_geometry_only",
+        "diagnostic_scope":"selected_story_references_frame_geometry_and_known_character_control_comparison",
         "reported_text_source":"local_record","native_story_index":story_index,
         "compatibility_markers":compatibility,
         "whole_file_validated":false,"layout_semantics_validated":false,
@@ -198,6 +177,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
         "shape_owner_labels":owners,"shape_owner_labels_truncated":owners_truncated,"shape_owner_labels_trusted":false,
         "transform":transform,"text_data_sha256":assets::sha256(&payload),
         "cached_pixels_used":false,"required_mapping":["explicit_content_pinned_font_bindings","global_story_and_local_style_reconciliation","editable_text_layout_reconstruction","declared_native_layout_and_rendering_differences"]}),
+        styles,
     })
 }
 pub(super) fn diagnose(
@@ -207,7 +187,13 @@ pub(super) fn diagnose(
     control: &Control,
 ) -> Result<Value, Error> {
     let mut record = inspect(input, control)?;
-    record.details["global_story"] =
-        super::text_story::diagnose(tail, version, record.story_index, &record.source, control)?;
+    record.details["global_story"] = super::text_story::diagnose(
+        tail,
+        version,
+        record.story_index,
+        &record.source,
+        &record.styles,
+        control,
+    )?;
     Ok(record.details)
 }
