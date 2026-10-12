@@ -204,10 +204,38 @@ client provides observed data, replace null with an object containing
 - `first_preview_seconds` and `first_preview_sha256`: a paired observation. Timing
   is accepted only when those PNG bytes pass the independent artifact judge.
 
-Do not estimate unavailable metrics. External client memory and engine round-trip
+Do not estimate unavailable metrics. Engine-only memory and engine round-trip
 timing remain unknown in this lifecycle; judge traffic is retained separately.
 Reports preserve failures and distributions of available observations, including
 token counts. Retained client reports are evidence, not authenticated attestations.
+
+## Memory observation
+
+The harness records `execution.memory` and the trial's separate
+`external_process_tree_memory` field. On Windows it reads the owned Job Object's
+lifetime commit peaks after cleanup, before releasing the handle. The
+`peak_process_commit_bytes` value is the largest individual process peak;
+`peak_job_commit_bytes` is the aggregate job peak, not a sum of individual peaks.
+These counters retain short-lived children; see the public
+[Windows job information contract](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_extended_limit_information).
+
+The scope is `owned_command_tree_including_launcher`: the Python launcher,
+external client and locally spawned descendants, including tools and engine
+processes through cleanup. Fixture generation and independent judging happen
+outside that tree. Remote or already-running workers are outside this scope;
+clients must not present offloaded work as a fully measured local solve. This
+broader observation is not relabelled as engine-only memory. The existing
+`memory_complete` stays false and engine-only peak fields stay null. B10's
+external adapter and fixed memory-budget judge remain open.
+
+Only the harness supplies this field; client-reported memory is rejected.
+Timeouts and failed clients retain available observations without becoming
+passes. Unsupported platforms, failed queries, incomplete cleanup and older
+captures without this field retain `available:false`, null peaks and a reason.
+Linux resident-set memory is not substituted for Windows commit. Import validates
+the recorded shape and preserves the original measurement; it never measures the
+judge and attributes that result to the old solve. Capture identity is still not
+an authenticated attestation.
 
 ## Preparation and import
 

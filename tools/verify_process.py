@@ -10,6 +10,15 @@ import tempfile
 import time
 
 
+MEMORY_SCOPE = 'owned_command_tree_including_launcher'
+MEMORY_METHOD = 'windows_job_lifetime_commit_peaks'
+
+
+def unavailable_memory(reason, method=None):
+    return dict(available=False, scope=MEMORY_SCOPE, method=method,
+                peak_process_commit_bytes=None, peak_job_commit_bytes=None, reason=reason)
+
+
 class WindowsJob:
     """The launcher waits for stdin until it belongs to this kill-on-close job."""
     def __init__(self):
@@ -26,6 +35,7 @@ class WindowsJob:
                         ('process_memory', ctypes.c_size_t), ('job_memory', ctypes.c_size_t),
                         ('peak_process', ctypes.c_size_t), ('peak_job', ctypes.c_size_t)]
 
+        self.limits_type = Limits
         self.api = ctypes.WinDLL('kernel32', use_last_error=True)
         self.api.CreateJobObjectW.argtypes = [ctypes.c_void_p, w.LPCWSTR]
         self.api.CreateJobObjectW.restype = w.HANDLE
@@ -52,7 +62,18 @@ class WindowsJob:
         if not self.api.AssignProcessToJobObject(self.handle, int(process._handle)):
             raise ctypes.WinError(ctypes.get_last_error())
 
-    def close(self):
+    def memory(self):
+        limits = self.limits_type()
+        if not self.api.QueryInformationJobObject(self.handle, 9, ctypes.byref(limits), ctypes.sizeof(limits), None):
+            return unavailable_memory('Windows job memory query failed', MEMORY_METHOD)
+        if not limits.peak_process or not limits.peak_job:
+            return unavailable_memory('Windows job memory peaks were not recorded', MEMORY_METHOD)
+        return dict(available=True, scope=MEMORY_SCOPE, method=MEMORY_METHOD,
+                    peak_process_commit_bytes=limits.peak_process,
+                    peak_job_commit_bytes=limits.peak_job, reason=None)
+
+    def close(self, observe_memory=False):
+        memory = unavailable_memory('Owned process cleanup was not observed complete', MEMORY_METHOD)
         if self.handle:
             # Closing a job requests termination but does not wait for every
             # descendant's executable handle to close. Observe the owned job's
@@ -66,23 +87,34 @@ class WindowsJob:
                         break
                     active = ctypes.cast(ctypes.byref(accounting, 40), ctypes.POINTER(ctypes.c_uint32))[0]
                     if active == 0:
+                        if observe_memory:
+                            # Read lifetime peaks before releasing the job. Its
+                            # children may all have exited between observations.
+                            memory = self.memory()
                         break
                     time.sleep(.01)
             finally:
                 self.api.CloseHandle(self.handle)
                 self.handle = None
+        return memory if observe_memory else None
 
 
-def run(argv, root, timeout=None, env=None):
+def run(argv, root, timeout=None, env=None, observe_memory=False):
     """Return captured output/status; timeout never grants a passing result.
 
     Close the entire owned tree even on ordinary completion (fixtures must clean
     up their own persistent workers). No process lookup or name-based killing.
+    Optional memory covers the whole command tree, including this Python launcher
+    and client, through cleanup. It is not an engine-only or resident-set metric.
     """
     started = time.monotonic()
     if timeout is not None and timeout <= 0:
-        return dict(status='deferred', seconds=0, output='', exit_code=None)
+        result = dict(status='deferred', seconds=0, output='', exit_code=None)
+        if observe_memory:
+            result['memory'] = unavailable_memory('Command was not started')
+        return result
     job = WindowsJob() if os.name == 'nt' else None
+    memory = unavailable_memory('Owned process tree commit peaks are unavailable on this platform')
     process = None
     with tempfile.TemporaryFile() as output:
         try:
@@ -101,7 +133,7 @@ def run(argv, root, timeout=None, env=None):
                 status, code = 'deferred', None
         finally:
             if job:
-                job.close()
+                memory = job.close(observe_memory=observe_memory)
             elif process:
                 try:
                     os.killpg(process.pid, signal.SIGKILL)
@@ -114,8 +146,11 @@ def run(argv, root, timeout=None, env=None):
                 if process.stdin and not process.stdin.closed:
                     process.stdin.close()
         output.seek(0)
-        return dict(status=status, exit_code=code, seconds=time.monotonic() - started,
-                    output=output.read().decode('utf-8', 'replace'))
+        result = dict(status=status, exit_code=code, seconds=time.monotonic() - started,
+                      output=output.read().decode('utf-8', 'replace'))
+        if observe_memory:
+            result['memory'] = memory
+        return result
 
 
 if __name__ == '__main__':

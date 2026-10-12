@@ -156,7 +156,7 @@ class VerificationTests(unittest.TestCase):
         child = self.write('child.py', "from pathlib import Path\nimport time,sys\np=Path(sys.argv[1])\nwhile True:\n p.write_text(str(time.monotonic()))\n time.sleep(.02)\n")
         parent = self.write('parent.py', "import subprocess,sys,time\nsubprocess.Popen([sys.executable,sys.argv[1],sys.argv[2]])\nprint('owned-start',flush=True)\ntime.sleep(60)\n")
         started = time.monotonic()
-        row = process.run([sys.executable, str(parent), str(child), str(heartbeat)], self.root, timeout=2)
+        row = process.run([sys.executable, str(parent), str(child), str(heartbeat)], self.root, timeout=2, observe_memory=True)
         self.assertEqual(row['status'], 'deferred')
         self.assertIn('owned-start', row['output'])
         self.assertLess(time.monotonic() - started, 5)
@@ -164,9 +164,66 @@ class VerificationTests(unittest.TestCase):
         before = heartbeat.read_bytes()
         time.sleep(.15)
         self.assertEqual(heartbeat.read_bytes(), before)
+        self.assertEqual(row['memory']['available'], os.name == 'nt')
         failed = process.run([sys.executable, '-c', "print('test-error');raise SystemExit(7)"], self.root, timeout=3)
         self.assertEqual((failed['status'], failed['exit_code']), ('failed', 7))
         self.assertIn('test-error', failed['output'])
+        self.assertNotIn('memory', failed)
+
+    def test_optional_memory_distinguishes_unavailable_from_zero_and_preserves_default_results(self):
+        command = [sys.executable, '-c', "print('completed')"]
+        ordinary = process.run(command, self.root, timeout=5)
+        self.assertEqual(set(ordinary), {'status','seconds','output','exit_code'})
+        observed = process.run(command, self.root, timeout=5, observe_memory=True)
+        self.assertEqual(observed['status'], 'passed')
+        memory = observed['memory']
+        self.assertEqual(memory['scope'], process.MEMORY_SCOPE)
+        self.assertEqual(memory['available'], os.name == 'nt')
+        if os.name == 'nt':
+            self.assertEqual(memory['method'], process.MEMORY_METHOD)
+            self.assertGreater(memory['peak_process_commit_bytes'], 0)
+            self.assertGreater(memory['peak_job_commit_bytes'], 0)
+        else:
+            self.assertIsNone(memory['peak_process_commit_bytes'])
+            self.assertIsNone(memory['peak_job_commit_bytes'])
+            self.assertIn('unavailable', memory['reason'])
+        deferred = process.run(command, self.root, timeout=0, observe_memory=True)
+        self.assertEqual(deferred['status'], 'deferred')
+        self.assertFalse(deferred['memory']['available'])
+        self.assertIsNone(deferred['memory']['peak_process_commit_bytes'])
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows Job Object commit-memory counters')
+    def test_job_memory_retains_short_lived_descendant_peaks_on_success_and_failure(self):
+        child = self.write('allocate.py', "data=bytearray(64*1024*1024)\nfor i in range(0,len(data),4096): data[i]=1\nprint('allocated',len(data),flush=True)\n")
+        parent = self.write('parent.py', 'import subprocess,sys\nsubprocess.run([sys.executable,sys.argv[1]],check=True)\nprint("child-exited",flush=True)\nraise SystemExit(int(sys.argv[2]))\n')
+        for code in (0,7):
+            with self.subTest(code=code):
+                row = process.run([sys.executable,str(parent),str(child),str(code)], self.root,
+                                  timeout=10, observe_memory=True)
+                self.assertEqual(row['exit_code'], code)
+                self.assertEqual(row['status'], 'passed' if code==0 else 'failed')
+                self.assertIn('child-exited', row['output'])
+                self.assertTrue(row['memory']['available'], row)
+                self.assertGreaterEqual(row['memory']['peak_process_commit_bytes'], 64*1024*1024)
+                self.assertGreaterEqual(row['memory']['peak_job_commit_bytes'], 64*1024*1024)
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows Job Object commit-memory counters')
+    def test_job_memory_query_failure_and_incomplete_cleanup_are_explicit(self):
+        job = process.WindowsJob()
+        try:
+            empty = job.memory()
+            self.assertFalse(empty['available'])
+            self.assertIsNone(empty['peak_process_commit_bytes'])
+            with patch.object(job.api, 'QueryInformationJobObject', return_value=False):
+                failed = job.memory()
+                self.assertFalse(failed['available'])
+                self.assertIn('query failed', failed['reason'])
+                incomplete = job.close(observe_memory=True)
+                self.assertFalse(incomplete['available'])
+                self.assertIn('cleanup', incomplete['reason'])
+            self.assertIsNone(job.handle)
+        finally:
+            job.close()
 
     def test_explicit_platform_skips_are_not_counted_as_executed_tests(self):
         output = "test_job ... skipped 'Engine capabilities.jobs.supported_here is false'\nRan 2 tests in 0.1s\nOK (skipped=1)\n"

@@ -1,6 +1,7 @@
 """External arms retain identity, real artifacts, unknown observations and every failure."""
 import copy
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -9,7 +10,8 @@ from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from benchmark_driver import run_external_task,workspace_files,model_run_complete,observations
+from benchmark_driver import run_external_task,workspace_files,model_run_complete,observations,execution_memory
+from verify_process import MEMORY_SCOPE,MEMORY_METHOD
 from benchmark_tasks import TASKS,CHECKS,ARTIFACT_CHECKS,ENGINE_CHECKS
 from benchmark_diagram import expected_picture
 from benchmark_baseline import svg_diagram
@@ -51,6 +53,13 @@ class BenchmarkDriverTests(unittest.TestCase):
             self.assertFalse(row['model_trials'])
             self.assertIsNone(row['token_usage']);self.assertIsNone(row['model_calls']);self.assertIsNone(row['engine_commands'])
             self.assertEqual(row['judge_engine_commands'],2)
+            memory=row['external_process_tree_memory']
+            self.assertEqual(memory['available'],os.name=='nt')
+            self.assertEqual(memory['scope'],MEMORY_SCOPE)
+            self.assertFalse(row['memory_complete'])
+            self.assertIsNone(row['peak_commit_bytes'])
+            execution=json.loads((root/'live/evidence/execution.json').read_text())
+            self.assertEqual(memory,execution['memory'])
             before=workspace_files(root/'live/workspace')
             imported=run_external_task(EXE,root/'imported','B01',1,'model',configuration,import_source=root/'live')
             self.assertEqual(imported['status'],'passed',imported)
@@ -58,6 +67,38 @@ class BenchmarkDriverTests(unittest.TestCase):
             self.assertEqual(before,workspace_files(root/'live/workspace'))
             self.assertEqual(before,workspace_files(root/'imported/workspace'))
             self.assertTrue(imported['driver']['imported'])
+            self.assertEqual(imported['external_process_tree_memory'],memory)
+            capture_path=root/'live/evidence/capture.json'
+            capture=json.loads(capture_path.read_text())
+            capture['execution'].pop('memory')
+            capture_path.write_text(json.dumps(capture),encoding='utf-8')
+            legacy=run_external_task(EXE,root/'legacy','B01',1,'model',configuration,import_source=root/'live')
+            self.assertEqual(legacy['status'],'passed',legacy)
+            self.assertFalse(legacy['external_process_tree_memory']['available'])
+            self.assertIsNone(legacy['external_process_tree_memory']['peak_process_commit_bytes'])
+            capture['execution']['memory']=dict(memory,peak_process_commit_bytes=-1)
+            capture_path.write_text(json.dumps(capture),encoding='utf-8')
+            malformed=run_external_task(EXE,root/'malformed','B01',1,'model',configuration,import_source=root/'live')
+            self.assertEqual(malformed['status'],'failed')
+            self.assertIn('memory',malformed['driver_failure'])
+
+    def test_memory_capture_validation_rejects_fabricated_scope_numbers_and_client_observations(self):
+        valid=dict(available=True,scope=MEMORY_SCOPE,method=MEMORY_METHOD,
+                   peak_process_commit_bytes=64*1024*1024,peak_job_commit_bytes=80*1024*1024,reason=None)
+        self.assertEqual(execution_memory(dict(memory=valid)),valid)
+        for key,value in [('available',1),('scope','engine_only'),('method','sampled_rss'),
+                          ('reason','estimated'),('peak_process_commit_bytes',True),
+                          ('peak_process_commit_bytes',0),('peak_process_commit_bytes',1.5),
+                          ('peak_job_commit_bytes',2**64),('peak_job_commit_bytes',float('nan')),
+                          ('extra',1)]:
+            with self.subTest(key=key,value=value),self.assertRaises(TaskFailure):
+                execution_memory(dict(memory=dict(valid,**{key:value})))
+        for bad in (None,{},dict(valid,available=False),dict(valid,method=None)):
+            with self.subTest(bad=bad),self.assertRaises(TaskFailure):
+                execution_memory(dict(memory=bad))
+        for key in ('memory','peak_commit_bytes','external_process_tree_memory'):
+            with self.subTest(client_key=key),self.assertRaises(TaskFailure):
+                observations(dict(observations=dict(source='client_reported',**{key:valid})))
 
     def test_baseline_runs_without_an_engine_and_marks_engine_checks_not_applicable(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -87,6 +128,8 @@ class BenchmarkDriverTests(unittest.TestCase):
                 self.assertTrue((root/'result.json').is_file())
                 self.assertTrue((root/'evidence/request.json').is_file())
                 self.assertFalse(row['model_trials'])
+                if flag=='--timeout':
+                    self.assertEqual(row['external_process_tree_memory']['available'],os.name=='nt')
 
     def test_import_checks_transcript_and_workspace_bytes_instead_of_trusting_result_claims(self):
         with tempfile.TemporaryDirectory() as directory:

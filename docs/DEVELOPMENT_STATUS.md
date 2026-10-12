@@ -391,6 +391,23 @@ checks. Evidence is retained externally under `w2-b09-`, with the limited decode
 controls in `w2-b09-pillow-controls-02`. These are shared-host correctness checks;
 no actual model or isolated performance result is claimed.
 
+The external harness now retains a separate owned-command-tree commit-memory
+observation on Windows, including short-lived descendants and cleanup. It does
+not relabel client/launcher memory as engine-only usage. Failed/timeout clients
+retain their observations; malformed imported measurements and client-supplied
+memory claims reject. Older captures and Linux commit measurements remain
+explicitly unavailable. This is a prerequisite for B10's fixed memory budget,
+not completion of that adapter or a new platform memory claim.
+
+Focused checks ran 45 tests on Windows in 54.7 seconds and 36 on Linux in
+19.4 seconds, with nine explicit Windows-only skips on Linux. Shared process-runner,
+recovery and consumer tests were included. No selected stage failed or remained
+pending; the Windows formatting/build/Clippy stages reused identical passes.
+Both reports recorded unchanged candidate fingerprint
+`ba0005828193351303103009758c2816ef86554f7b5888e258951c7833a1dda8`.
+Evidence is retained externally under `w2-external-memory-final-`; these are
+shared-host correctness checks, not isolated performance or full W2 acceptance.
+
 B10-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

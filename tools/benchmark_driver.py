@@ -26,7 +26,7 @@ from benchmark_baseline_typography import judge_typography
 from benchmark_baseline_mask import judge_mask
 from benchmark_baseline_retouch import judge_retouch
 from workload_cases import save, save_json, sha
-from verify_process import run as run_owned
+from verify_process import run as run_owned, unavailable_memory, MEMORY_SCOPE, MEMORY_METHOD
 import measurement_host
 
 MIGRATIONS = {'B01':(benchmark_diagram, judge_diagram), 'B02':(benchmark_icons, judge_icons),
@@ -130,11 +130,36 @@ def observations(result):
     return answer
 
 
+def execution_memory(execution):
+    """Validate harness capture data, never client-reported observations.
+
+    Older captures have no memory field. Import preserves their unknown value;
+    the judge's own process cannot retroactively measure the original solve.
+    """
+    require(isinstance(execution,dict), 'Invalid captured execution')
+    if 'memory' not in execution:
+        return unavailable_memory('Capture has no owned-process memory observation')
+    memory=execution['memory']
+    require(isinstance(memory,dict) and set(memory)=={'available','scope','method',
+            'peak_process_commit_bytes','peak_job_commit_bytes','reason'}, 'Invalid captured memory fields')
+    require(type(memory['available']) is bool and memory['scope']==MEMORY_SCOPE and
+            memory['method'] in (None,MEMORY_METHOD), 'Invalid captured memory scope or method')
+    peaks=[memory['peak_process_commit_bytes'],memory['peak_job_commit_bytes']]
+    if memory['available']:
+        require(memory['method']==MEMORY_METHOD and memory['reason'] is None and
+                all(type(v) is int and 0<v<2**64 for v in peaks), 'Invalid captured memory peaks')
+    else:
+        require(all(v is None for v in peaks) and isinstance(memory['reason'],str) and
+                0<len(memory['reason'])<=512, 'Unavailable memory must have no numeric observations')
+    return memory
+
+
 class ExternalTrial(Trial):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
         self.driver_evidence=None
         self.driver_failure=None
+        self.driver_execution={}
 
     def prefix(self, step):
         # Keep judge traffic outside the captured solver workspace, so importing
@@ -161,7 +186,8 @@ class ExternalTrial(Trial):
             response_bytes=observed.get('response_bytes'),invalid_calls=observed.get('invalid_calls'),
             retries=observed.get('retries'),engine_roundtrip_seconds=None,
             process_calls=None,protocol_requests=None,
-            memory_complete=False,memory_scope='External client memory was not observed',
+            external_process_tree_memory=execution_memory(evidence.get('execution',self.driver_execution)),
+            memory_complete=False,memory_scope='Engine-only memory was not separately observed',
             peak_commit_bytes=None,peak_working_set_bytes=None)
 
 
@@ -185,6 +211,7 @@ def validate_result(evidence, request_contract, capture, files):
     require(capture['workspace_files']==files and capture['contract']==request_contract and
             capture['result_sha256']==file_hash(evidence/'driver-result.json') and
             capture['transcript_sha256']==file_hash(raw), 'Captured evidence identity mismatch')
+    execution_memory(capture['execution'])
     return dict(kind=result['kind'],client=result['client'],model=result['model'],observations=observed,
         transcript_sha256=capture['transcript_sha256'],result_sha256=capture['result_sha256'],
         workspace_sha256=sha(canonical(files)),contract_sha256=sha(canonical(request_contract)),
@@ -253,10 +280,11 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
         else:
             require(configuration['argv'], 'The external driver command is empty')
             execution=run_owned(configuration['argv']+[str((evidence/'request.json').resolve())],case.root,
-                                configuration['timeout_seconds'])
+                                configuration['timeout_seconds'],observe_memory=True)
             # Do not retain arbitrary console output: client credentials must
             # stay out of logs. The declared transcript is the evidence surface.
             execution.pop('output',None)
+            case.driver_execution=execution
             save_json(evidence/'execution.json',execution)
             require(execution['status']=='passed', 'External client failed or exceeded its deadline')
             require(driver_identity(configuration)==pinned, 'Driver executable/configuration changed')
