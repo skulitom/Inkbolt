@@ -371,13 +371,13 @@ fn deadline_stops_a_noncooperating_attempt_without_cancelling_an_observer() {
     );
     assert!(!owned.state().cancel_requested);
     let terminal = owned.terminal();
-    assert_eq!(terminal["state"], "failed");
+    assert_eq!(terminal["state"], "failed", "{terminal:#}");
     assert_eq!(terminal["error"]["code"], "JOB_TIMEOUT");
     assert!(!owned.root.join("one.png").exists());
     let mut published = Owned::new();
     published.start("published", 1500);
     let terminal = published.terminal();
-    assert_eq!(terminal["state"], "completed");
+    assert_eq!(terminal["state"], "completed", "{terminal:#}");
     assert!(published.root.join("one.png").exists());
     assert_eq!(
         terminal["last_process_report"]["stop_requested"],
@@ -430,7 +430,8 @@ fn enqueue_during_idle_exit_cannot_lose_the_new_job() {
     assert!(!thread.is_finished());
     owned.release();
     thread.join().unwrap().unwrap();
-    assert_eq!(owned.terminal_for("second")["state"], "completed");
+    let terminal = owned.terminal_for("second");
+    assert_eq!(terminal["state"], "completed", "{terminal:#}");
     assert!(owned.root.join("second.png").exists());
 }
 

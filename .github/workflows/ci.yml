@@ -88,7 +88,12 @@ jobs:
       - name: Run complete public-clone verification
         # Avoid competing render fixtures on hosted Windows/macOS. Keep
         # every check and its existing deadline; only scheduling differs.
-        run: python -X utf8 tools/verify.py --public --thorough --jobs ${{ matrix.os == 'ubuntu-24.04' && '2' || '1' }} --report "$RUNNER_TEMP/inkbolt-verification/report.json"
+        # Stage workers do not control libtest's concurrent process fixtures.
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            export RUST_TEST_THREADS=1
+          fi
+          python -X utf8 tools/verify.py --public --thorough --jobs ${{ matrix.os == 'ubuntu-24.04' && '2' || '1' }} --report "$RUNNER_TEMP/inkbolt-verification/report.json"
       - name: Collect verification logs
         if: always()
         run: |

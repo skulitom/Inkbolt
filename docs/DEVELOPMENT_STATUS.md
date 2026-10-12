@@ -110,7 +110,19 @@ as in the passing macOS run. No production job behavior, render deadline or
 pixel acceptance changed. Focused Windows verification of the job tests and
 repository guard passed in 111.5 seconds, including formatting, build and
 all-target Clippy, with no failed or pending checks. Workflow validation also
-passed. A complete latest-revision hosted matrix remains pending.
+passed. The [follow-up at `c500414`](https://github.com/skulitom/Inkbolt/actions/runs/38190979581)
+passed on Ubuntu/macOS and passed every Windows Python module, including the
+render fixtures: 2,308 tests executed and one explicit skip. Windows still failed
+two Rust job tests: the short-deadline fixture did not reach its startup checkpoint,
+and the enqueue-during-idle-exit fixture returned a failed second job. A single
+stage worker does not serialize Rust's own test harness; Windows CI now also
+sets `RUST_TEST_THREADS=1`. Failure assertions retain the returned job details.
+The deadlines and production behavior are unchanged. A complete latest-revision
+hosted matrix remains pending. Local serial checks passed for the deadline test
+in 32.5 seconds and the idle-exit test in 21.1 seconds, including their verification
+overhead. Workflow validation and all 24 repository-guard tests passed. An earlier
+attempt to run all nine serial job fixtures reached the 180-second quick budget;
+it remains pending, not a full-suite pass. CI's thorough run keeps all fixtures.
 
 ## W2 and the next behavior increments
 
@@ -196,7 +208,7 @@ their durations are not isolated performance measurements. Focused feedback
 remains bounded by the ordinary 180-second quick mode. Subsequent changes in this
 milestone are documentation of these results only.
 
-## W3b: implemented, Windows full acceptance passed; Linux pending
+## W3b: complete within the insertion contract
 
 `add_svg` is an atomic edit accepting fragments and complete SVG documents. It
 uses the existing importer, returns deterministic collision-checked item IDs,
@@ -221,8 +233,13 @@ Fresh Windows acceptance at `e9c493e` passed all 219 stages, with no reuse,
 failures or pending checks: 209 Rust tests and 2,318 Python tests executed, with
 one explicit skip, in 1506.7 seconds. Its source fingerprint is
 `c7bf604f97349decfa51d8d9f0aa26454268d305c107591442c488e4fb39419b`.
-The same byte-matched Linux snapshot is running full acceptance separately;
-subsequent B02 harness work does not change that frozen candidate or engine.
+The same byte-matched Linux snapshot passed all 219 fresh stages in 920.3 seconds:
+178 Rust tests and 2,285 Python tests executed, with 34 explicit platform skips
+and no reuse, failures or pending checks. Both reports confirm unchanged inputs.
+The full runs were consecutive; focused B02 checks shared the host during the
+Linux run, so these durations are correctness evidence, not isolated performance
+measurements. Subsequent B02 harness work does not change that frozen candidate
+or engine.
 No engine checkpoint or whole-goal credit is added by this implementation increment.
 
 ## W5.1: complete within the declared response contract
