@@ -134,9 +134,10 @@ guidance now includes this focused check. The latest complete hosted matrix is
 still required; those failed runs are not counted as passes.
 
 The [hosted `fbc7fea` run](https://github.com/skulitom/Inkbolt/actions/runs/38197982149)
-passed all 221 fresh Ubuntu stages in 1137.3 seconds, including the corrected
-dependency-boundary expectation. No stage failed, remained pending or was reused.
-Windows/macOS were still running when this evidence was recorded; the newer
+passed all 221 fresh stages on Ubuntu and macOS in 1137.3 and 2258.2 seconds,
+including the corrected dependency-boundary expectation. No stage failed,
+remained pending or was reused. Windows was still running when this evidence
+was recorded; the newer
 benchmark adapter commits have focused local evidence, not full hosted acceptance.
 
 ## W2 and the next behavior increments
@@ -276,7 +277,35 @@ reports bind the same candidate and prompt
 Inputs remained unchanged. These establish harness correctness on a shared
 host, not genuine model trials, isolated performance or full W2 acceptance.
 
-B07-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B07 now separates the four multilingual strings, prompt, solve and independent
+judge. Original font name records enable baseline discovery without changing
+any outline, metric or shaping table; the original unnamed fixture keeps its
+exact identity. Both arms deliver logical source-to-glyph mappings, checked
+against authored glyph IDs, intervals, origins and advances. Inkbolt's judge
+also checks fresh text inspection and binds its reopened snapshot to current
+history. Harmless author IDs, labels and descriptive metadata are accepted;
+visible formatting, editable source and geometry remain independently checked.
+The baseline preserves logical Unicode SVG text and bounded editable spans.
+Its mapping is a delivered artifact, not a claim of observed renderer internals.
+All four original check IDs/classes and the exact pixel oracle remain unchanged.
+
+The final eight typography checks passed in 76.5 seconds on Windows and 58.9
+seconds on Linux, with no failures, pending checks or skips. Both reports bind
+candidate `cb8d0988d59b29186df8b55f396afb411e96f6532774870e6a1b7220145bdd53`.
+Before the final metadata allowance, 37 harness/verifier regression tests passed
+on Windows in 104.3 seconds and all 45 selected tests passed on Linux in 76.6
+seconds; these earlier reports separately bind
+`ba0ea7471421a6ae983028457c31a01c717557e6380751548116f23218295a30`.
+Five synthetic-client trials with pinned baseline tools passed on each platform,
+and all five Windows captures passed independent rejudging, on the final candidate
+and prompt `c4ea9d8f8462f9bd8b388c3a4cb540ad79d8e3e5208755e7e16b5c916ab74864`.
+Inputs remained unchanged. A separate negative control retained correct logical
+text and declared glyphs but used unpositioned SVG runs: the pinned renderer's
+fourth row differed, and both glyph/pixel checks failed. Explicitly positioned
+editable spans passed without changing the oracle. These are shared-host harness
+checks, not actual model trials, isolated performance or full W2 acceptance.
+
+B08-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

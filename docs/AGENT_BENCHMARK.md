@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B06 also support `--arm model` and
+`--arm reference` is the existing default. B01-B07 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -130,7 +130,23 @@ remain; only the two history checks are not applicable to the baseline. Tests
 cover both transports, independent session names, false reports, collateral
 changes, unsafe SVG, wrong images and rejudging relocated captured font stores.
 
-B07-B20 still interleave solving and judging. All required checks have
+B07 separates the multilingual fixture, [prompt](../tools/benchmark_prompts/B07.md),
+reference solve and judge in `benchmark_typography.py`. Both arms retain the same
+four logical Unicode strings, original font and license. Only original font name
+records are added for renderer discovery; existing unnamed fixture bytes and all
+outlines, metrics and shaping tables remain unchanged. A common shaping artifact
+declares glyph IDs, logical intervals, origins and advances. Inkbolt's judge
+checks these against fresh text inspection and independent authored geometry,
+reopens the editable snapshot and binds it to valid current history. The SVG
+baseline retains logical text, admits bounded editable spans and checks its
+declared mapping against authored intervals/metrics and a fresh glyph-distinct
+raster. This is a delivered mapping, not an observation of renderer internals.
+Both arms check every delivered and freshly rendered pixel. Author-selected
+document/object/font/session IDs, labels and descriptive metadata are accepted.
+The original four check IDs/classes
+remain; the two engine-only checks are not applicable to the baseline.
+
+B08-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 

@@ -1,12 +1,22 @@
-"""Original text tasks with authored flow intervals and exact glyph geometry."""
+"""B07 fixture, prompt, solve and judge with authored glyph/cluster oracles."""
+import base64
+import json
+from pathlib import Path
 
-from benchmark_graphics import (BLUE, GREEN, document, rectangle, pixels, ref,
-                               store, source_snapshot, view, verify_history)
-from benchmark_runtime import require
+from benchmark_diagram import delivered
+from benchmark_graphics import BLUE, pixels, png_check, store, source_snapshot
+from benchmark_runtime import require, safe_name, strict_json
 from synthetic_bidi_font import bidi_font
+from synthetic_font import geometric_font
+from synthetic_unicode_font import sfnt
+from synthetic_variable_font import tables
+from workload_cases import document, save, save_json, sha
 
 
 LICENSE = b'Original synthetic Inkbolt font. Permission to use, modify and redistribute with this notice.'
+FONT_FAMILY = 'Inkbolt Typography Fixture'
+PROMPT = Path(__file__).with_name('benchmark_prompts')/'B07.md'
+PREVIEW_FILES = {'typography-pixels':'preview.png'}
 
 
 # Explicit independently authored glyph IDs and logical source intervals. The
@@ -22,23 +32,29 @@ TYPOGRAPHY = [
 ADVANCE = {1:300,2:600,3:650,4:500,6:0,9:600,10:600,16:600,17:700,18:700,19:1000,22:700,23:300,26:500}
 
 
-def multilingual(case):
-    case.source('original.ttf',bidi_font())
+def named_font():
+    # Add only original name records; all outlines, metrics and shaping tables
+    # remain byte-identical to the established unnamed fixture.
+    data = tables(bidi_font())
+    data[b'name'] = tables(geometric_font(family=FONT_FAMILY))[b'name']
+    return sfnt(data)
+
+
+def fixture(case):
+    case.source('original.ttf',named_font())
     case.source('font-license.txt',LICENSE)
-    texts=[text for text,_ in TYPOGRAPHY]
-    case.begin('Create a 1000x960 editable typography sheet using original.ttf at size 200, '
-        'blue fill, Unicode bidi with automatic base direction and no wrapping. Place the '
-        'four exact logical strings '+repr(texts)+' at y=0,240,480,720, x=0 in 1000x240 frames. '
-        'Preserve logical Unicode source, font/license and editable clusters. Inspect Hebrew '
-        'and Arabic visual order, Arabic joining, combining-mark anchors, Indic prebase order, '
-        'Han glyphs and the fi ligature; review the entire delivered image.')
-    font=case.call('font','font.import',source_path='original.ttf',license_path='font-license.txt')
+    case.source('texts.json',(json.dumps([text for text,_ in TYPOGRAPHY],ensure_ascii=True,indent=2)+'\n').encode())
+
+
+def typography_document(identity, font_id, font):
     items=[dict(id=f'row-{i}',transform=[1,0,0,1,0,i*240],content=dict(type='text',frame=dict(
         text=text,width=1000,height=240,wrap=False,bidi='unicode',direction='auto',
-        style=dict(font_id='face',size=200,fill=BLUE)))) for i,text in enumerate(texts)]
-    saved=store(case,document('multilingual','vector',1000,960,fonts=dict(face=font),items=items))
-    layouts=[case.call(f'inspect-{i}','text.inspect',document=saved,id=f'row-{i}') for i in range(4)]
-    expected_origins=[];rects=[]
+        style=dict(font_id=font_id,size=200,fill=BLUE)))) for i,(text,_) in enumerate(TYPOGRAPHY)]
+    return document(identity,'vector',1000,960,fonts={font_id:font},items=items)
+
+
+def authored_geometry():
+    rows=[];rects=[]
     for row,(_,glyphs) in enumerate(TYPOGRAPHY):
         pen=0;origins=[]
         for gid,start,end in glyphs:
@@ -48,19 +64,94 @@ def multilingual(case):
             if gid==6: rects.append((x,y+row*240-20,20,20,BLUE))
             elif gid!=1: rects.append((x+10,y+row*240-80-gid,20+2*gid,80+gid,BLUE))
             pen+=advance
-        expected_origins.append(origins)
-    def shaped():
-        for info,expected in zip(layouts,expected_origins,strict=True):
-            require(info['indices']=='unicode_scalars' and info['glyph_clusters']=='logical_scalar_intervals',
-                    'Typography lost logical cluster units')
-            actual=[[g['glyph_id'],g['start'],g['end'],g['origin'],g['advance']] for g in info['layout']['glyphs']]
-            require(actual==expected,'Glyph forms, visual order, logical clusters or anchors differ')
-    case.check('glyph-cluster-order',shaped)
-    actual=source_snapshot(case,saved)
-    case.check('editable-text-and-font',lambda:require(
-        [i['content']['frame']['text'] for i in actual['items']]==texts and
-        actual['fonts']['face']['sha256']==case.sources['original.ttf'] and
-        actual['fonts']['face']['license_sha256']==case.sources['font-license.txt'],
-        'Typography normalized/reordered stored text or replaced its font'))
-    view(case,'preview',saved,'typography-pixels',1000,960,pixels(1000,960,rects))
-    verify_history(case)
+        rows.append(origins)
+    return rows,rects
+
+
+def expected_picture():
+    return pixels(1000,960,authored_geometry()[1])
+
+
+def observed_glyphs(info):
+    require(info['indices'] == 'unicode_scalars' and info['glyph_clusters'] == 'logical_scalar_intervals',
+        'Typography lost logical cluster units')
+    return [[g['glyph_id'],g['start'],g['end'],g['origin'],g['advance']] for g in info['layout']['glyphs']]
+
+
+def shaping_report(rows):
+    return dict(indices='unicode_scalars',glyph_clusters='logical_scalar_intervals',
+        rows=[dict(text=text,glyphs=glyphs) for (text,_),glyphs in zip(TYPOGRAPHY,rows,strict=True)])
+
+
+def report_glyphs(case):
+    report = strict_json(delivered(case,'shaping.json'))
+    require(isinstance(report,dict) and set(report) == {'indices','glyph_clusters','rows'} and
+        report['indices'] == 'unicode_scalars' and report['glyph_clusters'] == 'logical_scalar_intervals' and
+        isinstance(report['rows'],list) and len(report['rows']) == 4,'Invalid shaping report or cluster units')
+    result = []
+    for row,(text,_) in zip(report['rows'],TYPOGRAPHY,strict=True):
+        require(isinstance(row,dict) and set(row) == {'text','glyphs'} and row['text'] == text and
+            isinstance(row['glyphs'],list),'Shaping report changed the logical Unicode text')
+        for glyph in row['glyphs']:
+            require(isinstance(glyph,list) and len(glyph) == 5 and all(type(v) is int for v in glyph[:3]) and
+                isinstance(glyph[3],list) and len(glyph[3]) == 2 and
+                all(type(v) in (int,float) for v in [*glyph[3],glyph[4]]),'Invalid glyph/cluster coordinates')
+        result.append(row['glyphs'])
+    return result
+
+
+def solve(case):
+    font = case.call('font','font.import',source_path='original.ttf',license_path='font-license.txt')
+    saved = store(case,typography_document('multilingual','face',font))
+    layouts = [case.call(f'inspect-{i}','text.inspect',document=saved,id=f'row-{i}') for i in range(4)]
+    source_snapshot(case,saved)
+    preview = case.call('preview','document.preview',document=saved,preview=True)
+    save(case.root/'preview.png',base64.b64decode(preview['artifact']['data'],validate=True))
+    case.call('verify-history','session.verify',session_id=saved['session_id'])
+    save_json(case.root/'shaping.json',shaping_report([observed_glyphs(row) for row in layouts]))
+    save_json(case.root/'session.json',dict(session_id=saved['session_id'],current_revision=saved['revision']))
+
+
+def judge(case):
+    report = report_glyphs(case)
+    raw = delivered(case,'editable.json'); actual = strict_json(raw)
+    reopened = case.call('judge-reopen','document.validate',document=dict(file_path='editable.json',sha256=sha(raw)))
+    require(len(actual['items']) == 4 and len(actual['fonts']) == 1,'Expected four editable text rows and one original font')
+    font_id = next(iter(actual['fonts']))
+    font = dict(sha256=case.sources['original.ttf'],license_sha256=case.sources['font-license.txt'],face_index=0,
+        bytes=len(delivered(case,'original.ttf')))
+    expected = typography_document(actual['id'],font_id,font)
+    expected['revision'] = actual['revision']
+    # Creation task: authors choose IDs, labels and descriptive metadata. These
+    # do not affect the independently prescribed text, formatting or geometry.
+    if 'metadata' in actual: expected['metadata'] = actual['metadata']
+    for target,item in zip(expected['items'],actual['items'],strict=True):
+        target.update(id=item['id'],name=item['name'])
+        if 'metadata' in item: target['metadata'] = item['metadata']
+    normalized = case.call('judge-expected','document.validate',document=expected)
+    case.check('editable-text-and-font',lambda:require(type(actual['revision']) is int and actual['revision'] >= 0 and
+        actual == reopened == normalized,'Typography changed editable text, frame geometry, formatting or original font/license'))
+    layouts = [case.call(f'judge-inspect-{i}','text.inspect',document=reopened,id=item['id']) for i,item in enumerate(actual['items'])]
+    case.check('glyph-cluster-order',lambda:require(report == [observed_glyphs(row) for row in layouts] == authored_geometry()[0],
+        'Glyph forms, visual order, logical clusters, origins or advances differ'))
+    rendered = case.call('judge-preview','document.preview',document=reopened,preview=True)
+    def picture():
+        png_check(delivered(case,'preview.png'),1000,960,expected_picture())
+        png_check(base64.b64decode(rendered['artifact']['data'],validate=True),1000,960,expected_picture())
+    case.check('typography-pixels',picture)
+    locator = strict_json(delivered(case,'session.json'))
+    require(isinstance(locator,dict) and set(locator) == {'session_id','current_revision'},'Invalid session locator')
+    safe_name(locator['session_id'])
+    require(type(locator['current_revision']) is int and locator['current_revision'] == actual['revision'],'Invalid current revision')
+    saved = case.call('judge-current-revision','document.validate',
+        document=dict(session_id=locator['session_id'],revision=locator['current_revision']))
+    verified = case.call('judge-history','session.verify',session_id=locator['session_id'])
+    case.check('history-valid',lambda:require(verified['valid'] and verified['revision'] == actual['revision'] and saved == actual,
+        'Valid saved history must contain the exact delivered snapshot at its current head'))
+
+
+def multilingual(case):
+    fixture(case); case.begin(PROMPT.read_text(encoding='utf-8')); solve(case)
+    case.begin_judging(); judge(case)
+    if any(row['name'] == 'typography-pixels' and row['status'] == 'pass' for row in case.checks):
+        case.verified_preview(delivered(case,'preview.png'))

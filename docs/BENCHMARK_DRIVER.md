@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B06. B07-B20 remain visible as
+The W2 external lifecycle currently supports B01-B07. B08-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -54,7 +54,8 @@ The no-engine arm uses the same prompt and original inputs. B01 includes the
 original named font; B02 has no asset dependencies; B03 supplies the same original
 5,000-object JSON layout to both arms; B04 supplies the same original SVG;
 B05 supplies the same JSON palette and artwork; B06 supplies the same original
-linked-flow JSON layout, geometric font and license. The baseline does not build,
+linked-flow JSON layout, geometric font and license; B07 supplies the same four
+logical strings, directional geometric font and license. The baseline does not build,
 configure or launch Inkbolt. Provide an external JSON file with exactly `resvg`
 and `python` absolute executable paths. The tools must be resvg **0.47.0** and a
 Python environment containing Pillow **12.3.0**. Tool executable hashes and a
@@ -129,6 +130,20 @@ the delivered and original snapshots verifies both layouts and binds valid
 history to the fixture, delivery and current head. Captured font stores are
 checked in the imported workspace without relying on old absolute session roots.
 Saved original flow and session integrity are explicitly engine-only checks.
+
+B07 delivers `preview.png` and `shaping.json` in both arms. Its
+[shared typography prompt](../tools/benchmark_prompts/B07.md) defines logical
+source offsets, visual glyph order and local frame coordinates. The baseline
+retains `editable.svg` with four editable Unicode rows and optional bounded flat
+spans; its source must retain every logical scalar in order. The declared glyph
+mapping is checked against authored intervals/metrics and a fresh pinned render
+with distinct geometric glyphs. It is not attributed to the renderer's internal
+cluster machinery, which its CLI does not expose. Inkbolt also delivers
+`editable.json` and `session.json`; the judge reopens, freshly inspects/renders
+the snapshot and binds it to valid current history. Exact pixels are unchanged
+across arms; a plainly concatenated SVG run may fail even if its shaping report
+claims the expected glyphs. Positioned editable spans are admitted, with the
+same pixel oracle determining whether they succeed.
 
 Observed first-preview timing is accepted only when its artifact hash matches a
 delivered image whose corresponding pixel check passed. B02 can identify any of

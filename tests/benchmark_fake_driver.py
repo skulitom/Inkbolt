@@ -15,6 +15,8 @@ from benchmark_large_layout import solve as solve_layout, expected_picture as ex
 from benchmark_svg import solve as solve_svg, expected_picture as expected_svg
 from benchmark_palette import solve as solve_palette, expected_picture as expected_palette
 from benchmark_flow import solve as solve_flow, expected_picture as expected_flow, expected_lines, repaired, FONT_FAMILY
+from benchmark_typography import (solve as solve_typography, expected_picture as expected_typography,
+    FONT_FAMILY as TYPOGRAPHY_FAMILY, authored_geometry, shaping_report)
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -59,12 +61,21 @@ def flow_svg(source):
     return ''.join(parts)+'<rect id="unrelated" x="90" y="40" width="4" height="4" fill="#1e9646"/></svg>'
 
 
+def typography_svg(texts, positioned=True):
+    parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="960">']
+    for i,text in enumerate(texts):
+        if i == 3 and positioned:
+            text = f'<tspan x="0">{text[:2]}</tspan><tspan x="260">{text[2:4]}</tspan><tspan x="460">{text[4:]}</tspan>'
+        parts.append(f'<text x="0" y="{200+i*240}" font-family="{TYPOGRAPHY_FAMILY}" font-size="200" fill="#145096">{text}</text>')
+    return ''.join(parts)+'</svg>'
+
+
 def main():
     request=json.loads(Path(sys.argv[-1]).read_text(encoding='utf-8'))
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06')
+    assert task in ('B01','B02','B03','B04','B05','B06','B07')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,**arguments):
             payload=json.dumps(dict(command=command,**arguments)).encode()
@@ -73,10 +84,15 @@ def main():
             events.append(dict(step=step,request=payload.decode(),response=process.stdout.decode()))
             assert response['ok'] and process.returncode==0
             return response['result']
-        {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette, 'B06':solve_flow}[task](SimpleNamespace(root=root,call=call))
+        {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
+         'B06':solve_flow, 'B07':solve_typography}[task](SimpleNamespace(root=root,call=call))
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
-        if task=='B04':
+        if task=='B07':
+            (root/'editable.svg').write_text(typography_svg(json.loads((root/'texts.json').read_bytes()),
+                positioned='--naive-typography' not in sys.argv),encoding='utf-8')
+            (root/'shaping.json').write_text(json.dumps(shaping_report(authored_geometry()[0])),encoding='utf-8')
+        elif task=='B04':
             source=(root/'original.svg').read_text(encoding='utf-8').replace('<path ', '<path transform="translate(4,-1)" ')
             (root/'revised.svg').write_text(source,encoding='utf-8')
             (root/'import-report.json').write_text(json.dumps(dict(source_sha256=hashlib.sha256((root/'original.svg').read_bytes()).hexdigest(),
@@ -92,7 +108,13 @@ def main():
             else: source = SVG if task == 'B01' else ICONS_SVG
             (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B06':
+        if task=='B07':
+            if renderer['version']=='synthetic-fixture':
+                (root/'preview.png').write_bytes(png(1000,960,expected_typography()))
+            else:
+                subprocess.run([renderer['path'],'--skip-system-fonts','--use-font-file',str(root/'original.ttf'),
+                    '--font-family',TYPOGRAPHY_FAMILY,str(root/'editable.svg'),str(root/'preview.png')],check=True)
+        elif task=='B06':
             if renderer['version']=='synthetic-fixture':
                 (root/'preview.png').write_bytes(png(96,48,expected_flow()))
             else:
