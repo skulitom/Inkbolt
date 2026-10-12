@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B03. B04-B20 remain visible as
+The W2 external lifecycle currently supports B01-B04. B05-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -52,7 +52,7 @@ external-client reports describe the actual adapter protocol as external.
 
 The no-engine arm uses the same prompt and original inputs. B01 includes the
 original named font; B02 has no asset dependencies; B03 supplies the same original
-5,000-object JSON layout to both arms. The baseline does not build,
+5,000-object JSON layout to both arms; B04 supplies the same original SVG. The baseline does not build,
 configure or launch Inkbolt. Provide an external JSON file with exactly `resvg`
 and `python` absolute executable paths. The tools must be resvg **0.47.0** and a
 Python environment containing Pillow **12.3.0**. Tool executable hashes and a
@@ -92,6 +92,18 @@ pixel against the same independent geometry. The model arm also delivers
 session and original/current revisions. History must contain the exact fixture
 and final snapshot, and its current revision must match the final delivery.
 Those two engine-only history checks are explicitly not applicable in the baseline.
+
+B04 delivers `revised.svg`, `preview.png` and `import-report.json` in both arms.
+The [shared SVG-editing prompt](../tools/benchmark_prompts/B04.md) defines the
+retained group/path controls, the one world translation and a bounded SVG subset.
+The report binds the original source hash, source-to-delivery ID mapping and
+actual ID/description losses. The baseline may retain both IDs and the description
+without losses, or disclose their remapping/omission accurately; it cannot pass
+by merely claiming a successful import. Its SVG is admitted before pinned
+rendering. Inkbolt also supplies the unmodified `svg.import` result and an editable
+snapshot. The judge independently repeats the import, validates the snapshot and
+renders both that snapshot and the delivered SVG. The original receipt's full
+disclosures must survive even if the final SVG restores its description.
 
 Observed first-preview timing is accepted only when its artifact hash matches a
 delivered image whose corresponding pixel check passed. B02 can identify any of

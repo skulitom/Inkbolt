@@ -1,5 +1,5 @@
 """Explicit reference-adapter inventory, separate from accepted task requirements."""
-from benchmark_graphics import (svg_artwork, palette,
+from benchmark_graphics import (palette,
     foreground_mask, local_retouch, transparent_delivery, resource_repair,
     seeded_repair, lost_response, conflicting_writers)
 from benchmark_typography import linked_overflow, multilingual
@@ -10,6 +10,7 @@ from benchmark_handoff import linked_graphic
 from benchmark_diagram import diagram
 from benchmark_icons import icons
 from benchmark_large_layout import large_layout
+from benchmark_svg import svg_artwork
 
 ADAPTERS = {'B01':diagram,'B02':icons,'B03':large_layout,'B04':svg_artwork,
     'B05':palette,'B06':linked_overflow,'B07':multilingual,'B08':foreground_mask,

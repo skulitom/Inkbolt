@@ -118,6 +118,7 @@ class VerificationTests(unittest.TestCase):
             'test_agent_benchmark_photo','test_agent_benchmark_recovery',
             'test_benchmark_driver',  # Captures complete external trial workspaces.
             'test_benchmark_icons','test_benchmark_large_layout',  # Exercise that capture lifecycle.
+            'test_benchmark_svg',
             'test_wsl_verification',  # The WSL snapshot binds the whole candidate.
         })
         # Refactoring must still invalidate actual shared helper consumers and

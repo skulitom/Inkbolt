@@ -125,7 +125,7 @@ attempt to run all nine serial job fixtures reached the 180-second quick budget;
 it remains pending, not a full-suite pass. CI's thorough run keeps all fixtures.
 
 The [hosted `43f839e` run](https://github.com/skulitom/Inkbolt/actions/runs/38194879684)
-finished Ubuntu/macOS with one failed stage each: a test of the verifier's
+finished all three platforms with one failed stage each: a test of the verifier's
 dependency boundaries omitted the new icon benchmark from its expected consumer
 list. Both the icon and large-layout lifecycle tests are now listed explicitly;
 the assertion remains strict. All 22 verifier tests passed locally on Windows
@@ -203,7 +203,29 @@ The baseline reports bind candidate
 These are correctness checks on a shared host; no actual model, isolated
 performance measurement or complete W2 acceptance is claimed.
 
-B04-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B04 now separates its original SVG fixture, prompt, solve and judge. Both arms
+must retain the layer/path controls and requested world translation, deliver SVG
+and PNG, and bind truthful ID/description loss reporting to the original source
+hash. The SVG is independently admitted for structure, controls, transforms and
+paint before rendering. Inkbolt also delivers its complete import receipt and
+snapshot; the judge repeats the import and freshly renders both the snapshot and
+delivered SVG. A restored description is accepted when accurately reported.
+The unchanged four check IDs and classifications remain; only the snapshot check
+is not applicable to the no-engine baseline.
+
+The seven B04 tests and 22 verifier tests passed on Windows in 44.6 seconds;
+15 existing driver/reference regression tests passed in 105.3 seconds. Linux
+ran all 44 selected tests in 77.0 seconds. No selected check failed, remained
+pending or skipped. The final Windows regression and Linux reports bind candidate
+`e47723b0dc0843eb32f05d3941968f48b224b26592d8560d886c1b8b91280793`.
+Five synthetic-client B04 trials passed with real pinned tools on each platform,
+and all five Windows captures passed independent rejudging. Baseline reports
+bind that same candidate and prompt
+`f70a0836d0c92dd84fc42b515aa83d9f5f778cd71f5941141dc89bcd2580c239`.
+Inputs remained unchanged. These establish harness correctness under shared host
+conditions, not actual model performance or complete W2 acceptance.
+
+B05-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

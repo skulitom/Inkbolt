@@ -10,15 +10,17 @@ from benchmark_tasks import TASKS, CHECKS, BASELINE_NOT_APPLICABLE
 import benchmark_diagram
 import benchmark_icons
 import benchmark_large_layout
+import benchmark_svg
 from benchmark_baseline import judge_diagram, file_hash
 from benchmark_baseline_icons import judge_icons
 from benchmark_baseline_large_layout import judge_large_layout
+from benchmark_baseline_svg import judge_svg_artwork
 from workload_cases import save, save_json, sha
 from verify_process import run as run_owned
 import measurement_host
 
 MIGRATIONS = {'B01':(benchmark_diagram, judge_diagram), 'B02':(benchmark_icons, judge_icons),
-              'B03':(benchmark_large_layout, judge_large_layout)}
+              'B03':(benchmark_large_layout, judge_large_layout), 'B04':(benchmark_svg, judge_svg_artwork)}
 MIGRATED_TASKS = tuple(MIGRATIONS)
 MAX_METADATA = 1024*1024
 MAX_TRANSCRIPT = 64*1024*1024

@@ -2,7 +2,6 @@
 import base64
 import copy
 import json
-import xml.etree.ElementTree as ET
 
 from benchmark_runtime import require
 from workload_cases import document, rectangle, save, sha
@@ -65,30 +64,6 @@ def view(case,step,doc,check,width,height,expected,**options):
 def verify_history(case):
     result=case.call('verify-history','session.verify',session_id='work')
     case.check('history-valid',lambda:require(result['valid'],'Invalid saved history'))
-
-
-def svg_artwork(case):
-    source=b'<svg xmlns="http://www.w3.org/2000/svg" width="32" height="24"><desc>Original benchmark description</desc><g id="layer" transform="translate(3,2)"><path id="block" d="M2 3 H10 V9 H2 Z" fill="#145096"/></g></svg>'
-    case.source('original.svg',source)
-    case.begin('Import original.svg, preserve its layer and editable path, then move the path four '
-        'pixels right and one up in world coordinates. Inspect declared import losses, preserve '
-        'the original bytes and publish the revised editable source and SVG. Review the result.')
-    imported=case.call('import','svg.import',id='imported',source=dict(kind='file',source_path='original.svg'))
-    mapping={m['source_id']:m['item_id'] for m in imported['mapping'] if m.get('source_id')}
-    item=next(i for i in imported['document']['items'] if i['id']==mapping['block'])
-    case.check('imported-structure',lambda:require(item['parent']==mapping['layer'] and
-        item['content']['geometry']['shape']=='path' and imported['source']['sha256']==sha(source),'SVG structure or source identity changed'))
-    case.check('declared-losses',lambda:require(isinstance(imported['losses'],list) and
-        any('Source IDs' in loss for loss in imported['losses']) and any('Description' in loss for loss in imported['losses']),'Required XML/description loss disclosure is absent'))
-    store(case,imported['document'])
-    apply(case,'move',0,[dict(op='transform',id=mapping['block'],matrix=[1,0,0,1,4,-1],space='world')])
-    actual=source_snapshot(case,ref(1))
-    case.call('deliver-svg','document.publish',document=ref(1),output=dict(format='svg',file_name='revised.svg'))
-    tree=ET.fromstring((case.root/'revised.svg').read_bytes())
-    revised=next(i for i in actual['items'] if i['id']==mapping['block'])
-    case.check('editable-source',lambda:require(revised['content']==item['content'] and
-        revised['parent']==item['parent'] and len(tree.findall('.//{*}path'))==1,'SVG path editing structure changed'))
-    view(case,'preview',ref(1),'revised-pixels',32,24,pixels(32,24,[(9,4,8,6,BLUE)]))
 
 
 def palette(case):
