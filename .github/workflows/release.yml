@@ -170,7 +170,7 @@ jobs:
           latest=false
           if [[ "$RELEASE_TAG" == "$highest" ]]; then latest=true; fi
           assets=(target/dist/release/*.zip target/dist/release/*.tar.gz target/dist/release/*.mcpb target/dist/release/*.sha256 target/dist/release/SHA256SUMS)
-          if gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --json assets > target-release.json; then
+          if gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --json assets,isDraft > target-release.json; then
             mkdir -p target/existing-release
             missing=()
             # Compare every existing asset before uploading any missing ones. Never use --clobber.
@@ -188,6 +188,10 @@ jobs:
               fi
             done
             if (( ${#missing[@]} )); then gh release upload "$RELEASE_TAG" "${missing[@]}" -R "$GITHUB_REPOSITORY"; fi
+            # A draft (left by an interrupted run, or made by hand) isn't public: publish it once every asset matches.
+            if jq -e '.isDraft' target-release.json > /dev/null; then
+              gh release edit "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --draft=false "--latest=$latest"
+            fi
           else
             gh release create "$RELEASE_TAG" "${assets[@]}" -R "$GITHUB_REPOSITORY" \
               --verify-tag --title "Inkbolt $RELEASE_TAG" --notes-file mcpb/RELEASE_NOTES.md --generate-notes "--latest=$latest"

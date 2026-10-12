@@ -43,7 +43,8 @@ jobs:
           [[ "$INPUT_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'Release tag must have the form vX.Y.Z.'
           tag=$INPUT_TAG
           version=${tag#v}
-          release=$(gh release view "$tag" -R "$GITHUB_REPOSITORY" --json assets,tagName) || fail "No GitHub release for $tag."
+          release=$(gh release view "$tag" -R "$GITHUB_REPOSITORY" --json assets,isDraft,tagName) || fail "No GitHub release for $tag."
+          jq -e '.isDraft == false' <<< "$release" > /dev/null || fail "Release $tag is still a draft, so its assets aren't public; publish it first."
           gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" > /dev/null || fail "No git tag $tag."
           action=none
           reason='already published; skipped'

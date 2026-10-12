@@ -91,6 +91,7 @@ class RepositoryGuardTests(unittest.TestCase):
 
     def test_release_automation_types_only_in_their_folders(self):
         self.write(".github/workflows/release.yml", b"name: Release\n")
+        self.write(".github/workflows/publish-registry.yml", b"name: Publish\n")
         self.write("mcpb/build.mjs", b"export {};\n")
         self.assertEqual(guard.check_repository(self.root)[0], [])
         stray = ["notes.yml", "src/tool.mjs", ".github/workflows/nested/extra.yml", "mcpb/build.yml"]
