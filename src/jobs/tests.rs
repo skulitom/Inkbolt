@@ -436,6 +436,128 @@ fn enqueue_during_idle_exit_cannot_lose_the_new_job() {
 }
 
 #[test]
+fn simultaneous_observers_cannot_fail_a_publishing_job() {
+    let mut owned = Owned::new();
+    owned.start("before_prepare", 30000);
+    let ready = std::sync::Arc::new(std::sync::Barrier::new(5));
+    let observers: Vec<_> = (0..4)
+        .map(|_| {
+            let root = owned.jobs();
+            let ready = ready.clone();
+            std::thread::spawn(move || {
+                ready.wait();
+                let began = Instant::now();
+                loop {
+                    assert!(began.elapsed() < Duration::from_secs(30));
+                    match status(&root, "one", &Control::default()) {
+                        Ok(value)
+                            if !["queued", "running"]
+                                .contains(&value["state"].as_str().unwrap()) =>
+                        {
+                            return value;
+                        }
+                        Ok(_) => {}
+                        Err(error) if error.code == "JOB_BUSY" => {}
+                        Err(error) => panic!("{error:?}"),
+                    }
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+            })
+        })
+        .collect();
+    ready.wait();
+    owned.release();
+    let outcomes: Vec<_> = observers
+        .into_iter()
+        .map(|observer| observer.join())
+        .collect();
+    for outcome in outcomes {
+        let terminal = outcome.unwrap();
+        assert_eq!(terminal["state"], "completed", "{terminal:#}");
+        assert_eq!(terminal["attempt"], 1);
+    }
+    assert!(owned.root.join("one.png").exists());
+}
+
+#[test]
+fn publication_lock_retry_completes_after_transient_writer() {
+    let mut owned = Owned::new();
+    owned.start("publication_ready", 30000);
+    let prepared =
+        publications::receipt(&receipt(&owned.jobs(), "one"), &Control::default()).unwrap();
+    assert_eq!(prepared["state"], "prepared");
+    let mut db = store::required(&owned.jobs()).unwrap();
+    let tx = db
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .unwrap();
+    store::save(&tx, &store::state(&tx, "one").unwrap()).unwrap();
+    owned.release();
+    // Model a delayed progress/cancel writer, beyond one SQLite busy wait but
+    // within the existing job lifetime. The prepared bytes need no new attempt.
+    std::thread::sleep(Duration::from_millis(
+        crate::limits::sqlite::BUSY_TIMEOUT_MS + 500,
+    ));
+    tx.commit().unwrap();
+    let terminal = owned.terminal();
+    assert_eq!(terminal["state"], "completed", "{terminal:#}");
+    assert_eq!(terminal["attempt"], 1);
+    let bytes = fs::read(owned.root.join("one.png")).unwrap();
+    assert_eq!(
+        prepared["prepared_output"]["sha256"],
+        assets::sha256(&bytes)
+    );
+    assert_eq!(prepared["prepared_output"]["bytes"], bytes.len());
+}
+
+#[test]
+fn publication_lock_retry_preserves_cancellation_and_deadline() {
+    for cancelling in [true, false] {
+        let mut owned = Owned::new();
+        owned.start("publication_ready", if cancelling { 30000 } else { 10000 });
+        let mut db = store::required(&owned.jobs()).unwrap();
+        let tx = db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .unwrap();
+        let mut state = store::state(&tx, "one").unwrap();
+        state.cancel_requested = cancelling;
+        store::save(&tx, &state).unwrap();
+        owned.release();
+        if cancelling {
+            std::thread::sleep(Duration::from_millis(
+                crate::limits::sqlite::BUSY_TIMEOUT_MS + 500,
+            ));
+        } else {
+            // The runner must stop at its original lifetime even when it cannot
+            // obtain a publication permit or write final bookkeeping.
+            owned.until(|| {
+                job_process::process_state(state.runner.unwrap()).unwrap()
+                    == job_process::ProcessState::NotRunning
+            });
+        }
+        tx.commit().unwrap();
+        let terminal = owned.terminal();
+        assert_eq!(
+            terminal["state"],
+            if cancelling { "cancelled" } else { "failed" },
+            "{terminal:#}"
+        );
+        assert_eq!(terminal["attempt"], 1);
+        if !cancelling {
+            assert_eq!(terminal["error"]["code"], "JOB_TIMEOUT", "{terminal:#}");
+            assert_eq!(
+                terminal["last_process_report"]["stop_requested"],
+                "deadline"
+            );
+        }
+        assert!(!owned.root.join("one.png").exists());
+        assert_eq!(
+            publications::receipt(&receipt(&owned.jobs(), "one"), &Control::default()).unwrap()["state"],
+            "prepared"
+        );
+    }
+}
+
+#[test]
 fn submitter_death_after_admission_or_supervisor_registration_keeps_the_ticket() {
     for point in ["admitted", "supervisor_registered"] {
         let mut owned = Owned::new();

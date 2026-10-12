@@ -418,6 +418,29 @@ impl JobHooks for Hook {
     fn before_publication(
         &self,
         already_published: bool,
+        control: &Control,
+    ) -> Result<Box<dyn PublicationPermit>, Error> {
+        loop {
+            match self.acquire_publication(already_published) {
+                Err(error) if error.code == "JOB_BUSY" && !already_published => {
+                    // A delayed progress/cancel writer is not a failed export.
+                    // Retry only the rolled-back gate, never encoding or linking.
+                    // The existing runner lifetime and cancellation still bound
+                    // this attempt; external commands keep their short busy wait.
+                    control.check()?;
+                    std::thread::sleep(Duration::from_millis(
+                        crate::limits::jobs::MONITOR_INTERVAL_MS,
+                    ));
+                }
+                outcome => return outcome,
+            }
+        }
+    }
+}
+impl Hook {
+    fn acquire_publication(
+        &self,
+        already_published: bool,
     ) -> Result<Box<dyn PublicationPermit>, Error> {
         let db = store::required(&self.root)?;
         db.execute_batch("BEGIN IMMEDIATE").map_err(store::sql)?;

@@ -140,9 +140,36 @@ remained pending or was reused. Windows finished with 220 passed stages and one
 failed Rust stage in 3569.9 seconds. All 2,330 Python tests passed with one explicit
 skip, but the idle-exit fixture's second job terminated with `JOB_BUSY`; 142 Rust
 library tests passed and one failed, preventing the remaining Rust targets from
-running. Serial execution alone did not fix this failure. Its cause must be fixed
-without relaxing the required successful job outcome. The newer benchmark adapter
-commits have focused local evidence, not full hosted acceptance.
+running. Serial execution alone did not fix this failure. Ubuntu subsequently
+passed all 225 fresh stages at `790716d` in 696.4 seconds, with 2,325 Python tests
+executed and 34 explicit skips. That run's Windows/macOS jobs were still running
+when this evidence was recorded; it predates the contention fix below.
+
+A controlled delayed-writer regression reproduced a prepared job failing with
+`JOB_BUSY` after the short SQLite wait, while its original lifetime still had
+time remaining. Before the first publication link, the worker now retries only
+the rolled-back publication-permit acquisition, checking the existing job control
+and retaining the original attempt and prepared bytes. No encoding, link or
+whole job is retried; other errors, external request waits and completed-output
+recovery retain their existing behavior. Discovery and the job contract describe
+this distinction. Hosted confirmation of the original intermittent failure is
+still required.
+
+Focused Windows verification passed all 12 Rust job tests and 26 Python
+job/publication tests. The first 46.2-second window completed build, formatting,
+Clippy and nine receipt tests, leaving the two longer groups pending. The resumed
+125.1-second check reused those identical passes and finished all selected checks
+without failures or pending work. Tests cover exact prepared bytes, a single
+attempt, simultaneous observers, cancellation before publication, and an unchanged
+runner deadline while the writer remains locked. Linux passed 13 Rust
+publication tests and nine Python receipt tests in 64.2 seconds, with 17 explicit
+Windows-job skips; Linux job execution is still unsupported. The final reports
+both recorded unchanged inputs and source fingerprint:
+`27cb2d55db3886278b5470828865eaf38d4fdcb22d71c2d162f3a246ad3abf8d`.
+The failing before-fix log and final reports are retained externally under
+`w1-job-contention-`. These are focused correctness checks, not complete milestone
+acceptance or isolated performance measurements; the corrected hosted matrix is
+pending.
 
 ## W2 and the next behavior increments
 

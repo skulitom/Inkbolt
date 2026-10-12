@@ -77,6 +77,15 @@ The launcher uses a two-second lease-wait budget; database contention also has a
 
 Publication writes a prepared receipt before creating the final file. Immediately before its create-only link, the runner acquires the job writer transaction and checks cancellation. If cancellation committed first, the destination stays absent. If publication wins, the job saves success before releasing the transaction; a busy concurrent cancellation may require retry. Actual published output takes precedence over a later deadline, cancellation or worker crash.
 
+Before the first link, a runner retries `JOB_BUSY` while acquiring that publication
+permit, within the same attempt and its existing lifetime and cancellation rules.
+Each failed acquisition releases its transaction before waiting. This handles a
+delayed progress or cancellation writer without encoding again, adding an attempt,
+or changing the prepared bytes. Other errors remain explicit failures; completed
+publication recovery keeps its existing behavior. External commands retain their
+short database wait and retryable `JOB_BUSY` response. Discovery reports this
+contract under `capabilities.jobs.publication_contention`.
+
 When a runner stops, the live supervisor retains responsibility for its exit report. If that supervisor is gone, inspection checks physical publication evidence before assigning an interrupted/cancelled outcome. Recovery recognizes the exact staging file and bytes, never an unrelated file with identical contents. Merely inspecting or cancelling a stopped job cannot publish an absent staged output. Explicit resumption can finish that prepared output once.
 
 Completed receipts remain historical even after the output is deleted. Neither submission retries nor resumption recreate it. If publication succeeded but receipt bookkeeping could not finish, its receipt reports pending recovery; the output remains successful. Prepared evidence and unrelated outputs are preserved. Trusted local Windows filesystem and process-interruption behavior are verified; hostile directory replacement, network filesystems and sudden-power-loss guarantees are not claimed.

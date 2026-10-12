@@ -33,6 +33,7 @@ pub(crate) trait JobHooks: Send + Sync {
     fn before_publication(
         &self,
         already_published: bool,
+        control: &Control,
     ) -> Result<Box<dyn PublicationPermit>, Error>;
 }
 impl Control {
@@ -63,7 +64,7 @@ impl Control {
     ) -> Result<Option<Box<dyn PublicationPermit>>, Error> {
         self.hooks
             .as_ref()
-            .map(|h| h.before_publication(already_published))
+            .map(|h| h.before_publication(already_published, self))
             .transpose()
     }
     pub(crate) fn check_path(&self, path: &std::path::Path) -> Result<(), Error> {
