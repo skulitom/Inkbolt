@@ -18,6 +18,7 @@ from test_cli import EXE, ROOT
 import test_editing_cli as editing
 from test_editing_cli import png_pixels
 from test_mcp import Client
+from mcp_artifacts import restore
 
 
 SIZES = {'icon256': (256, 256), 'presentation_hd': (1920, 1080),
@@ -69,7 +70,7 @@ class PresetTests(unittest.TestCase):
             def call(command, **args):
                 r = client.tool('run', command=command, arguments=args)
                 self.assertFalse(r['isError'], r)
-                return r['structuredContent']['result']
+                return restore(r)['result']
             self.assertEqual(call('preset.list'), catalog)
             for size, kind in itertools.product(SIZES, ['vector', 'raster']):
                 p = call('preset.create', version=1, id='original', preset=screen(size, kind))
@@ -204,7 +205,7 @@ class PresetTests(unittest.TestCase):
             def call(command, **args):
                 r = client.tool('run', command=command, arguments=args)
                 self.assertFalse(r['isError'], r)
-                return r['structuredContent']['result']
+                return restore(r)['result']
             p = call('preset.create', version=1, id='original', preset=screen())
             call('session.create', session_id='design', request_id='create', document=p['document'], response_mode='compact')
             action = dict(type='edit', operations=[dict(op='add', item=box('canvas', [10, 60, 200, 255]))])

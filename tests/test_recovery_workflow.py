@@ -10,6 +10,7 @@ import test_session_lineage as lineage
 from test_editing_cli import png_pixels
 from test_images_cli import png
 from test_mcp import Client
+from mcp_artifacts import restore
 from synthetic_font import geometric_font
 
 
@@ -50,7 +51,7 @@ class RecoveryWorkflowTests(unittest.TestCase):
                 if error:
                     self.assertEqual(response['structuredContent']['error']['code'], error)
                     return response['structuredContent']['error']
-                return response['structuredContent']['result']
+                return restore(response)['result']
 
             source_database = self.dbpath().read_bytes()
             review = remote('session.dry_run', session_id='work', request_id='reviewed', expected_revision=0,

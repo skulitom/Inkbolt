@@ -9,6 +9,7 @@ import test_editing_cli as editing
 from synthetic_font import geometric_font
 from synthetic_unicode_font import unicode_font
 from test_mcp import Client
+from mcp_artifacts import restore
 
 
 class StoryHyphenTests(unittest.TestCase):
@@ -142,7 +143,7 @@ class StoryHyphenTests(unittest.TestCase):
         with closing(Client()) as client:
             client.initialize()
             def call(command,**kw):
-                v=client.tool(command,**kw)['structuredContent'];self.assertTrue(v['ok'],v);return v['result']
+                v=restore(client.tool(command,**kw));self.assertTrue(v['ok'],v);return v['result']
             call('session.create',**session,request_id='create',document=d,resources=dict(font_root=str(self.store)))
             source=copy.deepcopy(d['stories']['article']);source['hyphenation_rules']['words']['exceptions']={'AAAAAAAA':[2,4,6]};action=dict(type='edit',operations=[dict(op='story',id='article',story=source)])
             edited=call('session.apply',**session,request_id='edit',expected_revision=0,action=action);self.assertTrue(call('session.apply',**session,request_id='edit',expected_revision=0,action=action)['replayed'])

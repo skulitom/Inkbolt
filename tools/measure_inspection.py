@@ -8,11 +8,14 @@ import platform
 import queue
 import random
 import subprocess
+import sys
 import tempfile
 import threading
 import time
 
 from measure_discovery import ROOT, source_identity
+sys.path.insert(0, str(ROOT / 'tests'))
+from mcp_artifacts import restore
 
 
 def encoded(value):
@@ -70,7 +73,7 @@ def measure(executable):
             data=preview['content'][reference['index']]['data']; raw=base64.b64decode(data,validate=True)
             if hashlib.sha256(raw).hexdigest()!=reference['sha256'] or len(raw)!=reference['bytes']: raise RuntimeError('PNG identity mismatch')
             restored=dict(artifact);del restored['payload_ref'];restored.update(encoding='base64',data=data)
-            if restored!=normal['structuredContent']['result']: raise RuntimeError('Preview changed original artifact metadata or bytes')
+            if restored!=restore(normal)['result']: raise RuntimeError('Preview changed original artifact metadata or bytes')
             if encoded(preview).count(data.encode())!=1: raise RuntimeError('PNG data was duplicated')
         finally:
             process.stdin.close()
@@ -81,7 +84,7 @@ def measure(executable):
         return dict(items=513,full_inspection_stdout_bytes=full_bytes,selected_page_stdout_bytes=page_bytes,
                     selected_inventory_stdout_bytes=sum(page_bytes),inventory_and_coordinates_verified=True,
                     source_pixels_sha256=hashlib.sha256(pixels).hexdigest(),png_sha256=reference['sha256'],
-                    legacy_png_wire_bytes=normal_bytes,preview_png_wire_bytes=preview_bytes,
+                    json_png_wire_bytes=normal_bytes,preview_png_wire_bytes=preview_bytes,
                     png_payload_occurrences=1,original_artifact_reconstructed=True,calls=calls)
 
 
@@ -93,7 +96,7 @@ def main():
     if args.output and args.output.resolve().is_relative_to(ROOT.resolve()):parser.error('Keep generated reports outside the repository')
     executable=args.executable.resolve(strict=True);source_before=source_identity();binary_before=hashlib.sha256(executable.read_bytes()).hexdigest()
     measured=measure(executable)
-    report=dict(schema_version=1,measurement='inspection_and_image_traffic_only',model_trials=False,
+    report=dict(schema_version=2,measurement='inspection_and_image_traffic_only',model_trials=False,
                 source_sha256=source_before,executable_sha256=binary_before,
                 source_unchanged=source_before==source_identity(),executable_unchanged=binary_before==hashlib.sha256(executable.read_bytes()).hexdigest(),
                 build_provenance='Existing executable; source-to-binary correspondence requires a recorded build',

@@ -11,7 +11,7 @@ import threading
 import time
 
 from workload_cases import process_memory, run_process, save, save_json, sha
-from test_mcp_preview import restore
+from mcp_artifacts import restore
 from benchmark_tasks import check_class
 
 MAX_RESPONSE = 96*1024*1024
@@ -271,7 +271,7 @@ class Trial:
                 result, wire = self.server.request(step, 'tools/call', dict(name='inkbolt_run',
                     arguments=dict(command=command, arguments=arguments, response_format='preview' if preview else 'json')))
                 row.update({key:wire[key] for key in ('request_bytes','response_bytes','seconds')})
-                envelope = restore(result) if preview else result.get('structuredContent')
+                envelope = restore(result)
                 require(type(result.get('isError')) is bool and isinstance(envelope, dict)
                         and result['isError'] == (envelope.get('ok') is False), 'MCP envelope mismatch')
             require(isinstance(envelope, dict) and type(envelope.get('ok')) is bool, 'Missing response envelope')

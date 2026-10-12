@@ -15,39 +15,7 @@ from test_profiles_cli import embedded
 from cmyk_fixtures import proof_profile
 
 
-def pointer(value, path):
-    for part in path.lstrip('/').split('/'):
-        value = value[int(part)] if isinstance(value, list) else value[part.replace('~1','/').replace('~0','~')]
-    return value
-
-
-def restore(response):
-    envelope = response['structuredContent']
-    def visit(value):
-        if isinstance(value, list): return [visit(v) for v in value]
-        if not isinstance(value, dict): return value
-        result = {k:visit(v) for k,v in value.items() if k != 'payload_ref'}
-        if 'payload_ref' in value:
-            ref = value['payload_ref']
-            if ref['kind'] == 'content':
-                block = response['content'][ref['index']]
-                assert block['type'] == 'image' and block['mimeType'] == 'image/png'
-                data = block['data']; raw = base64.b64decode(data, validate=True)
-                assert len(raw) == ref['bytes'] and hashlib.sha256(raw).hexdigest() == ref['sha256']
-            else:
-                assert ref['kind'] == 'structured_content'
-                data = pointer(envelope, ref['pointer'])
-            result.update(encoding='base64', data=data)
-        return result
-    return visit(envelope)
-
-
-def image_payloads(value):
-    if isinstance(value, dict):
-        if value.get('media_type') == 'image/png' and value.get('encoding') == 'base64': yield value['data']
-        for v in value.values(): yield from image_payloads(v)
-    elif isinstance(value, list):
-        for v in value: yield from image_payloads(v)
+from mcp_artifacts import restore, image_payloads
 
 
 class McpPreviewTests(unittest.TestCase):
@@ -57,14 +25,21 @@ class McpPreviewTests(unittest.TestCase):
 
     def check_preview(self, client, command, **arguments):
         expected = self.cli(command, **arguments)
-        result = client.tool('run', command=command, arguments=arguments, response_format='preview')
-        self.assertFalse(result['isError'], result)
-        self.assertEqual(restore(result), dict(ok=True, result=expected))
-        wire = json.dumps(result, separators=(',', ':'))
-        for data in set(image_payloads(expected)):
-            self.assertEqual(wire.count(data), 1)
-        self.assertLessEqual(sum(v['type']=='image' for v in result['content']), 4)
-        self.assertNotIn('```', result['content'][0]['text'])
+        for mode in ('json','markdown','structured','preview'):
+            with self.subTest(command=command,mode=mode):
+                options={} if mode=='json' else dict(response_format=mode)
+                result = client.tool('run', command=command, arguments=arguments, **options)
+                self.assertFalse(result['isError'], result)
+                self.assertEqual(restore(result), dict(ok=True, result=expected))
+                wire = json.dumps(result, separators=(',', ':'))
+                for data in set(image_payloads(expected)):
+                    self.assertEqual(wire.count(data), 1)
+                self.assertLessEqual(sum(v['type']=='image' for v in result['content']), 4)
+                text=result['content'][0]['text']
+                if mode in ('json','markdown'):
+                    serialized=text if mode=='json' else text.split('```json\n',1)[1].rsplit('\n```',1)[0]
+                    self.assertEqual(restore(result,json.loads(serialized)),dict(ok=True,result=expected))
+                else:self.assertNotIn('```',text)
         return result, expected
 
     def test_single_png_roundtrip_independent_pixels_and_byte_reduction(self):
@@ -75,9 +50,9 @@ class McpPreviewTests(unittest.TestCase):
         with closing(Client(('--tools','core'),workspace=self.root)) as c:
             c.initialize()
             result, expected = self.check_preview(c, 'document.export', document=doc,format='png')
-            legacy = c.tool('run',command='document.export',arguments=dict(document=doc,format='png'))
-            self.assertEqual(legacy['structuredContent']['result'], expected)
-            self.assertLess(len(json.dumps(result)), len(json.dumps(legacy)) * .4)
+            normal = c.tool('run',command='document.export',arguments=dict(document=doc,format='png'))
+            self.assertEqual(restore(normal)['result'], expected)
+            self.assertEqual(json.dumps(normal).count(expected['data']),1)
             self.assertEqual(len(result['content']),2)
             width,height,actual,_=png_pixels(base64.b64decode(result['content'][1]['data']))
             self.assertEqual((width,height),(128,128))
@@ -122,13 +97,26 @@ class McpPreviewTests(unittest.TestCase):
             self.assertEqual(len(result['content']),1);self.assertEqual(result['structuredContent']['result']['id'],'new')
             self.check_preview(c,'document.validate',document=doc)
             self.check_preview(c,'document.export',document=doc,format='snapshot')
-            failed=c.tool('document.create',id='bad',kind='vector',width=0,height=2,response_format='preview')
-            self.assertTrue(failed['isError']);self.assertEqual(failed['structuredContent']['error']['code'],'INVALID_DOCUMENT')
-            self.assertEqual(len(failed['content']),1)
+            for mode in ('json','markdown','structured','preview'):
+                failed=c.tool('document.create',id='bad',kind='vector',width=0,height=2,response_format=mode)
+                self.assertTrue(failed['isError']);self.assertEqual(failed['structuredContent']['error']['code'],'INVALID_DOCUMENT')
+                self.assertEqual(len(failed['content']),1)
             # Presentation stays outside dispatcher engine arguments.
             invalid=c.tool('run',command='session.create',arguments=dict(response_format='preview'))
             self.assertEqual(invalid['structuredContent']['error']['code'],'INVALID_REQUEST')
         self.assertFalse((self.root/'.inkbolt').exists())
+
+    def test_structured_avoids_snapshot_text_duplication_and_reports_its_contract(self):
+        doc=self.document();doc['metadata']=dict(note='original snapshot metadata '*200)
+        with closing(Client(('--tools','core'),workspace=self.root)) as client:
+            client.initialize()
+            normal=client.tool('run',command='document.validate',arguments=dict(document=doc))
+            structured=client.tool('run',command='document.validate',arguments=dict(document=doc),response_format='structured')
+            self.assertEqual(json.loads(normal['content'][0]['text']),normal['structuredContent'])
+            self.assertEqual(normal['structuredContent'],structured['structuredContent'])
+            self.assertLess(len(json.dumps(structured)),len(json.dumps(normal))*.55)
+            contract=client.tool('run',command='capabilities',arguments={})['structuredContent']['result']['mcp_responses']
+            self.assertEqual(contract['default'],'json');self.assertIn('structured',contract['formats'])
 
 
 if __name__ == '__main__': unittest.main()

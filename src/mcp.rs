@@ -139,7 +139,7 @@ fn description(command: &str) -> String {
             "Read bounded pages of selected item fields, asset/font inventories or path anchors. Cursor binds exact document content, view and page limit. Hidden/locked items are included; resources are structural inventories. Use pinned saved references to avoid resending documents."
         }
         "document.preview" => {
-            "Review a canvas, document region, selected objects or standalone artboard as PNG. Returns explicit world/pixel matrices and exact document identity. Region/object views crop the full composition, preserving render semantics and limits. Use response_format preview for a single image payload."
+            "Review a canvas, document region, selected objects or standalone artboard as PNG. Returns explicit world/pixel matrices and exact document identity. Region/object views crop the full composition, preserving render semantics and limits. Use response_format structured or preview for summary text."
         }
         "document.check" => {
             "Check retained structure, pinned resources and authored text/story overflow, including nested snapshots and overrides. Returns bounded located diagnostics with repair guidance, checked counts and explicit incomplete/skipped status. Read-only; use document.preflight to prepare a specific export."
@@ -453,7 +453,7 @@ pub fn catalog_in_workspace(
         if workspace {
             crate::workspace::describe(&mut input);
         }
-        input["properties"]["response_format"] = json!({"type":"string","enum":["json","markdown","preview"],"default":"json","description":"JSON/Markdown preserve the full envelope in text and structuredContent. Preview uses summary text and one PNG payload location with explicit references; metadata stays in structuredContent."});
+        input["properties"]["response_format"] = json!({"type":"string","enum":["json","markdown","structured","preview"],"default":"json","description":"JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references."});
         portable_schema(&mut input);
         let name = format!("inkbolt_{}", command.replace('.', "_"));
         let mutable = matches!(
@@ -489,7 +489,7 @@ pub fn catalog_in_workspace(
             "inputSchema":{"type":"object","additionalProperties":false,"required":["command","arguments"],"properties":{
                 "command":{"type":"string","enum":crate::schema::commands().collect::<Vec<_>>()},
                 "arguments":{"type":"object","additionalProperties":true,"description":"Command fields from schema.lookup, without command or response_format."},
-                "response_format":{"type":"string","enum":["json","markdown","preview"],"default":"json"}
+                "response_format":{"type":"string","enum":["json","markdown","structured","preview"],"default":"json"}
             }},
             "outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},
             "annotations":{"readOnlyHint":false,"destructiveHint":true,"idempotentHint":false,"openWorldHint":false},
@@ -616,6 +616,7 @@ enum ResponseFormat {
     Json,
     Markdown,
     Preview,
+    Structured,
 }
 type Active = Arc<Mutex<BTreeMap<String, Control>>>;
 fn tool_result(result: Result<Value, Error>, format: ResponseFormat, command: &str) -> Value {
@@ -624,9 +625,11 @@ fn tool_result(result: Result<Value, Error>, format: ResponseFormat, command: &s
         Ok(result) => json!({"ok":true,"result":result}),
         Err(error) => json!({"ok":false,"error":error}),
     };
-    if matches!(format, ResponseFormat::Preview) {
-        return crate::mcp_preview::present(envelope, command);
+    let mut response = crate::mcp_preview::present(envelope, command);
+    if matches!(format, ResponseFormat::Preview | ResponseFormat::Structured) {
+        return response;
     }
+    let envelope = crate::mcp_preview::text_envelope(&response["structuredContent"], command);
     let text = if matches!(format, ResponseFormat::Markdown) {
         format!(
             "{}\n\n```json\n{}\n```",
@@ -640,30 +643,8 @@ fn tool_result(result: Result<Value, Error>, format: ResponseFormat, command: &s
     } else {
         envelope.to_string()
     };
-    let mut content = vec![json!({"type":"text","text":text})];
-    let result = &envelope["result"];
-    let artifacts: Vec<&Value> =
-        if let Some(entries) = result.get("artifacts").and_then(Value::as_array) {
-            entries.iter().map(|v| &v["artifact"]).collect()
-        } else {
-            vec![result]
-        };
-    let mut image_bytes = 0;
-    for artifact in artifacts {
-        if artifact["media_type"] == "image/png"
-            && artifact["encoding"] == "base64"
-            && let Some(data) = artifact["data"].as_str()
-        {
-            if content.len() > crate::limits::mcp_preview::MAX_IMAGES
-                || image_bytes + data.len() > crate::limits::mcp_preview::MAX_IMAGE_BASE64_BYTES
-            {
-                break;
-            }
-            image_bytes += data.len();
-            content.push(json!({"type":"image","mimeType":"image/png","data":data}));
-        }
-    }
-    json!({"content":content,"structuredContent":envelope,"isError":failed})
+    response["content"][0]["text"] = json!(text);
+    response
 }
 pub fn run() -> io::Result<()> {
     run_with_mode(CatalogMode::Full)
@@ -928,10 +909,11 @@ pub fn run_in_workspace(
                         Some(Value::String(s)) if s == "json" => ResponseFormat::Json,
                         Some(Value::String(s)) if s == "markdown" => ResponseFormat::Markdown,
                         Some(Value::String(s)) if s == "preview" => ResponseFormat::Preview,
+                        Some(Value::String(s)) if s == "structured" => ResponseFormat::Structured,
                         _ => {
                             send(
                                 &output,
-                                &json!({"jsonrpc":"2.0","id":id,"result":tool_result(Err(Error::new("INVALID_REQUEST","response_format must be json, markdown or preview")),ResponseFormat::Json,"")}),
+                                &json!({"jsonrpc":"2.0","id":id,"result":tool_result(Err(Error::new("INVALID_REQUEST","response_format must be json, markdown, structured or preview")),ResponseFormat::Json,"")}),
                             )?;
                             continue;
                         }

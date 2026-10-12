@@ -49,20 +49,50 @@ The engine still reads, validates and hashes the full bounded snapshot on each r
 
 ## One location for image payloads
 
-MCP calls accept `response_format:"preview"` alongside existing `json` (default) and `markdown`. For `inkbolt_run`, put it on the outer arguments:
+MCP calls accept `response_format:"json"` (default), `markdown`, `structured` and
+`preview`. Every format sends each supported PNG payload once. JSON retains a
+parseable metadata envelope in text; Markdown wraps that envelope in a JSON code
+block. `structured` uses a short summary plus complete structured metadata;
+`preview` retains the same summary presentation under its existing name. For
+`inkbolt_run`, put the format on the outer arguments:
 
 ```json
 {"name":"inkbolt_run","arguments":{"command":"document.export","arguments":{"document":{"session_id":"poster","revision":3},"format":"png"},"response_format":"preview"}}
 ```
 
-Preview format returns a short text summary, structured metadata and at most four PNG image blocks totalling at most 8 MiB of base64 data. Image data is removed from its structured artifact when delivered in an image block. The artifact uses `encoding:"mcp_reference"` and a version-one `payload_ref` containing `kind:"content"`, the zero-based content-block `index`, original encoding, byte length and SHA-256. Identical encoded PNGs share that location.
+All formats attach at most four PNG image blocks totalling at most 8 MiB of
+base64 data. Image data is removed from its structured and textual artifacts
+when delivered in an image block. The artifact uses `encoding:"mcp_reference"`
+and a version-one `payload_ref` containing `kind:"content"`, the zero-based
+content-block `index`, original encoding, byte length and SHA-256. Identical
+encoded PNGs share that location.
 
-When attachment count/bytes would exceed the limit, the payload remains once in its original structured artifact with `encoding:"base64"`. Later duplicates use `kind:"structured_content"` and a JSON pointer rooted at `structuredContent` to that original `data` string. The summary states how many unique payloads remain inline. Nothing is silently dropped, and smaller subsequent images can still fit the attachment budget.
+When attachment count/bytes would exceed the limit, the payload remains once in
+its original structured artifact with `encoding:"base64"`. Later duplicates and
+the JSON/Markdown text envelope use `kind:"structured_content"` and a JSON pointer
+rooted at `structuredContent` to that original `data` string. Summary modes state
+how many unique payloads remain inline. Nothing is silently dropped, and smaller
+subsequent images can still fit the attachment budget.
 
-To reconstruct an artifact, resolve its payload reference, remove `payload_ref`, and restore `encoding:"base64"` and `data`. Widths, profiles, loss statements, frame timing, hashes and all other engine metadata remain unchanged. Existing JSON/Markdown responses preserve their original full-envelope behavior. Preview format does not change engine execution, output bytes, session fingerprints or the shared CLI result.
+To reconstruct an artifact, resolve its payload reference, remove `payload_ref`,
+and restore `encoding:"base64"` and `data`. Widths, profiles, loss statements,
+frame timing, hashes and all other engine metadata remain unchanged. Clients
+that previously read PNG `data` directly from default MCP envelopes must now
+resolve these references. JSON/Markdown still contain the complete metadata
+envelope; their overflow references require access to `structuredContent`.
+Non-PNG results retain the default matching text and structured envelopes.
+Presentation does not change engine execution, PNG bytes, session fingerprints
+or CLI results. The default text copy follows the supported
+[MCP protocol's compatibility guidance](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#structured-content);
+clients that consume structured results can opt out with `structured`.
 
-Supported PNG locations cover document export, focused previews, contact sheets, artboard export, sequence frame export, channel export, proof previews/diagnostic masks/plates, native prepress plates, named-ink separations and session dry-run previews and visual revision comparison images. Other formats/results remain complete in structured content with summary text. The adapter examines only known command output locations; it never interprets snapshot contents or metadata strings as image artifacts. This transport is separate from `response_mode:"compact"`, which projects saved session results in both CLI and MCP.
+Supported PNG locations cover document export, focused previews, contact sheets, artboard export, sequence frame export, channel export, proof previews/diagnostic masks/plates, native prepress plates, named-ink separations and session dry-run previews and visual revision comparison images. Other formats/results remain complete in structured content; `structured` and `preview` avoid their text duplication too. The adapter examines only known command output locations; it never interprets snapshot contents or metadata strings as image artifacts. This transport is separate from `response_mode:"compact"`, which projects saved session results in both CLI and MCP.
 
 Independent process checks in `tests/test_paged_inspection.py` cover large inventories, fields, bounds, cursor invalidation, historical references, byte limits, path indices and compound placement. `tests/test_mcp_preview.py` reconstructs exact engine artifacts, independently checks pixels, and covers duplicate/overflow images, sequences, plates, diagnostics, errors and literal metadata. A Rust transport check covers the aggregate image-byte limit. These contract checks do not substitute for the model-driven tasks in [agent readiness](AGENT_READINESS.md).
 
-`python tools/measure_inspection.py --output <new-external-report.json>` records full-versus-selected inventory traffic and legacy-versus-preview PNG wire bytes on original fixtures. It checks every ID/bound and reconstructs the exact original PNG artifact. Reports identify source/executable hashes and list actual call sizes and elapsed times. They do not measure model success, tokens, peak memory or controlled performance budgets.
+`python tools/measure_inspection.py --output <new-external-report.json>` records
+full-versus-selected inventory traffic and JSON-versus-preview PNG wire bytes.
+`tools/measure_responses.py` measures all four modes for original PNG and snapshot
+fixtures, including actual JSON-RPC line sizes and payload occurrence counts.
+Both reconstruct original CLI results and retain source/executable identities.
+These are scripted traffic measurements, not model-success or memory evidence.

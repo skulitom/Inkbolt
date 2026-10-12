@@ -10,6 +10,7 @@ import test_text_cli as text_tests
 import test_editing_cli as editing
 from synthetic_font import geometric_font
 from test_mcp import Client
+from mcp_artifacts import restore
 
 
 class ListTests(unittest.TestCase):
@@ -189,7 +190,7 @@ class ListTests(unittest.TestCase):
         with closing(Client()) as client:
             client.initialize()
             def call(command,**kw):
-                value=client.tool(command,**kw)['structuredContent'];self.assertTrue(value['ok'],value);return value['result']
+                value=restore(client.tool(command,**kw));self.assertTrue(value['ok'],value);return value['result']
             call('session.create',**session,request_id='create',document=d,resources=dict(font_root=str(self.store)))
             s=copy.deepcopy(d['stories']['article']);s['paragraphs'][0]['list']['restart']=9
             action=dict(type='edit',operations=[dict(op='story',id='article',story=s)])

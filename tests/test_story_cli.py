@@ -10,6 +10,7 @@ from advertised_limits import capabilities
 import test_text_cli as text_tests
 import test_editing_cli as editing
 from test_mcp import Client
+from mcp_artifacts import restore
 
 
 class StoryTests(unittest.TestCase):
@@ -178,7 +179,7 @@ class StoryTests(unittest.TestCase):
         with closing(Client()) as client:
             client.initialize()
             def call(command,**kw):
-                value=client.tool(command,**kw)['structuredContent'];self.assertTrue(value['ok'],value);return value['result']
+                value=restore(client.tool(command,**kw));self.assertTrue(value['ok'],value);return value['result']
             created=call('session.create',**session,request_id='create',document=d,resources=dict(font_root=str(self.store)))
             action=dict(type='edit',operations=[dict(op='story_range',id='article',paragraph=0,start=0,end=2,text='AB')])
             edited=call('session.apply',**session,request_id='edit',expected_revision=0,action=action)

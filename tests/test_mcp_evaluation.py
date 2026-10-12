@@ -6,6 +6,7 @@ import unittest
 import xml.etree.ElementTree as ET
 from test_cli import ROOT
 from test_mcp import Client
+from mcp_artifacts import restore
 from test_editing_cli import png_pixels
 
 
@@ -41,7 +42,7 @@ class EvaluationTests(unittest.TestCase):
                 restored=c.success('session.diff',**s,from_revision=0,to_revision=undo['revision'],compare_pixels=True)
                 exports=c.tool('artboard.export',document=initial,format='png')
                 self.assertEqual(sum(v['type']=='image' for v in exports['content']),2)
-                boards={v['id']:png_pixels(base64.b64decode(v['artifact']['data'])) for v in exports['structuredContent']['result']['artifacts']}
+                boards={v['id']:png_pixels(base64.b64decode(v['artifact']['data'])) for v in restore(exports)['result']['artifacts']}
                 large=max(boards,key=lambda k:boards[k][0]*boards[k][1])
                 occupied={k:sum(v[2][n+3]>0 for n in range(0,len(v[2]),4)) for k,v in boards.items()}
                 painted_board=max(occupied,key=occupied.get)

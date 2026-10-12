@@ -11,7 +11,7 @@ from external_workspace import files as workspace_files
 
 import test_agent_workspace as workspace
 from test_mcp import Client
-from test_mcp_preview import restore
+from mcp_artifacts import restore
 from test_editing_cli import png_pixels
 
 

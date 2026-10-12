@@ -15,7 +15,7 @@ from test_hdr_cli import layer
 from test_images_cli import png
 from test_effects_coverage_cli import effect
 from test_mcp import Client
-from test_mcp_preview import restore
+from mcp_artifacts import restore
 
 
 class VisualDiffTests(unittest.TestCase):
