@@ -13,7 +13,7 @@ CASES = ('native-control', 'native-screen', 'stored-screen', 'social-square',
          'sparse-5000', 'mixed-5001', 'print-page')
 # Complete local import closure of the fixed scale-v1 fixture/measurement driver.
 # Pin helpers as well as the driver; changing any requires a new reviewed baseline.
-HARNESS = ('tests/advertised_limits.py', 'tests/pdf_reader.py', 'tests/test_boards_cli.py', 'tests/test_cli.py',
+HARNESS = ('tests/advertised_limits.py', 'tests/mcp_artifacts.py', 'tests/pdf_reader.py', 'tests/test_boards_cli.py', 'tests/test_cli.py',
            'tests/test_editing_cli.py', 'tests/test_image_io_cli.py',
            'tests/test_images_cli.py', 'tests/test_layout_cli.py', 'tests/test_mcp.py',
            'tests/test_sessions_cli.py', 'tools/measure_discovery.py',

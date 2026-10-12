@@ -1,4 +1,4 @@
-//! Opt-in MCP presentation: image bytes have one location, with explicit references.
+//! MCP image presentation: bytes have one location, with explicit references.
 use base64::{Engine, engine::general_purpose::STANDARD};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -47,6 +47,31 @@ fn artifact_paths(command: &str, result: &Value) -> Vec<String> {
     paths
 }
 
+fn inline_reference(pointer: &str) -> Value {
+    json!({"version":1,"kind":"structured_content","pointer":format!("{pointer}/data"),"encoding":"base64"})
+}
+
+pub(crate) fn text_envelope(envelope: &Value, command: &str) -> Value {
+    let mut text = envelope.clone();
+    // The compatibility text retains the metadata envelope. Unique overflow
+    // PNGs live only in structuredContent, so point at them instead of repeating
+    // their bytes in JSON/Markdown. Only engine-owned artifact slots are visited.
+    for pointer in artifact_paths(command, &envelope["result"]) {
+        let Some(artifact) = text.pointer_mut(&pointer) else {
+            continue;
+        };
+        if artifact["media_type"] == "image/png"
+            && artifact["encoding"] == "base64"
+            && artifact["data"].is_string()
+        {
+            artifact.as_object_mut().unwrap().remove("data");
+            artifact["encoding"] = json!("mcp_reference");
+            artifact["payload_ref"] = inline_reference(&pointer);
+        }
+    }
+    text
+}
+
 pub(crate) fn present(mut envelope: Value, command: &str) -> Value {
     let mut content = vec![Value::Null];
     let mut seen: BTreeMap<String, Value> = BTreeMap::new();
@@ -90,7 +115,7 @@ pub(crate) fn present(mut envelope: Value, command: &str) -> Value {
         } else {
             // Over-budget bytes stay recoverable once in structuredContent. Later
             // identical records reference this location instead of copying bytes.
-            seen.insert(key,json!({"version":1,"kind":"structured_content","pointer":format!("{pointer}/data"),"encoding":"base64"}));
+            seen.insert(key, inline_reference(&pointer));
             inline_images += 1;
         }
     }
@@ -125,7 +150,7 @@ mod tests {
         let artifact =
             |data: &str| json!({"media_type":"image/png","encoding":"base64","data":data});
         let envelope = json!({"ok":true,"result":{"artifacts":[{"artifact":artifact(&large)},{"artifact":artifact(&large)},{"artifact":artifact(&small)}]}});
-        let result = present(envelope, "artboard.export");
+        let mut result = present(envelope, "artboard.export");
         let records = &result["structuredContent"]["result"]["artifacts"];
         assert_eq!(records[0]["artifact"]["data"], large);
         assert!(records[1]["artifact"].get("data").is_none());
@@ -137,5 +162,13 @@ mod tests {
         assert_eq!(result["content"].as_array().unwrap().len(), 2);
         assert_eq!(result["content"][1]["data"], small);
         assert_eq!(result.to_string().matches(&large).count(), 1);
+        let text = text_envelope(&result["structuredContent"], "artboard.export");
+        assert_eq!(
+            text["result"]["artifacts"][0]["artifact"]["payload_ref"]["pointer"],
+            "/result/artifacts/0/artifact/data"
+        );
+        result["content"][0]["text"] = json!(text.to_string());
+        assert_eq!(result.to_string().matches(&large).count(), 1);
+        assert_eq!(result.to_string().matches(&small).count(), 1);
     }
 }

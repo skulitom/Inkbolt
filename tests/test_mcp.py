@@ -10,6 +10,7 @@ import threading
 import unittest
 from pathlib import Path
 from test_cli import EXE
+from mcp_artifacts import restore
 from test_sessions_cli import invoke
 from test_editing_cli import png_pixels
 
@@ -66,7 +67,7 @@ class Client:
         return r['result']
 
     def success(self,command,**kw):
-        r=self.tool(command,**kw);assert not r['isError'],r;return r['structuredContent']['result']
+        r=self.tool(command,**kw);assert not r['isError'],r;return restore(r)['result']
 
 
 class McpTests(unittest.TestCase):
@@ -88,6 +89,8 @@ class McpTests(unittest.TestCase):
         self.assertEqual(capabilities,invoke(dict(command='capabilities'))['result'])
         for tool in tools:
             schema=tool['inputSchema'];self.assertEqual(schema['type'],'object');self.assertFalse(schema['additionalProperties']);self.assertNotIn('command',schema['properties'])
+            self.assertEqual(schema['properties']['response_format']['default'],'json')
+            self.assertEqual(set(schema['properties']['response_format']['enum']),{'json','markdown','structured','preview'})
             def refs(value):
                 if isinstance(value,dict):
                     if '$ref' in value:self.assertIn(value['$ref'].split('/')[-1],schema['$defs'])

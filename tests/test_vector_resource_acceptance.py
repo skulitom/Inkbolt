@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import test_agent_workspace as workspace
 from test_editing_cli import png_pixels
 from test_mcp import Client
+from mcp_artifacts import restore
 from test_vector_overviews import rect, scene
 from pdf_reader import Pdf
 
@@ -36,7 +37,7 @@ class VectorResourceAcceptance(unittest.TestCase):
     def specialist(self, client, command, **arguments):
         result = client.tool('run', command=command, arguments=arguments)
         self.assertFalse(result['isError'],result)
-        return result['structuredContent']['result']
+        return restore(result)['result']
 
     def pixels(self, reference, size, **options):
         r = self.cli('document.preview', document=reference,

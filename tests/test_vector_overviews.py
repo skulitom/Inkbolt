@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 import test_agent_workspace as workspace
 from test_editing_cli import png_pixels
 from test_mcp import Client
-from test_mcp_preview import restore
+from mcp_artifacts import restore
 from test_profiles_cli import embedded, linear_profile, png_profile
 from pdf_reader import Pdf
 from test_images_cli import canonical

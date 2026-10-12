@@ -120,10 +120,40 @@ Synthetic runs never count as model evidence. No actual model was invoked.
 
 B02-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
-full W2 milestone acceptance remains open. W5.1 payloads,
-SVG arcs/rounded rectangles and the SVG insertion operation are independent
+full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
 plan's decision rule; accepted outcomes remain required.
+
+## W5.1: implemented, fresh full acceptance pending
+
+All MCP formats now send supported PNG payloads once using the existing payload
+references. Default JSON and Markdown retain textual metadata envelopes;
+overflow PNGs remain once in structured content. The explicit `structured`
+format uses the existing preview summary presentation for any result. Clients
+reconstruct the same CLI artifacts; engine execution and source documents stay
+unchanged. See [the transport contract](AGENT_INSPECTION.md), including the required
+update for clients that previously read default MCP PNG `data` directly.
+
+Actual JSON-RPC line measurements on original fixtures:
+
+| Fixture / mode | Before (bytes) | After (bytes) | Evidence |
+| --- | ---: | ---: | --- |
+| 128x128 seeded PNG, default JSON | 226,597 | 76,129 | 66.4% smaller; one payload instead of three |
+| Same PNG, Markdown | 226,696 | 76,288 | One payload instead of three |
+| Same PNG, preview | 76,016 | 76,016 | Existing summary presentation preserved |
+| Editable snapshot, default JSON | 263,097 | 263,097 | Default non-PNG text compatibility preserved |
+| Same snapshot, structured | Unsupported | 131,758 | 49.9% smaller than default JSON |
+
+Windows and Linux produced identical post-change wire sizes. The measurement
+tool checks exact reconstruction and retains source/executable identities;
+it does not establish model success, token counts or latency/memory budgets.
+Windows focused checks passed in 125.8 seconds, affected workflows in 75.2
+seconds and benchmark adapters in 158.5 seconds. The Linux build consumed most
+of its first 180-second window; five pending checks completed in a 37.4-second
+resume using identical passes. Broader Linux workflows and benchmark adapters
+passed in 60.9 seconds, with one explicit Windows-job recovery skip. No selected
+checks remain failed or pending. Fresh thorough milestone acceptance is still
+required before W5.1 is closed; no engine-checkpoint credit changes.
 
 ## Earlier scale baseline
 
