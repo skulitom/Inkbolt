@@ -7,13 +7,16 @@ import traceback
 
 from benchmark_runtime import Trial, require, safe_name, strict_json
 from benchmark_tasks import TASKS, CHECKS, BASELINE_NOT_APPLICABLE
-from benchmark_diagram import fixture, judge, PROMPT
+import benchmark_diagram
+import benchmark_icons
 from benchmark_baseline import judge_diagram, file_hash
+from benchmark_baseline_icons import judge_icons
 from workload_cases import save, save_json, sha
 from verify_process import run as run_owned
 import measurement_host
 
-MIGRATED_TASKS = ('B01',)
+MIGRATIONS = {'B01':(benchmark_diagram, judge_diagram), 'B02':(benchmark_icons, judge_icons)}
+MIGRATED_TASKS = tuple(MIGRATIONS)
 MAX_METADATA = 1024*1024
 MAX_TRANSCRIPT = 64*1024*1024
 
@@ -127,10 +130,11 @@ class ExternalTrial(Trial):
         evidence=self.driver_evidence or {}
         observed=evidence.get('observations',{})
         preview=None
-        if any(c['name']=='diagram-pixels' and c['status']=='pass' for c in self.checks):
-            path=self.root/'preview.png'
-            if path.is_file() and observed.get('first_preview_sha256')==file_hash(path):
-                preview=observed.get('first_preview_seconds')
+        for check,filename in MIGRATIONS[self.task][0].PREVIEW_FILES.items():
+            if any(c['name']==check and c['status']=='pass' for c in self.checks):
+                path=self.root/filename
+                if path.is_file() and observed.get('first_preview_sha256')==file_hash(path):
+                    preview=observed.get('first_preview_seconds')
         return dict(driver=evidence,driver_failure=self.driver_failure,model_trials=evidence.get('kind')=='model',
             token_usage=observed.get('token_usage'),model_calls=observed.get('model_calls'),
             agent_seconds=observed.get('agent_seconds'),scripted_wall_seconds=None,
@@ -205,7 +209,8 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
     case=ExternalTrial(executable if arm=='model' else None,base/'workspace',task,repetition,'cli',CHECKS[task],arm=arm)
     case.judge_root=evidence
     case.result_path=base/'result.json'
-    fixture(case);case.begin(PROMPT.read_text(encoding='utf-8'))
+    adapter,baseline_judge=MIGRATIONS[task]
+    adapter.fixture(case);case.begin(adapter.PROMPT.read_text(encoding='utf-8'))
     expected=contract(case,configuration,tools)
     pinned=driver_identity(configuration)
     request=dict(schema_version=1,contract=expected,contract_sha256=sha(canonical(expected)),
@@ -250,8 +255,8 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
         case.error=case.driver_failure
     case.begin_judging()
     try:
-        if arm=='baseline': judge_diagram(case,tools)
-        else: judge(case)
+        if arm=='baseline': baseline_judge(case,tools)
+        else: adapter.judge(case)
     except Exception as error:
         case.error=case.error or f'{type(error).__name__}: {error}'
         (evidence/'judge-failure.txt').write_text(traceback.format_exc(),encoding='utf-8')

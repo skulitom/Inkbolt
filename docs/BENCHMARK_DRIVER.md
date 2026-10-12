@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01. B02-B20 remain visible as
+The W2 external lifecycle currently supports B01 and B02. B03-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -50,7 +50,8 @@ external-client reports describe the actual adapter protocol as external.
 
 ## Pinned baseline
 
-The no-engine arm uses the same prompt and original font. It does not build,
+The no-engine arm uses the same prompt and original inputs. B01 includes the
+original named font; B02 has no asset dependencies. It does not build,
 configure or launch Inkbolt. Provide an external JSON file with exactly `resvg`
 and `python` absolute executable paths. The tools must be resvg **0.47.0** and a
 Python environment containing Pillow **12.3.0**. Tool executable hashes and a
@@ -67,6 +68,22 @@ and a PNG; its bounded source-judge contract is stated in the shared prompt.
 The judge renders with system fonts disabled and only the original named font.
 Artifact checks apply to both arms. The Inkbolt snapshot check is explicitly
 `not_applicable` for the baseline, never omitted or counted as an artifact pass.
+
+B02 delivers `editable.svg` and `board-0.png`, `board-1.png`, `board-2.png`.
+The [shared icon-sheet prompt](../tools/benchmark_prompts/B02.md) specifies stable
+board/icon IDs, spacing, ownership, sizes and colors. Its SVG source contains
+three independent nested viewports; admission rejects external resources and
+unbounded or changed geometry before rendering. The judge extracts each source
+viewport into a fresh standalone SVG and compares its pinned-renderer output
+and the delivered PNG with the same independently calculated pixels used by the
+Inkbolt arm. No engine process or build is used in this baseline. The model arm
+validates the delivered snapshot and freshly renders all three artboards; judge
+traffic is recorded separately from the solve. Document, session and request names
+are unconstrained; stable board/icon IDs are explicit task requirements.
+
+Observed first-preview timing is accepted only when its artifact hash matches a
+delivered image whose corresponding pixel check passed. B02 can identify any of
+its three board images; a failed board cannot supply a verified preview time.
 
 ## Client result and observations
 

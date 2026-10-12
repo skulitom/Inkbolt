@@ -67,29 +67,6 @@ def verify_history(case):
     case.check('history-valid',lambda:require(result['valid'],'Invalid saved history'))
 
 
-def icons(case):
-    case.begin('Create a 112x32 icon sheet with artboards board-0, board-1, board-2 at x=0,40,80; '
-        'each is 32x32 with one 8x10 icon at local (12,11), respectively blue, green and orange. '
-        'Keep stable IDs, review each independent board and publish an editable snapshot.')
-    doc=case.call('create','document.create',id='icons',kind='vector',width=112,height=32)
-    colors=[BLUE,GREEN,ORANGE]
-    for index,color in enumerate(colors):
-        board=f'board-{index}'
-        doc['items'].append(dict(id=board,transform=[1,0,0,1,index*40,0],content=dict(type='frame',frame=dict(role='artboard',width=32,height=32))))
-        item=rectangle(f'icon-{index}',12,11,8,10,color);item['parent']=board;doc['items'].append(item)
-    saved=store(case,doc);actual=source_snapshot(case,saved)
-    def structure():
-        require([i['id'] for i in actual['items']]==['board-0','icon-0','board-1','icon-1','board-2','icon-2'],'IDs/order changed')
-        for index in range(3):
-            require(actual['items'][index*2]['transform']==[1,0,0,1,index*40,0],'Board spacing changed')
-            require(actual['items'][index*2+1]['parent']==f'board-{index}','Icon ownership changed')
-    case.check('sheet-structure',structure)
-    for index,color in enumerate(colors):
-        view(case,f'preview-{index}',saved,f'board-{index}-pixels',32,32,
-             pixels(32,32,[(12,11,8,10,color)]),focus=dict(type='artboard',id=f'board-{index}'))
-    case.check('editable-source',lambda:require(all(i['content']['type']=='vector' for i in actual['items'][1::2]),'Icons are no longer editable vector geometry'))
-
-
 def large_layout(case):
     items=[rectangle(f'cell-{i}',(i%100)*10,(i//100)*10,6,6,BLUE) for i in range(5000)]
     seed=case.seed(document('large-layout','vector',1000,500,resource_profile='large_vector',items=items))

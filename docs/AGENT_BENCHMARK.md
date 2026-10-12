@@ -64,7 +64,18 @@ table so the same original outlines work in the pinned SVG baseline renderer;
 older unnamed fixtures retain their exact bytes. Prompt version 2 describes both
 editable deliverables and the baseline source-judge subset. Both arms compare the
 delivered PNG and a fresh source render against the same authored pixel oracle.
-Other adapters still interleave solving and judging. All required checks have
+`benchmark_icons.py` separates B02 into the same four parts with a versioned
+[icon-sheet prompt](../tools/benchmark_prompts/B02.md). Judges read the editable
+delivery and three independent board PNGs, then freshly render each source board.
+Its original stable IDs, order, spacing, ownership and pixel checks remain;
+the judge now also enforces the canvas/board dimensions stated in the original
+task. These strengthen verification of the unchanged outcome, without adding
+or removing check IDs. The baseline uses three editable SVG viewports, admitted
+before independent pinned rendering. Tests cover different document/session names,
+wrong geometry/ownership/IDs, stale correct solver logs, malformed or missing
+images, baseline isolation and captured-trial import.
+
+B03-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 

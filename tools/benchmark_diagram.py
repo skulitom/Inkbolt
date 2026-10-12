@@ -9,6 +9,7 @@ from workload_cases import rectangle, save, sha
 
 PROMPT = Path(__file__).with_name('benchmark_prompts')/'B01.md'
 FONT_FAMILY = 'Inkbolt Diagram Fixture'
+PREVIEW_FILES = {'diagram-pixels':'preview.png'}
 
 
 def fixture(case):

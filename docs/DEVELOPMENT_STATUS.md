@@ -130,7 +130,31 @@ Five synthetic-client B01 trials passed with the real pinned baseline tools on
 each platform; all five retained Windows trials also passed independent rejudging.
 Synthetic runs never count as model evidence. No actual model was invoked.
 
-B02-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B02 now separates its creation fixture, versioned prompt, reference solver and
+delivered-artifact judge. It preserves the original stable IDs, board order,
+ownership, spacing, editable icons and all five check IDs, while enforcing the
+canvas/board dimensions already stated by the original task. The engine judge
+reopens the delivered snapshot and renders each board independently. The baseline
+admits three editable SVG viewports, renders each separately with pinned resvg,
+and compares both rendered and delivered PNGs against the same authored pixels.
+Judge traffic remains separate; preview timing must identify a judged image.
+
+The final Windows quick verifier ran 25 tests in 108.2 seconds, reusing unchanged
+Cargo checks with no failed or pending stages. A native WSL snapshot ran the 19
+focused harness tests in 18.4 seconds against the already built `e9c493e` engine;
+this invocation does not claim a fresh Linux build. The isolated and primary
+checkouts differed only by CRLF/LF in unchanged files, verified byte-by-byte after
+newline normalization. Five synthetic-client B02 trials passed with the real
+pinned tools on each platform, and all five final Windows captures passed
+rejudging. Both baseline reports bind candidate fingerprint
+`c9bcd4e3d0283a89220305bc121c9a9515ad4b399e3ea500916ff86bb09c2d7f`
+and prompt hash `0911714f1c4f869bdf33ebebd9eb7d207e9ceea7c11a88046a7e18ddfbe6f67e`.
+An initial fresh Linux mirror lacked a Git revision; that setup failure was
+retained before importing its existing source commit, and no trial was counted
+from the failed setup. These are correctness checks under shared host load,
+not isolated performance measurements or actual model evidence.
+
+B03-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
@@ -172,7 +196,7 @@ their durations are not isolated performance measurements. Focused feedback
 remains bounded by the ordinary 180-second quick mode. Subsequent changes in this
 milestone are documentation of these results only.
 
-## W3b: implemented, fresh milestone acceptance pending
+## W3b: implemented, Windows full acceptance passed; Linux pending
 
 `add_svg` is an atomic edit accepting fragments and complete SVG documents. It
 uses the existing importer, returns deterministic collision-checked item IDs,
@@ -193,8 +217,13 @@ Linux/WSL ran all 101 selected Python tests and the Rust boundary test in 122.1
 seconds, including fresh build and all-target Clippy. No failures, pending checks
 or platform skips occurred. Both selected runs bind source fingerprint
 `55028d2675b9e20fea00e1a306979586eb3dfac1080343f744b4e10a261296cc`.
-Fresh full acceptance remains pending; no engine checkpoint or whole-goal credit
-is added by this implementation increment.
+Fresh Windows acceptance at `e9c493e` passed all 219 stages, with no reuse,
+failures or pending checks: 209 Rust tests and 2,318 Python tests executed, with
+one explicit skip, in 1506.7 seconds. Its source fingerprint is
+`c7bf604f97349decfa51d8d9f0aa26454268d305c107591442c488e4fb39419b`.
+The same byte-matched Linux snapshot is running full acceptance separately;
+subsequent B02 harness work does not change that frozen candidate or engine.
+No engine checkpoint or whole-goal credit is added by this implementation increment.
 
 ## W5.1: complete within the declared response contract
 
