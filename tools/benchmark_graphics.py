@@ -66,25 +66,6 @@ def verify_history(case):
     case.check('history-valid',lambda:require(result['valid'],'Invalid saved history'))
 
 
-def palette(case):
-    swatch=lambda color:dict(name='Shared',definition=dict(type='process',color=dict(space='srgb',components=[v/255 for v in color[:3]])))
-    items=[rectangle('first',2,4,8,8),rectangle('second',12,4,8,8),rectangle('unrelated',22,4,8,8,GREEN)]
-    for item in items[:2]: item['content']['fill']=dict(swatch='shared')
-    seed=case.seed(document('palette','vector',32,16,swatches=dict(shared=swatch(BLUE)),items=items))
-    case.begin('Open source.json and recolor shared from blue to RGBA (220,90,30,255). '
-        'Keep both live swatch dependencies and the unrelated green artwork unchanged. '
-        'Review current and original revisions and verify saved history.')
-    saved=store(case,seed)
-    case.call('inspect-palette','swatch.inspect',document=saved)
-    apply(case,'recolor',0,[dict(op='swatch',id='shared',swatch=swatch(ORANGE))])
-    actual=source_snapshot(case,ref(1))
-    case.check('live-dependencies',lambda:require(all(i['content']['fill'].get('swatch')=='shared' for i in actual['items'][:2])
-        and actual['items'][2]['content']['fill']==GREEN and actual['swatches']['shared']==swatch(ORANGE),'Shared dependencies or unrelated paint changed'))
-    for step,revision,color,check in [('preview',1,ORANGE,'palette-pixels'),('historical',0,BLUE,'historical-pixels')]:
-        view(case,step,ref(revision),check,32,16,pixels(32,16,[(2,4,8,8,color),(12,4,8,8,color),(22,4,8,8,GREEN)]))
-    verify_history(case)
-
-
 def transparent_delivery(case):
     case.begin('Create a transparent 1920x1080 vector screen graphic with one RGBA (20,80,150,128) '
         'rectangle at (10,20), size 200x100. Retain editable source and private source metadata. '

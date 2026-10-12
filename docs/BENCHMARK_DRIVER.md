@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B04. B05-B20 remain visible as
+The W2 external lifecycle currently supports B01-B05. B06-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -52,7 +52,8 @@ external-client reports describe the actual adapter protocol as external.
 
 The no-engine arm uses the same prompt and original inputs. B01 includes the
 original named font; B02 has no asset dependencies; B03 supplies the same original
-5,000-object JSON layout to both arms; B04 supplies the same original SVG. The baseline does not build,
+5,000-object JSON layout to both arms; B04 supplies the same original SVG;
+B05 supplies the same JSON palette and artwork. The baseline does not build,
 configure or launch Inkbolt. Provide an external JSON file with exactly `resvg`
 and `python` absolute executable paths. The tools must be resvg **0.47.0** and a
 Python environment containing Pillow **12.3.0**. Tool executable hashes and a
@@ -104,6 +105,17 @@ rendering. Inkbolt also supplies the unmodified `svg.import` result and an edita
 snapshot. The judge independently repeats the import, validates the snapshot and
 renders both that snapshot and the delivered SVG. The original receipt's full
 disclosures must survive even if the final SVG restores its description.
+
+B05 delivers `editable.svg` and `preview.png` in the baseline. The
+[shared palette prompt](../tools/benchmark_prompts/B05.md) specifies its three
+editable rectangles, two orange fills and unchanged green artwork. Bounded SVG
+admission precedes independent pinned rendering; both the fresh render and
+delivered PNG must match the common pixel oracle. Inkbolt also delivers
+`editable.json`, `historical.png` and `session.json`. The snapshot must retain
+both live swatch references with only the shared color and revision changed.
+The saved original/current snapshots and session head must bind that exact
+fixture and delivery. These three engine-only checks remain visible as
+not applicable in the baseline; a successful artifact does not earn that credit.
 
 Observed first-preview timing is accepted only when its artifact hash matches a
 delivered image whose corresponding pixel check passed. B02 can identify any of

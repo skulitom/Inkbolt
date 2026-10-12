@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B04 also support `--arm model` and
+`--arm reference` is the existing default. B01-B05 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -101,7 +101,21 @@ The original check IDs/classes remain. The engine-only snapshot check is explici
 not applicable to the SVG baseline. Tests cover both transports, independent
 document/session names, altered sources/deliveries/reports and captured-trial import.
 
-B05-B20 still interleave solving and judging. All required checks have
+B05 separates the shared-palette fixture, [prompt](../tools/benchmark_prompts/B05.md),
+reference solve and judge in `benchmark_palette.py`. The same JSON fixture feeds
+both arms. Inkbolt's delivered snapshot must differ only in the shared swatch
+color and revision; both live fill references and all unrelated document state
+must survive. The judge freshly renders current and saved original snapshots,
+and binds history to the fixture, final delivery and current session revision.
+Its chosen session name is read from the delivery, never inferred from solver
+logs. The baseline retains three editable SVG rectangles and freshly renders
+them with the pinned tool. Both arms compare every pixel of the fresh render
+and delivered PNG. The original check IDs/classes remain; live Inkbolt swatch
+references and the two history checks are explicitly not applicable in the
+baseline. Tests reject flattened links even with correct pixels, unrelated edits,
+false or stale histories, wrong images, source changes and unsafe SVG inputs.
+
+B06-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 

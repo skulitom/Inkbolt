@@ -26,7 +26,7 @@ standing authorization.
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
 | W1 | Linux core tier 1, toolchain pinning and public guard verified; hosted Linux/macOS full acceptance passed at `c500414`; subsequent CI exposed job scheduling and a stale test dependency expectation | Verify current CI with serialized Windows Rust fixtures and the corrected dependency expectation; Unix jobs remain open |
-| W2 | B01-B04 external model/baseline lifecycles, captured-trial import and fake-driver checks pass focused Windows/Linux checks; pinned baselines tested with synthetic clients | Migrate B05-B20 fixtures/prompts/judges and comparison reporting; real model evidence remains required |
+| W2 | B01-B05 external model/baseline lifecycles, captured-trial import and fake-driver checks pass focused Windows/Linux checks; pinned baselines tested with synthetic clients | Migrate B06-B20 fixtures/prompts/judges and comparison reporting; real model evidence remains required |
 | W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
 | W3a.1-2 | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance | Other W3a items remain open; prioritize them using W2 evidence |
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |

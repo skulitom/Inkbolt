@@ -225,7 +225,28 @@ bind that same candidate and prompt
 Inputs remained unchanged. These establish harness correctness under shared host
 conditions, not actual model performance or complete W2 acceptance.
 
-B05-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B05 now separates the original shared-palette fixture, prompt, solve and judge.
+The delivered snapshot must retain both live swatch references and all unrelated
+state; only the shared color and revision may change. The judge checks fresh
+current/original renders and binds saved history to the exact source, delivery
+and current session revision. A flattened but visually correct delivery fails.
+Both arms receive the same JSON fixture. The baseline admits three editable SVG
+rectangles before pinned rendering and applies the same final pixel oracle;
+the original three engine-only checks remain explicitly not applicable.
+
+The six B05 tests and 22 verifier tests passed on Windows in 33.3 seconds;
+15 driver/reference regression tests passed in 92.2 seconds. Linux ran all 43
+selected tests in 62.5 seconds. No selected check failed, remained pending or
+skipped. The final Windows regression and Linux reports bind candidate
+`34ba84585cfad079e15bfa0a3b2947db39361d80085e9900d92ad14bb4058f67`.
+Five synthetic-client B05 trials passed with real pinned tools on each platform,
+and all five Windows captures passed independent rejudging. Baseline reports
+bind that same candidate and prompt
+`e0f58005689872cb1b5f59ad9ce7e2f39385e5bbd9bb9672b6544d892e842792`.
+Inputs remained unchanged. These are correctness checks on a shared host, not
+actual model trials, isolated performance measurements or full W2 acceptance.
+
+B06-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

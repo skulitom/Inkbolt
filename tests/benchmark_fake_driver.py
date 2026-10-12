@@ -13,6 +13,7 @@ from benchmark_diagram import solve,expected_picture
 from benchmark_icons import solve as solve_icons, expected_board, COLORS
 from benchmark_large_layout import solve as solve_layout, expected_picture as expected_layout
 from benchmark_svg import solve as solve_svg, expected_picture as expected_svg
+from benchmark_palette import solve as solve_palette, expected_picture as expected_palette
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -33,12 +34,23 @@ def layout_svg(source):
     return ''.join(parts)+'</svg>'
 
 
+def palette_svg(source):
+    parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="32" height="16">']
+    for item in source['items']:
+        geometry = item['content']['geometry']
+        attributes = ' '.join(f'{key}="{geometry[key]}"' for key in ('x','y','width','height'))
+        fill = item['content']['fill']
+        color = [220,90,30] if isinstance(fill,dict) and fill.get('swatch') == 'shared' else fill[:3]
+        parts.append(f'<rect id="{item["id"]}" {attributes} fill="#{bytes(color).hex()}"/>')
+    return ''.join(parts)+'</svg>'
+
+
 def main():
     request=json.loads(Path(sys.argv[-1]).read_text(encoding='utf-8'))
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04')
+    assert task in ('B01','B02','B03','B04','B05')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,**arguments):
             payload=json.dumps(dict(command=command,**arguments)).encode()
@@ -47,7 +59,7 @@ def main():
             events.append(dict(step=step,request=payload.decode(),response=process.stdout.decode()))
             assert response['ok'] and process.returncode==0
             return response['result']
-        {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg}[task](SimpleNamespace(root=root,call=call))
+        {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette}[task](SimpleNamespace(root=root,call=call))
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
         if task=='B04':
@@ -56,10 +68,15 @@ def main():
             (root/'import-report.json').write_text(json.dumps(dict(source_sha256=hashlib.sha256((root/'original.svg').read_bytes()).hexdigest(),
                 mapping=dict(layer='layer',block='block'),losses=[])),encoding='utf-8')
         else:
-            source = layout_svg(json.loads((root/'source.json').read_bytes())) if task=='B03' else SVG if task=='B01' else ICONS_SVG
+            source = (palette_svg if task=='B05' else layout_svg)(json.loads((root/'source.json').read_bytes())) if task in ('B03','B05') else SVG if task=='B01' else ICONS_SVG
             (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B04':
+        if task=='B05':
+            if renderer['version']=='synthetic-fixture':
+                (root/'preview.png').write_bytes(png(32,16,expected_palette()))
+            else:
+                subprocess.run([renderer['path'],'--skip-system-fonts',str(root/'editable.svg'),str(root/'preview.png')],check=True)
+        elif task=='B04':
             if renderer['version']=='synthetic-fixture':
                 (root/'preview.png').write_bytes(png(32,24,expected_svg()))
             else:
