@@ -98,8 +98,12 @@ The explicit public mode performs structural checks and reports
 Development checkouts retain the normal policy described in
 [research boundaries](RESEARCH.md) and use verification without `--public`.
 Public mode never activates automatically. Fresh public-clone Windows/Linux
-acceptance is recorded in [development status](DEVELOPMENT_STATUS.md). CI
-activation, the hosted matrix and macOS evidence remain separate W1 work.
+acceptance is recorded in [development status](DEVELOPMENT_STATUS.md). CI is
+enabled on main for Windows, Linux and macOS. Hosted Linux passed; the first full
+Windows/macOS checks exposed directory-alias problems now repaired with focused
+Windows/WSL regression evidence. macOS verification runs serially to assess a
+separate print-render timeout without relaxing its deadline. A complete hosted
+matrix pass and macOS tier-1 acceptance remain open.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

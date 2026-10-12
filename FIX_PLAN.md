@@ -25,7 +25,7 @@ standing authorization.
 | Workstream | Current status | Next action |
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
-| W1 | Linux tier 1, toolchain pinning and public guard verified; hosted Linux passed; Windows/macOS exposed path-alias failures | Fix the Windows test inventory and Unix session paths, then assess the full matrix; Unix jobs remain open |
+| W1 | Linux tier 1, toolchain pinning and public guard verified; hosted Linux passed; path-alias repairs pass focused Windows/Linux checks | Assess the repaired Windows/Linux/macOS matrix; macOS tier 1 and Unix jobs remain open |
 | W2 | B01 external model/baseline lifecycle, captured-trial import and fake-driver checks pass focused Windows/Linux checks; real pinned SVG baseline tested with a synthetic client | Migrate remaining task fixtures/prompts/judges and comparison reporting; real model evidence remains required |
 | W5.1 | Payload duplication remains open | Remove repeated image bytes; add explicit structured responses while preserving default text compatibility |
 | W3a.1-2 / W3b | Arcs, rounded rectangles and SVG insertion remain open | Deliver these bounded input/authoring increments alongside W2 preparation |

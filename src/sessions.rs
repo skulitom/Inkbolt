@@ -193,6 +193,26 @@ pub fn store_path(root: &Path, session_id: &str) -> Result<PathBuf, Error> {
     id(session_id)?;
     Ok(root.join(format!("{}.sqlite3", assets::sha256(session_id.as_bytes()))))
 }
+fn sqlite_path(path: &Path) -> Result<PathBuf, Error> {
+    // SQLite's Unix NOFOLLOW check rejects links in every component, including
+    // macOS's ordinary /var temporary-directory alias. Resolve only the parent:
+    // the database filename must still be checked by SQLite with NOFOLLOW.
+    #[cfg(unix)]
+    {
+        let parent = path
+            .parent()
+            .and_then(|parent| fs::canonicalize(parent).ok())
+            .ok_or_else(|| Error::new("IO_ERROR", "Unable to resolve session directory"))?;
+        let name = path
+            .file_name()
+            .ok_or_else(|| Error::new("IO_ERROR", "Session database requires a filename"))?;
+        Ok(parent.join(name))
+    }
+    #[cfg(not(unix))]
+    {
+        Ok(path.to_owned())
+    }
+}
 fn configure(db: &Connection) -> Result<(), Error> {
     db.busy_timeout(Duration::from_millis(sqlite::BUSY_TIMEOUT_MS))
         .map_err(sql)?;
@@ -304,7 +324,7 @@ fn open_mode(root: &Path, session_id: &str, readonly: bool) -> Result<Connection
         )));
     }
     let db = Connection::open_with_flags(
-        path,
+        sqlite_path(&path)?,
         (if readonly {
             OpenFlags::SQLITE_OPEN_READ_ONLY
         } else {
@@ -631,7 +651,7 @@ fn create_prepared(
     };
     let temp = reserve(root)?;
     let mut db = Connection::open_with_flags(
-        &temp.0,
+        sqlite_path(&temp.0)?,
         OpenFlags::SQLITE_OPEN_READ_WRITE
             | OpenFlags::SQLITE_OPEN_NO_MUTEX
             | OpenFlags::SQLITE_OPEN_NOFOLLOW,

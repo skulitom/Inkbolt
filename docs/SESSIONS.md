@@ -4,6 +4,13 @@ See the generated [limit reference](LIMITS.md) for centralized resource ceilings
 
 A session stores one vector or raster document under an explicit absolute `session_root`. The CLI remains a one-request process; reopen the same session in later calls. The root must be a writable local directory supporting file locks and create-only hard links. Network filesystems and synchronization across computers are outside this storage contract.
 
+Parent-directory aliases are allowed, including the ordinary Unix temporary
+directory aliases. On Unix, SQLite opens resolve the existing parent directory
+while retaining the final database filename's non-symlink checks. A session or
+backup source that is itself a symbolic link remains rejected. This applies to
+session creation/reopening, backup, recovery, migration and continuation; it does
+not change workspace containment, source identities or create-only publication.
+
 ## Commands
 
 Commands require `session_id`, directly or inside the reviewed proposal for `session.apply_proposal`. For commands addressing a live session, `session_root` remains required and absolute without a workspace. Migration addresses a supplied backup and output instead. With `--workspace`, it defaults to `.inkbolt/sessions`; explicit roots must resolve inside that workspace. Top-level document arguments can reference exact committed session revisions. See [workspaces and saved revisions](AGENT_WORKSPACE.md). IDs use document ID syntax (1..128 ASCII letters, digits, dots, underscores or hyphens). The filename is the SHA-256 of the UTF-8 session ID followed by `.sqlite3`; IDs cannot escape the root or become reserved platform filenames.

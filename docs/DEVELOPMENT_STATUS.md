@@ -72,7 +72,7 @@ The owner approved activation, the exact workflow-path rule and Cargo cache on
 the initial 3.11.13 pin has only Linux hosted distributions. CI now pins 3.13.16,
 whose official setup manifest includes all three runner platforms/architectures;
 Python 3.11 remains the supported minimum and the locally verified version.
-Hosted matrix results remain pending. Local verification does
+The complete hosted matrix has not passed. Local verification does
 not establish GitHub cache behavior, macOS or a passing hosted matrix. See
 [platform coverage](PLATFORMS.md).
 
@@ -81,10 +81,24 @@ passed all 213 fresh stages, including 2,250 Python tests with 34 explicit skips
 in 902.9 seconds. The overall run failed because of Windows/macOS Python setup.
 The [corrected run](https://github.com/skulitom/Inkbolt/actions/runs/38182478787)
 passed setup and the minimum-compiler check on all three platforms. Linux passed;
-Windows and macOS failed their full checks. Windows failures expose an aliased
-temporary-path mismatch in the test inventory helper. macOS session failures
-reproduce on Linux when SQLite receives a database under a linked parent
-directory. These are under repair; macOS tier 1 remains unverified.
+Windows and macOS failed their full checks. The test inventory now preserves the
+caller's path spelling after validating resolved locations, fixing Windows short
+names and Unix aliases. Unix SQLite opens now resolve only the existing parent
+directory; final database-file symlinks remain rejected. The regression reproduced
+on Linux before the fix. Library, CLI/MCP and backup/recovery/migration/continuation
+checks cover aliases, immutable sources, retries and rejected database links.
+
+Focused Windows verification passed in 108.2 seconds after the first 180-second
+window left Rust compilation pending. Linux checks took 114.8 seconds and caught
+a test-client configuration mistake; correcting that fixture and rerunning only
+the failure passed in 8.0 seconds. The engine fix did not change between those
+Linux runs. Workflow syntax validation also passed. A separate hosted macOS
+print-render timeout is being assessed with serial scheduling, preserving the
+existing deadline and image oracle. Fresh full matrix acceptance remains open;
+macOS tier 1 is still unverified.
+The final selected checks, including verifier dependency-boundary tests, passed
+in 38.2 seconds on Windows and 23.6 seconds on Linux with identical-pass reuse;
+neither selected set had failed or pending checks.
 
 ## W2 and the next behavior increments
 

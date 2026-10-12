@@ -43,6 +43,54 @@ fn document() -> Document {
     serde_json::from_value(value).unwrap()
 }
 
+#[cfg(unix)]
+#[test]
+fn session_parent_aliases_preserve_library_retries_and_refuse_database_links() {
+    use std::os::unix::fs::symlink;
+    let root = OwnedRoot::new();
+    let alias = root.0.join("directory-alias");
+    symlink(&root.0, &alias).unwrap();
+    let original = document();
+    let resources = Resources::default();
+    let first = sessions::create(
+        &alias,
+        "work",
+        "create",
+        &original,
+        &resources,
+        &Control::default(),
+    )
+    .unwrap();
+    let replay = sessions::create(
+        &root.0,
+        "work",
+        "create",
+        &original,
+        &resources,
+        &Control::default(),
+    )
+    .unwrap();
+    assert_eq!(first["receipt"], replay["receipt"]);
+    assert_eq!(replay["replayed"], true);
+    assert_eq!(
+        sessions::read(&alias, "work", None).unwrap(),
+        sessions::read(&root.0, "work", None).unwrap()
+    );
+    let database = sessions::store_path(&root.0, "work").unwrap();
+    let bytes = fs::read(&database).unwrap();
+    let preserved = root.0.join("original.sqlite3");
+    fs::rename(&database, &preserved).unwrap();
+    symlink(&preserved, &database).unwrap();
+    assert_eq!(
+        sessions::read(&alias, "work", None).unwrap_err().code,
+        "SESSION_CORRUPT"
+    );
+    assert_eq!(fs::read(&preserved).unwrap(), bytes);
+    fs::remove_file(&database).unwrap();
+    fs::rename(&preserved, &database).unwrap();
+    fs::remove_file(alias).unwrap();
+}
+
 #[test]
 fn committed_creation_recovers_with_expired_control_but_rejects_nonfinite_typed_input() {
     let root = OwnedRoot::new();

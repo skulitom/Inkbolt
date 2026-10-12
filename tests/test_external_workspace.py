@@ -7,6 +7,14 @@ import external_workspace as workspace
 
 
 class ExternalWorkspaceTests(unittest.TestCase):
+    def test_inventory_preserves_an_aliased_root_for_relative_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);(root/'parent').mkdir();(root/'one.txt').write_bytes(b'original')
+            alias=root/'parent'/'..'
+            self.assertNotEqual(alias,alias.resolve())
+            self.assertEqual({p.relative_to(alias).as_posix():p.read_bytes() for p in workspace.files(alias)},
+                             {'one.txt':b'original'})
+
     def test_complete_nested_hidden_and_empty_file_inventory_preserves_contents(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)

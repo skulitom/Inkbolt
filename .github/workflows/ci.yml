@@ -86,7 +86,9 @@ jobs:
                           '--target-dir', str(Path(os.environ['RUNNER_TEMP'])/'inkbolt-msrv')], check=True)
           PY
       - name: Run complete public-clone verification
-        run: python -X utf8 tools/verify.py --public --thorough --jobs 2 --report "$RUNNER_TEMP/inkbolt-verification/report.json"
+        # Avoid competing render fixtures on the smaller macOS runner. Keep
+        # every check and its existing deadline; only scheduling differs.
+        run: python -X utf8 tools/verify.py --public --thorough --jobs ${{ matrix.os == 'macos-15' && '1' || '2' }} --report "$RUNNER_TEMP/inkbolt-verification/report.json"
       - name: Collect verification logs
         if: always()
         run: |

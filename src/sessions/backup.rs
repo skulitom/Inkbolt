@@ -89,7 +89,7 @@ pub(super) fn output_path(output: &Output) -> Result<PathBuf, Error> {
 
 pub(super) fn open_copy(path: &Path, readonly: bool) -> Result<Connection, Error> {
     let db = Connection::open_with_flags(
-        path,
+        sqlite_path(path)?,
         (if readonly {
             OpenFlags::SQLITE_OPEN_READ_ONLY
         } else {

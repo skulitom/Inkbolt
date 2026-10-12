@@ -86,6 +86,9 @@ conservative import, wildcard or unknown-input rules. Tests that actually inspec
 the repository or record its complete identity still rerun when those inputs
 change. A regression check exercises these boundaries against the real checkout,
 including shared-helper edits and universal Rust-change invalidation.
+Inventory results retain the caller's path spelling after checking resolved
+locations, so relative paths remain valid through Windows short names or Unix
+directory aliases.
 
 The candidate material guard always runs and is never cached. The staged guard reads actual indexed blobs in bounded Git batches, preserving path/type/size/encoding/private-content and forced-ignore checks. It does not substitute working-copy bytes, waive the private policy or bypass the commit hook.
 
