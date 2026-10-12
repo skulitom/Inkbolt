@@ -1,16 +1,17 @@
 //! Content-bound pages of selected inspection records, without exporting snapshots.
+use crate::limits::inspection as bounds;
 use crate::{Error, assets, control::Control, geometry, model::*, query, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
-pub const MAX_PAGE_ITEMS: usize = 128;
-pub const MAX_PAGE_BYTES: usize = 32 * 1024;
-const RECORD_BYTES: usize = MAX_PAGE_BYTES - 4096;
+pub use crate::limits::inspection::MAX_PAGE_BYTES;
+pub use crate::limits::inspection::MAX_PAGE_ITEMS;
+use crate::limits::inspection::RECORD_BYTES;
 type Records<'a> = Box<dyn Iterator<Item = Result<Value, Error>> + 'a>;
 fn page_size() -> usize {
-    32
+    bounds::DEFAULT_PAGE_ITEMS
 }
 
 #[derive(
@@ -226,9 +227,15 @@ fn parts<'a>(
 
 pub fn page(d: &Document, options: &Options, control: &Control) -> Result<Value, Error> {
     if !(1..=MAX_PAGE_ITEMS).contains(&options.limit) {
-        return Err(invalid("Inspection page limit must be in 1..=128"));
+        return Err(invalid(&format!(
+            "Inspection page limit must be in 1..={MAX_PAGE_ITEMS}"
+        )));
     }
-    if options.cursor.as_ref().is_some_and(|c| c.len() > 256) {
+    if options
+        .cursor
+        .as_ref()
+        .is_some_and(|c| c.len() > bounds::MAX_CURSOR_BYTES)
+    {
         return Err(Error::new(
             "INVALID_CURSOR",
             "Inspection cursor exceeds its byte limit",
@@ -263,12 +270,14 @@ pub fn page(d: &Document, options: &Options, control: &Control) -> Result<Value,
     // lookahead record when the byte budget ends a page early.
     let (collection, order, total, rows): (&str, &str, usize, Records<'_>) = match &options.view {
         View::Items { ids, fields, types } => {
-            if fields.len() > 10 || fields.iter().collect::<BTreeSet<_>>().len() != fields.len() {
+            if fields.len() > bounds::MAX_FIELDS
+                || fields.iter().collect::<BTreeSet<_>>().len() != fields.len()
+            {
                 return Err(invalid(
                     "Inspection fields must be distinct supported field names",
                 ));
             }
-            if types.len() > 20 {
+            if types.len() > bounds::MAX_TYPE_FILTERS {
                 return Err(invalid(
                     "Inspection type filter exceeds available item kinds",
                 ));
@@ -397,7 +406,10 @@ pub fn page(d: &Document, options: &Options, control: &Control) -> Result<Value,
         if size > RECORD_BYTES {
             return Err(Error::new(
                 "INSPECTION_RECORD_TOO_LARGE",
-                "One record exceeds the 28 KiB inspection allowance; omit geometry/metadata/style or use the anchors collection for path controls",
+                format!(
+                    "One record exceeds the {} KiB inspection allowance; omit geometry/metadata/style or use the anchors collection for path controls",
+                    RECORD_BYTES / 1024
+                ),
             ));
         }
         if bytes + size > RECORD_BYTES {
@@ -412,7 +424,10 @@ pub fn page(d: &Document, options: &Options, control: &Control) -> Result<Value,
     if serde_json::to_vec(&result).unwrap().len() > MAX_PAGE_BYTES {
         return Err(Error::new(
             "RESOURCE_LIMIT",
-            "Inspection page metadata exceeds 32 KiB",
+            format!(
+                "Inspection page metadata exceeds {} KiB",
+                MAX_PAGE_BYTES / 1024
+            ),
         ));
     }
     Ok(result)

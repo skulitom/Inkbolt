@@ -137,7 +137,7 @@ fn mesh_definition(
     if lo
         .iter()
         .chain(hi.iter())
-        .any(|v| !v.is_finite() || v.abs() > 1e9)
+        .any(|v| !v.is_finite() || v.abs() > crate::limits::svg::MAX_MESH_COVERAGE_COORDINATE)
     {
         return Err(crate::model::limit(
             "SVG mesh paint coverage exceeds coordinate budget",
@@ -495,9 +495,10 @@ pub fn export_controlled(
         }
     }
     if image_pixels > crate::assets::MAX_ASSET_PIXELS {
-        return Err(crate::model::limit(
-            "SVG embedded image copies exceed 16777216 pixels",
-        ));
+        return Err(crate::model::limit(&format!(
+            "SVG embedded image copies exceed {} pixels",
+            crate::assets::MAX_ASSET_PIXELS
+        )));
     }
     let version = if document.items.iter().any(|i| {
         i.artwork_mask
@@ -644,9 +645,10 @@ pub fn export_controlled(
         let members = scene::subtree(document, source);
         copies += members.len();
         if copies > crate::artwork_masks::MAX_SVG_ITEMS {
-            return Err(crate::model::limit(
-                "SVG artwork-mask copies exceed 4096 items",
-            ));
+            return Err(crate::model::limit(&format!(
+                "SVG artwork-mask copies exceed {} items",
+                crate::artwork_masks::MAX_SVG_ITEMS
+            )));
         }
         let mut name = format!("inkbolt-artmask-{i}");
         while used

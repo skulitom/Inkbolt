@@ -1,5 +1,9 @@
 # Calibrated print observation
 
+`capabilities.print_proof.delta_e76_threshold` reports the accepted threshold
+range from the shared [limit catalog](LIMITS.md); sample count and threshold
+remain separate controls. The color-loss calculation is unchanged.
+
 `document.proof` observes the same flattened, matted CMYK8 samples delivered by `pdf_options.print`. It returns a calibrated RGB preview, four exact process-ink planes and measured colour differences. Agents can compare candidate profiles, locate large changes and inspect ink coverage before delivering a page. The command is read-only: it does not edit a document, publish files or send a print job.
 
 ```json

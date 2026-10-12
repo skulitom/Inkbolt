@@ -142,7 +142,9 @@ impl Plan {
                 .collect::<Vec<_>>();
             let paint_work = area * paints.iter().map(|p| crate::paint::work(p)).sum::<u64>();
             plan.paint_work += paint_work;
-            plan.work += area * (2 + paints.len() as u64) + paint_work + controls * region_height;
+            plan.work += area * (crate::limits::render::ITEM_SETUP_WORK + paints.len() as u64)
+                + paint_work
+                + controls * region_height;
             if plan.work > MAX_RENDER_WORK || plan.paint_work > crate::paint::MAX_PAINT_WORK {
                 return Err(limit(
                     "Regional vector evaluation exceeds render or paint work limits",
@@ -183,7 +185,7 @@ impl Plan {
                 None,
             )?;
             for (i, src) in pixels.as_chunks::<4>().0.iter().enumerate() {
-                if i.is_multiple_of(4096) {
+                if i.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     resources.control.check()?;
                 }
                 if src[3] == 0.0 {

@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-pub const MAX_SAMPLES: usize = 64;
+pub use crate::limits::proof::MAX_SAMPLES;
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Options {
@@ -71,13 +71,17 @@ pub fn inspect(
         ));
     }
     if !options.delta_e76_threshold.is_finite()
-        || !(0.0..=1000.0).contains(&options.delta_e76_threshold)
+        || !(0.0..=f64::from(crate::limits::proof::MAX_DELTA_E76_THRESHOLD))
+            .contains(&options.delta_e76_threshold)
         || options.samples.len() > MAX_SAMPLES
         || (options.include_bleed && options.artboard_id.is_none())
     {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Proof needs a finite delta_e76_threshold in 0..=1000, at most 64 samples, and an artboard for bleed",
+            format!(
+                "Proof needs a finite delta_e76_threshold in 0..={}, at most {MAX_SAMPLES} samples, and an artboard for bleed",
+                crate::limits::proof::MAX_DELTA_E76_THRESHOLD
+            ),
         ));
     }
     let scoped = options

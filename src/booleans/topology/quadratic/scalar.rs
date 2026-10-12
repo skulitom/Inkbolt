@@ -98,8 +98,13 @@ impl Q {
 }
 
 pub(super) fn bounded(v: &R) -> Result<(), Error> {
-    if v.numer().bits() > 4096 || v.denom().bits() > 4096 {
-        Err(limit("Quadratic contact coefficients exceed 4096 bits"))
+    if v.numer().bits() > crate::limits::booleans_topology_quadratic::MAX_COEFFICIENT_BITS
+        || v.denom().bits() > crate::limits::booleans_topology_quadratic::MAX_COEFFICIENT_BITS
+    {
+        Err(limit(&format!(
+            "Quadratic contact coefficients exceed {} bits",
+            crate::limits::booleans_topology_quadratic::MAX_COEFFICIENT_BITS
+        )))
     } else {
         Ok(())
     }
@@ -172,15 +177,23 @@ mod tests {
         assert_eq!(near.sign(&(&huge * &huge - n(1))), Ordering::Greater);
     }
     #[test]
-    fn root_intervals_are_outward_and_tight_even_at_extreme_scales() {
+    fn limits_root_intervals_are_outward_and_tight_even_at_extreme_scales() {
+        use crate::limits::booleans_topology_quadratic as policy;
         for d in [
             n(2),
             n(1) / n(131),
             R::from_integer(n(1).numer() << 201usize),
         ] {
-            let (lo, hi) = root_enclosure(&d, 128);
-            assert!(&lo * &lo <= d && &hi * &hi >= d);
-            assert!(hi - lo <= R::new(n(1).numer().clone(), n(1).numer() << 128usize));
+            for bits in [
+                policy::MIN_ROOT_ENCLOSURE_BITS,
+                policy::MIN_ROOT_ENCLOSURE_BITS
+                    + policy::ROOT_BITS_PER_DEPTH * crate::limits::booleans::MAX_TOPOLOGY_DEPTH,
+                policy::MAX_PARAMETER_BITS + policy::ROOT_GUARD_BITS,
+            ] {
+                let (lo, hi) = root_enclosure(&d, bits);
+                assert!(&lo * &lo <= d && &hi * &hi >= d);
+                assert!(hi - lo <= R::new(n(1).numer().clone(), n(1).numer() << bits));
+            }
         }
     }
 }

@@ -1,5 +1,9 @@
 # Render quality and effect bounds
 
+Output-space ellipse coverage uses the catalogued tangent-matched arc count. Numerical policies, including conservative filter margins, are listed in [central limits](LIMITS.md) and `capabilities.numerical_limits`.
+
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 HDR working-space rendering and explicit views follow [HDR.md](HDR.md). Linear radiance is averaged before tone mapping.
 
 Explicit-depth TIFF output uses the same completed f64 samples before projecting to 8-bit, 16-bit or binary32 output. Ordinary PNG/JPEG/previews and TIFF without depth/channel options retain their RGBA8 behavior. See [SAMPLES.md](SAMPLES.md); output-profile conversion remains unavailable on the explicit-depth path.
@@ -35,11 +39,26 @@ All padding and supersamples count against the selected evaluation-pixel limit: 
 
 ## Bounded tiled evaluation
 
+
+Radial and twist filters trace bounded source regions through ordered filter
+stacks, parent containers and clipped siblings. Radial bounds cover every discrete
+spin/zoom sample; twist uses its finite rotation support and affine arithmetic
+margin. Transparent, clamp and reflect borders retain the full viewport meaning.
+Mapping work, expanded pixel visits, the largest live region and retained mapping
+storage count against the existing limits; native codec bands recheck work and
+peak storage. At most 131,072 path references and 131,072 radial sample mappings
+are retained. Wide kernels, distant centers, large transforms and dense stacks
+can still fail the resource budget, including combinations which whole evaluation
+can render more cheaply. Disabled and zero-opacity radial/twist stages do not
+expand source regions; their controls still undergo ordinary validation. There
+is no whole-image floating-point fallback or persistent filter cache.
+
+
 For a full-size image use, for example, `{"format":"png","render_options":{"evaluation":"tiled"}}`. Scene expansion, fonts, scalar masks and resource resolution occur once per render. The compositor visits evaluation-pixel tiles of at most 128×128 (smaller at edges), with original global sampling coordinates for paints, images, clips, masks and dissolve cells. Supersampling reduces the number of finished output pixels per tile. Whole and tiled modes share completed premultiplied sample averaging, fractional-canvas coverage, HDR views and one final depth projection. `render_settings` explicitly reports `evaluation:"tiled"` and `evaluation_tile_edge:128` as the maximum, plus `evaluation_tile_policy:"maximum_128;8_for_at_least_128_expanded_items"`; omitted/default options preserve existing receipts.
 
 Tiled evaluation supports box, Gaussian, directional and surface filters; all four detail operators; offset, displacement and mosaic; and the local creative operators relief, high-pass, extrema, tone fold, edge ink, stroke rank, value field and field repair. Borders can be transparent, clamp or reflect. Every output tile reads a surrounding neighborhood equal to the cumulative support along filter stacks and ancestor containers. Reads stop at the full padded evaluation viewport; the original filter implementation therefore retains the same real border at every stage. Only the completed interior reaches output. Masks sample global coordinates, including linked and unlinked filter masks. Supersampling scales the support before averaging. Spatial selection includes the expanded read region and retains source order.
 
-Expanded tile visits, filter/mask/paint work and reconstruction are charged before rendering; native TIFF recomputes the visit budget when its strip bound requires shorter tile rows. Composition and filter scratch include the expanded region and additional rank neighborhoods in the existing memory ceiling. Full-opacity normal filters without active masks replace bounded premultiplied samples directly, avoiding unnecessary straight-color/blend conversions and their work charge. Large stacks and dense overlaps can still reject without raising limits or falling back to a whole floating-point surface. Expensive noise, rank and field treatments do not automatically fit every multi-megapixel image. There is no cross-request filter cache. Wrapped borders, radial filtering and twist remain unsupported, as do artwork-mask references, raw development and retained-object content. Disabled/hidden instances of those unsupported controls also reject with `UNSUPPORTED_TILED_RENDER`. Scalar masks retain their existing support. The Rust API returning a complete native `SampleRaster` remains whole-only; native TIFF consumes the regional visitor directly.
+Expanded tile visits, filter/mask/paint work and reconstruction are charged before rendering; native TIFF recomputes the visit budget when its strip bound requires shorter tile rows. Composition and filter scratch include the expanded region and additional rank neighborhoods in the existing memory ceiling. Full-opacity normal filters without active masks replace bounded premultiplied samples directly, avoiding unnecessary straight-color/blend conversions and their work charge. Large stacks and dense overlaps can still reject without raising limits or falling back to a whole floating-point surface. Expensive noise, rank and field treatments do not automatically fit every multi-megapixel image. There is no cross-request filter cache. Wrapped borders remain unsupported, as do artwork-mask references, raw development and retained-object content. Disabled/hidden instances of those unsupported controls also reject with `UNSUPPORTED_TILED_RENDER`. Scalar masks retain their existing support. The Rust API returning a complete native `SampleRaster` remains whole-only; native TIFF consumes the regional visitor directly.
 
 Noise addresses the full padded viewport's document-unit cells; mosaic cells and
 field-repair row parity retain their full evaluation-pixel grid. Displacement and
@@ -77,3 +96,14 @@ RGBA8 output retains one complete final byte image (at most 64 MiB), plus bounde
 `tests/test_tiled_render.py` checks complete 1080×1080 and 2480×3508 PNG pixels and every native channel of a 1920×1080 TIFF. Smaller fixtures cover multiple strips, independent uncompressed/Deflate TIFF decoding, LZW codec round trips, HDR, all native layouts/depths, all samplers, masks/groups/clips, fractional canvas, dissolve, curve/stroke and warp boundaries, artboards, rejection and no partial publication. `tests/test_spatial_render.py` additionally checks all pixels of 5,001 mixed objects, whole/indexed equivalence for text, strokes, cropped images, warps, groups, clipping, masks, knockout and native strips, plus source-preserving revision changes and dense-scene rejection. `tests/test_native_locality.py` preserves every native channel in a 2560x1440 source with 128 clipped annotations through local edits and historical output; it also checks wide thin sources, scale, padding, supersampling, reconstruction halos, partial strips and all depth/channel/compression combinations. These fixtures do not promise bit-identical edge coverage for all arbitrary geometry, establish measured scale gates, or complete A5.
 
 `tests/test_render_quality_cli.py` verifies exact rational triangle/pixel intersections, analytic rectangle area, independently integrated ellipse slices, exact premultiplied color/alpha averages, independently convolved shadows and blur, font outlines, masks, component definitions, profiles, density, artboard order/bleed, metadata, source preservation and durable agent publication. At 4 by 4 sampling the original fractional rectangle fixture differs from exact area by at most one alpha byte; triangle and small-ellipse fixtures use at most three alpha bytes. These are fixture tolerances, not universal error guarantees. Separate external decoder evidence checks PNG/TIFF pixels and profiles exactly and JPEG with explicit fixture error/PSNR limits. See the [original render-quality workflow](../examples/render_quality_workflow.py).
+
+Tiled ellipse work accounting derives from the same arc count as emitted coverage
+controls, including the initial move point and each cubic control/endpoint.
+
+Admission work charges for filters, effects, native inks, reconstruction and
+render planning are named in the [limit reference](LIMITS.md). Shared item,
+mask and knockout charges apply across the regional planners. These are
+conservative accounting policies, with separate ceilings for the affected
+operations; they are not timings or measured CPU instruction counts. Spatial
+index and deformation-plan memory allowances are expressed in eight-byte
+scalar values. Their existing charges and admission behavior are preserved.

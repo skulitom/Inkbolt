@@ -64,7 +64,7 @@ impl Global {
     }
     pub fn report(&self) -> Value {
         json!({"present":self.present,"antialias_code":self.code,"antialias_mode":self.code.and_then(mode),
-            "fractional_widths":self.fractional,"unknown_fields":self.unknown.iter().take(8).collect::<Vec<_>>(),
+            "fractional_widths":self.fractional,"unknown_fields":self.unknown.iter().take(crate::limits::layered_text::MAX_BRIEF_FIELDS).collect::<Vec<_>>(),
             "unknown_field_count":self.unknown.len(),"missing_values_inferred":false})
     }
 }

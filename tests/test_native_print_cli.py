@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import pdf_reader
 import test_editing_cli as editing
 from cmyk_fixtures import cmyk_profile, separation
@@ -166,6 +167,16 @@ class NativePrintTests(unittest.TestCase):
         s=strokes(pdf)[0];self.assertEqual(s['width'],.25)
         for path in s['paths'][:8]:self.assertAlmostEqual(math.dist(path[0][1],path[1][1]),6,places=8)
         self.assertEqual(a['pages'][0]['physical_points'],[1024*72+24.5,16*72+24.5])
+
+    def test_print_mark_advertised_bounds_and_defaults_are_inclusive(self):
+        bounds = capabilities()['pdf']['mark_limits']; d = self.document(0, ppi=1)
+        self.assertEqual(self.export(d, self.settings(marks={})), self.export(d, self.settings(marks=bounds['defaults'])))
+        base = dict(gap_pt=bounds['gap_pt'][0], length_pt=bounds['length_pt'][1], line_width_pt=bounds['line_width_pt'][0], registration_radius_pt=bounds['registration_radius_pt'][1])
+        for field in ('gap_pt','length_pt','line_width_pt','registration_radius_pt'):
+            low, high = bounds[field]
+            for value in (low, high): self.export(d, self.settings(marks=dict(base, **{field:value})))
+            for value in (low*.5, high*1.01):
+                self.assertEqual(self.export(d, self.settings(marks=dict(base, **{field:value})), 1)['code'], 'INVALID_REQUEST')
 
     def test_mark_modes_and_explicit_failure_boundaries(self):
         d=self.document()

@@ -1,4 +1,5 @@
 //! Original retained vector deformation with exact rational expansion certificates.
+use crate::limits::warps as limits;
 use crate::{Error, geometry as geo, model::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,15 +12,15 @@ pub(crate) fn projective_coefficients(
     }
     exact::homography(corners)
 }
-pub const MAX_MAPS: usize = 8;
-pub const MAX_DEGREE: usize = 128;
-pub const MAX_WORK: usize = 2_000_000;
-pub const MAX_BITS: u64 = 8192;
-pub const MAX_DEPTH: usize = 24;
-pub const MAX_INPUT_EDGES: usize = 256;
-pub const MAX_SAMPLES: usize = 256;
+pub use crate::limits::warps::MAX_BITS;
+pub use crate::limits::warps::MAX_DEGREE;
+pub use crate::limits::warps::MAX_DEPTH;
+pub use crate::limits::warps::MAX_INPUT_EDGES;
+pub use crate::limits::warps::MAX_MAPS;
+pub use crate::limits::warps::MAX_SAMPLES;
+pub use crate::limits::warps::MAX_WORK;
 fn tolerance() -> f64 {
-    0.01
+    limits::DEFAULT_TOLERANCE
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -73,7 +74,9 @@ fn limit(message: &str) -> Error {
 }
 fn finite_point(p: Point) -> Result<(), Error> {
     if p.iter().any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE) {
-        return Err(invalid("Warp coordinates must be finite within +/-32768"));
+        return Err(invalid(&format!(
+            "Warp coordinates must be finite within +/-{MAX_COORDINATE}"
+        )));
     }
     Ok(())
 }
@@ -81,20 +84,27 @@ fn domain(d: [f64; 4]) -> Result<(), Error> {
     finite_point([d[0], d[1]])?;
     if d[2..]
         .iter()
-        .any(|v| !v.is_finite() || !(0.001..=MAX_COORDINATE).contains(v))
+        .any(|v| !v.is_finite() || !(limits::MIN_DOMAIN_EXTENT..=MAX_COORDINATE).contains(v))
     {
-        return Err(invalid("Warp domain dimensions must be in 0.001..=32768"));
+        return Err(invalid(&format!(
+            "Warp domain dimensions must be in {}..={MAX_COORDINATE}",
+            limits::MIN_DOMAIN_EXTENT
+        )));
     }
     finite_point([d[0] + d[2], d[1] + d[3]])
 }
 pub(crate) fn stored(spec: &Spec) -> Result<usize, Error> {
     if spec.maps.is_empty() || spec.maps.len() > MAX_MAPS {
-        return Err(limit("Warps require 1..8 ordered maps"));
+        return Err(limit(&format!("Warps require 1..{MAX_MAPS} ordered maps")));
     }
-    if !spec.tolerance.is_finite() || !(0.000001..=1.0).contains(&spec.tolerance) {
-        return Err(invalid(
-            "Warp tolerance must be in 0.000001..=1 local units",
-        ));
+    if !spec.tolerance.is_finite()
+        || !(limits::MIN_TOLERANCE..=f64::from(limits::MAX_TOLERANCE)).contains(&spec.tolerance)
+    {
+        return Err(invalid(&format!(
+            "Warp tolerance must be in {}..={} local units",
+            limits::MIN_TOLERANCE,
+            limits::MAX_TOLERANCE
+        )));
     }
     let mut commands = geo::validate_geometry(&spec.geometry)?;
     for map in &spec.maps {
@@ -122,9 +132,9 @@ pub(crate) fn stored(spec: &Spec) -> Result<usize, Error> {
         commands += crate::strokes::brush_segments(s)?;
     }
     if commands > MAX_SEGMENTS {
-        return Err(limit(
-            "Warp source and map controls exceed 4096 stored commands",
-        ));
+        return Err(limit(&format!(
+            "Warp source and map controls exceed {MAX_SEGMENTS} stored commands"
+        )));
     }
     Ok(commands)
 }
@@ -167,7 +177,9 @@ impl Plan {
             }
             edges += contour.edges.len();
             if edges > MAX_INPUT_EDGES {
-                return Err(limit("Warp source exceeds 256 curve/line edges"));
+                return Err(limit(&format!(
+                    "Warp source exceeds {MAX_INPUT_EDGES} curve/line edges"
+                )));
             }
             for (ei, edge) in contour.edges.iter().enumerate() {
                 let start = segments.len();
@@ -196,7 +208,9 @@ impl Plan {
                 commands.push(PathCommand::Close {});
             }
             if commands.len() > MAX_SEGMENTS {
-                return Err(limit("Warp expansion exceeds 4096 stored commands"));
+                return Err(limit(&format!(
+                    "Warp expansion exceeds {MAX_SEGMENTS} stored commands"
+                )));
             }
         }
         let geometry = Geometry::Path { commands };
@@ -265,7 +279,9 @@ pub(crate) fn evaluate_controlled(
             let p = Plan::new(warp, &mut budget)?;
             commands += geo::validate_geometry(&p.geometry)?;
             if commands > MAX_SEGMENTS {
-                return Err(limit("Warps exceed 4096 aggregate generated commands"));
+                return Err(limit(&format!(
+                    "Warps exceed {MAX_SEGMENTS} aggregate generated commands"
+                )));
             }
             i.content = vector(warp, p.geometry);
         }
@@ -285,8 +301,13 @@ pub(crate) fn validate(
 }
 fn grid(spec: &Spec, grid: &Grid, budget: &mut exact::Budget) -> Result<Plan, Error> {
     domain(grid.domain)?;
-    if !(1..=16).contains(&grid.columns) || !(1..=16).contains(&grid.rows) {
-        return Err(limit("Warp grid requires 1..16 intervals per axis"));
+    if !(1..=crate::limits::warps::MAX_GRID_AXIS).contains(&grid.columns)
+        || !(1..=crate::limits::warps::MAX_GRID_AXIS).contains(&grid.rows)
+    {
+        return Err(limit(&format!(
+            "Warp grid requires 1..{} intervals per axis",
+            crate::limits::warps::MAX_GRID_AXIS
+        )));
     }
     let [x, y, w, h] = grid.domain;
     let mut commands = vec![];
@@ -326,7 +347,9 @@ pub fn inspect(
 ) -> Result<serde_json::Value, Error> {
     control.check()?;
     if samples.len() > MAX_SAMPLES {
-        return Err(limit("Warp inspection exceeds 256 sample points"));
+        return Err(limit(&format!(
+            "Warp inspection exceeds {MAX_SAMPLES} sample points"
+        )));
     }
     for p in samples {
         finite_point(*p)?;

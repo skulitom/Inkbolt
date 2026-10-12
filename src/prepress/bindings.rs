@@ -1,7 +1,7 @@
 //! Explicit interpretation of retained source spots as declared destination inks.
 use super::*;
 
-pub const MAX_BINDINGS: usize = 1024;
+pub use crate::limits::prepress_bindings::MAX_BINDINGS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -48,9 +48,9 @@ impl Resolved {
     ) -> Result<Self, Error> {
         control.check()?;
         if bindings.len() > MAX_BINDINGS {
-            return Err(limit(
-                "Native print preparation supports at most 1024 ink bindings",
-            ));
+            return Err(limit(&format!(
+                "Native print preparation supports at most {MAX_BINDINGS} ink bindings"
+            )));
         }
         let mut result = Self::default();
         if bindings.is_empty() {

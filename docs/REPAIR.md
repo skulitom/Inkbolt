@@ -1,5 +1,13 @@
 # Content-sensitive region repair
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+`capabilities.repair` exposes the catalog-backed fill/search/context/guide
+radii, source-origin bounds, synthesized weight/default, range sigma and
+effective-support range. Fill patches and placement context have independent
+radius policies. The effective-support ceiling derives from the largest square
+guide window; actual weighted support still depends on the input and can fail
+the existing quality gate. Numeric admission and reconstruction are unchanged.
+
 The atomic `repair` operation adds patch placement, local exemplar fill, content-sensitive move and guided edge correction to native pixel layers. Explicit source/guide IDs refer to inline raster items in the same document. Every operation freezes its input grids, preserves input snapshots and supports durable undo/redo and safe retries. No model, network service, application or device is required.
 
 ```json

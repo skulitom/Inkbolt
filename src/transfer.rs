@@ -19,7 +19,7 @@ pub struct Transfer {
 
 fn renamed(prefix: &str, id: &str) -> String {
     let readable = format!("{prefix}-{id}");
-    if readable.len() <= 128 {
+    if readable.len() <= crate::limits::model::MAX_ID_BYTES {
         readable
     } else {
         format!("{prefix}-{}", crate::assets::sha256(id.as_bytes()))
@@ -126,10 +126,13 @@ pub(crate) fn apply(
             "Cross-document transfer requires matching compositing spaces; convert the source explicitly first",
         ));
     }
-    if !valid_id(&transfer.prefix) || transfer.prefix.len() > 32 {
-        return Err(invalid(
-            "Transfer prefix requires 1..32 valid ID characters",
-        ));
+    if !valid_id(&transfer.prefix)
+        || transfer.prefix.len() > crate::limits::transfer::MAX_PREFIX_BYTES
+    {
+        return Err(invalid(&format!(
+            "Transfer prefix requires 1..{} valid ID characters",
+            crate::limits::transfer::MAX_PREFIX_BYTES
+        )));
     }
     let parent_world = if let Some(parent) = &transfer.parent {
         let i = scene::index(destination, parent)?;

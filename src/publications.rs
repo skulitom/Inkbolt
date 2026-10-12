@@ -2,7 +2,7 @@
 mod file_identity;
 pub mod history;
 mod store;
-#[cfg(all(test, windows))]
+#[cfg(all(test, any(windows, unix)))]
 mod tests;
 use crate::{Document, Error, assets, control::Control, publish, sessions::Resources};
 use rusqlite::TransactionBehavior;
@@ -17,9 +17,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-pub const MAX_RECEIPT_BYTES: usize = 1024 * 1024;
-pub const MAX_LEDGER_BYTES: usize = 64 * 1024 * 1024;
-pub const MAX_RECORDS: usize = 1024;
+pub use crate::limits::publications::MAX_LEDGER_BYTES;
+pub use crate::limits::publications::MAX_RECEIPT_BYTES;
+pub use crate::limits::publications::MAX_RECORDS;
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
@@ -36,10 +36,11 @@ fn corrupt(message: &str) -> Error {
 }
 fn checked_path(path: &Path) -> Result<(), Error> {
     assets::absolute(path)?;
-    if path.as_os_str().len() > 4096 {
-        return Err(crate::model::limit(
-            "Publication path exceeds 4096 characters",
-        ));
+    if path.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
+        return Err(crate::model::limit(&format!(
+            "Publication path exceeds {} characters",
+            crate::limits::paths::MAX_PATH_UNITS
+        )));
     }
     Ok(())
 }
@@ -53,9 +54,10 @@ fn encode(value: &impl Serialize) -> Result<Vec<u8>, Error> {
     let bytes =
         serde_json::to_vec(value).map_err(|_| corrupt("Unable to encode publication receipt"))?;
     if bytes.len() > MAX_RECEIPT_BYTES {
-        return Err(crate::model::limit(
-            "Durable publication receipt exceeds 1 MiB",
-        ));
+        return Err(crate::model::limit(&format!(
+            "Durable publication receipt exceeds {} MiB",
+            MAX_RECEIPT_BYTES as f64 / 1_048_576.0
+        )));
     }
     Ok(bytes)
 }
@@ -140,7 +142,7 @@ struct Stage {
 }
 impl Stage {
     fn reserve(root: &Path, prefix: &str) -> Result<Self, Error> {
-        for _ in 0..64 {
+        for _ in 0..crate::limits::publications::MAX_STAGE_ATTEMPTS {
             let path = root.join(format!(
                 "{prefix}{}-{}.tmp",
                 std::process::id(),
@@ -198,7 +200,7 @@ fn verify_file(file: &mut fs::File, record: &Record, control: &Control) -> Resul
             "File identity or length differs from the prepared publication; preserve the file and investigate",
         ));
     }
-    let mut buffer = [0u8; 65536];
+    let mut buffer = [0u8; crate::limits::publish::IO_CHUNK_BYTES];
     let mut digest = Sha256::new();
     let mut bytes = 0;
     loop {
@@ -384,13 +386,17 @@ fn publish_prepared(
         .open(&stage.path)
         .map_err(|_| io("Unable to open publication staging file"))?;
     control.progress("staging", 0, Some(prepared.bytes.len() as u64));
-    for (index, chunk) in prepared.bytes.chunks(65536).enumerate() {
+    for (index, chunk) in prepared
+        .bytes
+        .chunks(crate::limits::publish::IO_CHUNK_BYTES)
+        .enumerate()
+    {
         control.check()?;
         file.write_all(chunk)
             .map_err(|_| io("Unable to write publication staging file"))?;
         control.progress(
             "staging",
-            ((index + 1) * 65536).min(prepared.bytes.len()) as u64,
+            ((index + 1) * crate::limits::publish::IO_CHUNK_BYTES).min(prepared.bytes.len()) as u64,
             Some(prepared.bytes.len() as u64),
         );
         #[cfg(test)]
@@ -537,6 +543,7 @@ pub fn recover(target: &ReceiptTarget, control: &Control) -> Result<Value, Error
     resume_transaction(tx, &target.receipt_root, record, true, control)
 }
 /// Reconcile a stopped worker without creating an output it never published.
+#[cfg(windows)]
 pub(crate) fn recover_published_only(
     target: &ReceiptTarget,
     control: &Control,

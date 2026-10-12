@@ -38,14 +38,15 @@ pub(super) fn options(options: &Options) -> Result<usize, Error> {
     }
     let duration = rational(options.duration)?;
     let count = &duration * &rate;
-    if duration > R::from_integer(120.into())
+    if duration > R::from_integer(crate::limits::handoff::MAX_SECONDS.into())
         || !count.is_integer()
         || count < R::from_integer(1.into())
         || !(&duration * R::from_integer(48000.into())).is_integer()
     {
-        return Err(invalid(
-            "Duration must contain at least one complete video frame, last at most 120 seconds, and land on a 48 kHz sample boundary",
-        ));
+        return Err(invalid(&format!(
+            "Duration must contain at least one complete video frame, last at most {} seconds, and land on a 48 kHz sample boundary",
+            crate::limits::handoff::MAX_SECONDS
+        )));
     }
     count
         .to_integer()
@@ -116,7 +117,10 @@ pub(super) fn schedule(
 ) -> Result<Vec<Option<usize>>, Error> {
     let count = self::options(options)?;
     if holds.is_empty() || holds.len() > crate::sequences::MAX_FRAMES {
-        return Err(invalid("Expected 1..256 frame holds"));
+        return Err(invalid(&format!(
+            "Expected 1..{} frame holds",
+            crate::sequences::MAX_FRAMES
+        )));
     }
     if matches!(options.selection, Selection::Still { .. })
         && (holds.len() != 1 || holds[0] != options.duration)
@@ -141,7 +145,7 @@ pub(super) fn schedule(
     }
     let mut selected = Vec::with_capacity(count);
     for i in 0..count {
-        if i % 32 == 0 {
+        if i % crate::limits::control::ITEM_CHECK_INTERVAL == 0 {
             control.check()?;
         }
         let mut time = R::from_integer(i.into()) / &rate;

@@ -15,9 +15,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-pub const MAX_ASSETS: usize = 64;
-pub const MAX_ASSET_PIXELS: u64 = 16_777_216;
-pub const MAX_IMPORT_BYTES: u64 = 32 * 1024 * 1024;
+pub use crate::limits::assets::MAX_ASSET_PIXELS;
+pub use crate::limits::assets::MAX_ASSETS;
+pub use crate::limits::assets::MAX_IMPORT_BYTES;
 const MAGIC: &[u8; 8] = b"INKRGBA1";
 static TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
@@ -315,7 +315,7 @@ pub(crate) fn publish(asset: &ImageAsset, rgba: &[u8], root: &Path) -> Result<bo
     let mut attempts = 0;
     let (temporary, mut f) = loop {
         attempts += 1;
-        if attempts > 64 {
+        if attempts > crate::limits::assets::MAX_STAGE_ATTEMPTS {
             return Err(Error::new(
                 "ASSET_STORE_ERROR",
                 "Unable to reserve a temporary asset name within the retry limit",
@@ -699,7 +699,9 @@ impl Pixels {
 /// eight machine epsilons with an absolute floor of eight epsilons.
 pub(crate) fn pixel_index(value: f64) -> i64 {
     let integer = value.round();
-    let tolerance = 8.0 * f64::EPSILON * value.abs().max(1.0);
+    let tolerance = f64::from(crate::limits::assets::PIXEL_BOUNDARY_EPSILONS)
+        * f64::EPSILON
+        * value.abs().max(1.0);
     if (value - integer).abs() <= tolerance {
         integer as i64
     } else {

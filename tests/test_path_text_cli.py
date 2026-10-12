@@ -12,6 +12,7 @@ import test_text_cli as text_tests
 import test_editing_cli as editing
 import test_boards_cli as boards
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def line(a=(10,25),b=(65,25),**kw):
@@ -76,6 +77,14 @@ class PathTextTests(unittest.TestCase):
         self.assertEqual(len(a),len(b))
         for x,y in zip(a,b):self.assertLessEqual(abs(x-y),tolerance,(a,b))
     def exported(self,d,format,**kw):return self.invoke(dict(command='document.export',document=d,format=format,font_root=str(self.store),**kw))
+
+    def test_discovered_baseline_tolerance_bounds_and_default(self):
+        limits=capabilities()['path_text'];source=self.document();before=copy.deepcopy(source)
+        self.assertEqual(source['items'][0]['content']['frame']['path']['tolerance'],limits['default_tolerance'])
+        for value,expected in [(limits['tolerance'][0],0),(limits['tolerance'][1],0),
+                               (limits['tolerance'][0]/2,1),(limits['tolerance'][1]*2,1)]:
+            self.replace(source,expected=expected,path=line(tolerance=value))
+        self.assertEqual(source,before)
 
     def test_straight_editable_baseline_kerning_origins_and_exact_interior_pixels(self):
         for kind in ('vector','raster'):
@@ -185,7 +194,7 @@ class PathTextTests(unittest.TestCase):
     def test_invalid_baselines_strict_fields_and_paragraph_conflicts_are_explicit(self):
         d=self.document();before=copy.deepcopy(d)
         for kw in [dict(wrap=True),dict(leading=12),dict(text='A\nB')]:self.assertEqual(self.replace(d,expected=1,**kw)['code'],'UNSUPPORTED')
-        for path in [line(start_offset=32769),line(normal_offset=32769),line(tolerance=0),line(tolerance=.5),line(unknown=True)]:self.replace(d,expected=1,path=path)
+        for path in [line(start_offset=32769),line(normal_offset=32769),line(tolerance=0),line(tolerance=capabilities()['path_text']['tolerance'][1]*2),line(unknown=True)]:self.replace(d,expected=1,path=path)
         compound=line();compound['geometry']['commands']+=line((30,25),(50,25))['geometry']['commands']
         self.assertEqual(self.replace(d,expected=1,path=compound)['code'],'UNSUPPORTED')
         collapsed=self.replace(d,path=line((10,25),(10,25)));self.assertEqual(self.inspect(collapsed,1)['code'],'INVALID_DOCUMENT')
@@ -216,7 +225,7 @@ class PathTextTests(unittest.TestCase):
     def test_baseline_command_and_subdivision_resource_limits_fail_explicitly(self):
         d=self.document();path=line();path['geometry']['commands']=[dict(verb='move',to=[0,20])]+[dict(verb='line',to=[i/32,20+i%2]) for i in range(1024)]
         self.assertEqual(self.replace(d,expected=1,path=path)['code'],'RESOURCE_LIMIT')
-        path=curved([[0,0],[32000,32000],[-32000,32000],[0,0]],tolerance=.000001)
+        path=curved([[0,0],[32000,32000],[-32000,32000],[0,0]],tolerance=capabilities()['path_text']['tolerance'][0])
         large=self.replace(d,path=path)
         self.assertEqual(self.inspect(large,1)['code'],'RESOURCE_LIMIT')
 

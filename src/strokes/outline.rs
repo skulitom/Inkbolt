@@ -3,8 +3,8 @@ use super::*;
 use crate::paths::{Contour, Edge};
 use std::f64::consts::{PI, TAU};
 
-pub const MAX_OUTLINE_COMMANDS: usize = 65_536;
-const MAX_POINTS: usize = 16_384;
+pub use crate::limits::strokes_outline::MAX_OUTLINE_COMMANDS;
+use crate::limits::strokes_outline::MAX_POINTS;
 fn limit() -> Error {
     Error::new(
         "LIMIT_EXCEEDED",
@@ -75,7 +75,7 @@ fn flatten(
     {
         return push(points, c[3]);
     }
-    if depth == 24 {
+    if usize::from(depth) == crate::limits::strokes_outline::MAX_SUBDIVISION_DEPTH {
         return Err(limit());
     }
     let a = midpoint(c[0], c[1]);
@@ -216,9 +216,12 @@ impl Centerline {
             if let Some((previous, at, previous_authored)) = nodes.last_mut()
                 && previous.p == node.p
             {
-                let coordinate_error =
-                    8.0 * f64::EPSILON * (node.p[0].abs().max(node.p[1].abs()) + self.length());
-                let radius_error = 8.0 * f64::EPSILON * previous.r.max(node.r).max(stroke.width);
+                let coordinate_error = f64::from(crate::limits::strokes_outline::ROUNDING_EPSILONS)
+                    * f64::EPSILON
+                    * (node.p[0].abs().max(node.p[1].abs()) + self.length());
+                let radius_error = f64::from(crate::limits::strokes_outline::ROUNDING_EPSILONS)
+                    * f64::EPSILON
+                    * previous.r.max(node.r).max(stroke.width);
                 if authored == *previous_authored
                     || (s - *at).abs() > coordinate_error
                     || (previous.r - node.r).abs() > radius_error

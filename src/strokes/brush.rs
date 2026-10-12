@@ -1,8 +1,9 @@
 //! Original rigid motif placement in a declared stroke coordinate system.
 use super::outline::{Centerline, radius};
 use super::*;
+use crate::limits::strokes_brush as brush_limits;
 
-pub const MAX_PLACEMENTS: usize = 8192;
+pub use crate::limits::strokes_brush::MAX_PLACEMENTS;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Fit {
@@ -19,7 +20,7 @@ pub enum Orientation {
     Outgoing,
 }
 fn angle() -> f64 {
-    30.0
+    f64::from(brush_limits::DEFAULT_CORNER_ANGLE)
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -66,7 +67,7 @@ pub(super) fn validate(s: &Stroke) -> Result<(), Error> {
         || s.end_arrow.is_some()
         || s.cap != Cap::Butt
         || s.join != Join::Miter
-        || s.miter_limit != 4.0
+        || s.miter_limit != f64::from(limits::DEFAULT_MITER_LIMIT)
     {
         return Err(Error::new(
             "UNSUPPORTED",
@@ -74,18 +75,24 @@ pub(super) fn validate(s: &Stroke) -> Result<(), Error> {
         ));
     }
     if !b.spacing.is_finite()
-        || !(0.001..=1024.0).contains(&b.spacing)
+        || !(brush_limits::MIN_SPACING..=f64::from(brush_limits::MAX_SPACING)).contains(&b.spacing)
         || !b.phase.is_finite()
         || b.phase.abs() > MAX_COORDINATE
         || !b.corner_angle.is_finite()
-        || !(0.1..=180.0).contains(&b.corner_angle)
+        || !(brush_limits::MIN_CORNER_ANGLE..=f64::from(brush_limits::MAX_CORNER_ANGLE))
+            .contains(&b.corner_angle)
         || [b.corner_clearance, b.end_clearance]
             .iter()
-            .any(|v| !v.is_finite() || !(0.0..=1024.0).contains(v))
+            .any(|v| !v.is_finite() || !(0.0..=f64::from(brush_limits::MAX_CLEARANCE)).contains(v))
     {
-        return Err(invalid(
-            "Brush spacing must be 0.001..=1024 base widths, phase -32768..=32768 base widths, clearances 0..=1024 base widths and corner angle 0.1..=180 degrees",
-        ));
+        return Err(invalid(&format!(
+            "Brush spacing must be {}..={} base widths, phase -{MAX_COORDINATE}..={MAX_COORDINATE} base widths, clearances 0..={} base widths and corner angle {}..={} degrees",
+            brush_limits::MIN_SPACING,
+            brush_limits::MAX_SPACING,
+            brush_limits::MAX_CLEARANCE,
+            brush_limits::MIN_CORNER_ANGLE,
+            brush_limits::MAX_CORNER_ANGLE
+        )));
     }
     if (b.corner_motif.is_none()
         && (b.corner_clearance != 0.0
@@ -103,12 +110,13 @@ pub(super) fn validate(s: &Stroke) -> Result<(), Error> {
         if crate::geometry::control_points(&expanded)
             .iter()
             .flatten()
-            .any(|v| v.abs() > 16.0)
+            .any(|v| v.abs() > f64::from(brush_limits::MAX_MOTIF_COORDINATE))
             || contours(&expanded)?.iter().any(|c| !c.closed)
         {
-            return Err(invalid(
-                "Brush motifs require closed geometry with all expanded controls in -16..=16 normalized units",
-            ));
+            return Err(invalid(&format!(
+                "Brush motifs require closed geometry with all expanded controls in -{0}..={0} normalized units",
+                brush_limits::MAX_MOTIF_COORDINATE
+            )));
         }
     }
     Ok(())
@@ -148,7 +156,7 @@ pub(super) fn work(g: &Geometry, s: &Stroke, b: &Brush) -> Result<u64, Error> {
         if placements > MAX_PLACEMENTS as u64 {
             return Err(Error::new(
                 "LIMIT_EXCEEDED",
-                "Brush exceeds conservative 8192 placement limit",
+                format!("Brush exceeds conservative {MAX_PLACEMENTS} placement limit"),
             ));
         }
         work = work
@@ -193,7 +201,12 @@ fn corner_positions(center: &Centerline, closed: bool, b: &Brush) -> Vec<(f64, P
             let tangent = match b.corner_orientation {
                 Orientation::Incoming => incoming,
                 Orientation::Outgoing => outgoing,
-                Orientation::Bisector if bisector[0].hypot(bisector[1]) < 1e-12 => outgoing,
+                Orientation::Bisector
+                    if bisector[0].hypot(bisector[1])
+                        < crate::limits::strokes_brush::MIN_BISECTOR_LENGTH =>
+                {
+                    outgoing
+                }
                 Orientation::Bisector => direction([0.0, 0.0], bisector),
             };
             Some((center.lengths[i], tangent))
@@ -260,7 +273,7 @@ pub(super) fn generate(
         // Bound coordinate subtraction and accumulated distance roundoff.
         // Without this, decimal paths can retain an almost-duplicate seam
         // center or fail to replace a body motif at an authored corner.
-        let precision = 16.0
+        let precision = f64::from(crate::limits::strokes_brush::ROUNDING_EPSILONS)
             * f64::EPSILON
             * (center.points.len() as f64 * length
                 + center

@@ -8,6 +8,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 import test_samples_cli as samples
 import test_sample_conversion_cli as conversion
@@ -44,6 +45,20 @@ class HdrTests(unittest.TestCase):
     def measured(self,d,points=None,expected=0):return self.invoke(dict(command='sample.measure',document=d,points=points or [[x,y] for y in range(d['height']) for x in range(d['width'])]),expected)
     def preview(self,d,view=None,expected=0,**kw):return self.invoke(dict(command='document.render',document=d,**({} if view is None else dict(render_options=dict(view=view,**kw)))),expected)
     def convert(self,d,**options):return self.edit(d,[dict(op='sample_convert',id='source',conversion=options)])
+
+    def test_advertised_grade_and_view_bounds(self):
+        bounds = capabilities()['hdr']; d = self.document([layer([.25,.5,.75,1])])
+        lo, hi = bounds['exposure_stops']
+        for value, expected in [(lo, 0), (hi, 0), (lo-1, 1), (hi+1, 1)]:
+            result = self.edit(d, [dict(op='hdr_grade', id='source', grade=dict(exposure=value))], expected)
+            if expected: self.assertEqual(result['code'], 'INVALID_DOCUMENT')
+            result = self.preview(d, dict(tone_map='clip', exposure=value), expected)
+            if expected: self.assertEqual(result['code'], 'INVALID_DOCUMENT')
+        lo, hi = bounds['channel_gain']
+        for value, expected in [(lo, 0), (hi, 0), (lo-1, 1), (hi+1, 1)]:
+            result = self.edit(d, [dict(op='hdr_grade', id='source', grade=dict(gain=[value]*3))], expected)
+            if expected: self.assertEqual(result['code'], 'INVALID_DOCUMENT')
+
 
     def test_signed_radiance_gray_subnormals_and_large_values_survive_native_delivery(self):
         values=[-16.,-0.,2**-149,2**-126,.5,1.,2.,65536.,2**64]

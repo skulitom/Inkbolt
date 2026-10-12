@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import test_strokes_cli as strokes
 import test_editing_cli as editing
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def polygons(g):
@@ -260,9 +261,37 @@ class StrokeOutlineTests(unittest.TestCase):
         imported=self.invoke(dict(command='svg.import',id='outlined-import',source=dict(kind='text',text=svg['data'])))['document']
         for scale in (1,4):self.assertEqual(self.pixels(d,scale),self.pixels(imported,scale))
 
+    def test_stored_stroke_boundaries_follow_discovery(self):
+        source=self.document();before=copy.deepcopy(source)
+        limits=capabilities()['vector_strokes']
+        for field,bounds in [('width',limits['width']),('miter_limit',limits['miter_limit']),
+                             ('curve_tolerance',limits['curve_tolerance']['range'])]:
+            for value,expected in [(bounds[0],0),(bounds[1],0),(bounds[0]/2,1),(bounds[1]*2,1)]:
+                with self.subTest(field=field,value=value):
+                    d=copy.deepcopy(source);d['items'][0]['content']['stroke'][field]=value
+                    self.invoke(dict(command='document.validate',document=d),expected)
+        maximum=limits['width_profile']['knots'][1]
+        for count,expected in [(maximum,0),(maximum+1,1)]:
+            d=copy.deepcopy(source)
+            d['items'][0]['content']['stroke']['width_profile']=[[i/(count-1),1] for i in range(count)]
+            self.invoke(dict(command='document.validate',document=d),expected)
+        factor=limits['width_profile']['factor'][1]
+        for value,expected in [(factor,0),(factor+1,1)]:
+            d=copy.deepcopy(source);stroke=d['items'][0]['content']['stroke']
+            stroke.update(width=limits['width'][0],width_profile=[[0,value],[1,value]])
+            self.invoke(dict(command='document.validate',document=d),expected)
+        for field in ['length','width']:
+            for value,expected in [(limits['arrow_length_width'][1],0),(limits['arrow_length_width'][1]+1,1)]:
+                d=copy.deepcopy(source);arrow=dict(kind='triangle',length=2,width=2);arrow[field]=value
+                d['items'][0]['content']['stroke']['end_arrow']=arrow
+                self.invoke(dict(command='document.validate',document=d),expected)
+        self.assertEqual(source,before)
+
     def test_atomic_validation_locks_profile_precision_and_outline_limits(self):
         d=self.document();before=copy.deepcopy(d)
-        bad=[dict(width_profile=[[0,1]]),dict(width_profile=[[.1,1],[1,1]]),dict(width_profile=[[0,1],[.5,-1],[1,1]]),dict(width_profile=[[0,1],[.5,1],[.5,2],[1,1]]),dict(width_profile=[[0,1024],[1,1024]]),dict(curve_tolerance=0),dict(curve_tolerance=1.001),dict(end_arrow=dict(kind='triangle',length=0,width=2)),dict(start_arrow=dict(kind='triangle',length=2,width=2,rotation=90))]
+        limits=capabilities()['vector_strokes']
+        maximum=limits['width_profile']['factor'][1]
+        bad=[dict(width_profile=[[0,1]]),dict(width_profile=[[.1,1],[1,1]]),dict(width_profile=[[0,1],[.5,-1],[1,1]]),dict(width_profile=[[0,1],[.5,1],[.5,2],[1,1]]),dict(width_profile=[[0,maximum],[1,maximum]]),dict(curve_tolerance=0),dict(curve_tolerance=limits['curve_tolerance']['range'][1]+.001),dict(end_arrow=dict(kind='triangle',length=0,width=2)),dict(start_arrow=dict(kind='triangle',length=2,width=2,rotation=90))]
         for settings in bad:
             b=copy.deepcopy(d);b['items'][0]['content']['stroke'].update(settings)
             self.invoke(dict(command='document.validate',document=b),1)
@@ -272,7 +301,7 @@ class StrokeOutlineTests(unittest.TestCase):
             self.invoke(dict(command='document.edit',document=d,expected_revision=d['revision'],operations=[dict(op='stroke_expand',id='path',fill_id=ids[0],stroke_id=ids[1])]),1)
         locked=copy.deepcopy(d);locked['items'][0]['locked']=True;self.assertEqual(self.expand(locked,1)['code'],'LOCKED')
         dense=self.document(array=[.01,.01]);self.assertEqual(self.expand(dense,1)['code'],'RESOURCE_LIMIT')
-        b=copy.deepcopy(d);b['items'][0]['content']['stroke'].update(width=1024,curve_tolerance=1e-7,cap='round');self.assertIn('outline',self.invoke(dict(command='document.validate',document=b),1)['message'])
+        b=copy.deepcopy(d);b['items'][0]['content']['stroke'].update(width=limits['width'][1],curve_tolerance=limits['curve_tolerance']['range'][0],cap='round');self.assertIn('outline',self.invoke(dict(command='document.validate',document=b),1)['message'])
         b=copy.deepcopy(d);b['items'][0]['content']['stroke']['width_profile']=[[0,1],[5e-324,2],[1,1]]
         self.assertEqual(self.invoke(dict(command='document.validate',document=b),1)['code'],'UNSUPPORTED')
         self.assertEqual(d,before)

@@ -1,4 +1,4 @@
-//! Original binding to documented local Windows file identity; no SDK sources are included.
+//! Open-file identity for trusted local filesystems; no SDK sources are included.
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -52,10 +52,28 @@ pub(super) fn identify(file: &File) -> Result<Identity, Error> {
         file: info.id,
     })
 }
-#[cfg(not(windows))]
+#[cfg(unix)]
+pub(super) fn identify(file: &File) -> Result<Identity, Error> {
+    use std::os::unix::fs::MetadataExt;
+    let metadata = file.metadata().map_err(|_| {
+        Error::new(
+            "IO_ERROR",
+            "Unable to read durable publication file identity",
+        )
+    })?;
+    // Keep the existing receipt layout. Device identifies the filesystem, and
+    // the inode occupies the low eight bytes of the 128-bit little-endian ID.
+    // Read from the held file, never a second path lookup. A retained hard link
+    // keeps this inode allocated throughout prepared-publication recovery.
+    Ok(Identity {
+        volume: metadata.dev(),
+        file: u128::from(metadata.ino()).to_le_bytes(),
+    })
+}
+#[cfg(not(any(windows, unix)))]
 pub(super) fn identify(_file: &File) -> Result<Identity, Error> {
     Err(Error::new(
         "UNSUPPORTED_PLATFORM",
-        "Durable publication currently requires the verified Windows file-identity backend",
+        "Durable publication requires a Windows or Unix file-identity backend",
     ))
 }

@@ -1,5 +1,7 @@
 # Large vector documents
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Agents can opt into `resource_profile: "large_vector"` on `document.create`, `svg.import` or a vector snapshot. The `resource_profile` edit switches an existing document atomically; a downgrade fails if its contents exceed the standard budgets. Snapshots, semantic diffs and durable history retain this choice. Omitted profiles keep the standard contract and serialization.
 
 | Storage bound | Standard | Large vector |

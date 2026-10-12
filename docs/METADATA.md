@@ -1,5 +1,7 @@
 # Descriptions, privacy and reproducible provenance
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Documents and items can carry an optional `metadata` record with `title`, `description`, `author`, `rights`, `note`, ordered unique `tags`, a string-valued `properties` map and a string-valued `private` map. All values are caller-authored. Runtime resource paths, account names, clock values and source filenames are never discovered or inserted into these records.
 
 Use `{"op":"metadata","value":{...}}` for the document, or add `"id":"item-id"` for an item. The operation replaces that record atomically; `value:null` clears it. Item locks and ancestor locks apply. Notes do not affect pixels, geometry or color. Inspect/select/query, structural diffs, duplication, cross-document transfer and durable history retain the records. Transferred items keep their own records while destination document metadata stays authoritative.

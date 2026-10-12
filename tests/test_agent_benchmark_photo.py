@@ -1,5 +1,6 @@
 """Full native photographic task and a fixed, fail-closed process-memory budget."""
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -14,6 +15,7 @@ from benchmark_tasks import CHECKS
 
 
 class PhotoBenchmarkTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == 'nt', 'Photo acceptance requires Windows commit-memory measurements')
     def test_complete_native_photo_task_on_cli_and_mcp(self):
         with tempfile.TemporaryDirectory() as directory:
             for transport in ('cli','mcp'):

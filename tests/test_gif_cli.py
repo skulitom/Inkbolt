@@ -10,6 +10,7 @@ import gif_fixtures as gif
 import test_editing_cli as editing
 import test_variants_cli as variants
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 class GifTests(unittest.TestCase):
@@ -41,6 +42,16 @@ class GifTests(unittest.TestCase):
             self.assertEqual(d,saved)
         pixels=bytes(c for i in range(256) for c in [i,255-i,(i*37)%256,255]);d=self.document(256,1,pixels)
         self.assertEqual(gif.decode(base64.b64decode(self.export(d)['data']))['frames'],[pixels])
+
+    def test_advertised_literal_run_boundaries_decode_without_pixel_changes(self):
+        run = capabilities()['image_io']['gif']['literal_run']
+        for count in (run-1, run, run+1, 3*run+1):
+            pixels = bytes(c for i in range(count) for c in ([0,0,0,0] if i%7 == 0 else [i%13,80,160,255]))
+            document = self.document(count,1,pixels)
+            before = copy.deepcopy(document)
+            data = base64.b64decode(self.export(document)['data'])
+            self.assertEqual(gif.decode(data)['frames'],[pixels])
+            self.assertEqual(document,before)
 
     def test_compressed_dictionary_width_growth_deferred_clear_and_kwkwk(self):
         palette=[(i,255-i,(i*31)%256) for i in range(256)]
@@ -93,10 +104,24 @@ class GifTests(unittest.TestCase):
         for d,code in sources:self.assertEqual(self.invoke(dict(command='document.export',document=d,format='gif'),1)['code'],code)
         d=self.document(1,1,bytes([40,80,150,255]));d=self.edit(d,dict(op='sequence_from_layers',ids=['pixels'],delay=dict(numerator=1,denominator=24)))
         self.assertEqual(self.invoke(dict(command='document.export',document=d,format='gif'),1)['code'],'UNSUPPORTED_GIF_TIMING')
-        for delay in (dict(numerator=65535,denominator=1),dict(numerator=65535,denominator=100)):
+        maximum = capabilities()['image_io']['gif']['maximum_delay_centiseconds']
+        for delay in (dict(numerator=maximum,denominator=1),dict(numerator=maximum,denominator=100)):
             t=copy.deepcopy(d['variants']['sequence']);t['frames'][0]['delay']=delay;v=self.edit(d,dict(op='sequence_set',sequence=t))
             if delay['denominator']==1:self.assertEqual(self.invoke(dict(command='document.export',document=v,format='gif'),1)['code'],'UNSUPPORTED_GIF_TIMING')
-            else:self.assertEqual(gif.decode(base64.b64decode(self.export(v)['data']))['controls'][0][1],65535)
+            else:self.assertEqual(gif.decode(base64.b64decode(self.export(v)['data']))['controls'][0][1],maximum)
+
+    def test_advertised_play_count_boundary_preserves_exact_loop_encoding(self):
+        d = self.document(1, 1, bytes([40, 80, 150, 255]))
+        d = self.edit(d, dict(op='sequence_from_layers', ids=['pixels'], delay=dict(numerator=1, denominator=100)))
+        maximum = capabilities()['image_io']['gif']['plays'][1]
+        for plays in (0, 1, maximum):
+            sequence = copy.deepcopy(d['variants']['sequence']); sequence['plays'] = plays
+            changed = self.edit(d, dict(op='sequence_set', sequence=sequence))
+            decoded = gif.decode(base64.b64decode(self.export(changed)['data']))
+            self.assertEqual(decoded['loop'], None if plays == 1 else 0 if plays == 0 else plays-1)
+        sequence['plays'] = maximum+1
+        changed = self.edit(d, dict(op='sequence_set', sequence=sequence))
+        self.assertEqual(self.invoke(dict(command='document.export', document=changed, format='gif'), 1)['code'], 'RESOURCE_LIMIT')
 
     def test_malformed_blocks_compressed_codes_frames_controls_and_metadata_publish_nothing(self):
         valid=gif.fixture(2,2,[dict(indices=bytes([1,2,3,0]))]);cases=[valid[:n] for n in range(len(valid))]+[valid+b'extra']
@@ -119,7 +144,7 @@ class GifTests(unittest.TestCase):
             self.assertEqual(self.invoke(req,1)['code'],'COLOR_POLICY_REQUIRED')
             self.assertEqual(self.invoke(dict(req,color_policy='assume_srgb',control=dict(timeout_ms=0)),1)['code'],'TIMEOUT')
             self.assertFalse((Path(root)/'assets').exists())
-            data=gif.fixture(1,1,[dict(indices=b'\x01')]*257);path.write_bytes(data)
+            data=gif.fixture(1,1,[dict(indices=b'\x01')]*(capabilities()['sequences']['max_frames']+1));path.write_bytes(data)
             self.assertEqual(self.invoke(dict(req,color_policy='assume_srgb'),1)['code'],'RESOURCE_LIMIT');self.assertFalse((Path(root)/'assets').exists())
 
     def test_global_background_index_is_validated_before_any_asset_publication(self):

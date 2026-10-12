@@ -1,5 +1,6 @@
 //! Source-defined style references and overrides; no built-in native defaults.
 use super::{text_data::Node, *};
+use crate::limits::layered_text as bounds;
 use std::collections::{BTreeMap, BTreeSet};
 
 type Fields<'a> = BTreeMap<&'a str, &'a Node>;
@@ -39,7 +40,7 @@ impl<'a> Family<'a> {
             if path.contains(&index) {
                 return Err(malformed());
             }
-            if path.len() >= 2 {
+            if path.len() >= bounds::MAX_REFERENCE_DEPTH {
                 return Err(unsupported(
                     "Deeper named text style inheritance is not mapped",
                 ));
@@ -178,8 +179,11 @@ pub(super) fn resolve<'a>(
             merged.extend(properties.iter().map(|(k, v)| (*k, *v)));
         }
         property_count += merged.len();
-        if property_count > 8192 {
-            return Err(limit("Resolved text exceeds 8192 property references"));
+        if property_count > bounds::MAX_PROPERTY_REFERENCES {
+            return Err(limit(&format!(
+                "Resolved text exceeds {} property references",
+                bounds::MAX_PROPERTY_REFERENCES
+            )));
         }
         let end = c_end.min(p_end);
         if end <= at {
@@ -189,8 +193,11 @@ pub(super) fn resolve<'a>(
             length: end - at,
             fields: Some(merged),
         });
-        if output.len() > 65 {
-            return Err(limit("Resolved text exceeds 65 character spans"));
+        if output.len() > bounds::MAX_RUNS {
+            return Err(limit(&format!(
+                "Resolved text exceeds {} character spans",
+                bounds::MAX_RUNS
+            )));
         }
         at = end;
         c += usize::from(c_end == end);

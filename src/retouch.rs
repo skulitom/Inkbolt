@@ -6,18 +6,19 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
-pub const MAX_WORK: u64 = 67_108_864;
-pub const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
-pub const MAX_ITERATIONS: u32 = 4096;
+use crate::limits::retouch as bounds;
+pub use crate::limits::retouch::MAX_ITERATIONS;
+pub use crate::limits::retouch::MAX_MEMORY_BYTES;
+pub use crate::limits::retouch::MAX_WORK;
 const ALGORITHM: &str = "inkbolt-region-retouch-v1";
 fn one() -> f64 {
     1.0
 }
 fn tolerance() -> f64 {
-    1e-9
+    bounds::DEFAULT_RESIDUAL_TOLERANCE
 }
 fn iterations() -> u32 {
-    2048
+    bounds::DEFAULT_ITERATIONS
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
@@ -85,7 +86,7 @@ impl Work<'_> {
     fn add(&mut self, n: usize) -> Result<(), Error> {
         self.count += n as u64;
         if self.count > MAX_WORK {
-            return Err(limit("Retouch exceeds 67108864 work units"));
+            return Err(limit(&format!("Retouch exceeds {MAX_WORK} work units")));
         }
         self.control.check()
     }
@@ -268,14 +269,18 @@ pub(crate) fn apply(
         max_iterations,
     } = o.mode
         && (!screening.is_finite()
-            || !(0.0..=16.0).contains(&screening)
+            || !(0.0..=f64::from(bounds::MAX_SCREENING)).contains(&screening)
             || !tolerance.is_finite()
-            || !(1e-12..=1e-4).contains(&tolerance)
+            || !(bounds::MIN_RESIDUAL_TOLERANCE..=bounds::MAX_RESIDUAL_TOLERANCE)
+                .contains(&tolerance)
             || !(1..=MAX_ITERATIONS).contains(&max_iterations))
     {
-        return Err(invalid(
-            "Healing requires screening0..16,tolerance1e-12..1e-4 and max_iterations1..4096",
-        ));
+        return Err(invalid(&format!(
+            "Healing requires screening0..{},tolerance{:e}..{:e} and max_iterations1..{MAX_ITERATIONS}",
+            bounds::MAX_SCREENING,
+            bounds::MIN_RESIDUAL_TOLERANCE,
+            bounds::MAX_RESIDUAL_TOLERANCE
+        )));
     }
     crate::pixel_warps::reject_native(&document.items[index])?;
     let source_index = scene::index(document, &o.source_id)?;
@@ -294,7 +299,10 @@ pub(crate) fn apply(
         ));
     }
     if r.width as u64 * r.height as u64 > crate::sample_store::MAX_REGION_PIXELS {
-        return Err(limit("Retouch exceeds the 65536-pixel local edit region"));
+        return Err(limit(&format!(
+            "Retouch exceeds the {}-pixel local edit region",
+            crate::sample_store::MAX_REGION_PIXELS
+        )));
     }
     // Every selected cell has its actual in-image neighbors in this window.
     // No solver/storage buffer scales with the complete source image.
@@ -307,9 +315,9 @@ pub(crate) fn apply(
     // caches, prepared patch candidates and new complete replacement blocks.
     // A narrow edit can intersect many full blocks; region area alone is not
     // a safe memory estimate. Reject before loading or preparing resources.
-    let mut memory = n as u64 * 256
-        + r.width as u64 * r.height as u64 * 256
-        + 8 * 1024 * 1024
+    let mut memory = n as u64 * bounds::WORKING_BYTES_PER_PIXEL
+        + r.width as u64 * r.height as u64 * bounds::WORKING_BYTES_PER_PIXEL
+        + bounds::FIXED_WORKING_BYTES
         + pixels::memory(&document.items[index].content);
     if source_index != index {
         memory += pixels::memory(&document.items[source_index].content);
@@ -470,7 +478,7 @@ pub(crate) fn apply(
     let mut field = vec![[0.0; 4]; n];
     if o.opacity > 0.0 {
         for (i, &required) in needed.iter().enumerate() {
-            if i % 1024 == 0 {
+            if i % crate::limits::retouch::SAMPLE_CHECK_INTERVAL == 0 {
                 control.check()?;
             }
             if required {

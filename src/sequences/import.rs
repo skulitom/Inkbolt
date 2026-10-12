@@ -93,7 +93,9 @@ fn preflight(bytes: &[u8]) -> Result<Plan, Error> {
                 }
                 let n = u32_at(p, 0) as usize;
                 if n == 0 || n > MAX_FRAMES {
-                    return Err(limit("Animated PNG requires 1..256 frames"));
+                    return Err(limit(&format!(
+                        "Animated PNG requires 1..{MAX_FRAMES} frames"
+                    )));
                 }
                 count = Some(n);
                 plays = u32_at(p, 4);
@@ -394,7 +396,12 @@ pub fn import(
 ) -> Result<Value, Error> {
     control.check()?;
     assets::absolute(root)?;
-    if !valid_id(&id) || !ppi.is_finite() || !(1.0..=9600.0).contains(&ppi) {
+    if !valid_id(&id)
+        || !ppi.is_finite()
+        || !(f64::from(crate::limits::model::MIN_RESOLUTION_PPI)
+            ..=f64::from(crate::limits::model::MAX_RESOLUTION_PPI))
+            .contains(&ppi)
+    {
         return Err(error("Sequence document ID or resolution is invalid"));
     }
     let prepared = match source {
@@ -449,9 +456,9 @@ pub fn import(
         } => apng(source_path, policy, *compositing_space, control)?,
         Source::Images { frames, plays } => {
             if frames.is_empty() || frames.len() > MAX_FRAMES {
-                return Err(limit(
-                    "Image sequences require 1..256 explicit ordered files",
-                ));
+                return Err(limit(&format!(
+                    "Image sequences require 1..{MAX_FRAMES} explicit ordered files"
+                )));
             }
             let mut prepared = Prepared {
                 width: 0,
@@ -504,9 +511,10 @@ pub fn import(
         });
     }
     if ids.len() > variants::MAX_DATASETS {
-        return Err(limit(
-            "Sequence import supports at most 32 distinct rendered frame states",
-        ));
+        return Err(limit(&format!(
+            "Sequence import supports at most {} distinct rendered frame states",
+            variants::MAX_DATASETS
+        )));
     }
     let bindings = assets
         .keys()

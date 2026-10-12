@@ -81,7 +81,7 @@ fn expand(data: &[u8], minimum: u8, count: usize, control: &Control) -> Result<V
     let mut initialized = false;
     let mut codes = 0usize;
     loop {
-        if codes.is_multiple_of(4096) {
+        if codes.is_multiple_of(crate::limits::image_io_gif::CONTROL_INTERVAL) {
             control.check()?;
         }
         codes += 1;
@@ -325,6 +325,12 @@ fn blocks(out: &mut Vec<u8>, bytes: &[u8]) {
 // Literal-only LZW with explicit resets is deterministic and bounded. Full dictionary
 // expansion above accepts externally compressed input, including deferred clears.
 fn pack(indices: &[u8]) -> Vec<u8> {
+    // A clear resets the next dictionary code to 258. Every literal after
+    // the first adds an entry; clear again before the reader switches to ten bits.
+    const {
+        assert!(crate::limits::image_io_gif::LITERAL_RUN > 0);
+        assert!(crate::limits::image_io_gif::LITERAL_RUN <= 254);
+    }
     let mut out = Vec::new();
     let mut buffer = 0u32;
     let mut bits = 0;
@@ -337,7 +343,7 @@ fn pack(indices: &[u8]) -> Vec<u8> {
             bits -= 8;
         }
     };
-    for part in indices.chunks(128) {
+    for part in indices.chunks(crate::limits::image_io_gif::LITERAL_RUN) {
         emit(256);
         for &v in part {
             emit(u32::from(v));
@@ -358,7 +364,7 @@ pub(crate) fn encode(
     if animation.frames.is_empty()
         || animation.frames.len() > crate::sequences::MAX_FRAMES
         || count as u64 * animation.frames.len() as u64 > crate::sequences::MAX_PIXELS
-        || animation.plays > 65536
+        || animation.plays > crate::limits::image_io_gif::MAX_PLAYS
     {
         return Err(limit(
             "GIF exceeds frame, aggregate pixel or play-count limits",
@@ -370,7 +376,7 @@ pub(crate) fn encode(
             return Err(malformed());
         }
         for (i, p) in frame.rgba.as_chunks::<4>().0.iter().enumerate() {
-            if i.is_multiple_of(4096) {
+            if i.is_multiple_of(crate::limits::image_io_gif::CONTROL_INTERVAL) {
                 control.check()?;
             }
             if p[3] != 0 && p[3] != 255 {
@@ -413,31 +419,46 @@ pub(crate) fn encode(
             frame.delay.denominator
         });
         let ticks = u32::from(frame.delay.numerator) * 100;
-        if ticks % denominator != 0 || ticks / denominator > 65535 {
+        if ticks % denominator != 0
+            || ticks / denominator > crate::limits::image_io_gif::MAX_DELAY_TICKS
+        {
             return Err(Error::new(
                 "UNSUPPORTED_GIF_TIMING",
-                "GIF delays must be exactly representable in 0..65535 centiseconds",
+                format!(
+                    "GIF delays must be exactly representable in 0..{} centiseconds",
+                    crate::limits::image_io_gif::MAX_DELAY_TICKS
+                ),
             ));
         }
         let mut colors = BTreeMap::new();
         for (i, p) in frame.rgba.as_chunks::<4>().0.iter().enumerate() {
-            if i.is_multiple_of(4096) {
+            if i.is_multiple_of(crate::limits::image_io_gif::CONTROL_INTERVAL) {
                 control.check()?;
             }
             if p[3] != 0 {
                 colors.insert([p[0], p[1], p[2]], 0u8);
-                if colors.len() + usize::from(transparent) > 256 {
+                if colors.len() + usize::from(transparent)
+                    > crate::limits::image_io_gif::MAX_PALETTE_ENTRIES
+                {
                     return Err(Error::new(
                         "UNSUPPORTED_GIF_PALETTE",
-                        "GIF palette exceeds 256 entries including transparency; no automatic color quantization is performed",
+                        format!(
+                            "GIF palette exceeds {} entries including transparency; no automatic color quantization is performed",
+                            crate::limits::image_io_gif::MAX_PALETTE_ENTRIES
+                        ),
                     ));
                 }
             }
         }
-        if colors.len() + usize::from(transparent) > 256 {
+        if colors.len() + usize::from(transparent)
+            > crate::limits::image_io_gif::MAX_PALETTE_ENTRIES
+        {
             return Err(Error::new(
                 "UNSUPPORTED_GIF_PALETTE",
-                "GIF palette exceeds 256 entries including transparency; no automatic color quantization is performed",
+                format!(
+                    "GIF palette exceeds {} entries including transparency; no automatic color quantization is performed",
+                    crate::limits::image_io_gif::MAX_PALETTE_ENTRIES
+                ),
             ));
         }
         let entries = (colors.len() + usize::from(transparent))

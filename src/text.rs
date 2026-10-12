@@ -13,12 +13,13 @@ mod first_baseline;
 pub use first_baseline::{FirstBaseline, FirstBaselineMetric};
 pub mod flow;
 mod shaping;
+use crate::limits::text as limits;
+pub use crate::limits::text::MAX_GLYPHS;
+pub use crate::limits::text::MAX_OUTLINE_COMMANDS;
+use crate::limits::text::MAX_SHAPING_WORK;
+pub use crate::limits::text::MAX_TEXT_CHARS;
+pub use crate::limits::text::MAX_TEXT_RANGES;
 use shaping::{Analysis, shape};
-pub const MAX_TEXT_CHARS: usize = 4096;
-pub const MAX_TEXT_RANGES: usize = 64;
-pub const MAX_GLYPHS: usize = 8192;
-pub const MAX_OUTLINE_COMMANDS: usize = 131072;
-const MAX_SHAPING_WORK: usize = 1_048_576;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -219,24 +220,33 @@ pub fn validate(
         ));
     }
     for v in [frame.width, frame.height] {
-        if !v.is_finite() || !(0.001..=MAX_COORDINATE).contains(&v) {
-            return Err(invalid("Text frame extent must be in 0.001..=32768"));
+        if !v.is_finite() || !(limits::MIN_FRAME_EXTENT..=MAX_COORDINATE).contains(&v) {
+            return Err(invalid(&format!(
+                "Text frame extent must be in {}..={MAX_COORDINATE}",
+                limits::MIN_FRAME_EXTENT
+            )));
         }
     }
     if let Some(first) = frame.first_baseline {
         first.validate()?;
     }
-    if frame
-        .leading
-        .is_some_and(|v| !v.is_finite() || !(0.001..=4096.0).contains(&v))
-    {
-        return Err(invalid("Text leading must be in 0.001..=4096"));
+    if frame.leading.is_some_and(|v| {
+        !v.is_finite() || !(limits::MIN_LEADING..=f64::from(limits::MAX_LEADING)).contains(&v)
+    }) {
+        return Err(invalid(&format!(
+            "Text leading must be in {}..={}",
+            limits::MIN_LEADING,
+            limits::MAX_LEADING
+        )));
     }
     let mut pixels = 0;
     let mut samples = 0;
     for style in styles(frame) {
-        if style.fallback_fonts.len() >= fonts::MAX_FONTS {
-            return Err(limit("Text allows at most seven fallback fonts"));
+        if style.fallback_fonts.len() > fonts::MAX_FALLBACK_FONTS {
+            return Err(limit(&format!(
+                "Text allows at most {} fallback fonts",
+                fonts::MAX_FALLBACK_FONTS
+            )));
         }
         if style.font_ids().collect::<BTreeSet<_>>().len() != style.fallback_fonts.len() + 1 {
             return Err(invalid(
@@ -249,9 +259,11 @@ pub fn validate(
         if style.font_variations.len() > fonts::MAX_FONTS
             || style.features.len() > fonts::MAX_FEATURES
         {
-            return Err(limit(
-                "Text style exceeds eight font instances or 64 feature controls",
-            ));
+            return Err(limit(&format!(
+                "Text style exceeds {} font instances or {} feature controls",
+                fonts::MAX_FONTS,
+                fonts::MAX_FEATURES
+            )));
         }
         for (id, values) in &style.font_variations {
             if !style.font_ids().any(|f| f == id) {
@@ -265,30 +277,36 @@ pub fn validate(
             fonts::tag(feature)?;
         }
         if style.language.as_ref().is_some_and(|s| {
-            s.len() > 64
+            s.len() > limits::MAX_LANGUAGE_BYTES
                 || s.split('-')
                     .any(|part| part.is_empty() || !part.bytes().all(|b| b.is_ascii_alphanumeric()))
         }) {
-            return Err(invalid(
-                "Text language must have nonempty ASCII alphanumeric subtags separated by hyphens, at most 64 bytes",
-            ));
+            return Err(invalid(&format!(
+                "Text language must have nonempty ASCII alphanumeric subtags separated by hyphens, at most {} bytes",
+                limits::MAX_LANGUAGE_BYTES
+            )));
         }
         if !style.size.is_finite()
-            || !(0.01..=1024.0).contains(&style.size)
+            || !(limits::MIN_FONT_SIZE..=f64::from(limits::MAX_FONT_SIZE)).contains(&style.size)
             || !style.tracking.is_finite()
-            || style.tracking.abs() > 1024.0
+            || style.tracking.abs() > f64::from(limits::MAX_TRACKING)
         {
             return Err(invalid("Text size or tracking exceeds supported limits"));
         }
         if [style.horizontal_scale, style.vertical_scale]
             .iter()
-            .any(|v| !v.is_finite() || !(0.01..=10.0).contains(v))
+            .any(|v| {
+                !v.is_finite()
+                    || !(limits::MIN_CHARACTER_SCALE..=limits::MAX_CHARACTER_SCALE).contains(v)
+            })
             || !style.baseline_shift.is_finite()
             || style.baseline_shift.abs() > MAX_COORDINATE
         {
-            return Err(invalid(
-                "Character scales must be in 0.01..=10; baseline shift must be within -32768..=32768 local pixels",
-            ));
+            return Err(invalid(&format!(
+                "Character scales must be in {}..={}; baseline shift must be within -{MAX_COORDINATE}..={MAX_COORDINATE} local pixels",
+                limits::MIN_CHARACTER_SCALE,
+                limits::MAX_CHARACTER_SCALE
+            )));
         }
         let (p, s) = crate::paint::validate(&style.fill)?;
         crate::paint::validate_world(&style.fill, world)?;
@@ -619,14 +637,15 @@ pub fn layout(frame: &Frame, document: &Document, cache: &fonts::Cache) -> Resul
                 );
             }
         }
-        let leading = frame.leading.unwrap_or(natural.max(0.001));
+        let leading = frame.leading.unwrap_or(natural.max(limits::MIN_LEADING));
         if let Some(first) = first {
             top = first.offset(ascent, leading, first_height) - ascent;
         }
         let baseline = top + ascent;
         let direction = analysis.direction(frame, start);
         let x = frame.align.offset(frame.width, advance, direction);
-        result.overflowed |= advance > frame.width + 1e-9 || top + natural > frame.height + 1e-9;
+        result.overflowed |= advance > frame.width + limits::LAYOUT_OVERFLOW_TOLERANCE
+            || top + natural > frame.height + limits::LAYOUT_OVERFLOW_TOLERANCE;
         result.lines.push(Line {
             start,
             end,
@@ -648,8 +667,10 @@ pub fn layout(frame: &Frame, document: &Document, cache: &fonts::Cache) -> Resul
         top += leading;
     }
     if let Some(b) = result.ink_bounds {
-        result.overflowed |=
-            b[0] < -1e-9 || b[1] < -1e-9 || b[2] > frame.width + 1e-9 || b[3] > frame.height + 1e-9;
+        result.overflowed |= b[0] < -limits::LAYOUT_OVERFLOW_TOLERANCE
+            || b[1] < -limits::LAYOUT_OVERFLOW_TOLERANCE
+            || b[2] > frame.width + limits::LAYOUT_OVERFLOW_TOLERANCE
+            || b[3] > frame.height + limits::LAYOUT_OVERFLOW_TOLERANCE;
     }
     if result.overflowed && frame.overflow == Overflow::Error {
         return Err(Error::new(
@@ -748,7 +769,8 @@ fn path_layout(
             .align
             .offset(measured.report.length, advance, direction);
     measured.report.start = x;
-    let overflowed = !glyphs.is_empty() && (x < 0.0 || x + advance > measured.report.length + 1e-9);
+    let overflowed = !glyphs.is_empty()
+        && (x < 0.0 || x + advance > measured.report.length + limits::LAYOUT_OVERFLOW_TOLERANCE);
     if overflowed && frame.overflow == Overflow::Error {
         return Err(Error::new(
             "TEXT_OVERFLOW",
@@ -884,9 +906,10 @@ pub fn prepare(
         if let Some(result) = result {
             baseline_leaves += result.baseline_path.as_ref().map_or(0, |p| p.leaves);
             if baseline_leaves > crate::path_text::MAX_DOCUMENT_LEAVES {
-                return Err(limit(
-                    "Document text baselines exceed 65536 distance-table entries",
-                ));
+                return Err(limit(&format!(
+                    "Document text baselines exceed {} distance-table entries",
+                    crate::path_text::MAX_DOCUMENT_LEAVES
+                )));
             }
             glyphs += result.glyphs.len();
             commands += result

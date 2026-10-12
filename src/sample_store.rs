@@ -23,10 +23,10 @@ use std::{
     },
 };
 
-pub const TILE_EDGE: u32 = 128;
-pub const MAX_PIXELS: u64 = 16_777_216;
-pub const MAX_TILES: usize = 2048;
-pub const MAX_REGION_PIXELS: u64 = 65_536;
+pub use crate::limits::sample_store::MAX_PIXELS;
+pub use crate::limits::sample_store::MAX_REGION_PIXELS;
+pub use crate::limits::sample_store::MAX_TILES;
+pub use crate::limits::sample_store::TILE_EDGE;
 const HEADER_BYTES: usize = 20;
 const MAGIC: &[u8; 8] = b"INKTILE1";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -581,7 +581,7 @@ fn publish_blob(
         read_blob(Some(root), id, spec, tile)?;
         return Ok(false);
     }
-    let (mut file, owned) = (0..64)
+    let (mut file, owned) = (0..crate::limits::sample_store::MAX_STAGE_ATTEMPTS)
         .find_map(|_| {
             let path = root.join(format!(
                 ".inkbolt-native-{}-{}.tmp",

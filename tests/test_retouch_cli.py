@@ -11,6 +11,7 @@ import unittest
 import test_editing_cli as editing
 from test_images_cli import canonical
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def pm(c):
@@ -187,6 +188,26 @@ class RetouchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             p=Path(temp)/'cancel';p.write_text('stop');self.assertEqual(self.apply(d,options(),1,control=dict(cancel_file=str(p)))['code'],'CANCELLED')
 
+    def test_advertised_healing_parameter_boundaries(self):
+        caps = capabilities()['retouch']
+        pixels = [[20, 30, 40, 255]]*9
+        d = self.document(3, 3, pixels, pixels)
+        for key, bounds in [('screening', caps['screening']),
+                            ('tolerance', caps['residual_tolerance']),
+                            ('max_iterations', [1, caps['maximum_iterations_per_channel']])]:
+            lo, hi = bounds
+            for value in (lo, hi):
+                with self.subTest(key=key, accepted=value):
+                    mode = dict(type='heal', screening=1); mode[key] = value
+                    result = self.apply(d, options(1, 1, 1, 1, mode=mode))
+                    self.assertEqual(self.colors(result['document']), pixels)
+            for value in (lo/2 if key == 'tolerance' else lo-1, hi*2):
+                mode = dict(type='heal', screening=1); mode[key] = value
+                with self.subTest(key=key, rejected=value):
+                    error = self.apply(d, options(1, 1, 1, 1, mode=mode), 1)
+                    self.assertEqual(error['code'], 'INVALID_RETOUCH')
+                    self.assertIn(str(caps['maximum_iterations_per_channel']), error['message'])
+
     def test_strict_options_regions_transforms_and_unsupported_contexts(self):
         d=self.document(6,6,[[20,30,40,255]]*36,[[70,80,90,255]]*36)
         for update in [dict(opacity=-1),dict(region=dict(x=0,y=0,width=0,height=3)),dict(region=dict(x=4294967295,y=0,width=4,height=3)),dict(region=dict(x=0,y=0,width=3,height=3,gray_hex='zz'*9)),dict(mode=dict(type='heal',screening=-1)),dict(mode=dict(type='heal',tolerance=1e-15)),dict(mode=dict(type='heal',max_iterations=0)),dict(use_selection=True)]:
@@ -210,7 +231,7 @@ class RetouchTests(unittest.TestCase):
         changed=[i for i,(a,b) in enumerate(zip(actual,dst)) if a!=b];self.assertEqual(detail['changed_pixels'],len(changed));self.assertEqual(detail['changed_bounds'],[min(i%w for i in changed),min(i//w for i in changed),max(i%w for i in changed)+1,max(i//w for i in changed)+1])
         png=self.invoke(dict(command='document.export',document=r['document'],format='png'));self.assertEqual(editing.png_pixels(base64.b64decode(png['data']))[2],flat(actual))
         snapshot=self.invoke(dict(command='document.export',document=r['document'],format='snapshot'));self.assertEqual(json.loads(snapshot['data']),r['document'])
-        explicit=copy.deepcopy(o);explicit.update(source_transform=[1,0,0,1,0,0],sampling='bilinear',border='error',opacity=1,use_selection=False);explicit['region']['gray_hex']=None;explicit['mode'].update(tolerance=1e-9,max_iterations=2048)
+        explicit=copy.deepcopy(o);explicit.update(source_transform=[1,0,0,1,0,0],sampling='bilinear',border='error',opacity=1,use_selection=False);explicit['region']['gray_hex']=None;explicit['mode'].update(tolerance=capabilities()['retouch']['default_residual_tolerance'],max_iterations=capabilities()['retouch']['default_iterations_per_channel'])
         self.assertEqual(self.apply(d,explicit)['changes'][0]['details']['settings_sha256'],detail['settings_sha256'])
 
     def test_mcp_retouch_session_undo_redo_retries_and_create_only_delivery(self):

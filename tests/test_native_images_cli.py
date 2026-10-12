@@ -9,6 +9,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import pdf_reader
 import test_editing_cli as editing
 from cmyk_fixtures import cmyk_profile, separation, fixed
@@ -54,6 +55,23 @@ class NativeImageTests(unittest.TestCase):
         return [v['ink_fractions'] for v in self.planes(d,samples=points,**kw)['samples']]
     def assertColors(self,actual,expected,tolerance=.00008):
         for a,b in zip(actual,expected,strict=True):self.assertAlmostEqual(a,b,delta=tolerance)
+
+    def test_color_conversion_keeps_indices_across_full_and_partial_batches(self):
+        batch = capabilities()['native_prepress']['color_conversion_batch_samples']
+        width = 2*batch+3
+        probes = [0, batch-1, batch, batch+1, 2*batch-1, 2*batch, width-1]
+        colors = [[(x*29)%256, (x*43+13)%256, (x*71+5)%256, (x*17+19)%256] for x in range(width)]
+        document = self.document(width, 1); document['items'] = [raster(colors, width)]
+        before = copy.deepcopy(document)
+        result = self.planes(document, samples=[[x, 0] for x in probes])
+        for x, observed in zip(probes, result['samples'], strict=True):
+            pixel = colors[x]
+            self.assertColors(observed['ink_fractions'], [v*pixel[3]/255 for v in process([v/255 for v in pixel[:3]])])
+        self.assertEqual(document, before)
+        document['items'] = [fill('gradient', dict(type='linear', start=[0, 0], end=[width, 0], stops=[dict(offset=0, color=[0,0,0,255]), dict(offset=1, color=[255,255,255,255])]), box=(0,0,width,1))]
+        result = self.planes(document, samples=[[x, 0] for x in probes])
+        for x, observed in zip(probes, result['samples'], strict=True):
+            self.assertColors(observed['ink_fractions'], process([(x+.5)/width]*3))
 
     def test_inline_and_embedded_images_match_elementary_paints_over_named_inks(self):
         colors=[[(x*43+y*11)%256,(x*17+y*67)%256,(x*71+y*13)%256,[0,64,128,255][(x+y)%4]] for y in range(4) for x in range(8)]

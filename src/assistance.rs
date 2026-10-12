@@ -7,8 +7,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-pub const MAX_ITEMS: usize = 64;
-pub const PLACEMENT_ERROR: f64 = 1e-7;
+pub use crate::limits::assistance::MAX_ITEMS;
+pub use crate::limits::assistance::PLACEMENT_ERROR;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -72,7 +72,7 @@ fn plan(document: &Document, options: &Layout, control: &Control) -> Result<Plan
     if options.ids.is_empty() || options.ids.len() > MAX_ITEMS {
         return Err(Error::new(
             "RESOURCE_LIMIT",
-            "Automatic layout requires 1..64 IDs",
+            format!("Automatic layout requires 1..{MAX_ITEMS} IDs"),
         ));
     }
     let area = options.bounds;

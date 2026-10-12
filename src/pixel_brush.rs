@@ -8,12 +8,14 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
-pub const MAX_POINTS: usize = 1024;
-pub const MAX_DABS: usize = 8192;
-pub const MAX_WORK: u64 = 67_108_864;
-pub const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
-pub const MAX_TEXTURE_PIXELS: usize = 4096;
-pub const COVERAGE_TOLERANCE: f64 = 0.0000001;
+use crate::limits::pixel_brush as bounds;
+pub use crate::limits::pixel_brush::COVERAGE_TOLERANCE;
+pub use crate::limits::pixel_brush::MAX_DABS;
+use crate::limits::pixel_brush::MAX_DIAMETER;
+pub use crate::limits::pixel_brush::MAX_MEMORY_BYTES;
+pub use crate::limits::pixel_brush::MAX_POINTS;
+pub use crate::limits::pixel_brush::MAX_TEXTURE_PIXELS;
+pub use crate::limits::pixel_brush::MAX_WORK;
 const ALGORITHM: &str = "inkbolt-pixel-brush-v1";
 fn one() -> f64 {
     1.0
@@ -22,7 +24,7 @@ fn yes() -> bool {
     true
 }
 fn spacing() -> f64 {
-    0.25
+    bounds::DEFAULT_SPACING
 }
 fn scale() -> Point {
     [1.0; 2]
@@ -120,21 +122,27 @@ fn unit(value: f64) -> bool {
 }
 fn validate_stroke(s: &Stroke) -> Result<(), Error> {
     if s.points.is_empty() || s.points.len() > MAX_POINTS {
-        return Err(limit("Brush strokes require 1..1024 control points"));
+        return Err(limit(&format!(
+            "Brush strokes require 1..{MAX_POINTS} control points"
+        )));
     }
     if !s.diameter.is_finite()
-        || !(0.25..=512.0).contains(&s.diameter)
+        || !(bounds::MIN_DIAMETER..=f64::from(MAX_DIAMETER)).contains(&s.diameter)
         || !s.spacing.is_finite()
-        || !(0.01..=4.0).contains(&s.spacing)
+        || !(bounds::MIN_SPACING..=f64::from(bounds::MAX_SPACING)).contains(&s.spacing)
         || !unit(s.hardness)
         || !unit(s.opacity)
         || !unit(s.flow)
         || !s.scatter.is_finite()
-        || !(0.0..=4.0).contains(&s.scatter)
+        || !(0.0..=f64::from(bounds::MAX_SCATTER)).contains(&s.scatter)
     {
-        return Err(invalid(
-            "Brush diameter requires 0.25..512, spacing 0.01..4, scatter 0..4 and hardness/opacity/flow 0..1",
-        ));
+        return Err(invalid(&format!(
+            "Brush diameter requires {}..{MAX_DIAMETER}, spacing {}..{}, scatter 0..{} and hardness/opacity/flow 0..1",
+            bounds::MIN_DIAMETER,
+            bounds::MIN_SPACING,
+            bounds::MAX_SPACING,
+            bounds::MAX_SCATTER
+        )));
     }
     for n in &s.points {
         if !unit(n.size)
@@ -156,20 +164,26 @@ fn validate_stroke(s: &Stroke) -> Result<(), Error> {
     if let Some(t) = &s.texture {
         let n = t.width as u64 * t.height as u64;
         if t.width == 0 || t.height == 0 || n > MAX_TEXTURE_PIXELS as u64 {
-            return Err(limit("Brush texture requires 1..4096 grayscale pixels"));
+            return Err(limit(&format!(
+                "Brush texture requires 1..{MAX_TEXTURE_PIXELS} grayscale pixels"
+            )));
         }
         if t.gray_hex.len() != n as usize * 2
             || !t.gray_hex.bytes().all(|v| v.is_ascii_hexdigit())
             || t.origin
                 .iter()
                 .any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE)
-            || t.scale
-                .iter()
-                .any(|v| !v.is_finite() || !(0.001..=1024.0).contains(v))
+            || t.scale.iter().any(|v| {
+                !v.is_finite()
+                    || !(bounds::MIN_TEXTURE_SCALE..=f64::from(bounds::MAX_TEXTURE_SCALE))
+                        .contains(v)
+            })
         {
-            return Err(invalid(
-                "Brush texture requires exact grayscale bytes, bounded origin and scale 0.001..1024",
-            ));
+            return Err(invalid(&format!(
+                "Brush texture requires exact grayscale bytes, bounded origin and scale {}..{}",
+                bounds::MIN_TEXTURE_SCALE,
+                bounds::MAX_TEXTURE_SCALE
+            )));
         }
     }
     Ok(())
@@ -207,17 +221,19 @@ fn prepare(s: &Stroke, control: &Control) -> Result<Prepared, Error> {
     let step = s.diameter * s.spacing;
     let regular = (length / step).floor() as usize;
     if regular >= MAX_DABS {
-        return Err(limit("Stroke spacing exceeds 8192 dabs"));
+        return Err(limit(&format!("Stroke spacing exceeds {MAX_DABS} dabs")));
     }
     let mut positions = (0..=regular).map(|i| i as f64 * step).collect::<Vec<_>>();
     let last = positions.last_mut().unwrap();
-    if (length - *last).abs() <= 16.0 * f64::EPSILON * length.max(1.0) {
+    if (length - *last).abs()
+        <= f64::from(crate::limits::pixel_brush::ENDPOINT_EPSILONS) * f64::EPSILON * length.max(1.0)
+    {
         *last = length;
     } else if s.include_end {
         positions.push(length);
     }
     if positions.len() > MAX_DABS {
-        return Err(limit("Stroke endpoint exceeds 8192 dabs"));
+        return Err(limit(&format!("Stroke endpoint exceeds {MAX_DABS} dabs")));
     }
     let mut dabs = Vec::with_capacity(positions.len());
     let mut bounds = [
@@ -228,7 +244,7 @@ fn prepare(s: &Stroke, control: &Control) -> Result<Prepared, Error> {
     ];
     let mut segment = 0;
     for (i, distance) in positions.into_iter().enumerate() {
-        if i % 64 == 0 {
+        if i % crate::limits::pixel_brush::DAB_CHECK_INTERVAL == 0 {
             control.check()?;
         }
         while segment + 1 < distances.len() - 1 && distances[segment + 1] < distance {
@@ -292,9 +308,13 @@ impl Work<'_> {
         let old = self.count;
         self.count = self.count.saturating_add(n);
         if self.count > MAX_WORK {
-            return Err(limit("Brush evaluation exceeds 67108864 work units"));
+            return Err(limit(&format!(
+                "Brush evaluation exceeds {MAX_WORK} work units"
+            )));
         }
-        if old / 1024 != self.count / 1024 {
+        if old / crate::limits::pixel_brush::WORK_CHECK_INTERVAL
+            != self.count / crate::limits::pixel_brush::WORK_CHECK_INTERVAL
+        {
             self.control.check()?;
         }
         Ok(())
@@ -450,7 +470,14 @@ fn coverage(dab: &Dab, hardness: f64, x: u32, y: u32, work: &mut Work) -> Result
             integral.value(z, work)?,
         ];
         let whole = (z - a) * (v[0] + 4.0 * v[1] + v[2]) / 6.0;
-        result += integral.integrate([a, z], v, whole, COVERAGE_TOLERANCE * (z - a), 20, work)?;
+        result += integral.integrate(
+            [a, z],
+            v,
+            whole,
+            COVERAGE_TOLERANCE * (z - a),
+            bounds::MAX_COVERAGE_DEPTH,
+            work,
+        )?;
     }
     Ok(result.clamp(0.0, 1.0))
 }
@@ -531,7 +558,7 @@ pub(crate) fn apply(
     let (mut low, mut high) = ([w, h], [0, 0]);
     let mut minimum_work = 0u64;
     for (i, dab) in prepared.dabs.iter().enumerate() {
-        if i % 64 == 0 {
+        if i % crate::limits::pixel_brush::DAB_CHECK_INTERVAL == 0 {
             control.check()?;
         }
         if dab.diameter == 0.0 || dab.opacity == 0.0 || s.flow == 0.0 || s.opacity == 0.0 {
@@ -541,9 +568,9 @@ pub(crate) fn apply(
         let area = (b[0] - a[0]) as u64 * (b[1] - a[1]) as u64;
         minimum_work += area;
         if minimum_work > MAX_WORK {
-            return Err(limit(
-                "Brush footprint preflight exceeds 67108864 work units",
-            ));
+            return Err(limit(&format!(
+                "Brush footprint preflight exceeds {MAX_WORK} work units"
+            )));
         }
         if area > 0 {
             low = [low[0].min(a[0]), low[1].min(a[1])];
@@ -561,14 +588,15 @@ pub(crate) fn apply(
     };
     let count = region.width as u64 * region.height as u64;
     if count > crate::sample_store::MAX_REGION_PIXELS {
-        return Err(limit(
-            "Brush deposition bounds exceed the 65536-pixel local edit window",
-        ));
+        return Err(limit(&format!(
+            "Brush deposition bounds exceed the {}-pixel local edit window",
+            crate::sample_store::MAX_REGION_PIXELS
+        )));
     }
     // Include original/working/frozen-dab/output windows, weights, exact hex
     // patches, source preparation/cache and complete replacement blocks.
-    let processing_memory_bytes = count * 256
-        + 8 * 1024 * 1024
+    let processing_memory_bytes = count * bounds::WORKING_BYTES_PER_PIXEL
+        + bounds::FIXED_WORKING_BYTES
         + pixels::memory(content)
         + pixels::replacement_memory(content, region);
     if processing_memory_bytes > MAX_MEMORY_BYTES {

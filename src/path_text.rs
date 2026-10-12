@@ -1,13 +1,14 @@
 //! Original bounded distance tables for editable one-contour text baselines.
+use crate::limits::path_text as limits;
 use crate::{Error, geometry, model::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_COMMANDS: usize = 1024;
-pub const MAX_LEAVES: usize = 32768;
-pub const MAX_DOCUMENT_LEAVES: usize = 65536;
+pub use crate::limits::path_text::MAX_COMMANDS;
+pub use crate::limits::path_text::MAX_DOCUMENT_LEAVES;
+pub use crate::limits::path_text::MAX_LEAVES;
 fn tolerance() -> f64 {
-    0.001
+    limits::DEFAULT_TOLERANCE
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -108,7 +109,9 @@ fn commands(path: &Baseline) -> Result<Vec<PathCommand>, Error> {
         unreachable!()
     };
     if commands.len() > MAX_COMMANDS {
-        return Err(limit("Text baseline exceeds 1024 expanded commands"));
+        return Err(limit(&format!(
+            "Text baseline exceeds {MAX_COMMANDS} expanded commands"
+        )));
     }
     if commands
         .iter()
@@ -133,10 +136,14 @@ pub fn validate(path: &Baseline) -> Result<usize, Error> {
             "Text baseline offsets must be finite and within coordinate limits",
         ));
     }
-    if !path.tolerance.is_finite() || !(0.000001..=0.25).contains(&path.tolerance) {
-        return Err(invalid(
-            "Text baseline tolerance must be in 0.000001..=0.25",
-        ));
+    if !path.tolerance.is_finite()
+        || !(limits::MIN_TOLERANCE..=limits::MAX_TOLERANCE).contains(&path.tolerance)
+    {
+        return Err(invalid(&format!(
+            "Text baseline tolerance must be in {}..={}",
+            limits::MIN_TOLERANCE,
+            limits::MAX_TOLERANCE
+        )));
     }
     Ok(commands(path)?.len())
 }
@@ -156,7 +163,9 @@ impl Build {
         let deviation = norm(sub(c[1], mix(c[0], c[3], 1.0 / 3.0)))
             .max(norm(sub(c[2], mix(c[0], c[3], 2.0 / 3.0))));
         if polygon - chord > error || deviation > position || chord == 0.0 {
-            if depth >= 24 || self.leaves.len() >= MAX_LEAVES {
+            if depth >= crate::limits::path_text::MAX_SUBDIVISION_DEPTH
+                || self.leaves.len() >= MAX_LEAVES
+            {
                 return Err(limit("Text baseline subdivision exceeds bounded work"));
             }
             let (left, right) = split(c);
@@ -164,7 +173,9 @@ impl Build {
             self.visit(right, error / 2.0, position, depth + 1)?;
         } else {
             if self.leaves.len() >= MAX_LEAVES {
-                return Err(limit("Text baseline exceeds 32768 distance-table entries"));
+                return Err(limit(&format!(
+                    "Text baseline exceeds {MAX_LEAVES} distance-table entries"
+                )));
             }
             self.leaves.push(Leaf {
                 curve: c,
@@ -220,12 +231,18 @@ impl Measured {
         for curve in curves {
             build.visit(curve, error, path.tolerance / 8.0, 0)?;
         }
-        if build.lower < 0.001 {
-            return Err(invalid("Text baseline must have at least 0.001 length"));
+        if build.lower < crate::limits::path_text::MIN_BASELINE_LENGTH {
+            return Err(invalid(&format!(
+                "Text baseline must have at least {} length",
+                crate::limits::path_text::MIN_BASELINE_LENGTH
+            )));
         }
         // Include a conservative f64 accumulation/subdivision allowance. The
         // geometric interval is chord length through control-polygon length.
-        let rounding = 256.0 * f64::EPSILON * MAX_COORDINATE * build.leaves.len() as f64;
+        let rounding = f64::from(crate::limits::path_text::ROUNDING_EPSILONS)
+            * f64::EPSILON
+            * MAX_COORDINATE
+            * build.leaves.len() as f64;
         let report = Report {
             geometry_interpretation: if matches!(path.geometry, Geometry::Ellipse { .. }) {
                 "four_cubic_ellipse; distance_table_error_excludes_analytic_ellipse_conversion"

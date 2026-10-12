@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashSet;
 
-pub const MAX_STACK: usize = 8;
-pub const MAX_DOCUMENT_EFFECTS: usize = 64;
-pub const MAX_WORK: u64 = 67_108_864;
+use crate::limits::effects as bounds;
+pub use crate::limits::effects::MAX_DOCUMENT_EFFECTS;
+pub use crate::limits::effects::MAX_STACK;
+pub use crate::limits::effects::MAX_WORK;
 fn yes() -> bool {
     true
 }
@@ -18,7 +19,7 @@ fn is_one(value: &f64) -> bool {
     *value == 1.0
 }
 fn default_azimuth() -> f64 {
-    225.0
+    f64::from(bounds::DEFAULT_LIGHT_AZIMUTH)
 }
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -39,7 +40,9 @@ impl Lighting {
     }
 }
 fn valid_angle(angle: f64) -> bool {
-    angle.is_finite() && (-360.0..=360.0).contains(&angle)
+    angle.is_finite()
+        && (-f64::from(bounds::MAX_LIGHT_AZIMUTH)..=f64::from(bounds::MAX_LIGHT_AZIMUTH))
+            .contains(&angle)
 }
 fn shadow_offset(distance: f64, angle: f64) -> Point {
     let direction = match angle.rem_euclid(360.0) {
@@ -100,9 +103,10 @@ pub struct Effect {
 }
 pub(crate) fn validate(document: &Document) -> Result<(), Error> {
     if !valid_angle(document.global_light.azimuth) {
-        return Err(invalid(
-            "Global light azimuth must be finite and within -360..=360 degrees",
-        ));
+        return Err(invalid(&format!(
+            "Global light azimuth must be finite and within -{0}..={0} degrees",
+            bounds::MAX_LIGHT_AZIMUTH
+        )));
     }
     if document
         .items
@@ -111,7 +115,9 @@ pub(crate) fn validate(document: &Document) -> Result<(), Error> {
         .sum::<usize>()
         > MAX_DOCUMENT_EFFECTS
     {
-        return Err(limit("Document exceeds 64 layer effects"));
+        return Err(limit(&format!(
+            "Document exceeds {MAX_DOCUMENT_EFFECTS} layer effects"
+        )));
     }
     for (i, item) in document.items.iter().enumerate() {
         if !item.fill_opacity.is_finite() || !(0.0..=1.0).contains(&item.fill_opacity) {
@@ -132,14 +138,14 @@ pub(crate) fn validate(document: &Document) -> Result<(), Error> {
             return Err(Error::new("UNSUPPORTED","Fill, layer effects and coverage controls require an independently composited printable item outside a mask source").at_item(&item.id));
         }
         if item.effects.len() > MAX_STACK {
-            return Err(limit("Item exceeds 8 layer effects").at_item(&item.id));
+            return Err(limit(&format!("Item exceeds {MAX_STACK} layer effects")).at_item(&item.id));
         }
         let mut ids = HashSet::new();
         for e in &item.effects {
             if !valid_id(&e.id)
                 || !ids.insert(&e.id)
                 || !e.scale.is_finite()
-                || !(0.001..=1024.0).contains(&e.scale)
+                || !(bounds::MIN_SCALE..=f64::from(bounds::MAX_SCALE)).contains(&e.scale)
                 || !e.opacity.is_finite()
                 || !(0.0..=1.0).contains(&e.opacity)
             {
@@ -149,10 +155,12 @@ pub(crate) fn validate(document: &Document) -> Result<(), Error> {
                 );
             }
             if !e.contour.is_empty() {
-                if !(2..=64).contains(&e.contour.len()) {
-                    return Err(
-                        limit("Effect contour requires 2 through 64 knots").at_item(&item.id)
-                    );
+                if !(2..=crate::limits::effects::MAX_CONTOUR_KNOTS).contains(&e.contour.len()) {
+                    return Err(limit(&format!(
+                        "Effect contour requires 2 through {} knots",
+                        crate::limits::effects::MAX_CONTOUR_KNOTS
+                    ))
+                    .at_item(&item.id));
                 }
                 if e.contour.first() != Some(&[0.0, 0.0])
                     || e.contour.last().unwrap()[0] != 1.0
@@ -166,14 +174,17 @@ pub(crate) fn validate(document: &Document) -> Result<(), Error> {
                 }
             }
             let sigma_ok = |sigma: f64| {
-                sigma.is_finite() && (0.0..=16.0).contains(&sigma) && sigma * e.scale <= 16.0
+                sigma.is_finite()
+                    && (0.0..=f64::from(bounds::MAX_SHADOW_SIGMA)).contains(&sigma)
+                    && sigma * e.scale <= f64::from(bounds::MAX_SHADOW_SIGMA)
             };
             let valid = match &e.operator {
                 Operator::Shadow { offset, sigma } => {
-                    offset
-                        .iter()
-                        .all(|v| v.is_finite() && v.abs() <= 256.0 && (v * e.scale).abs() <= 256.0)
-                        && sigma_ok(*sigma)
+                    offset.iter().all(|v| {
+                        v.is_finite()
+                            && v.abs() <= f64::from(bounds::MAX_SHADOW_OFFSET)
+                            && (v * e.scale).abs() <= f64::from(bounds::MAX_SHADOW_OFFSET)
+                    }) && sigma_ok(*sigma)
                 }
                 Operator::LitShadow {
                     distance,
@@ -181,13 +192,14 @@ pub(crate) fn validate(document: &Document) -> Result<(), Error> {
                     azimuth,
                 } => {
                     distance.is_finite()
-                        && (0.0..=256.0).contains(distance)
-                        && distance * e.scale <= 256.0
+                        && (0.0..=f64::from(bounds::MAX_SHADOW_OFFSET)).contains(distance)
+                        && distance * e.scale <= f64::from(bounds::MAX_SHADOW_OFFSET)
                         && sigma_ok(*sigma)
                         && azimuth.is_none_or(valid_angle)
                 }
                 Operator::Stroke { radius, .. } => {
-                    *radius <= 32 && *radius as f64 * e.scale <= 32.0
+                    *radius <= bounds::MAX_STROKE_RADIUS
+                        && *radius as f64 * e.scale <= f64::from(bounds::MAX_STROKE_RADIUS)
                 }
                 Operator::Overlay {} => true,
             };
@@ -251,7 +263,7 @@ impl Effect {
             let blurred = blur_or_borrow(alpha, w, h, sigma * s, Some(control))?;
             let mut result = vec![0.0; alpha.len()];
             for (n, value) in result.iter_mut().enumerate() {
-                if n.is_multiple_of(4096) {
+                if n.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     control.check()?;
                 }
                 *value = shifted(
@@ -269,7 +281,7 @@ impl Effect {
             alpha.to_vec()
         };
         for (n, value) in result.iter_mut().enumerate() {
-            if n.is_multiple_of(4096) {
+            if n.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 control.check()?;
             }
             *value = self.contour(*value);
@@ -321,21 +333,23 @@ pub(crate) fn work(item: &Item, scale: u32) -> u64 {
                 {
                     // Borrow original alpha and read one exact tap instead of
                     // allocating a blur copy and four weighted source taps.
-                    16
+                    crate::limits::effects::DIRECT_SHADOW_WORK
                 }
                 Operator::Shadow { sigma, .. } | Operator::LitShadow { sigma, .. } => {
-                    2 * (2 * (3.0 * sigma * s).ceil() as u64 + 1) + 24
+                    2 * (2 * (3.0 * sigma * s).ceil() as u64 + 1)
+                        + crate::limits::effects::SOFT_SHADOW_OVERHEAD
                 }
                 Operator::Stroke { radius, .. } => {
-                    (2 * (radius as f64 * s).ceil() as u64 + 1).pow(2) + 16
+                    (2 * (radius as f64 * s).ceil() as u64 + 1).pow(2)
+                        + crate::limits::effects::STROKE_OVERHEAD
                 }
-                Operator::Overlay {} => 12,
+                Operator::Overlay {} => crate::limits::effects::OVERLAY_WORK,
             };
             base + e.contour.len() as u64
                 + if matches!(e.color, Paint::Solid(_)) {
                     0
                 } else {
-                    8 + paint::work(&e.color)
+                    crate::limits::effects::PAINT_SETUP_WORK + paint::work(&e.color)
                 }
         })
         .sum::<u64>()

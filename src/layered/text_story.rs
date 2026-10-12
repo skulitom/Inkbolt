@@ -1,6 +1,7 @@
 //! Bounded global story/reference framing. This is preparation for editable
 //! reconstruction; unknown style and layout fields are never accepted as paint.
 use super::{binary::Reader, text_data::Node, *};
+use crate::limits::layered_text as bounds;
 use std::collections::BTreeSet;
 
 pub(super) fn payload<'a>(
@@ -18,8 +19,11 @@ pub(super) fn payload<'a>(
             input.zero_padding(3)?;
             break;
         }
-        if keys.len() >= 512 {
-            return Err(limit("Global text lookup exceeds 512 tagged records"));
+        if keys.len() >= bounds::MAX_TAGGED_RECORDS {
+            return Err(limit(&format!(
+                "Global text lookup exceeds {} tagged records",
+                bounds::MAX_TAGGED_RECORDS
+            )));
         }
         let signature = input.take(4)?;
         let key: [u8; 4] = input.take(4)?.try_into().unwrap();
@@ -49,8 +53,11 @@ pub(super) fn runs<'a>(
     units: usize,
 ) -> Result<&'a [Node], Error> {
     let runs = authoring.field(key)?.field("0")?.array()?;
-    if runs.len() > 65 {
-        return Err(limit("Global text story exceeds 65 runs"));
+    if runs.len() > bounds::MAX_RUNS {
+        return Err(limit(&format!(
+            "Global text story exceeds {} runs",
+            bounds::MAX_RUNS
+        )));
     }
     if runs.is_empty() {
         return Err(malformed());
@@ -93,7 +100,7 @@ pub(super) fn diagnose(
     }
     let stories = global.field("1")?.field("1")?.array()?;
     if stories.len() > MAX_ITEMS {
-        return Err(limit("Global text exceeds 256 stories"));
+        return Err(limit(&format!("Global text exceeds {MAX_ITEMS} stories")));
     }
     let index = usize::try_from(index).map_err(|_| malformed())?;
     let story = stories.get(index).ok_or_else(malformed)?;
@@ -101,7 +108,10 @@ pub(super) fn diagnose(
     let source = authoring.field("0")?.text()?;
     let text = source.strip_suffix('\r').ok_or_else(malformed)?;
     if text.chars().count() > crate::text::MAX_TEXT_CHARS {
-        return Err(limit("Global text story exceeds 4096 characters"));
+        return Err(limit(&format!(
+            "Global text story exceeds {} characters",
+            crate::text::MAX_TEXT_CHARS
+        )));
     }
     let mut boundaries = BTreeSet::from([0]);
     let mut units = 0;
@@ -113,7 +123,7 @@ pub(super) fn diagnose(
     let paragraph_runs = runs(authoring, "5", &boundaries, units)?;
     let resolved = super::text_inheritance::resolve(&global, style_runs, paragraph_runs, control)?;
     let paragraphs =
-        super::text_paragraph::Paragraphs::global(&resolved.paragraphs, source, control)?;
+        super::text_paragraph::Paragraphs::global(&global, &resolved.paragraphs, source, control)?;
     let fonts = global.field("0")?.field("1")?.field("0")?.array()?;
     let styles = super::text_style::Styles::global(&resolved.characters, fonts, control)?;
     let font_records = super::text_font_records::read(

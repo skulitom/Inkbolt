@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::{cell::RefCell, collections::BTreeMap, path::PathBuf};
 
-pub const MAX_PATCHES: usize = 256;
-pub const MAX_PATCH_PIXELS: u64 = 65_536;
+pub use crate::limits::stored_samples::MAX_PATCH_PIXELS;
+pub use crate::limits::stored_samples::MAX_PATCHES;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -182,10 +182,8 @@ fn invalid(message: &str) -> Error {
     Error::new("INVALID_STORED_SAMPLES", message)
 }
 
-const CACHE_PIXELS: u64 = 262_144;
-const CACHE_TILES: usize = (CACHE_PIXELS
-    / (crate::sample_store::TILE_EDGE as u64 * crate::sample_store::TILE_EDGE as u64))
-    as usize;
+use crate::limits::stored_samples::CACHE_PIXELS;
+use crate::limits::stored_samples::CACHE_TILES;
 
 struct CachedTile {
     used: u64,
@@ -238,7 +236,11 @@ impl Reader {
                 height: edge.min(spec.height - y / edge * edge),
             };
             let pixels = region.width as u64 * region.height as u64;
-            if cache.decoded_pixels + pixels > spec.width as u64 * spec.height as u64 * 2 {
+            if cache.decoded_pixels + pixels
+                > spec.width as u64
+                    * spec.height as u64
+                    * crate::limits::stored_samples::MAX_SOURCE_DECODING_PASSES
+            {
                 return Err(crate::model::limit(
                     "Stored native sampling exceeds its bounded tile decoding work",
                 ));

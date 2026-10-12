@@ -1,7 +1,7 @@
 //! Bounded regional composition over one prepared scene and immutable sources.
 use super::*;
-pub const MAX_PIXELS: u64 = 16_777_216;
-pub const EDGE: u32 = 128;
+pub use crate::limits::render_tiled::EDGE;
+pub use crate::limits::render_tiled::MAX_PIXELS;
 
 /// Rebuilding/scanning a coverage path is paid again in every tile column.
 /// This remains conservative until paths and regional object indices are cached.
@@ -12,7 +12,10 @@ pub(super) fn path_work(
 ) -> Result<u64, Error> {
     fn controls(g: &Geometry) -> u64 {
         match g {
-            Geometry::Ellipse { .. } => 97,
+            // One move point plus two controls and an endpoint per cubic arc.
+            Geometry::Ellipse { .. } => {
+                1 + 3 * u64::from(crate::limits::render_coverage_path::ELLIPSE_ARCS)
+            }
             Geometry::Compound { operands, .. } => {
                 operands.iter().map(|o| controls(&o.geometry)).sum()
             }
@@ -54,9 +57,61 @@ pub(super) fn path_work(
         .saturating_mul(size[0].div_ceil(EDGE) as u64))
 }
 
-pub(super) fn validate(document: &Document, scale: u32) -> Result<Option<Neighborhood>, Error> {
+pub(super) fn local_support(operator: &crate::filters::Operator, scale: u32) -> Option<u32> {
+    use crate::filters::Operator;
+    Some(match *operator {
+        Operator::Box { radius } | Operator::Surface { radius, .. } => radius * scale,
+        Operator::Gaussian { sigma } => (3.0 * sigma * scale as f64).ceil() as u32,
+        Operator::Directional { length, .. } => (length * scale as f64 * 0.5).ceil() as u32 + 1,
+        Operator::Detail { ref operator } => {
+            use crate::detail_filters::Operator as Detail;
+            match **operator {
+                Detail::Sharpen { .. } => scale,
+                Detail::Unsharp { sigma, .. } => (3.0 * sigma * scale as f64).ceil() as u32,
+                Detail::Median { radius } => radius * scale,
+                Detail::Noise { .. } => 0,
+            }
+        }
+        Operator::Spatial { ref operator } => {
+            use crate::spatial_filters::Operator as Spatial;
+            match **operator {
+                Spatial::Offset { offset } | Spatial::Displace { amount: offset, .. } => {
+                    (offset[0].abs().max(offset[1].abs()) * scale as f64).ceil() as u32 + 1
+                }
+                Spatial::Mosaic { size } => {
+                    if size == 1 {
+                        0
+                    } else {
+                        size * scale - 1
+                    }
+                }
+            }
+        }
+        Operator::Creative { ref operator } => {
+            use crate::creative_filters::Operator as Creative;
+            match **operator {
+                Creative::Relief { distance, .. } => (distance * scale as f64).ceil() as u32 + 1,
+                Creative::HighPass { sigma } => (3.0 * sigma * scale as f64).ceil() as u32,
+                Creative::Extrema { radius, .. } => radius * scale,
+                Creative::ToneFold { .. } | Creative::ValueField { .. } => 0,
+                Creative::EdgeInk { .. } => scale,
+                Creative::StrokeRank { radius, .. } => radius * scale + 1,
+                Creative::FieldRepair { .. } => 1,
+                Creative::Twist { .. } => return None,
+            }
+        }
+        Operator::Radial { .. } => return None,
+    })
+}
+
+pub(super) fn validate(
+    document: &Document,
+    scale: u32,
+    control: &crate::control::Control,
+) -> Result<Option<Neighborhood>, Error> {
     let mut radii = Vec::with_capacity(document.items.len());
     let mut needed = false;
+    let mut nonlocal = false;
     for item in &document.items {
         if item.artwork_mask.is_some()
             || matches!(item.content, Content::Raw { .. } | Content::Object { .. })
@@ -65,67 +120,10 @@ pub(super) fn validate(document: &Document, scale: u32) -> Result<Option<Neighbo
         }
         let mut radius = 0;
         for filter in &item.filters {
-            use crate::filters::{Border, Operator};
+            use crate::filters::Border;
             needed = true;
-            let support = match filter.operator {
-                Operator::Box { radius } | Operator::Surface { radius, .. } => radius * scale,
-                Operator::Gaussian { sigma } => (3.0 * sigma * scale as f64).ceil() as u32,
-                Operator::Directional { length, .. } => {
-                    (length * scale as f64 * 0.5).ceil() as u32 + 1
-                }
-                Operator::Detail { ref operator } => {
-                    use crate::detail_filters::Operator as Detail;
-                    match **operator {
-                        Detail::Sharpen { .. } => scale,
-                        Detail::Unsharp { sigma, .. } => (3.0 * sigma * scale as f64).ceil() as u32,
-                        Detail::Median { radius } => radius * scale,
-                        Detail::Noise { .. } => 0,
-                    }
-                }
-                Operator::Spatial { ref operator } => {
-                    use crate::spatial_filters::Operator as Spatial;
-                    match **operator {
-                        Spatial::Offset { offset } | Spatial::Displace { amount: offset, .. } => {
-                            (offset[0].abs().max(offset[1].abs()) * scale as f64).ceil() as u32 + 1
-                        }
-                        Spatial::Mosaic { size } => {
-                            if size == 1 {
-                                0
-                            } else {
-                                size * scale - 1
-                            }
-                        }
-                    }
-                }
-                Operator::Creative { ref operator } => {
-                    use crate::creative_filters::Operator as Creative;
-                    match **operator {
-                        Creative::Relief { distance, .. } => {
-                            (distance * scale as f64).ceil() as u32 + 1
-                        }
-                        Creative::HighPass { sigma } => (3.0 * sigma * scale as f64).ceil() as u32,
-                        Creative::Extrema { radius, .. } => radius * scale,
-                        Creative::ToneFold { .. } | Creative::ValueField { .. } => 0,
-                        Creative::EdgeInk { .. } => scale,
-                        Creative::StrokeRank { radius, .. } => radius * scale + 1,
-                        Creative::FieldRepair { .. } => 1,
-                        Creative::Twist { .. } => {
-                            return Err(Error::new(
-                                "UNSUPPORTED_TILED_RENDER",
-                                "Tiled twist needs a bounded nonlocal source mapping",
-                            )
-                            .at_item(&item.id));
-                        }
-                    }
-                }
-                Operator::Radial { .. } => {
-                    return Err(Error::new(
-                        "UNSUPPORTED_TILED_RENDER",
-                        "Tiled radial filtering needs a bounded nonlocal source mapping",
-                    )
-                    .at_item(&item.id));
-                }
-            };
+            let support = local_support(&filter.operator, scale);
+            nonlocal |= support.is_none();
             if filter.border == Border::Wrap {
                 return Err(Error::new(
                     "UNSUPPORTED_TILED_RENDER",
@@ -133,7 +131,7 @@ pub(super) fn validate(document: &Document, scale: u32) -> Result<Option<Neighbo
                 )
                 .at_item(&item.id));
             }
-            radius += support;
+            radius += support.unwrap_or(0);
         }
         needed |= !item.effects.is_empty();
         radius += crate::effects::support(item, scale, document.global_light);
@@ -147,26 +145,41 @@ pub(super) fn validate(document: &Document, scale: u32) -> Result<Option<Neighbo
         let ancestors = scene::ancestors(document, i)?;
         halo = halo.max(radius + ancestors.into_iter().map(|p| radii[p]).sum::<u32>());
     }
-    Ok(Some(Neighborhood { halo }))
+    Ok(Some(Neighborhood {
+        halo,
+        mapping: if nonlocal {
+            Some(super::filter_regions::Plan::new(document, scale, control)?)
+        } else {
+            None
+        },
+    }))
 }
 
 /// A retained output tile depends on the summed support along its source tree.
 /// Clip each read to the full evaluation viewport so every filter stage keeps
 /// the same real border as whole evaluation. Internal read edges are discarded.
 pub(super) struct Neighborhood {
-    pub halo: u32,
+    halo: u32,
+    mapping: Option<super::filter_regions::Plan>,
 }
 impl Neighborhood {
+    pub fn buffer_values(&self) -> u64 {
+        self.mapping.as_ref().map_or(0, |m| m.buffer_values)
+    }
     pub fn region(
         &self,
         origin: [u32; 2],
         size: [u32; 2],
         extent: [u32; 2],
-    ) -> ([u32; 2], [u32; 2]) {
+        control: &crate::control::Control,
+    ) -> Result<([u32; 2], [u32; 2]), Error> {
+        if let Some(mapping) = &self.mapping {
+            return mapping.region(origin, size, extent, control);
+        }
         let start = origin.map(|v| v.saturating_sub(self.halo));
         let end: [u32; 2] =
             std::array::from_fn(|i| (origin[i] + size[i] + self.halo).min(extent[i]));
-        (start, std::array::from_fn(|i| end[i] - start[i]))
+        Ok((start, std::array::from_fn(|i| end[i] - start[i])))
     }
     pub fn work(
         &self,
@@ -176,7 +189,7 @@ impl Neighborhood {
         sampling: &crate::render_quality::Plan,
         max_rows: u32,
         control: &crate::control::Control,
-    ) -> Result<u64, Error> {
+    ) -> Result<(u64, u64), Error> {
         let scale = sampling.internal_scale;
         let factor = sampling.options.antialias.factor();
         let edge = if spatial.is_some() {
@@ -189,11 +202,12 @@ impl Neighborhood {
         let extent = sampling.evaluation.map(|v| v * scale);
         let mut pixels = vec![0u64; document.items.len()];
         let mut work = 0u64;
+        let mut peak_pixels = 0u64;
         let mut paint_work = 0u64;
         let mut filter_work = 0u64;
         let mut effect_work = 0u64;
         let shape = if crate::knockout::active(document) {
-            24
+            crate::limits::render::KNOCKOUT_ITEM_WORK
         } else {
             0
         };
@@ -215,12 +229,14 @@ impl Neighborhood {
                     .sum(),
                 _ => 1,
             };
-            let paint = paint + 4 * u64::from(item.mask.as_ref().is_some_and(|m| m.enabled));
+            let paint = paint
+                + crate::limits::render::MASK_SAMPLE_WORK
+                    * u64::from(item.mask.as_ref().is_some_and(|m| m.enabled));
             let filter = crate::filters::work(item, scale) * shape_passes;
             let effect = crate::effects::work(item, scale) * shape_passes;
             let passes = 1 + texts.get(&item.id).map_or(0, |t| t.paths.len()) as u64;
             costs.push((
-                2 + passes + paint + filter + effect + shape,
+                crate::limits::render::ITEM_SETUP_WORK + passes + paint + filter + effect + shape,
                 paint,
                 filter,
                 effect,
@@ -233,9 +249,14 @@ impl Neighborhood {
         };
         for (position, size) in traversal.tiles() {
             control.check()?;
+            work += self.mapping.as_ref().map_or(0, |m| m.work);
+            if work > MAX_RENDER_WORK {
+                return Err(limit("Filter source mapping exceeds render work limit"));
+            }
             let origin = position.map(|v| sampling.offset + v * factor);
-            let (origin, size) = self.region(origin, size.map(|v| v * factor), extent);
+            let (origin, size) = self.region(origin, size.map(|v| v * factor), extent, control)?;
             let count = u64::from(size[0]) * u64::from(size[1]);
+            peak_pixels = peak_pixels.max(count);
             work += count;
             let tile = spatial.map(|p| p.tile(origin, size));
             let indices: Vec<_> = tile.as_ref().map_or_else(
@@ -274,6 +295,40 @@ impl Neighborhood {
                 "Filter/effect neighborhoods and reconstruction exceed render work limit",
             ));
         }
-        Ok(work)
+        Ok((work, peak_pixels))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn limits_ellipse_path_charge_matches_emitted_controls_for_every_tile_column() {
+        let document: Document = serde_json::from_value(json!({
+            "schema_version": 1, "id": "ellipse-work", "kind": "vector",
+            "width": 600, "height": 300, "color_space": "srgb", "items": [{
+                "id": "ellipse", "content": {"type": "vector", "fill": [20, 60, 100, 255],
+                    "geometry": {"shape": "ellipse", "cx": 250.0, "cy": 150.0,
+                                 "rx": 180.0, "ry": 90.0}}
+            }]
+        }))
+        .unwrap();
+        let Content::Vector { geometry, .. } = &document.items[0].content else {
+            panic!()
+        };
+        let emitted =
+            super::super::coverage_path::path(geometry, [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]).unwrap();
+        for width in [1, EDGE, EDGE + 1, 2 * EDGE + 1] {
+            for height in [1, 7] {
+                let expected = emitted.points().len() as u64
+                    * u64::from(height)
+                    * u64::from(width.div_ceil(EDGE));
+                assert_eq!(
+                    path_work(&document, &BTreeMap::new(), [width, height]).unwrap(),
+                    expected
+                );
+            }
+        }
     }
 }

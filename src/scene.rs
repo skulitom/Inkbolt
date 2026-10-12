@@ -6,10 +6,10 @@ use crate::{
 };
 use std::collections::HashSet;
 mod hierarchy;
+pub(crate) use crate::limits::scene::MAX_CACHED_CHAINS;
 pub(crate) use hierarchy::MAX_FAST_POINT_ERROR;
-pub(crate) const MAX_CACHED_CHAINS: usize = 128;
 
-pub const MAX_DEPTH: usize = 16;
+pub use crate::limits::scene::MAX_DEPTH;
 pub fn index(document: &Document, id: &str) -> Result<usize, Error> {
     document
         .items
@@ -39,7 +39,9 @@ pub fn ancestors(document: &Document, i: usize) -> Result<Vec<usize>, Error> {
         }
         result.push(p);
         if result.len() > MAX_DEPTH {
-            return Err(limit("Hierarchy exceeds 16 ancestor levels"));
+            return Err(limit(&format!(
+                "Hierarchy exceeds {MAX_DEPTH} ancestor levels"
+            )));
         }
         next = document.items[p].parent.as_deref();
     }
@@ -65,7 +67,7 @@ pub(crate) fn world_transforms(
     let mut cache = std::collections::HashMap::<Vec<[u64; 6]>, Matrix>::new();
     let mut worlds = Vec::with_capacity(document.items.len());
     for (i, item) in document.items.iter().enumerate() {
-        if i % 32 == 0 {
+        if i % crate::limits::control::ITEM_CHECK_INTERVAL == 0 {
             control.check()?;
         }
         let parents = ancestors(document, i)?;

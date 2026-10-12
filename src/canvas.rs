@@ -73,7 +73,7 @@ fn size(width: u32, height: u32) -> Result<(), Error> {
     if width == 0 || height == 0 || width > MAX_DIMENSION || height > MAX_DIMENSION {
         Err(Error::new(
             "INVALID_OPERATION",
-            "Canvas dimensions must be in 1..=32768",
+            format!("Canvas dimensions must be in 1..={MAX_DIMENSION}"),
         ))
     } else {
         Ok(())
@@ -151,10 +151,18 @@ pub(crate) fn edit(document: &mut Document, action: &Action) -> Result<Value, Er
         ));
     }
     if let Action::Resolution { ppi } = action {
-        if !ppi.is_finite() || !(1.0..=9600.0).contains(ppi) {
+        if !ppi.is_finite()
+            || !(f64::from(crate::limits::model::MIN_RESOLUTION_PPI)
+                ..=f64::from(crate::limits::model::MAX_RESOLUTION_PPI))
+                .contains(ppi)
+        {
             return Err(Error::new(
                 "INVALID_OPERATION",
-                "Resolution must be in 1..=9600 pixels per inch",
+                format!(
+                    "Resolution must be in {}..={} pixels per inch",
+                    crate::limits::model::MIN_RESOLUTION_PPI,
+                    crate::limits::model::MAX_RESOLUTION_PPI
+                ),
             ));
         }
         let old = document.resolution_ppi;

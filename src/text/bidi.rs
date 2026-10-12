@@ -75,7 +75,7 @@ impl<'a> Resolved<'a> {
         if bytes.len() > maximum {
             return Err(Error::new(
                 "RESOURCE_LIMIT",
-                "Directional analysis exceeds 4096 scalars",
+                format!("Directional analysis exceeds {maximum} scalars"),
             ));
         }
         bytes.push(text.len());
@@ -222,4 +222,37 @@ impl<'a> Resolved<'a> {
 }
 pub fn inspect(text: &str, direction: Direction, lines: &[Range]) -> Result<Report, Error> {
     Resolved::new(text, direction)?.report(lines)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn limits_match_plain_and_generated_scalar_admission() {
+        // Count scalars, including multibyte input. Generated line content may
+        // contain the extra discretionary scalar allowed by its own entry point.
+        let ordinary = "é".repeat(MAX_TEXT_CHARS);
+        assert!(Resolved::new(&ordinary, Direction::Ltr).is_ok());
+        let generated = format!("{ordinary}-");
+        let error = Resolved::new(&generated, Direction::Ltr).err().unwrap();
+        assert_eq!(error.code, "RESOURCE_LIMIT");
+        assert_eq!(
+            error.message.as_ref(),
+            format!("Directional analysis exceeds {MAX_TEXT_CHARS} scalars")
+        );
+        assert!(Resolved::with_generated(&generated, Direction::Ltr).is_ok());
+        let excessive = format!("{generated}-");
+        let error = Resolved::with_generated(&excessive, Direction::Ltr)
+            .err()
+            .unwrap();
+        assert_eq!(error.code, "RESOURCE_LIMIT");
+        assert_eq!(
+            error.message.as_ref(),
+            format!(
+                "Directional analysis exceeds {} scalars",
+                MAX_TEXT_CHARS + 1
+            )
+        );
+    }
 }

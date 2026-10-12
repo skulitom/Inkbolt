@@ -1,10 +1,40 @@
 # Architecture
 
-Paragraph diagnostics preserve drop-cap and composer codes, plus typed empty
-or indexed line-breaking, spacing and list-style references. These references
-remain unresolved; local legacy preset codes are separate controls. Neither a
-zero index nor an explicit empty reference supplies a layout default or permits
-editable conversion. Source table definitions remain outside this mapping.
+Durable publication uses held-file identity on Windows and Unix: Windows volume
+plus 128-bit file ID, or Unix device plus inode encoded in the existing receipt
+layout. Retained hard links witness publication ownership across interruption;
+matching bytes alone never prove creation. Linux core/CLI/MCP/receipt coverage
+runs through the [WSL verification workflow](PLATFORMS.md). Windows-only job
+implementation details are conditionally compiled; unavailable job commands
+still fail explicitly and capability reports describe the active backend.
+
+`limits` centralizes existing named resource and bounded-evaluation constants,
+preserving their old Rust module paths as re-exports. Shared native pixel and tile
+geometry definitions feed storage, tiled rendering and capability reporting;
+independent tile-entry, byte, processing and work budgets remain separate.
+The generated [limit reference](LIMITS.md) is checked against every compiled
+catalog value. W0's source audit and Windows/Linux acceptance are complete;
+current ceilings remain unchanged and larger workload targets remain open.
+
+Tiled radial and twist filters use bounded source-dependency paths through filter
+stacks, parent containers and clipped siblings. Radial sample offsets are bounded
+over each requested region; twist bounds include its finite rotation radius and
+affine roundoff. Visited regions, mapping work and retained plans count against
+the existing limits. Native codec bands recheck both work and peak storage.
+Wrapped borders still require a separate nonlocal read strategy.
+
+Selected global text-frame diagnostics retain explicit row/column counts, their
+gaps and spacing as typed source values. Missing controls stay absent; numeric
+validity does not establish a usable grid or allow editable conversion. Unknown
+frame fields and cached geometry remain unvalidated.
+
+Paragraph diagnostics resolve selected line-breaking, spacing and list-style
+references to bounded source record slots and names. Auxiliary ordering does
+not remap those slots; names join the partial control fingerprint. A compact
+preview reports selected names as untrusted metadata. Definition semantics and
+unused records remain unvalidated. Explicit empty references, missing controls
+and slot zero stay distinct. List-item suppression and number restarts are typed
+controls, with no additional editable layout admission.
 
 Mapped source layout diagnostics include separate paint visibility, bounded dash
 patterns, typed annotation-scale records and additional paragraph controls. Nested

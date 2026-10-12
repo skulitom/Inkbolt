@@ -1,5 +1,11 @@
 # Layered pixel interchange
 
+`capabilities.layered_interchange.maximum_import_channels_per_layer` reports
+the admitted RGB, transparency and authored scalar-mask channel cardinality.
+Extra or duplicate channels remain explicit unsupported-semantics failures.
+
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Native delivery retains explicit character scale factors and baseline shifts;
 tracking conversion compensates for horizontal scaling. Decimal values use the
 shortest exact fixed spelling, with an explicit refusal when a literal exceeds
@@ -81,7 +87,15 @@ the outer layer transform remain separate. No density conversion or matrix
 composition is applied in the diagnostic. `other_frames_validated`,
 `remaining_frame_properties_validated`, `local_geometry_consistency_validated`
 and `layout_semantics_validated` stay false, including for a singular matrix.
-Columns, arbitrary shapes, other properties and complete reconstruction remain
+`layout_controls` reports explicit integer `row_count` and `column_count`, and
+finite numeric `row_gap`, `column_gap` and `spacing`, in source coordinate units.
+Absent controls stay absent; zero, negative and large numeric values are retained
+as diagnostics without certifying their layout meaning or acceptable ranges.
+Boolean, string, named and fractional-count substitutes fail. Only the selected
+frame is inspected; neither other frames nor local caches provide defaults.
+`layout_control_types_validated` is true and `layout_controls_defaulted` is false.
+These controls do not admit editable import, even for one row/column or zero gaps.
+Grid layout, arbitrary shapes, other properties and complete reconstruction remain
 unimplemented. Named geometry-extension owners are still untrusted.
 
 `global_story.character_styles` checks types for individually mapped character
@@ -159,12 +173,27 @@ Drop-cap multipliers and composer codes retain explicit integer values.
 `list_style_reference` preserve an unsigned source index or the typed empty
 name `/nil`. Missing, empty and index zero produce distinct known-value
 fingerprints. Strings, other names, negative indices, fractional values and
-Boolean values cannot impersonate references. The diagnostic checks reference
-encoding only: it does not resolve target tables, validate index ranges against
-those tables, copy preset definitions or interpret empty references as defaults.
+Boolean values cannot impersonate references. A selected index must resolve
+directly to a source record slot in its own preset table. Auxiliary table order
+does not remap it. Tables are bounded to 256 records and selected Unicode names
+to 128 UTF-8 bytes. Missing tables, out-of-range indices and malformed selected
+name records fail; there is no fallback to another family or cached name.
+The known-value fingerprint binds both index and complete selected name, without
+normalization. Definitions and other records remain outside that partial hash;
+the complete global-data hash still binds their bytes. An explicit empty reference
+does not read a table or invent a default.
+`preset_records` counts distinct selected family/index pairs and reports at most
+four, with a 16-character name preview, truncation flag, full UTF-8 byte count and
+full-name SHA-256. Names are untrusted source metadata. Selected references are
+structurally resolved; definition semantics and unselected records are not
+validated, and no preset definitions are copied into the engine.
 Local `local_line_breaking_preset_code` and `local_spacing_preset_code` remain
 separate because their encodings differ from the global references.
-`preset_references_resolved` and `legacy_preset_conversion_validated` stay false.
+`preset_references_resolved` reports selected slot/name validation only;
+`legacy_preset_conversion_validated` stays false.
+`list_item_suppressed` identifies a paragraph excluded from list markers and
+number progression, while `list_start_number` retains its explicit integer
+restart control. These controls remain separate from the selected list style.
 All newly recognized paragraph controls still require explicit implementation
 before editable conversion, including zero codes and empty references.
 Numeric triples require exactly three

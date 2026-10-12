@@ -1,5 +1,6 @@
 //! Original linear-light neighbourhood processing and calibrated lens pull mapping.
 use super::{Capture, invalid_raw};
+use crate::limits::raw_corrections as limits;
 use crate::{Error, control::Control};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -47,21 +48,27 @@ impl Corrections {
             .denoise
             .iter()
             .map(|p| (p.radius, p.threshold, p.amount, 1.0))
-            .chain(
-                self.detail
-                    .iter()
-                    .map(|p| (p.radius, p.threshold, p.amount, 4.0)),
-            )
+            .chain(self.detail.iter().map(|p| {
+                (
+                    p.radius,
+                    p.threshold,
+                    p.amount,
+                    f64::from(limits::MAX_DETAIL_AMOUNT),
+                )
+            }))
         {
-            if !(1..=4).contains(&radius)
+            if !(1..=limits::MAX_RADIUS).contains(&radius)
                 || !threshold.is_finite()
-                || !(0.0..=16.0).contains(&threshold)
+                || !(0.0..=f64::from(limits::MAX_THRESHOLD)).contains(&threshold)
                 || !amount.is_finite()
                 || !(0.0..=maximum).contains(&amount)
             {
-                return Err(invalid_raw(
-                    "Noise/detail radius must be 1..4, threshold 0..16 and amount 0..1 for noise or 0..4 for detail",
-                ));
+                return Err(invalid_raw(&format!(
+                    "Noise/detail radius must be 1..{}, threshold 0..{} and amount 0..1 for noise or 0..{} for detail",
+                    limits::MAX_RADIUS,
+                    limits::MAX_THRESHOLD,
+                    limits::MAX_DETAIL_AMOUNT
+                )));
             }
         }
         if let Some(lens) = &self.lens {
@@ -72,7 +79,7 @@ impl Corrections {
 }
 impl Lens {
     /// A sufficient global bound on ||J-I|| in normalized coordinates.
-    /// A symmetric Jacobian bounded below by .05 I implies a one-to-one map
+    /// A symmetric Jacobian bounded below by (1 - admitted bound) I implies a one-to-one map
     /// on the convex output rectangle; no sparse-grid fold heuristic is used.
     pub fn bound(&self, c: &Capture) -> Result<f64, Error> {
         c.validate()?;
@@ -80,22 +87,30 @@ impl Lens {
             if !self.center[i].is_finite()
                 || !(0.0..=(size - 1) as f64).contains(&self.center[i])
                 || !self.focal[i].is_finite()
-                || !(1.0..=32768.0).contains(&self.focal[i])
+                || !(f64::from(limits::MIN_FOCAL_LENGTH)..=f64::from(limits::MAX_FOCAL_LENGTH))
+                    .contains(&self.focal[i])
             {
-                return Err(invalid_raw(
-                    "Lens center must be inside the sensor pixel-center rectangle and focal lengths in 1..32768 pixels",
-                ));
+                return Err(invalid_raw(&format!(
+                    "Lens center must be inside the sensor pixel-center rectangle and focal lengths in {}..{} pixels",
+                    limits::MIN_FOCAL_LENGTH,
+                    limits::MAX_FOCAL_LENGTH
+                )));
             }
         }
-        if self.radial.iter().any(|v| !v.is_finite() || v.abs() > 1.0)
+        if self
+            .radial
+            .iter()
+            .any(|v| !v.is_finite() || v.abs() > limits::MAX_RADIAL_COEFFICIENT)
             || self
                 .tangential
                 .iter()
-                .any(|v| !v.is_finite() || v.abs() > 0.25)
+                .any(|v| !v.is_finite() || v.abs() > limits::MAX_TANGENTIAL_COEFFICIENT)
         {
-            return Err(invalid_raw(
-                "Lens radial coefficients must be in -1..1 and tangential coefficients in -.25...25",
-            ));
+            return Err(invalid_raw(&format!(
+                "Lens radial coefficients must be in -{0}..{0} and tangential coefficients in -{1}..{1}",
+                limits::MAX_RADIAL_COEFFICIENT,
+                limits::MAX_TANGENTIAL_COEFFICIENT
+            )));
         }
         let r2 = [c.width, c.height]
             .into_iter()
@@ -111,10 +126,13 @@ impl Lens {
             .map(|(i, k)| (2 * i + 3) as f64 * k.abs() * r2.powi(i as i32 + 1))
             .sum::<f64>()
             + 8.0 * (self.tangential[0].abs() + self.tangential[1].abs()) * r2.sqrt();
-        if !bound.is_finite() || bound >= 0.95 {
+        if !bound.is_finite() || bound >= limits::MAX_JACOBIAN_PERTURBATION {
             return Err(Error::new(
                 "UNSUPPORTED_LENS_MAP",
-                "Lens calibration exceeds the global no-fold bound (<0.95); no correction was applied",
+                format!(
+                    "Lens calibration exceeds the global no-fold bound (<{}); no correction was applied",
+                    limits::MAX_JACOBIAN_PERTURBATION
+                ),
             ));
         }
         Ok(bound)

@@ -3,7 +3,7 @@ use super::*;
 use crate::control::Control;
 
 /// Four-dimensional output-device tables need a separate bounded allowance.
-pub const MAX_PROFILE_BYTES: usize = 4 * 1024 * 1024;
+pub use crate::limits::profiles_cmyk::MAX_PROFILE_BYTES;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -68,7 +68,10 @@ pub(crate) fn read_source(source: &Source) -> Result<Vec<u8>, Error> {
                 ));
             }
             if metadata.len() > MAX_PROFILE_BYTES as u64 {
-                return Err(limit("CMYK ICC profile exceeds 4 MiB"));
+                return Err(limit(&format!(
+                    "CMYK ICC profile exceeds {} MiB",
+                    MAX_PROFILE_BYTES as f64 / 1_048_576.0
+                )));
             }
             let mut bytes = Vec::new();
             file.take(MAX_PROFILE_BYTES as u64 + 1)
@@ -77,7 +80,10 @@ pub(crate) fn read_source(source: &Source) -> Result<Vec<u8>, Error> {
                     Error::new("PROFILE_IO", "Unable to read the declared CMYK profile")
                 })?;
             if bytes.len() > MAX_PROFILE_BYTES {
-                return Err(limit("CMYK ICC profile exceeds 4 MiB"));
+                return Err(limit(&format!(
+                    "CMYK ICC profile exceeds {} MiB",
+                    MAX_PROFILE_BYTES as f64 / 1_048_576.0
+                )));
             }
             if assets::sha256(&bytes) != *sha256 {
                 return Err(Error::new(
@@ -181,7 +187,7 @@ impl Converter {
             return Err(limit("CMYK conversion exceeds the page image pixel budget"));
         }
         let mut result = Vec::with_capacity(rgba.len());
-        for row in rgba.chunks(4096 * 4) {
+        for row in rgba.chunks(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4) {
             if let Some(c) = control {
                 c.check()?;
             }

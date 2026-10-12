@@ -69,7 +69,7 @@ pub(super) fn square_root(v: &R) -> Option<R> {
 // Low-degree roots have direct exact formulas; higher degrees use bounded
 // rational reconstruction in [0,1]. Missing roots never imply disjoint curves.
 fn rational_roots(p: &[R], budget: &mut Budget) -> Result<Vec<R>, Error> {
-    budget.spend(32)?;
+    budget.spend(crate::limits::booleans_topology_algebraic::RATIONAL_ROOTS_WORK)?;
     let p = trim(p.to_vec());
     roots::bounded(&p)?;
     let mut out = Vec::new();
@@ -171,7 +171,7 @@ fn quadratic_coordinate(
         }
     }
     for direction in directions {
-        budget.spend(32)?;
+        budget.spend(crate::limits::booleans_topology_algebraic::QUADRATIC_DIRECTION_WORK)?;
         let av = trim(ap.iter().map(|p| dot(p, &direction)).collect());
         let bv = trim(bp.iter().map(|p| dot(p, &direction)).collect());
         roots::bounded(&av)?;
@@ -241,10 +241,13 @@ fn apply(arcs: Vec<Arc>, cuts: Vec<BTreeSet<R>>) -> Result<Vec<Arc>, Error> {
         if times.len() == 2 {
             out.push(arc);
         } else {
-            if arc.curved && arc.depth == 20 {
+            if arc.curved && arc.depth == crate::limits::booleans::MAX_TOPOLOGY_DEPTH {
                 return Err(Error::new(
                     "CURVE_TOPOLOGY_UNRESOLVED",
-                    "Algebraic contact synchronization exceeds subdivision depth 20",
+                    format!(
+                        "Algebraic contact synchronization exceeds subdivision depth {}",
+                        crate::limits::booleans::MAX_TOPOLOGY_DEPTH
+                    ),
                 ));
             }
             let p = curves::coefficients(arc.rational().expect("rational contact preparation"));
@@ -257,12 +260,16 @@ fn apply(arcs: Vec<Arc>, cuts: Vec<BTreeSet<R>>) -> Result<Vec<Arc>, Error> {
                     curved: arc.curved,
                 });
                 if out.len() > MAX_EDGES {
-                    return Err(limit("Algebraic contacts exceed 512 evaluated edges"));
+                    return Err(limit(&format!(
+                        "Algebraic contacts exceed {MAX_EDGES} evaluated edges"
+                    )));
                 }
             }
         }
         if out.len() > MAX_EDGES {
-            return Err(limit("Algebraic contacts exceed 512 evaluated edges"));
+            return Err(limit(&format!(
+                "Algebraic contacts exceed {MAX_EDGES} evaluated edges"
+            )));
         }
     }
     Ok(out)
@@ -277,7 +284,7 @@ pub(super) fn prepare(
     let mut stationary_points = BTreeSet::new();
     let mut quadratic_directions = BTreeSet::new();
     for (i, arc) in arcs.iter().enumerate().filter(|(_, a)| a.curved) {
-        budget.spend(32)?;
+        budget.spend(crate::limits::booleans_topology_algebraic::CONTACT_ARC_WORK)?;
         let p = curves::coefficients(arc.rational().expect("rational contact preparation"));
         let x: Poly = p.iter().map(|v| v[0].clone()).collect();
         let y: Poly = p.iter().map(|v| v[1].clone()).collect();
@@ -326,7 +333,7 @@ pub(super) fn prepare(
             let (Some(ac), Some(bc)) = (a.rational(), b.rational()) else {
                 continue;
             };
-            budget.spend(8)?;
+            budget.spend(crate::limits::booleans_topology_algebraic::ARC_PAIR_WORK)?;
             if (!a.curved && !b.curved) || !overlaps(ac, bc) {
                 continue;
             }
@@ -362,9 +369,9 @@ pub(super) fn prepare(
                     let scale = direction[axis].clone();
                     quadratic_directions.insert(direction.map(|v| v / &scale));
                     if quadratic_directions.len() > MAX_EDGES {
-                        return Err(limit(
-                            "Quadratic contact synchronization exceeds 512 projections",
-                        ));
+                        return Err(limit(&format!(
+                            "Quadratic contact synchronization exceeds {MAX_EDGES} projections"
+                        )));
                     }
                 }
                 candidates.extend(resultant::contacts(ac, bc, budget)?);
@@ -400,12 +407,12 @@ pub(super) fn synchronize(
             let (Some(ac), Some(bc)) = (a.rational(), b.rational()) else {
                 continue;
             };
-            budget.spend(8)?;
+            budget.spend(crate::limits::booleans_topology_algebraic::ARC_PAIR_WORK)?;
             if (!a.curved && !b.curved) || !overlaps(ac, bc) {
                 continue;
             }
             if let Some(direction) = linear_coordinate(ac, bc) {
-                budget.spend(64)?;
+                budget.spend(crate::limits::booleans_topology_algebraic::LINEAR_SYNC_WORK)?;
                 for (from, to, index) in [(ac, bc, j), (bc, ac, i)] {
                     let start = dot(&to[0], &direction);
                     let delta = dot(&sub(&to[3], &to[0]), &direction);
@@ -419,7 +426,7 @@ pub(super) fn synchronize(
             } else if let Some((_, offset, scale)) =
                 quadratic_coordinate(ac, bc, quadratic_directions, budget)?
             {
-                budget.spend(64)?;
+                budget.spend(crate::limits::booleans_topology_algebraic::QUADRATIC_SYNC_WORK)?;
                 for t in [n(0), n(1)] {
                     let u = &offset + &scale * &t;
                     if unit(&u) {

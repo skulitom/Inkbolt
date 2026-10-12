@@ -1,4 +1,5 @@
 //! Deterministic explicit snapping against frozen points, grids and guide lines.
+use crate::limits::snapping::MAX_TARGETS;
 use crate::{
     Error,
     dimensions::{self, Anchor, Unit},
@@ -89,7 +90,7 @@ fn fixed(d: &Document, id: &str, selected: &[usize]) -> Result<usize, Error> {
 fn direction(a: Point, b: Point) -> Result<Point, Error> {
     let v = [b[0] - a[0], b[1] - a[1]];
     let length = v[0].hypot(v[1]);
-    if !length.is_finite() || length < 1e-10 {
+    if !length.is_finite() || length < crate::limits::snapping::MIN_GUIDE_LENGTH {
         return Err(invalid("Guide is too short at document precision"));
     }
     Ok(v.map(|x| x / length))
@@ -114,15 +115,17 @@ pub(crate) fn apply(
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
     control.check()?;
-    if options.targets.is_empty() || options.targets.len() > 64 {
-        return Err(invalid("Snap requires 1..64 explicit targets"));
+    if options.targets.is_empty() || options.targets.len() > MAX_TARGETS {
+        return Err(invalid(&format!(
+            "Snap requires 1..{MAX_TARGETS} explicit targets"
+        )));
     }
     let f = options.unit.pixels(document.resolution_ppi);
     let limit = options.max_distance * f;
     if !limit.is_finite() || !(0.0..=MAX_COORDINATE).contains(&limit) {
-        return Err(invalid(
-            "Snap distance must be finite within 0..32768 logical pixels",
-        ));
+        return Err(invalid(&format!(
+            "Snap distance must be finite within 0..{MAX_COORDINATE} logical pixels"
+        )));
     }
     let axes = dimensions::basis(options.angle)?;
     let inverse = geometry::inverse(axes)?;
@@ -149,11 +152,14 @@ pub(crate) fn apply(
                 angle,
             } => {
                 let spacing = spacing.map(|v| v * f);
-                if spacing
-                    .iter()
-                    .any(|v| !v.is_finite() || !(0.001..=MAX_COORDINATE).contains(v))
-                {
-                    return Err(invalid("Grid spacing must be 0.001..32768 logical pixels"));
+                if spacing.iter().any(|v| {
+                    !v.is_finite()
+                        || !(crate::limits::snapping::MIN_GRID_SPACING..=MAX_COORDINATE).contains(v)
+                }) {
+                    return Err(invalid(&format!(
+                        "Grid spacing must be {}..{MAX_COORDINATE} logical pixels",
+                        crate::limits::snapping::MIN_GRID_SPACING
+                    )));
                 }
                 Prepared::Grid(point(*origin, f)?, spacing, dimensions::basis(*angle)?)
             }
@@ -213,7 +219,7 @@ pub(crate) fn apply(
                     (&targets[i], &targets[j])
                 {
                     let determinant = cross(*u, *v);
-                    if determinant.abs() <= 1e-10 {
+                    if determinant.abs() <= crate::limits::snapping::PARALLEL_THRESHOLD {
                         parallel += 1;
                         continue;
                     }
@@ -317,7 +323,24 @@ pub(crate) fn apply(
     Ok(
         json!({"mode":options.mode,"unit":options.unit,"max_distance":options.max_distance,"changes":changes,
         "priority":"points_grids_items_intersections_before_single_guide_projections;then_distance_then_target_order",
-        "grid_tie":"lower_index_on_each_axis","excluded_parallel_guide_pairs":parallel,"guide_parallel_threshold":1e-10,
+        "grid_tie":"lower_index_on_each_axis","excluded_parallel_guide_pairs":parallel,"guide_parallel_threshold":crate::limits::snapping::PARALLEL_THRESHOLD,
         "reference_state":"frozen_before_operation","bounds":"geometry_only_in_requested_axes","source_geometry_retained":true}),
     )
+}
+
+#[cfg(test)]
+mod limits_tests {
+    use super::*;
+
+    #[test]
+    fn guide_length_boundary_is_inclusive() {
+        let minimum = crate::limits::snapping::MIN_GUIDE_LENGTH;
+        assert_eq!(direction([0.0, 0.0], [minimum, 0.0]).unwrap(), [1.0, 0.0]);
+        assert_eq!(
+            direction([0.0, 0.0], [minimum / 2.0, 0.0])
+                .unwrap_err()
+                .code,
+            "INVALID_OPERATION"
+        );
+    }
 }

@@ -38,7 +38,7 @@ fn number(r: &mut Reader<'_>) -> Result<f64, Error> {
 }
 fn identifier(value: String) -> Result<String, Error> {
     if value.is_empty()
-        || value.len() > 128
+        || value.len() > crate::limits::layered::MAX_LINK_ID_BYTES
         || !value
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"-_.:".contains(&b))
@@ -169,7 +169,9 @@ pub(super) fn sources<'a>(
     while r.left() != 0 {
         control.check()?;
         if sources.len() >= MAX_ITEMS {
-            return Err(limit("Embedded source table exceeds 256 records"));
+            return Err(limit(&format!(
+                "Embedded source table exceeds {MAX_ITEMS} records"
+            )));
         }
         let mut entry = r.framed_section(Version::Large)?;
         require(entry.take(4)? == b"liFD")?;
@@ -239,7 +241,10 @@ impl Placement {
         ];
         crate::geometry::validate_matrix(m)?;
         let opposite = crate::geometry::map(m, [w, h]);
-        require((opposite[0] - p[4]).abs() <= 1e-9 && (opposite[1] - p[5]).abs() <= 1e-9)?;
+        require(
+            (opposite[0] - p[4]).abs() <= crate::limits::layered::AFFINE_CLOSURE_TOLERANCE
+                && (opposite[1] - p[5]).abs() <= crate::limits::layered::AFFINE_CLOSURE_TOLERANCE,
+        )?;
         Ok(m)
     }
 }

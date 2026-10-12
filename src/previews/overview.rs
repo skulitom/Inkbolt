@@ -1,5 +1,6 @@
 //! Bounded full-canvas review through an immutable projected evaluation copy.
 use super::*;
+use crate::limits::previews::{MAX_OVERVIEW_AXIS, MIN_OVERVIEW_AXIS};
 use geometry::TransformFactor::{Forward, Inverse};
 
 pub(crate) fn plan(
@@ -9,16 +10,18 @@ pub(crate) fn plan(
     let size = options
         .max_size
         .ok_or_else(|| invalid("Overview size is required"))?;
-    if size.iter().any(|v| !(8..=1024).contains(v))
+    if size
+        .iter()
+        .any(|v| !(MIN_OVERVIEW_AXIS..=MAX_OVERVIEW_AXIS).contains(v))
         || !matches!(options.focus, Focus::Canvas)
         || options.scale != 1
         || options.render_options.padding != 0
         || !options.render_options.crop_to_canvas
         || options.render_options.evaluation != render_quality::Evaluation::Whole
     {
-        return Err(invalid(
-            "Overview requires canvas focus, max_size axes 8..=1024, scale 1, zero padding, canvas cropping and whole evaluation",
-        ));
+        return Err(invalid(&format!(
+            "Overview requires canvas focus, max_size axes {MIN_OVERVIEW_AXIS}..={MAX_OVERVIEW_AXIS}, scale 1, zero padding, canvas cropping and whole evaluation"
+        )));
     }
     if document.kind != DocumentKind::Vector {
         return Err(Error::new(

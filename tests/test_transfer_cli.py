@@ -7,6 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from external_workspace import files as workspace_files
+from advertised_limits import capabilities
 import test_editing_cli as editing
 from test_mcp import Client
 from synthetic_font import geometric_font
@@ -125,13 +126,24 @@ class TransferTests(unittest.TestCase):
         d=self.create();d['items']=[group('parent',transform=[2,0,0,2,2,2])];out=self.transfer(d,s,['shape'],parent='parent')['document'];self.assertEqual(self.pixels(s,2),self.pixels(out,2));self.assertEqual(byid(out,'copy-shape')['mask']['transform'],item['mask']['transform'])
         a=self.invoke(dict(command='artboard.export',document=s,format='png'));b=self.invoke(dict(command='artboard.export',document=out,format='png'));self.assertEqual(a['artifacts'][0]['artifact']['data'],b['artifacts'][0]['artifact']['data']);self.assertEqual(byid(out,'copy-board')['content']['frame']['guides'][0]['id'],'guide')
 
+    def test_readable_transfer_ids_switch_to_hash_only_above_advertised_length(self):
+        caps = capabilities()['document_transfer']
+        prefix = 'p'*caps['prefix_characters'][1]
+        maximum = caps['item_id_bytes']
+        for length in (maximum-len(prefix)-1, maximum-len(prefix)):
+            source_id = 'a'*length
+            source = self.create('source'); source['items'] = [rect(source_id)]
+            result = self.transfer(self.create(), source, [source_id], prefix)
+            expected = prefix+'-'+(source_id if len(prefix)+1+length <= maximum else hashlib.sha256(source_id.encode()).hexdigest())
+            self.assertEqual(result['changes'][0]['details']['item_ids'][source_id], expected)
+
     def test_long_ids_collisions_limits_invalid_sources_and_batches_fail_atomically(self):
-        s=self.create('source');id='a'*128;s['items']=[rect(id)];prefix='b'*32;r=self.transfer(self.create(),s,[id],prefix);expected=prefix+'-'+hashlib.sha256(id.encode()).hexdigest();self.assertEqual(r['changes'][0]['details']['item_ids'][id],expected)
+        s=self.create('source');id='a'*capabilities()['document_transfer']['item_id_bytes'];s['items']=[rect(id)];prefix='b'*capabilities()['document_transfer']['prefix_characters'][1];r=self.transfer(self.create(),s,[id],prefix);expected=prefix+'-'+hashlib.sha256(id.encode()).hexdigest();self.assertEqual(r['changes'][0]['details']['item_ids'][id],expected)
         out=r['document'];before=copy.deepcopy(out);self.assertEqual(self.transfer(out,s,[id],prefix,expected=1)['code'],'ID_CONFLICT')
         collision=copy.deepcopy(s);collision['items'].append(rect(hashlib.sha256(id.encode()).hexdigest()));self.assertEqual(self.transfer(self.create(),collision,[i['id'] for i in collision['items']],prefix,expected=1)['code'],'ID_CONFLICT')
-        for ids,prefix in [([], 'ok'),([id,id],'ok'),(['missing'],'ok'),([id],'bad prefix'),([id],'x'*33)]:self.transfer(self.create(),s,ids,prefix,expected=1)
+        for ids,prefix in [([], 'ok'),([id,id],'ok'),(['missing'],'ok'),([id],'bad prefix'),([id],'x'*(capabilities()['document_transfer']['prefix_characters'][1]+1))]:self.transfer(self.create(),s,ids,prefix,expected=1)
         bad=copy.deepcopy(s);bad['items'][0]['parent']='missing';self.transfer(self.create(),bad,[id],expected=1)
-        full=self.create();full['items']=[rect('i'+str(i)) for i in range(256)];self.assertEqual(self.transfer(full,s,[id],expected=1)['code'],'RESOURCE_LIMIT')
+        full=self.create();full['items']=[rect('i'+str(i)) for i in range(capabilities()['limits']['items'])];self.assertEqual(self.transfer(full,s,[id],expected=1)['code'],'RESOURCE_LIMIT')
         self.edit(self.create(),dict(op='transfer',transfer=dict(source=s,ids=[id],prefix='ok')),dict(op='remove',id='missing'),expected=1);self.assertEqual(out,before)
         locked=self.create();locked['items']=[dict(group('locked'),locked=True)];self.assertEqual(self.transfer(locked,s,[id],parent='locked',expected=1)['code'],'LOCKED')
 

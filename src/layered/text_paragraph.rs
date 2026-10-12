@@ -24,6 +24,8 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
     (Some("5"), Some("SpaceAfter"), "space_after", Kind::Number),
     (Some("6"), None, "drop_cap_multiplier", Kind::Integer),
     (Some("35"), None, "composer_code", Kind::Integer),
+    (Some("38"), None, "list_item_suppressed", Kind::Boolean),
+    (Some("39"), None, "list_start_number", Kind::Integer),
     // Legacy cache codes are not indices into the global preset tables.
     (
         None,
@@ -149,26 +151,17 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
     ),
 ];
 
-const REFERENCES: &[(&str, &str)] = &[
-    ("27", "line_breaking_preset_reference"),
-    ("28", "spacing_preset_reference"),
-    ("36", "list_style_reference"),
+const REFERENCES: &[(&str, &str, &str)] = &[
+    ("27", "4", "line_breaking_preset_reference"),
+    ("28", "3", "spacing_preset_reference"),
+    ("36", "9", "list_style_reference"),
 ];
-
-fn reference(value: &super::text_data::Node) -> Result<Value, Error> {
-    // Only this typed name denotes an explicit empty reference. A source
-    // index, including zero, remains distinct and does not resolve a preset.
-    if matches!(value, super::text_data::Node::Name(name) if name == "nil") {
-        Ok(Value::Null)
-    } else {
-        Ok(json!(value.unsigned()?))
-    }
-}
 
 pub(super) struct Paragraphs {
     pub styles: Styles,
     pub absent_properties: usize,
     pub run_ends_without_carriage_return: usize,
+    presets: super::text_preset_records::Records,
 }
 impl Paragraphs {
     fn new() -> Self {
@@ -179,6 +172,7 @@ impl Paragraphs {
             },
             absent_properties: 0,
             run_ends_without_carriage_return: 0,
+            presets: super::text_preset_records::Records::default(),
         }
     }
     fn endings(&mut self, source: &str) {
@@ -247,6 +241,7 @@ impl Paragraphs {
         Ok(out)
     }
     pub fn global(
+        global: &super::text_data::Node,
         runs: &[super::text_inheritance::Run<'_>],
         source: &str,
         control: &Control,
@@ -264,16 +259,16 @@ impl Paragraphs {
                         controls.insert(name, kind.read_node(value)?);
                     }
                 }
-                for &(key, name) in REFERENCES {
+                for &(key, table, name) in REFERENCES {
                     if let Some(value) = properties.get(key) {
-                        controls.insert(name, reference(value)?);
+                        controls.insert(name, out.presets.read(global, table, name, value)?);
                     }
                 }
                 out.styles.unknown.extend(
                     properties
                         .keys()
                         .filter(|k| {
-                            !REFERENCES.iter().any(|(key, _)| *key == **k)
+                            !REFERENCES.iter().any(|(key, _, _)| *key == **k)
                                 && !CONTROLS
                                     .iter()
                                     .any(|(global, _, _, _)| *global == Some(**k))
@@ -305,7 +300,8 @@ impl Paragraphs {
         }
         result["paragraph_boundaries_semantically_validated"] = json!(false);
         result["legacy_hyphen_limit_conversion_validated"] = json!(false);
-        result["preset_references_resolved"] = json!(false);
+        result["preset_references_resolved"] = json!(true);
+        result["preset_records"] = self.presets.report();
         result["legacy_preset_conversion_validated"] = json!(false);
         Ok(result)
     }

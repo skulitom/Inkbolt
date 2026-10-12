@@ -1,5 +1,9 @@
 # Editable font instances and OpenType controls
 
+The [limit reference](LIMITS.md) defines face, variation-axis and feature budgets.
+Fallback capacity reserves one primary entry from the shared font-binding limit;
+validation and `capabilities.supported.text` use that same definition.
+
 Ordinary frames can also select [first-line placement](FIRST_BASELINE.md) from
 the contributing font instances' ascent, cap height or x-height, or from leading
 or a fixed offset. Missing cap/x-height metrics fail explicitly.

@@ -1,5 +1,7 @@
 # Editable object interpolation
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 An interpolation item retains two original vector endpoints and generates an explicit number of steps for icons, diagrams and shape/color progressions. It is an isolated leaf in the saved hierarchy:
 
 ```json

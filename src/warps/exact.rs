@@ -29,7 +29,9 @@ impl Budget {
         if self.used > MAX_WORK {
             return Err(limit("Warp exceeds its exact arithmetic work budget"));
         }
-        if previous / 1024 != self.used / 1024 {
+        if previous / crate::limits::warps::EXACT_WORK_CHECK_INTERVAL
+            != self.used / crate::limits::warps::EXACT_WORK_CHECK_INTERVAL
+        {
             self.control.check()?;
         }
         Ok(())
@@ -150,7 +152,9 @@ pub(super) fn homography(corners: &[Point; 4]) -> Result<[R; 9], Error> {
         )
     };
     for w in [R::one(), R::one() + &g, R::one() + &g + &h, R::one() + &h] {
-        if w < R::new(1.into(), 1024.into()) || w > integer(1024) {
+        if w < R::new(1.into(), limits::MAX_PERSPECTIVE_WEIGHT.into())
+            || w > integer(limits::MAX_PERSPECTIVE_WEIGHT)
+        {
             return Err(Error::new(
                 "UNSUPPORTED",
                 "Perspective weights exceed the supported conditioning interval",
@@ -200,7 +204,7 @@ pub(super) fn source(e: &crate::paths::Edge) -> Curve {
     }
 }
 fn unit(c: &Curve, domain: &[R; 4], budget: &mut Budget) -> Result<[Poly; 3], Error> {
-    budget.spend(c.len() * 8)?;
+    budget.spend(c.len() * crate::limits::warps::UNIT_CONTROL_WORK)?;
     let mut u = Vec::with_capacity(c.len());
     let mut v = Vec::with_capacity(c.len());
     let mut w = Vec::with_capacity(c.len());
@@ -290,7 +294,7 @@ pub(super) fn encode(p: &H) -> Result<Point, Error> {
     Ok(out)
 }
 fn split(c: &Curve, budget: &mut Budget) -> Result<(Curve, Curve), Error> {
-    budget.spend(c.len() * c.len() * 3)?;
+    budget.spend(c.len() * c.len() * crate::limits::warps::SPLIT_PAIR_WORK)?;
     let mut row = c.clone();
     let mut left = vec![row[0].clone()];
     let mut right = vec![row.last().unwrap().clone()];
@@ -307,7 +311,7 @@ fn split(c: &Curve, budget: &mut Budget) -> Result<(Curve, Curve), Error> {
     Ok((left, right))
 }
 fn certificate(c: &Curve, a: Point, b: Point, budget: &mut Budget) -> Result<R, Error> {
-    budget.spend(c.len() * 20)?;
+    budget.spend(c.len() * crate::limits::warps::CERTIFICATE_CONTROL_WORK)?;
     let n = c.len() - 1;
     let minimum = c.iter().map(|p| &p[2]).min().unwrap();
     if minimum <= &R::zero() {
@@ -377,7 +381,9 @@ pub(super) fn flatten(
             let error = certificate(&c, a, b, self.budget)?;
             if error <= self.tolerance {
                 if self.out.len() == MAX_SEGMENTS {
-                    return Err(limit("Warp expansion exceeds 4096 certified segments"));
+                    return Err(limit(&format!(
+                        "Warp expansion exceeds {MAX_SEGMENTS} certified segments"
+                    )));
                 }
                 let segment = Segment {
                     contour: self.contour,

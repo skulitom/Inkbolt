@@ -14,9 +14,9 @@ pub mod device;
 pub mod gamut;
 pub mod proof;
 
-pub const MAX_PROFILE_BYTES: usize = 256 * 1024;
-pub const MAX_PROFILE_TAGS: usize = 128;
-pub const TRANSFORM_STACK_BYTES: usize = 32 * 1024 * 1024;
+pub use crate::limits::profiles::MAX_PROFILE_BYTES;
+pub use crate::limits::profiles::MAX_PROFILE_TAGS;
+pub use crate::limits::profiles::TRANSFORM_STACK_BYTES;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Intent {
@@ -119,7 +119,9 @@ fn parse_model(bytes: &[u8], space: DataColorSpace, printing: bool) -> Result<Co
     }
     let count = word(bytes, 128)?;
     if count > MAX_PROFILE_TAGS {
-        return Err(limit("ICC profile exceeds 128 tags"));
+        return Err(limit(&format!(
+            "ICC profile exceeds {MAX_PROFILE_TAGS} tags"
+        )));
     }
     let end = 132 + count * 12;
     if end > bytes.len() {
@@ -175,7 +177,7 @@ fn parse_model(bytes: &[u8], space: DataColorSpace, printing: bool) -> Result<Co
         ParsingOptions {
             max_profile_size: max_bytes + 1,
             max_allowed_clut_size: max_bytes,
-            max_allowed_trc_size: 65536,
+            max_allowed_trc_size: crate::limits::profiles::MAX_CURVE_ENTRIES,
         },
     )
     .map_err(|_| invalid())?;
@@ -495,7 +497,7 @@ pub(crate) fn convert_f64(
         None
     };
     let mut clipped = 0;
-    for row in rgba.chunks_mut(4096 * 4) {
+    for row in rgba.chunks_mut(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4) {
         if let Some(c) = control {
             c.check()?;
         }
@@ -585,7 +587,7 @@ fn convert(
 ) -> Result<(), Error> {
     let transform = transform(source, destination)?;
     // Bounded rows of RGB protect alpha, including hidden RGB at zero alpha.
-    for row in rgba.chunks_mut(4096 * 4) {
+    for row in rgba.chunks_mut(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4) {
         let rgb: Vec<f64> = row
             .as_chunks::<4>()
             .0

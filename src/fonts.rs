@@ -1,4 +1,10 @@
 //! Explicit pinned local font resources and their retained license text.
+pub use crate::limits::fonts::MAX_AXES;
+pub use crate::limits::fonts::MAX_FALLBACK_FONTS;
+pub use crate::limits::fonts::MAX_FEATURES;
+pub use crate::limits::fonts::MAX_FONT_BYTES;
+pub use crate::limits::fonts::MAX_FONTS;
+pub use crate::limits::fonts::MAX_LICENSE_BYTES;
 use crate::{
     Error, assets,
     model::{invalid, limit},
@@ -12,11 +18,6 @@ use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
-pub const MAX_FONT_BYTES: u64 = 8 * 1024 * 1024;
-pub const MAX_FONTS: usize = 8;
-pub const MAX_LICENSE_BYTES: u64 = 65536;
-pub const MAX_AXES: usize = 16;
-pub const MAX_FEATURES: usize = 64;
 pub type Coordinates = BTreeMap<String, f64>;
 static TEMP: AtomicU64 = AtomicU64::new(0);
 
@@ -40,7 +41,9 @@ pub fn validate(font: &Font) -> Result<(), Error> {
             "Font and license identities must be lowercase SHA-256 hex",
         ));
     }
-    if !(1..=MAX_FONT_BYTES).contains(&font.bytes) || font.face_index > 255 {
+    if !(1..=MAX_FONT_BYTES).contains(&font.bytes)
+        || font.face_index > crate::limits::fonts::MAX_FACE_INDEX
+    {
         return Err(limit("Font descriptor exceeds byte or face-index limits"));
     }
     Ok(())
@@ -90,7 +93,7 @@ fn publish(root: &Path, digest: &str, suffix: &str, bytes: &[u8]) -> Result<bool
         load_blob(root, digest, suffix, bytes.len() as u64)?;
         return Ok(false);
     }
-    for _ in 0..64 {
+    for _ in 0..crate::limits::fonts::MAX_STAGE_ATTEMPTS {
         let p = root.join(format!(
             ".inkbolt-font-{}-{}.tmp",
             std::process::id(),
@@ -280,7 +283,9 @@ pub fn tag(value: &str) -> Result<rustybuzz::ttf_parser::Tag, Error> {
 
 pub fn validate_coordinates(values: &Coordinates) -> Result<(), Error> {
     if values.len() > MAX_AXES {
-        return Err(limit("Font instance exceeds 16 axis controls"));
+        return Err(limit(&format!(
+            "Font instance exceeds {MAX_AXES} axis controls"
+        )));
     }
     for (key, value) in values {
         tag(key)?;
@@ -321,7 +326,9 @@ pub fn instance<'a>(
             }
         }
         if !values.is_empty() && face.variation_axes().len() as usize > MAX_AXES {
-            return Err(limit("Controlled variable fonts may have at most 16 axes"));
+            return Err(limit(&format!(
+                "Controlled variable fonts may have at most {MAX_AXES} axes"
+            )));
         }
         for (key, value) in values {
             let tag = tag(key)?;

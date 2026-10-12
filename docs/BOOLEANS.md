@@ -1,5 +1,16 @@
 # Filled geometry combinations
 
+Exact solver work charges and quadratic root-enclosure precision are listed in
+the [limit reference](LIMITS.md). The enclosure policies are also reported in
+`capabilities.numerical_limits`; quadratic contact receipts use that same minimum
+precision. Enclosure width remains certified by exact rational arithmetic.
+
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
+`capabilities.booleans.curve_tolerance` and `default_curve_tolerance` report the
+existing accepted range and default from the same constants as validation. These
+discovery fields do not change the exact topology requirement or admit new curves.
+
 `document.boolean` computes `union`, `intersection`, `difference` or `xor` from 2..16 distinct vector item `ids` in a supplied `document`. It returns an editable root-coordinate polygonal `geometry` and `fill_rule:nonzero`. An empty region returns `geometry:null` and `empty:true`. The command is read-only: agents can inspect its numerical evidence, then add a nonempty result with the existing atomic edit command and explicitly choose its paint and source visibility. Original geometry is retained.
 
 Difference means the first operand minus the union of every remaining operand. Intersection requires membership in every operand; xor uses odd membership across operands. Each operand's own nonzero/even-odd rule determines its filled region. Open contours close for this geometric operation. Zero-area spikes and retraced edges contribute no filled region. Item and ancestor transforms place operands in document coordinates; the result is suitable for a root item with identity transform. Results added beneath a transformed parent need an explicit coordinate conversion.

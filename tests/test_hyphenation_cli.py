@@ -8,6 +8,7 @@ from pathlib import Path
 import random
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 from test_mcp import Client
 
@@ -121,7 +122,7 @@ class HyphenationTests(unittest.TestCase):
         self.assertEqual(result[0]['breaks'], [1, 2, 3]); self.assertEqual(result[1]['breaks'], [])
 
     def test_invalid_patterns_exceptions_and_unknown_semantics_fail_explicitly(self):
-        invalid = [dict(patterns=[pattern('', [0])]), dict(patterns=[pattern('ab', [1, 2])]), dict(patterns=[pattern('ab', [0, 10, 0])]), dict(patterns=[pattern('a b', [0]*4)]), dict(case='ascii_lower', patterns=[pattern('AB', [0, 1, 0])]), dict(exceptions={'abcd': [2, 1]}), dict(exceptions={'abcd': [2, 2]}), dict(exceptions={'abcd': [0]}), dict(exceptions={'abcd': [4]}), dict(exceptions={'a\u0301bc': [1]}), dict(case='ascii_lower', exceptions={'Abcd': [2]}), dict(min_left=0), dict(min_right=129)]
+        invalid = [dict(patterns=[pattern('', [0])]), dict(patterns=[pattern('ab', [1, 2])]), dict(patterns=[pattern('ab', [0, 10, 0])]), dict(patterns=[pattern('a b', [0]*4)]), dict(case='ascii_lower', patterns=[pattern('AB', [0, 1, 0])]), dict(exceptions={'abcd': [2, 1]}), dict(exceptions={'abcd': [2, 2]}), dict(exceptions={'abcd': [0]}), dict(exceptions={'abcd': [4]}), dict(exceptions={'a\u0301bc': [1]}), dict(case='ascii_lower', exceptions={'Abcd': [2]}), dict(min_left=0), dict(min_right=capabilities()['hyphenation']['minima_range'][1]+1)]
         for rules in invalid:
             with self.subTest(rules=rules):
                 self.invoke(dict(command='text.hyphenate', rules=rules, words=[]), 'INVALID_HYPHENATION')

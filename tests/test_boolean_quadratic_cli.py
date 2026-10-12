@@ -3,6 +3,7 @@ import copy
 from decimal import Decimal as D, localcontext
 from fractions import Fraction as F
 import unittest
+from advertised_limits import capabilities
 import test_booleans_cli as booleans
 from test_booleans_cli import rect,polygons,winding,truth
 from test_boolean_curves_cli import curve
@@ -37,6 +38,7 @@ class QuadraticContactTests(unittest.TestCase):
         report=topology['quadratic_contacts']
         self.assertEqual(report['method'],'exact_quadratic_parameters_with_rational_junctions')
         self.assertFalse(report['all_algebraic_contacts_located'])
+        self.assertEqual(report['minimum_root_enclosure_bits'], capabilities()['numerical_limits']['booleans_quadratic_min_root_enclosure_bits'])
         return report
 
     def samples(self,result,mode,two_fields=False):

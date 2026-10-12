@@ -1,5 +1,7 @@
 # Editable dataset variants
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 One vector or raster document can retain typed data rows that control selected item properties. An agent can generate label/image alternatives, show or hide elements, reposition layers and export each result without losing the base artwork. Values are data, not scripts, expressions, file paths or network references.
 
 ## Define, select and export

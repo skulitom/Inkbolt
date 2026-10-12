@@ -209,9 +209,9 @@ impl Correspondence {
             cuts.dedup();
             commands += cuts.len() + usize::from(a.closed);
             if commands > MAX_SEGMENTS {
-                return Err(limit(
-                    "Matched interpolation geometry exceeds 4096 commands",
-                ));
+                return Err(limit(&format!(
+                    "Matched interpolation geometry exceeds {MAX_SEGMENTS} commands"
+                )));
             }
             rings.push(Matched {
                 from: cuts.windows(2).map(|w| section(&a, w[0], w[1])).collect(),

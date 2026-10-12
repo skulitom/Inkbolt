@@ -4,10 +4,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub const MAX_FEATHER: u32 = 32;
-pub const MAX_PREPARED_PIXELS: u64 = 262_144;
-pub const MAX_DOCUMENT_PIXELS: u64 = 1_048_576;
-pub const MAX_FEATHER_WORK: u64 = 67_108_864;
+pub use crate::limits::masks::MAX_DOCUMENT_PIXELS;
+pub use crate::limits::masks::MAX_FEATHER;
+pub use crate::limits::masks::MAX_FEATHER_WORK;
+pub use crate::limits::masks::MAX_PREPARED_PIXELS;
 fn yes() -> bool {
     true
 }
@@ -71,9 +71,9 @@ impl Mask {
             !(1..=MAX_DIMENSION).contains(&self.width)
                 || !(1..=MAX_DIMENSION).contains(&self.height)
         } {
-            return Err(invalid(
-                "Plane masks need dimensions in 1..=32768; explicit constant masks need zero dimensions",
-            ));
+            return Err(invalid(&format!(
+                "Plane masks need dimensions in 1..={MAX_DIMENSION}; explicit constant masks need zero dimensions"
+            )));
         }
         let pixels = self.width as usize * self.height as usize;
         if pixels > MAX_STORED_PIXELS {
@@ -90,16 +90,18 @@ impl Mask {
             || !(0.0..=1.0).contains(&self.density)
             || self.feather > MAX_FEATHER
         {
-            return Err(invalid(
-                "Mask density must be in 0..=1 and feather radius in 0..=32 mask pixels",
-            ));
+            return Err(invalid(&format!(
+                "Mask density must be in 0..=1 and feather radius in 0..={MAX_FEATHER} mask pixels"
+            )));
         }
         geometry::validate_matrix(self.transform)?;
         let world = self.world_transform(item_world);
         geometry::validate_matrix(world)?;
         let [width, height] = self.prepared_size();
         if width as u64 * height as u64 > MAX_PREPARED_PIXELS {
-            return Err(limit("Prepared mask exceeds 262144 pixels"));
+            return Err(limit(&format!(
+                "Prepared mask exceeds {MAX_PREPARED_PIXELS} pixels"
+            )));
         }
         let pad = (self.feather + 1) as f64;
         validate_world_geometry(

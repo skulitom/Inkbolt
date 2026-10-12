@@ -1,5 +1,15 @@
 # Retained pixel deformation
 
+The maximum absolute authored joint angle is reported in
+`capabilities.pixel_warps.maximum_absolute_joint_angle_degrees` from the
+same constant as validation. This preserves the existing signed angle range.
+
+`capabilities.pixel_warps.minimum_frame_extent` reports the existing local-frame
+admission threshold from the [limit catalog](LIMITS.md). It is independent of
+triangle conditioning and pixel-work budgets.
+
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 An image or inline pixel item can carry an optional `pixel_warp`. Original
 pixel bytes, asset identity and crop remain unchanged. The `pixel_warp` edit
 replaces these controls, or clears them with `warp:null`. Snapshots, duplicate

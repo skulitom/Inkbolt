@@ -57,7 +57,7 @@ impl Fonts {
             if !valid_id(&b.font_id)
                 || b.family.trim() != b.family
                 || b.family.is_empty()
-                || b.family.len() > 256
+                || b.family.len() > crate::limits::svg_import::MAX_FONT_FAMILY_BYTES
                 || b.family.chars().any(char::is_control)
                 || b.weight < 100
                 || b.weight > 900
@@ -190,7 +190,8 @@ fn families(value: &str) -> Result<Vec<String>, Error> {
                 }
                 name.split_whitespace().collect::<Vec<_>>().join(" ")
             };
-            if result.is_empty() || result.len() > 256 {
+            if result.is_empty() || result.len() > crate::limits::svg_import::MAX_FONT_FAMILY_BYTES
+            {
                 return Err(invalid("Empty or excessive font family"));
             }
             Ok(result)
@@ -216,10 +217,15 @@ pub(super) fn styled(parent: &LabelStyle, p: &BTreeMap<&str, &str>) -> Result<La
             "font-family" => s.families = families(v)?,
             "font-size" => {
                 s.size = relative_length(v, parent.size, parent.size)?;
-                if !(0.01..=1024.0).contains(&s.size) {
-                    return Err(unsupported(
-                        "Font size must resolve to 0.01..1024 user units",
-                    ));
+                if !(crate::limits::text::MIN_FONT_SIZE
+                    ..=f64::from(crate::limits::text::MAX_FONT_SIZE))
+                    .contains(&s.size)
+                {
+                    return Err(unsupported(format!(
+                        "Font size must resolve to {}..{} user units",
+                        crate::limits::text::MIN_FONT_SIZE,
+                        crate::limits::text::MAX_FONT_SIZE
+                    )));
                 }
             }
             "font-style" => {

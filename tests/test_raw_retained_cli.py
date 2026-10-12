@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 import test_raw_cli as raw
 from test_sample_conversion_cli import values
@@ -75,6 +76,36 @@ class RetainedRawTests(unittest.TestCase):
     def reference(self,options=None,corrections=None):
         linear=raw.reference(self.capture,self.codes,options or raw.settings())
         return correction_reference(linear,9,7,corrections or {})
+
+    def test_advertised_neighborhood_and_lens_bounds(self):
+        caps = capabilities()['raw_development']['retained']; bounds = caps['correction_limits']
+        for kind in ('denoise', 'detail'):
+            for field, interval in [('radius', caps['neighborhood_radius']), ('threshold', bounds['threshold']),
+                                    ('amount', bounds['denoise_amount' if kind == 'denoise' else 'detail_amount'])]:
+                lo, hi = interval
+                for value, expected in [(lo, 0), (hi, 0), (lo-1, 1), (hi+1, 1)]:
+                    options = dict(radius=1, threshold=0, amount=0); options[field] = value
+                    result = self.retain(corrections={kind:options}, expected=expected)
+                    if expected: self.assertEqual(result['code'], 'INVALID_RAW')
+        lo, hi = bounds['focal_length']
+        for value, expected in [(lo, 0), (hi, 0), (lo/2, 1), (hi+1, 1)]:
+            result = self.retain(corrections=dict(lens=lens(focal=[value]*2)), expected=expected)
+            if expected: self.assertEqual(result['code'], 'INVALID_RAW')
+        for field, key, count in [('radial', 'radial_coefficient', 3), ('tangential', 'tangential_coefficient', 2)]:
+            lo, hi = bounds[key]
+            for value, expected in [(lo, 0), (hi, 0), (lo-1, 1), (hi+1, 1)]:
+                vector = [value]+[0]*(count-1)
+                options = lens(focal=[bounds['focal_length'][1]]*2, **{field:vector})
+                result = self.retain(corrections=dict(lens=options), expected=expected)
+                if expected: self.assertEqual(result['code'], 'INVALID_RAW')
+        maximum = bounds['jacobian_perturbation_maximum_exclusive']
+        # 9x7 sensor, origin center, 10-pixel focal lengths: r^2=(8/10)^2+(6/10)^2=1.
+        # Tangential-only perturbation is exactly 8*|p1|, isolating the exclusive bound.
+        for value, expected in [(maximum/2, 0), (maximum, 1)]:
+            options = lens(center=[0,0], focal=[10,10], tangential=[value/8,0])
+            result = self.retain(corrections=dict(lens=options), expected=expected)
+            if expected: self.assertEqual(result['code'], 'UNSUPPORTED_LENS_MAP')
+
 
     def test_exact_sensor_padding_retained_and_basic_parity_without_external_source(self):
         d=self.retain();spec=d['items'][0]['content']['raw']

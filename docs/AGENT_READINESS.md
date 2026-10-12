@@ -2,7 +2,55 @@
 
 Accepted 9 October 2026. This work improves practical agent use without changing the original 167 engine checkpoints or awarding them credit for interface work. [features.json](features.json) governs engine completion. Completion of this plan requires current evidence for every gate below; implemented pieces, documentation and narrow fixtures alone do not establish the entire gate.
 
+## Accepted execution update
+
+On 11 October 2026 the owner adopted [FIX_PLAN.md](../FIX_PLAN.md) as the
+primary development plan for this active goal and explicitly accepted its
+recommended defaults D1-D7. The owner reaffirmed that it takes priority over
+every earlier plan: its scope, decisions, priorities and workstream order govern
+implementation. This document supplies supporting readiness context; resolve
+planning conflicts in favor of FIX_PLAN.md. As that plan explicitly requires,
+all A1-A7 acceptance gates, original checkpoint criteria, B01-B20 outcomes,
+matched sister-project comparisons and existing recovery guarantees remain
+required. W9's optional learned-model integration stays deferred.
+
+W0's shared limit definitions are complete. Continue with W1 platform support, W2 actual
+model trials with a separate no-engine baseline, and W5.1 payload deduplication.
+Continue through everyday vector inputs, declared-tolerance curved booleans,
+larger native raster workflows, measured interface improvements, distribution,
+broader interchange admission and evidence-based documentation in the plan's
+dependency order. Technical findings in the dated plan must be checked against
+current source before implementation.
+
+The accepted choices are automatic booleans with explicitly reported
+approximation; a separate public CI guard that never replaces the local private
+guard; opt-in SVG omission with located losses and failure as the default;
+no learned-model plugin; verified core/CLI/MCP/receipt support on Unix before
+durable-job parity; GitHub binaries and source installation first; and an
+8192x8192 raster target with a 512 MiB peak-commit ceiling for the 50 MP native
+16-bit edit/export workload. These are targets, not current feature claims.
+
+The owner has already authorized verified commits and pushes directly to `main`.
+Preserve the [2-3 minute development loop](DEVELOPMENT_LOOP.md), separate thorough
+milestone acceptance, unchanged existing measurement suites and content-bound
+evidence. Complete the whole goal only when both the workstreams in FIX_PLAN
+and all original delivery gates have current acceptance evidence.
+
+The owner additionally requested Linux execution and testing using WSL.
+The current W1 slice adds native Linux verification of core/CLI/MCP, sessions and
+receipts, with visible capability-based job skips and independent caches.
+See [platform support](PLATFORMS.md). W0 now also has fresh full Windows/Linux
+acceptance. macOS, CI activation, Linux jobs and release/scale evidence remain open.
+
 ## Delivery gates
+
+W0 is complete: resource, admission, numerical and work-accounting policies
+share the central catalog across document admission, editing, parsers, rendering,
+delivery, storage and jobs. Existing Rust module paths are preserved. The
+generated [limit reference](LIMITS.md), compiled-value checks, capability bindings
+and boundary fixtures track the enforced definitions. The source audit and fresh
+full Windows/Linux acceptance are recorded in [FIX_PLAN.md](../FIX_PLAN.md).
+This consolidation raises no limits and awards no engine or readiness gate credit.
 
 | Gate | Required behavior and evidence | Current state |
 | --- | --- | --- |
@@ -10,7 +58,7 @@ Accepted 9 October 2026. This work improves practical agent use without changing
 | A2 Efficient interface | Compact catalog <=96 KiB; focused schemas; workspace defaults and explicit roots; pinned saved references; create-only document files; ordinary receipt target <=8 KiB; pagination/field selection; images without duplicate textual payloads; CLI parity | Implemented with contract checks: discovery, workspaces, pinned references/files, compact receipts, content-bound selected pages and explicit preview transport; final cross-workflow gate audit remains |
 | A3 Editing and review | Revision-safe session dry runs; selected-region/artboard previews with coordinate mapping; contact sheets and visual/structural differences; actionable checks/errors; export preflight; seeded-problem repair without unintended changes | Implemented with contract checks: checked dry runs, structural/numerical/visual differences, mapped previews/contact sheets, bounded located checks and exact export preflight; scripted seeded repairs preserve text, unrelated artwork, source files and historical revisions. Complete gate audit remains |
 | A4 Recovery | Durable bounded jobs, pinned inputs, progress/wait/cancel; durable publication receipts; checked backups, explicit migrations, recovery and history continuation; interruption/concurrency/retry evidence | Windows recovery implementation and contract/workflow audit complete: exact receipts, contained pinned exports, checked history, preserved later restoration edits, resource-cache interruption boundaries and complete CLI/MCP recovery. See [recovery acceptance](RECOVERY_CONTRACTS.md). Revalidate after relevant storage/engine changes; model trials and the overall goal remain open |
-| A5 Practical scale | Multi-megapixel raster editing, common screen/print outputs and thousands of mixed objects; retained precision/editability; chunked/shared storage, bounded incremental evaluation and identity-bound caches; measured latency/memory and independent fidelity | [Native block documents](NATIVE_SAMPLE_STORAGE.md) support opt-in multi-megapixel imports, exact local patches and history. [Tiled evaluation](RENDER_QUALITY.md) adds full-size screen/social/print images and bounded native TIFF strips for a declared subset. Conservative spatial evaluation covers the fixed 5,001-object mixed fixture and bounded hierarchy/clip/text cases. The [release workload driver and measured regression gates](WORKLOAD_MEASUREMENT.md) cover the fixed seven-workload suite. Neighboring-tile traversal reuses the fixed native cache in a separate 2560x1440 composition with clipped annotations and exact local edit/history checks; its wider baseline has separate content-bound regression budgets. The explicit [large raster profile](LARGE_RASTER.md) combines native images with 5,000 vector/raster annotations in an independently checked edit/history workload with its own budget contract. Bounded filter neighborhoods now cover box, Gaussian, directional and surface filters, including exact two-megapixel blur/edit/history samples and separate measured budgets. Bounded shadows, strokes and overlays preserve the existing effect controls across tiles; a separate two-megapixel translucent shadow/edit/history workload checks native channels and has its own measured budget. Native clone/heal edits now share bounded regional buffers and pure stored patches; an original two-megapixel texture/edit/history workload has a separate measured gate. Native paint, erase, smudge and mixer strokes now use bounded local windows and preserve all six native formats; a separate two-megapixel four-mode edit/history workload checks every output channel and records measured budgets. PNG imports decode ordinary or Adam7 pass rows and native TIFF imports decode chunk bands directly into native blocks with unchanged precision, canonical identities and publication boundaries. Encoded input and pending blocks remain resident; Adam7 retains all unfinished blocks plus one coverage bit per pixel, while TIFF chunk size is source-defined and can cover the complete frame. Detail, local creative and spatial filters now preserve full-viewport coordinates across bounded tiles and shortened native strips; an independently checked two-megapixel native sharpening/edit/history workload has its own measurement driver and budget contract. Nonlocal/wrapped filters, streaming imports for remaining formats, remaining native operators, representative production compositions and persistent caches remain open; these bounded gates do not establish complete A5 acceptance |
+| A5 Practical scale | Multi-megapixel raster editing, common screen/print outputs and thousands of mixed objects; retained precision/editability; chunked/shared storage, bounded incremental evaluation and identity-bound caches; measured latency/memory and independent fidelity | [Native block documents](NATIVE_SAMPLE_STORAGE.md) support opt-in multi-megapixel imports, exact local patches and history. [Tiled evaluation](RENDER_QUALITY.md) adds full-size screen/social/print images and bounded native TIFF strips for a declared subset. Conservative spatial evaluation covers the fixed 5,001-object mixed fixture and bounded hierarchy/clip/text cases. The [release workload driver and measured regression gates](WORKLOAD_MEASUREMENT.md) cover the fixed seven-workload suite. Neighboring-tile traversal reuses the fixed native cache in a separate 2560x1440 composition with clipped annotations and exact local edit/history checks; its wider baseline has separate content-bound regression budgets. The explicit [large raster profile](LARGE_RASTER.md) combines native images with 5,000 vector/raster annotations in an independently checked edit/history workload with its own budget contract. Bounded filter neighborhoods now cover box, Gaussian, directional and surface filters, including exact two-megapixel blur/edit/history samples and separate measured budgets. Bounded shadows, strokes and overlays preserve the existing effect controls across tiles; a separate two-megapixel translucent shadow/edit/history workload checks native channels and has its own measured budget. Native clone/heal edits now share bounded regional buffers and pure stored patches; an original two-megapixel texture/edit/history workload has a separate measured gate. Native paint, erase, smudge and mixer strokes now use bounded local windows and preserve all six native formats; a separate two-megapixel four-mode edit/history workload checks every output channel and records measured budgets. PNG imports decode ordinary or Adam7 pass rows and native TIFF imports decode chunk bands directly into native blocks with unchanged precision, canonical identities and publication boundaries. Encoded input and pending blocks remain resident; Adam7 retains all unfinished blocks plus one coverage bit per pixel, while TIFF chunk size is source-defined and can cover the complete frame. Detail, local creative and spatial filters now preserve full-viewport coordinates across bounded tiles and shortened native strips; an independently checked two-megapixel native sharpening/edit/history workload has its own measurement driver and budget contract. Radial and twist filters now use bounded source dependencies through ordered stacks, containers and clipped siblings, with peak storage and shorter native codec bands accounted separately. Wrapped filters, streaming imports for remaining formats, remaining native operators, representative production compositions and persistent caches remain open; these bounded gates do not establish complete A5 acceptance |
 | A6 Original engine scope | Independently verify all six originally remaining checkpoints without weakening acceptance | 163/167: the original [basic native vector acceptance](NATIVE_VECTOR_ACCEPTANCE.md) and [large-vector resource acceptance](VECTOR_RESOURCE_ACCEPTANCE.md) are verified; four checkpoints remain. See implementation registry |
 | A7 Complete workflows | Tested agent instructions, recipes and typed presets; versioned content-bound still/sequence handoff with explicit linked revisions; release builds, local diagnostics and gates for every claimed platform | [Versioned handoffs](HANDOFF.md) now bind editable source, still/sequence PNGs and an explicit Cutbolt scene, with checked predecessor revisions and complete-file inspection. The runnable linked-revision example retains old deliveries. [Typed presets](PRESETS.md) add fixed screen/social and physical-page recipes with explicit policies and a tested reviewed-edit/publication workflow. Broader workflow packaging, actual model trials, release/platform gates and the full gate audit remain open |
 

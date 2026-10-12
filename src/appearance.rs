@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
-pub const MAX_PASSES: usize = 16;
+pub use crate::limits::appearance::MAX_PASSES;
+use crate::limits::warps as warp_bounds;
 fn one() -> f64 {
     1.0
 }
@@ -13,7 +14,7 @@ fn yes() -> bool {
     true
 }
 fn tolerance() -> f64 {
-    0.01
+    warp_bounds::DEFAULT_TOLERANCE
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -59,7 +60,9 @@ fn warp(s: &Spec, p: &Pass) -> crate::warps::Spec {
 }
 pub(crate) fn stored(s: &Spec) -> Result<usize, Error> {
     if s.passes.is_empty() || s.passes.len() > MAX_PASSES {
-        return Err(limit("Appearance requires 1..16 ordered paint passes"));
+        return Err(limit(&format!(
+            "Appearance requires 1..{MAX_PASSES} ordered paint passes"
+        )));
     }
     let mut ids = HashSet::new();
     let mut commands = geometry::validate_geometry(&s.geometry)?;
@@ -70,10 +73,15 @@ pub(crate) fn stored(s: &Spec) -> Result<usize, Error> {
         if p.fill.is_none() && p.stroke.is_none() {
             return Err(invalid("Each appearance pass requires a fill or stroke"));
         }
-        if !p.tolerance.is_finite() || !(0.000001..=1.0).contains(&p.tolerance) {
-            return Err(invalid(
-                "Appearance vector tolerance must be in 0.000001..=1",
-            ));
+        if !p.tolerance.is_finite()
+            || !(warp_bounds::MIN_TOLERANCE..=f64::from(warp_bounds::MAX_TOLERANCE))
+                .contains(&p.tolerance)
+        {
+            return Err(invalid(&format!(
+                "Appearance vector tolerance must be in {}..={}",
+                warp_bounds::MIN_TOLERANCE,
+                warp_bounds::MAX_TOLERANCE
+            )));
         }
         if p.filters
             .iter()
@@ -284,7 +292,7 @@ pub(crate) fn bake(
             "Appearance baking currently requires encoded-sRGB working space",
         ));
     }
-    if !(1..=4).contains(&region.scale)
+    if !(1..=crate::limits::render_quality::MAX_SCALE).contains(&region.scale)
         || region.width == 0
         || region.height == 0
         || region.width > MAX_DIMENSION
@@ -292,9 +300,10 @@ pub(crate) fn bake(
         || region.width as u64 * region.height as u64 * (region.scale as u64).pow(2)
             > MAX_STORED_PIXELS as u64
     {
-        return Err(limit(
-            "Appearance baking requires scale 1..4 and at most 65536 embedded pixels",
-        ));
+        return Err(limit(&format!(
+            "Appearance baking requires scale 1..{} and at most {MAX_STORED_PIXELS} embedded pixels",
+            crate::limits::render_quality::MAX_SCALE
+        )));
     }
     geometry::validate_geometry(&Geometry::Rect {
         x: region.origin[0],

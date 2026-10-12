@@ -2,8 +2,8 @@
 use super::*;
 use crate::paint::{Field, Interpolation, Spread, Stop};
 
-pub const MAX_DEFINITIONS: usize = 64;
-pub const MAX_REFERENCE_DEPTH: usize = 16;
+pub use crate::limits::svg_import_definitions::MAX_DEFINITIONS;
+pub use crate::limits::svg_import_definitions::MAX_REFERENCE_DEPTH;
 
 pub(super) fn reference(value: &str) -> Result<Option<&str>, Error> {
     if !value.starts_with("url(") {
@@ -160,7 +160,7 @@ impl Definitions {
         if self.gradients.len() + self.clips.len() + self.masks.len() >= MAX_DEFINITIONS {
             return Err(Error::new(
                 "RESOURCE_LIMIT",
-                "SVG exceeds 64 gradient/clip/mask definitions",
+                format!("SVG exceeds {MAX_DEFINITIONS} gradient/clip/mask definitions"),
             ));
         }
         let name = id(node)?;
@@ -287,7 +287,7 @@ impl Definitions {
             if stops.len() > crate::paint::MAX_STOPS {
                 return Err(Error::new(
                     "RESOURCE_LIMIT",
-                    "SVG gradient exceeds 64 stops",
+                    format!("SVG gradient exceeds {} stops", crate::paint::MAX_STOPS),
                 ));
             }
         }
@@ -372,7 +372,7 @@ impl Definitions {
         if stack.len() >= MAX_REFERENCE_DEPTH {
             return Err(Error::new(
                 "RESOURCE_LIMIT",
-                "SVG gradient reference chain exceeds 16 definitions",
+                format!("SVG gradient reference chain exceeds {MAX_REFERENCE_DEPTH} definitions"),
             ));
         }
         let mut g = self

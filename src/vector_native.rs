@@ -5,12 +5,12 @@ mod names;
 mod pdf_read;
 mod tokens;
 mod write;
+pub use crate::limits::vector_native::MAX_BLOCKS;
+pub use crate::limits::vector_native::MAX_DECODED_BYTES;
+pub use crate::limits::vector_native::MAX_SOURCE_BYTES;
 use crate::{Error, control::Control};
 use std::io::Read;
 pub use write::export;
-pub const MAX_SOURCE_BYTES: usize = 16 * 1024 * 1024;
-pub const MAX_DECODED_BYTES: usize = 16 * 1024 * 1024;
-pub const MAX_BLOCKS: usize = 256;
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ColorPolicy {
@@ -81,7 +81,10 @@ pub struct Decoded {
 /// Validate framing before interpreting editable artwork. Preview streams are never interpreted.
 pub fn decode(bytes: &[u8], control: &Control) -> Result<Decoded, Error> {
     if bytes.len() > MAX_SOURCE_BYTES {
-        return Err(limit("Native vector source exceeds 16 MiB"));
+        return Err(limit(&format!(
+            "Native vector source exceeds {} MiB",
+            MAX_SOURCE_BYTES as f64 / 1_048_576.0
+        )));
     }
     control.check()?;
     if bytes.starts_with(b"%!PS-") {
@@ -167,7 +170,11 @@ pub fn decode(bytes: &[u8], control: &Control) -> Result<Decoded, Error> {
     if container.keys().any(|key| !known.contains(key)) {
         return Err(unsupported("Unknown editable-vector container field"));
     }
-    let metadata = pdf.stream(pdf_read::field(container, b"AIMetaData")?, 65536, control)?;
+    let metadata = pdf.stream(
+        pdf_read::field(container, b"AIMetaData")?,
+        crate::limits::vector_native::MAX_METADATA_BYTES,
+        control,
+    )?;
     let data = if compressed {
         let source = encoded
             .strip_prefix(b"%AI24_ZStandard_Data")
@@ -182,7 +189,10 @@ pub fn decode(bytes: &[u8], control: &Control) -> Result<Decoded, Error> {
         .map_err(|_| invalid("Invalid native compression frame"))?;
         let declared_size = (source[4] & 0xe0 != 0).then(|| decoder.decoder.content_size());
         if declared_size.is_some_and(|n| n > MAX_DECODED_BYTES as u64) {
-            return Err(limit("Declared native frame size exceeds 16 MiB"));
+            return Err(limit(&format!(
+                "Declared native frame size exceeds {} MiB",
+                MAX_DECODED_BYTES as f64 / 1_048_576.0
+            )));
         }
         let mut data = Vec::new();
         let mut buffer = [0u8; 16384];
@@ -195,7 +205,10 @@ pub fn decode(bytes: &[u8], control: &Control) -> Result<Decoded, Error> {
                 break;
             }
             if data.len() + n > MAX_DECODED_BYTES {
-                return Err(limit("Decoded native vector exceeds 16 MiB"));
+                return Err(limit(&format!(
+                    "Decoded native vector exceeds {} MiB",
+                    MAX_DECODED_BYTES as f64 / 1_048_576.0
+                )));
             }
             data.extend_from_slice(&buffer[..n]);
         }

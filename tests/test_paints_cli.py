@@ -4,6 +4,7 @@ import copy
 import json
 import math
 import unittest
+from advertised_limits import capabilities
 import xml.etree.ElementTree as ET
 import test_editing_cli as editing
 from test_editing_cli import png_pixels
@@ -52,6 +53,19 @@ def gradient_color(element, point):
 
 class PaintCliTests(unittest.TestCase):
     invoke = editing.EditingCliTests.invoke
+
+    def test_gradient_admission_uses_independent_advertised_minima(self):
+        bounds = capabilities()['paint_limits']
+        stops = [dict(offset=0, color=[0,0,0,255]), dict(offset=1, color=[255,255,255,255])]
+        document = self.invoke(dict(command='document.create', id='paint-bounds', kind='vector', width=2, height=2))
+        for field, make in [
+                ('minimum_linear_span', lambda n: dict(type='linear', start=[0,0], end=[n,0], stops=stops)),
+                ('minimum_radial_radius', lambda n: dict(type='radial', center=[0,0], radius=n, stops=stops)),
+                ('minimum_anchor_separation', lambda n: dict(type='freeform', anchors=[dict(point=[0,0], color=[0,0,0,255]), dict(point=[n,0], color=[255,255,255,255])]))]:
+            for factor, expected in ((1,0),(.5,1)):
+                document['items'] = [dict(id='paint', content=dict(type='vector', geometry=dict(shape='rect', x=0, y=0, width=1, height=1), fill=make(bounds[field]*factor)))]
+                result = self.invoke(dict(command='document.validate', document=document), expected)
+                if expected: self.assertEqual(result['code'], 'INVALID_DOCUMENT')
 
     def test_exported_gradient_svg_matches_all_independently_decoded_png_pixels(self):
         stops = [dict(offset=0,color=[255,20,0,255]),dict(offset=1,color=[0,60,255,64])]

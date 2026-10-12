@@ -2,18 +2,19 @@
 use super::*;
 use num_traits::Signed;
 
-pub(super) const MAX_ROOT_DEPTH: usize = 96;
-pub(super) const MAX_COEFFICIENT_BITS: u64 = 4096;
+pub(super) use crate::limits::booleans_topology_algebraic_roots::MAX_COEFFICIENT_BITS;
+use crate::limits::booleans_topology_algebraic_roots::MAX_POLYNOMIAL_DEGREE;
+pub(super) use crate::limits::booleans_topology_algebraic_roots::MAX_ROOT_DEPTH;
 
 pub(super) fn bounded(p: &[R]) -> Result<(), Error> {
-    if p.len() > 19
+    if p.len() > MAX_POLYNOMIAL_DEGREE + 1
         || p.iter().any(|v| {
             v.numer().bits() > MAX_COEFFICIENT_BITS || v.denom().bits() > MAX_COEFFICIENT_BITS
         })
     {
-        return Err(limit(
-            "Boolean contact polynomials exceed degree 18 or 4096-bit coefficients",
-        ));
+        return Err(limit(&format!(
+            "Boolean contact polynomials exceed degree {MAX_POLYNOMIAL_DEGREE} or {MAX_COEFFICIENT_BITS}-bit coefficients"
+        )));
     }
     Ok(())
 }

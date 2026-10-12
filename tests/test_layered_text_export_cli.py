@@ -6,6 +6,7 @@ import layered_delivery_reader as objects
 import layered_text_delivery_reader as reader
 import test_layered_cli as core
 from test_mcp import Client
+from platform_support import requires_capability
 
 POLICY=dict(text=dict(reconstruction='native_layout',shape_owner='OriginalFixture'))
 
@@ -142,7 +143,14 @@ class LayeredTextExportTests(unittest.TestCase):
         path=self.root/'failed.psd';output=dict(output_root=str(self.root),file_name=path.name,format='layered',layered_options=POLICY)
         r=self.invoke(dict(command='document.preflight',document=d,resources=dict(font_root=str(self.store)),output=output))
         self.assertFalse(r['ready']);self.assertFalse(path.exists())
+    def test_mcp_session_preflight_restart_history_and_create_only_without_job(self):
+        self.delivery_workflow(False)
+
+    @requires_capability('jobs')
     def test_mcp_session_preflight_restart_job_history_and_create_only(self):
+        self.delivery_workflow(True)
+
+    def delivery_workflow(self, with_job):
         d=self.scene('Aé😀B');before=copy.deepcopy(d);resources=dict(font_root=str(self.store))
         session=dict(session_root=str(self.root/'sessions'),session_id='textdelivery');output=dict(output_root=str(self.root),file_name='editable.psd',format='layered',layered_options=POLICY)
         c=Client();c.initialize()
@@ -156,18 +164,19 @@ class LayeredTextExportTests(unittest.TestCase):
             edit=dict(request_id='hide',expected_revision=0,action=dict(type='edit',operations=[dict(op='properties',id='text',visible=False)]))
             c.success('session.apply',**session,**edit);c.success('session.apply',**session,request_id='undo',expected_revision=1,action=dict(type='undo'))
             job=dict(job_root=str(self.root/'jobs'),request_id='delivery',document=d,resources=resources,output=dict(output,file_name='background.psd'))
-            c.success('job.start',**job)
+            if with_job: c.success('job.start',**job)
         finally:c.close()
         c=Client();c.initialize()
         try:
             self.assertTrue(c.success('session.apply',**session,**edit)['replayed']);self.assertTrue(c.success('session.verify',**session)['valid'])
-            deadline=time.monotonic()+20
-            while True:
-                state=c.success('job.wait',job_root=job['job_root'],request_id='delivery',wait_ms=1000)
-                if state['state'] not in ['queued','running']:break
-                self.assertLess(time.monotonic(),deadline)
-            self.assertEqual(state['state'],'completed',state);self.assertEqual((self.root/'background.psd').read_bytes(),raw)
-            self.assertEqual(c.success('job.result',job_root=job['job_root'],request_id='delivery')['sha256'],published['sha256']);self.assertTrue(c.success('job.start',**job)['replayed'])
+            if with_job:
+                deadline=time.monotonic()+20
+                while True:
+                    state=c.success('job.wait',job_root=job['job_root'],request_id='delivery',wait_ms=1000)
+                    if state['state'] not in ['queued','running']:break
+                    self.assertLess(time.monotonic(),deadline)
+                self.assertEqual(state['state'],'completed',state);self.assertEqual((self.root/'background.psd').read_bytes(),raw)
+                self.assertEqual(c.success('job.result',job_root=job['job_root'],request_id='delivery')['sha256'],published['sha256']);self.assertTrue(c.success('job.start',**job)['replayed'])
         finally:c.close()
         self.assertEqual(d,before)
 

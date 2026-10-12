@@ -69,7 +69,7 @@ impl Context<'_> {
                 .zip(filtered.values.chunks_exact(n + 1))
                 .enumerate()
             {
-                if pixel.is_multiple_of(4096) {
+                if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     self.control.check()?;
                 }
                 let q = f.opacity * mask.as_ref().map_or(1.0, |m| m.sample(self.point(pixel)));

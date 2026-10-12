@@ -8,11 +8,12 @@ use std::{
     path::Path,
 };
 
-pub const MAX_PIXELS: usize = 65_536;
-pub const MAX_SEEDS: usize = 32;
-pub const MAX_WORK: u64 = 67_108_864;
+use crate::limits::assistance_segment as limits;
+pub use crate::limits::assistance_segment::MAX_PIXELS;
+pub use crate::limits::assistance_segment::MAX_SEEDS;
+pub use crate::limits::assistance_segment::MAX_WORK;
 fn default_weight() -> u32 {
-    4096
+    limits::DEFAULT_WEIGHT
 }
 fn invalid(message: &str) -> Error {
     Error::new("INVALID_ASSISTANCE", message)
@@ -41,15 +42,16 @@ impl Work<'_> {
         if self.count > MAX_WORK {
             return Err(Error::new(
                 "RESOURCE_LIMIT",
-                "Local selection exceeds 67108864 work units",
+                format!("Local selection exceeds {MAX_WORK} work units"),
             ));
         }
-        if self.count >> 11 != before >> 11 {
+        if self.count / limits::CONTROL_WORK_INTERVAL != before / limits::CONTROL_WORK_INTERVAL {
             self.control.check()?;
         }
         Ok(())
     }
 }
+
 struct Grid {
     width: u32,
     height: u32,
@@ -145,7 +147,7 @@ fn size(width: u32, height: u32) -> Result<(), Error> {
     if width == 0 || height == 0 || width as u64 * height as u64 > MAX_PIXELS as u64 {
         return Err(Error::new(
             "RESOURCE_LIMIT",
-            "Local selection requires 1..65536 native pixels",
+            format!("Local selection requires 1..{MAX_PIXELS} native pixels"),
         ));
     }
     Ok(())
@@ -286,16 +288,18 @@ fn evaluate(
             "Local selection currently requires encoded sRGB input",
         ));
     }
-    if options.smoothness > 65535
-        || !(1..=260100).contains(&options.edge_scale)
+    if options.smoothness > limits::MAX_SMOOTHNESS
+        || !(1..=limits::MAX_EDGE_SCALE).contains(&options.edge_scale)
         || options.foreground.is_empty()
         || options.background.is_empty()
         || options.foreground.len() > MAX_SEEDS
         || options.background.len() > MAX_SEEDS
     {
-        return Err(invalid(
-            "Provide 1..32 seeds per class, smoothness 0..65535 and edge_scale 1..260100",
-        ));
+        return Err(invalid(&format!(
+            "Provide 1..{MAX_SEEDS} seeds per class, smoothness 0..{} and edge_scale 1..{}",
+            limits::MAX_SMOOTHNESS,
+            limits::MAX_EDGE_SCALE
+        )));
     }
     let grid = grid(document, id, root)?;
     let n = grid.width as usize * grid.height as usize;
@@ -451,4 +455,25 @@ pub(crate) fn apply(
     let (mask, report) = evaluate(document, id, options, root, control)?;
     document.items[i].mask = Some(Box::new(mask));
     Ok(report)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn limits_selection_checks_cancellation_at_and_across_work_boundaries() {
+        let interval = limits::CONTROL_WORK_INTERVAL;
+        for crossing in [1, interval, 2 * interval + 1] {
+            let control = Control::default();
+            let mut work = Work {
+                count: 0,
+                control: &control,
+            };
+            work.add(interval - 2).unwrap();
+            control.cancel();
+            work.add(1).unwrap();
+            assert_eq!(work.add(crossing).unwrap_err().code, "CANCELLED");
+        }
+    }
 }

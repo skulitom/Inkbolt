@@ -1,5 +1,12 @@
 # Ordered image sequences
 
+GIF delivery reports its literal-only LZW reset interval in
+`capabilities.image_io.gif.literal_run`. The catalogued interval preserves
+fixed nine-bit output codes and exact palette indices. Input decoding continues
+to support variable-width dictionary streams independently of this output policy.
+
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Agents can import an explicitly ordered image collection or animated PNG, retain editable frame states, inspect exact durations, deliver PNG files or APNG and reopen any frame as an editable still. All commands share the Rust library, JSON CLI and MCP stdio. No playback service or network connection is involved.
 
 ## Frame model and editing

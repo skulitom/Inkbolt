@@ -1,7 +1,7 @@
 //! Original bounded evaluation of ICC gamut tables, independent of round trips.
 use super::*;
 
-pub const MAX_SAMPLES: usize = 4096;
+pub use crate::limits::profiles_gamut::MAX_SAMPLES;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
@@ -112,7 +112,9 @@ impl Gamut {
                 } else {
                     (52, reader.short(48)?, reader.short(50)?, 2)
                 };
-                if !(2..=4096).contains(&ni) || !(2..=4096).contains(&no) {
+                if !(2..=crate::limits::profiles::MAX_LUT_CURVE_ENTRIES).contains(&ni)
+                    || !(2..=crate::limits::profiles::MAX_LUT_CURVE_ENTRIES).contains(&no)
+                {
                     return Err(invalid());
                 }
                 let input = (0..3)
@@ -295,7 +297,9 @@ pub fn inspect(
 ) -> Result<Value, Error> {
     control.check()?;
     if xyz.len() > MAX_SAMPLES {
-        return Err(limit("Gamut inspection exceeds 4096 samples"));
+        return Err(limit(&format!(
+            "Gamut inspection exceeds {MAX_SAMPLES} samples"
+        )));
     }
     let bytes = cmyk::read_source(profile)?;
     let gamut = Gamut::new(&bytes, intent)?.ok_or_else(|| {
@@ -306,7 +310,7 @@ pub fn inspect(
     })?;
     let mut samples = Vec::with_capacity(xyz.len());
     for (i, p) in xyz.iter().enumerate() {
-        if i.is_multiple_of(256) {
+        if i.is_multiple_of(crate::limits::profiles_gamut::SAMPLE_CHECK_INTERVAL) {
             control.check()?;
         }
         let mut value = gamut.classify(*p)?.receipt();

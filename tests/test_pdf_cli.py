@@ -13,6 +13,8 @@ import test_bidi_text_cli as bidi
 import test_font_controls_cli as font_controls
 import test_metadata_cli as metadata
 from pdf_reader import Pdf, Ref
+from advertised_limits import capabilities
+import math
 
 
 class PdfTests(unittest.TestCase):
@@ -63,10 +65,14 @@ class PdfTests(unittest.TestCase):
         d=self.fixture();d['resolution_ppi']=144
         a=self.export(d);self.assertEqual(Pdf(a).pages[0]['MediaBox'],[0,0,16,12])
         self.assertEqual(a['pages'][0]['physical_points'],[16,12])
-        large=copy.deepcopy(d);large.update(width=32768,height=16384,resolution_ppi=1)
+        caps = capabilities(); size = caps['limits']['dimension_pixels']; ppi = caps['limits']['resolution_ppi'][0]
+        large=copy.deepcopy(d);large.update(width=size,height=size//2,resolution_ppi=ppi)
         p=Pdf(self.export(large));u=p.pages[0]['UserUnit']
-        self.assertEqual(u,164);self.assertLessEqual(max(p.pages[0]['MediaBox']),14400)
-        self.assertAlmostEqual(p.pages[0]['MediaBox'][2]*u,32768*72)
+        maximum = caps['pdf']['maximum_page_coordinate']
+        self.assertEqual(u, math.ceil(size*72/ppi/maximum))
+        self.assertLessEqual(max(p.pages[0]['MediaBox']), maximum)
+        self.assertLessEqual(u, caps['pdf']['maximum_user_unit'])
+        self.assertAlmostEqual(p.pages[0]['MediaBox'][2]*u, size*72/ppi)
 
     def test_compound_winding_cubics_and_transforms_remain_paths(self):
         d=self.fixture();d['items']=[]

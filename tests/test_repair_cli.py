@@ -10,6 +10,7 @@ import unittest
 import test_editing_cli as editing
 import test_retouch_cli as retouch
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def region(x,y,w,h,mask=None):
@@ -218,9 +219,69 @@ class RepairTests(unittest.TestCase):
         a=dict(type='edge_correct',guide_id='source',radius=3,range_sigma=.1,max_change_rms=1);o=options(r,a,use_selection=True);result=self.apply(d,o)
         coverage=[v*s/255 for v,s in zip(weights(r,w,h),selection)];expected,_,_=guided_reference(dst,src,w,h,3,a,coverage);self.close_pixels(self.colors(result['document']),expected);self.assertEqual(result['document']['items'][1],d['items'][1]);self.assertEqual(result['document']['selection'],d['selection'])
 
+    def test_advertised_patch_fill_and_guide_boundaries(self):
+        caps = capabilities()['repair']
+        side = 2*caps['fill_patch_radius'][1]+1
+        pixels = [[40, 60, 80, 255]]*(side*side)
+        d = self.document(side, side, pixels, pixels)
+        selected = region(side//2, side//2, 1, 1)
+        for key, field in [('patch_radius', 'fill_patch_radius'), ('synthesized_weight', 'synthesized_weight')]:
+            lo, hi = caps[field]
+            for value in (lo, hi, lo/2 if key == 'synthesized_weight' else lo-1, hi+1):
+                f = fill('source'); f[key] = value
+                request = options(selected, dict(type='fill', fill=f))
+                with self.subTest(key=key, value=value):
+                    if lo <= value <= hi:
+                        self.assertEqual(self.colors(self.apply(d, request)['document']), pixels)
+                    else:
+                        self.assertEqual(self.apply(d, request, 1)['code'], 'INVALID_REPAIR')
+        base = options(selected, dict(type='fill', fill=fill('source')))
+        explicit = copy.deepcopy(base)
+        explicit['action']['fill']['synthesized_weight'] = caps['default_synthesized_weight']
+        self.assertEqual(self.apply(d, base), self.apply(d, explicit))
+
+        for key, field in [('search_radius', 'patch_search_radius'), ('context_radius', 'patch_context_radius')]:
+            lo, hi = caps[field]
+            for value in (lo, hi, hi+1):
+                action = dict(type='patch', source_id='source', source_origin=[side//2]*2,
+                              max_context_rms=0, blend=dict(type='clone'))
+                action[key] = value
+                request = options(selected, action)
+                with self.subTest(key=key, value=value):
+                    if value <= hi:
+                        self.assertEqual(self.colors(self.apply(d, request)['document']), pixels)
+                    else:
+                        self.assertEqual(self.apply(d, request, 1)['code'], 'INVALID_REPAIR')
+
+        # Empty coverage isolates control admission from data-dependent guide
+        # support: the theoretical support ceiling is not promised for a patch.
+        empty = region(0, 0, 1, 1, [0])
+        for key, field in [('radius', 'guide_radius'), ('range_sigma', 'guide_range_sigma'),
+                           ('minimum_effective_samples', 'guide_minimum_effective_samples')]:
+            lo, hi = caps[field]
+            for value in (lo, hi, lo/2 if key == 'range_sigma' else lo-1, hi+1):
+                action = dict(type='edge_correct', guide_id='source', radius=1, range_sigma=.1, max_change_rms=1)
+                action[key] = value
+                with self.subTest(key=key, value=value):
+                    if lo <= value <= hi:
+                        self.assertEqual(self.colors(self.apply(d, options(empty, action))['document']), pixels)
+                    else:
+                        self.assertEqual(self.apply(d, options(empty, action), 1)['code'], 'INVALID_REPAIR')
+        maximum = int(caps['patch_source_origin'][1])
+        for axis in (0, 1):
+            for value in (maximum, maximum+1):
+                origin = [0, 0]; origin[axis] = value
+                action = dict(type='patch', source_id='source', source_origin=origin,
+                              max_context_rms=0, blend=dict(type='clone'))
+                with self.subTest(axis=axis, origin=value):
+                    if value == maximum:
+                        self.assertEqual(self.colors(self.apply(d, options(empty, action))['document']), pixels)
+                    else:
+                        self.assertEqual(self.apply(d, options(empty, action), 1)['code'], 'INVALID_REPAIR')
+
     def test_strict_fields_limits_masks_guides_locks_and_batch_rollback(self):
         w=h=6;d=self.document(w,h,[[40,60,80,255]]*(w*h),[[90,110,130,255]]*(w*h));r=region(2,2,2,2)
-        bad=[dict(type='fill',fill=fill(radius=0)),dict(type='fill',fill=fill(error=2)),dict(type='fill',fill=fill(synthesized_weight=0)),dict(type='fill',fill=fill('source',donor_region=region(0,0,3,3,[128]*9))),dict(type='patch',source_id='source',source_origin=[1,1],search_radius=33,max_context_rms=1,blend=dict(type='clone')),dict(type='edge_correct',guide_id='source',radius=0,range_sigma=.1,max_change_rms=1)]
+        bad=[dict(type='fill',fill=fill(radius=0)),dict(type='fill',fill=fill(error=2)),dict(type='fill',fill=fill(synthesized_weight=0)),dict(type='fill',fill=fill('source',donor_region=region(0,0,3,3,[128]*9))),dict(type='patch',source_id='source',source_origin=[1,1],search_radius=capabilities()['repair']['patch_search_radius'][1]+1,max_context_rms=1,blend=dict(type='clone')),dict(type='edge_correct',guide_id='source',radius=0,range_sigma=.1,max_change_rms=1)]
         for a in bad:self.assertEqual(self.apply(d,options(r,a),1)['code'],'INVALID_REPAIR')
         self.assertEqual(self.apply(d,options(r,dict(type='fill',fill=fill(),unknown=True)),1)['code'],'INVALID_REQUEST')
         locked=copy.deepcopy(d);locked['items'][0]['locked']=True;self.assertEqual(self.apply(locked,options(r,dict(type='fill',fill=fill())),1)['code'],'LOCKED')

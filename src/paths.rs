@@ -231,9 +231,9 @@ pub(crate) fn edit(
             move_handles,
         } => {
             if points.is_empty() || points.len() > MAX_SEGMENTS {
-                return Err(error(
-                    "Anchor edit requires 1..=4096 unique command indices",
-                ));
+                return Err(error(&format!(
+                    "Anchor edit requires 1..={MAX_SEGMENTS} unique command indices"
+                )));
             }
             let mut seen = HashSet::new();
             for anchor in points {

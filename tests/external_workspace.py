@@ -11,9 +11,12 @@ def files(root):
     Directory links are not traversed. A root or file resolving into the source
     checkout is an error, so this helper cannot hide a repository dependency.
     """
-    root = Path(root).resolve(strict=True)
-    if not root.is_dir() or root.is_relative_to(CHECKOUT) or CHECKOUT.is_relative_to(root):
+    root = Path(root)
+    resolved = root.resolve(strict=True)
+    if not resolved.is_dir() or resolved.is_relative_to(CHECKOUT) or CHECKOUT.is_relative_to(resolved):
         raise ValueError('Test workspace inventory must stay outside the checkout')
+    # Validate canonical locations, but preserve the caller's path spelling in
+    # results so relative_to(root) also works with Windows short-name aliases.
     result = []
     for directory, _, names in os.walk(root, followlinks=False):
         for name in names:

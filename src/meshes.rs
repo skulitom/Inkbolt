@@ -8,14 +8,15 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-pub const MAX_AXIS: usize = 8;
-pub const MAX_SAMPLES: usize = 1024;
-pub const INVERSE_STEPS: usize = 128;
-pub const MAX_CONTRACTION: f64 = 0.75;
-pub const MAX_TEXTURE_PIXELS: usize = 65536;
-pub const MAX_SVG_TEXTURE_PIXELS: usize = 131072;
+pub use crate::limits::meshes::INVERSE_STEPS;
+pub use crate::limits::meshes::MAX_AXIS;
+pub use crate::limits::meshes::MAX_CONTRACTION;
+pub use crate::limits::meshes::MAX_SAMPLES;
+pub use crate::limits::meshes::MAX_SVG_TEXTURE_PIXELS;
+pub use crate::limits::meshes::MAX_TEXTURE_PIXELS;
+use crate::limits::meshes::{DEFAULT_SVG_SAMPLES_PER_CELL, MAX_SVG_SAMPLES_PER_CELL};
 fn texture_samples() -> u32 {
-    16
+    DEFAULT_SVG_SAMPLES_PER_CELL
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -144,7 +145,9 @@ fn limit_colors(jets: &mut [Jet<4>], w: usize, h: usize) {
             }
             // A small inward margin protects the control bounds from rounding.
             if factor < 1.0 {
-                factor = (factor - 16.0 * f64::EPSILON).max(0.0);
+                factor = (factor
+                    - f64::from(crate::limits::meshes::CONTROL_INSET_EPSILONS) * f64::EPSILON)
+                    .max(0.0);
             }
             j.u[c] *= factor;
             j.v[c] *= factor;
@@ -223,18 +226,20 @@ impl Mesh {
     pub fn texture_size(&self) -> Result<[usize; 2], Error> {
         if !(2..=MAX_AXIS).contains(&self.columns)
             || !(2..=MAX_AXIS).contains(&self.rows)
-            || !(1..=256).contains(&self.svg_samples_per_cell)
+            || !(1..=MAX_SVG_SAMPLES_PER_CELL).contains(&self.svg_samples_per_cell)
         {
-            return Err(limit(
-                "Mesh requires 2..8 rows/columns and 1..256 texture samples per cell",
-            ));
+            return Err(limit(&format!(
+                "Mesh requires 2..{MAX_AXIS} rows/columns and 1..{MAX_SVG_SAMPLES_PER_CELL} texture samples per cell"
+            )));
         }
         let size = [
             (self.columns - 1) * self.svg_samples_per_cell as usize,
             (self.rows - 1) * self.svg_samples_per_cell as usize,
         ];
         if size[0] * size[1] > MAX_TEXTURE_PIXELS {
-            return Err(limit("Mesh texture exceeds 65536 samples"));
+            return Err(limit(&format!(
+                "Mesh texture exceeds {MAX_TEXTURE_PIXELS} samples"
+            )));
         }
         Ok(size)
     }
@@ -299,7 +304,9 @@ impl Mesh {
         if contraction > MAX_CONTRACTION {
             return Err(Error::new(
                 "MESH_GEOMETRY_LIMIT",
-                "Mesh displacement derivative exceeds the certified contraction bound of 0.75; reduce interior offsets",
+                format!(
+                    "Mesh displacement derivative exceeds the certified contraction bound of {MAX_CONTRACTION}; reduce interior offsets"
+                ),
             ));
         }
         for patch in &colors {
@@ -366,7 +373,7 @@ impl Prepared {
             ];
             let delta = (uv[0] - next[0]).abs().max((uv[1] - next[1]).abs());
             uv = next;
-            if delta <= 1e-13 * (1.0 - self.contraction) {
+            if delta <= crate::limits::meshes::INVERSE_TOLERANCE * (1.0 - self.contraction) {
                 break;
             }
         }
@@ -405,7 +412,9 @@ impl Prepared {
 pub fn inspect(mesh: &Mesh, space: Interpolation, parameters: &[Point]) -> Result<Value, Error> {
     let p = mesh.prepare(space)?;
     if parameters.len() > MAX_SAMPLES {
-        return Err(limit("Mesh inspection exceeds 1024 parameter samples"));
+        return Err(limit(&format!(
+            "Mesh inspection exceeds {MAX_SAMPLES} parameter samples"
+        )));
     }
     if parameters.iter().any(|v| {
         !v[0].is_finite()
@@ -503,7 +512,7 @@ pub fn texture(mesh: &Mesh, space: Interpolation) -> Result<Texture, Error> {
         } else {
             slopes[c] * encoding_slope + slopes[3]
         };
-        (slope * step + 1.0 / 255.0 + 1e-10).min(1.0)
+        (slope * step + 1.0 / 255.0 + crate::limits::meshes::SVG_ERROR_MARGIN).min(1.0)
     });
     Ok(Texture {
         size,
@@ -536,7 +545,9 @@ pub fn svg_texture_pixels(document: &Document) -> Result<usize, Error> {
         }
     }
     if total > MAX_SVG_TEXTURE_PIXELS {
-        return Err(limit("SVG mesh textures exceed 131072 aggregate samples"));
+        return Err(limit(&format!(
+            "SVG mesh textures exceed {MAX_SVG_TEXTURE_PIXELS} aggregate samples"
+        )));
     }
     Ok(total)
 }

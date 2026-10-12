@@ -29,7 +29,13 @@ fn node_keys_at(v: &Node, allowed: &[&str], location: &str) -> Result<(), Error>
     if !unknown.is_empty() {
         return Err(unsupported(&format!(
             "Unmapped authoring or geometry fields in {location}: {} ({} total)",
-            serde_json::to_string(&unknown.iter().take(8).collect::<Vec<_>>()).unwrap(),
+            serde_json::to_string(
+                &unknown
+                    .iter()
+                    .take(crate::limits::layered_text::MAX_BRIEF_FIELDS)
+                    .collect::<Vec<_>>()
+            )
+            .unwrap(),
             unknown.len()
         )));
     }

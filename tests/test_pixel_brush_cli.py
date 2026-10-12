@@ -8,6 +8,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 from test_images_cli import canonical
 from test_mcp import Client
@@ -172,10 +173,44 @@ class PixelBrushTests(unittest.TestCase):
         self.assertEqual(self.apply(d,brush(),1,control=dict(timeout_ms=0))['code'],'TIMEOUT');self.assertEqual(self.apply(d,brush(use_selection=True),1)['code'],'INVALID_BRUSH')
         other=copy.deepcopy(d);other['items'][0]['content']=dict(type='group');self.assertEqual(self.apply(other,brush(),1)['code'],'INVALID_OPERATION')
 
+    def test_advertised_brush_boundaries_defaults_and_dab_count(self):
+        caps = capabilities()['pixel_brushes']
+        self.assertEqual(self.inspect(brush())['stroke']['spacing'], caps['default_spacing'])
+        for key, field in [('diameter', 'diameter'), ('spacing', 'spacing_range'), ('scatter', 'scatter_range')]:
+            lo, hi = caps[field]
+            for value in (lo, hi):
+                with self.subTest(key=key, accepted=value):
+                    self.assertEqual(self.inspect(brush(**{key: value}))['stroke'][key], value)
+            for value in (lo/2 if lo else -1, hi+1):
+                error = self.inspect(brush(**{key: value}), 1)
+                self.assertEqual(error['code'], 'INVALID_BRUSH')
+                self.assertIn(f'{lo:g}..{hi:g}', error['message'])
+        lo, hi = caps['texture_scale']
+        for axis in (0, 1):
+            for value in (lo, hi, lo/2, hi+1):
+                scale = [1, 1]; scale[axis] = value
+                stroke = brush(texture=dict(width=1, height=1, gray_hex='ff', scale=scale))
+                with self.subTest(axis=axis, texture_scale=value):
+                    if lo <= value <= hi:
+                        self.inspect(stroke)
+                    else:
+                        error = self.inspect(stroke, 1)
+                        self.assertEqual(error['code'], 'INVALID_BRUSH')
+                        self.assertIn(f'{lo:g}..{hi:g}', error['message'])
+        maximum = caps['dabs']
+        for count in (maximum, maximum+1):
+            request = dict(command='brush.inspect', stroke=brush([[0, 0], [count-1, 0]], diameter=1, spacing=1), include_dabs=False)
+            if count == maximum:
+                self.assertEqual(self.invoke(request)['dab_count'], maximum)
+            else:
+                error = self.invoke(request, 1)
+                self.assertEqual(error['code'], 'RESOURCE_LIMIT')
+                self.assertIn(str(maximum), error['message'])
+
     def test_invalid_brush_fields_dimensions_textures_points_and_dab_budget(self):
-        for kw in [dict(diameter=0),dict(diameter=513),dict(hardness=1.01),dict(flow=-1),dict(spacing=.001),dict(scatter=4.1),dict(mode=dict(type='mixer',color=INK,pickup=2,load=0)),dict(texture=dict(width=1,height=1,gray_hex='zz'))]:self.assertEqual(self.inspect(brush(**kw),1)['code'],'INVALID_BRUSH')
+        for kw in [dict(diameter=0),dict(diameter=capabilities()['pixel_brushes']['diameter'][1]+1),dict(hardness=1.01),dict(flow=-1),dict(spacing=capabilities()['pixel_brushes']['spacing_range'][0]/2),dict(scatter=capabilities()['pixel_brushes']['scatter_range'][1]+.1),dict(mode=dict(type='mixer',color=INK,pickup=2,load=0)),dict(texture=dict(width=1,height=1,gray_hex='zz'))]:self.assertEqual(self.inspect(brush(**kw),1)['code'],'INVALID_BRUSH')
         self.assertEqual(self.inspect(brush([[0,0],[32768,0]],diameter=.25,spacing=.01),1)['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.inspect(brush([[0,0]]*1025),1)['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.inspect(brush([[0,0]]*(capabilities()['pixel_brushes']['points']+1)),1)['code'],'RESOURCE_LIMIT')
         self.assertEqual(self.inspect(brush(unsupported=True),1)['code'],'INVALID_REQUEST')
 
     def test_native_boundaries_hidden_rgb_and_extreme_hardness_remain_explicit(self):
@@ -207,7 +242,7 @@ class PixelBrushTests(unittest.TestCase):
         self.assertLessEqual(max(abs(a-b) for a,b in zip(actual,expected)),1)
 
     def test_large_fractional_tip_edges_match_independent_vertical_integrals(self):
-        for diameter in [.25,1.3,15,128,512]:
+        for diameter in [capabilities()['pixel_brushes']['diameter'][0],1.3,15,128,capabilities()['pixel_brushes']['diameter'][1]]:
             for hardness in [0,.65,.95,1]:
                 center=[diameter/2+.137,1.619];s=brush([center],diameter=diameter,hardness=hardness);actual=self.raw(self.apply(self.document(4,4),s)['document'])
                 for y in range(4):

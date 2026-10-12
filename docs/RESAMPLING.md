@@ -1,5 +1,9 @@
 # Explicit image reconstruction
 
+`capabilities.reconstruction` binds work, tap counts and advanced-kernel source-coordinate indexing bounds to the catalog. Bicubic coefficients and the Lanczos3 radius remain fixed mathematical definitions, separate from resource and indexing budgets.
+
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Pixel layers and placed images accept `sampling:"nearest"`, `"bilinear"`, `"area"`, `"bicubic"` or `"lanczos3"`. The same choices apply to a raster `canvas` scale action and its canvas-sized selection/channel grids. Native snapshots, atomic edits and durable undo retain the choice. Source pixels and imported files remain unchanged. See [canvas operations](CANVAS.md) for anchors, resolution-only edits and retained crop bounds.
 
 ## Coordinates and kernels

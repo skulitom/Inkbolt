@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 
-pub const COMPACT_TARGET_BYTES: usize = 8 * 1024;
+pub use crate::limits::responses::COMPACT_TARGET_BYTES;
 pub const COMMANDS: &[&str] = &[
     "session.create",
     "session.continue",

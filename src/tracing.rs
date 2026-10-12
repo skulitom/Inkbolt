@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, path::Path};
 
-pub const MAX_PIXELS: usize = 1_048_576;
-pub const MAX_COLORS: usize = 64;
-pub const MAX_EDGES: usize = 262_144;
+pub use crate::limits::tracing::MAX_COLORS;
+pub use crate::limits::tracing::MAX_EDGES;
+pub use crate::limits::tracing::MAX_PIXELS;
 const ALGORITHM: &str = "inkbolt-cell-contours-v1";
 
 #[derive(Clone, Debug, Deserialize, JsonSchema)]
@@ -67,7 +67,9 @@ fn invalid(message: &str) -> Error {
 fn dimensions(w: u32, h: u32) -> Result<usize, Error> {
     let count = assets::dimensions(w, h)? as usize;
     if count > MAX_PIXELS {
-        return Err(limit("Tracing exceeds 1048576 source pixels"));
+        return Err(limit(&format!(
+            "Tracing exceeds {MAX_PIXELS} source pixels"
+        )));
     }
     Ok(count)
 }
@@ -119,7 +121,7 @@ fn validate_options(o: &Options) -> Result<(), Error> {
         }
         Mode::Palette { colors } => {
             if colors.is_empty() || colors.len() > MAX_COLORS {
-                return Err(invalid("Palette requires 1..64 colors"));
+                return Err(invalid(&format!("Palette requires 1..{MAX_COLORS} colors")));
             }
             for (i, c) in colors.iter().enumerate() {
                 if (c[3] == 0 && *c != [0; 4]) || colors[..i].contains(c) {
@@ -219,7 +221,7 @@ fn regions(
     let mut seen = vec![false; grid.len()];
     let mut result = Vec::new();
     for seed in 0..grid.len() {
-        if seed % 4096 == 0 {
+        if seed % crate::limits::tracing::CONTROL_INTERVAL == 0 {
             control.check()?;
         }
         if seen[seed] || (grid[seed][3] == 0) != holes {
@@ -232,7 +234,7 @@ fn regions(
         let mut boundary = None;
         let mut mixed = false;
         while at < points.len() {
-            if at % 4096 == 0 {
+            if at % crate::limits::tracing::CONTROL_INTERVAL == 0 {
                 control.check()?;
             }
             let p = points[at];
@@ -291,9 +293,9 @@ fn contours(
             }
             *counts.entry(c).or_default() += 1;
             if counts.len() > MAX_COLORS {
-                return Err(limit(
-                    "Trace exceeds 64 resulting colors; use an explicit palette or quantization",
-                ));
+                return Err(limit(&format!(
+                    "Trace exceeds {MAX_COLORS} resulting colors; use an explicit palette or quantization"
+                )));
             }
             let x = x as u32;
             let y = y as u32;
@@ -328,7 +330,9 @@ fn contours(
                 }
                 edges += 1;
                 if edges > MAX_EDGES {
-                    return Err(limit("Trace exceeds 262144 unit boundary edges"));
+                    return Err(limit(&format!(
+                        "Trace exceeds {MAX_EDGES} unit boundary edges"
+                    )));
                 }
                 let entry = graph.entry((c, ex, ey)).or_insert(Vertex {
                     all: 0,
@@ -352,7 +356,7 @@ fn contours(
             let mut d = first;
             let mut points = Vec::new();
             loop {
-                if steps % 4096 == 0 {
+                if steps % crate::limits::tracing::CONTROL_INTERVAL == 0 {
                     control.check()?;
                 }
                 steps += 1;
@@ -397,9 +401,9 @@ fn contours(
             }
             command_count += corners.len() + 1;
             if command_count > MAX_SEGMENTS {
-                return Err(limit(
-                    "Trace output exceeds 4096 editable path commands; adjust classification or noise controls",
-                ));
+                return Err(limit(&format!(
+                    "Trace output exceeds {MAX_SEGMENTS} editable path commands; adjust classification or noise controls"
+                )));
             }
             let path = paths.entry(c).or_default();
             path.push(PathCommand::Move { to: corners[0] });
@@ -481,7 +485,7 @@ pub fn trace(
     let h = pixels.height as usize;
     let mut grid = Vec::with_capacity(w * h);
     for (i, c) in pixels.rgba.as_chunks::<4>().0.iter().enumerate() {
-        if i % 4096 == 0 {
+        if i % crate::limits::tracing::CONTROL_INTERVAL == 0 {
             control.check()?;
         }
         grid.push(classify(*c, options));
@@ -519,7 +523,7 @@ pub fn trace(
     let mut max_error = 0i64;
     let mut squared_error = 0i64;
     for (i, (a, b)) in pixels.rgba.as_chunks::<4>().0.iter().zip(&grid).enumerate() {
-        if i % 4096 == 0 {
+        if i % crate::limits::tracing::CONTROL_INTERVAL == 0 {
             control.check()?;
         }
         let a = *a;

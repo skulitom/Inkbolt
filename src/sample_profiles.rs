@@ -23,7 +23,7 @@ pub enum Action {
         intent: Intent,
     },
 }
-pub const MAX_ENCODED_PROFILE_BYTES: usize = 512 * 1024;
+pub use crate::limits::sample_profiles::MAX_ENCODED_PROFILE_BYTES;
 fn working() -> Profile {
     Profile::Builtin {
         name: profiles::Builtin::Srgb,

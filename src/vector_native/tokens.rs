@@ -1,6 +1,8 @@
 //! Bounded data tokens only. No program execution, includes or file operators.
 use super::*;
-const MAX_TOKENS: usize = 262144;
+use crate::limits::vector_native_tokens::{
+    MAX_CONTAINER_DEPTH, MAX_STRING_BYTES, MAX_STRING_DEPTH, MAX_TOKENS, MAX_WORD_BYTES,
+};
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Word(String),
@@ -42,7 +44,10 @@ pub fn lex(bytes: &[u8], control: &Control) -> Result<Vec<Token>, Error> {
         if out.len() >= MAX_TOKENS {
             return Err(limit("Native syntax token budget exceeded"));
         }
-        if out.len().is_multiple_of(256) {
+        if out
+            .len()
+            .is_multiple_of(crate::limits::vector_native::PARSE_CHECK_INTERVAL)
+        {
             control.check()?;
         }
         let b = bytes[at];
@@ -101,7 +106,7 @@ pub fn lex(bytes: &[u8], control: &Control) -> Result<Vec<Token>, Error> {
                         }
                         b'(' => {
                             depth += 1;
-                            if depth > 32 {
+                            if depth > MAX_STRING_DEPTH {
                                 return Err(limit("Native string nesting exceeded"));
                             }
                             value.push(b);
@@ -120,7 +125,7 @@ pub fn lex(bytes: &[u8], control: &Control) -> Result<Vec<Token>, Error> {
                         }
                         v => value.push(v),
                     }
-                    if value.len() > 65536 {
+                    if value.len() > MAX_STRING_BYTES {
                         return Err(limit("Native string length exceeded"));
                     }
                 }
@@ -137,7 +142,7 @@ pub fn lex(bytes: &[u8], control: &Control) -> Result<Vec<Token>, Error> {
                     at += 1;
                 }
                 let word = &bytes[start..at];
-                if word.len() > 1024 || !word.is_ascii() {
+                if word.len() > MAX_WORD_BYTES || !word.is_ascii() {
                     return Err(limit("Native token length or encoding exceeded"));
                 }
                 let text = String::from_utf8(word.to_vec()).unwrap();
@@ -162,7 +167,7 @@ pub fn end(tokens: &[Token], start: usize) -> Result<usize, Error> {
     for i in start..tokens.len() {
         if matches!(tokens[i], Token::Name(_)) && tokens.get(i + 1) == Some(&Token::Mark(b':')) {
             depth += 1;
-            if depth > 32 {
+            if depth > MAX_CONTAINER_DEPTH {
                 return Err(limit("Native container nesting exceeded"));
             }
         }

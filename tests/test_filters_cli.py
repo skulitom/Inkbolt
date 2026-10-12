@@ -9,6 +9,7 @@ import unittest
 import test_adjustments_cli as tone
 import test_editing_cli as editing
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def premult(values):
@@ -243,13 +244,49 @@ class FilterTests(unittest.TestCase):
             finally:c.close()
         self.assertEqual(d,source)
 
+    def test_advertised_kernel_limits_and_trajectory_defaults(self):
+        d = self.source([(20, 70, 110, 255)])
+        caps = capabilities()['filters']
+        cases = [
+            (dict(type='box'), 'radius', 'box_radius'),
+            (dict(type='gaussian'), 'sigma', 'gaussian_sigma'),
+            (dict(type='surface', threshold=1), 'radius', 'surface_radius'),
+            (dict(type='directional', angle=0), 'length', 'directional_length'),
+            (dict(type='directional', length=0), 'angle', 'directional_angle_degrees'),
+            (dict(type='radial', center=[0, 0]), 'angle', 'radial_angle_degrees'),
+        ]
+        for op, key, field in cases:
+            lo, hi = caps[field]
+            for value in (lo, hi):
+                with self.subTest(operator=op['type'], key=key, accepted=value):
+                    out = self.filtered(d, [self.filter(dict(op, **{key: value}))])
+                    self.assertEqual(out['items'][0]['filters'][0]['operator'][key], value)
+            with self.subTest(operator=op['type'], key=key, rejected=hi+1):
+                self.assertEqual(self.filtered(d, [self.filter(dict(op, **{key: hi+1}))], expected=1)['code'], 'INVALID_DOCUMENT')
+            if key == 'angle':
+                self.assertEqual(self.filtered(d, [self.filter(dict(op, angle=lo-1))], expected=1)['code'], 'INVALID_DOCUMENT')
+        lo, hi = caps['trajectory_samples_odd']
+        for op in (dict(type='directional', length=0, angle=0),
+                   dict(type='radial', center=[0, 0], angle=0)):
+            default = self.filtered(d, [self.filter(op)])
+            self.assertEqual(default['items'][0]['filters'][0]['operator']['samples'], caps['trajectory_samples_default'])
+            for value in (lo, hi):
+                self.filtered(d, [self.filter(dict(op, samples=value))])
+            for value in (lo-2, hi+2, lo+1):
+                self.assertEqual(self.filtered(d, [self.filter(dict(op, samples=value))], expected=1)['code'], 'INVALID_DOCUMENT')
+
     def test_invalid_parameters_atomic_edits_locks_depths_and_resource_limits(self):
         d=self.source(self.chart(5,3),5);original=copy.deepcopy(d)
-        bad=[dict(type='box',radius=33),dict(type='gaussian',sigma=-1),dict(type='gaussian',sigma=16.1),dict(type='directional',length=65,angle=0),dict(type='directional',length=3,angle=0,samples=4),dict(type='radial',center=[0,0],angle=181),dict(type='radial',center=[0,0],angle=0,zoom=2),dict(type='surface',radius=17,threshold=.1),dict(type='surface',radius=1,threshold=-.1)]
+        caps=capabilities()['filters']
+        bad=[dict(type='box',radius=caps['box_radius'][1]+1),dict(type='gaussian',sigma=-1),dict(type='gaussian',sigma=caps['gaussian_sigma'][1]+.1),dict(type='directional',length=caps['directional_length'][1]+1,angle=0),dict(type='directional',length=3,angle=0,samples=4),dict(type='radial',center=[0,0],angle=caps['radial_angle_degrees'][1]+1),dict(type='radial',center=[0,0],angle=0,zoom=2),dict(type='surface',radius=caps['surface_radius'][1]+1,threshold=.1),dict(type='surface',radius=1,threshold=-.1)]
         for op in bad:self.assertEqual(self.filtered(d,[self.filter(op)],expected=1)['code'],'INVALID_DOCUMENT')
         f=self.filter(dict(type='box',radius=1))
         self.assertEqual(self.filtered(d,[f,f],expected=1)['code'],'INVALID_DOCUMENT')
-        self.assertEqual(self.filtered(d,[dict(f,id=str(i)) for i in range(9)],expected=1)['code'],'RESOURCE_LIMIT')
+        maximum=capabilities()['limits']['filters_per_item']
+        self.filtered(d,[dict(f,id=str(i)) for i in range(maximum)])
+        error=self.filtered(d,[dict(f,id=str(i)) for i in range(maximum+1)],expected=1)
+        self.assertEqual(error['code'],'RESOURCE_LIMIT')
+        self.assertIn(str(maximum),error['message'])
         self.assertEqual(self.filtered(d,[dict(f,opacity=2)],expected=1)['code'],'INVALID_DOCUMENT')
         locked=self.edit(d,[dict(op='properties',id='source',locked=True)])
         self.assertEqual(self.filtered(locked,[f],expected=1)['code'],'LOCKED')
@@ -266,10 +303,15 @@ class FilterTests(unittest.TestCase):
 
     def test_document_filter_and_preparation_limits_include_hidden_disabled_effects(self):
         d=self.document(1,1);items=[]
-        for n in range(9):
-            item=dict(id=str(n),visible=False,content=dict(type='fill',width=1,height=1,paint=[1,2,3,255]),filters=[self.filter(dict(type='box',radius=0),id=str(k),enabled=False) for k in range(8)])
+        stack=capabilities()['limits']['filters_per_item']
+        total=capabilities()['limits']['filters_per_document']
+        for n in range(total//stack+1):
+            item=dict(id=str(n),visible=False,content=dict(type='fill',width=1,height=1,paint=[1,2,3,255]),filters=[self.filter(dict(type='box',radius=0),id=str(k),enabled=False) for k in range(min(stack,total+1-n*stack))])
             items.append(dict(op='add',item=item))
-        self.assertEqual(self.edit(d,items,1)['code'],'RESOURCE_LIMIT')
+        self.edit(d,items[:-1])
+        error=self.edit(d,items,1)
+        self.assertEqual(error['code'],'RESOURCE_LIMIT')
+        self.assertIn(str(total),error['message'])
         # Padded feather fields exceed aggregate preparation work even while disabled.
         f=self.filter(dict(type='box',radius=0),enabled=False,mask=dict(width=1,height=128,gray_hex='ff'*128,feather=32,enabled=False))
         items=[]

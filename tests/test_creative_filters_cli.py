@@ -13,6 +13,7 @@ import test_adjustments_cli as tone
 import test_editing_cli as editing
 import test_filters_cli as blur
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def creative(**op): return dict(type='creative', operator=op)
@@ -229,9 +230,37 @@ class CreativeTests(unittest.TestCase):
             actual=self.pixels(moved); cropped=b''.join(actual[((y+2)*12+2)*4:((y+2)*12+9)*4] for y in range(5))
             if op['type']=='value_field':self.assertEqual(cropped,self.pixels(grouped))
 
+    def test_advertised_creative_parameter_boundaries(self):
+        caps = capabilities()['filters']['creative_limits']
+        d = self.source([(20, 70, 110, 255)])
+        cases = [
+            (dict(type='twist', center=[0, 0], angle=0), 'radius', 'twist_radius'),
+            (dict(type='twist', center=[0, 0], radius=1), 'angle', 'angle_degrees'),
+            (dict(type='relief', angle=0, strength=1), 'distance', 'relief_distance'),
+            (dict(type='relief', angle=0, distance=1), 'strength', 'relief_strength'),
+            (dict(type='relief', distance=1, strength=1), 'angle', 'angle_degrees'),
+            (dict(type='high_pass'), 'sigma', 'high_pass_sigma'),
+            (dict(type='extrema', mode='maximum'), 'radius', 'extrema_radius'),
+            (dict(type='stroke_rank', angle=0, quantile=.5), 'radius', 'stroke_rank_radius'),
+            (dict(type='stroke_rank', radius=1, quantile=.5), 'angle', 'angle_degrees'),
+            (dict(type='edge_ink'), 'strength', 'edge_ink_strength'),
+            (dict(type='value_field', seed=0, octaves=1, origin=[0, 0], low=[0]*3, high=[255]*3), 'cell_size', 'value_cell_size'),
+            (dict(type='value_field', seed=0, cell_size=1, origin=[0, 0], low=[0]*3, high=[255]*3), 'octaves', 'value_octaves'),
+        ]
+        for op, key, field in cases:
+            lo, hi = caps[field]
+            for value in (lo, hi):
+                with self.subTest(operator=op['type'], key=key, accepted=value):
+                    self.apply(d, dict(op, **{key: value}))
+            for value in ([hi+1] if key == 'radius' and lo == 0 else [lo-1, hi+1]):
+                with self.subTest(operator=op['type'], key=key, rejected=value):
+                    error = self.filtered(d, [self.filter(creative(**dict(op, **{key: value})))], expected=1)
+                    self.assertEqual(error['code'], 'INVALID_DOCUMENT')
+
     def test_rejected_controls_contexts_limits_and_atomic_failure(self):
         d=self.source(self.chart(5,3),5)
-        bad=[dict(type='twist',center=[0,0],radius=0,angle=0),dict(type='relief',angle=0,distance=33,strength=1),dict(type='high_pass',sigma=17),dict(type='extrema',mode='minimum',radius=9),dict(type='tone_fold',threshold=1.1),dict(type='edge_ink',strength=-1),dict(type='stroke_rank',radius=2,angle=0,quantile=1.1),dict(type='value_field',seed=0,cell_size=.5,octaves=2,origin=[0,0],low=[0,0,0],high=[255]*3),dict(type='field_repair',keep_parity=2)]
+        caps=capabilities()['filters']['creative_limits']
+        bad=[dict(type='twist',center=[0,0],radius=0,angle=0),dict(type='relief',angle=0,distance=caps['relief_distance'][1]+1,strength=1),dict(type='high_pass',sigma=caps['high_pass_sigma'][1]+1),dict(type='extrema',mode='minimum',radius=caps['extrema_radius'][1]+1),dict(type='tone_fold',threshold=1.1),dict(type='edge_ink',strength=-1),dict(type='stroke_rank',radius=2,angle=0,quantile=1.1),dict(type='value_field',seed=0,cell_size=.5,octaves=2,origin=[0,0],low=[0,0,0],high=[255]*3),dict(type='field_repair',keep_parity=2)]
         for op in bad:self.assertEqual(self.filtered(d,[self.filter(creative(**op))],expected=1)['code'],'INVALID_DOCUMENT')
         f=self.filter(creative(type='edge_ink',strength=1))
         locked=self.edit(d,[dict(op='properties',id='source',locked=True)])

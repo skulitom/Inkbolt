@@ -9,8 +9,8 @@ use num_traits::{ToPrimitive, Zero};
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
-pub const MAX_SPAN: usize = 32;
-pub const MAX_WORK: usize = 400_000;
+pub use crate::limits::simplify::MAX_SPAN;
+pub use crate::limits::simplify::MAX_WORK;
 pub fn default_span() -> usize {
     8
 }
@@ -87,7 +87,7 @@ fn orient(a: &P, b: &P, c: &P) -> R {
     &u[0] * &v[1] - &u[1] * &v[0]
 }
 fn hull(mut p: Vec<P>, budget: &mut Budget) -> Result<Vec<P>, Error> {
-    budget.spend(p.len() * 8)?;
+    budget.spend(p.len() * crate::limits::simplify::HULL_POINT_WORK)?;
     p.sort();
     p.dedup();
     if p.len() < 3 {
@@ -193,7 +193,7 @@ fn bound(
 ) -> Result<R, Error> {
     let mut maximum = R::zero();
     for (i, c) in original.iter().enumerate() {
-        budget.spend(64)?;
+        budget.spend(crate::limits::simplify::CERTIFICATE_CURVE_WORK)?;
         let q = restrict(candidate, &times[i], &times[i + 1]);
         for j in 0..4 {
             let delta = metric_delta(&sub(&c[j], &q[j]), metric);
@@ -282,7 +282,7 @@ fn proposal(
     let start = original[0][0].clone();
     let end = original.last().unwrap()[3].clone();
     let direction = sub(&end, &start);
-    budget.spend(original.len() * 16)?;
+    budget.spend(original.len() * crate::limits::simplify::MONOTONICITY_CURVE_WORK)?;
     if !original.iter().all(|c| monotone(c, &direction)) {
         rejections.monotonicity += 1;
         return Ok(None);
@@ -360,7 +360,9 @@ pub(crate) fn run(
     {
         return Err(Error::new(
             "INVALID_OPERATION",
-            "Simplification requires tolerance in 0..=32768 and max_span in 2..=32",
+            format!(
+                "Simplification requires tolerance in 0..={MAX_COORDINATE} and max_span in 2..={MAX_SPAN}"
+            ),
         ));
     }
     let mut contours = paths::parse(commands);

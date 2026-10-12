@@ -202,8 +202,8 @@ class TiledFilterFamilyTests(unittest.TestCase):
     def test_nonlocal_unsupported_work_limits_and_cancel_never_publish(self):
         d=self.document([rect(w=16,h=16)],137,139)
         output=dict(file_name='failed.png',format='png',render_options=dict(evaluation='tiled'))
-        for op,border in [(creative(type='twist',center=[5,5],radius=7,angle=30),'clamp'),
-                          (dict(type='radial',center=[5,5],angle=10),'clamp'),
+        for op,border in [(creative(type='twist',center=[5,5],radius=7,angle=30),'wrap'),
+                          (dict(type='radial',center=[5,5],angle=10),'wrap'),
                           (detail(type='median',radius=1),'wrap')]:
             self.filter(d,op,border,enabled=False)
             self.cli('document.publish',document=d,output=output,error='UNSUPPORTED_TILED_RENDER')

@@ -1,5 +1,6 @@
 //! Bounded original plane partitioning orders concave opaque extrusion faces.
 use super::*;
+use crate::limits::volumes::MAX_PARTITION_DEPTH;
 fn epsilon(f: &Face) -> f64 {
     f.contours
         .iter()
@@ -8,7 +9,7 @@ fn epsilon(f: &Face) -> f64 {
         .map(|v| v.abs())
         .fold(1., f64::max)
         * f64::EPSILON
-        * 2048.
+        * f64::from(crate::limits::volumes::PARTITION_EPSILONS)
 }
 fn split(f: &Face, n: Point3, d: f64, positive: bool, eps: f64) -> Option<Face> {
     let mut contours = vec![];
@@ -51,8 +52,10 @@ fn recurse(
     if faces.is_empty() {
         return Ok(vec![]);
     }
-    if depth > 128 {
-        return Err(limit("Volume face partition exceeds 128 levels"));
+    if depth > MAX_PARTITION_DEPTH {
+        return Err(limit(&format!(
+            "Volume face partition exceeds {MAX_PARTITION_DEPTH} levels"
+        )));
     }
     let root = faces.remove(0);
     let n = root.normal;
@@ -78,7 +81,9 @@ fn recurse(
             (true, true) => {
                 *budget += 1;
                 if *budget > MAX_FACES {
-                    return Err(limit("Volume partition exceeds 192 faces"));
+                    return Err(limit(&format!(
+                        "Volume partition exceeds {MAX_FACES} faces"
+                    )));
                 }
                 let a = split(&f, n, d, true, eps)
                     .ok_or_else(|| numeric("Volume split lost its front face"))?;
@@ -114,7 +119,7 @@ pub(super) fn ordered(
 ) -> Result<Vec<Face>, Error> {
     let mut budget = faces.len();
     if budget > MAX_FACES {
-        return Err(limit("Volume exceeds 192 faces"));
+        return Err(limit(&format!("Volume exceeds {MAX_FACES} faces")));
     }
     recurse(faces, camera, 0, &mut budget, control)
 }

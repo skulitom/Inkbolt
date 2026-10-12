@@ -1,4 +1,5 @@
 //! Original bounded development of explicitly described Bayer sensor buffers.
+use crate::limits::{model as document_limits, raw as limits};
 use crate::{
     Error, assets,
     control::Control,
@@ -12,7 +13,7 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 pub const ALGORITHM: &str = "inkbolt-bayer-bilinear-v1";
-pub const MAX_PIXELS: usize = 16384;
+pub use crate::limits::raw::MAX_PIXELS;
 mod corrections;
 pub mod retained;
 pub use corrections::{Border, Corrections, Denoise, Detail, Lens};
@@ -104,21 +105,31 @@ impl Capture {
     fn validate(&self) -> Result<usize, Error> {
         if !(2..=MAX_DIMENSION).contains(&self.width) || !(2..=MAX_DIMENSION).contains(&self.height)
         {
-            return Err(invalid_raw("Bayer dimensions must be in 2..=32768"));
+            return Err(invalid_raw(&format!(
+                "Bayer dimensions must be in 2..={MAX_DIMENSION}"
+            )));
         }
         let count = self.width as u64 * self.height as u64;
         if count > MAX_PIXELS as u64 {
-            return Err(limit("Raw development exceeds 16384 sensor pixels"));
+            return Err(limit(&format!(
+                "Raw development exceeds {MAX_PIXELS} sensor pixels"
+            )));
         }
         let minimum = self.width as usize * self.packing.bytes();
-        if self.row_stride < minimum || self.row_stride > minimum + 4096 {
-            return Err(invalid_raw(
-                "Raw row stride must include every sample and at most 4096 padding bytes",
-            ));
+        if self.row_stride < minimum
+            || self.row_stride > minimum + crate::limits::raw::MAX_ROW_PADDING_BYTES
+        {
+            return Err(invalid_raw(&format!(
+                "Raw row stride must include every sample and at most {} padding bytes",
+                crate::limits::raw::MAX_ROW_PADDING_BYTES
+            )));
         }
         let length = self.row_stride as u64 * self.height as u64;
         if length > assets::MAX_IMPORT_BYTES {
-            return Err(limit("Raw buffer exceeds 32 MiB"));
+            return Err(limit(&format!(
+                "Raw buffer exceeds {} bytes",
+                assets::MAX_IMPORT_BYTES
+            )));
         }
         let max = if matches!(self.packing, Packing::U8) {
             255.0
@@ -141,33 +152,47 @@ impl Capture {
             .camera_to_linear_srgb
             .iter()
             .flatten()
-            .any(|v| !v.is_finite() || v.abs() > 16.0)
+            .any(|v| !v.is_finite() || v.abs() > f64::from(limits::MAX_CAMERA_COEFFICIENT))
         {
-            return Err(invalid_raw(
-                "Camera matrix entries must be finite in -16..=16",
-            ));
+            return Err(invalid_raw(&format!(
+                "Camera matrix entries must be finite in -{0}..={0}",
+                limits::MAX_CAMERA_COEFFICIENT
+            )));
         }
         let m = self.camera_to_linear_srgb;
         let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
             - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
             + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-        if det.abs() < 1e-12 {
-            return Err(invalid_raw(
-                "Camera matrix must be nonsingular (|det| >= 1e-12)",
-            ));
+        if det.abs() < limits::MIN_CAMERA_DETERMINANT {
+            return Err(invalid_raw(&format!(
+                "Camera matrix must be nonsingular (|det| >= {:e})",
+                limits::MIN_CAMERA_DETERMINANT
+            )));
         }
         Ok(length as usize)
     }
 }
 impl Settings {
     fn gains(&self) -> Result<[f64; 3], Error> {
-        if !self.exposure_stops.is_finite() || !(-32.0..=32.0).contains(&self.exposure_stops) {
-            return Err(invalid_raw("Exposure must be finite in -32..=32 stops"));
+        if !self.exposure_stops.is_finite()
+            || !(-f64::from(limits::MAX_EXPOSURE_STOPS)..=f64::from(limits::MAX_EXPOSURE_STOPS))
+                .contains(&self.exposure_stops)
+        {
+            return Err(invalid_raw(&format!(
+                "Exposure must be finite in -{0}..={0} stops",
+                limits::MAX_EXPOSURE_STOPS
+            )));
         }
-        if !self.resolution_ppi.is_finite() || !(1.0..=9600.0).contains(&self.resolution_ppi) {
-            return Err(invalid_raw(
-                "Output resolution must be finite in 1..=9600 ppi",
-            ));
+        if !self.resolution_ppi.is_finite()
+            || !(f64::from(document_limits::MIN_RESOLUTION_PPI)
+                ..=f64::from(document_limits::MAX_RESOLUTION_PPI))
+                .contains(&self.resolution_ppi)
+        {
+            return Err(invalid_raw(&format!(
+                "Output resolution must be finite in {}..={} ppi",
+                document_limits::MIN_RESOLUTION_PPI,
+                document_limits::MAX_RESOLUTION_PPI
+            )));
         }
         if matches!(self.range, Range::Preserve) && !matches!(self.output, Output::LinearSrgb32) {
             return Err(Error::new(
@@ -178,19 +203,27 @@ impl Settings {
         let rgb = match self.white_balance {
             WhiteBalance::Gains { rgb } | WhiteBalance::Neutral { rgb } => rgb,
         };
-        if rgb.iter().any(|v| !v.is_finite() || *v <= 0.0 || *v > 64.0) {
-            return Err(invalid_raw(
-                "White-balance components must be finite in (0,64]",
-            ));
+        if rgb.iter().any(|v| {
+            !v.is_finite() || *v <= 0.0 || *v > f64::from(limits::MAX_WHITE_BALANCE_COMPONENT)
+        }) {
+            return Err(invalid_raw(&format!(
+                "White-balance components must be finite in (0,{}]",
+                limits::MAX_WHITE_BALANCE_COMPONENT
+            )));
         }
         let gains = match self.white_balance {
             WhiteBalance::Gains { .. } => rgb,
             WhiteBalance::Neutral { .. } => rgb.map(|v| rgb[1] / v),
         };
-        if gains.iter().any(|v| !(1.0 / 64.0..=64.0).contains(v)) {
-            return Err(invalid_raw(
-                "Effective white-balance gains must be in 1/64..=64",
-            ));
+        if gains.iter().any(|v| {
+            !(1.0 / f64::from(limits::MAX_WHITE_BALANCE_GAIN)
+                ..=f64::from(limits::MAX_WHITE_BALANCE_GAIN))
+                .contains(v)
+        }) {
+            return Err(invalid_raw(&format!(
+                "Effective white-balance gains must be in 1/{0}..={0}",
+                limits::MAX_WHITE_BALANCE_GAIN
+            )));
         }
         Ok(gains)
     }

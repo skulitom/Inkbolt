@@ -96,7 +96,7 @@ fn separated(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
         }
     }
     for normal in normals {
-        budget.spend(8)?;
+        budget.spend(crate::limits::booleans_topology::SEPARATING_AXIS_WORK)?;
         let ap = a.clone().map(|p| dot(&p, &normal));
         let bp = b.clone().map(|p| dot(&p, &normal));
         let amin = ap.iter().min().unwrap();
@@ -159,7 +159,7 @@ fn paired_coordinate(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<bool, 
             }
         }
         for mut direction in directions {
-            budget.spend(24)?;
+            budget.spend(crate::limits::booleans_topology::PAIRED_COORDINATE_WORK)?;
             if dot(&sub(&a[3], &a[0]), &direction) < R::zero() {
                 direction = direction.map(|v| -v);
             }
@@ -193,7 +193,7 @@ fn outside(p: &P, c: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
         }
     }
     for direction in directions {
-        budget.spend(5)?;
+        budget.spend(crate::limits::booleans_topology::OUTSIDE_HULL_WORK)?;
         let q = dot(p, &direction);
         let values: Vec<_> = points.iter().map(|v| dot(v, &direction)).collect();
         if q < *values.iter().min().unwrap() || q > *values.iter().max().unwrap() {
@@ -208,7 +208,7 @@ fn outside(p: &P, c: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
 // Endpoints outside the opposite control hull keep its boundary away from zero.
 // The chord boundary degree therefore counts exactly zero or one intersection.
 fn transverse(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<Option<bool>, Error> {
-    budget.spend(9)?;
+    budget.spend(crate::limits::booleans_topology::TRANSVERSE_WORK)?;
     let values: Vec<_> = a
         .windows(2)
         .flat_map(|u| {
@@ -277,9 +277,9 @@ fn lines(inputs: &mut [Operand], budget: &mut Budget) -> Result<Vec<Arc>, Error>
             };
             atoms.entry(key).or_insert_with(|| vec![0; inputs.len()])[source] += sign;
             if atoms.len() > MAX_ATOMS {
-                return Err(limit(
-                    "Curve certificate line arrangement exceeds 4096 atomic edges",
-                ));
+                return Err(limit(&format!(
+                    "Curve certificate line arrangement exceeds {MAX_ATOMS} atomic edges"
+                )));
             }
         }
     }
@@ -300,7 +300,9 @@ fn contacts(arcs: Vec<Arc>, budget: &mut Budget) -> Result<Vec<Arc>, Error> {
         if arc.curved {
             out.push(arc);
             if out.len() > MAX_EDGES {
-                return Err(limit("Curve contacts exceed 512 evaluated edges"));
+                return Err(limit(&format!(
+                    "Curve contacts exceed {MAX_EDGES} evaluated edges"
+                )));
             }
             continue;
         }
@@ -322,7 +324,9 @@ fn contacts(arcs: Vec<Arc>, budget: &mut Budget) -> Result<Vec<Arc>, Error> {
                 arc.weights.clone(),
             ));
             if out.len() > MAX_EDGES {
-                return Err(limit("Curve contacts exceed 512 evaluated edges"));
+                return Err(limit(&format!(
+                    "Curve contacts exceed {MAX_EDGES} evaluated edges"
+                )));
             }
         }
     }
@@ -339,10 +343,13 @@ fn refine(
             out.push(arc);
             continue;
         }
-        if arc.depth == 20 {
+        if arc.depth == crate::limits::booleans::MAX_TOPOLOGY_DEPTH {
             return Err(Error::new(
                 "CURVE_TOPOLOGY_UNRESOLVED",
-                "Curve topology cannot be certified within subdivision depth 20",
+                format!(
+                    "Curve topology cannot be certified within subdivision depth {}",
+                    crate::limits::booleans::MAX_TOPOLOGY_DEPTH
+                ),
             ));
         }
         let children = match &arc.curve {
@@ -385,13 +392,13 @@ pub(super) fn evaluate(
         arcs = algebraic::synchronize(arcs, &quadratic_directions, budget)?;
         aligned_splits += arcs.len() - before;
         if arcs.len() > MAX_EDGES {
-            return Err(limit(
-                "Curve topology refinement exceeds 512 evaluated edges",
-            ));
+            return Err(limit(&format!(
+                "Curve topology refinement exceeds {MAX_EDGES} evaluated edges"
+            )));
         }
         let mut marked = BTreeSet::new();
         for (i, a) in arcs.iter().enumerate().filter(|(_, a)| a.curved) {
-            budget.spend(24)?;
+            budget.spend(crate::limits::booleans_topology::REFINEMENT_ARC_WORK)?;
             let deviation = a.deviation();
             if tolerance.is_zero() && !deviation.is_zero() {
                 return Err(Error::new(
@@ -410,7 +417,9 @@ pub(super) fn evaluate(
         }
         arcs = contacts(arcs, budget)?;
         if arcs.len() > MAX_EDGES {
-            return Err(limit("Curve contacts exceed 512 evaluated edges"));
+            return Err(limit(&format!(
+                "Curve contacts exceed {MAX_EDGES} evaluated edges"
+            )));
         }
         let mut crossings = vec![0usize; arcs.len()];
         let mut separated_pairs = 0;

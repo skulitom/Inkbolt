@@ -1,4 +1,5 @@
 //! Bounded public image interchange, explicit alpha policy and immutable source handling.
+use crate::limits::image_io as limits;
 use crate::{Document, Error, ExportFormat, assets, model::limit, sessions::Resources};
 use assets::{ColorPolicy, Interpretation, Pixels};
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -54,10 +55,16 @@ pub(crate) fn validate_options(
                     && o.channels.is_none()
                     && o.alpha.is_none() =>
             {
-                if o.quality.is_some_and(|q| !(1..=100).contains(&q)) {
+                if o.quality.is_some_and(|q| {
+                    !(limits::MIN_JPEG_QUALITY..=limits::MAX_JPEG_QUALITY).contains(&q)
+                }) {
                     return Err(Error::new(
                         "INVALID_REQUEST",
-                        "JPEG quality must be in 1..=100",
+                        format!(
+                            "JPEG quality must be in {}..={}",
+                            limits::MIN_JPEG_QUALITY,
+                            limits::MAX_JPEG_QUALITY
+                        ),
                     ));
                 }
             }
@@ -183,7 +190,10 @@ fn jpeg_framing(bytes: &[u8]) -> Result<Option<Vec<u8>>, Error> {
             }
             profile_size += payload.len() - 14;
             if profile_size > crate::profiles::MAX_PROFILE_BYTES {
-                return Err(limit("JPEG profile exceeds 256 KiB"));
+                return Err(limit(&format!(
+                    "JPEG profile exceeds {} KiB",
+                    crate::profiles::MAX_PROFILE_BYTES / 1024
+                )));
             }
             parts[payload[12] as usize - 1] = Some(payload[14..].to_vec());
         } else if matches!(marker, 0xe1 | 0xe2 | 0xed | 0xee) {
@@ -549,9 +559,12 @@ pub(crate) fn export_with_metadata(
                 || p.height > u16::MAX as u32
                 || ppi.round() > u16::MAX as f64
             {
-                return Err(limit("JPEG dimensions or rounded density exceed 65535"));
+                return Err(limit(&format!(
+                    "JPEG dimensions or rounded density exceed {}",
+                    u16::MAX
+                )));
             }
-            let quality = options.quality.unwrap_or(90);
+            let quality = options.quality.unwrap_or(limits::DEFAULT_JPEG_QUALITY);
             let chroma = options.chroma.unwrap_or(Chroma::Full);
             let rgb: Vec<u8> = p
                 .rgba

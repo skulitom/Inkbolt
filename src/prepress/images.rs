@@ -1,7 +1,7 @@
 //! Native process-image sources: reconstruct retained RGB, then separate it.
 use super::*;
 
-pub const MAX_SOURCE_PROFILES: usize = 16;
+pub use crate::limits::prepress_images::MAX_SOURCE_PROFILES;
 pub(super) struct Sources {
     assets: BTreeMap<String, assets::Pixels>,
     converters: BTreeMap<String, profiles::cmyk::SourceConverter>,
@@ -53,9 +53,9 @@ pub(super) fn prepare(
                     let hash = assets::sha256(&bytes);
                     if !result.converters.contains_key(&hash) {
                         if result.converters.len() >= MAX_SOURCE_PROFILES {
-                            return Err(limit(
-                                "Native image preparation supports at most 16 distinct source profiles",
-                            ));
+                            return Err(limit(&format!(
+                                "Native image preparation supports at most {MAX_SOURCE_PROFILES} distinct source profiles"
+                            )));
                         }
                         result
                             .converters
@@ -191,7 +191,10 @@ impl Context<'_> {
             .profiles
             .get(id)
             .map(|id| &self.images.converters[id]);
-        for (batch, row) in rgba.chunks(4096 * 4).enumerate() {
+        for (batch, row) in rgba
+            .chunks(crate::limits::profiles::MAX_CONVERSION_SAMPLES * 4)
+            .enumerate()
+        {
             self.control.check()?;
             let rgb: Vec<f64> = row
                 .as_chunks::<4>()
@@ -214,7 +217,12 @@ impl Context<'_> {
                 .enumerate()
             {
                 values[..4].copy_from_slice(cmyk);
-                surface.paint(batch * 4096 + j, &values, &addressed, p[3]);
+                surface.paint(
+                    batch * crate::limits::profiles::MAX_CONVERSION_SAMPLES + j,
+                    &values,
+                    &addressed,
+                    p[3],
+                );
             }
         }
         Ok(())

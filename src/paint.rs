@@ -6,10 +6,10 @@ use crate::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_PAINT_SAMPLES: usize = 4096;
-pub const MAX_STOPS: usize = 64;
-pub const MAX_PATTERN_PIXELS: usize = 4096;
-pub const MAX_PAINT_WORK: u64 = 134_217_728;
+pub use crate::limits::paint::MAX_PAINT_SAMPLES;
+pub use crate::limits::paint::MAX_PAINT_WORK;
+pub use crate::limits::paint::MAX_PATTERN_PIXELS;
+pub use crate::limits::paint::MAX_STOPS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(untagged)]
@@ -152,10 +152,12 @@ pub fn validate(paint: &Paint) -> Result<(usize, usize), Error> {
         } => {
             point(*start)?;
             point(*end)?;
-            if (end[0] - start[0]).hypot(end[1] - start[1]) < 0.001 {
-                return Err(invalid(
-                    "Linear gradient endpoints must be at least 0.001 apart",
-                ));
+            if (end[0] - start[0]).hypot(end[1] - start[1]) < crate::limits::paint::MIN_LINEAR_SPAN
+            {
+                return Err(invalid(&format!(
+                    "Linear gradient endpoints must be at least {} apart",
+                    crate::limits::paint::MIN_LINEAR_SPAN
+                )));
             }
             stops
         }
@@ -166,22 +168,32 @@ pub fn validate(paint: &Paint) -> Result<(usize, usize), Error> {
             ..
         } => {
             point(*center)?;
-            if !radius.is_finite() || !(0.001..=MAX_COORDINATE).contains(radius) {
-                return Err(invalid("Radial gradient radius must be in 0.001..=32768"));
+            if !radius.is_finite()
+                || !(crate::limits::paint::MIN_RADIAL_RADIUS..=MAX_COORDINATE).contains(radius)
+            {
+                return Err(invalid(&format!(
+                    "Radial gradient radius must be in {}..={MAX_COORDINATE}",
+                    crate::limits::paint::MIN_RADIAL_RADIUS
+                )));
             }
             stops
         }
         Field::Freeform { anchors, .. } => {
             if !(2..=MAX_STOPS).contains(&anchors.len()) {
-                return Err(limit("Freeform paint requires 2 through 64 anchors"));
+                return Err(limit(&format!(
+                    "Freeform paint requires 2 through {MAX_STOPS} anchors"
+                )));
             }
             for (i, a) in anchors.iter().enumerate() {
                 point(a.point)?;
-                if anchors[..i]
-                    .iter()
-                    .any(|b| (a.point[0] - b.point[0]).hypot(a.point[1] - b.point[1]) < 0.001)
-                {
-                    return Err(invalid("Freeform anchors must be at least 0.001 apart"));
+                if anchors[..i].iter().any(|b| {
+                    (a.point[0] - b.point[0]).hypot(a.point[1] - b.point[1])
+                        < crate::limits::paint::MIN_ANCHOR_SEPARATION
+                }) {
+                    return Err(invalid(&format!(
+                        "Freeform anchors must be at least {} apart",
+                        crate::limits::paint::MIN_ANCHOR_SEPARATION
+                    )));
                 }
             }
             return Ok((0, anchors.len()));
@@ -194,7 +206,9 @@ pub fn validate(paint: &Paint) -> Result<(usize, usize), Error> {
         } => {
             let count = *width as u64 * *height as u64;
             if *width == 0 || *height == 0 || count > MAX_PATTERN_PIXELS as u64 {
-                return Err(limit("Pattern tiles require 1 through 4096 pixels"));
+                return Err(limit(&format!(
+                    "Pattern tiles require 1 through {MAX_PATTERN_PIXELS} pixels"
+                )));
             }
             if rgba_hex.len() != count as usize * 8
                 || !rgba_hex.bytes().all(|c| c.is_ascii_hexdigit())
@@ -207,7 +221,9 @@ pub fn validate(paint: &Paint) -> Result<(usize, usize), Error> {
         }
     };
     if !(2..=MAX_STOPS).contains(&stops.len()) {
-        return Err(limit("Gradients require 2 through 64 stops"));
+        return Err(limit(&format!(
+            "Gradients require 2 through {MAX_STOPS} stops"
+        )));
     }
     if stops
         .iter()
@@ -226,7 +242,7 @@ pub fn work(paint: &Paint) -> u64 {
             if mesh.knots.iter().any(|k| k.offset != [0.0; 2]) {
                 crate::meshes::INVERSE_STEPS as u64
             } else {
-                16
+                crate::limits::paint::REGULAR_MESH_WORK
             }
         }
         Paint::Field(Field::Freeform { anchors, .. }) => anchors.len() as u64,

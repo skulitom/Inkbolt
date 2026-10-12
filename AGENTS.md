@@ -1,6 +1,7 @@
 # Inkbolt project instructions
 
 - Build an original local vector and raster editing engine for agents, sister to Cutbolt.
+- FIX_PLAN.md is the primary development plan and takes priority over every earlier plan. Read it first; use older roadmaps and readiness plans as supporting context, resolving any planning conflict in favor of FIX_PLAN.md.
 - Read README.md, docs/ARCHITECTURE.md and docs/ROADMAP.md before extending behavior. Consult docs/features.json for the full implementation scope and verified status; do not infer completion from scaffolding or partial behavior.
 - Use the Rust library, structured JSON CLI and implemented MCP stdio adapter. See docs/AGENT_DISCOVERY.md for compact tool discovery and docs/AGENT_READINESS.md for the separate agent-readiness plan. Do not introduce a network listener, hosted API, account requirement or telemetry.
 - Read docs/RESEARCH.md before application inspection. Keep product names, exact target mappings, inventories, audit scripts, binary-analysis projects, captures and reports in the external private research root recorded in local Git configuration.
@@ -11,3 +12,4 @@
 - Fail explicitly for unsupported semantics. Update capability reporting and documentation together; audit completion is not engine completion.
 - Keep routine change feedback within 2-3 minutes: use python tools/verify.py (180-second quick budget, identical-pass reuse), --only <test modules> or --rust <test filter> while implementing, and --last-failed for fixes. Do not repeatedly run the whole suite for an intermediate change. Pending checks are not passes. Use python tools/verify.py --thorough at milestones, before completion/feature claims, or for broad acceptance; it reruns formatting, locked build, all-target Clippy with warnings denied, all Rust tests and all Python modules without reuse. See docs/DEVELOPMENT_LOOP.md. Test the repository guard when changing publication rules; keep candidate/staged checks and the commit hook enabled.
 - Anode is for isolated background desktop verification. Keep the viewer hidden, retain evidence privately, close only owned windows/jobs, and release the lease.
+- Maintain Linux coverage using WSL: `python tools/verify_wsl.py` accepts the same quick selectors and `--thorough` as the native verifier. Use targeted Linux checks for platform-sensitive changes and fresh Windows/Linux thorough checks at platform milestones. See docs/PLATFORMS.md; Linux jobs remain explicitly unsupported until their separate backend is verified.

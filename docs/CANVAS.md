@@ -1,5 +1,7 @@
 # Raster canvas operations
 
+Document creation, canvas resolution edits, raw development and sequence import share the resolution admission/defaults in `capabilities.limits` and the catalog. Resolution-only edits retain their existing pixel-preservation contract.
+
 Use `document.edit` or a durable session edit with `{"op":"canvas","action":{...}}`. These operations currently require raster documents. They preserve layers, IDs, hierarchy, source pixel bytes, image crops, font descriptors and source files. A batch is atomic and creates one session undo point.
 
 | Action | Required fields | Behavior |

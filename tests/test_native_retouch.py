@@ -7,6 +7,7 @@ from pathlib import Path
 import struct
 import sys
 import unittest
+from advertised_limits import capabilities
 from external_workspace import files as workspace_files
 import test_agent_workspace as workspace
 import test_retouch_cli as legacy
@@ -211,26 +212,28 @@ class NativeRetouchTests(unittest.TestCase):
         self.apply(d,options,control=dict(timeout_ms=0),error='TIMEOUT')
         locked=copy.deepcopy(d);locked['items'][0]['locked']=True;self.apply(locked,options,error='LOCKED')
         blocked=copy.deepcopy(d);g=blocked['items'][0]['content']['grid']
-        g['patches']=[dict(region=dict(x=0,y=0,width=1,height=1),data_hex=packed([1,2,3,65535],'u16'))]*256
+        g['patches']=[dict(region=dict(x=0,y=0,width=1,height=1),data_hex=packed([1,2,3,65535],'u16'))]*capabilities()['native_sample_store_library']['retained_edits']['max_patches']
         self.apply(blocked,options,error='RESOURCE_LIMIT')
         path=self.root/'.inkbolt/assets'/f"{d['items'][0]['content']['grid']['base']['tiles'][-1]}.native-tile"
         raw=bytearray(path.read_bytes());raw[-2]^=1;path.write_bytes(raw)
         before=self.files();self.apply(d,options,error='SAMPLE_TILE_CORRUPT');self.assertEqual(self.files(),before)
 
     def test_skinny_maximum_region_has_true_image_edges_and_bounded_window(self):
-        w,h=32768,4
+        w=capabilities()['limits']['dimension_pixels']
+        rows=capabilities()['native_sample_store_library']['max_region_pixels']//w
+        h=rows+2
         d=self.imported(w,h,[v for y in range(h) for x in range(w) for v in [x,y*7001,5000,65535]])
-        # The exact 65536-pixel RGBA16 patch occupies more than the standard
+        # A maximum-region RGBA16 patch occupies more than the standard
         # snapshot allowance once encoded. Use the existing explicit profile.
         d['resource_profile']='large_raster'
         d=self.cli('document.validate',document=d)
         original=self.raw(d)
-        options=dict(source_id='pixels',region=dict(x=0,y=1,width=w,height=2),mode=dict(type='clone'),source_transform=[1,0,0,1,0,-1])
-        result=self.apply(d,options);expected=bytearray(original);expected[w*8:3*w*8]=original[:2*w*8]
+        options=dict(source_id='pixels',region=dict(x=0,y=1,width=w,height=rows),mode=dict(type='clone'),source_transform=[1,0,0,1,0,-1])
+        result=self.apply(d,options);expected=bytearray(original);expected[w*8:(rows+1)*w*8]=original[:rows*w*8]
         self.assertEqual(self.raw(result['document']),expected)
         receipt=result['changes'][0]['details'];self.assertEqual(receipt['working_window'],[0,0,w,h])
         self.assertEqual(receipt['image_edge_faces'],4);self.assertEqual(receipt['boundary_edges'],2*w)
-        self.apply(d,dict(options,region=dict(x=0,y=0,width=w,height=3)),error='RESOURCE_LIMIT')
+        self.apply(d,dict(options,region=dict(x=0,y=0,width=w,height=rows+1)),error='RESOURCE_LIMIT')
 
     def test_native_selection_uses_global_centers_and_ignores_source_appearance(self):
         w,h=138,5
@@ -250,15 +253,18 @@ class NativeRetouchTests(unittest.TestCase):
         self.assertEqual(result['document']['selection'],d['selection'])
 
     def test_replacement_block_memory_rejects_before_reading_missing_resources(self):
-        d=self.cli('document.create',id='bounded',kind='raster',resource_profile='large_raster',width=256,height=32768)
-        spec=dict(width=256,height=32768,depth='f32',channels='rgba',encoding='encoded_srgb')
-        tiles=['0'*64]*512
-        header=b'INKTILE1'+struct.pack('<IIBBBB',256,32768,4,4,0,0)
-        identity=hashlib.sha256(b'INKGRID1'+header+struct.pack('<I',128)+bytes(32)*512).hexdigest()
+        caps=capabilities();store=caps['native_sample_store_library'];edge=store['tile_edge']
+        width=2*edge;height=caps['limits']['dimension_pixels']
+        d=self.cli('document.create',id='bounded',kind='raster',resource_profile='large_raster',width=width,height=height)
+        spec=dict(width=width,height=height,depth='f32',channels='rgba',encoding='encoded_srgb')
+        count=((width+edge-1)//edge)*((height+edge-1)//edge)
+        tiles=['0'*64]*count
+        header=b'INKTILE1'+struct.pack('<IIBBBB',width,height,4,4,0,0)
+        identity=hashlib.sha256(b'INKGRID1'+header+struct.pack('<I',edge)+bytes(32)*count).hexdigest()
         d['items']=[dict(id='pixels',content=dict(type='stored_samples',grid=dict(base=dict(version=1,spec=spec,tiles=tiles,sha256=identity))))]
-        # Only 65536 selected cells, but crossing two block columns would retain
-        # 128 MiB of new binary32 blocks in addition to all solver/preparation data.
-        options=dict(source_id='pixels',region=dict(x=127,y=0,width=2,height=32768),mode=dict(type='clone'))
+        # A narrow region crosses two block columns; replacement blocks consume
+        # the processing memory budget before solver/preparation data.
+        options=dict(source_id='pixels',region=dict(x=edge-1,y=0,width=2,height=height),mode=dict(type='clone'))
         before=self.files();error=self.apply(d,options,error='RESOURCE_LIMIT')
         self.assertIn('memory bound',error['message']);self.assertEqual(self.files(),before)
 

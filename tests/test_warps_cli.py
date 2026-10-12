@@ -7,6 +7,7 @@ import math
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import xml.etree.ElementTree as ET
 import test_editing_cli as editing
 import test_boards_cli as boards
@@ -200,6 +201,22 @@ class WarpTests(unittest.TestCase):
             expanded=c.success('session.apply',**session,expected_revision=1,request_id='expand',action=dict(type='edit',operations=[dict(op='warp_expand',id='warp')]))['document'];self.assertEqual(self.pixels(changed,2),self.pixels(expanded,2))
             undone=c.success('session.apply',**session,expected_revision=2,request_id='undo',action=dict(type='undo'))['document'];self.assertEqual(undone['items'],changed['items'])
             redone=c.success('session.apply',**session,expected_revision=3,request_id='redo',action=dict(type='redo'))['document'];self.assertEqual(redone['items'],expanded['items']);c.success('session.publish',**session,expected_revision=4,output=dict(output_root=root,file_name='warp.png',format='png'));c.success('session.verify',**session)
+    def test_discovered_tolerance_and_exact_projective_weight_boundaries(self):
+        limits=capabilities()['warps']
+        self.assertEqual(self.inspect(spec([affine()]))['tolerance'],limits['default_tolerance'])
+        for value in limits['tolerance']:
+            self.assertEqual(self.inspect(spec([affine()],tolerance=value))['tolerance'],value)
+        for value in [limits['tolerance'][0]/2,limits['tolerance'][1]+1]:
+            self.assertEqual(self.inspect(spec([affine()],tolerance=value),expected=1)['code'],'INVALID_WARP')
+        lower,upper=limits['perspective_weights']
+        # This trapezoid has corner weights [1,1,weight,weight]. Its small source
+        # rectangle isolates conditioning from independent subdivision budgets.
+        for weight,expected in [(lower,0),(upper,0),(lower/2,1),(upper*2,1)]:
+            with self.subTest(weight=weight):
+                mapping=dict(type='perspective',domain=[0,0,1,1],corners=[[0,0],[1,0],[1/weight,1],[0,1]])
+                result=self.inspect(spec([mapping],rect(0,0,.001,.001),tolerance=limits['tolerance'][1]),expected=expected)
+                if expected:self.assertEqual(result['code'],'UNSUPPORTED')
+
     def test_invalid_quad_conditioning_domain_and_strict_controls(self):
         for corners in [[[0,0],[24,24],[24,0],[0,24]],[[0,0],[24,0],[12,1],[0,24]],[[0,0],[24,0],[24,0],[0,24]]]:
             m=perspective();m['corners']=corners;self.assertEqual(self.inspect(spec([m]),expected=1)['code'],'INVALID_WARP')
@@ -217,13 +234,13 @@ class WarpTests(unittest.TestCase):
     def test_nested_degree_map_sample_grid_limits_and_coordinate_rejection(self):
         e=envelope();e['domain']=[0,0,36,36];s=spec([e,e,e],path([[3,5],[21,19]],False));s['fill']=None;self.assertEqual(self.inspect(s,expected=1)['code'],'RESOURCE_LIMIT')
         s=spec();s['maps']=[];self.assertEqual(self.inspect(s,expected=1)['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.inspect(spec([affine()]*9),expected=1)['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.inspect(spec([affine()]),expected=1,samples=[[1,1]]*257)['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.inspect(spec([affine()]),expected=1,grid=dict(domain=[0,0,24,24],columns=17,rows=2))['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.inspect(spec([affine()]*(capabilities()['warps']['map_count'][1]+1)),expected=1)['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.inspect(spec([affine()]),expected=1,samples=[[1,1]]*(capabilities()['warps']['samples']+1))['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.inspect(spec([affine()]),expected=1,grid=dict(domain=[0,0,24,24],columns=capabilities()['warps']['grid_intervals'][1]+1,rows=2))['code'],'RESOURCE_LIMIT')
         self.assertEqual(self.inspect(spec([affine([1,0,0,1,32768,0])]),expected=1)['code'],'INVALID_WARP')
-        for tolerance in [0,1.1]:self.assertEqual(self.inspect(spec([affine()],tolerance=tolerance),expected=1)['code'],'INVALID_WARP')
+        for tolerance in [0,capabilities()['warps']['tolerance'][1]+.1]:self.assertEqual(self.inspect(spec([affine()],tolerance=tolerance),expected=1)['code'],'INVALID_WARP')
     def test_hidden_aggregate_generated_commands_and_input_edge_budget(self):
-        g=path([[i/16,2+i%2] for i in range(257)]);self.assertEqual(self.inspect(spec([affine()],g),expected=1)['code'],'RESOURCE_LIMIT')
+        g=path([[i/16,2+i%2] for i in range(capabilities()['warps']['source_edges']+1)]);self.assertEqual(self.inspect(spec([affine()],g),expected=1)['code'],'RESOURCE_LIMIT')
         s=spec([affine()],path([[i/16,2+i%2] for i in range(250)]));d=self.document(s);node(d)['visible']=False
         for k in range(17):d['items'].append(dict(copy.deepcopy(node(d)),id='hidden'+str(k)))
         self.assertEqual(self.invoke(dict(command='document.validate',document=d),1)['code'],'RESOURCE_LIMIT')

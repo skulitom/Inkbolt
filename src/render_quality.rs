@@ -118,10 +118,16 @@ impl Plan {
         if let Some(view) = options.view {
             view.validate()?;
         }
-        if !(1..=4).contains(&scale) || options.padding > 256 {
+        if !(1..=crate::limits::render_quality::MAX_SCALE).contains(&scale)
+            || options.padding > crate::limits::render_quality::MAX_PADDING
+        {
             return Err(Error::new(
                 "INVALID_REQUEST",
-                "Render scale must be 1..=4 and effect padding 0..=256 document units",
+                format!(
+                    "Render scale must be 1..={} and effect padding 0..={} document units",
+                    crate::limits::render_quality::MAX_SCALE,
+                    crate::limits::render_quality::MAX_PADDING
+                ),
             ));
         }
         if matches!(options.averaging_space, AveragingSpace::LinearSrgb)
@@ -134,7 +140,9 @@ impl Plan {
         }
         let evaluation = [width, height].map(|v| v + 2 * options.padding);
         if evaluation.iter().any(|&v| v == 0 || v > MAX_DIMENSION) {
-            return Err(limit("Padded render dimensions exceed 32768"));
+            return Err(limit(&format!(
+                "Padded render dimensions exceed {MAX_DIMENSION}"
+            )));
         }
         let internal_scale = scale * options.antialias.factor();
         if evaluation[0] as u64 * evaluation[1] as u64 * (internal_scale as u64).pow(2)
@@ -184,8 +192,12 @@ impl Plan {
             value["evaluation_tile_edge"] = json!(crate::render::tiled::EDGE);
             value["evaluation_neighborhood_units"] =
                 json!(crate::render::traversal::NEIGHBORHOOD_UNITS);
-            value["evaluation_tile_policy"] =
-                json!("maximum_128;8_for_at_least_128_expanded_items");
+            value["evaluation_tile_policy"] = json!(format!(
+                "maximum_{};{}_for_at_least_{}_expanded_items",
+                crate::limits::render_tiled::EDGE,
+                crate::limits::render_spatial::EDGE,
+                crate::limits::render_spatial::MIN_ITEMS
+            ));
         }
         if let Some(canvas) = self.canvas {
             value["vector_canvas"] = json!(canvas);

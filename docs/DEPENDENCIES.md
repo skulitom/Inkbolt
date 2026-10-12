@@ -1,5 +1,22 @@
 # Dependencies and provenance
 
+W2's optional no-engine benchmark environment pins resvg 0.47.0 (MIT OR
+Apache-2.0) and Pillow 12.3.0 (MIT-CMU). They are external benchmark tools, not
+Cargo dependencies or requirements for ordinary verification. Install them in
+a dedicated external environment, retain their distributed license files, and
+verify release/wheel checksums. The driver rechecks exact versions, executable
+hashes and installed Pillow distribution bytes. See the
+[driver contract](BENCHMARK_DRIVER.md), [resvg release](https://github.com/linebender/resvg/releases/tag/v0.47.0)
+and [Pillow package](https://pypi.org/project/Pillow/12.3.0/).
+
+Preserved tool license sources:
+[resvg MIT](https://github.com/linebender/resvg/blob/v0.47.0/LICENSE-MIT),
+[resvg Apache-2.0](https://github.com/linebender/resvg/blob/v0.47.0/LICENSE-APACHE),
+[Pillow MIT-CMU](https://github.com/python-pillow/Pillow/blob/12.3.0/LICENSE).
+No external font is introduced: the baseline uses the same original synthetic
+glyphs as Inkbolt, with an optional name table derived from the public
+[OpenType naming specification](https://learn.microsoft.com/en-us/typography/opentype/spec/name).
+
 Native vector import adds pinned MIT-licensed ruzstd 0.9.0 and its checksum
 dependency twox-hash 2.1.5. Their supplied license texts are retained in
 THIRD_PARTY_NOTICES.md; package sources remain in the external Cargo cache.

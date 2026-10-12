@@ -187,15 +187,17 @@ class FocusedPreviewTests(unittest.TestCase):
         self.assertIn(128,p[3::4]);self.assertEqual(self.files(),{})
 
     def test_contact_sheet_limits_reject_before_view_resource_reads(self):
+        from advertised_limits import capabilities
+        cap = capabilities()['contact_sheets']
         d=self.document(width=1024,height=1024)
         # A missing external font would fail if any view were rendered before aggregate admission.
         d['fonts']={'missing':dict(sha256='a'*64,license_sha256='b'*64,face_index=0,bytes=100)}
         d['items']=[dict(id='label',content=dict(type='text',frame=dict(text='A',width=10,height=10,style=dict(font_id='missing',size=8,fill=[0,0,0,255]))))]
-        self.cli('document.contact_sheet',document=d,options=dict(views=[{}]*5),error='RESOURCE_LIMIT')
+        self.cli('document.contact_sheet',document=d,options=dict(views=[{}]*(cap['maximum_aggregate_evaluation_pixels']//(d['width']*d['height'])+1)),error='RESOURCE_LIMIT')
         small=self.document()
-        for options in [dict(views=[]),dict(views=[{}]*17),dict(views=[{}],columns=0),dict(views=[{}],columns=9),dict(views=[{}],cell_size=[0,5]),dict(views=[{}],cell_size=[5,513]),dict(views=[{}],gap=65)]:
+        for options in [dict(views=[]),dict(views=[{}]*(cap['maximum_views']+1)),dict(views=[{}],columns=0),dict(views=[{}],columns=cap['columns'][1]+1),dict(views=[{}],cell_size=[0,5]),dict(views=[{}],cell_size=[5,cap['maximum_cell_axis']+1]),dict(views=[{}],gap=cap['gap'][1]+1)]:
             self.cli('document.contact_sheet',document=small,options=options,error='INVALID_REQUEST')
-        self.cli('document.contact_sheet',document=small,options=dict(views=[{}]*16,cell_size=[512,512],gap=1),error='RESOURCE_LIMIT')
+        self.cli('document.contact_sheet',document=small,options=dict(views=[{}]*cap['maximum_views'],cell_size=[cap['maximum_cell_axis']]*2,gap=1),error='RESOURCE_LIMIT')
         self.cli('document.contact_sheet',document=small,options=dict(views=[{}]),control=dict(timeout_ms=0),error='TIMEOUT')
         self.assertEqual(self.files(),{})
 

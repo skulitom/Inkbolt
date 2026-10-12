@@ -1,5 +1,10 @@
 # Transfer artwork between documents
 
+The [limit reference](LIMITS.md) and `capabilities.document_transfer` report the
+prefix and generated item-ID bounds used by validation and naming. A readable
+prefixed ID uses the shared identifier limit; longer IDs retain the existing
+hash-suffix fallback. Numeric bounds and collision behavior are unchanged.
+
 The atomic `transfer` edit copies selected source subtrees into the destination snapshot, including the ancestor containers and transitive references needed to keep them structurally valid. It supports ordinary vector and raster document contents within their existing kind constraints. Both source and destination inputs remain unchanged; the returned document is the result. The same operation is available through CLI edits, MCP and durable session batches.
 
 ```json

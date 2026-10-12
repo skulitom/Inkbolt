@@ -82,7 +82,7 @@ impl Budget<'_> {
                 "Geometry measurement exceeds certified subdivision budget",
             ));
         }
-        if self.used % 32 == 1 {
+        if self.used % crate::limits::dimensions::MEASUREMENT_CHECK_INTERVAL == 1 {
             self.control.check()?;
         }
         Ok(())
@@ -100,7 +100,7 @@ fn cubic_length(c: C, tol: R, budget: &mut Budget<'_>) -> Result<(R, R), Error> 
             lower += lo;
             upper += hi;
         } else {
-            if depth == 32 {
+            if depth == crate::limits::dimensions::MAX_SUBDIVISION_DEPTH {
                 return Err(limit(
                     "Curve length cannot meet tolerance within subdivision depth",
                 ));
@@ -152,7 +152,7 @@ fn ellipse_length(
             lower += lo;
             upper += hi;
         } else {
-            if depth == 32 {
+            if depth == crate::limits::dimensions::MAX_SUBDIVISION_DEPTH {
                 return Err(limit(
                     "Ellipse length cannot meet tolerance within subdivision depth",
                 ));
@@ -166,11 +166,16 @@ fn ellipse_length(
     Ok((lower, upper))
 }
 fn pi() -> (R, R) {
+    // The positive next term encloses the alternating remainder after an even count.
+    debug_assert!(
+        crate::limits::dimensions::PI_ATAN_TERMS > 0
+            && crate::limits::dimensions::PI_ATAN_TERMS.is_multiple_of(2)
+    );
     let atan = |den: i64| {
         let x = n(1) / n(den);
         let mut power = x.clone();
         let mut sum = R::zero();
-        for k in 0..32 {
+        for k in 0..i64::from(crate::limits::dimensions::PI_ATAN_TERMS) {
             let v = &power / n(2 * k + 1);
             if k % 2 == 0 {
                 sum += v
@@ -179,7 +184,10 @@ fn pi() -> (R, R) {
             };
             power *= &x * &x;
         }
-        (sum.clone(), sum + power / n(65))
+        (
+            sum.clone(),
+            sum + power / n(2 * i64::from(crate::limits::dimensions::PI_ATAN_TERMS) + 1),
+        )
     };
     let (a, b) = atan(5);
     let (c, d) = atan(239);

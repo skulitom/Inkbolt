@@ -1,5 +1,6 @@
 """Original story-source conflicts, typed strings and strict bounded references."""
 import copy, hashlib, json, tempfile, unittest
+from advertised_limits import capabilities
 from pathlib import Path
 import layered_fixtures as f
 import layered_text_fixtures as t
@@ -139,19 +140,25 @@ class LayeredStoryTests(unittest.TestCase):
         self.assertTrue(self.load(extra=wide,version=2)['details']['global_story']['present'])
 
     def test_global_budgets_are_separate_from_local_and_receipts_remain_bounded(self):
+        cap = capabilities()['layered_interchange']['text_diagnostics']
+        limits = cap['global_story']['limits']
         valid=entries(global_data())
-        for raw in [valid+b' '*262144, valid+b' /X '+b'['*33+b'0'+b']'*33,
-                    valid+b' /X ['+b'0 '*4097+b']',
-                    valid+b' /X '+encode({str(i):[0]*4096 for i in range(8)}),
-                    valid+b' /X '+encode(b'a'*16389)]:
+        depth = limits['data_depth'] + 1
+        count = limits['container_entries']
+        for raw in [valid+b' '*limits['data_bytes'], valid+b' /X '+b'['*depth+b'0'+b']'*depth,
+                    valid+b' /X ['+b'0 '*(count+1)+b']',
+                    valid+b' /X '+encode({str(i):[0]*count for i in range(limits['data_values']//count)}),
+                    valid+b' /X '+encode(b'a'*(cap['limits']['string_bytes']+1))]:
             self.assertEqual(self.load(raw=raw)['code'],'RESOURCE_LIMIT')
-        g=global_data();g['1']['1']=[story('A')]*257
+        g=global_data();g['1']['1']=[story('A')]*(limits['stories']+1)
         self.assertEqual(self.load(global_=g)['code'],'RESOURCE_LIMIT')
-        g=global_data();g['1']['1']=[story('A'*4097)]
+        g=global_data();g['1']['1']=[story('A'*(limits['characters']+1))]
         self.assertEqual(self.load(global_=g)['code'],'RESOURCE_LIMIT')
-        g=global_data();g['1']['1']=[story('A'*65,[1]*66)]
+        runs = limits['runs']
+        g=global_data();g['1']['1']=[story('A'*runs,[1]*(runs+1))]
         self.assertEqual(self.load(global_=g)['code'],'RESOURCE_LIMIT')
-        g=global_data();g['1']['1']=[story('A'*8,[1]*9,list(range(9)))];g['0']['1']['0']=[{'0':{'0':{'0':f'Original{i}'}}} for i in range(9)]
+        faces = limits['referenced_fonts']
+        g=global_data();g['1']['1']=[story('A'*faces,[1]*(faces+1),list(range(faces+1)))];g['0']['1']['0']=[{'0':{'0':{'0':f'Original{i}'}}} for i in range(faces+1)]
         self.assertEqual(self.load(global_=g)['code'],'RESOURCE_LIMIT')
 
     def test_unused_stories_and_later_layers_are_explicitly_not_validated(self):
@@ -172,12 +179,13 @@ class LayeredStoryTests(unittest.TestCase):
         self.assertFalse(self.load()['details']['compatibility_markers']['present'])
 
     def test_empty_and_maximum_unicode_story_counts_and_remaining_container_limits(self):
-        for text in ['', 'A(B)\\C', '\U0001f600'*4096]:
+        limits = capabilities()['layered_interchange']['text_diagnostics']['global_story']['limits']
+        for text in ['', 'A(B)\\C', '\U0001f600'*limits['characters']]:
             g=global_data(text);s=self.load(global_=g)['details']['global_story']
             self.assertEqual(s['text_characters'],len(text));self.assertEqual(s['text_utf16_units'],len(text.encode('utf-16-be'))//2)
-        valid=entries(global_data());raw=valid+b' /X '+encode({str(i):0 for i in range(4097)})
+        valid=entries(global_data());raw=valid+b' /X '+encode({str(i):0 for i in range(limits['container_entries']+1)})
         self.assertEqual(self.load(raw=raw)['code'],'RESOURCE_LIMIT')
-        extra=b''.join(tag(b'',f'{i:04}'.encode()) for i in range(512))
+        extra=b''.join(tag(b'',f'{i:04}'.encode()) for i in range(limits['tagged_records']))
         self.assertEqual(self.load(extra=extra)['code'],'RESOURCE_LIMIT')
         for value in [[],[{'0':{},'1':0}],[{'0':{},'1':True}],[{'0':[], '1':5}]]:
             g=global_data();g['1']['1'][0]['0']['5']['0']=value

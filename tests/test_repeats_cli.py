@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import test_editing_cli as editing
 import test_boards_cli as boards
 from test_mcp import Client
+from advertised_limits import capabilities
 from test_stroke_outlines_cli import polygons,winding
 from test_interpolation_cli import rect,path,map_point
 from test_instances_cli import instance
@@ -89,6 +90,23 @@ class RepeatTests(unittest.TestCase):
                 self.assertEqual(placement['reflected'],sx*sy<0)
                 self.assertEqual(sum(winding(poly,12+12*c-sx,12+10*row) for poly in [outer,hole]),0)
                 self.assertNotEqual(sum(winding(poly,12+12*c+2*sx,12+10*row) for poly in [outer,hole]),0)
+    def test_advertised_radial_angle_admission_preserves_endpoints_and_rejects_excess(self):
+        maximum = capabilities()['repeats']['maximum_absolute_radial_angle_degrees']
+        for field in ('start_angle','sweep'):
+            for sign in (-1,1):
+                for value,expected in ((sign*maximum,0),(sign*(maximum+1),1)):
+                    layout = dict(type='radial',count=4,radius=10,**{field:value})
+                    source = spec(layout)
+                    before = copy.deepcopy(source)
+                    result = self.inspect(source,expected=expected)
+                    if expected:self.assertEqual(result['code'],'INVALID_REPEAT')
+                    else:
+                        start = layout.get('start_angle',0)
+                        sweep = layout.get('sweep',360)
+                        centers = [[12+10*math.cos(math.radians(start+sweep*i/4)),12+10*math.sin(math.radians(start+sweep*i/4))] for i in range(4)]
+                        self.points([p['center'] for p in result['placements']],centers)
+                    self.assertEqual(source,before)
+
     def test_closed_radial_count_quadrants_orientation_and_seam_exclusion(self):
         for mode in ['fixed','radial','tangent']:
             s=spec(dict(type='radial',count=4,radius=10,orientation=mode),rect(-3,-1,6,2));s['origin']=[32,32]
@@ -181,15 +199,22 @@ class RepeatTests(unittest.TestCase):
             undone=c.success('session.apply',**session,expected_revision=2,request_id='undo',action=dict(type='undo'))['document'];self.assertEqual(undone['items'],changed['items'])
             redone=c.success('session.apply',**session,expected_revision=3,request_id='redo',action=dict(type='redo'))['document'];self.assertEqual(redone['items'],expanded['items'])
             c.success('session.publish',**session,expected_revision=4,output=dict(output_root=root,file_name='repeat.png',format='png'));c.success('session.verify',**session)
+    def test_discovered_copy_bounds_are_admitted_and_excess_is_rejected(self):
+        low,high=capabilities()['repeats']['copies']
+        for count,expected in [(low,0),(high,0),(0,1),(high+1,1)]:
+            result=self.inspect(spec(dict(type='grid',rows=1,columns=count,step=[1,1])),expected=expected)
+            if expected:self.assertEqual(result['code'],'RESOURCE_LIMIT')
+            else:self.assertEqual(len(result['placements']),count)
+
     def test_strict_layouts_motifs_singular_transforms_and_atomic_rollback(self):
-        for layout in [dict(type='grid',rows=0,columns=2,step=[1,1]),dict(type='grid',rows=2,columns=65,step=[1,1]),dict(type='grid',rows=1,columns=1,step=[0,1]),dict(type='brick',rows=2,columns=2,step=[1,1],offset=1.1),dict(type='hex',rows=2,columns=2,radius=0),dict(type='radial',count=4,radius=4,sweep=180),dict(type='radial',count=4,radius=4,sweep=360,closed=False),dict(type='radial',count=1,radius=4,sweep=180,closed=False),dict(type='radial',count=4,radius=4,start_angle=361)]:
+        for layout in [dict(type='grid',rows=0,columns=2,step=[1,1]),dict(type='grid',rows=2,columns=capabilities()['repeats']['copies'][1]//2+1,step=[1,1]),dict(type='grid',rows=1,columns=1,step=[0,1]),dict(type='brick',rows=2,columns=2,step=[1,1],offset=1.1),dict(type='hex',rows=2,columns=2,radius=0),dict(type='radial',count=4,radius=4,sweep=180),dict(type='radial',count=4,radius=4,sweep=360,closed=False),dict(type='radial',count=1,radius=4,sweep=180,closed=False),dict(type='radial',count=4,radius=4,start_angle=361)]:
             self.inspect(spec(layout),expected=1)
         s=spec();s['geometry']['shape']='rect';s['unknown']=1;self.inspect(s,expected=1)
         s=spec();s['transform']=[0,0,0,0,0,0];self.assertEqual(self.inspect(s,expected=1)['code'],'UNSUPPORTED')
         s=spec();s['geometry']=dict(shape='path',commands=[dict(verb='move',to=[0,0]),dict(verb='line',to=[1,0])]);self.assertEqual(self.inspect(s,expected=1)['code'],'UNSUPPORTED')
         d=self.document();before=copy.deepcopy(d);self.edit(d,dict(op='repeat_expand',id='repeat'),dict(op='remove',id='missing'),expected=1);self.assertEqual(d,before)
     def test_hidden_and_aggregate_geometry_limits_extreme_coordinates_and_cancellation(self):
-        s=spec(dict(type='grid',rows=1,columns=128,step=[1,1]),path([[i*.1,i%2] for i in range(40)]))
+        s=spec(dict(type='grid',rows=1,columns=capabilities()['repeats']['copies'][1],step=[1,1]),path([[i*.1,i%2] for i in range(40)]))
         self.assertEqual(self.inspect(s,expected=1)['code'],'RESOURCE_LIMIT')
         s=spec(dict(type='grid',rows=1,columns=100,step=[1,1]),path([[i*.1,i%2] for i in range(20)]))
         d=self.document(s);node(d)['visible']=False;d['items'].append(dict(copy.deepcopy(node(d)),id='second'))

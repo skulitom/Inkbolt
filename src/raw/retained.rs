@@ -2,8 +2,8 @@
 use super::*;
 use crate::{assets::Sampling, scene};
 pub const ALGORITHM: &str = "inkbolt-raw-linear-v2";
-pub const MAX_SOURCE_BYTES: usize = 131072;
-pub const MAX_RECIPE_BYTES: u64 = 16384;
+pub use crate::limits::raw_retained::MAX_RECIPE_BYTES;
+pub use crate::limits::raw_retained::MAX_SOURCE_BYTES;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -51,7 +51,10 @@ impl Spec {
     pub fn validate(&self) -> Result<usize, Error> {
         self.recipe.validate()?;
         if self.source_hex.len() > MAX_SOURCE_BYTES * 2 {
-            return Err(limit("Retained raw source exceeds 128 KiB"));
+            return Err(limit(&format!(
+                "Retained raw source exceeds {} KiB",
+                MAX_SOURCE_BYTES as f64 / 1024.0
+            )));
         }
         if self.source_hex.len() != self.recipe.capture.validate()? * 2
             || !self.source_hex.bytes().all(|c| c.is_ascii_hexdigit())

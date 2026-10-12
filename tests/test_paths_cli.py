@@ -6,6 +6,7 @@ import math
 import re
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import xml.etree.ElementTree as ET
 import test_editing_cli as editing
 from test_layout_cli import shape_contains, local_point
@@ -55,6 +56,19 @@ class PathCliTests(unittest.TestCase):
         return self.invoke(dict(command='document.validate',document=json.loads(p['data'])))
     def svg(self,d):return ET.fromstring(self.invoke(dict(command='document.export',document=d,format='svg'))['data'])
     def query(self,d,**q):return self.invoke(dict(command='document.query',document=d,query=q))
+
+    def test_primitive_extent_and_rotation_advertised_boundaries(self):
+        bounds = capabilities()['geometry_limits']['primitives']
+        minimum = bounds['minimum_extent']; maximum = bounds['rotation_degrees'][1]
+        geometry = dict(shape='regular_polygon', cx=0, cy=0, radius=minimum, sides=3, rotation=0)
+        self.edit(self.document(), [dict(op='add', item=self.item(geometry))])
+        bad = dict(geometry, radius=minimum*.5)
+        self.assertEqual(self.edit(self.document(), [dict(op='add', item=self.item(bad))], 1)['code'], 'INVALID_DOCUMENT')
+        for angle in (-maximum, maximum):
+            self.edit(self.document(), [dict(op='add', item=self.item(dict(geometry, radius=1, rotation=angle)))])
+        for angle in (-maximum-1, maximum+1):
+            bad = dict(geometry, radius=1, rotation=angle)
+            self.assertEqual(self.edit(self.document(), [dict(op='add', item=self.item(bad))], 1)['code'], 'INVALID_DOCUMENT')
 
     def test_fractional_parametric_shapes_persist_and_svg_preserves_expansion(self):
         shapes=[dict(shape='polygon',points=[[1.25,2.5],[10.75,2.5],[8.5,9.25],[2,8]]),dict(shape='regular_polygon',cx=14.5,cy=12.25,radius=7.5,sides=6,rotation=30.25),dict(shape='star',cx=14.5,cy=12.25,outer_radius=9.5,inner_radius=4.25,points=5,rotation=-90.25)]

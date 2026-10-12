@@ -1,8 +1,16 @@
 # Coordinate fidelity
 
+Numerical admission and roundoff policies are named in `capabilities.numerical_limits` and the generated [limit reference](LIMITS.md). These are independent tolerances for their stated operations, not interchangeable global epsilons. Changing an error-proof bound or approximation count requires its numerical validation, even when allocation ceilings stay unchanged.
+
+Primitive admission minima and the existing cubic-bounds coefficient threshold are catalog-backed and reported in `capabilities.geometry_limits`. The threshold describes the existing binary64 branch decision, not a certified geometric error bound. Arithmetic and admission are unchanged.
+
 Negative and fractional positions remain editable throughout snapshots and the
 supported SVG exchange. Inspect `capabilities.coordinate_precision` before
-choosing a numerical or image comparison.
+choosing a numerical or image comparison. All numeric precision budgets and
+expression/ancestor/cache limits in that group are bound to the shared
+[catalog](LIMITS.md). The coefficient-error point domain derives from twice the
+document control-coordinate limit. This consolidation changes no arithmetic
+proof, fallback algorithm, precision tier or admission bound.
 
 | Surface | Contract |
 | --- | --- |

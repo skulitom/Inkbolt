@@ -1,5 +1,7 @@
 # Editable opacity masks
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Both document kinds accept an optional `mask` on drawable items, isolated or pass-through groups, frames and artboards. This is grayscale coverage, independent of the artwork's RGB values and existing alpha. It can fade an icon, soften a diagram group or reveal part of an image without replacing its pixels. Geometric `clip` and layer-to-layer alpha clipping are separate concepts.
 
 ```json

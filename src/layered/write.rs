@@ -1,4 +1,5 @@
 use super::{binary::*, *};
+use crate::limits::layered as bounds;
 fn native_byte(value: f64) -> Result<u8, Error> {
     let byte = (value * 255.0).round() as u8;
     if byte as f64 / 255.0 != value {
@@ -21,8 +22,11 @@ pub(super) fn controls(item: &Item) -> Result<(), Error> {
     {
         return Err(unsupported("Layered delivery needs normal pixel layers or normal/pass-through folders without effects, filters or clipping; no implicit flattening is performed").at_item(&item.id));
     }
-    if item.name.encode_utf16().count() > 1024 {
-        return Err(limit("Layer name exceeds 1024 UTF-16 units"));
+    if item.name.encode_utf16().count() > bounds::MAX_NAME_UNITS {
+        return Err(limit(&format!(
+            "Layer name exceeds {} UTF-16 units",
+            bounds::MAX_NAME_UNITS
+        )));
     }
     Ok(())
 }
@@ -78,9 +82,10 @@ pub(super) fn document(
 ) -> Result<Value, Error> {
     let control = context.control;
     if context.depth > crate::objects::MAX_NESTING {
-        return Err(limit(
-            "Embedded layered delivery exceeds four nesting levels",
-        ));
+        return Err(limit(&format!(
+            "Embedded layered delivery exceeds {} nesting levels",
+            crate::objects::MAX_NESTING
+        )));
     }
     control.check()?;
     crate::validate(document)?;
@@ -108,10 +113,14 @@ pub(super) fn document(
     let canvas = size(document.width, document.height, MAX_CANVAS_PIXELS, version)?;
     context.budget.pixels += canvas;
     context.budget.items += document.items.len();
-    if context.budget.pixels > MAX_DECODED_BYTES / 4 || context.budget.items > 1024 {
-        return Err(limit(
-            "Nested layered delivery exceeds 8 MiB decoded samples or 1024 editable items",
-        ));
+    if context.budget.pixels > MAX_DECODED_BYTES / 4
+        || context.budget.items > bounds::MAX_DECODED_ITEMS
+    {
+        return Err(limit(&format!(
+            "Nested layered delivery exceeds {} MiB decoded samples or {} editable items",
+            MAX_DECODED_BYTES / (1024 * 1024),
+            bounds::MAX_DECODED_ITEMS
+        )));
     }
     if document.items.is_empty() {
         return Err(unsupported(
@@ -187,7 +196,7 @@ pub(super) fn document(
         let bounds = [top, left, top + h as i32, left + w as i32];
         if bounds
             .iter()
-            .any(|&value| !(-32768..=32768).contains(&value))
+            .any(|&value| !(-(MAX_COORDINATE as i32)..=MAX_COORDINATE as i32).contains(&value))
         {
             return Err(limit(
                 "Layered pixel bounds exceed the supported coordinate range",
@@ -214,13 +223,16 @@ pub(super) fn document(
             };
         stored_pixels += item_pixels;
         if stored_pixels > MAX_STORED_PIXELS {
-            return Err(limit("Retained layer caches and masks exceed 65536 pixels"));
+            return Err(limit(&format!(
+                "Retained layer caches and masks exceed {MAX_STORED_PIXELS} pixels"
+            )));
         }
         context.budget.pixels += item_pixels;
         if context.budget.pixels > MAX_DECODED_BYTES / 4 {
-            return Err(limit(
-                "Nested layered delivery sources, caches and masks exceed 8 MiB decoded samples",
-            ));
+            return Err(limit(&format!(
+                "Nested layered delivery sources, caches and masks exceed {} MiB decoded samples",
+                MAX_DECODED_BYTES as f64 / 1_048_576.0
+            )));
         }
         short(&mut records, 4 + u16::from(mask.is_some()));
         for channel in [-1_i16, 0, 1, 2] {
@@ -374,7 +386,10 @@ pub(super) fn document(
     ));
     control.check()?;
     if bytes.len() > MAX_FILE_BYTES {
-        return Err(limit("Layered export exceeds 32 MiB"));
+        return Err(limit(&format!(
+            "Layered export exceeds {} MiB",
+            MAX_FILE_BYTES / (1024 * 1024)
+        )));
     }
     let mut result = json!({"media_type":"application/octet-stream","encoding":"base64","data":STANDARD.encode(&bytes),"layered":{"version":version.number(),"mode":"rgb8","compression":compression,"layers":receipts,"empty_name_source_ids":document.items.iter().filter(|i|i.name.is_empty()).map(|i|&i.id).collect::<Vec<_>>(),"serialized_records":ordered.len(),"order":"bottom_to_top","source_composite_rgba_sha256":assets::sha256(&raster.rgba),"merged_planes_sha256":assets::sha256(&composite),"merged_color":"white_matted_rgb_plus_straight_alpha","profile_sha256":assets::sha256(&profile),"resolution_ppi":density as f64/65536.0,"source_changed":false},"losses":["Native pixel bytes, extents, names, visibility, exact byte opacity and normal/pass-through folder hierarchy are retained. Folder transforms are resolved to absolute pixel placements; imported folder transforms are identity, and source documents are unchanged. File layer IDs are independently generated; source IDs appear only in the delivery receipt. Empty names are encoded exactly, but native consumers may generate names for them; empty_name_source_ids identifies those items. Name items explicitly for stable external names.","The merged cache stores RGB composited against white plus a separate alpha plane. Unmatting this 8-bit cache can lose straight RGB precision at low alpha. Editable source pixels remain separate; consumer compositing and rounding can differ.","Physical density rounds to unsigned 16.16 pixels per inch. Engine history, variants and private metadata are not embedded as an editable engine snapshot."]});
     result["layered"]["embedded_objects"] = json!(embedded_receipts);

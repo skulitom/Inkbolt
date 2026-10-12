@@ -11,11 +11,12 @@ import unittest
 
 from test_cli import EXE
 from test_mcp import Client
+from platform_support import requires_capability
 import test_session_lineage as lineage
 
 
 class HistoryReceiptTests(unittest.TestCase):
-    setUp = lineage.SessionLineageTests.setUp
+    setUp = requires_capability('durable_publication')(lineage.SessionLineageTests.setUp)
     cli = lineage.SessionLineageTests.cli
     save = lineage.SessionLineageTests.save
     document = lineage.SessionLineageTests.document

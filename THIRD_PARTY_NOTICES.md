@@ -2,6 +2,12 @@
 
 Dependencies remain in the external package cache; this file preserves their distributed license texts. Versions and checksums are pinned in Cargo.lock. Notices shared by packages are reproduced once with stable references. No third-party implementation is vendored.
 
+The optional external benchmark tools are separate from the Cargo inventory:
+resvg 0.47.0 (MIT OR Apache-2.0) and Pillow 12.3.0 (MIT-CMU). Their binaries,
+package files and distributed licenses stay in the external benchmark environment.
+Pinned license sources and installation boundaries are recorded in
+[dependencies](docs/DEPENDENCIES.md); the engine does not redistribute these tools.
+
 | Package | Version | License expression | Notices |
 | --- | --- | --- | --- |
 | adler2 | 2.0.1 | 0BSD OR MIT OR Apache-2.0 | LICENSE-0BSD: notice-a21c914647d33e48; LICENSE-APACHE: notice-1bc86297d0320153; LICENSE-MIT: notice-30fefc3a7d6a0041 |

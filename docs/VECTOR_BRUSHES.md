@@ -1,5 +1,7 @@
 # Structured vector brushes
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Vector `stroke.brush` retains original filled motifs along the centerline. Agents can decorate routes, construct repeating icon borders and vary artwork size while retaining path and spacing edits. This is a rigid motif model: glyphs rotate and scale at measured positions; they do not warp or stretch through bends. No asset catalog or hardware is required.
 
 ```json

@@ -1,5 +1,7 @@
 # Scene-linear HDR editing and delivery
 
+HDR grade and display-view exposure share the catalog bound. Channel gain has its own bound; raw sensor-development exposure remains a separate policy even where the current values match. Color transfer equations are unchanged.
+
 Raster documents can explicitly select `color_space:"linear_srgb"`. This changes compositing to linear-light sRGB primaries. Retained sample grids declare `encoding:"linear_srgb"` and `depth:"f32"` for signed finite binary32 radiance, including values above reference white, negative color components and subnormals. Alpha remains straight and finite in 0..1. Omitted grid encoding means normalized encoded sRGB, preserving the original document contract.
 
 Linear sample sources require a linear document. A linear document can also contain ordinary encoded sample grids, byte layers, placed images, procedural fills and text. Encoded image channels decode before interpolation; paint shaders evaluate their existing encoded-color contract and decode each result before coverage and compositing. Gradients retain their authored interpolation contract. Existing geometry coverage, byte masks and paint precision do not become arbitrary-precision planes.

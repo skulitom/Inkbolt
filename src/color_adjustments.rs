@@ -1,12 +1,12 @@
 //! Original color controls and bounded lookup evaluation for the adjustment pipeline.
+pub use crate::limits::color_adjustments::MAX_DOCUMENT_LUT_ENTRIES;
+pub use crate::limits::color_adjustments::MAX_LUT_1D;
+pub use crate::limits::color_adjustments::MAX_LUT_3D_SIDE;
+pub use crate::limits::color_adjustments::MAX_MAP_STOPS;
 use crate::{Error, model::*, paint::Interpolation};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-pub const MAX_LUT_1D: usize = 4096;
-pub const MAX_LUT_3D_SIDE: u32 = 33;
-pub const MAX_DOCUMENT_LUT_ENTRIES: usize = 65536;
-pub const MAX_MAP_STOPS: usize = 64;
 pub type Rgb = [f64; 3];
 pub fn domain() -> [Rgb; 2] {
     [[0.0; 3], [1.0; 3]]
@@ -203,10 +203,14 @@ impl Adjustment {
     }
     pub fn work(&self) -> u64 {
         match self {
-            Self::Selective { corrections, .. } => 16 + corrections.len() as u64 * 4,
-            Self::Lut3d { .. } => 32,
-            Self::GradientMap { .. } => 16,
-            _ => 16,
+            Self::Selective { corrections, .. } => {
+                crate::limits::color_adjustments::BASE_WORK
+                    + corrections.len() as u64
+                        * crate::limits::color_adjustments::SELECTIVE_CORRECTION_WORK
+            }
+            Self::Lut3d { .. } => crate::limits::color_adjustments::LUT_3D_WORK,
+            Self::GradientMap { .. } => crate::limits::color_adjustments::BASE_WORK,
+            _ => crate::limits::color_adjustments::BASE_WORK,
         }
     }
 }

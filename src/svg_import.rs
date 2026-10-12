@@ -19,10 +19,10 @@ use std::{
     path::PathBuf,
 };
 
-pub const MAX_BYTES: usize = 256 * 1024;
-pub const MAX_NODES: u32 = 4096;
-pub const MAX_LARGE_BYTES: usize = 8 * 1024 * 1024;
-pub const MAX_LARGE_NODES: u32 = 65536;
+pub use crate::limits::svg_import::MAX_BYTES;
+pub use crate::limits::svg_import::MAX_LARGE_BYTES;
+pub use crate::limits::svg_import::MAX_LARGE_NODES;
+pub use crate::limits::svg_import::MAX_NODES;
 const NS: &str = "http://www.w3.org/2000/svg";
 const PROPERTIES: &[&str] = &[
     "fill",
@@ -93,6 +93,7 @@ impl Default for Style {
             rule: FillRule::Nonzero,
             cap: Cap::Butt,
             join: Join::Miter,
+            // SVG input defaults remain independent of engine authoring defaults.
             miter: 4.0,
             dash: crate::strokes::Dash {
                 array: vec![],
@@ -430,7 +431,11 @@ fn styled(parent: &Style, p: &BTreeMap<&str, &str>) -> Result<Style, Error> {
     if s.stop_color != "currentColor" {
         color(&s.stop_color)?;
     }
-    if s.width < 0.0 || s.width > 1024.0 || s.miter < 1.0 || s.miter > 16.0 {
+    if s.width < 0.0
+        || s.width > f64::from(crate::limits::strokes::MAX_WIDTH)
+        || s.miter < f64::from(crate::limits::strokes::MIN_MITER_LIMIT)
+        || s.miter > f64::from(crate::limits::strokes::MAX_MITER_LIMIT)
+    {
         return Err(unsupported(
             "Stroke width or miter limit exceeds the engine range",
         ));
@@ -536,10 +541,11 @@ fn shape(node: Node<'_, '_>) -> Result<Geometry, Error> {
 fn viewport(node: Node<'_, '_>) -> Result<(f64, f64, Matrix), Error> {
     let dimension = |name| -> Result<f64, Error> {
         let n = length(required(node, name)?)?;
-        if !(0.000001..=MAX_DIMENSION as f64).contains(&n) {
-            return Err(unsupported(
-                "SVG canvas dimensions must resolve to 0.000001..32768 logical pixels at 96 ppi",
-            ));
+        if !(crate::limits::vector_canvas::MIN_LOGICAL_SIZE..=MAX_DIMENSION as f64).contains(&n) {
+            return Err(unsupported(format!(
+                "SVG canvas dimensions must resolve to {}..{MAX_DIMENSION} logical pixels at 96 ppi",
+                crate::limits::vector_canvas::MIN_LOGICAL_SIZE
+            )));
         }
         Ok(n)
     };

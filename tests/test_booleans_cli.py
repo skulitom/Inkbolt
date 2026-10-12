@@ -8,6 +8,7 @@ import tempfile
 import unittest
 import test_editing_cli as editing
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def rect(x,y,w,h):return dict(shape='rect',x=x,y=y,width=w,height=h)
@@ -139,10 +140,23 @@ class BooleanTests(unittest.TestCase):
                     self.assertTrue(y==0 or y==2*x-x*x/6)
             self.assertEqual(result['curves']['topology']['certificate'],'exact_simultaneous_curve_to_chord_homotopy')
 
+    def test_discovered_tolerance_bounds_and_default_preserve_exact_line_results(self):
+        source=self.document([rect(1,1,4,4),rect(3,3,4,4)]);before=copy.deepcopy(source)
+        limits=capabilities()['booleans']
+        default=self.combine(source)
+        self.assertEqual(default['curve_tolerance'],limits['default_curve_tolerance'])
+        for value in limits['curve_tolerance']:
+            result=self.combine(source,curve_tolerance=value)
+            self.assertEqual(result['curve_tolerance'],value)
+            self.assertEqual(result['geometry'],default['geometry'])
+        for value in [-1,limits['curve_tolerance'][1]+1]:
+            self.assertEqual(self.combine(source,curve_tolerance=value,expected=1)['code'],'INVALID_REQUEST')
+        self.assertEqual(source,before)
+
     def test_explicit_empty_errors_and_input_resource_limits_preserve_sources(self):
         d=self.document([rect(1,1,4,4),rect(10,10,4,4)]);saved=copy.deepcopy(d)
         for ids in ([],['s0'],['s0','s0'],['s0','missing']):self.invoke(dict(command='document.boolean',document=d,ids=ids,mode='union'),1)
-        for value in (-1,65):self.combine(d,expected=1,curve_tolerance=value)
+        for value in (-1,capabilities()['booleans']['curve_tolerance'][1]+1):self.combine(d,expected=1,curve_tolerance=value)
         self.assertTrue(self.combine(d,'intersection')['empty'])
         ellipse=dict(shape='ellipse',cx=10,cy=10,rx=4,ry=3)
         self.assertEqual(self.combine(self.document([ellipse,rect(0,0,20,20)]),expected=1)['code'],'UNSUPPORTED')

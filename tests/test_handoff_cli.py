@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from advertised_limits import capabilities
 from external_workspace import files as workspace_files
 
 from test_cli import EXE
@@ -126,7 +127,7 @@ class HandoffTests(unittest.TestCase):
             bundle=self.invoke('handoff.export',document=self.document(),options=opts)
             self.assertEqual(self.invoke('handoff.inspect',handoff=bundle['handoff'],include_schedule=True)['selected_frames'],[0]*frames)
         for fields in [dict(frame_rate=dict(num=29,den=1)),dict(duration=dict(num=1,den=30)),
-                       dict(duration=dict(num=121,den=1)),dict(duration=dict(num=1,den=0)),
+                       dict(duration=dict(num=capabilities()['handoff']['limits']['seconds']+1,den=1)),dict(duration=dict(num=1,den=0)),
                        dict(frame_rate=dict(num=30000,den=1001),duration=dict(num=1001,den=30000))]:
             self.invoke('handoff.export',document=self.document(),options=options(**fields),
                         error='UNSUPPORTED' if fields.get('frame_rate',{}).get('num')==29 else 'INVALID_HANDOFF')

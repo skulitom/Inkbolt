@@ -37,7 +37,9 @@ impl TurnBudget {
             if !cross(a, b, &exact).is_zero() || !on(a, &exact, b) {
                 self.confirmed += 1;
                 if self.confirmed > MAX_EDGES {
-                    return Err(limit("Volume polygonal profiles support at most 128 edges"));
+                    return Err(limit(&format!(
+                        "Volume polygonal profiles support at most {MAX_EDGES} edges"
+                    )));
                 }
             }
             self.previous.remove(0);
@@ -149,7 +151,9 @@ pub(super) fn build(s: &Spec, control: &crate::control::Control) -> Result<Profi
     }
     let edges: usize = contours.iter().map(Vec::len).sum();
     if edges > MAX_EDGES {
-        return Err(limit("Volume polygonal profiles support at most 128 edges"));
+        return Err(limit(&format!(
+            "Volume polygonal profiles support at most {MAX_EDGES} edges"
+        )));
     }
     for (ci, c) in exact.iter().enumerate() {
         for (i, a) in c.iter().enumerate() {

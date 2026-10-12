@@ -1,5 +1,7 @@
 # Discretionary break inspection
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `text.hyphenate` computes reproducible break opportunities from explicitly supplied rules. It is a read-only library, JSON CLI and MCP stdio operation. It preserves exact input tokens and reports source scalar offsets, grapheme boundaries and diagnostic segments. [Shared stories](STORIES.md) now use these same rules to select and render hyphenated lines through frames/columns, alongside structural lists and saved history. Inspection alone does not change layout.
 
 ## Rules

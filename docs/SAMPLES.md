@@ -1,5 +1,7 @@
 # Retained pixel sample depths
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 This page describes the normalized encoded-sRGB path. Explicit signed scene-linear HDR grids, working space, reversible grading and display conversion are described in [HDR.md](HDR.md).
 
 Agents can author RGB or neutral grayscale samples at explicit 8-bit, 16-bit or normalized binary32 depth. Raster documents accept `content.type:"samples"` with a `grid` containing `width`, `height`, `depth`, `channels`, `data_hex` and optional `sampling`. Discovery is under `capabilities.sample_precision`; item queries use type `samples` and report dimensions, depth, channels, sampling and a hash of the retained bytes.

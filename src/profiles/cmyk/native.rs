@@ -78,7 +78,7 @@ fn input(values: &[f64]) -> Result<(), Error> {
             "Ink conversion needs finite color triples",
         ));
     }
-    if values.len() / 3 > 4096 {
+    if values.len() / 3 > crate::limits::profiles::MAX_CONVERSION_SAMPLES {
         return Err(limit(
             "Elementary ink color conversion exceeds its batch bound",
         ));

@@ -25,7 +25,10 @@ pub(super) fn work(
         object.sampling,
         crate::resample::footprint(crop, [object.width, object.height], world, scale)?,
     )?;
-    Ok(pixels.saturating_mul((5 + MAX_SPOTS) as u64 * (plan.work() + 16)))
+    Ok(pixels.saturating_mul(
+        (5 + MAX_SPOTS) as u64
+            * (plan.work() + crate::limits::prepress::OBJECT_RECONSTRUCTION_WORK),
+    ))
 }
 
 pub(crate) fn projection_receipt() -> Value {

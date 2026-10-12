@@ -6,6 +6,7 @@ import layered_delivery_reader as reader
 import layered_object_fixtures as incoming
 import test_layered_cli as core
 from test_mcp import Client
+from platform_support import requires_capability
 
 POLICY=dict(embedded_objects='native_reconstruction')
 PIXELS=bytes([201,31,61,64,20,160,90,255,45,70,195,128,99,55,44,0,21,93,167,255,0,220,70,1])
@@ -99,7 +100,14 @@ class LayeredObjectExportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             path=Path(root)/'failed.psd';r=self.invoke(dict(command='document.preflight',document=d,output=dict(output_root=root,file_name=path.name,format='layered',layered_options=POLICY)))
             self.assertFalse(r['ready']);self.assertFalse(path.exists())
+    def test_mcp_session_preflight_retry_undo_and_create_only_without_job(self):
+        self.delivery_workflow(False)
+
+    @requires_capability('jobs')
     def test_mcp_session_preflight_job_restart_retry_undo_and_create_only_outputs(self):
+        self.delivery_workflow(True)
+
+    def delivery_workflow(self, with_job):
         d=self.scene();before=copy.deepcopy(d)
         with tempfile.TemporaryDirectory() as root:
             s=dict(session_root=root,session_id='delivery');output=dict(output_root=root,file_name='editable.psd',format='layered',layered_options=POLICY)
@@ -114,19 +122,20 @@ class LayeredObjectExportTests(unittest.TestCase):
                 c.success('session.apply',**s,**edit)
                 c.success('session.apply',**s,request_id='undo',expected_revision=1,action=dict(type='undo'))
                 job=dict(job_root=str(Path(root)/'jobs'),request_id='native',document=d,output=dict(output,file_name='background.psd'))
-                c.success('job.start',**job)
+                if with_job: c.success('job.start',**job)
             finally:c.close()
             c=Client();c.initialize()
             try:
                 self.assertTrue(c.success('session.apply',**s,**edit)['replayed']);self.assertTrue(c.success('session.verify',**s)['valid'])
-                deadline=time.monotonic()+20
-                while True:
-                    state=c.success('job.wait',job_root=str(Path(root)/'jobs'),request_id='native',wait_ms=1000)
-                    if state['state'] not in ['queued','running']:break
-                    self.assertLess(time.monotonic(),deadline)
-                self.assertEqual(state['state'],'completed',state);result=c.success('job.result',job_root=str(Path(root)/'jobs'),request_id='native')
-                self.assertEqual((Path(root)/'background.psd').read_bytes(),raw);self.assertEqual(result['sha256'],published['sha256'])
-                self.assertTrue(c.success('job.start',**job)['replayed'])
+                if with_job:
+                    deadline=time.monotonic()+20
+                    while True:
+                        state=c.success('job.wait',job_root=str(Path(root)/'jobs'),request_id='native',wait_ms=1000)
+                        if state['state'] not in ['queued','running']:break
+                        self.assertLess(time.monotonic(),deadline)
+                    self.assertEqual(state['state'],'completed',state);result=c.success('job.result',job_root=str(Path(root)/'jobs'),request_id='native')
+                    self.assertEqual((Path(root)/'background.psd').read_bytes(),raw);self.assertEqual(result['sha256'],published['sha256'])
+                    self.assertTrue(c.success('job.start',**job)['replayed'])
                 self.assertEqual((Path(root)/'editable.psd').read_bytes(),raw)
             finally:c.close()
         self.assertEqual(d,before)

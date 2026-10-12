@@ -7,6 +7,7 @@ from contextlib import closing
 import json
 import struct
 import unittest
+from advertised_limits import capabilities
 import xml.etree.ElementTree as ET
 
 import test_agent_workspace as workspace
@@ -192,7 +193,7 @@ class VectorOverviews(unittest.TestCase):
 
     def test_invalid_or_unsupported_overviews_fail_without_weakening_limits(self):
         d=scene()
-        for options in [dict(max_size=[0,100]),dict(max_size=[1025,100]),dict(max_size=[100,100],scale=2),
+        for options in [dict(max_size=[0,100]),dict(max_size=[capabilities()['focused_previews']['vector_overview']['axes'][1]+1,100]),dict(max_size=[100,100],scale=2),
                         dict(max_size=[100,100],focus=dict(type='region',bounds=[0,0,1,1])),
                         dict(max_size=[100,100],render_options=dict(padding=1)),
                         dict(max_size=[100,100],render_options=dict(crop_to_canvas=False)),

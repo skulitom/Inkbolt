@@ -1,6 +1,7 @@
 //! Observed character controls only. Equal local caches do not establish complete
 //! style semantics, font identity, paragraph layout or editability.
 use super::{text_data::Node, *};
+use crate::limits::layered_text as bounds;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy)]
@@ -16,8 +17,11 @@ impl Kind {
         if matches!(self, Self::NumberTriple) && count != 3 {
             return Err(malformed());
         }
-        if matches!(self, Self::NumberList) && count > 32 {
-            return Err(limit("Text stroke patterns exceed 32 source values"));
+        if matches!(self, Self::NumberList) && count > bounds::MAX_DASH_VALUES {
+            return Err(limit(&format!(
+                "Text stroke patterns exceed {} source values",
+                bounds::MAX_DASH_VALUES
+            )));
         }
         Ok(())
     }
@@ -258,7 +262,10 @@ const CONTROLS: &[(Option<&str>, Option<&str>, &str, Kind)] = &[
 ];
 
 pub(super) fn face_name(name: &str) -> Result<Value, Error> {
-    if name.is_empty() || name.len() > 128 || !name.bytes().all(|b| (33..=126).contains(&b)) {
+    if name.is_empty()
+        || name.len() > bounds::MAX_FACE_NAME_BYTES
+        || !name.bytes().all(|b| (33..=126).contains(&b))
+    {
         return Err(unsupported(
             "Native font identity is not a bounded printable face name",
         ));
@@ -427,9 +434,10 @@ impl Styles {
             .filter_map(|r| r.controls.get("font_face_name").and_then(Value::as_str))
             .collect::<BTreeSet<_>>();
         if faces.len() > crate::fonts::MAX_FONTS {
-            return Err(limit(
-                "Native text story references more than eight font faces",
-            ));
+            return Err(limit(&format!(
+                "Native text story references more than {} font faces",
+                crate::fonts::MAX_FONTS
+            )));
         }
         Ok(faces)
     }
@@ -449,8 +457,8 @@ impl Styles {
             .collect::<BTreeSet<_>>();
         Ok(
             json!({"run_controls_sha256":assets::sha256(&bytes),"observed_controls":observed,
-            "enabled_boolean_controls":enabled,"unmapped_fields":self.unknown.iter().take(16).collect::<Vec<_>>(),
-            "unmapped_field_count":self.unknown.len(),"unmapped_fields_truncated":self.unknown.len()>16}),
+            "enabled_boolean_controls":enabled,"unmapped_fields":self.unknown.iter().take(bounds::MAX_UNMAPPED_FIELDS).collect::<Vec<_>>(),
+            "unmapped_field_count":self.unknown.len(),"unmapped_fields_truncated":self.unknown.len()>bounds::MAX_UNMAPPED_FIELDS}),
         )
     }
 

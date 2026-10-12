@@ -1,5 +1,7 @@
 # Checked session backup and restoration
 
+Backup lock waiting shares the SQLite busy timeout; the retry interval is named separately. Both are reported under `capabilities.session_backups` and listed in [central limits](LIMITS.md).
+
 `session.backup` captures a specified current revision and creates a standalone SQLite backup containing the entire session history. `session.recover` restores an exact backup into an unused session destination. They share the Rust library, JSON CLI and MCP stdio executor. Neither command replaces existing files or migrates storage implicitly.
 
 ```json
@@ -39,7 +41,7 @@ Recovery reads the supplied regular, non-symlink file once into an exclusively c
 
 Image/font stores remain external. Receipts explicitly report `resources_copied:false` and `external_resources_verified:false`. A valid history backup is not a self-contained artwork archive or evidence that its fonts/images are currently available. Stored absolute paths remain exact; no automatic relinking or substituted content occurs.
 
-When restoring in a different workspace, old resource paths can remain outside its allowed runtime boundary. Session reads can inspect those stored bindings, but rendering/editing that accesses them must satisfy the current workspace rules. Import the intended original resources into the new workspace, then use an explicit `resources` actionâ€”optionally through `session.dry_run` and `session.apply_proposal`â€”to rebind them as a new revision. Pure structural proposal comparisons do not access external roots. Old history and its original bindings remain available. This does not establish cross-platform pathname compatibility; current measured acceptance is Windows.
+When restoring in a different workspace, old resource paths can remain outside its allowed runtime boundary. Session reads can inspect those stored bindings, but rendering/editing that accesses them must satisfy the current workspace rules. Import the intended original resources into the new workspace, then use an explicit `resources` actionâ€”optionally through `session.dry_run` and `session.apply_proposal`â€”to rebind them as a new revision. Pure structural proposal comparisons do not access external roots. Old history and its original bindings remain available. Local backup and restoration are tested on Windows and Linux; stored resource paths still require explicit rebinding when they differ across operating systems.
 
 ## Publication, interruption and limits
 

@@ -8,7 +8,7 @@ fn isolated() -> bool {
     true
 }
 
-pub const MAX_OPERATIONS: usize = 64;
+pub use crate::limits::edit::MAX_OPERATIONS;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TransformSpace {
@@ -627,7 +627,7 @@ pub fn apply_with_resources(
     if operations.is_empty() || operations.len() > MAX_OPERATIONS {
         return Err(Error::new(
             "INVALID_OPERATION",
-            "A batch must contain 1 through 64 operations",
+            format!("A batch must contain 1 through {MAX_OPERATIONS} operations"),
         ));
     }
     let next = document
@@ -1966,10 +1966,18 @@ fn apply_one(
             Ok((document.id.clone(), "output_profile"))
         }
         Operation::EffectsScale { ids, factor } => {
-            if !factor.is_finite() || !(0.001..=1024.0).contains(factor) {
+            if !factor.is_finite()
+                || !(crate::limits::effects::MIN_SCALE
+                    ..=f64::from(crate::limits::effects::MAX_SCALE))
+                    .contains(factor)
+            {
                 return Err(Error::new(
                     "INVALID_OPERATION",
-                    "Effect scale factor must be in 0.001..=1024",
+                    format!(
+                        "Effect scale factor must be in {}..={}",
+                        crate::limits::effects::MIN_SCALE,
+                        crate::limits::effects::MAX_SCALE
+                    ),
                 ));
             }
             let selected = scene::selection(document, ids, false)?;

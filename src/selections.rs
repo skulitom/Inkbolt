@@ -4,10 +4,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-pub const MAX_PIXELS: u64 = 262_144;
-pub const MAX_WORK: u64 = 67_108_864;
-pub const MAX_RADIUS: u32 = 32;
-pub const MAX_POLYGON_POINTS: usize = 1024;
+pub use crate::limits::selections::MAX_PIXELS;
+pub use crate::limits::selections::MAX_POLYGON_POINTS;
+pub use crate::limits::selections::MAX_RADIUS;
+pub use crate::limits::selections::MAX_WORK;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -73,7 +73,9 @@ impl Boundary {
             },
             Self::Polygon { points } => {
                 if !(3..=MAX_POLYGON_POINTS).contains(&points.len()) {
-                    return Err(invalid("Selection polygon requires 3..=1024 points"));
+                    return Err(invalid(&format!(
+                        "Selection polygon requires 3..={MAX_POLYGON_POINTS} points"
+                    )));
                 }
                 let commands = std::iter::once(PathCommand::Move { to: points[0] })
                     .chain(points[1..].iter().map(|p| PathCommand::Line { to: *p }))
@@ -98,11 +100,15 @@ pub fn validate(selection: &Selection, width: u32, height: u32) -> Result<(), Er
 }
 pub(crate) fn check_size(width: u32, height: u32) -> Result<usize, Error> {
     if !(1..=MAX_DIMENSION).contains(&width) || !(1..=MAX_DIMENSION).contains(&height) {
-        return Err(invalid("Selection dimensions must be in 1..=32768"));
+        return Err(invalid(&format!(
+            "Selection dimensions must be in 1..={MAX_DIMENSION}"
+        )));
     }
     let n = width as u64 * height as u64;
     if n > MAX_PIXELS {
-        return Err(limit("Pixel selection exceeds 262144 pixels"));
+        return Err(limit(&format!(
+            "Pixel selection exceeds {MAX_PIXELS} pixels"
+        )));
     }
     Ok(n as usize)
 }
@@ -179,9 +185,9 @@ pub fn invert(document: &mut Document) -> Result<(), Error> {
 pub fn refine(document: &mut Document, mode: Refine, radius: u32) -> Result<(), Error> {
     let selection = active(document)?;
     if radius > MAX_RADIUS {
-        return Err(invalid(
-            "Selection refinement radius must be in 0..=32 pixels",
-        ));
+        return Err(invalid(&format!(
+            "Selection refinement radius must be in 0..={MAX_RADIUS} pixels"
+        )));
     }
     let w = selection.width as usize;
     let h = selection.height as usize;
@@ -303,7 +309,7 @@ pub fn to_mask(
 
 // Exact horizontal interval coverage, integrated over 256 subrows. Rectangles use exact area.
 // All geometry stays f64; this does not depend on the drawing backend's edge quantization.
-pub const COVERAGE_SUBROWS: u32 = 256;
+pub use crate::limits::selections::COVERAGE_SUBROWS;
 fn coverage(
     boundary: &Boundary,
     width: u32,

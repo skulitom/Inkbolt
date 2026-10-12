@@ -1,5 +1,7 @@
 # Pixel selections and permanent mask application
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 A document can retain one optional `selection:{width,height,gray_hex}`. It is a canvas-sized row-major grayscale8 field in document pixel coordinates. Zero is unselected, 255 is fully selected, and intermediate values are partial coverage. `null` means no active selection, which differs from an explicit all-zero selection. Both document kinds can use this state; permanent application to pixel content requires a raster document.
 
 Selections do not print and do not implicitly change other operations such as `pixel_fill`. They are separate from the read-only `document.select` query for object IDs. Snapshot exports and session history retain them. Inspection returns dimensions, nonzero end-exclusive bounds, selected/full pixel counts, coverage sum and a SHA-256 of the scalar bytes. Structural diffs include selection changes, even when rendered pixels are unchanged. Artboard export drops selection state only in its temporary normalized clone; the source document remains intact.

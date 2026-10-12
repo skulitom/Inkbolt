@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import xml.etree.ElementTree as ET
 import test_editing_cli as editing
 from synthetic_font import geometric_font
@@ -37,6 +38,36 @@ class TextCliTests(unittest.TestCase):
     def pixels(self,d):
         result=self.invoke(dict(command='document.export',document=d,format='png',font_root=str(self.store)))
         return editing.png_pixels(base64.b64decode(result['data']))[:3]
+
+    def test_advertised_frame_style_and_language_boundaries(self):
+        caps = capabilities(); bounds = caps['text_limits']
+        geometry = caps['text_character_geometry']
+        # Empty source isolates admission from glyph shaping/ink bounds.
+        source = self.document(text='')
+        cases = [('width', bounds['frame_extent']), ('height', bounds['frame_extent']),
+                 ('leading', bounds['leading']), ('style.size', bounds['font_size']),
+                 ('style.tracking', bounds['tracking']),
+                 ('style.horizontal_scale', geometry['scale_range']),
+                 ('style.vertical_scale', geometry['scale_range']),
+                 ('style.baseline_shift', geometry['baseline_shift_range'])]
+        for field, (lo, hi) in cases:
+            for value, expected in [(lo, 0), (hi, 0),
+                                    (lo-abs(lo)/2, 1), (hi+abs(hi)/2, 1)]:
+                with self.subTest(field=field, value=value):
+                    d = copy.deepcopy(source); target = d['items'][0]['content']['frame']
+                    parts = field.split('.')
+                    if len(parts) == 2: target = target[parts[0]]
+                    target[parts[-1]] = value
+                    result = self.invoke(dict(command='document.validate', document=d), expected)
+                    if expected: self.assertEqual(result['code'], 'INVALID_DOCUMENT')
+        for length, expected in [(bounds['language_bytes'], 0), (bounds['language_bytes']+1, 1)]:
+            d = copy.deepcopy(source)
+            d['items'][0]['content']['frame']['style']['language'] = 'a'*length
+            result = self.invoke(dict(command='document.validate', document=d), expected)
+            if expected:
+                self.assertEqual(result['code'], 'INVALID_DOCUMENT')
+                self.assertIn(str(bounds['language_bytes']), result['message'])
+
 
     def test_font_store_identity_retained_license_dedup_and_source_preservation(self):
         original=self.source.read_bytes();license=self.license.read_bytes()
@@ -131,10 +162,24 @@ class TextCliTests(unittest.TestCase):
         self.assertEqual(self.invoke(dict(command='font.import',source_path=str(self.source),license_path=str(self.license),store_root=str(self.store)),1)['code'],'FONT_CORRUPT')
         self.assertNotEqual(file.read_bytes(),data)
 
+    def test_fallback_font_count_reserves_the_primary_binding(self):
+        d = self.document(text='A')
+        maximum = capabilities()['supported']['text']['fallback_fonts']
+        fallback = [f'fallback{i}' for i in range(maximum)]
+        for name in fallback: d['fonts'][name] = copy.deepcopy(self.font)
+        frame = d['items'][0]['content']['frame']
+        frame['style']['fallback_fonts'] = fallback
+        self.invoke(dict(command='document.validate', document=d))
+        frame['style']['fallback_fonts'] = fallback + ['geometry']
+        error = self.invoke(dict(command='document.validate', document=d), 1)
+        self.assertEqual(error['code'], 'RESOURCE_LIMIT')
+        self.assertIn(f'at most {maximum} fallback fonts', error['message'])
+
     def test_ranges_grapheme_boundaries_limits_and_unsupported_controls(self):
         d=self.document(text='A\u0301');style=dict(font_id='geometry',size=10,fill=[0,0,0,255])
         self.assertEqual(self.edit(d,[dict(op='text_range',id='label',start=1,end=2,style=style)],1)['code'],'INVALID_DOCUMENT')
-        for field,value in [('text','A'*4097),('ranges',[dict(start=0,end=1,style=style)]*65)]:
+        bounds = capabilities()['limits']
+        for field,value in [('text','A'*(bounds['text_characters']+1)),('ranges',[dict(start=0,end=1,style=style)]*(bounds['text_ranges_per_frame']+1))]:
             bad=copy.deepcopy(d);bad['items'][0]['content']['frame'][field]=value
             self.assertEqual(self.invoke(dict(command='document.validate',document=bad),1)['code'],'RESOURCE_LIMIT')
         for text in ('A\tA','A\u202eA'):

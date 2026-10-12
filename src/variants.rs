@@ -4,9 +4,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
-pub const MAX_BINDINGS: usize = 64;
-pub const MAX_DATASETS: usize = 32;
-pub const MAX_INHERITANCE: usize = 8;
+pub use crate::limits::variants::MAX_BINDINGS;
+pub use crate::limits::variants::MAX_DATASETS;
+pub use crate::limits::variants::MAX_INHERITANCE;
 pub const EXPORT_LOSS: &str = "Only the selected variant is exported. Retain snapshots for dataset bindings, inherited values and captured base properties.";
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq, Hash)]
@@ -155,7 +155,9 @@ fn resolved<'a>(
             return Err(error("Dataset inheritance contains a cycle"));
         }
         if chain.len() == MAX_INHERITANCE {
-            return Err(limit("Dataset inheritance exceeds 8 levels"));
+            return Err(limit(&format!(
+                "Dataset inheritance exceeds {MAX_INHERITANCE} levels"
+            )));
         }
         let (id, data) = definition
             .datasets
@@ -225,7 +227,9 @@ pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Resul
         || def.datasets.is_empty()
         || def.datasets.len() > MAX_DATASETS
     {
-        return Err(limit("Variants require 1..64 bindings and 1..32 datasets"));
+        return Err(limit(&format!(
+            "Variants require 1..{MAX_BINDINGS} bindings and 1..{MAX_DATASETS} datasets"
+        )));
     }
     if state.base.len() != def.bindings.len() {
         return Err(error("Variant baseline must match every binding"));
@@ -294,7 +298,9 @@ pub(crate) fn define(d: &mut Document, definition: Definition) -> Result<serde_j
         || definition.datasets.is_empty()
         || definition.datasets.len() > MAX_DATASETS
     {
-        return Err(limit("Variants require 1..64 bindings and 1..32 datasets"));
+        return Err(limit(&format!(
+            "Variants require 1..{MAX_BINDINGS} bindings and 1..{MAX_DATASETS} datasets"
+        )));
     }
     let mut restored = vec![];
     if let Some(old) = d.variants.clone() {

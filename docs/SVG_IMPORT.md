@@ -1,5 +1,11 @@
 # Editable SVG import
 
+The numeric ranges in `capabilities.svg_import.validation_limits` share the
+engine's canvas, stroke and text definitions. SVG source units and the fixed CSS
+96-ppi conversion remain unchanged.
+
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Negative and fractional coordinate fidelity, normalization tolerance and consumer-preview boundaries are documented in [COORDINATE_PRECISION.md](COORDINATE_PRECISION.md).
 
 `svg.import` accepts an explicit local file or inline UTF-8 text and returns a new vector document, a source-byte SHA-256 receipt, an element-to-item mapping and normalization losses. It never writes to the source or fetches linked resources. The same command is available through the Rust library, JSON CLI and MCP stdio.

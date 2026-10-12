@@ -17,13 +17,13 @@ use std::{
 };
 
 pub const PROTOCOL: &str = "2025-11-25";
-pub const MAX_MESSAGE_BYTES: usize = crate::MAX_REQUEST_BYTES as usize + 16384;
-pub const MAX_RESPONSE_BYTES: usize = 96 * 1024 * 1024;
-pub const MAX_PENDING: usize = 8;
-pub const MAX_REQUEST_IDS: usize = 4096;
-const PAGE: usize = 8;
+pub use crate::limits::mcp::MAX_MESSAGE_BYTES;
+pub use crate::limits::mcp::MAX_PENDING;
+pub use crate::limits::mcp::MAX_REQUEST_IDS;
+pub use crate::limits::mcp::MAX_RESPONSE_BYTES;
+use crate::limits::mcp::PAGE;
 
-pub const CORE_CATALOG_BYTES: usize = 96 * 1024;
+pub use crate::limits::mcp::CORE_CATALOG_BYTES;
 const CORE: &[&str] = &[
     "schema.lookup",
     "document.create",
@@ -121,7 +121,7 @@ pub(crate) fn strict_value(text: &str) -> Result<Value, Error> {
             )
         })
 }
-fn description(command: &str) -> &'static str {
+fn description(command: &str) -> String {
     match command {
         "preset.list" => {
             "List fixed versioned screen and physical print-page recipes, exact sizes and explicit delivery policies. Read-only; use schema.lookup preset.create for typed choices."
@@ -148,7 +148,7 @@ fn description(command: &str) -> &'static str {
             "Prepare the exact publication bytes and inspect the chosen destination without writing or reserving files. Returns ready status, expected hash/size and actual loss/profile receipts, or located errors with repair guidance. Later source changes, write failures or competing publishers can still prevent delivery."
         }
         "document.contact_sheet" => {
-            "Review up to sixteen focused views of one document in a bounded PNG contact sheet. Row-major thumbnails retain explicit world/sheet coordinate maps and source identities. Nearest-neighbor reduction can omit thin details; use document.preview for full-resolution review. Read-only."
+            return format!("Review up to {} focused views of one document in a bounded PNG contact sheet. Row-major thumbnails retain explicit world/sheet coordinate maps and source identities. Nearest-neighbor reduction can omit thin details; use document.preview for full-resolution review. Read-only.", crate::limits::contact_sheets::MAX_VIEWS);
         }
         "schema.lookup" => {
             "Discover command arguments and shared graphics types. Use name index for available names. Large schemas return an outline; select a listed variant or definition, or use full:true for all reachable definitions. Read-only. The original schema command still returns the entire engine schema."
@@ -157,7 +157,7 @@ fn description(command: &str) -> &'static str {
             "Read a bounded local layered RGB file into editable native pixels, normal/pass-through groups and authored scalar masks. Preserves source bytes and uses explicit color policy. Inspect capabilities.layered_interchange for exact limits. Optional text_fonts checks pinned font choices; adding reconstruction:engine_layout imports the declared editable point-text subset. Unsupported appearance semantics fail explicitly; no flattened-cache substitution."
         }
         "color.convert" => {
-            "Convert up to 4096 finite device RGB, grayscale, CMYK or physical D50 Lab samples through explicit profiles. Returns directional table identities, PCS values and clipped component counts. Untagged RGB needs explicit assume_srgb; other device spaces require matching profiles. Original components and profile bytes remain unchanged. No document edit or publication is performed."
+            return format!("Convert up to {} finite device RGB, grayscale, CMYK or physical D50 Lab samples through explicit profiles. Returns directional table identities, PCS values and clipped component counts. Untagged RGB needs explicit assume_srgb; other device spaces require matching profiles. Original components and profile bytes remain unchanged. No document edit or publication is performed.", crate::limits::profiles::MAX_CONVERSION_SAMPLES);
         }
         "raw.retain" => {
             "Retain exact bounded sensor bytes with editable calibration/development and explicit lens, noise and detail controls. Returns a new raw-layer document, preserving the input file. Rendering recomputes from the original sensor. Expansion to ordinary pixels is explicit."
@@ -281,7 +281,7 @@ fn description(command: &str) -> &'static str {
             "Inspect an explicit list of item IDs without persistent selection state. Use returned IDs in atomic edit operations."
         }
         "document.edit" => {
-            "Apply 1..64 typed operations atomically to a snapshot at expected_revision. Discover supported operations with schema.lookup name operation and select a variant for its fields. Returns an editable snapshot and ordered changes; validates locks, resources and the complete batch. Leaves files unchanged."
+            return format!("Apply 1..{} typed operations atomically to a snapshot at expected_revision. Discover supported operations with schema.lookup name operation and select a variant for its fields. Returns an editable snapshot and ordered changes; validates locks, resources and the complete batch. Leaves files unchanged.", crate::limits::edit::MAX_OPERATIONS);
         }
         "document.render" => {
             "Render a bounded snapshot into straight RGBA8 hex pixels. Supply asset_root and font_root when stored resources are referenced."
@@ -323,7 +323,7 @@ fn description(command: &str) -> &'static str {
             "Recover the original committed document and receipt by request_id after a lost response. Current head fields are separate from the historical result."
         }
         "session.history" => {
-            "Page committed history receipts in revision order. Set limit 1..128 and pass next_after_revision as after_revision for the next page."
+            return format!("Page committed history receipts in revision order. Set limit 1..{} and pass next_after_revision as after_revision for the next page.", crate::limits::sessions::MAX_PAGE_RECEIPTS);
         }
         "session.verify" => {
             "Verify bounded database integrity, state/receipt hashes, provenance and history references. An ordinary writable opening can recover a pending SQLite rollback journal; corrupt logical history is rejected. Does not verify external image/font availability."
@@ -365,7 +365,7 @@ fn description(command: &str) -> &'static str {
             "Return the full original publication result of a completed job, including actual format and loss receipts. Completion is historical; deleted outputs are not recreated."
         }
         "job.wait" => {
-            "Wait at most 30000 ms for job progress to reach a terminal or interrupted state. Cancelling this observation does not cancel the background job. Use job.cancel for that."
+            return format!("Wait at most {} ms for job progress to reach a terminal or interrupted state. Cancelling this observation does not cancel the background job. Use job.cancel for that.", crate::limits::jobs::MAX_WAIT_MS);
         }
         "job.cancel" => {
             "Persist cancellation for this job. Queued work becomes cancelled; running work stops cooperatively with a bounded forced-stop grace. Publication wins when its atomic commit precedes cancellation. Inspect status until terminal."
@@ -407,8 +407,9 @@ fn description(command: &str) -> &'static str {
             "Inspect shared paragraph flow through ordered slots and columns, with source ranges and the retained overset tail. Original paragraph records remain unchanged."
         }
         _ => "Execute a validated Inkbolt engine command.",
-    }
+    }.into()
 }
+
 fn portable_schema(value: &mut Value) {
     match value {
         Value::Object(map) => {
@@ -531,7 +532,10 @@ fn dispatch_arguments(command: &str, mut args: Map<String, Value>) -> Result<Val
     if serde_json::to_vec(&args).unwrap().len() > crate::MAX_REQUEST_BYTES as usize {
         return Err(Error::new(
             "REQUEST_TOO_LARGE",
-            "Engine arguments exceed 16 MiB",
+            format!(
+                "Engine arguments exceed {} MiB",
+                crate::MAX_REQUEST_BYTES / (1024 * 1024)
+            ),
         ));
     }
     Ok(Value::Object(args))
@@ -549,7 +553,10 @@ fn send(output: &Mutex<io::Stdout>, value: &Value) -> io::Result<()> {
         bytes = serde_json::to_vec(&protocol_error(
             value.get("id").cloned(),
             -32603,
-            "MCP result exceeds 96 MiB; request fewer artboards or publish individual outputs. Inspect persistent receipts before retrying a mutation",
+            &format!(
+                "MCP result exceeds {} MiB; request fewer artboards or publish individual outputs. Inspect persistent receipts before retrying a mutation",
+                MAX_RESPONSE_BYTES / (1024 * 1024)
+            ),
         ))?;
     }
     let mut out = output
@@ -562,7 +569,7 @@ fn send(output: &Mutex<io::Stdout>, value: &Value) -> io::Result<()> {
 fn valid_id(value: &Value) -> bool {
     value
         .as_str()
-        .is_some_and(|s| !s.is_empty() && s.len() <= 256)
+        .is_some_and(|s| !s.is_empty() && s.len() <= crate::limits::mcp::MAX_ID_BYTES)
         || value
             .as_i64()
             .is_some_and(|n| n.unsigned_abs() <= 9_007_199_254_740_991)
@@ -647,7 +654,9 @@ fn tool_result(result: Result<Value, Error>, format: ResponseFormat, command: &s
             && artifact["encoding"] == "base64"
             && let Some(data) = artifact["data"].as_str()
         {
-            if content.len() >= 5 || image_bytes + data.len() > 8 * 1024 * 1024 {
+            if content.len() > crate::limits::mcp_preview::MAX_IMAGES
+                || image_bytes + data.len() > crate::limits::mcp_preview::MAX_IMAGE_BASE64_BYTES
+            {
                 break;
             }
             image_bytes += data.len();

@@ -157,7 +157,7 @@ impl<'a> Pixels<'a> {
                 self.clock += 1;
                 if !self.cache.contains_key(&index) {
                     work.charge(width * height)?;
-                    if self.cache.len() == 16 {
+                    if self.cache.len() == crate::limits::native_pixels::CACHE_TILES {
                         let oldest = *self
                             .cache
                             .iter()

@@ -9,7 +9,7 @@ use crate::{
 use serde_json::{Value, json};
 use std::fmt::Write;
 
-pub const MAX_COORDINATE: f64 = 16383.0;
+pub use crate::limits::vector_native_write::MAX_COORDINATE;
 
 fn text(value: &str) -> Result<String, Error> {
     if value.is_empty() || !value.bytes().all(|b| (32..=126).contains(&b)) {
@@ -349,14 +349,20 @@ pub fn export(document: &Document, control: &Control) -> Result<Value, Error> {
                 geometry::multiply(mapping, worlds[i]),
             )?;
             if data.len() > MAX_DECODED_BYTES {
-                return Err(limit("Native delivery exceeds 16 MiB"));
+                return Err(limit(&format!(
+                    "Native delivery exceeds {} MiB",
+                    MAX_DECODED_BYTES as f64 / 1_048_576.0
+                )));
             }
         }
         data.push_str("LB\n%AI5_EndLayer--\n");
     }
     data.push_str("%%PageTrailer\ngsave annotatepage grestore showpage\n%%Trailer\n%%EOF\n");
     if data.len() > MAX_DECODED_BYTES {
-        return Err(limit("Native delivery exceeds 16 MiB"));
+        return Err(limit(&format!(
+            "Native delivery exceeds {} MiB",
+            MAX_DECODED_BYTES as f64 / 1_048_576.0
+        )));
     }
     // Admit only bytes that the bounded reader can represent too; do not claim this
     // self-check substitutes for independent consumer verification.

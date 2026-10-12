@@ -84,10 +84,10 @@ pub(super) fn export(
     })?;
     let physical = 72.0 / document.resolution_ppi;
     let logical = crate::vector_canvas::logical_size(document);
-    let unit = (logical[0].max(logical[1]) * physical / 14400.0)
+    let unit = (logical[0].max(logical[1]) * physical / crate::limits::pdf::MAX_PAGE_COORDINATE)
         .ceil()
         .max(1.0);
-    if unit > 75000.0 {
+    if unit > f64::from(crate::limits::pdf::MAX_USER_UNIT) {
         return Err(limit("Named-ink page exceeds the supported physical size"));
     }
     let width = logical[0] * physical / unit;

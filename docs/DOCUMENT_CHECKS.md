@@ -1,5 +1,7 @@
 # Document checks and export preflight
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `document.check` returns located diagnostics and repair guidance without editing documents, changing resource stores or publishing files. `document.preflight` prepares the actual output bytes through the publisher's shared preparation path, then discards the payload and returns its predicted receipt. Both use the shared Rust/JSON CLI/MCP interface, pinned document references, workspace roots and cancellation controls.
 
 These are report-producing commands. A successfully completed diagnostic request has the ordinary `ok:true` envelope even when it finds problems. Inspect `status`/`complete` for checks and `ready` for preflight. Malformed request arguments, cancellation and deadlines remain ordinary errors; cancellation never returns a misleading partial pass.

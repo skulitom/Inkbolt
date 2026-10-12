@@ -1,5 +1,7 @@
 # Editable image tracing
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 `image.trace` converts explicit straight RGBA8 pixels or a verified local image asset into a new vector document. The original implementation traces the exact boundary of classified pixel cells. It keeps every noncollinear grid corner, holes, disconnected regions and semitransparent color regions. Returned paths use ordinary editable line commands and nonzero fills; there is no hidden image inside the vector result.
 
 ```json

@@ -9,6 +9,7 @@ import unittest
 import xml.etree.ElementTree as ET
 import test_editing_cli as editing
 from test_mcp import Client
+from advertised_limits import capabilities
 
 
 def line(points):
@@ -118,7 +119,10 @@ class StrokeCliTests(unittest.TestCase):
 
     def test_invalid_dash_json_svg_and_aggregate_work_limits(self):
         d=self.document();original=copy.deepcopy(d)
-        for dash in (dict(array=[-1,2]),dict(array=[.0001,2]),dict(array=[32769,2]),dict(array=[1]*65),dict(array=[1,2],offset=32769),dict(array=[1,2],phase=0)):
+        limits=capabilities()['vector_strokes']
+        maximum=limits['dash_offset'][1]
+        minimum=float(limits['dash_interval'].split('_')[2])
+        for dash in (dict(array=[-1,2]),dict(array=[minimum/10,2]),dict(array=[maximum+1,2]),dict(array=[1]*(limits['dash_intervals']+1)),dict(array=[1,2],offset=maximum+1),dict(array=[1,2],phase=0)):
             item=copy.deepcopy(d['items'][0]);item['id']='bad';item['content']['stroke']['dash']=dash
             self.invoke(dict(command='document.edit',document=d,expected_revision=d['revision'],operations=[dict(op='add',item=item)]),1)
         dense=copy.deepcopy(d);dense['items'][0]['content']['stroke']['dash']=dict(array=[.001,.001])

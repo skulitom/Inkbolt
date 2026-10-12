@@ -48,13 +48,23 @@ fn range(v: f64, hi: f64) -> bool {
 impl Operator {
     pub fn validate(&self) -> Result<(), Error> {
         let valid = match *self {
-            Self::Sharpen { amount } => range(amount, 8.0),
+            Self::Sharpen { amount } => range(
+                amount,
+                f64::from(crate::limits::detail_filters::MAX_SHARPEN_AMOUNT),
+            ),
             Self::Unsharp {
                 sigma,
                 amount,
                 threshold,
-            } => range(sigma, 16.0) && range(amount, 8.0) && range(threshold, 1.0),
-            Self::Median { radius } => radius <= 8,
+            } => {
+                range(sigma, f64::from(crate::limits::filters::MAX_GAUSSIAN_SIGMA))
+                    && range(
+                        amount,
+                        f64::from(crate::limits::detail_filters::MAX_SHARPEN_AMOUNT),
+                    )
+                    && range(threshold, 1.0)
+            }
+            Self::Median { radius } => radius <= crate::limits::detail_filters::MAX_MEDIAN_RADIUS,
             Self::Noise { amount, .. } => range(amount, 1.0),
         };
         if valid {
@@ -67,10 +77,16 @@ impl Operator {
     }
     pub fn work(&self, scale: u32) -> u64 {
         match *self {
-            Self::Sharpen { .. } => 16,
-            Self::Unsharp { sigma, .. } => filters::Operator::Gaussian { sigma }.work(scale) + 8,
-            Self::Median { radius } => 8 * (2 * radius as u64 * scale as u64 + 1).pow(2),
-            Self::Noise { .. } => 64,
+            Self::Sharpen { .. } => crate::limits::detail_filters::SHARPEN_WORK,
+            Self::Unsharp { sigma, .. } => {
+                filters::Operator::Gaussian { sigma }.work(scale)
+                    + crate::limits::detail_filters::UNSHARP_COMBINE_WORK
+            }
+            Self::Median { radius } => {
+                crate::limits::detail_filters::MEDIAN_NEIGHBOR_WORK
+                    * (2 * radius as u64 * scale as u64 + 1).pow(2)
+            }
+            Self::Noise { .. } => crate::limits::detail_filters::NOISE_WORK,
         }
     }
 }

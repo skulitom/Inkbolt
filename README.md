@@ -2,15 +2,13 @@
 
 An original local vector and raster editing engine for agents. Cutbolt handles time; Inkbolt handles paths, pixels and layered documents. Use the Rust library, structured JSON CLI or MCP over stdio. No listener, account, telemetry or external editing application is required at runtime.
 
-**Engine scope: 163/167 independently verified checkpoints (97.60%).** Four checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
-
-Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; [visual revision comparisons](docs/VISUAL_COMPARISONS.md) add aligned images and change masks. MCP preview format sends each PNG payload once. [Document checks and export preflight](docs/DOCUMENT_CHECKS.md) support explicit repairs. [Checked backups](docs/SESSION_BACKUPS.md) preserve full session history; [explicit migration and linked continuation](docs/SESSION_LINEAGE.md) upgrade copies and start fresh history without discarding the original. [Durable publication receipts](docs/PUBLICATION_RECEIPTS.md) recover prepared outputs and lost responses. [Durable local export jobs](docs/JOBS.md) add persistent submission, paged discovery, cancellation and recovery. The Windows [recovery audit](docs/RECOVERY_CONTRACTS.md) covers writer interruption and a complete CLI/MCP workflow. Larger raster workloads and complete readiness evidence remain on that plan.
+Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; [visual revision comparisons](docs/VISUAL_COMPARISONS.md) add aligned images and change masks. MCP preview format sends each PNG payload once. [Document checks and export preflight](docs/DOCUMENT_CHECKS.md) support explicit repairs. [Checked backups](docs/SESSION_BACKUPS.md) preserve full session history; [explicit migration and linked continuation](docs/SESSION_LINEAGE.md) upgrade copies and start fresh history without discarding the original. [Durable publication receipts](docs/PUBLICATION_RECEIPTS.md) recover prepared outputs and lost responses on Windows and Linux. [Durable local export jobs](docs/JOBS.md) add persistent submission, paged discovery, cancellation and recovery. The Windows [recovery audit](docs/RECOVERY_CONTRACTS.md) covers writer interruption and a complete CLI/MCP workflow. Larger raster workloads and complete readiness evidence remain on that plan.
 
 ## Start locally
 
-[Native block documents](docs/NATIVE_SAMPLE_STORAGE.md) provide opt-in multi-megapixel PNG/TIFF import, exact local patch edits, native clone/heal retouching, bounded paint/erase/smudge/mixer strokes and durable history. Opt-in [tiled evaluation](docs/RENDER_QUALITY.md) renders screen, social and print-sized images with bounded floating-point surfaces and native-depth TIFF strips. Source precision and files stay intact. Bounded tile neighborhoods support blur, detail, local creative and spatial filters, plus retained shadows, strokes and overlays. PNG imports decode ordinary or interlaced pass rows directly into native blocks; native TIFF imports decode one band of strips or tiles at a time, preserving separate planes and floating-point samples. Other filter families, streaming import for remaining formats, broader native operators and the complete scale acceptance gate remain in progress.
+[Native block documents](docs/NATIVE_SAMPLE_STORAGE.md) provide opt-in multi-megapixel PNG/TIFF import, exact local patch edits, native clone/heal retouching, bounded paint/erase/smudge/mixer strokes and durable history. Opt-in [tiled evaluation](docs/RENDER_QUALITY.md) renders screen, social and print-sized images with bounded floating-point surfaces and native-depth TIFF strips. Source precision and files stay intact. Bounded tile neighborhoods support blur, detail, local creative and spatial filters, plus retained shadows, strokes and overlays. PNG imports decode ordinary or interlaced pass rows directly into native blocks; native TIFF imports decode one band of strips or tiles at a time, preserving separate planes and floating-point samples. Radial and twist filters also trace bounded source neighborhoods. Wrapped borders, streaming import for remaining formats, broader native operators and the complete scale acceptance gate remain in progress.
 
-Build with Rust/Cargo; current verification uses Rust 1.98.1. Worker leases require the file-locking API introduced in Rust 1.89. Development verification also uses Python 3.11+. Dependencies are locked in Cargo.lock and remain in the external package cache.
+Build with Rust/Cargo; `rust-toolchain.toml` pins development to Rust 1.98.1 with formatting and Clippy. The minimum supported compiler is Rust 1.89, required by file locking and the locked color-engine dependency and checked across all targets on Windows and Linux. Development verification also uses Python 3.11+. Dependencies are locked in Cargo.lock and remain in the external package cache.
 
 ```powershell
 cargo build --locked
@@ -18,6 +16,19 @@ cargo build --locked
 .\target\debug\inkbolt.exe examples/create-raster.json
 .\target\debug\inkbolt.exe mcp --tools core
 ```
+
+Linux (including WSL on native Linux storage):
+
+```bash
+cargo build --locked
+./target/debug/inkbolt examples/create-vector.json
+./target/debug/inkbolt mcp --tools core
+```
+
+Linux core, CLI/MCP, sessions and durable receipts have a dedicated
+[WSL verification workflow](docs/PLATFORMS.md). Background jobs remain Windows-only.
+From this Windows checkout, `python tools/verify_wsl.py` accepts the usual quick
+selectors and `--thorough`, with separate Linux caches and explicit platform skips.
 
 For an MCP client, use [the configuration example](examples/mcp-config.json) with your executable path. The compact catalog exposes everyday tools and a dispatcher for every engine command. Existing clients can keep `inkbolt mcp` or explicitly select `mcp --tools full`. See [discovery and schemas](docs/AGENT_DISCOVERY.md).
 
@@ -71,6 +82,10 @@ Snapshot edits and ordinary exports return data. `document.publish` and `session
 
 ## Current boundaries
 
+The generated [resource limit reference](docs/LIMITS.md) indexes the centralized
+budgets used by validation, rendering, storage and jobs. W0 consolidation and
+Windows/Linux acceptance are complete; the current numeric limits are unchanged.
+
 [Native vector import](docs/NATIVE_VECTOR_IMPORT.md) supports an admitted subset
 of flat layers, closed RGB paths and shared artboards, with explicit color
 interpretation and loss reporting. [Editable native delivery](docs/NATIVE_VECTOR_DELIVERY.md)
@@ -86,11 +101,22 @@ The engine covers vector geometry, typography, artboards, retained raster edits,
 
 The standard document profile holds 256 items; explicit large-vector and [large-raster](docs/LARGE_RASTER.md) profiles hold 8,192 for their respective kinds. The raster profile also enables ordinary editable vector overlays over native pixel sources. Inline mutable pixel storage is limited to 65,536 pixels, and default whole evaluation to 1,048,576 pixels. Explicit tiled evaluation supports up to 16,777,216 evaluation pixels for its declared subset; native block imports retain up to 16,777,216 source pixels. Storage allowances do not increase independent processing budgets. See [large documents](docs/LARGE_VECTOR.md) and capability reporting before selecting a workload.
 
-Sessions retain external resource bindings, not a self-contained resource archive. History has explicit limits and no silent eviction. Checked backup, migration and linked continuation are available. Optional durable output receipts support recovery on the verified Windows backend. [Durable export jobs](docs/JOBS.md) use the contained worker library for process lifetime and memory limits. Production-sized raster editing and complete readiness evidence remain open. Unknown semantics fail explicitly.
+Sessions retain external resource bindings, not a self-contained resource archive. History has explicit limits and no silent eviction. Checked backup, migration and linked continuation are available. Optional durable output receipts support recovery on the Windows and Linux backends. [Durable export jobs](docs/JOBS.md) use the contained worker library for process lifetime and memory limits. Production-sized raster editing and complete readiness evidence remain open. Unknown semantics fail explicitly.
+
+SVG import remains a strict subset: elliptical arcs and rounded rectangles are
+currently refused. Linux background jobs and actual model-versus-baseline
+usability evidence remain open.
+
+**Engine scope: 163/167 independently verified checkpoints (97.60%).** Four checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
 
 ## Development and provenance
 
-Read [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), [agent readiness](docs/AGENT_READINESS.md) and [research boundaries](docs/RESEARCH.md) before extending behavior. Historical feature updates are retained in [implementation history](docs/PROGRESS_HISTORY.md).
+Start with [FIX_PLAN.md](FIX_PLAN.md), the primary development plan; it takes
+priority over all earlier plans. Read [architecture](docs/ARCHITECTURE.md),
+[roadmap](docs/ROADMAP.md), [agent readiness](docs/AGENT_READINESS.md) and
+[research boundaries](docs/RESEARCH.md) as supporting context before extending
+behavior. Historical feature updates are retained in
+[implementation history](docs/PROGRESS_HISTORY.md).
 
 Routine feedback has a three-minute budget and reuses checks whose inputs passed unchanged:
 
@@ -109,6 +135,12 @@ python tools/check_repo.py --staged
 ```
 
 The verifier includes formatting, locked build, all-target Clippy, Rust tests and Python checks. Up to four isolated workers run by default; `--jobs` supports one to eight. Quick runs return exit 2 if checks remain pending, preserve completed passes, and resume on the next invocation. `--list` explains selection/reuse. Explicit selections report their limited scope. See [the development loop](docs/DEVELOPMENT_LOOP.md) for cache boundaries, diagnostics and thorough acceptance. Concurrent check timings are not engine performance benchmarks.
+
+Public clones without the checkout-local policy use an explicit
+`python tools/verify.py --public` (or `--public --thorough` at a milestone).
+This performs structural repository checks and reports `private_policy:"not_evaluated"`.
+It cannot substitute for the private staged check or commit hook; the default
+verifier and WSL development mirror still require the local private policy.
 
 The separate [release workload measurements](docs/WORKLOAD_MEASUREMENT.md) exercise native edit/history fidelity and practical output sizes, retaining failed tasks alongside command time, response bytes and available Windows memory peaks. They guide the open scale work and do not count as model-driven task trials.
 

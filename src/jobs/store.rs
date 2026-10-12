@@ -1,5 +1,7 @@
 //! Strict, checksummed queue storage. Immutable inputs are separate from progress.
 use super::*;
+use crate::limits::jobs_store as store_bounds;
+use crate::limits::sqlite;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, limits::Limit, params};
 use std::{
     fs::{self, OpenOptions},
@@ -8,7 +10,7 @@ use std::{
 };
 
 const APP: u32 = 0x494e4b4a;
-const DATABASE_BYTES: u64 = 512 * 1024 * 1024;
+use crate::limits::jobs_store::DATABASE_BYTES;
 const INPUTS: &str =
     "CREATE TABLE inputs(id TEXT PRIMARY KEY, payload BLOB NOT NULL, sha256 TEXT NOT NULL) STRICT";
 const JOBS: &str = "CREATE TABLE jobs(id TEXT PRIMARY KEY REFERENCES inputs(id), state BLOB NOT NULL, state_sha256 TEXT NOT NULL) STRICT";
@@ -39,23 +41,25 @@ fn connection(path: &Path) -> Result<Connection, Error> {
             | OpenFlags::SQLITE_OPEN_NOFOLLOW,
     )
     .map_err(sql)?;
-    db.busy_timeout(Duration::from_millis(250)).map_err(sql)?;
+    db.busy_timeout(Duration::from_millis(sqlite::BUSY_TIMEOUT_MS))
+        .map_err(sql)?;
     db.set_limit(
         Limit::SQLITE_LIMIT_LENGTH,
-        (MAX_INPUT_BYTES + MAX_STATE_BYTES + 16384) as i32,
+        store_bounds::MAX_SQL_ROW_BYTES as i32,
     )
     .map_err(sql)?;
-    db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, 16384)
+    db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, sqlite::MAX_SQL_BYTES as i32)
         .map_err(sql)?;
-    db.set_limit(Limit::SQLITE_LIMIT_COLUMN, 32).map_err(sql)?;
+    db.set_limit(Limit::SQLITE_LIMIT_COLUMN, sqlite::MAX_COLUMNS as i32)
+        .map_err(sql)?;
     db.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0).map_err(sql)?;
-    db.execute_batch("PRAGMA synchronous=FULL; PRAGMA trusted_schema=OFF; PRAGMA recursive_triggers=OFF; PRAGMA foreign_keys=ON; PRAGMA cache_size=-4096; PRAGMA temp_store=MEMORY;").map_err(sql)?;
+    db.execute_batch(&format!("PRAGMA synchronous=FULL; PRAGMA trusted_schema=OFF; PRAGMA recursive_triggers=OFF; PRAGMA foreign_keys=ON; PRAGMA cache_size=-{}; PRAGMA temp_store=MEMORY;", sqlite::CACHE_KIB)).map_err(sql)?;
     Ok(db)
 }
 struct Temp(PathBuf);
 impl Temp {
     fn new(root: &Path) -> Result<Self, Error> {
-        for _ in 0..64 {
+        for _ in 0..crate::limits::jobs_store::MAX_STAGE_ATTEMPTS {
             let path = root.join(format!(
                 ".inkbolt-jobs-{}-{}.tmp",
                 std::process::id(),
@@ -95,8 +99,11 @@ pub(super) fn open(
             fs::create_dir_all(root).map_err(|_| err("IO_ERROR", "Unable to create job root"))?;
             let temp = Temp::new(root)?;
             let mut db = connection(&temp.0)?;
-            db.execute_batch("PRAGMA page_size=4096; PRAGMA journal_mode=DELETE;")
-                .map_err(sql)?;
+            db.execute_batch(&format!(
+                "PRAGMA page_size={}; PRAGMA journal_mode=DELETE;",
+                sqlite::PAGE_BYTES
+            ))
+            .map_err(sql)?;
             db.pragma_update(None, "application_id", APP).map_err(sql)?;
             db.pragma_update(None, "user_version", 1).map_err(sql)?;
             let tx = db.transaction().map_err(sql)?;
@@ -109,7 +116,7 @@ pub(super) fn open(
                 executable: executable.clone(),
                 owner: None,
             };
-            let payload = encode(&runtime, 16384)?;
+            let payload = encode(&runtime, store_bounds::MAX_RUNTIME_BYTES)?;
             tx.execute(
                 "INSERT INTO runtime VALUES(1,?1,?2)",
                 params![payload, assets::sha256(&payload)],
@@ -172,7 +179,7 @@ pub(super) fn open(
     let pages: i64 = db
         .pragma_query_value(None, "page_count", |r| r.get(0))
         .map_err(sql)?;
-    let mut statement = db.prepare("SELECT name,type,sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*' ORDER BY name LIMIT 4").map_err(sql)?;
+    let mut statement = db.prepare(&format!("SELECT name,type,sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*' ORDER BY name LIMIT {}", store_bounds::MAX_SCHEMA_RECORDS)).map_err(sql)?;
     let schema: Vec<(String, String, String)> = statement
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
         .map_err(sql)?
@@ -181,7 +188,7 @@ pub(super) fn open(
     if application != APP as i64
         || version != 1
         || mode != "delete"
-        || page_size != 4096
+        || page_size != sqlite::PAGE_BYTES as i64
         || pages < 0
         || pages.saturating_mul(page_size) > DATABASE_BYTES as i64
         || schema
@@ -197,8 +204,12 @@ pub(super) fn open(
         ));
     }
     drop(statement);
-    db.pragma_update(None, "max_page_count", (DATABASE_BYTES / 4096) as u32)
-        .map_err(sql)?;
+    db.pragma_update(
+        None,
+        "max_page_count",
+        (DATABASE_BYTES / sqlite::PAGE_BYTES) as u32,
+    )
+    .map_err(sql)?;
     Ok(Some(db))
 }
 pub(super) fn required(root: &Path) -> Result<Connection, Error> {
@@ -284,7 +295,7 @@ pub(super) fn runtime(db: &Connection) -> Result<Runtime, Error> {
             Ok((r.get(0)?, r.get(1)?))
         })
         .map_err(sql)?;
-    let runtime: Runtime = decode(row.0, row.1, 16384)?;
+    let runtime: Runtime = decode(row.0, row.1, store_bounds::MAX_RUNTIME_BYTES)?;
     if runtime.version != 1
         || runtime.executable.bytes == 0
         || runtime.executable.bytes > job_process::MAX_EXECUTABLE_BYTES
@@ -295,8 +306,9 @@ pub(super) fn runtime(db: &Connection) -> Result<Runtime, Error> {
     }
     Ok(runtime)
 }
+#[cfg(windows)]
 pub(super) fn save_runtime(db: &Connection, runtime: &Runtime) -> Result<(), Error> {
-    let data = encode(runtime, 16384)?;
+    let data = encode(runtime, store_bounds::MAX_RUNTIME_BYTES)?;
     if db
         .execute(
             "UPDATE runtime SET payload=?1,sha256=?2 WHERE id=1",
@@ -309,6 +321,7 @@ pub(super) fn save_runtime(db: &Connection, runtime: &Runtime) -> Result<(), Err
     }
     Ok(())
 }
+#[cfg(windows)]
 pub(super) fn ids(db: &Connection) -> Result<Vec<String>, Error> {
     let mut query = db
         .prepare("SELECT id FROM jobs ORDER BY rowid LIMIT ?1")
@@ -358,6 +371,7 @@ pub(super) fn inventory(db: &Connection) -> Result<Vec<(String, String)>, Error>
         })
         .collect()
 }
+#[cfg(windows)]
 pub(super) fn check_active(
     db: &Connection,
     input: &Input,
@@ -387,6 +401,7 @@ pub(super) fn check_active(
     }
     Ok(())
 }
+#[cfg(windows)]
 pub(super) fn admit(db: &Connection, input: &Input, data: &[u8]) -> Result<(), Error> {
     check_active(db, input, None)?;
     let (count, bytes): (i64, i64) = db

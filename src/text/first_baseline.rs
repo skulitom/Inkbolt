@@ -21,9 +21,9 @@ pub struct FirstBaseline {
 impl FirstBaseline {
     pub(super) fn validate(self) -> Result<(), Error> {
         if !self.minimum.is_finite() || !(0.0..=MAX_COORDINATE).contains(&self.minimum) {
-            return Err(invalid(
-                "First baseline minimum must be in 0..=32768 local pixels",
-            ));
+            return Err(invalid(&format!(
+                "First baseline minimum must be in 0..={MAX_COORDINATE} local pixels"
+            )));
         }
         Ok(())
     }

@@ -1,4 +1,5 @@
 """Original font provenance records; chosen bytes remain the rendering source."""
+from advertised_limits import capabilities
 import base64,copy,unittest
 import layered_editable_text_fixtures as p
 import layered_fixtures as f
@@ -82,18 +83,22 @@ class LayeredFontRecordTests(unittest.TestCase):
             self.assertEqual(self.load(raw,1)['code'],code)
 
     def test_version_table_and_selected_record_budgets(self):
-        self.load(source(font_record(version='\u00e9'*256)))
-        self.assertEqual(self.load(source(font_record(version='\u00e9'*257)),1)['code'],'RESOURCE_LIMIT')
-        g=p.global_data();g['0']['1']['0']=[{'0':{'0':{'0':p.NAME}}} for _ in range(256)]
+        cap = capabilities()['layered_interchange']['text_import']['source_fonts']
+        version = cap['version_utf8_bytes']
+        name = '\u00e9'*(version//2) + 'x'*(version%2)
+        self.load(source(font_record(version=name)))
+        self.assertEqual(self.load(source(font_record(version=name+'x')),1)['code'],'RESOURCE_LIMIT')
+        g=p.global_data();g['0']['1']['0']=[{'0':{'0':{'0':p.NAME}}} for _ in range(cap['table_records'])]
         self.load(p.source(g=g));g['0']['1']['0'].append(copy.deepcopy(g['0']['1']['0'][0]))
         self.assertEqual(self.load(p.source(g=g),1)['code'],'RESOURCE_LIMIT')
-        g=p.global_data(('A'*8,));g['0']['1']['0']=[font_record(version='Original '+str(i)) for i in range(9)]
+        selected = cap['selected_records']
+        g=p.global_data(('A'*selected,));g['0']['1']['0']=[font_record(version='Original '+str(i)) for i in range(selected+1)]
         a=g['1']['1'][0]['0'];run=a['6']['0'][0];a['6']['0']=[]
-        for i in range(9):
+        for i in range(selected+1):
             entry=copy.deepcopy(run);entry['1']=1;entry['0']['0']['6']['0']=i;a['6']['0'].append(entry)
-        self.assertEqual(self.load(p.source([p.layer('A'*8)],g),1)['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.load(p.source([p.layer('A'*selected)],g),1)['code'],'RESOURCE_LIMIT')
         a['6']['0'].pop();a['6']['0'][-1]['1']=2
-        self.assertEqual(len(self.load(p.source([p.layer('A'*8)],g))['text'][0]['source_fonts']['selected_records']),8)
+        self.assertEqual(len(self.load(p.source([p.layer('A'*selected)],g))['text'][0]['source_fonts']['selected_records']),selected)
 
     def test_equal_face_names_keep_distinct_selected_source_versions(self):
         g=p.global_data();g['0']['1']['0']=[font_record(version='Original first'),font_record(version='Original second')]

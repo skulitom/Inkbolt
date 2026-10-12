@@ -69,7 +69,7 @@ impl Edge {
                 let [mut lo, mut hi] = *interval;
                 // Monotone intervals isolate each root. The bound is on work,
                 // not a claim of exact algebraic geometry or exact pixel area.
-                for _ in 0..56 {
+                for _ in 0..crate::limits::work_paths_coverage::MAX_ROOT_STEPS {
                     let mid = lo + (hi - lo) * 0.5;
                     if mid == lo || mid == hi {
                         break;
@@ -209,7 +209,13 @@ pub(crate) fn evaluate(
     };
     let weighted: u64 = edges
         .iter()
-        .map(|(e, _)| if matches!(e, Edge::Line(_)) { 1 } else { 57 })
+        .map(|(e, _)| {
+            if matches!(e, Edge::Line(_)) {
+                1
+            } else {
+                crate::limits::work_paths_coverage::CUBIC_CROSSING_WORK
+            }
+        })
         .sum();
     let sorting = edges.len() as u64 * (edges.len().max(1).ilog2() as u64 + 2);
     let predicates = if leaves > 1 {

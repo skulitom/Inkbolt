@@ -1,12 +1,12 @@
 //! Nonprinting scalar planes with explicit selection, component and named-ink semantics.
+pub use crate::limits::channels::MAX_CHANNELS;
+pub use crate::limits::channels::MAX_SAMPLES;
 use crate::{Error, model::*, render, selections};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::HashSet, path::Path};
-pub const MAX_CHANNELS: usize = 16;
-pub const MAX_SAMPLES: usize = 262_144;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -83,13 +83,15 @@ pub enum Display {
 
 pub fn validate(document: &Document) -> Result<(), Error> {
     if document.channels.len() > MAX_CHANNELS {
-        return Err(limit("Document exceeds 16 saved channels"));
+        return Err(limit(&format!(
+            "Document exceeds {MAX_CHANNELS} saved channels"
+        )));
     }
     let mut count = 0;
     let mut inks = HashSet::new();
     for (id, channel) in &document.channels {
         if !valid_id(id)
-            || channel.name.len() > 1024
+            || channel.name.len() > crate::limits::model::MAX_NAME_BYTES
             || channel
                 .name
                 .chars()
@@ -108,7 +110,9 @@ pub fn validate(document: &Document) -> Result<(), Error> {
         }
     }
     if count > MAX_SAMPLES {
-        return Err(limit("Saved channels exceed 262144 scalar samples"));
+        return Err(limit(&format!(
+            "Saved channels exceed {MAX_SAMPLES} scalar samples"
+        )));
     }
     Ok(())
 }

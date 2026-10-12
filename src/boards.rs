@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::HashSet, path::Path};
 mod scene_view;
-pub const MAX_ARTBOARDS: usize = 32;
-pub const MAX_GUIDES: usize = 512;
-pub const MAX_FRAME_GUIDES: usize = 64;
-pub const MAX_BLEED: u32 = 4096;
-pub const MAX_BATCH_PIXELS: u64 = 4_194_304;
-pub const MAX_BATCH_BYTES: usize = 32 * 1024 * 1024;
-pub const MAX_BATCH_WORK: u64 = 134_217_728;
+pub use crate::limits::boards::MAX_ARTBOARDS;
+pub use crate::limits::boards::MAX_BATCH_BYTES;
+pub use crate::limits::boards::MAX_BATCH_PIXELS;
+pub use crate::limits::boards::MAX_BATCH_WORK;
+pub use crate::limits::boards::MAX_BLEED;
+pub use crate::limits::boards::MAX_FRAME_GUIDES;
+pub use crate::limits::boards::MAX_GUIDES;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -108,7 +108,9 @@ pub fn validate(frame: &Frame) -> Result<(), Error> {
         }
     }
     if !(1..=MAX_DIMENSION).contains(&frame.width) || !(1..=MAX_DIMENSION).contains(&frame.height) {
-        return Err(invalid("Frame dimensions must be integers in 1..=32768"));
+        return Err(invalid(&format!(
+            "Frame dimensions must be integers in 1..={MAX_DIMENSION}"
+        )));
     }
     if [
         frame.bleed.top,
@@ -119,7 +121,9 @@ pub fn validate(frame: &Frame) -> Result<(), Error> {
     .iter()
     .any(|&v| v > MAX_BLEED)
     {
-        return Err(limit("Bleed must be within 0..=4096 per edge"));
+        return Err(limit(&format!(
+            "Bleed must be within 0..={MAX_BLEED} per edge"
+        )));
     }
     if frame.role == Role::Frame && frame.bleed != Insets::default() {
         return Err(invalid(
@@ -127,7 +131,7 @@ pub fn validate(frame: &Frame) -> Result<(), Error> {
         ));
     }
     if frame.guides.len() > MAX_FRAME_GUIDES {
-        return Err(limit("Frame exceeds 64 guides"));
+        return Err(limit(&format!("Frame exceeds {MAX_FRAME_GUIDES} guides")));
     }
     let mut ids = HashSet::new();
     for guide in &frame.guides {
@@ -205,7 +209,7 @@ pub fn guide_bounds(
     let m = scene::world_transform(document, i)?;
     let [a, b] = points.map(|p| geometry::map(m, p));
     let n = axis.index();
-    if (a[n] - b[n]).abs() > 1e-8 {
+    if (a[n] - b[n]).abs() > crate::limits::boards::GUIDE_ALIGNMENT_TOLERANCE {
         return Err(Error::new(
             "UNSUPPORTED",
             "Guide must be constant along the requested world alignment axis",
@@ -246,7 +250,9 @@ pub fn select(document: &Document, selection: &Selection) -> Result<Vec<usize>, 
         Selection::All {} => order,
         Selection::Ids { ids } => {
             if ids.len() > MAX_ARTBOARDS {
-                return Err(limit("Artboard selection exceeds 32 IDs"));
+                return Err(limit(&format!(
+                    "Artboard selection exceeds {MAX_ARTBOARDS} IDs"
+                )));
             }
             let mut seen = HashSet::new();
             let mut indices = Vec::new();
@@ -489,10 +495,13 @@ pub fn export_controlled(
     let document = repeated.as_ref().unwrap_or(document);
     let interpolated = crate::interpolation::evaluate(document)?;
     let document = interpolated.as_ref().unwrap_or(document);
-    if !(1..=4).contains(&options.scale) {
+    if !(1..=crate::limits::render_quality::MAX_SCALE).contains(&options.scale) {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Export scale must be an integer in 1..=4",
+            format!(
+                "Export scale must be an integer in 1..={}",
+                crate::limits::render_quality::MAX_SCALE
+            ),
         ));
     }
     if matches!(options.format, Format::Svg)
@@ -613,7 +622,7 @@ pub fn export_controlled(
                     options.format,
                     Format::Png | Format::Jpeg | Format::Tiff | Format::Bmp | Format::Tga
                 ) {
-                    work += area * 4;
+                    work += area * crate::limits::render::MASK_SAMPLE_WORK;
                 } else {
                     image_pixels += n;
                 }
@@ -732,10 +741,11 @@ pub fn export_controlled(
         crate::variants::annotate_export(variants, &mut artifact, false);
         bytes += artifact["data"].as_str().map_or(0, str::len);
         if bytes > MAX_BATCH_BYTES {
-            return Err(
-                limit("Artboard artifacts exceed 32 MiB encoded output budget")
-                    .at_artboard(&item.id),
-            );
+            return Err(limit(&format!(
+                "Artboard artifacts exceed {} MiB encoded output budget",
+                MAX_BATCH_BYTES as f64 / 1_048_576.0
+            ))
+            .at_artboard(&item.id));
         }
         artifacts.push(json!({"id":item.id,"name":item.name,"scope":frame.scope,"logical_size":crate::vector_canvas::logical_size(&standalone),"scale":options.scale,"source_bounds":[-(pad.left as f64),-(pad.top as f64),frame.size()[0]+pad.right as f64,frame.size()[1]+pad.bottom as f64],"trim_box":[pad.left as f64,pad.top as f64,pad.left as f64+frame.size()[0],pad.top as f64+frame.size()[1]],"artifact":artifact}));
     }

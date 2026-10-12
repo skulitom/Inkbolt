@@ -1,6 +1,15 @@
 # Sessions, history and recovery
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 A session stores one vector or raster document under an explicit absolute `session_root`. The CLI remains a one-request process; reopen the same session in later calls. The root must be a writable local directory supporting file locks and create-only hard links. Network filesystems and synchronization across computers are outside this storage contract.
+
+Parent-directory aliases are allowed, including the ordinary Unix temporary
+directory aliases. On Unix, SQLite opens resolve the existing parent directory
+while retaining the final database filename's non-symlink checks. A session or
+backup source that is itself a symbolic link remains rejected. This applies to
+session creation/reopening, backup, recovery, migration and continuation; it does
+not change workspace containment, source identities or create-only publication.
 
 ## Commands
 

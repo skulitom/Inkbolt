@@ -2,6 +2,13 @@
 
 The routine target is **2-3 minutes after implementing a change**. Run focused checks while working and reserve complete acceptance for milestones. This separation follows the sister project's quick/thorough workflow; it does not add automatic publishing or background jobs.
 
+For Linux from Windows, use `python tools/verify_wsl.py` with these same selectors
+or `--thorough`. It checks a content-bound candidate on native WSL storage with
+independent caches and the mandatory private guard. See [platform coverage](PLATFORMS.md).
+Reports retain explicit platform skip counts and reasons separately from tests
+actually executed; unsupported jobs and unavailable memory measurements do not
+count as Linux feature passes.
+
 | Need | Command |
 | --- | --- |
 | Default change-aware check | `python tools/verify.py` |
@@ -13,6 +20,13 @@ The routine target is **2-3 minutes after implementing a change**. Run focused c
 | Force a focused rerun | Add `--force` to a quick command |
 | Complete milestone acceptance | `python tools/verify.py --thorough` |
 | Staged publication check | `python tools/check_repo.py --staged` |
+| Explicit public-clone check | `python tools/verify.py --public` |
+
+The checked-in toolchain pins Rust 1.98.1, rustfmt and Clippy. Rust 1.89 is the
+verified compiler minimum for the locked dependency graph and current sources;
+use `cargo +1.89.0 check --locked --all-targets` for its separate compatibility
+check. Toolchain installation is setup work; keep it outside the routine check
+budget when provisioning a new machine.
 
 After changing `docs/features.json`, run `python tools/update_report.py` before
 verification. The dedicated `test_implementation_registry` module checks the
@@ -20,13 +34,21 @@ compiled registry, evidence references and generated report together.
 Its source inventory also binds cached results to the evidence-test files, so
 renamed or removed test functions cannot leave a stale registry pass.
 
+After changing centralized resource constants, run `python tools/update_limits.py`.
+The generated [limit reference](LIMITS.md) is checked against compiled Rust values
+and the selected discovery/admission contracts in `test_resource_limits`.
+Changes to this embedded reference invalidate Cargo checks as well as its Python
+consumers; ordinary unrelated Markdown still preserves identical engine passes.
+
 Do not separately repeat formatting, Clippy, build and full Rust tests after the verifier has already covered them on unchanged inputs. It owns those stages. Use targeted checks after a small correction; rerun broad checks only for new relevant changes, failures or unresolved concerns. Do not run thorough acceptance for each intermediate edit.
 
 ## Budget, execution and results
 
 Quick mode has a **180-second total check budget**, including Cargo stages. `--budget SECONDS` explicitly changes it. When the budget ends, owned running process trees stop and checks remain pending. Shutdown, source-identity checks and report writing add a small amount of bookkeeping after the deadline. A fresh build or a broad engine change can require more work than one quick window; this is reported, never silently waived. Rerun to resume already completed stages, narrow the selection for immediate feedback, or use thorough acceptance at the milestone.
 
-The default schedules all checks without an identical valid pass. Up to four isolated workers run concurrently, including the Rust test stage; long checks start early using saved durations. `--jobs 1` is serial and the explicit maximum is eight. Failed and directly edited fixtures receive priority. The CLI is copied to an owned run directory so Python fixtures do not lock the developer's executable. Rust tests use Cargo's ordinary target directory. Changes to the original executable during a run invalidate acceptance. The owned CLI copy is removed after the run; if Windows retains a file lock, the report records its retained path without discarding completed test results.
+The default selects all checks without an identical valid pass. Up to four isolated workers run concurrently, including the Rust test stage. Long checks start first using saved durations; failures and directly edited fixtures break timing ties. `--jobs 1` is serial and the explicit maximum is eight. Before each launch, quick mode checks whether the saved duration plus a 10% reserve fits the remaining budget. A known overrun stays pending without starting, leaving workers available for checks that fit. Unknown durations still run under the hard deadline. Deferred and failing checks retain useful timing history; a new completed pass refreshes it. Estimates guide scheduling only and never count as passes. Use a narrower selection for feedback, `--force` to remeasure a stale estimate under the same deadline, or `--thorough` for full acceptance without duration deferral.
+
+The CLI is copied to an owned run directory so Python fixtures do not lock the developer's executable. Rust tests use Cargo's ordinary target directory. Changes to the original executable during a run invalidate acceptance. The owned CLI copy is removed after the run; if Windows retains a file lock, the report records its retained path without discarding completed test results.
 
 On Windows, a waiting launcher joins an owned kill-on-close Job Object before it can start the command. The job contains its descendants, including persistent fixture workers; closing it stops only that tree on timeout or completion. POSIX uses an owned process group. The process-tree guarantees have Windows tests; this does not establish whole-engine support for additional platforms.
 
@@ -64,7 +86,21 @@ conservative import, wildcard or unknown-input rules. Tests that actually inspec
 the repository or record its complete identity still rerun when those inputs
 change. A regression check exercises these boundaries against the real checkout,
 including shared-helper edits and universal Rust-change invalidation.
+Inventory results retain the caller's path spelling after checking resolved
+locations, so relative paths remain valid through Windows short names or Unix
+directory aliases.
 
 The candidate material guard always runs and is never cached. The staged guard reads actual indexed blobs in bounded Git batches, preserving path/type/size/encoding/private-content and forced-ignore checks. It does not substitute working-copy bytes, waive the private policy or bypass the commit hook.
+
+An explicit `--public` selects the same structural checks without reading the
+private pattern policy, for public clones and CI. Public reports identify
+`repository_guard.mode:"public_structural"` and
+`repository_guard.private_policy:"not_evaluated"`. Quick budgets, check selection
+and identical-pass rules are unchanged. Default verification still requires the
+private guard even after a successful public run; the guard itself is never
+reused. `check_repo.py --public` cannot combine with `--staged`, and the WSL
+development wrapper rejects public mode. Nothing switches modes based on CI
+environment variables or a missing policy. CI activation remains a separate
+owner-approved step in [FIX_PLAN.md](../FIX_PLAN.md).
 
 Console failure excerpts preserve the selected output encoding and escape characters it cannot represent. Raw per-check logs remain UTF-8. A failing test with Unicode output still produces its failure report and retry state; `--last-failed` reruns that check normally.

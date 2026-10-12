@@ -44,7 +44,10 @@ pub(super) fn decode<R: Read + Seek>(
             .and_then(|bytes| bytes.checked_mul(chunks as u64))
             .ok_or_else(|| limit("Sample TIFF padded tile work exceeds limit"))?;
         if padded > super::MAX_NATIVE_DECODED_BYTES as u64 {
-            return Err(limit("Sample TIFF padded tile work exceeds 64 MiB"));
+            return Err(limit(&format!(
+                "Sample TIFF padded tile work exceeds {} MiB",
+                super::MAX_NATIVE_DECODED_BYTES as f64 / 1_048_576.0
+            )));
         }
     }
     let stride = usize::try_from(stride)

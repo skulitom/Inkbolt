@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_editing_cli as editing
 import test_boards_cli as boards
 from test_images_cli import canonical
@@ -194,6 +195,31 @@ class PixelWarpTests(unittest.TestCase):
         e=self.inspect(s,expected=1);self.assertEqual(e['code'],'NONINVERTIBLE_WARP');self.assertIn('boundary',e['message'])
         folded=mesh();folded['points'][4]=[20,20];self.assertEqual(self.inspect(folded,expected=1)['code'],'NONINVERTIBLE_WARP')
         collapsed=mesh();collapsed['points'][4]=collapsed['points'][0];self.assertEqual(self.inspect(collapsed,expected=1)['code'],'NONINVERTIBLE_WARP')
+    def test_articulated_weight_tolerance_matches_advertised_admission(self):
+        tolerance = capabilities()['numerical_limits']['pixel_warps_weight_sum_tolerance']
+        for sign in (-1, 1):
+            for multiplier, expected in ((.5, 0), (2, 1)):
+                spec = articulated()
+                spec['weights'] = [[.5, .5+sign*multiplier*tolerance] for _ in spec['weights']]
+                before = copy.deepcopy(spec)
+                result = self.inspect(spec, expected=expected)
+                if expected:
+                    self.assertEqual(result['code'], 'INVALID_PIXEL_WARP')
+                    self.assertIn('sum to one', result['message'])
+                self.assertEqual(spec, before)
+
+    def test_advertised_joint_angle_endpoints_preserve_pose_and_reject_excess(self):
+        maximum = capabilities()['pixel_warps']['maximum_absolute_joint_angle_degrees']
+        for sign in (-1,1):
+            for angle,expected in ((sign*maximum,0),(sign*(maximum+1),1)):
+                source = articulated()
+                source['joints'][0]['angle'] = angle
+                before = copy.deepcopy(source)
+                result = self.inspect(source,expected=expected)
+                if expected:self.assertEqual(result['code'],'INVALID_PIXEL_WARP')
+                else:self.points(result['destination_points'],mesh_points(source,[8,8])[1])
+                self.assertEqual(source,before)
+
     def test_invalid_joint_weights_parent_cycles_and_strict_controls(self):
         for modify in [lambda s:s['weights'][0].__setitem__(0,.2),lambda s:s['weights'][0].__setitem__(0,-1),lambda s:s['joints'][0].update(parent=1),lambda s:s['joints'][1].update(parent=1),lambda s:s['joints'][0].update(angle=361),lambda s:s['weights'].pop()]:
             s=articulated();modify(s);self.assertEqual(self.inspect(s,expected=1)['code'],'INVALID_PIXEL_WARP')
@@ -222,7 +248,7 @@ class PixelWarpTests(unittest.TestCase):
         d=self.document(s)
         for k in range(14):d['items'].append(dict(copy.deepcopy(node(d)),id='copy'+str(k),visible=False))
         self.assertEqual(self.invoke(dict(command='document.validate',document=d),1)['code'],'RESOURCE_LIMIT')
-        self.assertEqual(self.inspect(dict(s,columns=17),expected=1)['code'],'RESOURCE_LIMIT');self.assertEqual(self.inspect(mesh(),expected=1,samples=[[1,1]]*257)['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.inspect(dict(s,columns=capabilities()['pixel_warps']['axis_intervals'][1]+1),expected=1)['code'],'RESOURCE_LIMIT');self.assertEqual(self.inspect(mesh(),expected=1,samples=[[1,1]]*(capabilities()['pixel_warps']['sample_limit']+1))['code'],'RESOURCE_LIMIT')
         self.assertEqual(self.inspect(mesh(),expected=1,control=dict(timeout_ms=0))['code'],'TIMEOUT')
         with tempfile.TemporaryDirectory() as root:
             p=Path(root)/'cancel';p.write_text('cancel');self.assertEqual(self.inspect(mesh(),expected=1,control=dict(cancel_file=str(p)))['code'],'CANCELLED')

@@ -14,7 +14,7 @@ def checksum(data):
     return sum(struct.unpack('>'+str(len(data)//4)+'I',data))&0xffffffff
 
 
-def geometric_font(rectangle_advance=600, additional_mapping=None):
+def geometric_font(rectangle_advance=600, additional_mapping=None, family=None):
     def glyph(points):
         xs=[p[0] for p in points];ys=[p[1] for p in points]
         head=pack('hhhhhHH',1,min(xs),min(ys),max(xs),max(ys),len(points)-1,0)
@@ -38,6 +38,17 @@ def geometric_font(rectangle_advance=600, additional_mapping=None):
     cmap=pack('HHHHI',0,1,3,10,12)+cmap12
     kern=pack('HHHHHHHHHHHh',0,1,0,20,1,1,6,0,0,2,3,-100)
     tables={b'head':bytes(head),b'hhea':hhea,b'maxp':pack('IH'+'H'*13,0x10000,4,4,1,0,0,1,0,0,0,0,0,0,0,0),b'hmtx':b''.join(pack('Hh',a,l) for a,l in [(600,0),(300,0),(rectangle_advance,50),(1200,0)]),b'loca':pack('I'*5,*loca),b'glyf':glyf,b'cmap':cmap,b'kern':kern}
+    if family is not None:
+        # Original version-0 name records, from the public OpenType name table.
+        # Optional so existing engine fixtures retain their exact byte identity.
+        assert family and family.isascii() and all(c.isalnum() or c == ' ' for c in family)
+        strings=b'';records=b''
+        names={1:family,2:'Regular',4:family+' Regular',6:family.replace(' ','')+'-Regular'}
+        for ident,value in sorted(names.items()):
+            raw=value.encode('utf-16-be')
+            records+=pack('HHHHHH',3,1,0x409,ident,len(raw),len(strings))
+            strings+=raw
+        tables[b'name']=pack('HHH',0,len(names),6+12*len(names))+records+strings
     n=len(tables);power=2**(n.bit_length()-1)
     header=pack('IHHHH',0x10000,n,power*16,power.bit_length()-1,n*16-power*16)
     offset=12+16*n;directory=b'';payload=b'';head_offset=None

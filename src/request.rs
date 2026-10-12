@@ -59,16 +59,23 @@ fn load_file(
             reference.file_path
         }
     };
-    if path.as_os_str().len() > 4096 {
+    if path.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
         return Err(Error::new(
             "RESOURCE_LIMIT",
-            "Document file path exceeds 4096 characters",
+            format!(
+                "Document file path exceeds {} characters",
+                crate::limits::paths::MAX_PATH_UNITS
+            ),
         ));
     }
     let bytes =
         crate::assets::read_bounded(&path, crate::MAX_REQUEST_BYTES).map_err(|mut error| {
             if error.code == "RESOURCE_LIMIT" {
-                error.message = "Document file exceeds 16 MiB".into();
+                error.message = format!(
+                    "Document file exceeds {} MiB",
+                    crate::MAX_REQUEST_BYTES as f64 / 1_048_576.0
+                )
+                .into();
             }
             error
         })?;
@@ -160,7 +167,10 @@ pub fn execute(
     if serde_json::to_vec(&value).unwrap().len() > crate::MAX_REQUEST_BYTES as usize {
         return Err(Error::new(
             "REQUEST_TOO_LARGE",
-            "Engine arguments exceed 16 MiB",
+            format!(
+                "Engine arguments exceed {} MiB",
+                crate::MAX_REQUEST_BYTES as f64 / 1_048_576.0
+            ),
         ));
     }
     let response_mode = crate::responses::take(&mut value)?;
@@ -278,7 +288,10 @@ pub fn execute(
     if serde_json::to_vec(&value).unwrap().len() > crate::MAX_REQUEST_BYTES as usize {
         return Err(Error::new(
             "REQUEST_TOO_LARGE",
-            "Expanded engine arguments exceed 16 MiB",
+            format!(
+                "Expanded engine arguments exceed {} MiB",
+                crate::MAX_REQUEST_BYTES as f64 / 1_048_576.0
+            ),
         ));
     }
     let request: Request = serde_json::from_value(value)
@@ -295,7 +308,13 @@ pub fn execute(
 /// Decode exactly one request with duplicate-key protection shared with MCP.
 pub fn decode(bytes: &[u8]) -> Result<Value, Error> {
     if bytes.len() > crate::MAX_REQUEST_BYTES as usize {
-        return Err(Error::new("REQUEST_TOO_LARGE", "Request exceeds 16 MiB"));
+        return Err(Error::new(
+            "REQUEST_TOO_LARGE",
+            format!(
+                "Request exceeds {} MiB",
+                crate::MAX_REQUEST_BYTES as f64 / 1_048_576.0
+            ),
+        ));
     }
     std::str::from_utf8(bytes)
         .ok()

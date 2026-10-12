@@ -20,9 +20,9 @@ pub use prepress::{PrepressOptions, SpotFallback};
 pub use print::PrintOptions;
 pub use recipe::InkOptions;
 
-pub const MAX_COMMANDS: usize = 262_144;
-pub const MAX_OBJECTS: usize = 32_768;
-pub const MAX_IMAGE_PIXELS: u64 = 4_194_304;
+pub use crate::limits::pdf::MAX_COMMANDS;
+pub use crate::limits::pdf::MAX_IMAGE_PIXELS;
+pub use crate::limits::pdf::MAX_OBJECTS;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
@@ -104,7 +104,10 @@ impl Writer {
         let data = data.into();
         self.bytes += data.len() + 64;
         if self.bytes > crate::publish::MAX_OUTPUT_BYTES || self.objects.len() >= MAX_OBJECTS {
-            return Err(limit("PDF exceeds its 32 MiB or object budget"));
+            return Err(limit(&format!(
+                "PDF exceeds its {} MiB or object budget",
+                crate::publish::MAX_OUTPUT_BYTES as f64 / 1_048_576.0
+            )));
         }
         self.objects.push(data);
         Ok(self.objects.len())
@@ -112,14 +115,20 @@ impl Writer {
     fn replace(&mut self, id: usize, data: String) -> Result<(), Error> {
         self.bytes += data.len();
         if self.bytes > crate::publish::MAX_OUTPUT_BYTES {
-            return Err(limit("PDF exceeds 32 MiB"));
+            return Err(limit(&format!(
+                "PDF exceeds {} MiB",
+                crate::publish::MAX_OUTPUT_BYTES as f64 / 1_048_576.0
+            )));
         }
         self.objects[id - 1] = data.into_bytes();
         Ok(())
     }
     fn stream(&mut self, entries: &str, data: &[u8]) -> Result<usize, Error> {
         if data.len() > crate::publish::MAX_OUTPUT_BYTES {
-            return Err(limit("PDF stream exceeds 32 MiB"));
+            return Err(limit(&format!(
+                "PDF stream exceeds {} MiB",
+                crate::publish::MAX_OUTPUT_BYTES as f64 / 1_048_576.0
+            )));
         }
         let mut bytes = format!("<< {entries} /Length {} >>\nstream\n", data.len()).into_bytes();
         bytes.extend_from_slice(data);
@@ -132,7 +141,7 @@ impl Writer {
         };
         self.commands += commands.len();
         if self.commands > MAX_COMMANDS {
-            return Err(limit("PDF path commands exceed 262144"));
+            return Err(limit(&format!("PDF path commands exceed {MAX_COMMANDS}")));
         }
         for command in commands {
             self.control.check()?;
@@ -153,7 +162,10 @@ impl Writer {
             output.push_str(op);
             output.push('\n');
             if self.bytes + output.len() > crate::publish::MAX_OUTPUT_BYTES {
-                return Err(limit("PDF path data exceeds 32 MiB"));
+                return Err(limit(&format!(
+                    "PDF path data exceeds {} MiB",
+                    crate::publish::MAX_OUTPUT_BYTES as f64 / 1_048_576.0
+                )));
             }
         }
         Ok(())
@@ -182,7 +194,10 @@ impl Writer {
         }
         bytes.extend_from_slice(format!("trailer\n<< /Size {} /Root {root} 0 R /Info {info} 0 R >>\nstartxref\n{start}\n%%EOF\n", offsets.len()).as_bytes());
         if bytes.len() > crate::publish::MAX_OUTPUT_BYTES {
-            return Err(limit("PDF exceeds 32 MiB"));
+            return Err(limit(&format!(
+                "PDF exceeds {} MiB",
+                crate::publish::MAX_OUTPUT_BYTES as f64 / 1_048_576.0
+            )));
         }
         Ok(bytes)
     }
@@ -435,7 +450,9 @@ fn image(
     let [width, height] = dimensions;
     writer.pixels += width as u64 * height as u64;
     if writer.pixels > MAX_IMAGE_PIXELS {
-        return Err(limit("PDF embedded image copies exceed 4194304 pixels"));
+        return Err(limit(&format!(
+            "PDF embedded image copies exceed {MAX_IMAGE_PIXELS} pixels"
+        )));
     }
     let mut rgb = Vec::with_capacity(rgba.len() / 4 * 3);
     let mut gray = Vec::with_capacity(rgba.len() / 4);
@@ -908,10 +925,11 @@ pub fn export_controlled(
         let pixels = assets::resolve(page, resources.asset_root.as_deref())?;
         let ppi = page.resolution_ppi;
         let physical = 72.0 / ppi;
-        let user_unit = (logical[0].max(logical[1]) * physical / 14400.0)
+        let user_unit = (logical[0].max(logical[1]) * physical
+            / crate::limits::pdf::MAX_PAGE_COORDINATE)
             .ceil()
             .max(1.0);
-        if user_unit > 75000.0 {
+        if user_unit > f64::from(crate::limits::pdf::MAX_USER_UNIT) {
             return Err(limit("PDF page exceeds the supported physical size"));
         }
         let factor = physical / user_unit;

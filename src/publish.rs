@@ -11,7 +11,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-pub const MAX_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
+pub use crate::limits::publish::MAX_OUTPUT_BYTES;
 static TEMP: AtomicU64 = AtomicU64::new(0);
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -78,7 +78,7 @@ pub(crate) fn destination(options: &Options) -> Result<PathBuf, Error> {
         ));
     }
     let target = options.output_root.join(name);
-    if target.as_os_str().len() > 4096 {
+    if target.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
         return Err(crate::model::limit("Output path exceeds its length limit"));
     }
     Ok(target)
@@ -521,7 +521,7 @@ pub fn publish(
         mut receipt,
     } = prepare_publication(document, resources, options, control)?;
     let mut reserved = None;
-    for _ in 0..64 {
+    for _ in 0..crate::limits::publish::MAX_STAGE_ATTEMPTS {
         let path = options.output_root.join(format!(
             ".inkbolt-output-{}-{}.tmp",
             std::process::id(),
@@ -543,7 +543,7 @@ pub fn publish(
     }
     let (temp, mut file) = reserved
         .ok_or_else(|| Error::new("IO_ERROR", "Output temporary-name retry limit exceeded"))?;
-    for chunk in bytes.chunks(65536) {
+    for chunk in bytes.chunks(crate::limits::publish::IO_CHUNK_BYTES) {
         control.check()?;
         file.write_all(chunk)
             .map_err(|_| Error::new("IO_ERROR", "Unable to write export temporary file"))?;

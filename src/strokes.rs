@@ -1,4 +1,5 @@
 //! Editable stroke controls, original outline geometry and atomic expansion.
+use crate::limits::strokes as limits;
 use crate::{Error, model::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -107,9 +108,9 @@ pub(crate) fn work_placed(g: &Geometry, s: &Stroke, world: Matrix) -> Result<u64
 }
 
 /// Shared outline accuracy anticipates the maximum supported raster density.
-pub const OUTLINE_RESOLUTION: u32 = 16;
+pub use crate::limits::strokes::OUTLINE_RESOLUTION;
 pub fn default_tolerance() -> f64 {
-    1.0 / 64.0
+    limits::DEFAULT_CURVE_TOLERANCE
 }
 pub fn is_default_tolerance(value: &f64) -> bool {
     *value == default_tolerance()
@@ -139,49 +140,61 @@ pub(crate) fn advanced(stroke: &Stroke) -> bool {
 }
 pub(crate) fn validate_controls(stroke: &Stroke) -> Result<(), Error> {
     brush::validate(stroke)?;
-    if !stroke.curve_tolerance.is_finite() || !(1e-7..=1.0).contains(&stroke.curve_tolerance) {
-        return Err(invalid(
-            "Stroke curve tolerance must be finite in 0.0000001..=1 declared stroke units",
-        ));
+    if !stroke.curve_tolerance.is_finite()
+        || !(limits::MIN_CURVE_TOLERANCE..=f64::from(limits::MAX_CURVE_TOLERANCE))
+            .contains(&stroke.curve_tolerance)
+    {
+        return Err(invalid(&format!(
+            "Stroke curve tolerance must be finite in {}..={} declared stroke units",
+            limits::MIN_CURVE_TOLERANCE,
+            limits::MAX_CURVE_TOLERANCE
+        )));
     }
     let profile = &stroke.width_profile;
     if !profile.is_empty()
-        && (!(2..=64).contains(&profile.len())
+        && (!(2..=limits::MAX_PROFILE_KNOTS).contains(&profile.len())
             || profile[0][0] != 0.0
             || profile.last().unwrap()[0] != 1.0
             || profile.iter().any(|p| {
                 !p[0].is_finite()
                     || !p[1].is_finite()
                     || !(0.0..=1.0).contains(&p[0])
-                    || !(0.0..=1024.0).contains(&p[1])
-                    || stroke.width * p[1] > 1024.0
+                    || !(0.0..=f64::from(limits::MAX_PROFILE_FACTOR)).contains(&p[1])
+                    || stroke.width * p[1] > f64::from(limits::MAX_WIDTH)
             })
             || profile.windows(2).any(|w| w[0][0] >= w[1][0]))
     {
-        return Err(invalid(
-            "Width profiles require 2..64 increasing [position,factor] knots from position 0 to 1, nonnegative factors at most 1024, and resulting widths at most 1024",
-        ));
+        return Err(invalid(&format!(
+            "Width profiles require 2..{} increasing [position,factor] knots from position 0 to 1, nonnegative factors at most {}, and resulting widths at most {}",
+            limits::MAX_PROFILE_KNOTS,
+            limits::MAX_PROFILE_FACTOR,
+            limits::MAX_WIDTH
+        )));
     }
     for arrow in stroke.start_arrow.iter().chain(stroke.end_arrow.iter()) {
         if !arrow.length.is_finite()
             || !arrow.width.is_finite()
-            || !(0.001..=1024.0).contains(&arrow.length)
-            || !(0.001..=1024.0).contains(&arrow.width)
+            || !(limits::MIN_ARROW_EXTENT..=f64::from(limits::MAX_ARROW_EXTENT))
+                .contains(&arrow.length)
+            || !(limits::MIN_ARROW_EXTENT..=f64::from(limits::MAX_ARROW_EXTENT))
+                .contains(&arrow.width)
         {
-            return Err(invalid(
-                "Arrow length and width must be finite in 0.001..=1024 declared stroke units",
-            ));
+            return Err(invalid(&format!(
+                "Arrow length and width must be finite in {}..={} declared stroke units",
+                limits::MIN_ARROW_EXTENT,
+                limits::MAX_ARROW_EXTENT
+            )));
         }
     }
     Ok(())
 }
 
-pub const MAX_INTERVALS: usize = 64;
-pub const MAX_DOCUMENT_WORK: u64 = 32_768;
-pub const MAX_INSTANCE_WORK: u64 = 131_072;
-pub const MAX_RANGE_WORK: u64 = 524_288;
-pub const MAX_SVG_COMMANDS: u64 = 131_072;
-pub const MAX_SVG_RANGE_COMMANDS: u64 = 262_144;
+pub use crate::limits::strokes::MAX_DOCUMENT_WORK;
+pub use crate::limits::strokes::MAX_INSTANCE_WORK;
+pub use crate::limits::strokes::MAX_INTERVALS;
+pub use crate::limits::strokes::MAX_RANGE_WORK;
+pub use crate::limits::strokes::MAX_SVG_COMMANDS;
+pub use crate::limits::strokes::MAX_SVG_RANGE_COMMANDS;
 
 pub(crate) fn svg_item_work(item: &Item, world: Matrix) -> Result<u64, Error> {
     if let Content::Vector {
@@ -225,14 +238,15 @@ impl Dash {
         if self.array.len() > MAX_INTERVALS
             || !self.offset.is_finite()
             || self.offset.abs() > MAX_COORDINATE
-            || self
-                .array
-                .iter()
-                .any(|v| !v.is_finite() || (*v != 0.0 && !(0.001..=MAX_COORDINATE).contains(v)))
+            || self.array.iter().any(|v| {
+                !v.is_finite()
+                    || (*v != 0.0 && !(limits::MIN_DASH_LENGTH..=MAX_COORDINATE).contains(v))
+            })
         {
-            return Err(invalid(
-                "Dashes require at most 64 intervals, each zero or 0.001..=32768, and a finite offset in -32768..=32768",
-            ));
+            return Err(invalid(&format!(
+                "Dashes require at most {MAX_INTERVALS} intervals, each zero or {}..={MAX_COORDINATE}, and a finite offset in -{MAX_COORDINATE}..={MAX_COORDINATE}",
+                limits::MIN_DASH_LENGTH
+            )));
         }
         Ok(())
     }

@@ -13,6 +13,7 @@ import test_adjustments_cli as tone
 import test_editing_cli as editing
 import test_filters_cli as blur
 from test_mcp import Client
+from advertised_limits import capabilities, over_pixel_budget
 
 
 def detail(**operator):return dict(type='detail',operator=operator)
@@ -187,12 +188,53 @@ class DetailSpatialTests(unittest.TestCase):
             finally:c.close()
         self.assertEqual(before,d)
 
+    def test_advertised_detail_and_spatial_boundaries(self):
+        caps = capabilities()['filters']
+        d = self.source([(20, 70, 110, 255)])
+        cases = [
+            (detail, dict(type='sharpen'), 'amount', 'sharpen_amount'),
+            (detail, dict(type='unsharp', sigma=1), 'amount', 'sharpen_amount'),
+            (detail, dict(type='unsharp', amount=1), 'sigma', 'gaussian_sigma'),
+            (detail, dict(type='median'), 'radius', 'median_radius'),
+            (spatial, dict(type='mosaic'), 'size', 'mosaic_size'),
+        ]
+        for wrap, op, key, field in cases:
+            lo, hi = caps[field]
+            for value in (lo, hi):
+                with self.subTest(operator=op['type'], key=key, accepted=value):
+                    self.filtered(d, [self.filter(wrap(**dict(op, **{key: value})))])
+            self.assertEqual(self.filtered(d, [self.filter(wrap(**dict(op, **{key: hi+1})))], expected=1)['code'], 'INVALID_DOCUMENT')
+        for kind, key, extra in [('offset', 'offset', {}),
+                                 ('displace', 'amount', dict(map=dict(width=1, height=1, vectors=[[1, -1]])))]:
+            lo, hi = caps['spatial_offset']
+            for axis in (0, 1):
+                for value in (lo, hi, lo-1, hi+1):
+                    point = [0, 0]; point[axis] = value
+                    op = spatial(**dict(type=kind, **extra, **{key: point}))
+                    with self.subTest(operator=kind, axis=axis, value=value):
+                        if lo <= value <= hi:
+                            self.filtered(d, [self.filter(op)])
+                        else:
+                            self.assertEqual(self.filtered(d, [self.filter(op)], expected=1)['code'], 'INVALID_DOCUMENT')
+        maximum = caps['displacement_map_dimension'][1]
+        for axis in ('width', 'height'):
+            for size in (maximum, maximum+1):
+                field = dict(width=1, height=1, vectors=[[0, 0]]*size)
+                field[axis] = size
+                op = spatial(type='displace', map=field, amount=[0, 0])
+                if size == maximum:
+                    self.filtered(d, [self.filter(op)])
+                else:
+                    self.assertEqual(self.filtered(d, [self.filter(op)], expected=1)['code'], 'INVALID_DOCUMENT')
+
     def test_invalid_detail_and_maps_depth_lock_and_work_fail_without_mutation(self):
         d=self.source(self.chart(7,5),7)
-        invalid=[detail(type='sharpen',amount=-1),detail(type='sharpen',amount=8.1),detail(type='unsharp',sigma=17,amount=1),detail(type='unsharp',sigma=1,amount=1,threshold=1.1),detail(type='median',radius=9),detail(type='noise',amount=1.1,seed=0),spatial(type='offset',offset=[257,0]),spatial(type='mosaic',size=0),spatial(type='mosaic',size=129),spatial(type='displace',map=dict(width=2,height=1,vectors=[[0,0]]),amount=[1,1]),spatial(type='displace',map=dict(width=1,height=1,vectors=[[1.1,0]]),amount=[1,1])]
+        caps=capabilities()['filters']
+        invalid=[detail(type='sharpen',amount=-1),detail(type='sharpen',amount=caps['sharpen_amount'][1]+.1),detail(type='unsharp',sigma=caps['gaussian_sigma'][1]+1,amount=1),detail(type='unsharp',sigma=1,amount=1,threshold=1.1),detail(type='median',radius=caps['median_radius'][1]+1),detail(type='noise',amount=1.1,seed=0),spatial(type='offset',offset=[caps['spatial_offset'][1]+1,0]),spatial(type='mosaic',size=0),spatial(type='mosaic',size=caps['mosaic_size'][1]+1),spatial(type='displace',map=dict(width=2,height=1,vectors=[[0,0]]),amount=[1,1]),spatial(type='displace',map=dict(width=1,height=1,vectors=[[1.1,0]]),amount=[1,1])]
         for op in invalid:self.assertEqual(self.filtered(d,[self.filter(op)],expected=1)['code'],'INVALID_DOCUMENT')
         self.assertEqual(self.filtered(d,[self.filter(detail(type='noise',amount=1,seed=4294967296))],expected=1)['code'],'INVALID_REQUEST')
-        bad=spatial(type='displace',map=dict(width=65,height=64,vectors=[[0,0]]*(65*64)),amount=[1,1]);self.assertEqual(self.filtered(d,[self.filter(bad)],expected=1)['code'],'RESOURCE_LIMIT')
+        w,h=over_pixel_budget(capabilities()['limits']['displacement_map_pixels'],caps['displacement_map_dimension'][1])
+        bad=spatial(type='displace',map=dict(width=w,height=h,vectors=[[0,0]]*(w*h)),amount=[1,1]);self.assertEqual(self.filtered(d,[self.filter(bad)],expected=1)['code'],'RESOURCE_LIMIT')
         high=copy.deepcopy(d);high['color_space']='rgb16';self.assertEqual(self.invoke(dict(command='document.render',document=high),1)['code'],'INVALID_REQUEST')
         huge=self.document(512,512);huge=self.edit(huge,[dict(op='add',item=dict(id='source',content=dict(type='fill',width=512,height=512,paint=[128,128,128,255])))])
         huge=self.filtered(huge,[self.filter(detail(type='median',radius=8))]);self.assertEqual(self.invoke(dict(command='document.render',document=huge),1)['code'],'RESOURCE_LIMIT')

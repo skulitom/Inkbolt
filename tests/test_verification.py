@@ -82,6 +82,21 @@ class VerificationTests(unittest.TestCase):
         self.write('examples/fixture.rgba8', 'fixture')
         self.assertIn('examples/fixture.rgba8', inputs.python_closure(self.root, 'tests/test_one.py', self.files()))
 
+    def test_generated_limits_reference_invalidates_compiled_tests(self):
+        self.write('src/limits.rs', 'include_str!("../docs/LIMITS.md")')
+        self.write('docs/LIMITS.md', 'original reference')
+        self.write('tests/test_one.py', "reference=ROOT/'docs/LIMITS.md'")
+        self.write('tests/test_two.py', 'value=1')
+        names = ['test_one', 'test_two']
+        before = inputs.fingerprints(self.root, self.files(), 'same', names)
+        self.write('docs/LIMITS.md', 'changed reference')
+        after = inputs.fingerprints(self.root, self.files(), 'same', names)
+        self.assertEqual({n for n in before if before[n] != after[n]},
+                         {'build', 'fmt', 'clippy', 'rust', 'test_one'})
+        (self.root/'docs/LIMITS.md').unlink()
+        missing = inputs.fingerprints(self.root, self.files(), 'same', names)
+        self.assertNotEqual(after['rust'], missing['rust'])
+
     def test_failed_deferred_and_different_inputs_never_reuse(self):
         for status in ('failed', 'deferred', 'reused'):
             self.assertFalse(verify.reusable(dict(status=status, fingerprint='same'), 'same'))
@@ -101,6 +116,8 @@ class VerificationTests(unittest.TestCase):
             'test_verification_runner','test_workload_gates','test_wide_workload_gates',
             'test_agent_benchmark','test_agent_benchmark_handoff',
             'test_agent_benchmark_photo','test_agent_benchmark_recovery',
+            'test_benchmark_driver',  # Captures complete external trial workspaces.
+            'test_wsl_verification',  # The WSL snapshot binds the whole candidate.
         })
         # Refactoring must still invalidate actual shared helper consumers and
         # must not weaken the conservative Rust/unknown-input boundary.
@@ -149,6 +166,18 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual((failed['status'], failed['exit_code']), ('failed', 7))
         self.assertIn('test-error', failed['output'])
 
+    def test_explicit_platform_skips_are_not_counted_as_executed_tests(self):
+        output = "test_job ... skipped 'Engine capabilities.jobs.supported_here is false'\nRan 2 tests in 0.1s\nOK (skipped=1)\n"
+        row = verify.checked_result(dict(status='passed', output=output), expected=2)
+        self.assertEqual(row['tests'], 2)
+        self.assertEqual(row['skipped'], 1)
+        self.assertEqual(row['skip_reasons'], ["'Engine capabilities.jobs.supported_here is false'"])
+        windows = verify.checked_result(dict(status='passed', output=output.replace('\n', '\r\n')), expected=2)
+        self.assertEqual(windows['skipped'], 1)
+        self.assertEqual(windows['skip_reasons'], row['skip_reasons'])
+        broken = verify.checked_result(dict(status='passed', output=output.replace('skipped=1', 'skipped=3')), expected=2)
+        self.assertEqual(broken['status'], 'failed')
+
     def test_normal_completion_also_stops_owned_background_workers(self):
         child = self.write('child.py', 'import time\ntime.sleep(60)\n')
         parent = self.write('parent.py', 'import subprocess,sys\nsubprocess.Popen([sys.executable,sys.argv[1]])\n')
@@ -161,6 +190,69 @@ class VerificationTests(unittest.TestCase):
             result = verify.schedule(['one', 'two'], lambda n: self.fail(n), 2, time.monotonic() - 1, {}, set())
         self.assertEqual({v['status'] for v in result.values()}, {'deferred'})
 
+    def test_scheduler_reserves_long_checks_before_edited_short_fixtures(self):
+        launched = []
+        def worker(name):
+            launched.append(name)
+            return dict(status='passed', seconds=1)
+        previous = dict(test_long=dict(status='passed', seconds=100),
+                        test_edited=dict(status='passed', seconds=2))
+        with patch.object(verify.time, 'monotonic', return_value=100), redirect_stdout(io.StringIO()):
+            rows = verify.schedule(previous, worker, 1, 300, previous, {'tests/test_edited.py'})
+        self.assertEqual(launched, ['test_long', 'test_edited'])
+        self.assertTrue(all(row['status'] == 'passed' for row in rows.values()))
+
+    def test_scheduler_skips_known_overrun_but_runs_fitting_and_unknown_checks(self):
+        launched = []
+        def worker(name):
+            launched.append(name)
+            return dict(status='passed', seconds=1)
+        previous = dict(long=dict(status='passed', seconds=10),
+                        short=dict(status='passed', seconds=2))
+        with patch.object(verify.time, 'monotonic', return_value=100), redirect_stdout(io.StringIO()):
+            rows = verify.schedule(['long', 'short', 'unknown'], worker, 2, 110, previous, set())
+        self.assertCountEqual(launched, ['short', 'unknown'])
+        self.assertEqual(rows['long']['status'], 'deferred')
+        self.assertEqual(rows['long']['seconds'], 0)
+        self.assertEqual(rows['long']['remaining_seconds'], 10)
+        self.assertIn('10% reserve', rows['long']['reason'])
+        # Thorough mode runs everything, regardless of the saved estimate.
+        launched.clear()
+        with redirect_stdout(io.StringIO()):
+            rows = verify.schedule(['long', 'short', 'unknown'], worker, 2, None, previous, set())
+        self.assertCountEqual(launched, ['long', 'short', 'unknown'])
+        self.assertTrue(all(row['status'] == 'passed' for row in rows.values()))
+
+    def test_scheduler_rechecks_remaining_budget_after_a_worker_finishes(self):
+        now = [100]
+        launched = []
+        def worker(name):
+            launched.append(name)
+            now[0] += 6 if name == 'first' else 1
+            return dict(status='passed', seconds=1)
+        previous = {name: dict(status='passed', seconds=seconds)
+                    for name, seconds in [('first', 6), ('second', 5), ('short', 1)]}
+        with patch.object(verify.time, 'monotonic', side_effect=lambda: now[0]), redirect_stdout(io.StringIO()):
+            rows = verify.schedule(previous, worker, 1, 110, previous, set())
+        self.assertEqual(launched, ['first', 'short'])
+        self.assertEqual(rows['second']['remaining_seconds'], 4)
+        self.assertEqual(rows['second']['status'], 'deferred')
+
+    def test_duration_evidence_survives_deferral_and_failure_without_becoming_a_pass(self):
+        previous = dict(status='passed', seconds=100)
+        for status, seconds, expected in [('deferred', 0, 100), ('deferred', 120, 120), ('failed', 1, 120)]:
+            row = dict(status=status, seconds=seconds)
+            verify.retain_duration(row, previous)
+            self.assertEqual(verify.duration_hint(row), expected)
+            self.assertEqual(row['status'], status)
+            previous = row
+        fresh = dict(status='passed', seconds=5)
+        verify.retain_duration(fresh, previous)
+        self.assertEqual(verify.duration_hint(fresh), 5)
+        self.assertIsNone(verify.duration_hint(dict(status='failed', seconds=1)))
+        for invalid in [None, -1, 0, True, '120', float('nan'), float('inf')]:
+            self.assertIsNone(verify.duration_hint(dict(status='passed', seconds=invalid)))
+
     def test_checkout_lease_blocks_second_verifier_and_releases(self):
         path = self.root / 'lease'
         lease = verify.Lease(path)
@@ -171,14 +263,66 @@ class VerificationTests(unittest.TestCase):
         again = verify.Lease(path)
         again.close()
 
-    def mini_run(self, args, fake, state, stdout=None):
+    def mini_run(self, args, fake, state, stdout=None, deadline=None):
         with patch.object(verify, 'ROOT', self.root), patch.object(verify, 'EXE', self.root/'engine.exe'), \
              patch.object(verify, 'environment_identity', return_value='test-environment'), \
              patch.object(verify, 'snapshot', side_effect=lambda r: {p:v for p,v in self.files().items() if not p.startswith('state/')}), \
              patch.object(verify, 'python_counts', return_value={'test_one': 1, 'test_two': 1}), \
              patch.object(verify, 'run', side_effect=fake), redirect_stdout(stdout if stdout is not None else io.StringIO()):
             started = time.monotonic()
-            return verify.verify(verify.parse_args(args), state, started, None)
+            return verify.verify(verify.parse_args(args), state, started, deadline)
+
+    def test_forecast_deferral_keeps_unresolved_failure_and_force_refreshes_timing(self):
+        for name in ('one', 'two'): self.write(f'tests/test_{name}.py', 'value=1')
+        self.write('engine.exe', 'test-binary')
+        state = self.root/'state'; state.mkdir()
+        commands = []
+        def fake(argv, *args):
+            commands.append(argv)
+            return dict(status='passed', seconds=.01, exit_code=0,
+                        output='Ran 1 test in 0.01s\nOK\n')
+        self.assertEqual(self.mini_run(['--only', 'test_two'], fake, state), 0)
+        saved = verify.load_state(state/'state.json')
+        saved['checks']['test_two'].update(status='failed', seconds=.01, duration_hint_seconds=100)
+        (state/'state.json').write_text(json.dumps(saved), encoding='utf-8')
+        commands.clear()
+        self.assertEqual(self.mini_run(['--last-failed'], fake, state, deadline=time.monotonic()+30), 2)
+        self.assertEqual(len(commands), 1)  # Only the mandatory guard ran.
+        saved = verify.load_state(state/'state.json')
+        report = json.loads(Path(saved['latest_report']).read_text(encoding='utf-8'))
+        self.assertEqual(report['deferred'], ['test_two'])
+        self.assertEqual(saved['checks']['test_two']['status'], 'failed')
+        self.assertEqual(saved['checks']['test_two']['duration_hint_seconds'], 100)
+        commands.clear()
+        self.assertEqual(self.mini_run(['--last-failed', '--force'], fake, state, deadline=time.monotonic()+30), 0)
+        saved = verify.load_state(state/'state.json')
+        self.assertEqual(saved['checks']['test_two']['status'], 'passed')
+        self.assertEqual(saved['checks']['test_two']['duration_hint_seconds'], .01)
+        self.assertEqual(sum('test_two.py' in command for command in commands), 1)
+
+    def test_public_guard_is_reported_and_cannot_satisfy_next_private_run(self):
+        self.write('tests/test_one.py', 'value=1')
+        self.write('engine.exe', 'test-binary')
+        state = self.root/'state'; state.mkdir()
+        commands = []
+        def fake(argv, *args):
+            commands.append(argv)
+            private = 'tools/check_repo.py' in argv and '--public' not in argv
+            return dict(status='failed' if private else 'passed', seconds=.01,
+                        exit_code=int(private), output='Missing private policy' if private else 'Ran 1 test in 0.01s\nOK\n')
+        self.assertEqual(self.mini_run(['--public','--only','test_one'], fake, state), 0)
+        saved = verify.load_state(state/'state.json')
+        report = json.loads(Path(saved['latest_report']).read_text(encoding='utf-8'))
+        self.assertEqual(report['repository_guard'], dict(mode='public_structural', private_policy='not_evaluated'))
+        self.assertIn('--public', report['checks']['guard']['command'])
+        commands.clear()
+        self.assertEqual(self.mini_run(['--only','test_one'], fake, state), 1)
+        self.assertEqual(commands, [verify.PY+['tools/check_repo.py']])
+        saved = verify.load_state(state/'state.json')
+        report = json.loads(Path(saved['latest_report']).read_text(encoding='utf-8'))
+        self.assertEqual(report['repository_guard'], dict(mode='private', private_policy='required'))
+        self.assertEqual(report['failed'], ['guard'])
+        self.assertEqual(report['deferred'], ['build','clippy','fmt','test_one'])
 
     def test_unicode_failure_on_legacy_pipe_keeps_exact_log_report_and_retry(self):
         for name in ('one', 'two'):self.write(f'tests/test_{name}.py', 'value=1')

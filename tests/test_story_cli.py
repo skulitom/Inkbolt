@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_text_cli as text_tests
 import test_editing_cli as editing
 from test_mcp import Client
@@ -30,6 +31,51 @@ class StoryTests(unittest.TestCase):
 
     def inspect(self,d,**kw):
         return self.invoke(dict(command='story.inspect',document=d,id='article',font_root=str(self.store),**kw))
+
+    def test_advertised_flow_counts_and_extents(self):
+        caps = capabilities()['paragraph_flow']; bounds = caps['layout_limits']
+        d = self.document([self.paragraph('')], [dict(id='first', width=80, height=60)])
+        original = d['stories']['article']
+        cases = [({'width': v}, expected) for v, expected in
+                 [(bounds['slot_extent'][0], 0), (bounds['slot_extent'][1], 0),
+                  (bounds['slot_extent'][0]/2, 1), (bounds['slot_extent'][1]+1, 1)]]
+        cases += [({'height': v}, expected) for v, expected in
+                  [(bounds['slot_extent'][0], 0), (bounds['slot_extent'][1], 0),
+                   (bounds['slot_extent'][0]/2, 1), (bounds['slot_extent'][1]+1, 1)]]
+        cases += [({'columns': caps['columns_per_slot']}, 0),
+                  ({'columns': caps['columns_per_slot']+1}, 1),
+                  ({'gutter': bounds['gutter'][1]}, 0),
+                  ({'gutter': bounds['gutter'][1]+1}, 1),
+                  ({'columns': 2, 'width': 2*bounds['minimum_column_extent']}, 0),
+                  ({'columns': 2, 'width': bounds['minimum_column_extent']}, 1)]
+        for change, expected in cases:
+            with self.subTest(change=change):
+                story = copy.deepcopy(original); story['slots'][0].update(change)
+                result = self.edit(d, [dict(op='story', id='article', story=story)], expected)
+                if expected: self.assertEqual(result['code'], 'INVALID_STORY')
+        for field, cap, template in [('paragraphs', 'paragraphs_per_story', self.paragraph('')),
+                                     ('slots', 'slots_per_story', dict(width=80, height=60))]:
+            for n, expected in [(caps[cap], 0), (caps[cap]+1, 1)]:
+                story = copy.deepcopy(original)
+                story[field] = [copy.deepcopy(template) for _ in range(n)]
+                if field == 'slots':
+                    for i, slot in enumerate(story[field]): slot['id'] = 'first' if i == 0 else f'slot-{i}'
+                result = self.edit(d, [dict(op='story', id='article', story=story)], expected)
+                if expected: self.assertEqual(result['code'], 'RESOURCE_LIMIT')
+
+    def test_advertised_paragraph_spacing_and_signed_indents(self):
+        bounds = capabilities()['paragraph_flow']['layout_limits']
+        d = self.document([self.paragraph('')], [dict(id='first', width=80, height=60)])
+        for field in ('before', 'after', 'indent_start', 'indent_end', 'first_indent'):
+            lo, hi = bounds['first_indent' if field == 'first_indent' else 'spacing_and_indents']
+            for value, expected in [(lo, 0), (hi, 0), (lo-1, 1), (hi+1, 1)]:
+                with self.subTest(field=field, value=value):
+                    story = copy.deepcopy(d['stories']['article'])
+                    p = story['paragraphs'][0]; p[field] = value
+                    if field == 'first_indent': p['indent_start'] = hi
+                    result = self.edit(d, [dict(op='story', id='article', story=story)], expected)
+                    if expected: self.assertEqual(result['code'], 'INVALID_STORY')
+
 
     def test_ordered_thread_columns_source_intervals_and_glyph_metrics(self):
         d=self.document();r=self.inspect(d,include_outlines=True)['layout']

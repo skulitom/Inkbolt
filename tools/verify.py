@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -83,10 +84,16 @@ def checked_result(row, expected=None, rust=False):
     if row['status'] != 'passed':
         return row
     if expected is not None:
-        counts = re.findall(r'^Ran (\d+) tests? in ', row['output'], re.MULTILINE)
+        output = row['output'].replace('\r\n', '\n')
+        counts = re.findall(r'^Ran (\d+) tests? in ', output, re.MULTILINE)
         if len(counts) != 1 or int(counts[0]) != expected or expected <= 0:
             return dict(row, status='failed', reason=f'Incomplete Python accounting (expected {expected})')
         row['tests'] = expected
+        skipped = re.search(r'^OK \(.*?skipped=(\d+).*?\)$', output, re.MULTILINE)
+        row['skipped'] = int(skipped[1]) if skipped else 0
+        if row['skipped'] > expected:
+            return dict(row, status='failed', reason='Invalid Python skip accounting')
+        row['skip_reasons'] = re.findall(r"^.*? \.\.\. skipped (.+)$", output, re.MULTILINE)
     if rust:
         counts = re.findall(r'^test result: ok\. (\d+) passed;', row['output'], re.MULTILINE)
         if not counts or sum(map(int, counts)) == 0:
@@ -129,13 +136,37 @@ def select(args, modules, history):
     return names
 
 
+def positive_seconds(value):
+    return value if type(value) in (int, float) and math.isfinite(value) and value > 0 else None
+
+
+def duration_hint(row):
+    """A completed duration or a retained lower bound, never a fast failure."""
+    hint = positive_seconds(row.get('duration_hint_seconds'))
+    if hint is None and row.get('status') in ('passed', 'deferred'):
+        hint = positive_seconds(row.get('seconds'))
+    return hint
+
+
+def retain_duration(row, previous):
+    """Pending/failing results must not erase the last useful timing evidence."""
+    hint = duration_hint(previous)
+    measured = positive_seconds(row.get('seconds'))
+    if row['status'] == 'passed' and measured is not None:
+        hint = measured
+    elif row['status'] == 'deferred' and measured is not None:
+        hint = max(hint or 0, measured)
+    if hint is not None:
+        row['duration_hint_seconds'] = hint
+
+
 def schedule(names, worker, jobs, deadline, previous, changed):
-    """Longest known checks first; failures and edited fixtures have priority."""
+    """Start long checks early; don't spend a quick window on a known overrun."""
     def priority(name):
         old = previous.get(name, {})
         direct = name.startswith('test_') and f'tests/{name}.py' in changed
-        seconds = old.get('seconds', 90 if name == 'rust' or name == 'test_jobs' else 5)
-        return (old.get('status') != 'failed', not direct, -seconds, name)
+        seconds = duration_hint(old) or (90 if name == 'rust' or name.startswith('rust:') or name == 'test_jobs' else 5)
+        return (-seconds, old.get('status') != 'failed', not direct, name)
     pending = sorted(names, key=priority)
     result = {}
     with ThreadPoolExecutor(max_workers=jobs) as pool:
@@ -143,8 +174,16 @@ def schedule(names, worker, jobs, deadline, previous, changed):
         while pending or running:
             while pending and len(running) < jobs:
                 name = pending.pop(0)
-                if deadline is not None and time.monotonic() >= deadline:
-                    result[name] = dict(status='deferred', seconds=0, exit_code=None)
+                remaining = None if deadline is None else deadline - time.monotonic()
+                estimate = duration_hint(previous.get(name, {}))
+                if remaining is not None and remaining <= 0:
+                    result[name] = dict(status='deferred', seconds=0, exit_code=None,
+                                        reason='Quick budget exhausted before launch')
+                elif remaining is not None and estimate is not None and estimate * 1.1 > remaining:
+                    result[name] = dict(status='deferred', seconds=0, exit_code=None,
+                                        reason='Saved duration plus 10% reserve exceeds remaining quick budget',
+                                        duration_hint_seconds=estimate, remaining_seconds=max(0, remaining))
+                    print(f'{name}: pending without launch (estimated {estimate:.1f}s; {remaining:.1f}s left)', flush=True)
                 else:
                     running[pool.submit(worker, name)] = name
             if running:
@@ -166,7 +205,11 @@ def python_checks(jobs):
     failures = [name for name, row in rows.items() if row['status'] != 'passed']
     if failures or sum(row.get('tests', 0) for row in rows.values()) != sum(counts.values()):
         raise RuntimeError('Python verification failed: ' + ', '.join(failures))
-    print(f'All {sum(counts.values())} Python tests passed across {len(modules)} isolated modules.')
+    skipped = sum(row.get('skipped', 0) for row in rows.values())
+    if skipped:
+        print(f'{sum(counts.values()) - skipped} Python tests passed; {skipped} explicitly skipped across {len(modules)} isolated modules.')
+    else:
+        print(f'All {sum(counts.values())} Python tests passed across {len(modules)} isolated modules.')
 
 
 def execute(args):
@@ -189,6 +232,10 @@ def verify(args, state, started, deadline):
         if hasattr(stream, 'reconfigure'):
             stream.reconfigure(errors='backslashreplace')
     print('Planning checks from current file contents and previous results...', flush=True)
+    guard_policy = dict(mode='public_structural' if args.public else 'private',
+                        private_policy='not_evaluated' if args.public else 'required')
+    if args.public:
+        print('Public structural guard only; private_policy: not_evaluated.', flush=True)
     baseline = snapshot(ROOT)
     environment = environment_identity(ROOT)
     modules = sorted(p.stem for p in (ROOT / 'tests').glob('test_*.py'))
@@ -237,7 +284,7 @@ def verify(args, state, started, deadline):
             print(log.read_text(encoding='utf-8')[-12000:], flush=True)
         return row
     # The material guard always runs against current bytes. It is never cached.
-    for name, argv in [('guard', PY + ['tools/check_repo.py']),
+    for name, argv in [('guard', PY + ['tools/check_repo.py'] + (['--public'] if args.public else [])),
                        ('fmt', ['cargo', 'fmt', '--check']),
                        ('build', ['cargo', 'build', '--locked']),
                        ('clippy', ['cargo', 'clippy', '--locked', '--all-targets', '--', '-D', 'warnings'])]:
@@ -274,7 +321,9 @@ def verify(args, state, started, deadline):
             if reused_count:
                 print(f'Reusing {reused_count} checks with identical passing inputs.', flush=True)
             work -= rows.keys()
-        rows.update(schedule(work, worker, args.jobs, deadline, history, changed))
+        # Explicit force permits a new timing measurement, still under the hard
+        # quick deadline. Thorough mode has no deadline and never defers by hint.
+        rows.update(schedule(work, worker, args.jobs, deadline, {} if args.force else history, changed))
         # Job containment has stopped this run's workers; remove only our copy.
         try:
             engine_copy.unlink()
@@ -284,17 +333,22 @@ def verify(args, state, started, deadline):
             retained_engine = str(engine_copy)
     for name in selected - rows.keys():
         rows[name] = dict(status='deferred', seconds=0, reason='Prerequisite did not pass')
+    for name, row in rows.items():
+        if row['status'] != 'reused':
+            retain_duration(row, history.get(name, {}))
     stable = snapshot(ROOT) == baseline and file_hash(EXE) == binary and environment_identity(ROOT) == environment
     failures = sorted(n for n, row in rows.items() if row['status'] == 'failed')
     deferred = sorted(n for n, row in rows.items() if row['status'] == 'deferred')
     code = 1 if failures or not stable else 2 if deferred else 0
     report = dict(version=1, mode='thorough' if args.thorough else 'quick', seconds=time.monotonic() - started,
+                  repository_guard=guard_policy,
                   budget_seconds=None if args.thorough else args.budget, inputs_unchanged=stable,
                   input_fingerprint=digest(baseline), environment=environment, executable=binary,
                   checks=rows, failed=failures, deferred=deferred, outside_scope=excluded,
                   retained_engine_copy=retained_engine,
                   python_modules_discovered=len(modules), python_tests_discovered=sum(counts.values()) if counts else None,
-                  python_tests_executed=sum(row.get('tests', 0) for name, row in rows.items() if name.startswith('test_') and row['status'] == 'passed'),
+                  python_tests_executed=sum(row.get('tests', 0) - row.get('skipped', 0) for name, row in rows.items() if name.startswith('test_') and row['status'] == 'passed'),
+                  python_tests_skipped=sum(row.get('skipped', 0) for name, row in rows.items() if name.startswith('test_') and row['status'] == 'passed'),
                   complete_suite=args.thorough and code == 0, exit_code=code)
     report_path = directory / 'report.json'
     report_path.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
@@ -325,6 +379,8 @@ def verify(args, state, started, deadline):
           f"{len(excluded)} outside scope; {report['seconds']:.1f}s.\nReport: {report_path}", flush=True)
     if not stable:
         print('Inputs changed during verification; no results accepted.', flush=True)
+    if report['python_tests_skipped']:
+        print(f"Python tests: {report['python_tests_executed']} executed, {report['python_tests_skipped']} explicitly skipped; reasons are retained in the report.", flush=True)
     if deferred:
         print('Budget/prerequisite left checks pending. Rerun to resume, select --only/--rust, or use --thorough.', flush=True)
     if not args.thorough:
@@ -335,6 +391,7 @@ def verify(args, state, started, deadline):
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--thorough', action='store_true', help='Rerun every check without cache reuse or the quick budget')
+    parser.add_argument('--public', action='store_true', help='Use the explicit public structural guard for clones/CI; private policy is not evaluated')
     parser.add_argument('--jobs', type=int, default=min(4, os.cpu_count() or 2), choices=range(1, 9), help='Concurrent stages (default: up to 4; maximum: 8)')
     parser.add_argument('--budget', type=float, default=180, help='Total quick-run seconds, including builds (default: 180)')
     parser.add_argument('--only', help='Comma-separated Python test module names (test_ prefix, no path), or rust')

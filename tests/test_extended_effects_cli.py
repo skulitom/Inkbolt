@@ -7,6 +7,7 @@ import json
 import math
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import test_blending_cli as blending
 import test_effects_coverage_cli as basic
 import test_editing_cli as editing
@@ -192,14 +193,91 @@ class ExtendedEffectTests(unittest.TestCase):
         self.assertEqual(self.edit(locked,[dict(op='global_light',light=dict(azimuth=0))],1)['code'],'LOCKED')
         fx[0]['operator']['azimuth']=90;d=self.effect(d,fx);locked=self.edit(d,[dict(op='properties',id='art',locked=True)])
         self.assertEqual(self.edit(locked,[dict(op='global_light',light=dict(azimuth=0))])['global_light'],dict(azimuth=0))
-        for angle in [-361,361]:self.assertEqual(self.edit(d,[dict(op='global_light',light=dict(azimuth=angle))],1)['code'],'INVALID_DOCUMENT')
+        for angle in [capabilities()['layer_effects']['light_azimuth'][0]-1,capabilities()['layer_effects']['light_azimuth'][1]+1]:self.assertEqual(self.edit(d,[dict(op='global_light',light=dict(azimuth=angle))],1)['code'],'INVALID_DOCUMENT')
+
+    def test_advertised_effect_bounds_before_and_after_scaling(self):
+        caps = capabilities()['layer_effects']
+        d, _ = self.source(1, 1)
+        def admit(effect, expected=0):
+            return self.edit(d, [dict(op='effects', id='art', effects=[effect])], expected)
+        base = basic.effect('bounds', 'overlay', [0, 0, 0, 255])
+        lo, hi = caps['effect_scale']
+        for value in (lo, hi):
+            admit(dict(base, scale=value))
+        for value in (lo/2, hi+1):
+            self.assertEqual(admit(dict(base, scale=value), 1)['code'], 'INVALID_DOCUMENT')
+        for kind, key, field, extra in [
+            ('shadow', 'sigma', 'shadow_sigma', dict(offset=[0, 0])),
+            ('lit_shadow', 'sigma', 'shadow_sigma', dict(distance=0)),
+            ('lit_shadow', 'distance', 'shadow_distance', dict(sigma=0)),
+            ('stroke', 'radius', 'stroke_radius', {}),
+        ]:
+            maximum = caps[field][1]
+            # A scaled limit is additional to the bound on the stored control.
+            for scale, value, allowed in [(1, maximum, True), (2, maximum//2, True),
+                                           (2, maximum//2+1, False), (.5, maximum+1, False)]:
+                effect = dict(basic.effect('bounds', kind, [0, 0, 0, 255], **extra, **{key: value}), scale=scale)
+                with self.subTest(kind=kind, key=key, scale=scale, value=value):
+                    if allowed:
+                        admit(effect)
+                    else:
+                        self.assertEqual(admit(effect, 1)['code'], 'INVALID_DOCUMENT')
+        maximum = caps['shadow_offset'][1]
+        for axis in (0, 1):
+            for sign in (-1, 1):
+                for scale, value, allowed in [(1, maximum, True), (2, maximum/2, True),
+                                               (2, maximum/2+1, False), (.5, maximum+1, False)]:
+                    offset = [0, 0]; offset[axis] = sign*value
+                    effect = dict(basic.effect('bounds', 'shadow', [0, 0, 0, 255], sigma=0, offset=offset), scale=scale)
+                    if allowed:
+                        admit(effect)
+                    else:
+                        self.assertEqual(admit(effect, 1)['code'], 'INVALID_DOCUMENT')
+        self.assertEqual(self.invoke(dict(command='document.inspect', document=d))['global_light']['azimuth'], caps['default_light_azimuth'])
+        lo, hi = caps['light_azimuth']
+        for value in (lo, hi, lo-1, hi+1):
+            effect = basic.effect('bounds', 'lit_shadow', [0, 0, 0, 255], distance=0, sigma=0, azimuth=value)
+            op = dict(op='global_light', light=dict(azimuth=value))
+            if lo <= value <= hi:
+                admit(effect); self.edit(d, [op])
+            else:
+                self.assertEqual(admit(effect, 1)['code'], 'INVALID_DOCUMENT')
+                self.assertEqual(self.edit(d, [op], 1)['code'], 'INVALID_DOCUMENT')
+        maximum = caps['contour_knots'][1]
+        for count in (maximum, maximum+1):
+            effect = dict(base, contour=[[i/(count-1), i/(count-1)] for i in range(count)])
+            if count == maximum:
+                admit(effect)
+            else:
+                self.assertEqual(admit(effect, 1)['code'], 'RESOURCE_LIMIT')
+
+    def test_advertised_effect_stack_limits_include_disabled_items(self):
+        caps = capabilities()['layer_effects']
+        d, _ = self.source(1, 1)
+        base = basic.effect('bounds', 'overlay', [0, 0, 0, 255])
+        stack, total = caps['max_per_item'], caps['max_per_document']
+        effects = [dict(base, id=str(i), enabled=False) for i in range(stack)]
+        self.effect(d, effects)
+        error = self.edit(d, [dict(op='effects', id='art', effects=effects+[dict(base, id='overflow')])], 1)
+        self.assertEqual(error['code'], 'RESOURCE_LIMIT'); self.assertIn(str(stack), error['message'])
+        template = d['items'][0]
+        for count in (total, total+1):
+            candidate = copy.deepcopy(d)
+            candidate['items'] = [dict(copy.deepcopy(template), id=str(i//stack), visible=False,
+                                       effects=effects[:min(stack, count-i)]) for i in range(0, count, stack)]
+            if count == total:
+                self.invoke(dict(command='document.validate', document=candidate))
+            else:
+                error = self.invoke(dict(command='document.validate', document=candidate), 1)
+                self.assertEqual(error['code'], 'RESOURCE_LIMIT'); self.assertIn(str(total), error['message'])
 
     def test_invalid_contours_paints_scales_and_scaled_kernel_bounds(self):
+        caps=capabilities()['layer_effects']
         d,_=self.source();base=basic.effect('a','overlay',[20,70,190,255])
         for knots in [[[0,0]],[[.1,0],[1,1]],[[0,.1],[1,1]],[[0,0],[.5,.5],[.5,.7],[1,1]],[[0,0],[1,1.1]],[[0,0],[.9,1]]]:
             self.assertEqual(self.edit(d,[dict(op='effects',id='art',effects=[dict(base,contour=knots)])],1)['code'],'INVALID_DOCUMENT' if len(knots)>1 else 'RESOURCE_LIMIT')
-        self.assertEqual(self.edit(d,[dict(op='effects',id='art',effects=[dict(base,contour=[[i/64,i/64] for i in range(65)])])],1)['code'],'RESOURCE_LIMIT')
-        for e in [dict(base,scale=0),dict(base,scale=1025),dict(basic.effect('a','stroke',[0,0,0,255],radius=32),scale=1.001),dict(basic.effect('a','shadow',[0,0,0,255],offset=[256,0],sigma=0),scale=2),dict(basic.effect('a','lit_shadow',[0,0,0,255],distance=0,sigma=16),scale=2)]:
+        self.assertEqual(self.edit(d,[dict(op='effects',id='art',effects=[dict(base,contour=[[i/caps['contour_knots'][1],i/caps['contour_knots'][1]] for i in range(caps['contour_knots'][1]+1)])])],1)['code'],'RESOURCE_LIMIT')
+        for e in [dict(base,scale=0),dict(base,scale=caps['effect_scale'][1]+1),dict(basic.effect('a','stroke',[0,0,0,255],radius=caps['stroke_radius'][1]),scale=1.001),dict(basic.effect('a','shadow',[0,0,0,255],offset=[caps['shadow_offset'][1],0],sigma=0),scale=2),dict(basic.effect('a','lit_shadow',[0,0,0,255],distance=0,sigma=caps['shadow_sigma'][1]),scale=2)]:
             self.assertEqual(self.edit(d,[dict(op='effects',id='art',effects=[e])],1)['code'],'INVALID_DOCUMENT')
         bad=dict(base,color=dict(type='linear',start=[0,0],end=[0,0],stops=[dict(offset=0,color=[0,0,0,255]),dict(offset=1,color=[255,255,255,255])]))
         self.assertEqual(self.edit(d,[dict(op='effects',id='art',effects=[bad])],1)['code'],'INVALID_DOCUMENT')

@@ -2,9 +2,9 @@
 use super::*;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 
-pub const MAX_PAGE_RECORDS: usize = 32;
-pub const MAX_PAGE_BYTES: usize = 32 * 1024;
-const MAX_CURSOR_BYTES: usize = 1024;
+use crate::limits::jobs_listing::MAX_CURSOR_BYTES;
+pub use crate::limits::jobs_listing::MAX_PAGE_BYTES;
+pub use crate::limits::jobs_listing::MAX_PAGE_RECORDS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
@@ -17,7 +17,7 @@ pub struct ListOptions {
 impl Default for ListOptions {
     fn default() -> Self {
         Self {
-            limit: 8,
+            limit: crate::limits::jobs_listing::DEFAULT_PAGE_RECORDS,
             cursor: None,
         }
     }
@@ -85,7 +85,10 @@ pub fn list(root: &Path, options: &ListOptions, control: &Control) -> Result<Val
     checked_root(root, control)?;
     control.check()?;
     if !(1..=MAX_PAGE_RECORDS).contains(&options.limit) {
-        return Err(err("INVALID_REQUEST", "Job list limit must be in 1..=32"));
+        return Err(err(
+            "INVALID_REQUEST",
+            &format!("Job list limit must be in 1..={MAX_PAGE_RECORDS}"),
+        ));
     }
     let cursor = options.cursor.as_deref().map(parse_cursor).transpose()?;
     if cursor.as_ref().is_some_and(|c| c.limit != options.limit) {
@@ -103,14 +106,20 @@ pub fn list(root: &Path, options: &ListOptions, control: &Control) -> Result<Val
     let runtime = store::runtime(&tx)?;
     let canonical_root = std::fs::canonicalize(root)
         .map_err(|_| err("IO_ERROR", "Unable to identify job listing root"))?;
-    let scope = assets::sha256(&encode(&(canonical_root, &runtime.executable), 32768)?);
+    let scope = assets::sha256(&encode(
+        &(canonical_root, &runtime.executable),
+        crate::limits::jobs_listing::MAX_FINGERPRINT_BYTES,
+    )?);
     let inventory = store::inventory(&tx)?;
     let through = cursor.as_ref().map_or(inventory.len(), |c| c.through);
     let after = cursor.as_ref().map_or(0, |c| c.after);
     if through > inventory.len() {
         return Err(changed_cursor());
     }
-    let members = assets::sha256(&encode(&&inventory[..through], 32768)?);
+    let members = assets::sha256(&encode(
+        &&inventory[..through],
+        crate::limits::jobs_listing::MAX_FINGERPRINT_BYTES,
+    )?);
     if let Some(cursor) = &cursor
         && (cursor.scope != scope || cursor.members != members)
     {
@@ -139,11 +148,11 @@ pub fn list(root: &Path, options: &ListOptions, control: &Control) -> Result<Val
         let state = store::state(&tx, id)?;
         let row = json!({"request_id":id,"input_sha256":input_sha256,"document":{"id":input.document.id,"revision":input.document.revision},"destination":publish::destination(&input.output)?,"format":input.output.format,"state":state.phase,"attempt":state.attempt,"cancel_requested":state.cancel_requested,"progress":state.progress,"submitted_ms":state.submitted_ms,"updated_ms":state.updated_ms,"error_code":state.error.as_ref().map(|e|&e.code),"next_action":if state.phase==Phase::Completed {Some("job.result")} else if state.phase==Phase::Cancelled {None} else {Some("job.status")}});
         let size = serde_json::to_vec(&row).unwrap().len() + 1;
-        if bytes + size + 32 > MAX_PAGE_BYTES {
+        if bytes + size + crate::limits::jobs_listing::RECORD_ENVELOPE_RESERVE > MAX_PAGE_BYTES {
             if records.is_empty() {
                 return Err(err(
                     "JOB_LIMIT",
-                    "Job listing metadata and one record exceed 32 KiB",
+                    &format!("Job listing metadata and one record exceed {MAX_PAGE_BYTES} bytes"),
                 ));
             }
             break;
@@ -161,7 +170,10 @@ pub fn list(root: &Path, options: &ListOptions, control: &Control) -> Result<Val
     if serde_json::to_vec(&result).unwrap().len() > MAX_PAGE_BYTES {
         return Err(err(
             "JOB_LIMIT",
-            "Job listing exceeds its 32 KiB result bound",
+            &format!(
+                "Job listing exceeds its {} KiB result bound",
+                MAX_PAGE_BYTES / 1024
+            ),
         ));
     }
     Ok(result)

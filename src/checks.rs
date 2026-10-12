@@ -4,8 +4,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-pub const MAX_ISSUES: usize = 256;
-pub const MAX_REPORT_BYTES: usize = 128 * 1024;
+pub use crate::limits::checks::MAX_ISSUES;
+pub use crate::limits::checks::MAX_REPORT_BYTES;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
@@ -19,7 +19,7 @@ impl Default for Options {
         Self {
             resources: true,
             typography: true,
-            issue_limit: 64,
+            issue_limit: crate::limits::checks::DEFAULT_ISSUES,
         }
     }
 }
@@ -144,7 +144,8 @@ impl Report<'_> {
         let issue = diagnostic(error, severity, at, context);
         let bytes = serde_json::to_vec(&issue).unwrap().len();
         if self.issues.len() >= self.options.issue_limit
-            || self.issue_bytes + bytes > MAX_REPORT_BYTES - 8192
+            || self.issue_bytes + bytes
+                > MAX_REPORT_BYTES - crate::limits::checks::REPORT_ENVELOPE_BYTES
         {
             self.stopped = true;
         } else {
@@ -401,7 +402,10 @@ pub fn check(
     resources.validate()?;
     control.check_resource_paths(resources)?;
     if !(1..=MAX_ISSUES).contains(&options.issue_limit) {
-        return Err(Error::new("INVALID_REQUEST", "issue_limit must be 1..=256"));
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            format!("issue_limit must be 1..={MAX_ISSUES}"),
+        ));
     }
     let mut report = Report {
         options,

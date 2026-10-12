@@ -1,5 +1,7 @@
 # Masks made from editable artwork
 
+See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+
 Agents can reuse shapes, gradients and text as an opacity mask without replacing them with a fixed pixel grid. Both document kinds accept nonprinting `mask_source` containers. Their vector and text children remain ordinary editable items with stable IDs. A reference on a drawable, group, frame or adjustment applies the source as alpha or encoded-sRGB luminance coverage. Existing grayscale masks retain their separate contract in [MASKS.md](MASKS.md).
 
 Create the source before attaching references. A minimal atomic batch is:

@@ -1,4 +1,5 @@
 //! Explicit scene-linear radiance, reversible grading and display projection.
+use crate::limits::hdr as limits;
 use crate::{Error, model::*, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -34,9 +35,12 @@ impl Grade {
         if self
             .gain
             .iter()
-            .any(|v| !v.is_finite() || !(0.0..=16.0).contains(v))
+            .any(|v| !v.is_finite() || !(0.0..=f64::from(limits::MAX_CHANNEL_GAIN)).contains(v))
         {
-            return Err(invalid("HDR channel gains must be finite in 0..=16"));
+            return Err(invalid(&format!(
+                "HDR channel gains must be finite in 0..={}",
+                limits::MAX_CHANNEL_GAIN
+            )));
         }
         Ok(())
     }
@@ -63,8 +67,14 @@ pub struct View {
     pub exposure: f64,
 }
 fn exposure(v: f64) -> Result<(), Error> {
-    if !v.is_finite() || !(-32.0..=32.0).contains(&v) {
-        return Err(invalid("HDR exposure must be finite in -32..=32 stops"));
+    if !v.is_finite()
+        || !(-f64::from(limits::MAX_EXPOSURE_STOPS)..=f64::from(limits::MAX_EXPOSURE_STOPS))
+            .contains(&v)
+    {
+        return Err(invalid(&format!(
+            "HDR exposure must be finite in -{0}..={0} stops",
+            limits::MAX_EXPOSURE_STOPS
+        )));
     }
     Ok(())
 }
@@ -246,10 +256,13 @@ pub fn measure(
     asset_root: Option<&std::path::Path>,
     font_root: Option<&std::path::Path>,
 ) -> Result<Value, Error> {
-    if points.len() > 256 || points.iter().any(|p| p[0] >= d.width || p[1] >= d.height) {
-        return Err(invalid(
-            "Sample measurement accepts at most 256 in-canvas pixel positions",
-        ));
+    if points.len() > crate::limits::hdr::MAX_SAMPLES
+        || points.iter().any(|p| p[0] >= d.width || p[1] >= d.height)
+    {
+        return Err(invalid(&format!(
+            "Sample measurement accepts at most {} in-canvas pixel positions",
+            crate::limits::hdr::MAX_SAMPLES
+        )));
     }
     let image = crate::render::rasterize_samples_with_options(d, 1, asset_root, font_root, None)?;
     let mut minimum = [f64::INFINITY; 4];

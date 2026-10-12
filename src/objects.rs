@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{cell::Cell, fs::File, io::Read, path::Path};
 
-pub const MAX_NESTING: usize = 4;
-pub const MAX_RENDERED_OBJECTS: usize = 32;
+pub use crate::limits::objects::MAX_NESTING;
+pub use crate::limits::objects::MAX_RENDERED_OBJECTS;
 thread_local! { static PARSE_DEPTH: Cell<usize> = const { Cell::new(0) }; }
 struct ParseGuard;
 impl Drop for ParseGuard {
@@ -59,10 +59,15 @@ fn key(value: &str) -> Result<(), Error> {
 }
 fn parse(snapshot: &str) -> Result<Document, Error> {
     if snapshot.len() > MAX_DOCUMENT_BYTES {
-        return Err(limit("Retained object snapshot exceeds 768 KiB"));
+        return Err(limit(&format!(
+            "Retained object snapshot exceeds {} KiB",
+            MAX_DOCUMENT_BYTES as f64 / 1024.0
+        )));
     }
     if PARSE_DEPTH.get() >= MAX_NESTING {
-        return Err(limit("Retained object nesting exceeds four levels"));
+        return Err(limit(&format!(
+            "Retained object nesting exceeds {MAX_NESTING} levels"
+        )));
     }
     PARSE_DEPTH.set(PARSE_DEPTH.get() + 1);
     let _guard = ParseGuard;
@@ -82,14 +87,15 @@ impl Object {
         if let Some(link) = &self.link {
             key(&link.key)?;
         }
-        if [self.width, self.height]
-            .iter()
-            .any(|v| !v.is_finite() || !(0.001..=MAX_COORDINATE).contains(v))
-            || !(1..=4).contains(&self.surface_scale)
+        if [self.width, self.height].iter().any(|v| {
+            !v.is_finite() || !(crate::limits::objects::MIN_EXTENT..=MAX_COORDINATE).contains(v)
+        }) || !(1..=crate::limits::render_quality::MAX_SCALE).contains(&self.surface_scale)
         {
-            return Err(invalid(
-                "Object dimensions require 0.001..=32768; surface scale requires 1..=4",
-            ));
+            return Err(invalid(&format!(
+                "Object dimensions require {}..={MAX_COORDINATE}; surface scale requires 1..={}",
+                crate::limits::objects::MIN_EXTENT,
+                crate::limits::render_quality::MAX_SCALE
+            )));
         }
         if let Some(view) = self.view {
             view.validate()?;
@@ -141,14 +147,20 @@ fn read(path: &Path) -> Result<String, Error> {
         return Err(invalid("Object sources must be regular files"));
     }
     if metadata.len() > MAX_DOCUMENT_BYTES as u64 {
-        return Err(limit("Object source exceeds 768 KiB"));
+        return Err(limit(&format!(
+            "Object source exceeds {} KiB",
+            MAX_DOCUMENT_BYTES as f64 / 1024.0
+        )));
     }
     let mut bytes = Vec::new();
     file.take(MAX_DOCUMENT_BYTES as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| invalid("Object source could not be read"))?;
     if bytes.len() > MAX_DOCUMENT_BYTES {
-        return Err(limit("Object source exceeds 768 KiB"));
+        return Err(limit(&format!(
+            "Object source exceeds {} KiB",
+            MAX_DOCUMENT_BYTES as f64 / 1024.0
+        )));
     }
     String::from_utf8(bytes).map_err(|_| invalid("Object snapshot must be UTF-8"))
 }

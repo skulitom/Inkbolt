@@ -1,9 +1,10 @@
 //! Original editable closed-motif layouts with combined, seam-safe coverage.
+use crate::limits::repeats as limits;
 use crate::{Error, geometry as geo, model::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_COPIES: usize = 128;
+pub use crate::limits::repeats::MAX_COPIES;
 fn half() -> f64 {
     0.5
 }
@@ -120,26 +121,36 @@ fn limit(message: &str) -> Error {
 }
 fn point(p: Point) -> Result<(), Error> {
     if p.iter().any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE) {
-        return Err(invalid("Repeat coordinates must be finite within +/-32768"));
+        return Err(invalid(&format!(
+            "Repeat coordinates must be finite within +/-{MAX_COORDINATE}"
+        )));
     }
     Ok(())
 }
 fn radius(r: f64) -> Result<(), Error> {
-    if !r.is_finite() || !(0.001..=MAX_COORDINATE).contains(&r) {
-        return Err(invalid("Repeat radius must be in 0.001..=32768"));
+    if !r.is_finite() || !(limits::MIN_RADIUS..=MAX_COORDINATE).contains(&r) {
+        return Err(invalid(&format!(
+            "Repeat radius must be in {}..={MAX_COORDINATE}",
+            limits::MIN_RADIUS
+        )));
     }
     Ok(())
 }
 fn step(s: Point) -> Result<(), Error> {
     point(s)?;
-    if s.iter().any(|v| v.abs() < 0.001) {
-        return Err(invalid("Repeat steps must have magnitude at least 0.001"));
+    if s.iter().any(|v| v.abs() < limits::MIN_STEP) {
+        return Err(invalid(&format!(
+            "Repeat steps must have magnitude at least {}",
+            limits::MIN_STEP
+        )));
     }
     Ok(())
 }
 fn size(columns: usize, rows: usize) -> Result<usize, Error> {
     if columns == 0 || rows == 0 || columns.saturating_mul(rows) > MAX_COPIES {
-        return Err(limit("Repeat layout requires 1..128 total copies"));
+        return Err(limit(&format!(
+            "Repeat layout requires 1..{MAX_COPIES} total copies"
+        )));
     }
     Ok(columns * rows)
 }
@@ -186,14 +197,15 @@ pub fn count(layout: &Layout) -> Result<usize, Error> {
         } => {
             radius(r)?;
             if !start_angle.is_finite()
-                || start_angle.abs() > 360.0
+                || start_angle.abs() > f64::from(limits::MAX_RADIAL_ANGLE_DEGREES)
                 || !sweep.is_finite()
                 || sweep == 0.0
-                || sweep.abs() > 360.0
+                || sweep.abs() > f64::from(limits::MAX_RADIAL_ANGLE_DEGREES)
             {
-                return Err(invalid(
-                    "Radial angles must be finite within +/-360 and sweep must be nonzero",
-                ));
+                return Err(invalid(&format!(
+                    "Radial angles must be finite within +/-{} and sweep must be nonzero",
+                    limits::MAX_RADIAL_ANGLE_DEGREES
+                )));
             }
             if (closed && sweep.abs() != 360.0) || (!closed && (sweep.abs() >= 360.0 || count < 2))
             {
@@ -379,7 +391,9 @@ pub(crate) fn geometry(spec: &Spec) -> Result<Geometry, Error> {
     let commands_per_copy = crate::paths::emit(&contours).len();
     let n = count(&spec.layout)?;
     if commands_per_copy.saturating_mul(n) > MAX_SEGMENTS {
-        return Err(limit("Repeated geometry exceeds 4096 generated commands"));
+        return Err(limit(&format!(
+            "Repeated geometry exceeds {MAX_SEGMENTS} generated commands"
+        )));
     }
     let mut commands = Vec::with_capacity(commands_per_copy * n);
     for p in placements(spec)? {
@@ -414,9 +428,9 @@ pub(crate) fn evaluate(document: &Document) -> Result<Option<Document>, Error> {
                 commands += geo::validate_geometry(geometry)?;
             }
             if commands > MAX_SEGMENTS {
-                return Err(limit(
-                    "Repeat layouts exceed 4096 aggregate generated commands",
-                ));
+                return Err(limit(&format!(
+                    "Repeat layouts exceed {MAX_SEGMENTS} aggregate generated commands"
+                )));
             }
             i.content = content;
         }

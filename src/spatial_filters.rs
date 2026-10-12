@@ -3,7 +3,7 @@ use crate::{Error, assets::Sampling, geometry, model::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_MAP_PIXELS: usize = 4096;
+pub use crate::limits::spatial_filters::MAX_MAP_PIXELS;
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Map {
@@ -31,10 +31,16 @@ impl Operator {
         }
     }
     pub fn validate(&self, world: Matrix) -> Result<(), Error> {
-        let bounded = |p: Point| p.iter().all(|v| v.is_finite() && v.abs() <= 256.0);
+        let bounded = |p: Point| {
+            p.iter().all(|v| {
+                v.is_finite() && v.abs() <= f64::from(crate::limits::spatial_filters::MAX_OFFSET)
+            })
+        };
         let valid = match self {
             Self::Offset { offset } => bounded(*offset),
-            Self::Mosaic { size } => (1..=128).contains(size),
+            Self::Mosaic { size } => {
+                (1..=crate::limits::spatial_filters::MAX_MOSAIC_SIZE).contains(size)
+            }
             Self::Displace { map, amount } => {
                 if map.sampling.advanced() {
                     return Err(Error::new(
@@ -42,16 +48,19 @@ impl Operator {
                         "Displacement fields currently support nearest and bilinear sampling",
                     ));
                 }
-                if !(1..=256).contains(&map.width)
-                    || !(1..=256).contains(&map.height)
+                if !(1..=crate::limits::spatial_filters::MAX_MAP_AXIS).contains(&map.width)
+                    || !(1..=crate::limits::spatial_filters::MAX_MAP_AXIS).contains(&map.height)
                     || map.vectors.len() != map.width as usize * map.height as usize
                 {
-                    return Err(invalid(
-                        "Displacement field requires exact width*height vectors and dimensions in 1..=256",
-                    ));
+                    return Err(invalid(&format!(
+                        "Displacement field requires exact width*height vectors and dimensions in 1..={}",
+                        crate::limits::spatial_filters::MAX_MAP_AXIS
+                    )));
                 }
                 if map.vectors.len() > MAX_MAP_PIXELS {
-                    return Err(limit("Displacement field exceeds 4096 vectors"));
+                    return Err(limit(&format!(
+                        "Displacement field exceeds {MAX_MAP_PIXELS} vectors"
+                    )));
                 }
                 geometry::validate_matrix(map.transform)?;
                 let placement = geometry::multiply(world, map.transform);
@@ -83,9 +92,9 @@ impl Operator {
     }
     pub fn work(&self) -> u64 {
         match self {
-            Self::Mosaic { .. } => 4,
-            Self::Offset { .. } => 4,
-            Self::Displace { .. } => 16,
+            Self::Mosaic { .. } => crate::limits::spatial_filters::MOSAIC_WORK,
+            Self::Offset { .. } => crate::limits::spatial_filters::OFFSET_WORK,
+            Self::Displace { .. } => crate::limits::spatial_filters::DISPLACE_WORK,
         }
     }
 }

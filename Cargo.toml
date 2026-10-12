@@ -2,6 +2,7 @@
 name = "inkbolt"
 version = "0.81.0"
 edition = "2024"
+rust-version = "1.89"
 license = "MIT"
 description = "A local vector and raster editing engine for agents"
 publish = false

@@ -7,6 +7,7 @@ import struct
 import subprocess
 import tempfile
 import unittest
+from advertised_limits import capabilities
 import xml.etree.ElementTree as ET
 import zlib
 from test_cli import EXE, ROOT
@@ -73,6 +74,23 @@ class EditingCliTests(unittest.TestCase):
             {"id": "curve", "content": {"type": "vector", "geometry": {"shape": "path", "commands": [{"verb":"move","to":[11,1]},{"verb":"cubic","control1":[11,4],"control2":[15,4],"to":[15,1]}]}, "fill": [200,20,30,255]}}
         ]
         return self.invoke(dict(command="document.edit", document=d, expected_revision=0, operations=[dict(op="add", item=i) for i in items]))["document"]
+
+    def test_primitive_admission_uses_advertised_minima(self):
+        caps = capabilities()['geometry_limits']
+        document = self.invoke(dict(command='document.create', id='primitive-bound', kind='vector', width=1, height=1))
+        for shape, minimum in [('rect',caps['minimum_rectangle_extent']), ('ellipse',caps['minimum_ellipse_radius'])]:
+            for value, expected in [(minimum,0), (minimum/2,1)]:
+                geometry = (dict(shape=shape,x=0,y=0,width=value,height=value) if shape == 'rect'
+                            else dict(shape=shape,cx=0,cy=0,rx=value,ry=value))
+                item = dict(id='shape',content=dict(type='vector',geometry=geometry,fill=[1,2,3,255]))
+                result = self.invoke(dict(command='document.edit',document=document,expected_revision=0,
+                                          operations=[dict(op='add',item=item)]),expected)
+                if expected:
+                    self.assertEqual(result['code'],'INVALID_DOCUMENT')
+                    self.assertIn(str(minimum),result['message'])
+                else:
+                    self.assertEqual(result['document']['items'][0]['content']['geometry'],geometry)
+
 
     def test_png_dimensions_pixels_scale_metadata_and_repeatability(self):
         d = self.vector_document()

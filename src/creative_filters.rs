@@ -64,6 +64,7 @@ fn range(x: f64, lo: f64, hi: f64) -> bool {
 }
 impl Operator {
     pub fn validate(&self, world: Matrix) -> Result<(), Error> {
+        use crate::limits::{creative_filters as bounds, filters as shared};
         geometry::inverse(world)?;
         let point = |p: Point| p.iter().all(|v| range(*v, -MAX_COORDINATE, MAX_COORDINATE));
         let valid = match *self {
@@ -72,34 +73,56 @@ impl Operator {
                 radius,
                 angle,
             } => {
-                point(center) && range(radius, 0.0001, 32768.0) && range(angle, -360000.0, 360000.0)
+                point(center)
+                    && range(radius, bounds::MIN_TWIST_RADIUS, MAX_COORDINATE)
+                    && range(
+                        angle,
+                        -f64::from(shared::MAX_ANGLE_DEGREES),
+                        f64::from(shared::MAX_ANGLE_DEGREES),
+                    )
             }
             Self::Relief {
                 angle,
                 distance,
                 strength,
             } => {
-                range(angle, -360000.0, 360000.0)
-                    && range(distance, 0.0, 32.0)
-                    && range(strength, 0.0, 8.0)
+                range(
+                    angle,
+                    -f64::from(shared::MAX_ANGLE_DEGREES),
+                    f64::from(shared::MAX_ANGLE_DEGREES),
+                ) && range(distance, 0.0, f64::from(bounds::MAX_RELIEF_DISTANCE))
+                    && range(strength, 0.0, f64::from(bounds::MAX_RELIEF_STRENGTH))
             }
-            Self::HighPass { sigma } => range(sigma, 0.0, 16.0),
-            Self::Extrema { radius, .. } | Self::StrokeRank { radius, .. } => radius <= 8,
+            Self::HighPass { sigma } => range(sigma, 0.0, f64::from(shared::MAX_GAUSSIAN_SIGMA)),
+            Self::Extrema { radius, .. } => radius <= bounds::MAX_EXTREMA_RADIUS,
+            Self::StrokeRank { radius, .. } => radius <= bounds::MAX_STROKE_RADIUS,
             Self::ToneFold { threshold } => range(threshold, 0.0, 1.0),
-            Self::EdgeInk { strength } => range(strength, 0.0, 8.0),
+            Self::EdgeInk { strength } => {
+                range(strength, 0.0, f64::from(bounds::MAX_EDGE_STRENGTH))
+            }
             Self::ValueField {
                 cell_size,
                 octaves,
                 origin,
                 ..
-            } => range(cell_size, 1.0, 4096.0) && (1..=4).contains(&octaves) && point(origin),
+            } => {
+                range(cell_size, 1.0, f64::from(bounds::MAX_CELL_SIZE))
+                    && (1..=bounds::MAX_OCTAVES).contains(&octaves)
+                    && point(origin)
+            }
             Self::FieldRepair { keep_parity } => keep_parity <= 1,
         };
         let valid = valid
             && match *self {
                 Self::StrokeRank {
                     angle, quantile, ..
-                } => range(angle, -360000.0, 360000.0) && range(quantile, 0.0, 1.0),
+                } => {
+                    range(
+                        angle,
+                        -f64::from(shared::MAX_ANGLE_DEGREES),
+                        f64::from(shared::MAX_ANGLE_DEGREES),
+                    ) && range(quantile, 0.0, 1.0)
+                }
                 _ => true,
             };
         if valid {
@@ -112,15 +135,26 @@ impl Operator {
     }
     pub fn work(&self, scale: u32) -> u64 {
         match *self {
-            Self::Twist { .. } => 48,
-            Self::Relief { .. } => 32,
-            Self::HighPass { sigma } => filters::Operator::Gaussian { sigma }.work(scale) + 8,
-            Self::Extrema { radius, .. } => 8 * (2 * radius as u64 * scale as u64 + 1).pow(2),
-            Self::ToneFold { .. } => 4,
-            Self::EdgeInk { .. } => 96,
-            Self::StrokeRank { radius, .. } => 32 * (2 * radius as u64 * scale as u64 + 1),
-            Self::ValueField { octaves, .. } => 256 * octaves as u64,
-            Self::FieldRepair { .. } => 8,
+            Self::Twist { .. } => crate::limits::creative_filters::TWIST_WORK,
+            Self::Relief { .. } => crate::limits::creative_filters::RELIEF_WORK,
+            Self::HighPass { sigma } => {
+                filters::Operator::Gaussian { sigma }.work(scale)
+                    + crate::limits::creative_filters::HIGH_PASS_COMBINE_WORK
+            }
+            Self::Extrema { radius, .. } => {
+                crate::limits::creative_filters::EXTREMA_NEIGHBOR_WORK
+                    * (2 * radius as u64 * scale as u64 + 1).pow(2)
+            }
+            Self::ToneFold { .. } => crate::limits::creative_filters::TONE_FOLD_WORK,
+            Self::EdgeInk { .. } => crate::limits::creative_filters::EDGE_INK_WORK,
+            Self::StrokeRank { radius, .. } => {
+                crate::limits::creative_filters::STROKE_RANK_SAMPLE_WORK
+                    * (2 * radius as u64 * scale as u64 + 1)
+            }
+            Self::ValueField { octaves, .. } => {
+                crate::limits::creative_filters::VALUE_FIELD_OCTAVE_WORK * octaves as u64
+            }
+            Self::FieldRepair { .. } => crate::limits::creative_filters::FIELD_REPAIR_WORK,
         }
     }
     pub(crate) fn rebase(&mut self, delta: Point) {

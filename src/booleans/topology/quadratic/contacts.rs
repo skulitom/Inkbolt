@@ -13,7 +13,8 @@ fn trim(mut p: PolyQ) -> PolyQ {
 }
 fn monic(mut p: PolyQ, d: &R, budget: &mut Budget) -> Result<PolyQ, Error> {
     if let Some(top) = p.last().cloned() {
-        budget.spend(16 * p.len())?;
+        budget
+            .spend(crate::limits::booleans_quadratic_contacts::MONIC_COEFFICIENT_WORK * p.len())?;
         for v in &mut p {
             *v = v.div(&top, d)?;
         }
@@ -24,7 +25,9 @@ fn gcd(a: PolyQ, b: PolyQ, d: &R, budget: &mut Budget) -> Result<PolyQ, Error> {
     let (mut a, mut b) = (monic(trim(a), d, budget)?, monic(trim(b), d, budget)?);
     while !b.is_empty() {
         while !a.is_empty() && a.len() >= b.len() {
-            budget.spend(32 * b.len())?;
+            budget.spend(
+                crate::limits::booleans_quadratic_contacts::REMAINDER_COEFFICIENT_WORK * b.len(),
+            )?;
             let offset = a.len() - b.len();
             let scale = a.last().unwrap().div(b.last().unwrap(), d)?;
             for (i, v) in b.iter().enumerate() {
@@ -52,7 +55,7 @@ pub(super) fn reject(a: &Cubic, b: &Cubic, factor: &[R], budget: &mut Budget) ->
     let ap = curves::coefficients(a);
     let bp = curves::coefficients(b);
     for sign in [-1, 1] {
-        budget.spend(256)?;
+        budget.spend(crate::limits::booleans_quadratic_contacts::TANGENCY_ROOT_WORK)?;
         let t = Q {
             a: -&factor[1] / (n(2) * &factor[2]),
             b: n(sign) / (n(2) * &factor[2]),

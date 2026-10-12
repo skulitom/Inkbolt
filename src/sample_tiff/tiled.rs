@@ -1,8 +1,8 @@
 //! Assemble one bounded native strip from independently composed output tiles.
 use super::*;
+use crate::limits::sample_tiff_tiled::MAX_STRIP_BYTES;
 use std::io::{self, Seek, SeekFrom, Write};
 use tiff::encoder::compression::{CompressionAlgorithm, Deflate, Lzw};
-const MAX_STRIP_BYTES: usize = 16 * 1024 * 1024;
 
 struct Output(Cursor<Vec<u8>>);
 impl Write for Output {

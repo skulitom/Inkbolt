@@ -1,15 +1,15 @@
 //! Retained image-plane deformation with unique inverse sampling.
+pub use crate::limits::pixel_warps::MAX_AXIS;
+pub use crate::limits::pixel_warps::MAX_JOINTS;
+pub use crate::limits::pixel_warps::MAX_SAMPLES;
+pub use crate::limits::pixel_warps::MAX_WORK;
+use crate::limits::pixel_warps::MIN_ALTITUDE;
+use crate::limits::pixel_warps::MIN_RELATIVE_AREA;
 use crate::{Error, geometry as geo, model::*};
 use num_rational::BigRational as R;
 use num_traits::{Signed, ToPrimitive, Zero};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-pub const MAX_AXIS: usize = 16;
-pub const MAX_JOINTS: usize = 16;
-pub const MAX_SAMPLES: usize = 256;
-pub const MAX_WORK: u64 = 67_108_864;
-const MIN_ALTITUDE: f64 = 1. / 1024.;
-const MIN_RELATIVE_AREA: f64 = 1. / 1_048_576.;
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Joint {
@@ -45,9 +45,9 @@ fn limit(m: &str) -> Error {
 }
 fn finite(p: Point) -> Result<(), Error> {
     if p.iter().any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE) {
-        return Err(invalid(
-            "Pixel warp coordinates must be finite within +/-32768",
-        ));
+        return Err(invalid(&format!(
+            "Pixel warp coordinates must be finite within +/-{MAX_COORDINATE}"
+        )));
     }
     Ok(())
 }
@@ -61,7 +61,11 @@ fn orientation(a: Point, b: Point, c: Point) -> i8 {
     let x = (b[0] - a[0]) * (c[1] - a[1]);
     let y = (b[1] - a[1]) * (c[0] - a[0]);
     let v = x - y;
-    if v.abs() > 16. * f64::EPSILON * (x.abs() + y.abs()) {
+    if v.abs()
+        > f64::from(crate::limits::pixel_warps::ORIENTATION_EPSILONS)
+            * f64::EPSILON
+            * (x.abs() + y.abs())
+    {
         return if v > 0. { 1 } else { -1 };
     }
     let v = (rational(b[0]) - rational(a[0])) * (rational(c[1]) - rational(a[1]))
@@ -136,7 +140,9 @@ fn contains(t: [Point; 3], p: Point) -> bool {
 }
 fn grid(columns: usize, rows: usize, frame: Point) -> Result<Vec<Point>, Error> {
     if !(1..=MAX_AXIS).contains(&columns) || !(1..=MAX_AXIS).contains(&rows) {
-        return Err(limit("Pixel warp grid requires 1..16 intervals per axis"));
+        return Err(limit(&format!(
+            "Pixel warp grid requires 1..{MAX_AXIS} intervals per axis"
+        )));
     }
     Ok((0..=rows)
         .flat_map(|r| {
@@ -151,16 +157,22 @@ fn grid(columns: usize, rows: usize, frame: Point) -> Result<Vec<Point>, Error> 
 }
 fn pose(joints: &[Joint]) -> Result<Vec<Matrix>, Error> {
     if joints.is_empty() || joints.len() > MAX_JOINTS {
-        return Err(limit("Articulated warps require 1..16 ordered joints"));
+        return Err(limit(&format!(
+            "Articulated warps require 1..{MAX_JOINTS} ordered joints"
+        )));
     }
     let mut out = vec![];
     for (i, j) in joints.iter().enumerate() {
         finite(j.pivot)?;
         finite(j.translation)?;
-        if !j.angle.is_finite() || j.angle.abs() > 360. || j.parent.is_some_and(|p| p >= i) {
-            return Err(invalid(
-                "Joint angles require +/-360 degrees and parents must precede children",
-            ));
+        if !j.angle.is_finite()
+            || j.angle.abs() > f64::from(crate::limits::pixel_warps::MAX_JOINT_ANGLE_DEGREES)
+            || j.parent.is_some_and(|p| p >= i)
+        {
+            return Err(invalid(&format!(
+                "Joint angles require +/-{} degrees and parents must precede children",
+                crate::limits::pixel_warps::MAX_JOINT_ANGLE_DEGREES
+            )));
         }
         let (s, c) = if j.angle % 90. == 0. {
             match (j.angle as i32 / 90).rem_euclid(4) {
@@ -203,8 +215,14 @@ pub(crate) struct Plan {
 impl Plan {
     pub fn new(spec: &Spec, frame: Point) -> Result<Self, Error> {
         finite(frame)?;
-        if frame.iter().any(|v| *v < 0.001) {
-            return Err(invalid("Pixel warp source dimensions require .001..32768"));
+        if frame
+            .iter()
+            .any(|v| *v < crate::limits::pixel_warps::MIN_FRAME_EXTENT)
+        {
+            return Err(invalid(&format!(
+                "Pixel warp source dimensions require {}..{MAX_COORDINATE}",
+                crate::limits::pixel_warps::MIN_FRAME_EXTENT
+            )));
         }
         let mut projective = None;
         let mut joint_matrices = vec![];
@@ -260,8 +278,11 @@ impl Plan {
                         ));
                     }
                     let sum: f64 = w.iter().sum();
-                    if (sum - 1.).abs() > 1e-10 {
-                        return Err(invalid("Joint weights must sum to one within 1e-10"));
+                    if (sum - 1.).abs() > crate::limits::pixel_warps::WEIGHT_SUM_TOLERANCE {
+                        return Err(invalid(&format!(
+                            "Joint weights must sum to one within {:e}",
+                            crate::limits::pixel_warps::WEIGHT_SUM_TOLERANCE
+                        )));
                     }
                     let mut q = [0.; 2];
                     for (m, w) in joint_matrices.iter().zip(w) {
@@ -551,7 +572,10 @@ pub(crate) fn buffer_values(spec: &Spec) -> u64 {
     };
     // Source/destination vertices, outer path commands, triangle indices and
     // vector capacity growth; fixed projective coefficients and joint matrices.
-    (32 * (columns + 1) * (rows + 1) + 16 * columns * rows + 16 * joints + 128) as u64
+    (crate::limits::pixel_warps::VERTEX_BUFFER_VALUES * (columns + 1) * (rows + 1)
+        + crate::limits::pixel_warps::CELL_BUFFER_VALUES * columns * rows
+        + crate::limits::pixel_warps::JOINT_BUFFER_VALUES * joints
+        + crate::limits::pixel_warps::FIXED_BUFFER_VALUES) as u64
 }
 pub fn inspect(
     spec: &Spec,
@@ -563,7 +587,9 @@ pub fn inspect(
 ) -> Result<serde_json::Value, Error> {
     control.check()?;
     if samples.len() + inverse_samples.len() > MAX_SAMPLES {
-        return Err(limit("Pixel warp inspection exceeds256samples"));
+        return Err(limit(&format!(
+            "Pixel warp inspection exceeds {MAX_SAMPLES} samples"
+        )));
     }
     for p in samples.iter().chain(inverse_samples) {
         finite(*p)?;

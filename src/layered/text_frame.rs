@@ -94,7 +94,9 @@ pub(super) fn diagnose(global: &Node, story: &Node) -> Result<Value, Error> {
     }
     let frames = global.field("0")?.field("8")?.field("0")?.array()?;
     if frames.len() > MAX_ITEMS {
-        return Err(limit("Global text exceeds 256 frame resources"));
+        return Err(limit(&format!(
+            "Global text exceeds {MAX_ITEMS} frame resources"
+        )));
     }
     let index = refs[0].field("0")?.unsigned()?;
     let shape = frames.get(index).ok_or_else(malformed)?.field("0")?;
@@ -134,10 +136,25 @@ pub(super) fn diagnose(global: &Node, story: &Node) -> Result<Value, Error> {
     } else {
         (crate::text::FirstBaselineMetric::Ascent, 0.0)
     };
+    // Only explicit source controls participate. Numeric validity does not
+    // establish a usable grid, placement rule, default or editable conversion.
+    let mut layout_controls = serde_json::Map::new();
+    for (key, name, kind) in [
+        ("3", "row_count", super::text_style::Kind::Integer),
+        ("4", "column_count", super::text_style::Kind::Integer),
+        ("7", "row_gap", super::text_style::Kind::Number),
+        ("8", "column_gap", super::text_style::Kind::Number),
+        ("9", "spacing", super::text_style::Kind::Number),
+    ] {
+        if let Some(value) = properties.optional(key)? {
+            layout_controls.insert(name.to_owned(), kind.read_node(value)?);
+        }
+    }
     Ok(
         json!({"present":true,"source":"global_story_frame_reference","frame_index":index,
         "frame_count":frames.len(),"shape":kind,"bounds":bounds,"frame_transform":transform,
         "first_baseline":{"metric":metric,"minimum":minimum},"first_baseline_explicit":first.is_some(),
+        "layout_controls":layout_controls,"layout_control_types_validated":true,"layout_controls_defaulted":false,
         "selected_reference_and_geometry_validated":true,"other_frames_validated":false,
         "remaining_frame_properties_validated":false,"local_geometry_consistency_validated":false,
         "layout_semantics_validated":false}),

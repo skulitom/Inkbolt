@@ -1,10 +1,10 @@
 //! Exact integer-weighted measurements of the exported scale-one RGBA8 composite.
+pub use crate::limits::measurements::MAX_SAMPLES;
 use crate::{Error, model::*, render};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::Path;
-pub const MAX_SAMPLES: usize = 256;
 pub const WEIGHT_DENOMINATOR: u64 = 65025;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -58,7 +58,9 @@ pub fn measure(
     {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Measurement samples require at most 256 pixel coordinates inside the region",
+            format!(
+                "Measurement samples require at most {MAX_SAMPLES} pixel coordinates inside the region"
+            ),
         ));
     }
     let selection = if options.use_selection {

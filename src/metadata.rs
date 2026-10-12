@@ -1,4 +1,5 @@
 //! Original descriptive records, privacy policy and deterministic delivery envelopes.
+use crate::limits::metadata as bounds;
 use crate::{Document, Error, ExportFormat, assets, model::limit};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use schemars::JsonSchema;
@@ -6,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, HashSet};
 
-pub const MAX_RECORD_BYTES: usize = 16 * 1024;
-pub const MAX_DOCUMENT_BYTES: usize = 64 * 1024;
-pub const MAX_PACKET_BYTES: usize = 256 * 1024;
+pub use crate::limits::metadata::MAX_DOCUMENT_BYTES;
+pub use crate::limits::metadata::MAX_PACKET_BYTES;
+pub use crate::limits::metadata::MAX_RECORD_BYTES;
 pub const PNG_KEY: &[u8] = b"Inkbolt Metadata";
 pub const TEXT_PREFIX: &str = "Inkbolt metadata v1\n";
 pub const JPEG_PREFIX: &[u8] = b"INKBOLT-META\0";
@@ -52,8 +53,11 @@ fn invalid(message: &str) -> Error {
     Error::new("INVALID_METADATA", message)
 }
 fn text(value: &str) -> Result<(), Error> {
-    if value.len() > 8192 {
-        return Err(limit("Metadata text exceeds 8192 UTF-8 bytes"));
+    if value.len() > bounds::MAX_TEXT_BYTES {
+        return Err(limit(&format!(
+            "Metadata text exceeds {} UTF-8 bytes",
+            bounds::MAX_TEXT_BYTES
+        )));
     }
     if value.chars().any(|c| {
         (c.is_control() && !matches!(c, '\n' | '\r' | '\t')) || matches!(c as u32, 0xfffe | 0xffff)
@@ -72,16 +76,23 @@ pub fn validate(record: &Record) -> Result<usize, Error> {
     ] {
         text(s)?;
     }
-    if record.tags.len() > 64 || record.properties.len() > 64 || record.private.len() > 64 {
-        return Err(limit("Metadata record exceeds 64 tags or map entries"));
+    if record.tags.len() > bounds::MAX_ENTRIES
+        || record.properties.len() > bounds::MAX_ENTRIES
+        || record.private.len() > bounds::MAX_ENTRIES
+    {
+        return Err(limit(&format!(
+            "Metadata record exceeds {} tags or map entries",
+            bounds::MAX_ENTRIES
+        )));
     }
     let mut tags = HashSet::new();
     for tag in &record.tags {
         text(tag)?;
-        if tag.trim().is_empty() || tag.len() > 128 || !tags.insert(tag) {
-            return Err(invalid(
-                "Metadata tags must be nonempty, unique and at most 128 bytes",
-            ));
+        if tag.trim().is_empty() || tag.len() > bounds::MAX_TAG_BYTES || !tags.insert(tag) {
+            return Err(invalid(&format!(
+                "Metadata tags must be nonempty, unique and at most {} bytes",
+                bounds::MAX_TAG_BYTES
+            )));
         }
     }
     for (key, value) in record.properties.iter().chain(record.private.iter()) {
@@ -92,7 +103,10 @@ pub fn validate(record: &Record) -> Result<usize, Error> {
     }
     let size = serde_json::to_vec(record).unwrap().len();
     if size > MAX_RECORD_BYTES {
-        return Err(limit("Metadata record exceeds 16 KiB"));
+        return Err(limit(&format!(
+            "Metadata record exceeds {} KiB",
+            MAX_RECORD_BYTES / 1024
+        )));
     }
     Ok(size)
 }
@@ -105,7 +119,10 @@ pub fn validate_document(document: &Document) -> Result<(), Error> {
     {
         bytes += validate(record)?;
         if bytes > MAX_DOCUMENT_BYTES {
-            return Err(limit("Document descriptive metadata exceeds 64 KiB"));
+            return Err(limit(&format!(
+                "Document descriptive metadata exceeds {} KiB",
+                MAX_DOCUMENT_BYTES / 1024
+            )));
         }
     }
     Ok(())
@@ -218,7 +235,10 @@ pub fn packet(
         }
     }
     if ascii.len() > MAX_PACKET_BYTES {
-        return Err(limit("Encoded metadata envelope exceeds 256 KiB"));
+        return Err(limit(&format!(
+            "Encoded metadata envelope exceeds {} KiB",
+            MAX_PACKET_BYTES / 1024
+        )));
     }
     Ok(Some(ascii))
 }
@@ -286,9 +306,13 @@ pub fn embed(artifact: &mut Value, format: ExportFormat, packet: &str) -> Result
                 .find(|s| s.0 == 0xda)
                 .map(|s| s.1)
                 .ok_or_else(|| invalid("Missing JPEG scan"))?;
-            let count = packet.len().div_ceil(60000);
+            let count = packet.len().div_ceil(bounds::JPEG_PART_BYTES);
             let mut comments = Vec::new();
-            for (i, part) in packet.as_bytes().chunks(60000).enumerate() {
+            for (i, part) in packet
+                .as_bytes()
+                .chunks(bounds::JPEG_PART_BYTES)
+                .enumerate()
+            {
                 let len = 2 + JPEG_PREFIX.len() + 4 + part.len();
                 comments.extend_from_slice(&[255, 254]);
                 comments.extend_from_slice(&(len as u16).to_be_bytes());
@@ -365,7 +389,10 @@ pub fn recover(bytes: &[u8], format: &str) -> Result<Option<Value>, Error> {
                         ));
                     }
                     if rest.len() - 4 > MAX_PACKET_BYTES {
-                        return Err(limit("Metadata envelope exceeds 256 KiB"));
+                        return Err(limit(&format!(
+                            "Metadata envelope exceeds {} KiB",
+                            MAX_PACKET_BYTES / 1024
+                        )));
                     }
                     packets.push(rest[4..].to_vec());
                 }
@@ -388,10 +415,13 @@ pub fn recover(bytes: &[u8], format: &str) -> Result<Option<Value>, Error> {
                 let n = u16::from_be_bytes(rest[2..4].try_into().unwrap());
                 total += rest.len() - 4;
                 if total > MAX_PACKET_BYTES {
-                    return Err(limit("Metadata envelope exceeds 256 KiB"));
+                    return Err(limit(&format!(
+                        "Metadata envelope exceeds {} KiB",
+                        MAX_PACKET_BYTES / 1024
+                    )));
                 }
                 if n == 0
-                    || n > 5
+                    || usize::from(n) > bounds::MAX_JPEG_PARTS
                     || index == 0
                     || index > n
                     || count.is_some_and(|c| c != n)
@@ -435,7 +465,10 @@ pub fn recover(bytes: &[u8], format: &str) -> Result<Option<Value>, Error> {
 }
 pub fn read_packet(packet: &[u8]) -> Result<Value, Error> {
     if packet.len() > MAX_PACKET_BYTES {
-        return Err(limit("Metadata envelope exceeds 256 KiB"));
+        return Err(limit(&format!(
+            "Metadata envelope exceeds {} KiB",
+            MAX_PACKET_BYTES / 1024
+        )));
     }
     let value: Value =
         serde_json::from_slice(packet).map_err(|_| invalid("Invalid metadata JSON"))?;
@@ -481,7 +514,10 @@ pub fn read_packet(packet: &[u8]) -> Result<Value, Error> {
         }
     }
     if size > MAX_DOCUMENT_BYTES {
-        return Err(limit("Metadata records exceed 64 KiB"));
+        return Err(limit(&format!(
+            "Metadata records exceed {} KiB",
+            MAX_DOCUMENT_BYTES / 1024
+        )));
     }
     Ok(
         json!({"envelope":value,"envelope_sha256":assets::sha256(packet),"trust":"untrusted_source_description_not_verified_provenance"}),

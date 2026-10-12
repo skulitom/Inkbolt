@@ -59,7 +59,7 @@ pub fn read(setup: &[u8], control: &Control) -> Result<Vec<Board>, Error> {
     for i in 0..tokens.len() {
         if matches!(tokens[i], Token::Name(_)) && tokens.get(i + 1) == Some(&Token::Mark(b':')) {
             stack.push(i);
-            if stack.len() > 32 {
+            if stack.len() > crate::limits::vector_native_tokens::MAX_CONTAINER_DEPTH {
                 return Err(limit("Native typed data nesting exceeded"));
             }
         }

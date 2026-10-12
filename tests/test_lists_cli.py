@@ -3,6 +3,7 @@ import copy
 import json
 import string
 import unittest
+from advertised_limits import capabilities
 from contextlib import closing
 import test_story_cli as stories
 import test_text_cli as text_tests
@@ -35,6 +36,33 @@ class ListTests(unittest.TestCase):
     def labels(self, paragraphs):
         d=self.document(paragraphs,[dict(id='first',width=80,height=500)])
         return [l['marker'] for l in self.inspect(d)['layout']['lines'] if 'marker' in l]
+
+    def test_advertised_list_counter_affix_depth_and_id_boundaries(self):
+        caps = capabilities()['paragraph_flow']; bounds = caps['structural_lists']
+        d = self.document([self.item()], [dict(id='first', width=80, height=60)])
+        original = d['stories']['article']
+        cases = [([self.item(restart=bounds['max_counter'])], 0, None),
+                 ([self.item(restart=bounds['max_counter']+1)], 1, 'INVALID_LIST'),
+                 ([self.item(restart=bounds['max_counter']), self.item()], 1, 'INVALID_LIST'),
+                 ([self.item(restart=bounds['roman_max'], format='upper_roman')], 0, None),
+                 ([self.item(restart=bounds['roman_max']+1, format='upper_roman')], 1, 'INVALID_LIST')]
+        for count, expected in [(bounds['levels'], 0), (bounds['levels']+1, 1)]:
+            cases.append(([self.item(level=i) for i in range(count)], expected, 'INVALID_LIST'))
+        for count, expected in [(bounds['ids_per_story'], 0), (bounds['ids_per_story']+1, 1)]:
+            cases.append(([self.item(id=f'list-{i}') for i in range(count)], expected, 'RESOURCE_LIMIT'))
+        # Non-ASCII affixes prove the advertised unit is scalars, not bytes.
+        for count, expected in [(bounds['affix_characters'], 0), (bounds['affix_characters']+1, 1)]:
+            p = self.item(); p['list']['marker']['prefix'] = 'é'*count
+            cases.append(([p], expected, 'INVALID_LIST'))
+        for value, expected in [(0, 0), (caps['layout_limits']['list_gap'][1], 0),
+                                (-1, 1), (caps['layout_limits']['list_gap'][1]+1, 1)]:
+            cases.append(([self.item(list_options=dict(gap=value))], expected, 'INVALID_LIST'))
+        for paragraphs, expected, code in cases:
+            with self.subTest(paragraphs=paragraphs, expected=expected):
+                story = copy.deepcopy(original); story['paragraphs'] = paragraphs
+                result = self.edit(d, [dict(op='story', id='article', story=story)], expected)
+                if expected: self.assertEqual(result['code'], code)
+
 
     def test_nested_counters_resume_across_plain_paragraphs_and_other_lists(self):
         paragraphs=[self.item(), self.item(level=1,format='lower_alpha'), self.paragraph('A'), self.item(level=1,format='lower_alpha'), self.item(id='aside',restart=7), self.item(), self.item(level=1,format='lower_roman'), self.item(level=1,restart=9,format='upper_roman'), self.item(), self.item(restart=4), self.item()]
@@ -102,11 +130,12 @@ class ListTests(unittest.TestCase):
         self.assertEqual(e['code'],'STORY_OVERFLOW')
 
     def test_invalid_nesting_counters_literals_gap_and_unknown_fields(self):
+        caps = capabilities()['paragraph_flow']; bounds = caps['structural_lists']
         d=self.document([self.item()],[dict(id='first',width=80,height=20)])
-        for update in [dict(level=1),dict(level=9),dict(id='bad id'),dict(restart=0),dict(restart=1000000),dict(gap=-1),dict(gap=32769),dict(marker=dict(type='bullet',text='')),dict(marker=dict(type='bullet',text=' \t')),dict(marker=dict(type='bullet',text='A'*33)),dict(marker=dict(type='bullet',text='A\u202e')),dict(restart=4000,marker=dict(type='ordered',format='upper_roman')),dict(marker=dict(type='ordered',format='decimal',prefix='A\n'))]:
+        for update in [dict(level=1),dict(level=bounds['levels']),dict(id='bad id'),dict(restart=0),dict(restart=bounds['max_counter']+1),dict(gap=-1),dict(gap=caps['layout_limits']['list_gap'][1]+1),dict(marker=dict(type='bullet',text='')),dict(marker=dict(type='bullet',text=' \t')),dict(marker=dict(type='bullet',text='A'*(bounds['affix_characters']+1))),dict(marker=dict(type='bullet',text='A\u202e')),dict(restart=bounds['roman_max']+1,marker=dict(type='ordered',format='upper_roman')),dict(marker=dict(type='ordered',format='decimal',prefix='A\n'))]:
             s=copy.deepcopy(d['stories']['article']);s['paragraphs'][0]['list'].update(update)
             self.assertEqual(self.edit(d,[dict(op='story',id='article',story=s)],1)['code'],'INVALID_LIST',update)
-        s=copy.deepcopy(d['stories']['article']);s['paragraphs']=[self.item(restart=999999),self.item()]
+        s=copy.deepcopy(d['stories']['article']);s['paragraphs']=[self.item(restart=bounds['max_counter']),self.item()]
         self.assertEqual(self.edit(d,[dict(op='story',id='article',story=s)],1)['code'],'INVALID_LIST')
         s=copy.deepcopy(d['stories']['article']);s['paragraphs'][0]['list']['unrecognized']=True
         self.assertEqual(self.edit(d,[dict(op='story',id='article',story=s)],1)['code'],'INVALID_REQUEST')
@@ -147,7 +176,10 @@ class ListTests(unittest.TestCase):
 
     def test_resource_limits_include_generated_labels_and_list_identity(self):
         d=self.document([self.item()],[dict(id='first',width=80,height=20)])
-        for paragraphs in [[self.item('A'*4095)],[self.item('',id='l'+str(i)) for i in range(65)],[self.item('',list_options=dict(marker=dict(type='ordered',format='decimal',prefix='A'*32,suffix='A'*32))) for _ in range(64)]]:
+        caps = capabilities()['paragraph_flow']; bounds = caps['structural_lists']
+        affix = 'A'*bounds['affix_characters']
+        labels = caps['aggregate_characters']//(2*len(affix)+1)+1
+        for paragraphs in [[self.item('A'*(caps['aggregate_characters']-1))],[self.item('',id='l'+str(i)) for i in range(bounds['ids_per_story']+1)],[self.item('',list_options=dict(marker=dict(type='ordered',format='decimal',prefix=affix,suffix=affix))) for _ in range(labels)]]:
             s=copy.deepcopy(d['stories']['article']);s['paragraphs']=paragraphs
             self.assertEqual(self.edit(d,[dict(op='story',id='article',story=s)],1)['code'],'RESOURCE_LIMIT')
 

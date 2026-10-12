@@ -9,9 +9,9 @@ use std::{collections::HashSet, io::Write};
 
 mod import;
 pub use crate::image_io::gif::Background as GifBackground;
+pub use crate::limits::sequences::MAX_FRAMES;
+pub use crate::limits::sequences::MAX_PIXELS;
 pub use import::{CompositingSpace, Source, import};
-pub const MAX_FRAMES: usize = 256;
-pub const MAX_PIXELS: u64 = 16_777_216;
 pub const LOSS: &str = "Animation frames retain order, delay fractions and play count, but are flattened RGBA8 views. Keep the snapshot and resource stores for editable layers, text, variants and sequence controls. Transparent display colors may normalize to zero. A retained separate poster is not exported; the first animation frame is the default image.";
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
@@ -55,7 +55,9 @@ pub(crate) fn validate(state: &variants::State) -> Result<(), Error> {
         return Ok(());
     };
     if timeline.frames.is_empty() || timeline.frames.len() > MAX_FRAMES {
-        return Err(limit("A sequence requires 1..256 ordered frames"));
+        return Err(limit(&format!(
+            "A sequence requires 1..{MAX_FRAMES} ordered frames"
+        )));
     }
     let mut ids = HashSet::new();
     for frame in &timeline.frames {
@@ -139,9 +141,10 @@ pub(crate) fn from_layers(
         || ids.len() > variants::MAX_DATASETS
         || ids.iter().collect::<HashSet<_>>().len() != ids.len()
     {
-        return Err(error(
-            "Layer conversion requires 1..32 unique root item IDs in frame order",
-        ));
+        return Err(error(&format!(
+            "Layer conversion requires 1..{} unique root item IDs in frame order",
+            variants::MAX_DATASETS
+        )));
     }
     for id in ids {
         let i = crate::scene::index(d, id)?;
@@ -419,6 +422,6 @@ pub fn export_gif(
     Ok(
         json!({"media_type":"image/gif","encoding":"base64","data":STANDARD.encode(bytes),"width":animation.width,"height":animation.height,
         "sequence":{"frames":receipts,"plays":animation.plays,"all_frames":sequence.is_some(),"color":"untagged_srgb_exact_palette_binary_alpha","frame_storage":"full_canvas_restore_transparent_backdrop"},
-        "render_settings":plan.receipt(),"losses":["GIF stores exact palettes up to 256 entries per frame, including one reserved transparent entry whenever any frame has transparency. No color quantization, alpha thresholding or timing rounding is performed. More colors, partial alpha and non-centisecond delays fail explicitly. Transparent hidden colors normalize to black. Comments carry only the selected Inkbolt metadata envelope; ICC profiles and physical density are unsupported. Editable artwork remains in the source snapshot. Positive stored loop counts mean repetitions after the initial play; consumer scheduling can differ from the exact stored delays."]}),
+        "render_settings":plan.receipt(),"losses":[format!("GIF stores exact palettes up to {} entries per frame, including one reserved transparent entry whenever any frame has transparency. No color quantization, alpha thresholding or timing rounding is performed. More colors, partial alpha and non-centisecond delays fail explicitly. Transparent hidden colors normalize to black. Comments carry only the selected Inkbolt metadata envelope; ICC profiles and physical density are unsupported. Editable artwork remains in the source snapshot. Positive stored loop counts mean repetitions after the initial play; consumer scheduling can differ from the exact stored delays.", crate::limits::image_io_gif::MAX_PALETTE_ENTRIES)]}),
     )
 }

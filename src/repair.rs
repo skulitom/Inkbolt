@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
-pub const MAX_WORK: u64 = 67_108_864;
-pub const MAX_PATCHES: usize = 4096;
+use crate::limits::repair as bounds;
+pub use crate::limits::repair::MAX_PATCHES;
+pub use crate::limits::repair::MAX_WORK;
 fn one() -> f64 {
     1.0
 }
@@ -14,7 +15,7 @@ fn radius() -> u32 {
     1
 }
 fn synthesized_weight() -> f64 {
-    0.5
+    bounds::DEFAULT_SYNTHESIZED_WEIGHT
 }
 fn invalid(s: &str) -> Error {
     Error::new("INVALID_REPAIR", s)
@@ -85,7 +86,7 @@ impl Work<'_> {
     fn add(&mut self, n: usize) -> Result<(), Error> {
         self.count += n as u64;
         if self.count > MAX_WORK {
-            return Err(limit("Repair exceeds 67108864 work units"));
+            return Err(limit(&format!("Repair exceeds {MAX_WORK} work units")));
         }
         self.control.check()
     }
@@ -236,14 +237,16 @@ fn boundary(g: &Grid, weights: &[f64], pixels: &[[f64; 4]]) -> (usize, Option<f6
     )
 }
 fn validate_fill(f: &Fill) -> Result<(), Error> {
-    if !(1..=4).contains(&f.patch_radius)
+    if !(1..=bounds::MAX_FILL_PATCH_RADIUS).contains(&f.patch_radius)
         || !unit(f.max_context_rms)
         || !f.synthesized_weight.is_finite()
-        || !(0.01..=1.0).contains(&f.synthesized_weight)
+        || !(bounds::MIN_SYNTHESIZED_WEIGHT..=1.0).contains(&f.synthesized_weight)
     {
-        return Err(invalid(
-            "Fill requires radius1..4,synthesized_weight0.01..1 and max_context_rms0..1",
-        ));
+        return Err(invalid(&format!(
+            "Fill requires radius1..{},synthesized_weight{}..1 and max_context_rms0..1",
+            bounds::MAX_FILL_PATCH_RADIUS,
+            bounds::MIN_SYNTHESIZED_WEIGHT
+        )));
     }
     Ok(())
 }
@@ -301,7 +304,9 @@ fn synthesize(
     while remaining > 0 {
         work.control.check()?;
         if decisions.len() == MAX_PATCHES {
-            return Err(limit("Repair exceeds4096synthesis patches"));
+            return Err(limit(&format!(
+                "Repair exceeds{MAX_PATCHES}synthesis patches"
+            )));
         }
         let mut best_front = None;
         let mut best_count = 0usize;
@@ -457,14 +462,16 @@ pub(crate) fn apply(
             max_context_rms,
             blend,
         } => {
-            if *search_radius > 32
-                || !(1..=4).contains(context_radius)
+            if *search_radius > bounds::MAX_SEARCH_RADIUS
+                || !(1..=bounds::MAX_CONTEXT_RADIUS).contains(context_radius)
                 || !unit(*max_context_rms)
-                || source_origin.iter().any(|&v| v > 32768)
+                || source_origin.iter().any(|&v| f64::from(v) > MAX_COORDINATE)
             {
-                return Err(invalid(
-                    "Patch requires search_radius0..32,context_radius1..4,bounded source origin and max_context_rms0..1",
-                ));
+                return Err(invalid(&format!(
+                    "Patch requires search_radius0..{},context_radius1..{},bounded source origin and max_context_rms0..1",
+                    bounds::MAX_SEARCH_RADIUS,
+                    bounds::MAX_CONTEXT_RADIUS
+                )));
             }
             let source = Grid::read(document, source_id)?;
             let mut context_flag = vec![false; n];
@@ -621,16 +628,20 @@ pub(crate) fn apply(
             max_change_rms,
             minimum_effective_samples,
         } => {
-            if !(1..=16).contains(radius)
+            if !(1..=bounds::MAX_GUIDE_RADIUS).contains(radius)
                 || !range_sigma.is_finite()
-                || !(0.0001..=1.0).contains(range_sigma)
+                || !(bounds::MIN_RANGE_SIGMA..=1.0).contains(range_sigma)
                 || !unit(*max_change_rms)
                 || !minimum_effective_samples.is_finite()
-                || !(1.0..=1089.0).contains(minimum_effective_samples)
+                || !(1.0..=f64::from(bounds::MAX_EFFECTIVE_SAMPLES))
+                    .contains(minimum_effective_samples)
             {
-                return Err(invalid(
-                    "Edge correction requires radius1..16,range_sigma0.0001..1,max_change_rms0..1 and minimum_effective_samples1..1089",
-                ));
+                return Err(invalid(&format!(
+                    "Edge correction requires radius1..{},range_sigma{}..1,max_change_rms0..1 and minimum_effective_samples1..{}",
+                    bounds::MAX_GUIDE_RADIUS,
+                    bounds::MIN_RANGE_SIGMA,
+                    bounds::MAX_EFFECTIVE_SAMPLES
+                )));
             }
             let guide = Grid::read(document, guide_id)?;
             if guide.w != target.w || guide.h != target.h {

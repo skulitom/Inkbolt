@@ -1,22 +1,23 @@
 use crate::assets::{self, Crop, ImageAsset, Sampling};
+use crate::limits::model as bounds;
 pub use crate::paint::{Dither, Paint};
 use crate::{Error, geometry, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
-pub const MAX_DIMENSION: u32 = 32768;
-pub const MAX_ITEMS: usize = 256;
-pub const MAX_SEGMENTS: usize = 4096;
-pub const MAX_STORED_PIXELS: usize = 65536;
-pub const MAX_DOCUMENT_BYTES: usize = 768 * 1024;
-pub const MAX_LARGE_VECTOR_ITEMS: usize = 8192;
-pub const MAX_LARGE_VECTOR_COMMANDS: usize = 131072;
-pub const MAX_LARGE_VECTOR_BYTES: usize = 8 * 1024 * 1024;
-pub const MAX_LARGE_RASTER_ITEMS: usize = 8192;
-pub const MAX_LARGE_RASTER_COMMANDS: usize = 131072;
-pub const MAX_LARGE_RASTER_BYTES: usize = 8 * 1024 * 1024;
-pub const MAX_COORDINATE: f64 = 32768.0;
+pub use crate::limits::model::MAX_COORDINATE;
+pub use crate::limits::model::MAX_DIMENSION;
+pub use crate::limits::model::MAX_DOCUMENT_BYTES;
+pub use crate::limits::model::MAX_ITEMS;
+pub use crate::limits::model::MAX_LARGE_RASTER_BYTES;
+pub use crate::limits::model::MAX_LARGE_RASTER_COMMANDS;
+pub use crate::limits::model::MAX_LARGE_RASTER_ITEMS;
+pub use crate::limits::model::MAX_LARGE_VECTOR_BYTES;
+pub use crate::limits::model::MAX_LARGE_VECTOR_COMMANDS;
+pub use crate::limits::model::MAX_LARGE_VECTOR_ITEMS;
+pub use crate::limits::model::MAX_SEGMENTS;
+pub use crate::limits::model::MAX_STORED_PIXELS;
 pub type Color = [u8; 4];
 pub type Point = [f64; 2];
 pub type Matrix = [f64; 6];
@@ -33,7 +34,7 @@ fn is_one(value: &f64) -> bool {
     *value == 1.0
 }
 fn resolution() -> f64 {
-    96.0
+    f64::from(bounds::DEFAULT_RESOLUTION_PPI)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
@@ -239,7 +240,7 @@ pub struct Stroke {
     pub curve_tolerance: f64,
 }
 fn miter() -> f64 {
-    4.0
+    f64::from(crate::limits::strokes::DEFAULT_MITER_LIMIT)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
@@ -478,7 +479,7 @@ pub struct Item {
 
 pub fn valid_id(id: &str) -> bool {
     !id.is_empty()
-        && id.len() <= 128
+        && id.len() <= bounds::MAX_ID_BYTES
         && id
             .bytes()
             .all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c))
@@ -533,17 +534,27 @@ pub fn validate_controlled(
         ));
     }
     if !valid_id(&document.id) {
-        return Err(invalid(
-            "ID must contain 1-128 ASCII letters, digits, dots, hyphens or underscores",
-        ));
+        return Err(invalid(&format!(
+            "ID must contain 1-{} ASCII letters, digits, dots, hyphens or underscores",
+            bounds::MAX_ID_BYTES
+        )));
     }
     if !(1..=MAX_DIMENSION).contains(&document.width)
         || !(1..=MAX_DIMENSION).contains(&document.height)
     {
-        return Err(invalid("Width and height must each be in 1..=32768 pixels"));
+        return Err(invalid(&format!(
+            "Width and height must each be in 1..={MAX_DIMENSION} pixels"
+        )));
     }
-    if !document.resolution_ppi.is_finite() || !(1.0..=9600.0).contains(&document.resolution_ppi) {
-        return Err(invalid("Resolution must be finite and in 1..=9600 ppi"));
+    if !document.resolution_ppi.is_finite()
+        || !(f64::from(bounds::MIN_RESOLUTION_PPI)..=f64::from(bounds::MAX_RESOLUTION_PPI))
+            .contains(&document.resolution_ppi)
+    {
+        return Err(invalid(&format!(
+            "Resolution must be finite and in {}..={} ppi",
+            bounds::MIN_RESOLUTION_PPI,
+            bounds::MAX_RESOLUTION_PPI
+        )));
     }
     if document.items.len() > budget.items() {
         return Err(limit(&format!(
@@ -595,7 +606,10 @@ pub fn validate_controlled(
     let mut pixels = 0usize;
     let mut native_pixels = 0u64;
     if document.assets.len() > assets::MAX_ASSETS {
-        return Err(limit("Document exceeds 64 image assets"));
+        return Err(limit(&format!(
+            "Document exceeds {} image assets",
+            assets::MAX_ASSETS
+        )));
     }
     let mut asset_pixels = 0u64;
     for (id, asset) in &document.assets {
@@ -605,14 +619,20 @@ pub fn validate_controlled(
         pixels += assets::validate(asset)?;
         asset_pixels += asset.width as u64 * asset.height as u64;
         if asset_pixels > assets::MAX_ASSET_PIXELS {
-            return Err(limit("Document assets exceed 16777216 decoded pixels"));
+            return Err(limit(&format!(
+                "Document assets exceed {} decoded pixels",
+                assets::MAX_ASSET_PIXELS
+            )));
         }
     }
     if pixels > MAX_STORED_PIXELS {
         return Err(limit("Embedded assets exceed inline pixel limit"));
     }
     if document.fonts.len() > crate::fonts::MAX_FONTS {
-        return Err(limit("Document exceeds 8 pinned fonts"));
+        return Err(limit(&format!(
+            "Document exceeds {} pinned fonts",
+            crate::fonts::MAX_FONTS
+        )));
     }
     for (id, font) in &document.fonts {
         if !valid_id(id) {
@@ -652,22 +672,26 @@ pub fn validate_controlled(
         .sum::<usize>()
         > crate::filters::MAX_DOCUMENT_FILTERS
     {
-        return Err(limit("Document exceeds 64 filters"));
+        return Err(limit(&format!(
+            "Document exceeds {} filters",
+            crate::filters::MAX_DOCUMENT_FILTERS
+        )));
     }
     let worlds = scene::world_transforms(document, control)?;
     for (i, item) in document.items.iter().enumerate() {
-        if i % 32 == 0 {
+        if i % crate::limits::control::ITEM_CHECK_INTERVAL == 0 {
             control.check()?;
         }
-        if item.name.len() > 1024
+        if item.name.len() > bounds::MAX_NAME_BYTES
             || item
                 .name
                 .chars()
                 .any(|c| c.is_control() || matches!(c, '\u{fffe}' | '\u{ffff}'))
         {
-            return Err(invalid(
-                "Item names must be at most 1024 bytes and contain no control or invalid XML characters",
-            ));
+            return Err(invalid(&format!(
+                "Item names must be at most {} bytes and contain no control or invalid XML characters",
+                bounds::MAX_NAME_BYTES
+            )));
         }
         if !item.opacity.is_finite() || !(0.0..=1.0).contains(&item.opacity) {
             return Err(invalid("Opacity must be in 0..=1"));
@@ -847,13 +871,21 @@ pub fn validate_controlled(
                 }
                 if let Some(stroke) = stroke
                     && (!stroke.width.is_finite()
-                        || !(0.001..=1024.0).contains(&stroke.width)
+                        || !(crate::limits::strokes::MIN_WIDTH
+                            ..=f64::from(crate::limits::strokes::MAX_WIDTH))
+                            .contains(&stroke.width)
                         || !stroke.miter_limit.is_finite()
-                        || !(1.0..=16.0).contains(&stroke.miter_limit))
+                        || !(f64::from(crate::limits::strokes::MIN_MITER_LIMIT)
+                            ..=f64::from(crate::limits::strokes::MAX_MITER_LIMIT))
+                            .contains(&stroke.miter_limit))
                 {
-                    return Err(invalid(
-                        "Stroke width must be in 0.001..=1024 and miter limit in 1..=16",
-                    ));
+                    return Err(invalid(&format!(
+                        "Stroke width must be in {}..={} and miter limit in {}..={}",
+                        crate::limits::strokes::MIN_WIDTH,
+                        crate::limits::strokes::MAX_WIDTH,
+                        crate::limits::strokes::MIN_MITER_LIMIT,
+                        crate::limits::strokes::MAX_MITER_LIMIT
+                    )));
                 }
                 if let Some(stroke) = stroke {
                     segments += crate::strokes::brush_segments(stroke)?;
@@ -896,7 +928,9 @@ pub fn validate_controlled(
                     return Err(invalid("Procedural fill layers require a raster document"));
                 }
                 if !(1..=MAX_DIMENSION).contains(width) || !(1..=MAX_DIMENSION).contains(height) {
-                    return Err(invalid("Fill layer dimensions must be in 1..=32768"));
+                    return Err(invalid(&format!(
+                        "Fill layer dimensions must be in 1..={MAX_DIMENSION}"
+                    )));
                 }
                 validate_world_geometry(
                     &Geometry::Rect {
@@ -934,7 +968,9 @@ pub fn validate_controlled(
                 }
                 pixels += grid.validate()?;
                 if pixels > MAX_STORED_PIXELS {
-                    return Err(limit("Inline pixel storage exceeds 65536 pixels"));
+                    return Err(limit(&format!(
+                        "Inline pixel storage exceeds {MAX_STORED_PIXELS} pixels"
+                    )));
                 }
                 validate_world_geometry(&grid.geometry(), world)?;
             }
@@ -944,7 +980,9 @@ pub fn validate_controlled(
                 }
                 pixels += raw.validate()?;
                 if pixels > MAX_STORED_PIXELS {
-                    return Err(limit("Inline pixel storage exceeds 65536 pixels"));
+                    return Err(limit(&format!(
+                        "Inline pixel storage exceeds {MAX_STORED_PIXELS} pixels"
+                    )));
                 }
                 validate_world_geometry(&raw.geometry(), world)?;
             }
@@ -959,11 +997,15 @@ pub fn validate_controlled(
                 }
                 if *width == 0 || *height == 0 || *width > MAX_DIMENSION || *height > MAX_DIMENSION
                 {
-                    return Err(invalid("Pixel layer dimensions must be in 1..=32768"));
+                    return Err(invalid(&format!(
+                        "Pixel layer dimensions must be in 1..={MAX_DIMENSION}"
+                    )));
                 }
                 pixels += *width as usize * *height as usize;
                 if pixels > MAX_STORED_PIXELS {
-                    return Err(limit("Inline pixel storage exceeds 65536 pixels"));
+                    return Err(limit(&format!(
+                        "Inline pixel storage exceeds {MAX_STORED_PIXELS} pixels"
+                    )));
                 }
                 if rgba_hex.len() != *width as usize * *height as usize * 8
                     || !rgba_hex.bytes().all(|c| c.is_ascii_hexdigit())
@@ -994,8 +1036,13 @@ pub fn validate_controlled(
                     .get(asset_id)
                     .ok_or_else(|| invalid("Image refers to an undefined asset"))?;
                 for value in [width, height] {
-                    if !value.is_finite() || !(0.001..=MAX_COORDINATE).contains(value) {
-                        return Err(invalid("Placed image dimensions must be in 0.001..=32768"));
+                    if !value.is_finite()
+                        || !(bounds::MIN_PLACED_IMAGE_EXTENT..=MAX_COORDINATE).contains(value)
+                    {
+                        return Err(invalid(&format!(
+                            "Placed image dimensions must be in {}..={MAX_COORDINATE}",
+                            bounds::MIN_PLACED_IMAGE_EXTENT
+                        )));
                     }
                 }
                 assets::crop(asset.width, asset.height, *crop)?;
@@ -1016,10 +1063,15 @@ pub fn validate_controlled(
             ));
         }
         if pixels > MAX_STORED_PIXELS {
-            return Err(limit("Inline pixel storage exceeds 65536 pixels"));
+            return Err(limit(&format!(
+                "Inline pixel storage exceeds {MAX_STORED_PIXELS} pixels"
+            )));
         }
         if paint_samples > crate::paint::MAX_PAINT_SAMPLES {
-            return Err(limit("Document exceeds 4096 gradient stops and anchors"));
+            return Err(limit(&format!(
+                "Document exceeds {} gradient stops and anchors",
+                crate::paint::MAX_PAINT_SAMPLES
+            )));
         }
     }
     drop(worlds);

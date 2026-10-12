@@ -25,9 +25,9 @@ pub use images::MAX_SOURCE_PROFILES;
 pub(crate) use objects::receipt as objects_receipt;
 pub(crate) use raw::receipt as raw_receipt;
 
-pub const MAX_SPOTS: usize = 28;
-pub const MAX_BUFFER_VALUES: u64 = 16_777_216;
-pub const MAX_WORK: u64 = 134_217_728;
+pub use crate::limits::prepress::MAX_BUFFER_VALUES;
+pub use crate::limits::prepress::MAX_SPOTS;
+pub use crate::limits::prepress::MAX_WORK;
 
 pub(crate) fn blending_receipt() -> Value {
     json!({"modes":crate::blending::MODES,"process":"subtractive_complements;CMY_nonseparable_with_K_backdrop_except_luminosity_source","whole_color":"select_complete_CMYK_by_total_ink;backdrop_wins_ties","spots":"separable_white_preserving_modes;otherwise_normal","overprint":"implicit_nonisolated_group_before_requested_blend","clipping":"blend_conditional_base_color_without_increasing_base_alpha","fill_stroke":"separate_normal_paints_then_combined_item_blend","arithmetic":"binary64;no_intermediate_byte_projection"})
@@ -232,7 +232,7 @@ impl Surface {
                 .zip(initial.values.chunks_exact(n + 1))
                 .enumerate()
             {
-                if pixel.is_multiple_of(4096) {
+                if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     control.check()?;
                 }
                 for c in 0..n {
@@ -377,7 +377,7 @@ impl Context<'_> {
                 ));
             }
             for (pixel, &amount) in coverage.data().iter().enumerate() {
-                if pixel.is_multiple_of(4096) {
+                if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     self.control.check()?;
                 }
                 if amount != 0 {
@@ -390,12 +390,17 @@ impl Context<'_> {
             let n = self.channels();
             let addressed = vec![true; n];
             let mut values = vec![0.0; n];
-            for (batch, chunk) in coverage.data().chunks(4096).enumerate() {
+            for (batch, chunk) in coverage
+                .data()
+                .chunks(crate::limits::profiles::MAX_CONVERSION_SAMPLES)
+                .enumerate()
+            {
                 self.control.check()?;
                 let mut rgb = Vec::with_capacity(chunk.len() * 3);
                 let mut alphas = Vec::with_capacity(chunk.len());
                 for (j, &amount) in chunk.iter().enumerate() {
-                    let point = self.point(batch * 4096 + j);
+                    let point =
+                        self.point(batch * crate::limits::profiles::MAX_CONVERSION_SAMPLES + j);
                     let rgba =
                         paint::dither(sampler.sample(point), geometry::map(inverse, point), dither);
                     rgb.extend_from_slice(&rgba[..3]);
@@ -405,7 +410,12 @@ impl Context<'_> {
                 for (j, (cmyk, alpha)) in process.as_chunks::<4>().0.iter().zip(alphas).enumerate()
                 {
                     values[..4].copy_from_slice(cmyk);
-                    surface.paint(batch * 4096 + j, &values, &addressed, alpha);
+                    surface.paint(
+                        batch * crate::limits::profiles::MAX_CONVERSION_SAMPLES + j,
+                        &values,
+                        &addressed,
+                        alpha,
+                    );
                 }
             }
         }
@@ -427,7 +437,7 @@ impl Context<'_> {
             .zip(source.values.chunks_exact(n + 1))
             .enumerate()
         {
-            if pixel.is_multiple_of(4096) {
+            if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 self.control.check()?;
             }
             let base_alpha = dst[n];
@@ -485,7 +495,7 @@ impl Context<'_> {
             .zip(backdrop.values.chunks_exact(n + 1))
             .enumerate()
         {
-            if pixel.is_multiple_of(4096) {
+            if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 self.control.check()?;
             }
             let a = src[n];
@@ -658,7 +668,7 @@ impl Context<'_> {
                 item.fill_opacity
             };
         for (pixel, src) in surface.values.chunks_exact_mut(n + 1).enumerate() {
-            if pixel.is_multiple_of(4096) {
+            if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 self.control.check()?;
             }
             let mut g = opacity;
@@ -1104,10 +1114,15 @@ fn native_plan(
             "Native ink preparation requires an encoded document without a separate channel recipe or RGB output profile",
         ));
     }
-    if options.samples.len() > 64 || (options.include_bleed && options.artboard_id.is_none()) {
+    if options.samples.len() > crate::limits::prepress::MAX_SAMPLES
+        || (options.include_bleed && options.artboard_id.is_none())
+    {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "At most 64 output samples are supported; bleed needs an artboard",
+            format!(
+                "At most {} output samples are supported; bleed needs an artboard",
+                crate::limits::prepress::MAX_SAMPLES
+            ),
         ));
     }
     // A selected board can place a definition stored outside its subtree.
@@ -1192,7 +1207,8 @@ fn native_plan(
             }
             adjustments = true;
             blending = true;
-            adjustment_work += adjustment.work() + 256;
+            adjustment_work +=
+                adjustment.work() + crate::limits::prepress::ADJUSTMENT_CONVERSION_WORK;
         }
         track_shape |= item.content.is_knockout();
         dissolve_count += u64::from(!item.coverage.is_smooth());
@@ -1249,9 +1265,11 @@ fn native_plan(
             if level >= crate::objects::MAX_NESTING
                 || budget.objects >= crate::objects::MAX_RENDERED_OBJECTS
             {
-                return Err(limit(
-                    "Native retained objects exceed four levels or 32 visible sources",
-                ));
+                return Err(limit(&format!(
+                    "Native retained objects exceed {} levels or {} visible sources",
+                    crate::objects::MAX_NESTING,
+                    crate::objects::MAX_RENDERED_OBJECTS
+                )));
             }
             if object.view.is_some() {
                 let mut child_path = path.to_vec();
@@ -1276,9 +1294,9 @@ fn native_plan(
                     .source_profiles
                     .extend(child.source_profiles.iter().cloned());
                 if budget.source_profiles.len() > MAX_SOURCE_PROFILES {
-                    return Err(limit(
-                        "Native preparation exceeds 16 source profiles across projected and native objects",
-                    ));
+                    return Err(limit(&format!(
+                        "Native preparation exceeds {MAX_SOURCE_PROFILES} source profiles across projected and native objects"
+                    )));
                 }
                 if budget.objects > crate::objects::MAX_RENDERED_OBJECTS
                     || level + 1 + child.depth > crate::objects::MAX_NESTING
@@ -1290,7 +1308,7 @@ fn native_plan(
                 let source_pixels =
                     child.sampling.output[0] as u64 * child.sampling.output[1] as u64;
                 object_work += child.work
-                    + source_pixels * 16
+                    + source_pixels * crate::limits::prepress::PROJECTED_SOURCE_WORK
                     + objects::work(
                         object,
                         &child.sampling,
@@ -1353,9 +1371,9 @@ fn native_plan(
                     .source_profiles
                     .insert(assets::sha256(&profiles::resolve(profile)?.0));
                 if budget.source_profiles.len() > MAX_SOURCE_PROFILES {
-                    return Err(limit(
-                        "Native preparation supports at most 16 distinct source profiles across retained objects",
-                    ));
+                    return Err(limit(&format!(
+                        "Native preparation supports at most {MAX_SOURCE_PROFILES} distinct source profiles across retained objects"
+                    )));
                 }
             }
         }
@@ -1408,14 +1426,15 @@ fn native_plan(
         }
     }
     if spot_definitions.len() > MAX_SPOTS {
-        return Err(limit(
-            "Native ink composition supports at most 28 printed spot identities",
-        ));
+        return Err(limit(&format!(
+            "Native ink composition supports at most {MAX_SPOTS} printed spot identities"
+        )));
     }
     let n = 4 + spot_definitions.len();
     let reconstruction_work = crate::resample::document_work(document, plan.internal_scale)?;
     let pixel_warp_work = crate::pixel_warps::work(document, plan.internal_scale)?;
-    let image_work = pixels * image_count * (n as u64 + 16);
+    let image_work =
+        pixels * image_count * (n as u64 + crate::limits::prepress::IMAGE_PIXEL_OVERHEAD);
     let outline_work = crate::strokes::generated_work(document)? * height as u64;
     let mask_plan = crate::render::plan_artwork_masks(
         document,
@@ -1424,8 +1443,18 @@ fn native_plan(
         options.antialias,
         [0, 0, 0],
     )?;
-    let channel_work =
-        if blending { 8 * n + 32 } else { 2 * n + 1 } + if track_shape { 4 * n + 8 } else { 0 };
+    let channel_work = if blending {
+        crate::limits::prepress::BLEND_CHANNEL_WORK * n
+            + crate::limits::prepress::BLEND_PIXEL_OVERHEAD
+    } else {
+        crate::limits::prepress::NORMAL_CHANNEL_WORK * n
+            + crate::limits::prepress::NORMAL_PIXEL_OVERHEAD
+    } + if track_shape {
+        crate::limits::prepress::SHAPE_CHANNEL_WORK * n
+            + crate::limits::prepress::SHAPE_PIXEL_OVERHEAD
+    } else {
+        0
+    };
     let total_work = pixels * work * channel_work as u64
         + pixels * adjustment_work
         + image_work
@@ -1434,12 +1463,23 @@ fn native_plan(
         + reconstruction_work
         + pixel_warp_work
         + outline_work
-        + pixels * dissolve_count * if track_shape { 256 } else { 128 }
         + pixels
-            * (effect_work * if track_shape { 2 } else { 1 } + effect_count * (8 * n as u64 + 32))
+            * dissolve_count
+            * if track_shape {
+                crate::limits::prepress::SHAPE_DISSOLVE_WORK
+            } else {
+                crate::limits::prepress::DISSOLVE_WORK
+            }
+        + pixels
+            * (effect_work * if track_shape { 2 } else { 1 }
+                + effect_count
+                    * (crate::limits::prepress::BLEND_CHANNEL_WORK as u64 * n as u64
+                        + crate::limits::prepress::BLEND_PIXEL_OVERHEAD as u64))
         + pixels
             * (filter_work * (2 * n as u64 + 1 + u64::from(track_shape))
-                + filter_count * (8 * n as u64 + 40))
+                + filter_count
+                    * (crate::limits::prepress::BLEND_CHANNEL_WORK as u64 * n as u64
+                        + crate::limits::prepress::FILTER_PIXEL_OVERHEAD))
         + filter_mask_work
         + mask_plan.work;
     let image_buffers = if image_count == 0 {
@@ -1447,7 +1487,7 @@ fn native_plan(
     } else {
         pixels * 4 + source_pixels * 8
     };
-    let color_buffers = 4096 * 16;
+    let color_buffers = crate::limits::prepress::COLOR_BUFFER_VALUES;
     // One surface per active ancestor and current leaf, root, masks, and the
     // final averaged surface. Batch color arrays are independently bounded.
     let clipping_depth = if document.items.iter().any(|i| i.clip_to.is_some()) {

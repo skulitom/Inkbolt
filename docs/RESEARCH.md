@@ -17,3 +17,14 @@ Separate directories do not establish a formal clean-room process. An implemente
 Ghidra projects, caches and logs belong in the private root. Run metadata/loader probes on an original executable before using the workflow on any external target. Keep general extraction and decompilation disabled by default. Anode provides background desktop verification; it shares the user's account and filesystem, so it is not a security sandbox. Keep the viewer hidden and retain captures privately.
 
 `tools/check_repo.py` scans commit candidates; `--staged` reads indexed bytes, including forced additions. A missing Git-private policy fails closed. `tools/setup_private.py` installs the checkout-local hook and policy. These do not transfer to clones and can be bypassed deliberately. Review the full history before distribution. Hiding a folder does not encrypt or restrict its contents.
+
+Public clones and CI may explicitly use `tools/check_repo.py --public`, or
+`tools/verify.py --public` for the complete verification workflow. Public mode
+checks the same file types, size, UTF-8/NUL, excluded directory names, Git entry
+types and forced ignored-file additions. It does not load private patterns and
+reports `private_policy:"not_evaluated"`, including on structural failures.
+It is candidate-only and cannot combine with `--staged`. Default checks and the
+installed commit hook still require a valid private policy; neither missing
+policy nor CI environment variables enable public mode. WSL development keeps
+the private guard on both sides. A public pass is not private publication
+clearance or a provenance determination.

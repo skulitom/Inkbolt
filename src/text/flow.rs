@@ -3,10 +3,10 @@ use super::*;
 pub mod hyphens;
 pub mod lists;
 
-pub const MAX_STORIES: usize = 32;
-pub const MAX_PARAGRAPHS: usize = 256;
-pub const MAX_SLOTS: usize = 64;
-pub const MAX_COLUMNS: usize = 16;
+pub use crate::limits::text_flow::MAX_COLUMNS;
+pub use crate::limits::text_flow::MAX_PARAGRAPHS;
+pub use crate::limits::text_flow::MAX_SLOTS;
+pub use crate::limits::text_flow::MAX_STORIES;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Overset {
@@ -58,8 +58,8 @@ impl Paragraph {
     fn frame(&self) -> Frame {
         Frame {
             text: self.text.clone(),
-            width: 32768.0,
-            height: 32768.0,
+            width: MAX_COORDINATE,
+            height: MAX_COORDINATE,
             style: self.style.clone(),
             ranges: self.ranges.clone(),
             align: self.align,
@@ -238,14 +238,16 @@ pub fn validate(story: &Story, d: &Document) -> Result<(usize, usize, usize), Er
             return Err(invalid("Story slot IDs must be valid and unique"));
         }
         if !(1..=MAX_COLUMNS).contains(&slot.columns) {
-            return Err(invalid("Story columns must be in 1..=16"));
+            return Err(invalid(&format!(
+                "Story columns must be in 1..={MAX_COLUMNS}"
+            )));
         }
         if [slot.width, slot.height]
             .iter()
-            .any(|v| !v.is_finite() || !(0.001..=32768.0).contains(v))
+            .any(|v| !v.is_finite() || !(limits::MIN_FRAME_EXTENT..=MAX_COORDINATE).contains(v))
             || !slot.gutter.is_finite()
-            || !(0.0..=32768.0).contains(&slot.gutter)
-            || slot.column_width() < 0.001
+            || !(0.0..=MAX_COORDINATE).contains(&slot.gutter)
+            || slot.column_width() < limits::MIN_FRAME_EXTENT
         {
             return Err(invalid(
                 "Story slots require finite positive extents and columns after gutters",
@@ -262,9 +264,9 @@ pub fn validate(story: &Story, d: &Document) -> Result<(usize, usize, usize), Er
         }
         if [p.before, p.after, p.indent_start, p.indent_end]
             .iter()
-            .any(|v| !v.is_finite() || !(0.0..=32768.0).contains(v))
+            .any(|v| !v.is_finite() || !(0.0..=MAX_COORDINATE).contains(v))
             || !p.first_indent.is_finite()
-            || p.first_indent.abs() > 32768.0
+            || p.first_indent.abs() > MAX_COORDINATE
         {
             return Err(invalid(
                 "Paragraph spacing and indents exceed their finite bounds",
@@ -401,7 +403,7 @@ pub fn layout(story: &Story, d: &Document, cache: &fonts::Cache) -> Result<Repor
             let width = slot.column_width();
             let start_indent = p.indent_start + if first { p.first_indent } else { 0.0 };
             let available = width - start_indent - p.indent_end;
-            if available < 0.001 {
+            if available < limits::MIN_FRAME_EXTENT {
                 column += 1;
                 top = 0.0;
                 if column == slot.columns {
@@ -478,12 +480,15 @@ pub fn layout(story: &Story, d: &Document, cache: &fonts::Cache) -> Result<Repor
                     gap = gap.max(face.line_gap() as f64 * scale);
                 }
             }
-            let natural = (ascent + descent + gap).max(0.001);
+            let natural = (ascent + descent + gap).max(limits::MIN_LEADING);
             let line_top = top + if first { p.before } else { 0.0 };
-            let marker_fits = marker
-                .as_ref()
-                .is_none_or(|m| m.advance + p.list.as_ref().unwrap().gap <= start_indent + 1e-9);
-            if line_top + natural > slot.height + 1e-9 || advance > available + 1e-9 || !marker_fits
+            let marker_fits = marker.as_ref().is_none_or(|m| {
+                m.advance + p.list.as_ref().unwrap().gap
+                    <= start_indent + limits::LAYOUT_OVERFLOW_TOLERANCE
+            });
+            if line_top + natural > slot.height + limits::LAYOUT_OVERFLOW_TOLERANCE
+                || advance > available + limits::LAYOUT_OVERFLOW_TOLERANCE
+                || !marker_fits
             {
                 column += 1;
                 top = 0.0;
@@ -579,10 +584,10 @@ pub fn layout(story: &Story, d: &Document, cache: &fonts::Cache) -> Result<Repor
                 hyphen,
             });
             if let Some(bounds) = target.ink_bounds {
-                target.overflowed |= bounds[0] < -1e-9
-                    || bounds[1] < -1e-9
-                    || bounds[2] > slot.width + 1e-9
-                    || bounds[3] > slot.height + 1e-9;
+                target.overflowed |= bounds[0] < -limits::LAYOUT_OVERFLOW_TOLERANCE
+                    || bounds[1] < -limits::LAYOUT_OVERFLOW_TOLERANCE
+                    || bounds[2] > slot.width + limits::LAYOUT_OVERFLOW_TOLERANCE
+                    || bounds[3] > slot.height + limits::LAYOUT_OVERFLOW_TOLERANCE;
             }
             top = line_top + p.leading.unwrap_or(natural);
             first = false;

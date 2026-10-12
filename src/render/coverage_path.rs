@@ -37,10 +37,11 @@ pub(super) fn path(g: &Geometry, matrix: Matrix) -> Result<tiny_skia::Path, Erro
         Geometry::Ellipse { cx, cy, rx, ry } => {
             // Original tangent-matched arcs: evaluating in binary64 also keeps
             // small radii around a large local center until placement is known.
-            let step = std::f64::consts::TAU / 32.0;
+            let step = std::f64::consts::TAU
+                / f64::from(crate::limits::render_coverage_path::ELLIPSE_ARCS);
             let k = 4.0 / 3.0 * (step / 4.0).tan();
             move_to(&mut builder, [cx + rx, *cy]);
-            for n in 0..32 {
+            for n in 0..crate::limits::render_coverage_path::ELLIPSE_ARCS {
                 let (sa, ca) = (n as f64 * step).sin_cos();
                 let (sb, cb) = ((n + 1) as f64 * step).sin_cos();
                 cubic_to(

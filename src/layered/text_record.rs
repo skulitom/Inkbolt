@@ -5,6 +5,7 @@ use super::{
     descriptor::{self, Datum},
     *,
 };
+use crate::limits::layered_text as bounds;
 use std::collections::BTreeSet;
 
 fn object<'a>(v: &'a Value, key: &str) -> Result<&'a Value, Error> {
@@ -24,8 +25,11 @@ fn runs<'a>(engine: &'a Value, key: &str, text: &str) -> Result<&'a Vec<Value>, 
     if values.len() != lengths.len() || values.is_empty() {
         return Err(malformed());
     }
-    if values.len() > 65 {
-        return Err(limit("Native text exceeds 65 runs"));
+    if values.len() > bounds::MAX_RUNS {
+        return Err(limit(&format!(
+            "Native text exceeds {} runs",
+            bounds::MAX_RUNS
+        )));
     }
     let mut boundaries = BTreeSet::from([0]);
     let mut units = 0;
@@ -61,8 +65,11 @@ pub(super) struct Record {
     pub rendering: super::text_rendering::Local,
 }
 pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Record, Error> {
-    if input.left() > 65536 {
-        return Err(limit("Native text record exceeds 64 KiB"));
+    if input.left() > bounds::MAX_RECORD_BYTES {
+        return Err(limit(&format!(
+            "Native text record exceeds {} KiB",
+            bounds::MAX_RECORD_BYTES / 1024
+        )));
     }
     if input.short()? != 1 {
         return Err(unsupported("Unknown native text-record version"));
@@ -80,7 +87,10 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
     let mut d = descriptor::text_versioned(input, control)?;
     let text = d.field("Txt ")?.text()?;
     if text.chars().count() > crate::text::MAX_TEXT_CHARS {
-        return Err(limit("Native text exceeds 4096 characters"));
+        return Err(limit(&format!(
+            "Native text exceeds {} characters",
+            crate::text::MAX_TEXT_CHARS
+        )));
     }
     let payload = match d.field("EngineData")? {
         Datum::Raw(bytes) => bytes,
@@ -172,7 +182,7 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
             if let Some(cookie) = child.get("Cookie").and_then(Value::as_object) {
                 for key in cookie.keys() {
                     if !key.is_empty()
-                        && key.len() <= 128
+                        && key.len() <= bounds::MAX_SHAPE_OWNER_BYTES
                         && key.bytes().all(|b| b.is_ascii_alphanumeric())
                     {
                         owners.insert(key.clone());
@@ -181,8 +191,11 @@ pub(super) fn inspect(input: &mut Reader<'_>, control: &Control) -> Result<Recor
             }
         }
     }
-    let owners_truncated = owners.len() > 8;
-    let owners = owners.into_iter().take(8).collect::<Vec<_>>();
+    let owners_truncated = owners.len() > bounds::MAX_SHAPE_OWNER_LABELS;
+    let owners = owners
+        .into_iter()
+        .take(bounds::MAX_SHAPE_OWNER_LABELS)
+        .collect::<Vec<_>>();
     Ok(Record {
         source: source.to_owned(),
         story_index,

@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
-pub const MAX_INKS: usize = 8;
-pub const MAX_KNOTS: usize = 64;
-pub const MAX_WORK: u64 = 67_108_864;
+pub use crate::limits::ink_recipes::MAX_INKS;
+pub use crate::limits::ink_recipes::MAX_KNOTS;
+pub use crate::limits::ink_recipes::MAX_WORK;
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -106,7 +106,7 @@ pub fn combine<'a>(
         .zip(named.samples.chunks_exact(n))
         .enumerate()
     {
-        if index.is_multiple_of(4096) {
+        if index.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
             control.check()?;
         }
         samples.extend_from_slice(p);
@@ -133,14 +133,16 @@ pub fn combine<'a>(
 impl Recipe {
     pub fn validate(&self, document: &Document) -> Result<(), Error> {
         if self.inks.is_empty() || self.inks.len() > MAX_INKS {
-            return Err(limit("An ink recipe requires 1..=8 independent named inks"));
+            return Err(limit(&format!(
+                "An ink recipe requires 1..={MAX_INKS} independent named inks"
+            )));
         }
         let mut ids = HashSet::new();
         for ink in &self.inks {
             if !crate::model::valid_id(&ink.id)
                 || !ids.insert(&ink.id)
                 || ink.name.is_empty()
-                || ink.name.len() > 256
+                || ink.name.len() > crate::limits::ink_recipes::MAX_NAME_BYTES
                 || ink
                     .name
                     .chars()
@@ -148,7 +150,10 @@ impl Recipe {
             {
                 return Err(Error::new(
                     "INVALID_DOCUMENT",
-                    "Recipe ink IDs must be unique and portable; names must contain 1..256 valid UTF-8 bytes",
+                    format!(
+                        "Recipe ink IDs must be unique and portable; names must contain 1..{} valid UTF-8 bytes",
+                        crate::limits::ink_recipes::MAX_NAME_BYTES
+                    ),
                 ));
             }
             crate::channels::get(document, &ink.channel)?;
@@ -167,7 +172,9 @@ impl Recipe {
             {
                 return Err(Error::new(
                     "INVALID_DOCUMENT",
-                    "Ink curves need 2..64 finite normalized knots with increasing inputs and endpoints 0 and 1",
+                    format!(
+                        "Ink curves need 2..{MAX_KNOTS} finite normalized knots with increasing inputs and endpoints 0 and 1"
+                    ),
                 ));
             }
         }
@@ -271,7 +278,7 @@ impl Prepared<'_> {
         let n = self.recipe.inks.len();
         let mut rgba = Vec::with_capacity(self.width as usize * self.height as usize * 4);
         for (index, p) in self.samples.chunks_exact(n).enumerate() {
-            if index.is_multiple_of(4096) {
+            if index.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                 control.check()?;
             }
             let mut weights = [0.0; 1 << MAX_INKS];
@@ -320,10 +327,13 @@ pub fn prepare<'a>(
             "Explicit named-ink delivery requires a retained ink_recipe",
         )
     })?;
-    if !(1..=4).contains(&scale) {
+    if !(1..=crate::limits::render_quality::MAX_SCALE).contains(&scale) {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Ink separation scale must be in 1..=4",
+            format!(
+                "Ink separation scale must be in 1..={}",
+                crate::limits::render_quality::MAX_SCALE
+            ),
         ));
     }
     let [width, height] =

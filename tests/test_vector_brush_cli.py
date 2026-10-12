@@ -10,6 +10,7 @@ import test_editing_cli as editing
 from test_strokes_cli import line
 from test_stroke_outlines_cli import polygons, area, winding
 from test_mcp import Client
+from advertised_limits import capabilities
 
 COLOR=[30,100,210,255]
 def rect(x=-.5,y=-.5,w=1,h=1):return dict(shape='rect',x=x,y=y,width=w,height=h)
@@ -230,9 +231,30 @@ class VectorBrushTests(unittest.TestCase):
             published=c.success('session.publish',**session,expected_revision=4,output=dict(format='png',output_root=root,file_name='brush.png'))
             self.assertTrue(published);c.success('session.verify',**session)
 
+    def test_brush_parameter_boundaries_follow_discovery(self):
+        # A short line keeps minimum spacing within independent placement/work limits.
+        source=self.document(line([[8,12],[8.01,12]]));before=copy.deepcopy(source)
+        limits=capabilities()['vector_brushes']
+        for field,bounds in [('spacing',limits['spacing']),('phase',limits['phase']),
+                             ('corner_angle',limits['corner_angle']),('end_clearance',limits['clearance']),
+                             ('corner_clearance',limits['clearance'])]:
+            below=bounds[0]-1 if bounds[0]<=0 else bounds[0]/2
+            for value,expected in [(bounds[0],0),(bounds[1],0),(below,1),(bounds[1]+1,1)]:
+                with self.subTest(field=field,value=value):
+                    d=copy.deepcopy(source);brush=item(d)['content']['stroke']['brush']
+                    brush.update(corner_motif=rect(),start_motif=rect());brush[field]=value
+                    self.invoke(dict(command='document.validate',document=d),expected)
+        maximum=limits['motif_coordinates'][1]
+        for edge,expected in [(maximum,0),(maximum+1,1)]:
+            d=copy.deepcopy(source)
+            item(d)['content']['stroke']['brush']['motif']=rect(-edge,-edge,2*edge,2*edge)
+            self.invoke(dict(command='document.validate',document=d),expected)
+        self.assertEqual(source,before)
+
     def test_strict_controls_open_motifs_combinations_and_atomic_locked_edits(self):
         d=self.document()
-        for patch in [dict(spacing=0),dict(spacing=1025),dict(phase=32769),dict(corner_angle=0),dict(motif=line([[0,0],[1,0]])),dict(motif=rect(16,0,1,1)),dict(warp=True),dict(fit='stretch'),dict(corner_clearance=1),dict(end_clearance=1)]:
+        limits=capabilities()['vector_brushes']
+        for patch in [dict(spacing=0),dict(spacing=limits['spacing'][1]+1),dict(phase=limits['phase'][1]+1),dict(corner_angle=0),dict(motif=line([[0,0],[1,0]])),dict(motif=rect(limits['motif_coordinates'][1],0,1,1)),dict(warp=True),dict(fit='stretch'),dict(corner_clearance=1),dict(end_clearance=1)]:
             bad=copy.deepcopy(d);item(bad)['content']['stroke']['brush'].update(patch)
             self.invoke(dict(command='document.validate',document=bad),1)
         for patch in [dict(dash=dict(array=[])),dict(cap='round'),dict(join='bevel'),dict(miter_limit=3),dict(end_arrow=dict(kind='triangle',length=2,width=2))]:

@@ -14,7 +14,7 @@ pub(super) fn launch_lease(
     root: &Path,
     control: &Control,
 ) -> Result<job_process::FileLease, Error> {
-    let until = Instant::now() + Duration::from_secs(2);
+    let until = Instant::now() + Duration::from_millis(crate::limits::jobs::LAUNCH_LOCK_TIMEOUT_MS);
     loop {
         control.check()?;
         if let Some(lease) = job_process::FileLease::try_acquire(&root.join("launch.lock"))? {
@@ -26,7 +26,9 @@ pub(super) fn launch_lease(
                 "Another launcher owns this queue; retry the same request",
             ));
         }
-        std::thread::sleep(Duration::from_millis(10));
+        std::thread::sleep(Duration::from_millis(
+            crate::limits::jobs::LAUNCH_RETRY_INTERVAL_MS,
+        ));
     }
 }
 struct Starting(Option<Child>);
@@ -359,13 +361,15 @@ fn execute(root: &Path, runtime: &Runtime, input: &Input, state: &State) -> Resu
     let mut runner = pending.start()?;
     let mut cancelling = None;
     loop {
-        if let Some(report) = runner.wait_slice(Duration::from_millis(100))? {
+        if let Some(report) = runner.wait_slice(Duration::from_millis(
+            crate::limits::jobs::MONITOR_INTERVAL_MS,
+        ))? {
             return reconcile(root, &input.id, Some(report));
         }
         match store::required(root).and_then(|db| store::state(&db, &input.id)) {
             Ok(current) if current.phase == Phase::Running && current.cancel_requested => {
                 let since = cancelling.get_or_insert_with(Instant::now);
-                if since.elapsed() >= Duration::from_secs(2) {
+                if since.elapsed() >= Duration::from_millis(crate::limits::jobs::CANCEL_GRACE_MS) {
                     runner.stop()?;
                 }
             }
@@ -510,7 +514,9 @@ pub(super) fn attempt(root: &Path, id: &str, attempt: u32) -> Result<(), Error> 
                 if update.is_err_and(|e| e.code != "JOB_BUSY") {
                     monitored.cancel();
                 }
-                std::thread::sleep(Duration::from_millis(100));
+                std::thread::sleep(Duration::from_millis(
+                    crate::limits::jobs::MONITOR_INTERVAL_MS,
+                ));
             }
         })
         .map_err(|_| {
