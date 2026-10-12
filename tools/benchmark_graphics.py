@@ -67,32 +67,6 @@ def verify_history(case):
     case.check('history-valid',lambda:require(result['valid'],'Invalid saved history'))
 
 
-def large_layout(case):
-    items=[rectangle(f'cell-{i}',(i%100)*10,(i//100)*10,6,6,BLUE) for i in range(5000)]
-    seed=case.seed(document('large-layout','vector',1000,500,resource_profile='large_vector',items=items))
-    case.begin('Open source.json as a large vector document, save it, inspect cell-2473, and move only '
-        'that object one pixel right and one pixel down. Preserve the other 4,999 objects, the '
-        'original revision and source file. Review current and historical images and verify history.')
-    saved=store(case,seed)
-    case.call('inspect-target','document.inspect.page',document=saved,
-              options=dict(view=dict(collection='items',ids=['cell-2473'],fields=['geometry','transform','bounds'])))
-    apply(case,'move',0,[dict(op='transform',id='cell-2473',matrix=[1,0,0,1,1,1],space='world')])
-    current=source_snapshot(case,ref(1))
-    def structure():
-        require(len(current['items'])==5000,'Large layout lost objects')
-        for index,item in enumerate(current['items']):
-            require(item['id']==f'cell-{index}','Large layout identity/order changed')
-            require(item['content']['geometry']==items[index]['content']['geometry'],'Source controls changed')
-            require(item['content']['fill']==BLUE,'An unrelated paint changed')
-            require(item['transform']==[1,0,0,1,1 if index==2473 else 0,1 if index==2473 else 0],'Unexpected object movement')
-    case.check('only-target-changed',structure)
-    rects=[((i%100)*10,(i//100)*10,6,6,BLUE) for i in range(5000)]
-    original=pixels(1000,500,rects);rects[2473]=(731,241,6,6,BLUE)
-    view(case,'preview',ref(1),'large-layout-pixels',1000,500,pixels(1000,500,rects),render_options=dict(evaluation='tiled'))
-    view(case,'historical',saved,'historical-pixels',1000,500,original,render_options=dict(evaluation='tiled'))
-    verify_history(case)
-
-
 def svg_artwork(case):
     source=b'<svg xmlns="http://www.w3.org/2000/svg" width="32" height="24"><desc>Original benchmark description</desc><g id="layer" transform="translate(3,2)"><path id="block" d="M2 3 H10 V9 H2 Z" fill="#145096"/></g></svg>'
     case.source('original.svg',source)

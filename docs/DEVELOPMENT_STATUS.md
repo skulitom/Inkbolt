@@ -120,9 +120,18 @@ sets `RUST_TEST_THREADS=1`. Failure assertions retain the returned job details.
 The deadlines and production behavior are unchanged. A complete latest-revision
 hosted matrix remains pending. Local serial checks passed for the deadline test
 in 32.5 seconds and the idle-exit test in 21.1 seconds, including their verification
-overhead. Workflow validation and all 24 repository-guard tests passed. An earlier
+overhead. Workflow validation and all 13 repository-guard tests passed. An earlier
 attempt to run all nine serial job fixtures reached the 180-second quick budget;
 it remains pending, not a full-suite pass. CI's thorough run keeps all fixtures.
+
+The [hosted `43f839e` run](https://github.com/skulitom/Inkbolt/actions/runs/38194879684)
+finished Ubuntu/macOS with one failed stage each: a test of the verifier's
+dependency boundaries omitted the new icon benchmark from its expected consumer
+list. Both the icon and large-layout lifecycle tests are now listed explicitly;
+the assertion remains strict. All 22 verifier tests passed locally on Windows
+and Linux in 30.2 and 15.3 seconds, including verification overhead. New-module
+guidance now includes this focused check. The latest complete hosted matrix is
+still required; those failed runs are not counted as passes.
 
 ## W2 and the next behavior increments
 
@@ -166,7 +175,35 @@ retained before importing its existing source commit, and no trial was counted
 from the failed setup. These are correctness checks under shared host load,
 not isolated performance measurements or actual model evidence.
 
-B03-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B03 separates the original 5,000-object fixture, prompt, reference solver and
+delivery/history judge. It checks every normalized document field for collateral
+changes, both PNGs against independent geometry, and the supplied session's
+original, delivered and current revisions. Rejudging uses the exact saved,
+resource-free historical snapshot without retaining obsolete absolute resource
+roots. The baseline preserves the same JSON input, delivers 5,000 editable SVG
+rectangles and admits their IDs, order, local controls, paints and transforms
+before pinned rendering. Its two engine-only history checks remain explicitly
+not applicable; the original check IDs and classifications are unchanged.
+
+Six focused B03 tests passed on Windows in 157.8 seconds. Linux ran B03 and the
+existing three harness modules, 25 tests, in 123.4 seconds. Both bind fingerprint
+`23aee426077905aff645ae3fc8e7aeb8acb3429efa3bdd51ec0313855fd3c73d`.
+The Windows regression selection ran 25 tests in 94.9 seconds; Linux's reference
+workflow module ran six tests in 66.2 seconds. No selected check failed, remained
+pending or skipped. An initial over-budget B03 attempt remains recorded as
+pending; shared synthetic setup and identical-image oracle reuse reduced the
+final focused run below the 180-second budget without removing fault cases.
+
+Five synthetic-client B03 trials passed with real pinned baseline tools on each
+platform, and all five Windows captures passed rejudging with unchanged inputs.
+The baseline reports bind candidate
+`c0c37081f247dbdffd8942a68f22c71f8b1c2628811c344e7da1e152ddfdb0f2`
+(including the subsequent dependency-expectation correction) and prompt
+`3e72bb258a2b271bf6722bd290bc8c2e481b31c905c0dd9e085d86fbab9c4c3d`.
+These are correctness checks on a shared host; no actual model, isolated
+performance measurement or complete W2 acceptance is claimed.
+
+B04-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

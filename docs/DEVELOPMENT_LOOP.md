@@ -22,6 +22,10 @@ count as Linux feature passes.
 | Staged publication check | `python tools/check_repo.py --staged` |
 | Explicit public-clone check | `python tools/verify.py --public` |
 
+When adding test modules or changing helper imports, include `test_verification`
+in the focused selection. Its dependency-boundary checks catch stale expected
+consumer lists before a full CI run.
+
 The checked-in toolchain pins Rust 1.98.1, rustfmt and Clippy. Rust 1.89 is the
 verified compiler minimum for the locked dependency graph and current sources;
 use `cargo +1.89.0 check --locked --all-targets` for its separate compatibility

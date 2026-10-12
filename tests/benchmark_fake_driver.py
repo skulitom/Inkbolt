@@ -11,6 +11,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
 from benchmark_diagram import solve,expected_picture
 from benchmark_icons import solve as solve_icons, expected_board, COLORS
+from benchmark_large_layout import solve as solve_layout, expected_picture as expected_layout
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -20,12 +21,23 @@ ICONS_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="112" height="32">'+'
     for i,color in enumerate(COLORS))+'</svg>'
 
 
+def layout_svg(source):
+    # This synthetic client converts the common JSON fixture without any engine.
+    parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500">']
+    for item in source['items']:
+        geometry = item['content']['geometry']
+        attributes = ' '.join(f'{key}="{geometry[key]}"' for key in ('x','y','width','height'))
+        transform = ' transform="translate(1,1)"' if item['id'] == 'cell-2473' else ''
+        parts.append(f'<rect id="{item["id"]}" {attributes} fill="#145096"{transform}/>')
+    return ''.join(parts)+'</svg>'
+
+
 def main():
     request=json.loads(Path(sys.argv[-1]).read_text(encoding='utf-8'))
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02')
+    assert task in ('B01','B02','B03')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,**arguments):
             payload=json.dumps(dict(command=command,**arguments)).encode()
@@ -34,12 +46,18 @@ def main():
             events.append(dict(step=step,request=payload.decode(),response=process.stdout.decode()))
             assert response['ok'] and process.returncode==0
             return response['result']
-        (solve if task=='B01' else solve_icons)(SimpleNamespace(root=root,call=call))
+        {'B01':solve, 'B02':solve_icons, 'B03':solve_layout}[task](SimpleNamespace(root=root,call=call))
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
-        (root/'editable.svg').write_text(SVG if task=='B01' else ICONS_SVG,encoding='utf-8')
+        source = layout_svg(json.loads((root/'source.json').read_bytes())) if task=='B03' else SVG if task=='B01' else ICONS_SVG
+        (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B02':
+        if task=='B03':
+            if renderer['version']=='synthetic-fixture':
+                (root/'preview.png').write_bytes(png(1000,500,expected_layout()))
+            else:
+                subprocess.run([renderer['path'],'--skip-system-fonts',str(root/'editable.svg'),str(root/'preview.png')],check=True)
+        elif task=='B02':
             if renderer['version']=='synthetic-fixture':
                 for i in range(3): (root/f'board-{i}.png').write_bytes(png(32,32,expected_board(i)))
             else:
@@ -55,14 +73,14 @@ def main():
                 str(root/'editable.svg'),str(root/'preview.png')],check=True)
         events.append(dict(kind='synthetic',action='authored baseline fixture'))
     if '--changed-prompt' in sys.argv: (root/'task.txt').write_text('changed',encoding='utf-8')
-    if '--wrong-image' in sys.argv: (root/('preview.png' if task=='B01' else 'board-1.png')).write_bytes(png(1,1,b'\0'*4))
+    if '--wrong-image' in sys.argv: (root/('board-1.png' if task=='B02' else 'preview.png')).write_bytes(png(1,1,b'\0'*4))
     target=Path(request['result_path'])
     (target.parent/'transcript.jsonl').write_text('\n'.join(json.dumps(row) for row in events)+'\n',encoding='utf-8')
     observed=None
     if '--usage' in sys.argv:
         observed=dict(source='client_reported',token_usage=dict(input_tokens=20,output_tokens=10),model_calls=2,agent_seconds=1.5)
     if '--preview-usage' in sys.argv:
-        preview=root/('preview.png' if task=='B01' else 'board-1.png')
+        preview=root/('board-1.png' if task=='B02' else 'preview.png')
         observed=dict(source='client_reported',agent_seconds=1.5,first_preview_seconds=.5,
                       first_preview_sha256=hashlib.sha256(preview.read_bytes()).hexdigest())
     if '--invalid-usage' in sys.argv: observed=dict(source='client_reported',model_calls=True)

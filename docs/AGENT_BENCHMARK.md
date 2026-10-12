@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01 also supports `--arm model` and
+`--arm reference` is the existing default. B01-B03 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -75,7 +75,21 @@ before independent pinned rendering. Tests cover different document/session name
 wrong geometry/ownership/IDs, stale correct solver logs, malformed or missing
 images, baseline isolation and captured-trial import.
 
-B03-B20 still interleave solving and judging. All required checks have
+B03 now has its own fixture, [prompt](../tools/benchmark_prompts/B03.md), reference
+solver and independent judge in `benchmark_large_layout.py`. The judge reads
+the delivered snapshot, PNGs and a solver-chosen session locator. It checks the
+entire normalized document for collateral changes, freshly renders both current
+and original saved snapshots, and binds valid history to the original fixture,
+final delivery and session's current revision. The baseline reads the identical
+JSON fixture and delivers editable SVG and a PNG; its source controls, IDs,
+order, transforms and every final pixel are checked without launching Inkbolt.
+The original four check IDs remain; saved-revision pixels and history integrity
+are explicitly engine-only. Negative fixtures cover unrelated edits, false or
+stale session references, wrong/missing images and source changes. Rejudging a
+captured trial retains its exact workspace bytes; the historical render uses
+the saved resource-free snapshot without its old absolute resource roots.
+
+B04-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 

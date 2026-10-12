@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01 and B02. B03-B20 remain visible as
+The W2 external lifecycle currently supports B01-B03. B04-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -51,7 +51,8 @@ external-client reports describe the actual adapter protocol as external.
 ## Pinned baseline
 
 The no-engine arm uses the same prompt and original inputs. B01 includes the
-original named font; B02 has no asset dependencies. It does not build,
+original named font; B02 has no asset dependencies; B03 supplies the same original
+5,000-object JSON layout to both arms. The baseline does not build,
 configure or launch Inkbolt. Provide an external JSON file with exactly `resvg`
 and `python` absolute executable paths. The tools must be resvg **0.47.0** and a
 Python environment containing Pillow **12.3.0**. Tool executable hashes and a
@@ -80,6 +81,17 @@ Inkbolt arm. No engine process or build is used in this baseline. The model arm
 validates the delivered snapshot and freshly renders all three artboards; judge
 traffic is recorded separately from the solve. Document, session and request names
 are unconstrained; stable board/icon IDs are explicit task requirements.
+
+B03 delivers `editable.svg` and `preview.png` in the baseline. The
+[shared large-layout prompt](../tools/benchmark_prompts/B03.md) specifies all
+5,000 stable IDs and local controls, and the one translated object. The SVG
+judge rejects extra content, resources, changed controls and other transforms
+before pinned rendering. Both arms compare every delivered and freshly rendered
+pixel against the same independent geometry. The model arm also delivers
+`editable.json`, `historical.png` and `session.json`; the locator names its chosen
+session and original/current revisions. History must contain the exact fixture
+and final snapshot, and its current revision must match the final delivery.
+Those two engine-only history checks are explicitly not applicable in the baseline.
 
 Observed first-preview timing is accepted only when its artifact hash matches a
 delivered image whose corresponding pixel check passed. B02 can identify any of
