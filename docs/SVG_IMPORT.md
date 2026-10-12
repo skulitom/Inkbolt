@@ -8,7 +8,7 @@ See the generated [limit reference](LIMITS.md) for centralized resource ceilings
 
 Negative and fractional coordinate fidelity, normalization tolerance and consumer-preview boundaries are documented in [COORDINATE_PRECISION.md](COORDINATE_PRECISION.md).
 
-`svg.import` accepts an explicit local file or inline UTF-8 text and returns a new vector document, a source-byte SHA-256 receipt, an element-to-item mapping and normalization losses. It never writes to the source or fetches linked resources. The same command is available through the Rust library, JSON CLI and MCP stdio.
+`svg.import` accepts an explicit local file or inline UTF-8 text and returns a new vector document, a source-byte SHA-256 receipt, an element-to-item mapping, normalization losses and an `approximations` array (empty when no arcs/corners were normalized). It never writes to the source or fetches linked resources. The same command is available through the Rust library, JSON CLI and MCP stdio.
 
 ```json
 {"command":"svg.import","id":"diagram","source":{"kind":"file","source_path":"C:/Graphics/input.svg"}}
@@ -20,7 +20,54 @@ For inline input, use `source: {"kind":"text","text":"<svg ...>...</svg>"}`. The
 
 The root must be `svg`, with the SVG namespace or no namespace consistently throughout. Explicit width and height must resolve within 0.000001..32768 logical pixels at 96 pixels/inch. Fractional dimensions retain a [logical vector canvas](VECTOR_CANVAS.md) with a ceiling-sized preview grid. User units, px, in, cm, mm, pt and pc are supported. Percentage and font-relative canvas sizes fail. Geometry remains fractional f64. A positive `viewBox` becomes the root group's affine transform, with the nine min/mid/max alignments, meet/slice or none; default is xMidYMid meet. PNG rendering clips at the canvas viewport. Root transforms compose outside the viewBox mapping. Nested SVG viewports remain unsupported.
 
-Supported elements are groups, positive-size rectangles without rounded corners, ellipses, circles, lines, polygons, polylines and paths. Path commands M/L/H/V/C/S/Q/T/Z support absolute/relative coordinates, repeated parameter groups, implicit lines after moveto, smooth-handle reflection and finite exponent notation. Quadratics convert to cubics mathematically exactly up to f64 roundoff. A drawing command after close starts a new contour at the closed contour's start. Empty/non-drawable contours and repeated close commands fail under the current path model. Elliptical path arcs remain unsupported. Transform lists support matrix, translate, scale, rotate with an optional center, and skewX/skewY. Singular/out-of-range transforms fail under the shared document limits.
+Supported elements are groups, positive-size rectangles with optional rounded corners, ellipses, circles, lines, polygons, polylines and paths. Path commands M/L/H/V/C/S/Q/T/A/Z support absolute/relative coordinates, repeated parameter groups, implicit lines after moveto, smooth-handle reflection and finite exponent notation. Quadratics convert to cubics mathematically exactly up to f64 roundoff. A drawing command after close starts a new contour at the closed contour's start. Empty/non-drawable contours and repeated close commands fail under the current path model. Transform lists support matrix, translate, scale, rotate with an optional center, and skewX/skewY. Singular/out-of-range transforms fail under the shared document limits.
+
+Elliptical arcs follow the public [SVG endpoint-to-center and radius-correction
+rules](https://www.w3.org/TR/SVG/implnote.html#ArcImplementationNotes). Negative
+radii use their absolute values; insufficient radii grow proportionally to
+connect the endpoints. A zero radius draws a line, and identical endpoints add
+no segment. These commands reset smooth cubic/quadratic reflection. Flags must
+be single `0` or `1` characters; compact adjacent flags and coordinates are
+accepted. Corrected radii are bounded by the shared 32,768 local-unit coordinate
+ceiling. Nonfinite or numerically unreconstructable geometry fails explicitly.
+
+Nondegenerate arcs become tangent cubics spanning at most 90 degrees each,
+subdivided until the maximum radial error bound is at most **0.001 source-element
+local units**. The bound excludes binary64 roundoff and renderer sampling. It
+applies before element, ancestor, viewport and object-box transforms: for an
+affine linear part `L`, document-space error is bounded by the reported local
+error times the largest singular value of `L`. It is not a fixed pixel error.
+For clip definitions, all resolved clip/object-box transforms also apply.
+Expanded commands consume the existing per-path and aggregate geometry budgets;
+the importer never drops a segment to fit a budget.
+
+Each source element using arcs has one receipt entry, including clip-definition
+and mask-source elements. Entries carry `source_id`, `element`, XML `byte_offset`,
+`method`, `coordinate_space`, `binary64_roundoff_included:false`, and `arcs` with
+`arc_commands`, `cubic_segments`, `zero_radius_lines`, `coincident_endpoints`, and
+`max_radial_error_local`. The last field is the maximum bound for that element,
+not the sum of its segments. Degenerate-only entries have zero approximation
+error. Entries are ordered by source offset; unused clip definitions can also
+appear because their geometry is validated during import.
+
+The original error derivation uses `h=tan(abs(segment_angle)/4)`. A unit-circle
+tangent cubic's squared radial excess is
+`16*h^6/(1+h*h)^2 * t*t*(1-t)^2*(2*t-1)^2`. The last polynomial is bounded by
+`1/108`, and `sqrt(1+x)-1 <= x/2`. Multiplying the resulting distance bound by
+`max(rx,ry)` bounds elliptical radial projection distance. The implementation
+also adds the maximum endpoint reconstruction adjustment, preserves supplied
+endpoints exactly and rejects adjustments exceeding the tolerance. This is a
+geometric approximation bound, not an interval-arithmetic floating-point proof.
+
+Rounded rectangles follow the [SVG radius defaulting and clamping
+rules](https://www.w3.org/TR/SVG2/shapes.html#RectElement) for the supported length
+subset. Omitted or `auto` radii copy the other radius before each axis is clamped
+to half its corresponding rectangle extent. Both automatic, or either zero,
+produce square corners. Negative radii fail; percentages and CSS geometry
+properties remain unsupported. Equal and unequal radii both expand to ordinary
+editable paths using the same arc contract and receipt. Original corner
+parameters are not retained. Snapshots retain the emitted cubics exactly; SVG
+export emits cubics and reimport does not approximate them a second time.
 
 Presentation attributes and a bounded inline `style` subset resolve before document validation. Inline declarations override attributes; the last repeated inline declaration wins. Fill/stroke, their opacity, fill rule, color, width, cap, join, miter limit and visibility inherit. `currentColor` follows the descendant's computed color. Explicit `inherit` is accepted on these inherited properties. Fill defaults to black, stroke to none. Colors support three/six-digit hex, comma-separated integer or percentage rgb(), the sixteen basic color names and transparent. Unsupported paint servers, CSS classes/selectors, stylesheets, CSS variables, comments inside style declarations, `!important`, other color syntaxes and out-of-range component values fail. Gradient definitions accept sRGB or linearRGB interpolation; ordinary artwork/group compositing remains sRGB.
 
@@ -78,7 +125,7 @@ Opacity masks inside a mask source, mask-definition transforms, images, filters 
 
 ## Explicit boundaries
 
-Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Linked/embedded images, use/symbol references, filters, animations, scripts, nested viewports, rounded rectangle attributes and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
+Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Linked/embedded images, use/symbol references, filters, animations, scripts, nested viewports and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
 
 Standard input is at most 256 KiB and 4096 XML nodes. Explicit `resource_profile: "large_vector"` admits 8 MiB, 65536 XML nodes, 8192 items and 131072 aggregate commands within an 8 MiB snapshot; see [LARGE_VECTOR.md](LARGE_VECTOR.md). XML DTD declarations/markers and processing instructions are rejected; no entity resolver is installed. UTF-8 is required (an optional UTF-8 BOM is retained in the source hash). Local files are opened read-only, checked for regular-file semantics and read with a hard byte cap. Each numeric sequence is bounded to 32768 tokens, each transform list to 64 functions, definitions to 64 and gradient reference chains to 16, and all imported geometry participates in profile-specific limits (standard: 256 items including the root, 16 ancestor levels, 4096 aggregate path commands, coordinate/transform bounds and a 768 KiB snapshot). Rendering retains its separate work/pixel budgets. Cancellation is checked during node traversal and document validation; blocking filesystem reads are not forcefully interrupted.
 

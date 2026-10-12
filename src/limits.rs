@@ -1829,6 +1829,8 @@ pub mod svg_import_definitions {
 
 /// Limits for `src/svg_import.rs`.
 pub mod svg_import {
+    /// Maximum tangent-cubic radial error in source-element local units, excluding binary64 roundoff.
+    pub const ARC_RADIAL_TOLERANCE: f64 = 0.001;
     /// Maximum transform functions on one SVG element.
     pub const MAX_TRANSFORMS: usize = 64;
     /// Maximum UTF-8 bytes of an SVG font family or explicit family binding.

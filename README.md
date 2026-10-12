@@ -86,9 +86,10 @@ The standard document profile holds 256 items; explicit large-vector and [large-
 
 Sessions retain external resource bindings, not a self-contained resource archive. History has explicit limits and no silent eviction. Checked backup, migration and linked continuation are available. Optional durable output receipts support recovery on the Windows and Linux backends. [Durable export jobs](docs/JOBS.md) use the contained worker library for process lifetime and memory limits. Production-sized raster editing and complete readiness evidence remain open. Unknown semantics fail explicitly.
 
-SVG import remains a strict subset: elliptical arcs and rounded rectangles are
-currently refused. Linux background jobs and actual model-versus-baseline
-usability evidence remain open.
+SVG import accepts elliptical arcs and rounded rectangles as editable paths
+with declared approximation bounds. It remains a strict subset; see
+[SVG import](docs/SVG_IMPORT.md). Linux background jobs and actual
+model-versus-baseline usability evidence remain open.
 
 **Engine scope: 163/167 independently verified checkpoints (97.60%).** Four checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
 

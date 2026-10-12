@@ -153,6 +153,8 @@ BINDINGS = {
     'supported/text/feature_controls': 'fonts.MAX_FEATURES',
     'svg_import/definition_limit': 'svg_import_definitions.MAX_DEFINITIONS',
     'svg_import/reference_depth': 'svg_import_definitions.MAX_REFERENCE_DEPTH',
+    'svg_import/arcs/max_radial_error_local': 'svg_import.ARC_RADIAL_TOLERANCE',
+    'svg_import/arcs/max_normalized_radius': 'model.MAX_COORDINATE',
     'svg_import/source_bytes': 'svg_import.MAX_BYTES',
     'svg_import/text/font_bindings': 'fonts.MAX_FONTS',
     'svg_import/xml_nodes': 'svg_import.MAX_NODES',

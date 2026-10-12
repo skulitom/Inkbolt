@@ -15,11 +15,13 @@ enum Token {
 
 // Original scanner for the public SVG numeric grammar. A comma must separate
 // two numbers; signs and decimal points can start an adjacent number.
-fn tokens(s: &str) -> Result<Vec<Token>, Error> {
+fn tokens(s: &str, path_data: bool) -> Result<Vec<Token>, Error> {
     let b = s.as_bytes();
     let mut i = 0;
     let mut result = Vec::new();
     let mut number_before = false;
+    let mut command = 0u8;
+    let mut parameter = 0;
     while i < b.len() {
         if b[i].is_ascii_whitespace() {
             i += 1;
@@ -38,9 +40,21 @@ fn tokens(s: &str) -> Result<Vec<Token>, Error> {
             }
         }
         if b[i].is_ascii_alphabetic() {
+            command = b[i].to_ascii_uppercase();
+            parameter = 0;
             result.push(Token::Command(b[i]));
             number_before = false;
             i += 1;
+        } else if path_data && command == b'A' && matches!(parameter % 7, 3 | 4) {
+            // SVG flags are single characters, including adjacent forms such as
+            // `... 0110 20` (flags 0,1 followed by x=10), never generic numbers.
+            if !matches!(b[i], b'0' | b'1') {
+                return Err(invalid("Arc flags must be the single character 0 or 1"));
+            }
+            result.push(Token::Number(f64::from(b[i] - b'0')));
+            i += 1;
+            parameter += 1;
+            number_before = true;
         } else {
             let start = i;
             if b"+-".contains(&b[i]) {
@@ -81,6 +95,7 @@ fn tokens(s: &str) -> Result<Vec<Token>, Error> {
                 return Err(invalid("Number is not finite"));
             }
             result.push(Token::Number(value));
+            parameter += 1;
             number_before = true;
         }
         if result.len() > MAX_SEGMENTS * 8 {
@@ -93,7 +108,7 @@ fn tokens(s: &str) -> Result<Vec<Token>, Error> {
     Ok(result)
 }
 pub(super) fn list(s: &str) -> Result<Vec<f64>, Error> {
-    tokens(s)?
+    tokens(s, false)?
         .into_iter()
         .map(|t| match t {
             Token::Number(n) => Ok(n),
@@ -220,8 +235,8 @@ pub(super) fn transform(s: &str) -> Result<Matrix, Error> {
     Ok(matrix)
 }
 
-pub(super) fn path(s: &str) -> Result<Geometry, Error> {
-    let ts = tokens(s)?;
+pub(super) fn path(s: &str, arcs: &mut super::arcs::Summary) -> Result<Geometry, Error> {
+    let ts = tokens(s, true)?;
     let mut i = 0;
     let mut active = 0u8;
     let mut current = [0.0; 2];
@@ -247,10 +262,10 @@ pub(super) fn path(s: &str) -> Result<Geometry, Error> {
             b'C' => 6,
             b'S' | b'Q' => 4,
             b'Z' => 0,
-            b'A' => return Err(unsupported("Elliptical path arcs are not yet supported")),
+            b'A' => 7,
             _ => return Err(invalid("Unknown path command")),
         };
-        let mut n = [0.0; 6];
+        let mut n = [0.0; 7];
         for value in n.iter_mut().take(count) {
             if let Some(Token::Number(v)) = ts.get(i) {
                 *value = *v;
@@ -271,6 +286,15 @@ pub(super) fn path(s: &str) -> Result<Geometry, Error> {
         let mut next_quad = None;
         if closed && op != b'M' && op != b'Z' {
             commands.push(PathCommand::Move { to: current });
+        }
+        if op == b'A' {
+            let to = p(n[5], n[6]);
+            super::arcs::append(&mut commands, current, to, &n[..5], arcs)?;
+            current = to;
+            cubic = None;
+            quadratic = None;
+            closed = false;
+            continue;
         }
         let command = match op {
             b'M' => {

@@ -92,6 +92,7 @@ pub(super) struct Definitions {
     gradients: BTreeMap<String, Gradient>,
     clips: BTreeMap<String, ClipTemplate>,
     pub records: Vec<Value>,
+    pub approximations: Vec<Value>,
     pub masks: BTreeMap<String, masking::Template>,
 }
 pub(super) struct Binding {
@@ -340,7 +341,7 @@ impl Definitions {
                 ));
             }
             let cs = styled(&style, &props)?;
-            let g = shape(*child)?;
+            let g = shape(*child, &mut self.approximations)?;
             crate::geometry::validate_geometry(&g)?;
             let hidden = props.get("display") == Some(&"none") || !cs.visible;
             (

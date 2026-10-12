@@ -27,8 +27,8 @@ standing authorization.
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
 | W1 | Linux tier 1, toolchain pinning and public guard verified; hosted Linux passed; path-alias repairs pass focused Windows/Linux checks | Assess the repaired Windows/Linux/macOS matrix; macOS tier 1 and Unix jobs remain open |
 | W2 | B01 external model/baseline lifecycle, captured-trial import and fake-driver checks pass focused Windows/Linux checks; real pinned SVG baseline tested with a synthetic client | Migrate remaining task fixtures/prompts/judges and comparison reporting; real model evidence remains required |
-| W5.1 | Single-copy PNG delivery and structured responses implemented; focused Windows/Linux checks and traffic measurements pass | Complete fresh thorough acceptance before closing the workstream |
-| W3a.1-2 / W3b | Arcs, rounded rectangles and SVG insertion remain open | Deliver these bounded input/authoring increments alongside W2 preparation |
+| W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
+| W3a.1-2 / W3b | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance. SVG insertion remains open | Deliver SVG insertion alongside W2 preparation; other W3a items remain open |
 | W3c / W4 / W5.2+ / W6 | Open; substantial work | Use W2's decision rule below to select and sequence the next measured increments |
 | W7 / W8 | Distribution and published usability evidence remain open; README checkpoint headline moved | Ship only verified platform tiers; publish comparable results after trials |
 | W9 | Deferred, outside active scope | No learned-model plugin work |

@@ -681,6 +681,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `strokes_outline.MAX_SUBDIVISION_DEPTH` | `usize` | 24 | `24` |
 | `strokes_outline.ROUNDING_EPSILONS` | `u32` | 8 | `8` |
 | `svg.MAX_MESH_COVERAGE_COORDINATE` | `f64` | 1000000000.0 | `1e9` |
+| `svg_import.ARC_RADIAL_TOLERANCE` | `f64` | 0.001 | `0.001` |
 | `svg_import.MAX_BYTES` | `usize` | 262144 | `256 * 1024` |
 | `svg_import.MAX_FONT_FAMILY_BYTES` | `usize` | 256 | `256` |
 | `svg_import.MAX_LARGE_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |

@@ -1,4 +1,5 @@
 //! Bounded, original SVG-to-document mapping using a public XML parser.
+mod arcs;
 mod definitions;
 pub use definitions::{MAX_DEFINITIONS, MAX_REFERENCE_DEPTH};
 mod labels;
@@ -464,19 +465,61 @@ fn shape_attributes(tag: &str) -> Result<&'static [&'static str], Error> {
         _ => return Err(unsupported(format!("Geometry <{tag}> is not supported"))),
     })
 }
-fn shape(node: Node<'_, '_>) -> Result<Geometry, Error> {
+fn shape(node: Node<'_, '_>, approximations: &mut Vec<Value>) -> Result<Geometry, Error> {
+    let mut summary = arcs::Summary::default();
+    let geometry = shape_geometry(node, &mut summary)?;
+    if summary.arc_commands != 0 {
+        approximations.push(json!({"source_id":node.attribute("id"),"element":node.tag_name().name(),
+            "byte_offset":node.range().start,"method":"tangent_cubics","coordinate_space":"source_element_local_before_transforms",
+            "binary64_roundoff_included":false,"arcs":summary}));
+    }
+    Ok(geometry)
+}
+fn shape_geometry(node: Node<'_, '_>, summary: &mut arcs::Summary) -> Result<Geometry, Error> {
     Ok(match node.tag_name().name() {
         "rect" => {
-            if attr(node, "rx", 0.0)? != 0.0 || attr(node, "ry", 0.0)? != 0.0 {
-                return Err(unsupported(
-                    "Rounded SVG rectangles are not yet supported; supply explicit cubic paths",
-                ));
-            }
-            Geometry::Rect {
-                x: attr(node, "x", 0.0)?,
-                y: attr(node, "y", 0.0)?,
-                width: length(required(node, "width")?)?,
-                height: length(required(node, "height")?)?,
+            let x = attr(node, "x", 0.0)?;
+            let y = attr(node, "y", 0.0)?;
+            let width = length(required(node, "width")?)?;
+            let height = length(required(node, "height")?)?;
+            let rectangle = Geometry::Rect {
+                x,
+                y,
+                width,
+                height,
+            };
+            geometry::validate_geometry(&rectangle)?;
+            let radius = |name| -> Result<Option<f64>, Error> {
+                let Some(value) = node.attribute(name).filter(|v| v.trim() != "auto") else {
+                    return Ok(None);
+                };
+                let value = length(value)?;
+                if value < 0.0 {
+                    return Err(invalid("Rectangle corner radii must not be negative"));
+                }
+                Ok(Some(value))
+            };
+            let rx = radius("rx")?;
+            let ry = radius("ry")?;
+            let rx_used = rx.or(ry).unwrap_or(0.0).min(width / 2.0);
+            let ry_used = ry.or(rx).unwrap_or(0.0).min(height / 2.0);
+            if rx_used == 0.0 || ry_used == 0.0 {
+                rectangle
+            } else {
+                let rx = rx_used;
+                let ry = ry_used;
+                let mut commands = vec![PathCommand::Move { to: [x + rx, y] }];
+                for (from, to) in [
+                    ([x + width - rx, y], [x + width, y + ry]),
+                    ([x + width, y + height - ry], [x + width - rx, y + height]),
+                    ([x + rx, y + height], [x, y + height - ry]),
+                    ([x, y + ry], [x + rx, y]),
+                ] {
+                    commands.push(PathCommand::Line { to: from });
+                    arcs::append(&mut commands, from, to, &[rx, ry, 0.0, 0.0, 1.0], summary)?;
+                }
+                commands.push(PathCommand::Close {});
+                Geometry::Path { commands }
             }
         }
         "ellipse" | "circle" => Geometry::Ellipse {
@@ -529,7 +572,7 @@ fn shape(node: Node<'_, '_>) -> Result<Geometry, Error> {
             }
             Geometry::Path { commands }
         }
-        "path" => numbers::path(required(node, "d")?)?,
+        "path" => numbers::path(required(node, "d")?, summary)?,
         _ => {
             return Err(unsupported(format!(
                 "Element <{}> is not supported",
@@ -605,6 +648,7 @@ struct Importer {
     document: Document,
     mappings: Vec<Value>,
     losses: Vec<String>,
+    approximations: Vec<Value>,
     definitions: definitions::Definitions,
     bindings: Vec<definitions::Binding>,
     fonts: labels::Fonts,
@@ -753,7 +797,7 @@ impl Importer {
                     })
                 });
             Content::Vector {
-                geometry: shape(node)?,
+                geometry: shape(node, &mut self.approximations)?,
                 fill,
                 stroke,
                 fill_rule: style.rule,
@@ -971,7 +1015,7 @@ pub fn import_controlled(
     } else {
         [width, height]
     };
-    let mut importer=Importer{control:control.clone(),document,mappings:vec![],definitions:Default::default(),bindings:vec![],
+    let mut importer=Importer{control:control.clone(),document,mappings:vec![],approximations:vec![],definitions:Default::default(),bindings:vec![],
         fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), losses:vec![
         "Source IDs are mapped to deterministic item IDs; the root is an editable group. Retain the source for XML formatting, comments and original IDs.".into(),
         "Presentation inheritance and inline style are resolved. Quadratic curves and shorthand become explicit cubic/line commands; units/viewBox become affine transforms. Original syntax is not retained.".into(),
@@ -1036,6 +1080,15 @@ pub fn import_controlled(
     // Validate geometry/hierarchy before deriving local bounding boxes or paints.
     validate_controlled(&importer.document, control)?;
     importer
+        .approximations
+        .append(&mut importer.definitions.approximations);
+    importer
+        .approximations
+        .sort_by_key(|v| v["byte_offset"].as_u64());
+    if !importer.approximations.is_empty() {
+        importer.losses.push("Elliptical arcs and rounded rectangle corners become editable tangent cubics (degenerate arcs become lines or no segment). The approximations receipt bounds radial error in source-element local units, before transforms and excluding binary64 roundoff. Original arc/corner parameters are not retained.".into());
+    }
+    importer
         .definitions
         .apply(&mut importer.document, &importer.bindings, user_viewport)?;
     masking::apply(
@@ -1054,6 +1107,6 @@ pub fn import_controlled(
     importer.losses.sort();
     importer.losses.dedup();
     Ok(
-        json!({"document":importer.document,"source":{"sha256":hash,"bytes":bytes.len(),"media_type":"image/svg+xml"},"mapping":importer.mappings,"definitions":importer.definitions.records,"losses":importer.losses}),
+        json!({"document":importer.document,"source":{"sha256":hash,"bytes":bytes.len(),"media_type":"image/svg+xml"},"mapping":importer.mappings,"definitions":importer.definitions.records,"losses":importer.losses,"approximations":importer.approximations}),
     )
 }

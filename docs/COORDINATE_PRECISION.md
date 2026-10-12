@@ -19,6 +19,7 @@ proof, fallback algorithm, precision tier or admission bound.
 | Direct SVG geometry and matrix literals | Decimal text that round-trips to the same stored binary64 value; zero absolute transport error |
 | Direct clip and gradient coordinate literals | The same decimal round-trip contract, including transforms and stop offsets |
 | SVG units, viewBox, relative/shorthand paths and transform lists | Normalize through binary64 arithmetic; resulting coordinates are then retained exactly |
+| Imported SVG arcs and rounded rectangle corners | Tangent cubics with a declared source-local radial bound; see [SVG import](SVG_IMPORT.md) for transform amplification and roundoff exclusions |
 | Generated geometry | The generating operation's documented tolerance, followed by exact transport of its resulting values |
 | Preview/image coverage | Binary64 placement followed by output-space binary32 controls and quantized antialias coverage; neither exact geometric pixel area nor a measure of coordinate transport error |
 

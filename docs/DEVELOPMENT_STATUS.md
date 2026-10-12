@@ -7,7 +7,7 @@ or additional engine-checkpoint completion.
 
 ## W0: closed
 
-**Complete, 11 October 2026.** The central catalog contains 773 documented
+**Complete, 11 October 2026.** The central catalog at that milestone contained 773 documented
 resource, admission, numerical and work-accounting constants. Shared raster/tile
 policies derive from common definitions; independent policies retain their own
 names even when values coincide. Existing module paths remain compatible and
@@ -124,7 +124,43 @@ full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the S
 bounded increments. W2 evidence will sequence the substantial work using the
 plan's decision rule; accepted outcomes remain required.
 
-## W5.1: implemented, fresh full acceptance pending
+## W3a.1-2: complete within the declared SVG subset
+
+Elliptical path arcs and rounded rectangles now import as ordinary editable
+cubics with source-element approximation receipts. Arc handling covers relative
+coordinates, rotation, all flag combinations, adjacent flag syntax, proportional
+radius correction, zero-radius lines and coincident endpoints. Rectangle radii
+default independently, clamp to their respective half-extents and support
+unequal elliptical corners. Clip and mask sources use the same conversion.
+See [SVG import](SVG_IMPORT.md) for the local error bound, floating-point limits,
+losses and remaining unsupported input.
+
+Original analytic ellipse fixtures check each curve against known geometry,
+sweep direction and the declared error bound. Checks also cover exact interior
+pixels, overflow refusal, SVG/snapshot persistence, MCP, file preservation,
+session edits and undo. The first focused 60-test pass took 26.2 seconds on
+Windows (reusing its unchanged Cargo checks) and 69.2 seconds on Linux (including
+fresh build/Clippy). Related Windows text, coordinate and large-vector
+regressions passed in 41.0 seconds. Near-zero and almost-full-circle cases also
+pass independent geometry checks. W3b SVG insertion and the other W3a items
+remain open. The engine registry is unchanged.
+
+Fresh combined W3a.1-2/W5.1 acceptance on 12 October passed all **218 stages**
+on each platform, with no failed, pending or reused checks and unchanged inputs.
+Both reports bind candidate fingerprint
+`4194d5e095e6e9372d4ed8b2cbb883ea69a598e4375231a993ff0d92762bd088`.
+
+| Platform | Rust tests | Python tests executed | Explicit skips | Duration |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 208 | 2,308 | 1 | 1489.2 s |
+| Linux / WSL | 177 | 2,275 | 34 | 829.3 s |
+
+These full correctness runs overlapped on the shared host with two workers each;
+their durations are not isolated performance measurements. Focused feedback
+remains bounded by the ordinary 180-second quick mode. Subsequent changes in this
+milestone are documentation of these results only.
+
+## W5.1: complete within the declared response contract
 
 All MCP formats now send supported PNG payloads once using the existing payload
 references. Default JSON and Markdown retain textual metadata envelopes;
@@ -152,8 +188,9 @@ seconds and benchmark adapters in 158.5 seconds. The Linux build consumed most
 of its first 180-second window; five pending checks completed in a 37.4-second
 resume using identical passes. Broader Linux workflows and benchmark adapters
 passed in 60.9 seconds, with one explicit Windows-job recovery skip. No selected
-checks remain failed or pending. Fresh thorough milestone acceptance is still
-required before W5.1 is closed; no engine-checkpoint credit changes.
+checks remain failed or pending. The fresh combined full acceptance recorded
+above closes W5.1. Broader W5 interface changes, real model trials and the
+unchanged engine-checkpoint criteria remain separate work.
 
 ## Earlier scale baseline
 
