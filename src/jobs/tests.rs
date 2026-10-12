@@ -86,8 +86,11 @@ impl Owned {
         store::state(&store::required(&self.jobs()).unwrap(), "one").unwrap()
     }
     fn terminal(&self) -> Value {
+        self.terminal_for("one")
+    }
+    fn terminal_for(&self, id: &str) -> Value {
         let mut last = json!(null);
-        self.until(|| match status(&self.jobs(), "one", &Control::default()) {
+        self.until(|| match status(&self.jobs(), id, &Control::default()) {
             Ok(r) => {
                 last = r;
                 !["queued", "running"].contains(&last["state"].as_str().unwrap())
@@ -427,9 +430,7 @@ fn enqueue_during_idle_exit_cannot_lose_the_new_job() {
     assert!(!thread.is_finished());
     owned.release();
     thread.join().unwrap().unwrap();
-    owned.until(|| {
-        status(&owned.jobs(), "second", &Control::default()).unwrap()["state"] == "completed"
-    });
+    assert_eq!(owned.terminal_for("second")["state"], "completed");
     assert!(owned.root.join("second.png").exists());
 }
 

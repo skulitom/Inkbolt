@@ -72,8 +72,8 @@ The owner approved activation, the exact workflow-path rule and Cargo cache on
 the initial 3.11.13 pin has only Linux hosted distributions. CI now pins 3.13.16,
 whose official setup manifest includes all three runner platforms/architectures;
 Python 3.11 remains the supported minimum and the locally verified version.
-The complete hosted matrix has not passed. Local verification does
-not establish GitHub cache behavior, macOS or a passing hosted matrix. See
+The complete hosted matrix on the latest revision has not passed. Local
+verification does not replace those hosted results. See
 [platform coverage](PLATFORMS.md).
 
 The Linux job in [the first hosted run](https://github.com/skulitom/Inkbolt/actions/runs/38182183426)
@@ -92,13 +92,25 @@ Focused Windows verification passed in 108.2 seconds after the first 180-second
 window left Rust compilation pending. Linux checks took 114.8 seconds and caught
 a test-client configuration mistake; correcting that fixture and rerunning only
 the failure passed in 8.0 seconds. The engine fix did not change between those
-Linux runs. Workflow syntax validation also passed. A separate hosted macOS
-print-render timeout is being assessed with serial scheduling, preserving the
-existing deadline and image oracle. Fresh full matrix acceptance remains open;
-macOS tier 1 is still unverified.
+Linux runs. Workflow syntax validation also passed.
 The final selected checks, including verifier dependency-boundary tests, passed
 in 38.2 seconds on Windows and 23.6 seconds on Linux with identical-pass reuse;
 neither selected set had failed or pending checks.
+
+The [12 October hosted run at `1e8ac2d`](https://github.com/skulitom/Inkbolt/actions/runs/38186420025)
+passed all 216 fresh stages on Ubuntu and macOS. Both executed 177 Rust tests
+and 2,265 Python tests with 34 explicit platform skips; durations were 1006.8
+and 2137.4 seconds respectively. This establishes the bounded macOS core/receipt
+tier at that revision. Windows retained two failures: the idle-exit job test
+unwrapped a documented retryable `JOB_BUSY`, and a print-render fixture exceeded
+its existing 20-second deadline while another stage ran. The polling test now
+uses its existing 30-second terminal-state helper, retrying only `JOB_BUSY` and
+still requiring successful completion. Windows CI now uses one stage worker,
+as in the passing macOS run. No production job behavior, render deadline or
+pixel acceptance changed. Focused Windows verification of the job tests and
+repository guard passed in 111.5 seconds, including formatting, build and
+all-target Clippy, with no failed or pending checks. Workflow validation also
+passed. A complete latest-revision hosted matrix remains pending.
 
 ## W2 and the next behavior increments
 

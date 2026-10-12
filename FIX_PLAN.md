@@ -25,7 +25,7 @@ standing authorization.
 | Workstream | Current status | Next action |
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
-| W1 | Linux tier 1, toolchain pinning and public guard verified; hosted Linux passed; path-alias repairs pass focused Windows/Linux checks | Assess the repaired Windows/Linux/macOS matrix; macOS tier 1 and Unix jobs remain open |
+| W1 | Linux core tier 1, toolchain pinning and public guard verified; hosted Linux/macOS full acceptance passed at `1e8ac2d` | Verify the Windows polling/scheduling corrections in CI; the latest full matrix and Unix jobs remain open |
 | W2 | B01 external model/baseline lifecycle, captured-trial import and fake-driver checks pass focused Windows/Linux checks; real pinned SVG baseline tested with a synthetic client | Migrate remaining task fixtures/prompts/judges and comparison reporting; real model evidence remains required |
 | W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
 | W3a.1-2 / W3b | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance. SVG insertion remains open | Deliver SVG insertion alongside W2 preparation; other W3a items remain open |

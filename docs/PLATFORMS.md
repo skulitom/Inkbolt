@@ -6,8 +6,11 @@ runs on Ubuntu 22.04 under WSL2, x86-64, with Rust 1.98.1 and Python 3.11.
 Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
-The Unix file-identity implementation is shared source, but macOS remains
-unverified. This does not establish full W1, distribution or scale acceptance.
+The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance
+at `1e8ac2d`: 177 Rust tests and 2,265 Python tests, with 34 explicit platform
+skips. Subsequent MCP/SVG increments have fresh Windows/WSL evidence; their hosted
+matrix is pending. This does not establish full W1, distribution, Unix jobs or
+scale acceptance.
 
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
 to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked
@@ -99,11 +102,13 @@ Development checkouts retain the normal policy described in
 [research boundaries](RESEARCH.md) and use verification without `--public`.
 Public mode never activates automatically. Fresh public-clone Windows/Linux
 acceptance is recorded in [development status](DEVELOPMENT_STATUS.md). CI is
-enabled on main for Windows, Linux and macOS. Hosted Linux passed; the first full
-Windows/macOS checks exposed directory-alias problems now repaired with focused
-Windows/WSL regression evidence. macOS verification runs serially to assess a
-separate print-render timeout without relaxing its deadline. A complete hosted
-matrix pass and macOS tier-1 acceptance remain open.
+enabled on main for Windows, Linux and macOS. After the directory-alias fixes,
+[hosted Linux and macOS](https://github.com/skulitom/Inkbolt/actions/runs/38186420025)
+each passed all 216 fresh stages. Windows still reported an expected `JOB_BUSY`
+response mishandled by a polling test and a concurrent print-render timeout.
+That poll now uses the existing bounded busy-retry helper; Windows and macOS
+verification run serially without relaxing any deadline or image oracle. A
+complete hosted matrix on the latest main revision remains open.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable
