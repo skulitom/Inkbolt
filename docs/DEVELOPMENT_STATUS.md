@@ -140,10 +140,11 @@ remained pending or was reused. Windows finished with 220 passed stages and one
 failed Rust stage in 3569.9 seconds. All 2,330 Python tests passed with one explicit
 skip, but the idle-exit fixture's second job terminated with `JOB_BUSY`; 142 Rust
 library tests passed and one failed, preventing the remaining Rust targets from
-running. Serial execution alone did not fix this failure. Ubuntu subsequently
-passed all 225 fresh stages at `790716d` in 696.4 seconds, with 2,325 Python tests
-executed and 34 explicit skips. That run's Windows/macOS jobs were still running
-when this evidence was recorded; it predates the contention fix below.
+running. Serial execution alone did not fix this failure. Ubuntu and macOS
+subsequently passed all 225 fresh stages at `790716d` in 696.4 and 2086.6 seconds,
+respectively, each with 2,325 Python tests executed and 34 explicit skips. That
+run's Windows job was still running when this evidence was recorded; it predates
+the contention fix below.
 
 A controlled delayed-writer regression reproduced a prepared job failing with
 `JOB_BUSY` after the short SQLite wait, while its original lifetime still had
@@ -362,7 +363,35 @@ damaged variants, including an erased sample outside the visible mask, changed
 coverage, a transparent or non-gray mask, and changed dimensions. Reports are
 retained externally under the `w2-b08-` evidence prefix. No actual model was run.
 
-B09-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B09 separates the unchanged local raster-defect fixture, prompt, solver and
+independent judge. Its original source identity remains
+`200dda427495dfe414221be21d9db65ce8ab8091bd0ecac3cf34b7f397292558`.
+The engine judge checks all 256 RGBA samples, only the four requested pixel
+changes, unchanged document properties, fresh current/original images and exact
+saved-history/head binding. An independent session using two row edits passes
+without solver records. The baseline retains an editable pixel PNG and layer
+manifest; pinned Pillow independently decodes the layer, and the delivered
+preview must also match the numerical oracle. The original four check IDs and
+classes remain unchanged; saved-revision/history checks are not applicable to
+the baseline.
+
+All 44 selected B09, driver, reference and verifier tests passed on Windows in
+96.5 seconds and Linux in 68.0 seconds. No selected checks failed or remained
+pending; unaffected engine stages reused identical passes. Both final reports
+recorded unchanged inputs and candidate fingerprint:
+`7f08f1928faa9bc463815b817d7038d05e0ec1e3ff90c17b00fa205a52698c3a`.
+Five synthetic baseline trials per platform and five Windows capture rechecks
+passed with real pinned Pillow on that candidate. Prompt SHA-256:
+`26be1006ce7ec12ae2c1c9c30e057b0151a0f7852a1dd85a3099039a929d1753`.
+Additional decoder controls accepted correct RGB and RGBA layers and rejected
+seven faulty variants: an unrepaired defect, changed unrelated pixel, changed
+alpha, dimensions, grayscale mode, a disguised JPEG and an animated PNG. All
+retained previews were correct, so those negatives exercise independent layer
+checks. Evidence is retained externally under `w2-b09-`, with the limited decoder
+controls in `w2-b09-pillow-controls-02`. These are shared-host correctness checks;
+no actual model or isolated performance result is claimed.
+
+B10-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

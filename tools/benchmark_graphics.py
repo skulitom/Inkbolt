@@ -142,24 +142,6 @@ def conflicting_writers(case):
     verify_history(case)
 
 
-def local_retouch(case):
-    clean=bytes(v for y in range(16) for x in range(16) for v in (20+(x%4)*40,30+(y%4)*40,10+((x+y)%4)*50,255))
-    original=bytearray(clean)
-    for y in (10,11):original[(y*16+10)*4:(y*16+12)*4]=bytes([255,0,255,255])*2
-    seed=case.seed(document('retouch','raster',16,16,items=[dict(id='pixels',content=dict(type='raster',width=16,height=16,rgba_hex=original.hex()))]))
-    case.begin('Repair the 2x2 defect at (10,10) in source.json by cloning the original same-layer '
-        'patch at (2,2), using nearest sampling. Retain all unaffected pixels, original source and history. '
-        'Review corrected and original images and verify the saved history.')
-    saved=store(case,seed)
-    apply(case,'retouch',0,[dict(op='retouch',id='pixels',options=dict(source_id='pixels',
-        region=dict(x=10,y=10,width=2,height=2),source_transform=[1,0,0,1,-8,-8],sampling='nearest',mode=dict(type='clone')))])
-    current=source_snapshot(case,ref(1))
-    case.check('exact-local-repair',lambda:require(bytes.fromhex(current['items'][0]['content']['rgba_hex'])==clean,'Repair or unaffected samples differ'))
-    view(case,'preview',ref(1),'repaired-pixels',16,16,clean)
-    view(case,'historical',saved,'historical-pixels',16,16,bytes(original))
-    verify_history(case)
-
-
 def resource_repair(case):
     assets={};items=[]
     for index,color in enumerate([BLUE,GREEN]):

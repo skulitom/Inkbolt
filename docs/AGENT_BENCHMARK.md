@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B08 also support `--arm model` and
+`--arm reference` is the existing default. B01-B09 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -160,7 +160,19 @@ erased source pixels, a wrong mask or missing selection. All five original check
 IDs/classes remain; only the two saved-history checks are not applicable in the
 baseline. Captured trials rejudge after relocation without modifying their files.
 
-B09-B20 still interleave solving and judging. All required checks have
+B09 separates the unchanged local-defect fixture, [prompt](../tools/benchmark_prompts/B09.md),
+reference solver and independent judge in `benchmark_retouch.py`. The judge checks
+all 256 RGBA samples, requiring exactly the four defective pixels to change, and
+compares the remaining normalized document properties with the original. It
+reopens the delivery, renders fresh current/historical images and binds both
+snapshots to the saved history head. Session names and the number of editing
+steps are unconstrained. The baseline retains an editable pixel PNG and layer
+manifest; pinned Pillow reopens that layer independently of the delivered preview.
+Correct preview bytes cannot hide a wrong retained repair or unrelated pixels.
+The four original check IDs and their artifact/engine classes are unchanged;
+saved-revision and history checks are explicitly not applicable to the baseline.
+
+B10-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 

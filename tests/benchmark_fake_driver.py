@@ -19,6 +19,8 @@ from benchmark_typography import (solve as solve_typography, expected_picture as
     FONT_FAMILY as TYPOGRAPHY_FAMILY, authored_geometry, shaping_report)
 from benchmark_mask import solve as solve_mask, selected_pixels, expected_picture as expected_mask
 from benchmark_baseline_mask import manifest as mask_manifest
+from benchmark_retouch import solve as solve_retouch
+from benchmark_baseline_retouch import manifest as retouch_manifest
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -77,7 +79,7 @@ def main():
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08')
+    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,**arguments):
             payload=json.dumps(dict(command=command,**arguments)).encode()
@@ -87,10 +89,12 @@ def main():
             assert response['ok'] and process.returncode==0
             return response['result']
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
-         'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask}[task](SimpleNamespace(root=root,call=call))
+         'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch}[task](SimpleNamespace(root=root,call=call))
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
-        if task=='B08':
+        if task=='B09':
+            (root/'editable.json').write_text(json.dumps(retouch_manifest()),encoding='utf-8')
+        elif task=='B08':
             (root/'editable.json').write_text(json.dumps(mask_manifest()),encoding='utf-8')
         elif task=='B07':
             (root/'editable.svg').write_text(typography_svg(json.loads((root/'texts.json').read_bytes()),
@@ -112,7 +116,25 @@ def main():
             else: source = SVG if task == 'B01' else ICONS_SVG
             (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B08':
+        if task=='B09':
+            if renderer['version']=='synthetic-fixture':
+                source=json.loads((root/'source.json').read_bytes())
+                original=bytes.fromhex(source['items'][0]['content']['rgba_hex']); pixels=bytearray(original)
+                for y in range(2):
+                    start=((10+y)*16+10)*4; origin=((2+y)*16+2)*4
+                    pixels[start:start+8]=original[origin:origin+8]
+                for name in ('pixels.png','preview.png'): (root/name).write_bytes(png(16,16,bytes(pixels)))
+            else:
+                script='''from PIL import Image
+from pathlib import Path
+import json,sys
+root=Path(sys.argv[1]);source=json.loads((root/'source.json').read_bytes())
+layer=Image.frombytes('RGBA',(16,16),bytes.fromhex(source['items'][0]['content']['rgba_hex']))
+patch=layer.crop((2,2,4,4));layer.paste(patch,(10,10))
+layer.save(root/'pixels.png');layer.save(root/'preview.png')
+'''
+                subprocess.run([request['baseline_tools']['python']['path'],'-I','-c',script,str(root)],check=True)
+        elif task=='B08':
             if renderer['version']=='synthetic-fixture':
                 source=json.loads((root/'source.json').read_bytes())
                 (root/'pixels.png').write_bytes(png(16,16,bytes.fromhex(source['items'][0]['content']['rgba_hex'])))

@@ -1,6 +1,6 @@
 """Explicit reference-adapter inventory, separate from accepted task requirements."""
 from benchmark_graphics import (
-    local_retouch, transparent_delivery, resource_repair,
+    transparent_delivery, resource_repair,
     seeded_repair, lost_response, conflicting_writers)
 from benchmark_typography import multilingual
 from benchmark_layout_delivery import mixed_composition, layout_variants, physical_print
@@ -14,6 +14,7 @@ from benchmark_svg import svg_artwork
 from benchmark_palette import palette
 from benchmark_flow import linked_overflow
 from benchmark_mask import foreground_mask
+from benchmark_retouch import local_retouch
 
 ADAPTERS = {'B01':diagram,'B02':icons,'B03':large_layout,'B04':svg_artwork,
     'B05':palette,'B06':linked_overflow,'B07':multilingual,'B08':foreground_mask,

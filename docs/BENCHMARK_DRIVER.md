@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B08. B09-B20 remain visible as
+The W2 external lifecycle currently supports B01-B09. B10-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -55,8 +55,8 @@ original named font; B02 has no asset dependencies; B03 supplies the same origin
 5,000-object JSON layout to both arms; B04 supplies the same original SVG;
 B05 supplies the same JSON palette and artwork; B06 supplies the same original
 linked-flow JSON layout, geometric font and license; B07 supplies the same four
-logical strings, directional geometric font and license; B08 supplies the same
-original RGBA raster JSON. The baseline does not build,
+logical strings, directional geometric font and license; B08 and B09 each supply
+an original RGBA raster JSON shared by both arms. The baseline does not build,
 configure or launch Inkbolt. Provide an external JSON file with exactly `resvg`
 and `python` absolute executable paths. The tools must be resvg **0.47.0** and a
 Python environment containing Pillow **12.3.0**. Tool executable hashes and a
@@ -161,6 +161,18 @@ PNG are checked independently. The two history checks remain engine-only.
 Observed first-preview timing is accepted only when its artifact hash matches a
 delivered image whose corresponding pixel check passed. B02 can identify any of
 its three board images; a failed board cannot supply a verified preview time.
+
+
+B09 delivers `editable.json` and `preview.png` in both arms. Its
+[local repair prompt](../tools/benchmark_prompts/B09.md) supplies the same original
+16-by-16 raster and exact source/destination patch coordinates. The engine arm
+retains the current snapshot, original revision image and `session.json` locator.
+The judge compares all samples and unchanged document properties, then reopens
+and checks both saved revisions against the current history head. Multiple edits
+and independent session/request names are accepted. The no-engine arm retains
+`pixels.png` and a fixed layer manifest; pinned Pillow independently decodes the
+layer before either pixel check can pass. A correct preview cannot substitute for
+correct retained pixels. Saved-history checks remain explicitly not applicable.
 
 ## Client result and observations
 
