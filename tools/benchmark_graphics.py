@@ -142,27 +142,6 @@ def conflicting_writers(case):
     verify_history(case)
 
 
-def foreground_mask(case):
-    original=bytes(v for y in range(16) for x in range(16) for v in (x*11,y*13,(x+y)*7,255))
-    seed=case.seed(document('foreground','raster',16,16,items=[dict(id='pixels',content=dict(
-        type='raster',width=16,height=16,rgba_hex=original.hex()))]))
-    case.begin('Select the L-shaped foreground polygon (4,3),(12,3),(12,7),(8,7),(8,13),(4,13) '
-        'in source.json and attach a linked editable mask. Retain the entire original pixel layer, '
-        'the selection and old revision. Review masked/current and original images.')
-    saved=store(case,seed)
-    apply(case,'mask',0,[dict(op='selection_shape',boundary=dict(shape='polygon',points=[[4,3],[12,3],[12,7],[8,7],[8,13],[4,13]])),
-                         dict(op='mask_from_selection',id='pixels',linked=True)])
-    current=source_snapshot(case,ref(1))
-    selected=bytes(255 if (4<=x<12 and 3<=y<7) or (4<=x<8 and 7<=y<13) else 0 for y in range(16) for x in range(16))
-    case.check('selection-coverage',lambda:require(bytes.fromhex(current['selection']['gray_hex'])==selected,'Selection coverage differs'))
-    case.check('retained-pixels',lambda:require(bytes.fromhex(current['items'][0]['content']['rgba_hex'])==original
-        and current['items'][0]['mask']['linked'],'Mask destructively changed source pixels'))
-    expected=b''.join(original[i*4:i*4+4] if alpha else bytes(4) for i,alpha in enumerate(selected))
-    view(case,'preview',ref(1),'masked-pixels',16,16,expected)
-    view(case,'historical',saved,'historical-pixels',16,16,original)
-    verify_history(case)
-
-
 def local_retouch(case):
     clean=bytes(v for y in range(16) for x in range(16) for v in (20+(x%4)*40,30+(y%4)*40,10+((x+y)%4)*50,255))
     original=bytearray(clean)

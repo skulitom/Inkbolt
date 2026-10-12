@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B07 also support `--arm model` and
+`--arm reference` is the existing default. B01-B08 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -146,7 +146,21 @@ document/object/font/session IDs, labels and descriptive metadata are accepted.
 The original four check IDs/classes
 remain; the two engine-only checks are not applicable to the baseline.
 
-B08-B20 still interleave solving and judging. All required checks have
+B08 separates the original raster fixture, [prompt](../tools/benchmark_prompts/B08.md),
+reference solve and judge in `benchmark_mask.py`. Both arms retain the same source
+JSON and exactly 56 selected foreground pixels. Inkbolt's snapshot must preserve
+the entire original layer and unrelated state while retaining a selection and
+linked mask; equivalent mask storage extents are accepted. Fresh current/original
+renders and exact saved snapshots bind history to the fixture and final head.
+The baseline retains original pixels, coverage and selection in three separate
+PNG files plus a linked-layer manifest. The pinned Pillow tool independently
+decodes these bounded files and recomposes the output; its samples and the delivered
+preview must match the common oracle. This prevents a correct preview from hiding
+erased source pixels, a wrong mask or missing selection. All five original check
+IDs/classes remain; only the two saved-history checks are not applicable in the
+baseline. Captured trials rejudge after relocation without modifying their files.
+
+B09-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 

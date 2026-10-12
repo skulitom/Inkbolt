@@ -136,9 +136,13 @@ still required; those failed runs are not counted as passes.
 The [hosted `fbc7fea` run](https://github.com/skulitom/Inkbolt/actions/runs/38197982149)
 passed all 221 fresh stages on Ubuntu and macOS in 1137.3 and 2258.2 seconds,
 including the corrected dependency-boundary expectation. No stage failed,
-remained pending or was reused. Windows was still running when this evidence
-was recorded; the newer
-benchmark adapter commits have focused local evidence, not full hosted acceptance.
+remained pending or was reused. Windows finished with 220 passed stages and one
+failed Rust stage in 3569.9 seconds. All 2,330 Python tests passed with one explicit
+skip, but the idle-exit fixture's second job terminated with `JOB_BUSY`; 142 Rust
+library tests passed and one failed, preventing the remaining Rust targets from
+running. Serial execution alone did not fix this failure. Its cause must be fixed
+without relaxing the required successful job outcome. The newer benchmark adapter
+commits have focused local evidence, not full hosted acceptance.
 
 ## W2 and the next behavior increments
 
@@ -305,7 +309,33 @@ fourth row differed, and both glyph/pixel checks failed. Explicitly positioned
 editable spans passed without changing the oracle. These are shared-host harness
 checks, not actual model trials, isolated performance or full W2 acceptance.
 
-B08-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B08 separates the original 16-by-16 raster fixture, L-shaped selection, prompt,
+solver and independent judge. Both arms retain all 256 original RGBA samples,
+the exact 56-pixel selection, a linked mask and an independently checked preview.
+The engine judge reopens the delivery, compares the original layer and unchanged
+document properties, renders current and historical snapshots, and binds them to
+the saved history head. Equivalent mask storage extents are accepted. The baseline
+retains a bounded layer manifest and separate pixel, mask and selection PNGs;
+pinned Pillow independently decodes and composes them without launching Inkbolt.
+The original five check IDs and classifications remain unchanged; the baseline's
+two engine-history checks are explicitly not applicable.
+
+The seven B08 tests plus driver, reference and verifier checks passed all 44
+selected tests on Windows in 103.1 seconds and Linux in 76.9 seconds. No selected
+check failed or remained pending, and both reports recorded unchanged inputs.
+Unaffected engine stages reused identical passes. These shared-host checks verify
+correctness, not isolated performance. Candidate fingerprint:
+`ee16930b0e74e24180adee53faa7813e23e5b841537e10512ff0560579914c83`.
+Five synthetic baseline trials passed on each platform with real pinned Pillow,
+and all five Windows captures passed independent rejudging on that same candidate.
+Prompt SHA-256:
+`0ce267330297e3ae595d5410f8388a10901b951059d4755f9abcbebc56b54ab0`.
+An additional real-Pillow control accepted the correct bundle and rejected six
+damaged variants, including an erased sample outside the visible mask, changed
+coverage, a transparent or non-gray mask, and changed dimensions. Reports are
+retained externally under the `w2-b08-` evidence prefix. No actual model was run.
+
+B09-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

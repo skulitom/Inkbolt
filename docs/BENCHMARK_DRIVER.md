@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B07. B08-B20 remain visible as
+The W2 external lifecycle currently supports B01-B08. B09-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -55,7 +55,8 @@ original named font; B02 has no asset dependencies; B03 supplies the same origin
 5,000-object JSON layout to both arms; B04 supplies the same original SVG;
 B05 supplies the same JSON palette and artwork; B06 supplies the same original
 linked-flow JSON layout, geometric font and license; B07 supplies the same four
-logical strings, directional geometric font and license. The baseline does not build,
+logical strings, directional geometric font and license; B08 supplies the same
+original RGBA raster JSON. The baseline does not build,
 configure or launch Inkbolt. Provide an external JSON file with exactly `resvg`
 and `python` absolute executable paths. The tools must be resvg **0.47.0** and a
 Python environment containing Pillow **12.3.0**. Tool executable hashes and a
@@ -144,6 +145,18 @@ the snapshot and binds it to valid current history. Exact pixels are unchanged
 across arms; a plainly concatenated SVG run may fail even if its shaping report
 claims the expected glyphs. Positioned editable spans are admitted, with the
 same pixel oracle determining whether they succeed.
+
+B08 delivers `editable.json` and `preview.png` in both arms. The
+[shared masking prompt](../tools/benchmark_prompts/B08.md) specifies exact polygon
+coverage, retained samples and zero RGBA outside the visible foreground. Inkbolt
+delivers its native snapshot plus `historical.png` and `session.json`; the judge
+reopens and freshly renders both saved states and binds the current head to the
+delivery. The baseline's editable JSON is a bounded linked-layer manifest naming
+`pixels.png`, `mask.png` and `selection.png`, with one shared layer/mask transform.
+The original pixel layer remains complete. The pinned Pillow interpreter decodes
+only the admitted local 16 by 16 PNG components and freshly composites layer and
+mask. Selection/mask coverage, retained pixels, fresh composition and delivered
+PNG are checked independently. The two history checks remain engine-only.
 
 Observed first-preview timing is accepted only when its artifact hash matches a
 delivered image whose corresponding pixel check passed. B02 can identify any of

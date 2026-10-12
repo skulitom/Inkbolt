@@ -25,8 +25,8 @@ standing authorization.
 | Workstream | Current status | Next action |
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
-| W1 | Linux core tier 1, toolchain pinning and public guard verified; hosted Linux/macOS full acceptance passed at `fbc7fea` | Verify current Windows CI with serialized Rust fixtures and the corrected dependency expectation; Unix jobs remain open |
-| W2 | B01-B07 external model/baseline lifecycles, captured-trial import and fake-driver checks pass focused Windows/Linux checks; pinned baselines tested with synthetic clients | Migrate B08-B20 fixtures/prompts/judges and comparison reporting; real model evidence remains required |
+| W1 | Linux core tier 1, toolchain pinning and public guard verified; hosted Linux/macOS full acceptance passed at `fbc7fea`; Windows still fails one Rust job test | Fix the idle-exit job's terminal `JOB_BUSY` failure, then obtain full hosted acceptance; Unix jobs remain open |
+| W2 | B01-B08 external model/baseline lifecycles, captured-trial import and fake-driver checks pass focused Windows/Linux checks; pinned baselines tested with synthetic clients | After the Windows job fix, migrate B09-B20 fixtures/prompts/judges and comparison reporting; real model evidence remains required |
 | W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
 | W3a.1-2 | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance | Other W3a items remain open; prioritize them using W2 evidence |
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |
