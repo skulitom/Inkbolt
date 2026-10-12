@@ -1,0 +1,21 @@
+{
+  "command": "document.edit",
+  "document": {
+    "schema_version": 2,
+    "id": "svg-authoring",
+    "kind": "vector",
+    "width": 64,
+    "height": 48,
+    "color_space": "srgb",
+    "revision": 0,
+    "items": []
+  },
+  "expected_revision": 0,
+  "operations": [
+    {
+      "op": "add_svg",
+      "prefix": "badge",
+      "svg": "<g id=\"badge\" transform=\"translate(8 8)\"><rect id=\"panel\" width=\"48\" height=\"32\" rx=\"4\" fill=\"#2468ac\"/><path id=\"mark\" d=\"M12 16 L20 24 L36 8\" fill=\"none\" stroke=\"white\" stroke-width=\"3\"/></g>"
+    }
+  ]
+}

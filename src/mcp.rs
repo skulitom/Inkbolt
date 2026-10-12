@@ -281,7 +281,7 @@ fn description(command: &str) -> String {
             "Inspect an explicit list of item IDs without persistent selection state. Use returned IDs in atomic edit operations."
         }
         "document.edit" => {
-            return format!("Apply 1..{} typed operations atomically to a snapshot at expected_revision. Discover supported operations with schema.lookup name operation and select a variant for its fields. Returns an editable snapshot and ordered changes; validates locks, resources and the complete batch. Leaves files unchanged.", crate::limits::edit::MAX_OPERATIONS);
+            return format!("Apply 1..{} typed operations atomically to a snapshot at expected_revision. Use add_svg to insert editable SVG fragments or documents. Discover supported operations with schema.lookup name operation and select a variant for its fields. Returns an editable snapshot and ordered changes; validates locks, resources and the complete batch. Leaves files unchanged.", crate::limits::edit::MAX_OPERATIONS);
         }
         "document.render" => {
             "Render a bounded snapshot into straight RGBA8 hex pixels. Supply asset_root and font_root when stored resources are referenced."

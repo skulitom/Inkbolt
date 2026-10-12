@@ -185,6 +185,15 @@ pub enum Operation {
     Transfer {
         transfer: Box<crate::transfer::Transfer>,
     },
+    AddSvg {
+        svg: String,
+        #[serde(default)]
+        parent: Option<String>,
+        #[serde(default)]
+        prefix: Option<String>,
+        #[serde(default)]
+        font_bindings: Vec<crate::svg_import::InsertFontBinding>,
+    },
     SequenceSet {
         sequence: Option<crate::sequences::Timeline>,
     },
@@ -977,6 +986,25 @@ fn apply_one(
                 document, transfer, asset_root, font_root, control,
             )?);
             Ok((document.id.clone(), "transferred"))
+        }
+        Operation::AddSvg {
+            svg,
+            parent,
+            prefix,
+            font_bindings,
+        } => {
+            let receipt = crate::svg_import::insert(
+                document,
+                svg,
+                parent.as_deref(),
+                prefix.as_deref(),
+                font_bindings,
+                font_root,
+                control,
+            )?;
+            let id = receipt["root_id"].as_str().unwrap().to_owned();
+            *details = Some(receipt);
+            Ok((id, "svg_added"))
         }
         Operation::SequenceSet { sequence } => {
             *details = Some(crate::sequences::set(document, sequence.clone())?);

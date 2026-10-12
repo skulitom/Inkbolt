@@ -1,5 +1,9 @@
 # Original graphics examples
 
+Run `inkbolt examples/add-svg.json` to insert an original rounded badge and mark
+through an atomic edit. The result includes editable items, generated IDs and
+the corner approximation receipt. See [SVG insertion](../docs/SVG_IMPORT.md#insert-into-an-existing-document).
+
 `python examples/handoff_workflow.py --output NEW_ABSOLUTE_DIRECTORY [--cutbolt EXE]`
 prepares two checked still revisions and an ordered sequence, retaining original
 deliveries and source history. The optional local Cutbolt executable inspects and

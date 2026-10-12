@@ -46,6 +46,10 @@ Success is `{"ok":true,"result":...}` with exit code 0; failure is `{"ok":false,
 
 ## Editing workflow
 
+Author editable artwork with the atomic [`add_svg` operation](docs/SVG_IMPORT.md#insert-into-an-existing-document).
+It inserts SVG fragments or complete documents into a chosen parent and returns
+item IDs, approximation receipts and losses. See the [JSON example](examples/add-svg.json).
+
 [Versioned presets](docs/PRESETS.md) create editable screen/social artwork and
 physical print pages with explicit backgrounds, color policies and delivery
 settings. The [preset workflow](examples/preset_workflow.py) demonstrates reviewed

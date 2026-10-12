@@ -118,9 +118,31 @@ pub(crate) fn apply(
     font_root: Option<&Path>,
     control: &crate::control::Control,
 ) -> Result<serde_json::Value, Error> {
+    apply_with_mode(destination, transfer, asset_root, font_root, control, false)
+}
+
+/// Importer-owned content in the parent's local coordinates, using fonts that
+/// were explicitly bound from this destination. Ordinary transfer stays unchanged.
+pub(crate) fn insert_svg(
+    destination: &mut Document,
+    transfer: &Transfer,
+    font_root: Option<&Path>,
+    control: &crate::control::Control,
+) -> Result<serde_json::Value, Error> {
+    apply_with_mode(destination, transfer, None, font_root, control, true)
+}
+
+fn apply_with_mode(
+    destination: &mut Document,
+    transfer: &Transfer,
+    asset_root: Option<&Path>,
+    font_root: Option<&Path>,
+    control: &crate::control::Control,
+    svg_insertion: bool,
+) -> Result<serde_json::Value, Error> {
     let source = transfer.source.as_ref();
     validate(source)?;
-    if source.color_space != destination.color_space {
+    if !svg_insertion && source.color_space != destination.color_space {
         return Err(Error::new(
             "UNSUPPORTED_HDR_MODE",
             "Cross-document transfer requires matching compositing spaces; convert the source explicitly first",
@@ -215,11 +237,25 @@ pub(crate) fn apply(
         images.iter().map(String::as_str),
         destination.assets.keys().map(String::as_str),
     )?;
-    let font_ids = mapping(
-        &transfer.prefix,
-        fonts.iter().map(String::as_str),
-        destination.fonts.keys().map(String::as_str),
-    )?;
+    let font_ids = if svg_insertion {
+        fonts
+            .iter()
+            .map(|id| {
+                if destination.fonts.get(id) != source.fonts.get(id) {
+                    return Err(invalid(
+                        "Inserted SVG font must match its destination binding",
+                    ));
+                }
+                Ok((id.clone(), id.clone()))
+            })
+            .collect::<Result<BTreeMap<_, _>, Error>>()?
+    } else {
+        mapping(
+            &transfer.prefix,
+            fonts.iter().map(String::as_str),
+            destination.fonts.keys().map(String::as_str),
+        )?
+    };
     let mut swatches = BTreeSet::new();
     for (_, item) in &copies {
         swatches.extend(crate::swatches::references(source, item)?);
@@ -260,7 +296,9 @@ pub(crate) fn apply(
             Content::MaskSource {} | Content::ComponentSource {}
         ) {
             item.parent = transfer.parent.clone();
-            item.transform = geometry::relative_transform(parent_world, &[item.transform])?;
+            if !svg_insertion {
+                item.transform = geometry::relative_transform(parent_world, &[item.transform])?;
+            }
         }
         if let Some(base) = &mut item.clip_to {
             *base = ids[base].clone();

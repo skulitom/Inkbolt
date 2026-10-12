@@ -154,8 +154,8 @@ session edits and undo. The first focused 60-test pass took 26.2 seconds on
 Windows (reusing its unchanged Cargo checks) and 69.2 seconds on Linux (including
 fresh build/Clippy). Related Windows text, coordinate and large-vector
 regressions passed in 41.0 seconds. Near-zero and almost-full-circle cases also
-pass independent geometry checks. W3b SVG insertion and the other W3a items
-remain open. The engine registry is unchanged.
+pass independent geometry checks. The other W3a items remain open; W3b status
+is recorded below. The engine registry is unchanged.
 
 Fresh combined W3a.1-2/W5.1 acceptance on 12 October passed all **218 stages**
 on each platform, with no failed, pending or reused checks and unchanged inputs.
@@ -171,6 +171,30 @@ These full correctness runs overlapped on the shared host with two workers each;
 their durations are not isolated performance measurements. Focused feedback
 remains bounded by the ordinary 180-second quick mode. Subsequent changes in this
 milestone are documentation of these results only.
+
+## W3b: implemented, fresh milestone acceptance pending
+
+`add_svg` is an atomic edit accepting fragments and complete SVG documents. It
+uses the existing importer, returns deterministic collision-checked item IDs,
+retains approximation/loss receipts and reuses pinned destination fonts. Parent
+coordinates, full-document viewport clipping, destination compositing and
+metadata exclusions are explicit in the [contract](SVG_IMPORT.md#insert-into-an-existing-document).
+Existing locks, destination restrictions and resource ceilings remain enforced.
+
+Ten new Python tests cover independently calculated pixels, transformed parents,
+clipping and masks, font bytes, unchanged unrelated state, profiles/HDR, metadata,
+source offsets, schema/example execution, failures and session dry-run/apply,
+retry, rollback, undo/redo and reopening. A typed Rust test checks the exact
+request-derived source-byte boundary for fragments and complete documents.
+
+Focused Windows verification passed in 74.6 seconds: one Rust test and 91 Python
+tests ran; ten insertion tests reused their identical 13.6-second passing check.
+Linux/WSL ran all 101 selected Python tests and the Rust boundary test in 122.1
+seconds, including fresh build and all-target Clippy. No failures, pending checks
+or platform skips occurred. Both selected runs bind source fingerprint
+`55028d2675b9e20fea00e1a306979586eb3dfac1080343f744b4e10a261296cc`.
+Fresh full acceptance remains pending; no engine checkpoint or whole-goal credit
+is added by this implementation increment.
 
 ## W5.1: complete within the declared response contract
 

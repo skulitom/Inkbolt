@@ -156,6 +156,8 @@ BINDINGS = {
     'svg_import/arcs/max_radial_error_local': 'svg_import.ARC_RADIAL_TOLERANCE',
     'svg_import/arcs/max_normalized_radius': 'model.MAX_COORDINATE',
     'svg_import/source_bytes': 'svg_import.MAX_BYTES',
+    'svg_import/insertion/source_bytes': 'request.MAX_REQUEST_BYTES',
+    'svg_import/insertion/prefix_bytes': 'transfer.MAX_PREFIX_BYTES',
     'svg_import/text/font_bindings': 'fonts.MAX_FONTS',
     'svg_import/xml_nodes': 'svg_import.MAX_NODES',
     'variants/max_bindings': 'variants.MAX_BINDINGS',

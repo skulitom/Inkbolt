@@ -1153,6 +1153,12 @@ fn capability_report() -> Value {
     let mut svg_import_contract = json!({"source_bytes":svg_import::MAX_BYTES,"xml_nodes":svg_import::MAX_NODES,"elements":["svg","g","rect","ellipse","circle","line","polygon","polyline","path","title","desc","defs","linearGradient","radialGradient","stop","clipPath","text","mask","metadata"],"path_commands":"MmLlHhVvCcSsQqTtAaZz","paints":["solid_srgb_rgba8","linear","centered_radial"],"gradient_units":["userSpaceOnUse","objectBoundingBox"],"gradient_templates":"local_href_with_cycle_checks","template_stop_styles":"cloned_in_derived_gradient_context","clip_geometry":"single_shape_or_compound_path","definition_limit":svg_import::MAX_DEFINITIONS,"reference_depth":svg_import::MAX_REFERENCE_DEPTH,"resources":"local_definitions_and_explicit_pinned_fonts","text":{"kind":"editable_single_line_ltr","font_bindings":fonts::MAX_FONTS,"font_selection":"first_explicit_family_weight_style_match_no_glyph_fallback","anchors":["start","middle","end"],"baseline":"alphabetic","whitespace":"legacy_xml_space_or_explicit_css_normal_pre","object_box":"full_font_cells","span_children":false},"source_preserved":true,"unsupported_policy":"error_no_partial_document","viewport":"integral_pixels_at_96ppi_with_viewBox_meet_slice_none"});
     svg_import_contract["arcs"] = json!({"method":"adaptive_tangent_cubics_at_most_quarter_turns","max_radial_error_local":limits::svg_import::ARC_RADIAL_TOLERANCE,"max_normalized_radius":model::MAX_COORDINATE,"coordinate_space":"source_element_local_before_transforms","binary64_roundoff_included":false,"receipt":"approximations"});
     svg_import_contract["rounded_rectangles"] = json!(true);
+    svg_import_contract["insertion"] = json!({"operation":"add_svg",
+        "sources":["svg_fragment","svg_document"],"source_bytes":MAX_REQUEST_BYTES,
+        "prefix_bytes":limits::transfer::MAX_PREFIX_BYTES,"placement":"parent_local",
+        "fonts":"existing_destination_bindings","compositing":"destination_working_space",
+        "full_document_viewport":"retained_as_outer_clip","fragment_viewport":"destination_logical_size_without_extra_clip",
+        "ids":"deterministic_collision_checked_prefix","unsupported_policy":"error_atomic_batch"});
     let mut capabilities = json!({
         "name":"inkbolt","version":env!("CARGO_PKG_VERSION"),"stage":"editing_core",
         "document_schema_version":2,"readable_document_schema_versions":[1,2],

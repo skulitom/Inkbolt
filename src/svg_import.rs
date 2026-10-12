@@ -1,7 +1,10 @@
 //! Bounded, original SVG-to-document mapping using a public XML parser.
 mod arcs;
 mod definitions;
+mod insertion;
 pub use definitions::{MAX_DEFINITIONS, MAX_REFERENCE_DEPTH};
+pub use insertion::InsertFontBinding;
+pub(crate) use insertion::insert;
 mod labels;
 mod masking;
 pub use labels::{FaceStyle, FontBinding};
@@ -884,6 +887,25 @@ pub fn import_controlled(
     resource_profile: ResourceProfile,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
+    import_with_budget(
+        id,
+        source,
+        font_bindings,
+        font_root,
+        resource_profile,
+        control,
+        None,
+    )
+}
+fn import_with_budget(
+    id: String,
+    source: Source,
+    font_bindings: Vec<FontBinding>,
+    font_root: Option<PathBuf>,
+    resource_profile: ResourceProfile,
+    control: &crate::control::Control,
+    byte_budget: Option<usize>,
+) -> Result<Value, Error> {
     control.check()?;
     if resource_profile == ResourceProfile::LargeRaster {
         return Err(crate::model::invalid(
@@ -895,6 +917,7 @@ pub fn import_controlled(
     } else {
         (MAX_LARGE_BYTES, MAX_LARGE_NODES)
     };
+    let max_bytes = byte_budget.unwrap_or(max_bytes);
     let bytes = match source {
         Source::Text { text } => text.into_bytes(),
         Source::File { source_path } => {

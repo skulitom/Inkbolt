@@ -16,7 +16,7 @@ pub(super) const PROPERTIES: &[&str] = &[
     "white-space",
 ];
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, serde::Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum FaceStyle {
     #[default]

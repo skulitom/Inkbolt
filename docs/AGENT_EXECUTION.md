@@ -12,6 +12,13 @@ The Rust library, one-request JSON CLI and MCP stdio adapter share the same vali
 
 ## Compare before committing more work
 
+For SVG authoring, use `add_svg` inside `document.edit` or a session edit action.
+It accepts a fragment or complete SVG and returns editable item IDs, source
+identity, approximation bounds and losses. Optional `parent` uses local
+coordinates; text binds to existing pinned fonts. Discover the fields with
+`schema.lookup` name `operation`, select `add_svg`. See [SVG insertion](SVG_IMPORT.md#insert-into-an-existing-document)
+and its [example](../examples/add-svg.json).
+
 For a supported large vector canvas, use `document.preview` with
 `options:{"max_size":[1024,1024]}` to obtain a bounded overview with source/pixel
 maps. This review mode keeps the source revision intact and avoids a full-size

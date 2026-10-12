@@ -16,6 +16,60 @@ Negative and fractional coordinate fidelity, normalization tolerance and consume
 
 For inline input, use `source: {"kind":"text","text":"<svg ...>...</svg>"}`. The [original example](../examples/import-svg.json) creates an editable diagram from text. Persist the returned `document` with `session.create`; use the returned `mapping[].item_id` with ordinary query, edit, diff, export and undo operations. Imports create revision zero. They do not merge into an existing document or create a session automatically.
 
+## Insert into an existing document
+
+Use the atomic `add_svg` operation in `document.edit`, session edit actions or
+the Rust `edit::Operation::AddSvg`. See the [runnable schema example](../examples/add-svg.json).
+
+```json
+{"op":"add_svg","svg":"<g><rect width=\"20\" height=\"12\" rx=\"2\" fill=\"#2468ac\"/></g>","parent":"layer","prefix":"badge"}
+```
+
+Only `svg` is required. It accepts a complete SVG document or a fragment with
+one or more elements. Fragments inherit a synthetic SVG root whose viewport is
+the destination's logical canvas size; the root adds no clip. Complete documents
+retain their own viewport and viewBox; an outer group preserves viewport clipping
+independently of any original root clip. Nested SVG viewports remain unsupported.
+Coordinates are local to the optional destination `parent`; its transform applies
+after imported SVG transforms. Insertion appends artwork to that container.
+Nonprinting mask sources remain top-level resource containers.
+
+The operation imports editable geometry, paints, groups and supported text using
+the same interpretation and losses described below. It preserves the destination's
+canvas, profile, metadata and unrelated items. Imported item metadata is retained;
+source document metadata is excluded with a loss receipt. Paints use the
+destination's compositing rules, just like ordinary `add` operations. Existing
+content restrictions still apply: standard raster documents accept vectors only
+inside mask sources; the large raster profile supports ordinary vector artwork.
+HDR display output still requires an explicit view.
+
+Optional `font_bindings` select fonts already pinned in the destination:
+`[{"family":"Geometry","font_id":"existing-font","weight":400,"style":"normal"}]`.
+Weight and style default to 400 and normal. The usual `font_root` or session/workspace
+font resource binding resolves bytes. Used text faces are hash/license checked by
+the importer; insertion reuses their IDs and does not duplicate font descriptors.
+Missing families, unavailable/corrupt resources and unsupported text fail explicitly.
+
+`changes[].id` is the inserted root; `changes[].details` returns `root_id`, `prefix`,
+`item_ids`, `font_ids`, the source `mapping`, `definitions`, `approximations` and
+`losses`. The source receipt hashes the exact supplied UTF-8 bytes and records its
+kind. Source offsets refer to those bytes; a synthetic fragment root has
+`byte_offset:null` and `synthetic:true`. The default prefix is the first available
+`svg-N`; explicit prefixes must satisfy the existing transfer prefix limit.
+Generated IDs are deterministic for an unchanged destination and source, and
+collisions fail. Use the returned source-to-item mapping for later edits. A caller
+can preview IDs with a session dry run before applying its checked proposal.
+
+The raw SVG ceiling derives from `MAX_REQUEST_BYTES` (16 MiB), reported at
+`capabilities.svg_import.insertion.source_bytes`. CLI/MCP requests must also fit
+the whole JSON request ceiling, including escaping and the document/other fields.
+The synthetic fragment wrapper does not consume the raw SVG allowance. Existing
+XML node, nesting, item, geometry and destination budgets remain enforced; a
+complete SVG's viewport wrapper consumes one item. The separate `svg.import`
+source ceilings remain unchanged. Unsupported input fails the whole edit batch;
+there is no omission mode. Revision checks, locks, dry runs, retry receipts,
+undo and redo use the ordinary atomic edit/session contracts.
+
 ## Supported interpretation
 
 The root must be `svg`, with the SVG namespace or no namespace consistently throughout. Explicit width and height must resolve within 0.000001..32768 logical pixels at 96 pixels/inch. Fractional dimensions retain a [logical vector canvas](VECTOR_CANVAS.md) with a ceiling-sized preview grid. User units, px, in, cm, mm, pt and pc are supported. Percentage and font-relative canvas sizes fail. Geometry remains fractional f64. A positive `viewBox` becomes the root group's affine transform, with the nine min/mid/max alignments, meet/slice or none; default is xMidYMid meet. PNG rendering clips at the canvas viewport. Root transforms compose outside the viewBox mapping. Nested SVG viewports remain unsupported.
