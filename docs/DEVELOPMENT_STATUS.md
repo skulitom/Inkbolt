@@ -133,6 +133,12 @@ and Linux in 30.2 and 15.3 seconds, including verification overhead. New-module
 guidance now includes this focused check. The latest complete hosted matrix is
 still required; those failed runs are not counted as passes.
 
+The [hosted `fbc7fea` run](https://github.com/skulitom/Inkbolt/actions/runs/38197982149)
+passed all 221 fresh Ubuntu stages in 1137.3 seconds, including the corrected
+dependency-boundary expectation. No stage failed, remained pending or was reused.
+Windows/macOS were still running when this evidence was recorded; the newer
+benchmark adapter commits have focused local evidence, not full hosted acceptance.
+
 ## W2 and the next behavior increments
 
 B01 separates fixtures, its versioned prompt, reference solving and an independent
@@ -246,7 +252,31 @@ bind that same candidate and prompt
 Inputs remained unchanged. These are correctness checks on a shared host, not
 actual model trials, isolated performance measurements or full W2 acceptance.
 
-B06-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B06 now separates the original linked-flow scenario into a common JSON fixture,
+versioned prompt, solve and independent judge. The original font's optional
+family-name table supports the pinned baseline while retaining its authored
+outlines, advances and line geometry. Both arms must preserve logical source,
+diagnose the four unplaced characters and repair only the second slot. The
+baseline retains editable layout JSON plus SVG text with explicit source
+intervals; every report, frame, substring and final pixel is independently
+checked. Inkbolt's saved history must contain the exact source and final
+snapshot, with a matching head. Captured font stores rejudge after relocation.
+All six original check IDs and classifications remain; the two history checks
+are explicitly not applicable to the baseline.
+
+The seven B06 tests passed on Windows in 33.8 seconds; 37 driver/reference and
+verifier regression tests passed in 89.8 seconds. Linux ran all 44 selected
+tests in 64.2 seconds. The final checks had no failures, pending checks or skips,
+and all three reports bind candidate
+`027267a1f7c2a03757cf0e28eff31f63159524d6394ff1610c7f1c116ee96efb`.
+Five synthetic-client trials passed with real pinned baseline tools on each
+platform, and all five Windows captures passed independent rejudging. Those
+reports bind the same candidate and prompt
+`6f23a71634bade88c8df5affe549eafc4572b961a877629166c9fa26656502df`.
+Inputs remained unchanged. These establish harness correctness on a shared
+host, not genuine model trials, isolated performance or full W2 acceptance.
+
+B07-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

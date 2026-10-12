@@ -1,57 +1,12 @@
 """Original text tasks with authored flow intervals and exact glyph geometry."""
-import copy
 
 from benchmark_graphics import (BLUE, GREEN, document, rectangle, pixels, ref,
                                store, source_snapshot, view, verify_history)
 from benchmark_runtime import require
-from synthetic_font import geometric_font
 from synthetic_bidi_font import bidi_font
 
 
 LICENSE = b'Original synthetic Inkbolt font. Permission to use, modify and redistribute with this notice.'
-
-
-def linked_overflow(case):
-    case.source('original.ttf',geometric_font())
-    case.source('font-license.txt',LICENSE)
-    case.begin('Create a 96x48 document containing the shared story AAAAAAAAAAAA at size 20. '
-        'Place first at (0,0) and second at (32,0), each initially 24x40 with one column. '
-        'Use original.ttf and strict overset. Diagnose the overflow, then review and apply '
-        'only a second-slot change to 56x40, two columns, gutter 8. Preserve source text, '
-        'reading order, font/license, first frame and unrelated green rectangle (90,40,4,4). '
-        'Review the complete repaired image and preserve the overflowing original revision.')
-    font=case.call('font','font.import',source_path='original.ttf',license_path='font-license.txt')
-    story=dict(paragraphs=[dict(text='AAAAAAAAAAAA',style=dict(font_id='face',size=20,fill=BLUE))],
-        slots=[dict(id='first',width=24,height=40),dict(id='second',width=24,height=40)],overset='error')
-    items=[dict(id=name,transform=[1,0,0,1,x,0],content=dict(type='story_frame',story_id='article',slot_id=name))
-           for name,x in [('first',0),('second',32)]]+[rectangle('unrelated',90,40,4,4,GREEN)]
-    saved=store(case,document('linked','vector',96,48,fonts=dict(face=font),stories=dict(article=story),items=items))
-    before=source_snapshot(case,saved,'before')
-    diagnosis=case.call('diagnose','story.inspect',document=saved,id='article')['layout']
-    case.check('original-overflow',lambda:require(diagnosis['overset']==dict(paragraph=0,offset=8),
-        'The original story did not retain its exact unplaced tail'))
-    repaired=copy.deepcopy(before['stories']['article'])
-    repaired['slots'][1].update(width=56,columns=2,gutter=8)
-    action=dict(type='edit',operations=[dict(op='story',id='article',story=repaired)])
-    review=case.call('review','session.dry_run',session_id='work',request_id='flow',expected_revision=0,action=action)
-    case.call('apply','session.apply_proposal',proposal=review['proposal'],action=action,response_mode='compact')
-    layout=case.call('inspect-flow','story.inspect',document=ref(1),id='article')['layout']
-    expected=[('first',0,0,2,2),('first',0,2,4,4),('second',0,4,6,6),
-              ('second',0,6,8,8),('second',1,8,10,10),('second',1,10,12,12)]
-    case.check('reading-order',lambda:require(layout['overset'] is None and
-        [(x['slot_id'],x['column'],x['start'],x['end'],x['consumed_end']) for x in layout['lines']]==expected,
-        'Flow dropped, duplicated or reordered a source interval'))
-    current=source_snapshot(case,ref(1))
-    wanted=copy.deepcopy(before);wanted['revision']=1;wanted['stories']['article']=repaired
-    case.check('retained-source',lambda:require(current==wanted and
-        current['fonts']['face']['sha256']==case.sources['original.ttf'] and
-        current['fonts']['face']['license_sha256']==case.sources['font-license.txt'],
-        'Flow repair changed unrelated state or font identity'))
-    rects=[(x,y,8,14,BLUE) for x in [1,13,33,45,65,77] for y in [2,22]]+[(90,40,4,4,GREEN)]
-    view(case,'preview',ref(1),'flow-pixels',96,48,pixels(96,48,rects))
-    old=case.call('original-flow','story.inspect',document=saved,id='article')['layout']
-    case.check('historical-flow',lambda:require(old==diagnosis,'Repair rewrote historical flow'))
-    verify_history(case)
 
 
 # Explicit independently authored glyph IDs and logical source intervals. The

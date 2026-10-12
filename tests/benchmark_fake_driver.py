@@ -14,6 +14,7 @@ from benchmark_icons import solve as solve_icons, expected_board, COLORS
 from benchmark_large_layout import solve as solve_layout, expected_picture as expected_layout
 from benchmark_svg import solve as solve_svg, expected_picture as expected_svg
 from benchmark_palette import solve as solve_palette, expected_picture as expected_palette
+from benchmark_flow import solve as solve_flow, expected_picture as expected_flow, expected_lines, repaired, FONT_FAMILY
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -45,12 +46,25 @@ def palette_svg(source):
     return ''.join(parts)+'</svg>'
 
 
+def flow_svg(source):
+    parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="96" height="48">']
+    for slot,x,width in (('first',0,24),('second',32,56)):
+        parts.append(f'<svg id="{slot}" x="{x}" y="0" width="{width}" height="40">')
+        lines = [row for row in expected_lines() if row['slot_id'] == slot]
+        for index,row in enumerate(lines):
+            text = source['stories']['article']['paragraphs'][0]['text'][row['start']:row['end']]
+            parts.append(f'<text x="{row["column"]*32}" y="{16+20*(index%2)}" font-family="{FONT_FAMILY}" '
+                f'font-size="20" fill="#145096" data-start="{row["start"]}" data-end="{row["end"]}">{text}</text>')
+        parts.append('</svg>')
+    return ''.join(parts)+'<rect id="unrelated" x="90" y="40" width="4" height="4" fill="#1e9646"/></svg>'
+
+
 def main():
     request=json.loads(Path(sys.argv[-1]).read_text(encoding='utf-8'))
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05')
+    assert task in ('B01','B02','B03','B04','B05','B06')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,**arguments):
             payload=json.dumps(dict(command=command,**arguments)).encode()
@@ -59,7 +73,7 @@ def main():
             events.append(dict(step=step,request=payload.decode(),response=process.stdout.decode()))
             assert response['ok'] and process.returncode==0
             return response['result']
-        {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette}[task](SimpleNamespace(root=root,call=call))
+        {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette, 'B06':solve_flow}[task](SimpleNamespace(root=root,call=call))
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
         if task=='B04':
@@ -68,10 +82,23 @@ def main():
             (root/'import-report.json').write_text(json.dumps(dict(source_sha256=hashlib.sha256((root/'original.svg').read_bytes()).hexdigest(),
                 mapping=dict(layer='layer',block='block'),losses=[])),encoding='utf-8')
         else:
-            source = (palette_svg if task=='B05' else layout_svg)(json.loads((root/'source.json').read_bytes())) if task in ('B03','B05') else SVG if task=='B01' else ICONS_SVG
+            if task in ('B03','B05','B06'):
+                layout = json.loads((root/'source.json').read_bytes())
+                source = {'B03':layout_svg,'B05':palette_svg,'B06':flow_svg}[task](layout)
+                if task == 'B06':
+                    (root/'layout.json').write_text(json.dumps(repaired(layout)),encoding='utf-8')
+                    (root/'flow-report.json').write_text(json.dumps(dict(original_overset=dict(paragraph=0,offset=8),
+                        final_overset=None,lines=expected_lines())),encoding='utf-8')
+            else: source = SVG if task == 'B01' else ICONS_SVG
             (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B05':
+        if task=='B06':
+            if renderer['version']=='synthetic-fixture':
+                (root/'preview.png').write_bytes(png(96,48,expected_flow()))
+            else:
+                subprocess.run([renderer['path'],'--skip-system-fonts','--use-font-file',str(root/'original.ttf'),
+                    '--font-family',FONT_FAMILY,str(root/'editable.svg'),str(root/'preview.png')],check=True)
+        elif task=='B05':
             if renderer['version']=='synthetic-fixture':
                 (root/'preview.png').write_bytes(png(32,16,expected_palette()))
             else:

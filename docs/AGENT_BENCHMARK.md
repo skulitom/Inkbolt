@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B05 also support `--arm model` and
+`--arm reference` is the existing default. B01-B06 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -115,7 +115,22 @@ references and the two history checks are explicitly not applicable in the
 baseline. Tests reject flattened links even with correct pixels, unrelated edits,
 false or stale histories, wrong images, source changes and unsafe SVG inputs.
 
-B06-B20 still interleave solving and judging. All required checks have
+B06 separates the linked-flow fixture, [prompt](../tools/benchmark_prompts/B06.md),
+reference solve and judge in `benchmark_flow.py`. Both arms receive the same
+original JSON layout, font and license; the geometric font gains only an optional
+family name for baseline discovery, with unchanged outlines and layout metrics.
+The judge independently checks the original overset, repaired logical intervals,
+retained source and every output pixel. Inkbolt's snapshot must change only the
+second slot and revision, and saved history must bind the source and delivery.
+The baseline retains editable JSON layout data and SVG text with explicit source
+intervals; neither a claimed flow report nor a correct PNG can conceal changed
+source text, frames, fonts or unrelated artwork. The pinned renderer disables
+system fonts and uses the original font. All six original check IDs/classes
+remain; only the two history checks are not applicable to the baseline. Tests
+cover both transports, independent session names, false reports, collateral
+changes, unsafe SVG, wrong images and rejudging relocated captured font stores.
+
+B07-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 

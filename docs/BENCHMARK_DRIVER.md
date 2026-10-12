@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B05. B06-B20 remain visible as
+The W2 external lifecycle currently supports B01-B06. B07-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -53,7 +53,8 @@ external-client reports describe the actual adapter protocol as external.
 The no-engine arm uses the same prompt and original inputs. B01 includes the
 original named font; B02 has no asset dependencies; B03 supplies the same original
 5,000-object JSON layout to both arms; B04 supplies the same original SVG;
-B05 supplies the same JSON palette and artwork. The baseline does not build,
+B05 supplies the same JSON palette and artwork; B06 supplies the same original
+linked-flow JSON layout, geometric font and license. The baseline does not build,
 configure or launch Inkbolt. Provide an external JSON file with exactly `resvg`
 and `python` absolute executable paths. The tools must be resvg **0.47.0** and a
 Python environment containing Pillow **12.3.0**. Tool executable hashes and a
@@ -116,6 +117,18 @@ both live swatch references with only the shared color and revision changed.
 The saved original/current snapshots and session head must bind that exact
 fixture and delivery. These three engine-only checks remain visible as
 not applicable in the baseline; a successful artifact does not earn that credit.
+
+B06 delivers `preview.png` and `flow-report.json` in both arms. The
+[shared linked-flow prompt](../tools/benchmark_prompts/B06.md) defines the original
+overflow diagnosis, final logical line intervals and the only permitted slot
+repair. The baseline retains `layout.json` plus `editable.svg`: its editable
+text and source intervals must agree with the retained logical story and frame
+controls, before a fresh pinned rendering using only the supplied font. The
+model arm delivers `editable.json` and `session.json`; independent inspection of
+the delivered and original snapshots verifies both layouts and binds valid
+history to the fixture, delivery and current head. Captured font stores are
+checked in the imported workspace without relying on old absolute session roots.
+Saved original flow and session integrity are explicitly engine-only checks.
 
 Observed first-preview timing is accepted only when its artifact hash matches a
 delivered image whose corresponding pixel check passed. B02 can identify any of
