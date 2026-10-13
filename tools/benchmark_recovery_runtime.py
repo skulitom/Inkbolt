@@ -1,6 +1,7 @@
 """Owned Windows process trees and retained fault evidence for the B19 adapter."""
 from contextlib import closing, contextmanager
 import ctypes
+import copy
 from ctypes import wintypes as w
 import json
 import os
@@ -131,6 +132,22 @@ class RecoveryTrial(Trial):
         with self.lock:
             self.events.append(dict(kind=kind,seconds=time.perf_counter()-self.started,**fields))
 
+    def output_checkpoint(self, label):
+        outputs={}
+        for name in self.outputs:
+            path=self.root/name
+            if not path.exists():outputs[name]=None;continue
+            require(path.is_file() and not path.is_symlink() and path.stat().st_size<=16*1024*1024,
+                    'Recovery output observation is linked, nonregular or oversized')
+            stat=path.stat();raw=path.read_bytes()
+            outputs[name]=dict(identity=[stat.st_ino,stat.st_size,stat.st_mtime_ns],bytes=len(raw),sha256=sha(raw))
+        self.event('output-checkpoint',label=label,outputs=outputs,snapshot=self.snapshot())
+
+    def begin_judging(self):
+        super().begin_judging()
+        with self.lock:events=copy.deepcopy(self.events)
+        save_json(getattr(self,'judge_root',self.root)/'recovery-observations.json',dict(schema_version=1,events=events))
+
     def snapshot(self):
         if not self.ledger.exists():return None
         with closing(sqlite3.connect(self.ledger.as_uri()+'?mode=ro',uri=True,timeout=.025)) as db:
@@ -249,7 +266,8 @@ class RecoveryTrial(Trial):
                         require(identity is not None, 'Rendering lacks a process identity')
                         worker=self.workers[(identity['pid'],identity['created'])]
                         require(self.api.WaitForSingleObject(worker['handle'],0)==258, 'Rendering process already exited')
-                    self.event('fault-boundary',request_id=request_id,state=state)
+                    self.event('fault-boundary',request_id=request_id,state=state,
+                               outputs_absent=all(not (self.root/name).exists() for name in self.outputs))
                     return state
                 require(not state or state['phase'] in ('queued','running'), 'Output finished before the required fault boundary')
             time.sleep(.005)

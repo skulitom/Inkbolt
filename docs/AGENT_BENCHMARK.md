@@ -264,8 +264,11 @@ That probe must preserve revision 1. Extra commits, lost edits, changed controls
 wrong proposals/errors or altered setup fail. All five checks remain fixed; the
 whole no-engine baseline stays not applicable.
 
-B19-B20 still interleave solving and judging. All required checks have
-explicit artifact/engine classes; classification does not migrate those judges.
+B19 now separates its original texture fixture, [recovery prompt](../tools/benchmark_prompts/B19.md),
+controlled reference solve and independent judge. Its external fault controller
+and capture/import integration remain open, so the external arm still reports
+not implemented. B20 still interleaves solving and judging. All required checks
+have explicit artifact/engine classes; classification does not migrate a judge.
 No real model trial is claimed by synthetic driver tests or reference runs.
 
 | Tasks | Implemented evidence |
@@ -325,6 +328,25 @@ This bounded rendering interruption complements the storage-boundary tests in
 [recovery acceptance](RECOVERY_CONTRACTS.md); it does not inject a crash at every
 write instruction or claim that file polling observes every instant.
 
+The solve retains actual attempts in attempts.json and ends before judgment.
+The harness freezes recovery-observations.json at that boundary, retaining the
+fault states and output identities. At the post-interruption inspection
+checkpoint it reads the checksummed ledger directly; short-lived states need not
+be caught by periodic polling. The independent judge reopens both saved revisions,
+current editable artwork, session/job receipts and the publication ledger, renders
+fresh focused/full previews and performs a fresh overwrite refusal. It compares
+every delivered pixel with the authored texture and green badge, and verifies
+that the current orange edit changes no other controls. All eight check IDs and
+the original PNG identity remain fixed. Judge requests/traffic/timing are separate
+from the solve. Retained attempts and verdicts alone cannot establish success.
+
+Terminal comparisons preserve attempt, worker/runner, pinned document, receipt,
+progress and error identity. They allow the final worker memory report to arrive
+after publication; updated timestamps are not publication identities. Complete
+owned-process lifetime accounting remains mandatory at close. Negative artifact
+tests reuse one independently queried durable state for mutations of retained
+files; changed-engine-state tests and every benchmark trial reopen all oracles.
+
 Each B19 trial owns a Windows kill-on-close process tree before commands receive
 their first input. Recorded workers require matching PID, creation time,
 executable and container membership. Hidden Windows console hosts are recorded
@@ -339,6 +361,9 @@ owned tree. `recovery-evidence.json` retains ledger observations, interventions,
 process identities, final-file observations and accounting. CLI launch teardown
 may overlap an independent CLI cancellation caller; MCP stays serial on its
 persistent connection. Both transports retain every request and response.
+Container totals include the separate judge CLI processes; ordinary process/call
+metrics exclude them. The fixed reference workflow is not an external-client
+bridge: genuine agent fault requests and captured-trial rejudging remain required.
 
 B20 uses an original 32x16 two-frame transparent animation with 3/25- and
 2/25-second holds, looped twice at 25 fps. A reviewed edit moves only the first
@@ -391,7 +416,8 @@ Complete print/interchange scope remains governed by the original feature regist
   Raw request/response lengths include actual framing and image payloads.
   Report/row schema version 2 separates calls marked `phase:"judge"` from ordinary
   counts, bytes and round-trip time, preserving their raw records and separate
-  `judge_*` totals. `judge_separated:true` identifies migrated tasks (currently B01-B18).
+  `judge_*` totals. `judge_separated:true` identifies separated reference tasks
+  (currently B01-B19); external lifecycle support remains B01-B18.
   Judge calls alone cannot establish a successful solve.
   For B20 these ordinary fields describe Inkbolt; `consumer` records the Cutbolt
   side. `total_engine_commands`, `total_engine_retries`, `total_request_bytes`,

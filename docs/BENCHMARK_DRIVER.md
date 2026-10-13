@@ -436,6 +436,16 @@ setup evidence fail. Captured source files remain unchanged during import and
 judging. These identity checks are not authenticated proof of historical client
 behavior. The entire engine-specific no-engine baseline remains not applicable.
 
+B19's fixture/prompt/reference solve and independent judge are separated. Its
+external fault controller remains required before adding it to this lifecycle:
+it must own the engine processes, admit the original revision before the later
+edit, inject both faults during observed rendering, retain independent fault and
+inspection evidence, and close every owned process. Captured-trial import must
+rejudge without reinjecting faults or changing captured files. A client-authored
+claim that a cancellation or interruption happened cannot replace those controls.
+Unix jobs remain unsupported. B19 therefore still reports not implemented for
+the external model arm, and its no-engine baseline stays not applicable.
+
 ## Preparation and import
 
 `--prepare-only` writes requests and fixtures without launching the client. B17

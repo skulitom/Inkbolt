@@ -708,6 +708,46 @@ changed input/delivery files. These are shared-host correctness results, not
 authenticated client behavior, genuine model trials, performance comparisons or
 full W2 milestone acceptance. No engine behavior or checkpoint credit changed.
 
+B19 now separates its unchanged original texture fixture, recovery prompt,
+controlled reference solve and independent judge. The solve retains actual
+attempts and ends before judging. The harness freezes fault/process/output
+observations, including a direct checksummed-ledger read at the interrupted
+inspection checkpoint. The judge reopens original/current documents, session/job
+receipts and the publication ledger, renders fresh focused/full previews and
+checks exact pixels, editable controls, attempt counts, absence before resume,
+physical publication identity, overwrite refusal and source/history preservation.
+All eight original checks remain fixed. Twelve judge calls are separated from
+solve costs; container accounting still includes every command and background
+process. The external controller and captured-trial integration remain open.
+
+Nine Windows recovery tests passed in 113.7 seconds, including both transports,
+cache-independent rejudging, real extra revisions and eleven retained-artifact
+fault cases. Seventeen shared benchmark tests also passed; the corrected
+dependency-boundary assertion passed all 26 verifier tests in 34.6 seconds.
+Initial failed reports remain retained: terminal comparison now permits the
+worker's final memory report to arrive after publication, inspection captures
+the ledger directly instead of depending on periodic polling, and test cleanup
+closes the owned runtime before removing its temporary directory. The standalone
+judge test does not depend on report documents, avoiding needless rendering
+reruns after documentation-only changes. Runtime and judge bytes match the final
+candidate; only contract documentation and that test-only assertion differ across
+the focused/integration Windows reports.
+
+Linux passed 41 tests in 86.5 seconds with eleven explicit platform skips. Eight
+are job/containment checks and three are Windows verification checks; this is not
+Unix job support. Unchanged formatting, locked build and all-target Clippy inputs
+reused passing results. No selected checks remain unresolved. Five CLI and five
+MCP release references passed with 23 solve calls, 12 judge calls, complete owned
+process observations and zero active processes at close in every trial. Final
+Linux/reference candidate fingerprint:
+`b3b6614d59af9c4e3f907d08caad28ccb09580be5ed2a6ffdcad96c73a289024`.
+Prompt hash:
+`fcffddcfddd04036491c8960c36317ce360fe2b124843b7476f29fce47bc1673`.
+Evidence remains external under `w2-b19-judge-`, with the original interleaved
+control under `w2-b19-reference-before-01`. These shared-host correctness
+references are not model trials, performance comparisons or full W2 acceptance.
+No engine behavior, supported platform tier or checkpoint credit changed.
+
 B19-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
