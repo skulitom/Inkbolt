@@ -36,7 +36,8 @@ Add `--workspace C:\Work\Graphics` before `mcp` or a request file to select an e
 
 Set `response_mode:"compact"` on session creation, reads, edits and receipt recovery to receive pinned references and summaries. Full responses remain the default; see [compact responses](docs/AGENT_RESPONSES.md).
 
-Send one JSON request on stdin, or pass one request file. Discover one operation without loading the complete schema:
+Send one JSON request on stdin, or pass one request file. `--help` (or `-h`)
+returns compact JSON usage and runnable request examples. Discover one operation without loading the complete schema:
 
 ```json
 {"command":"schema.lookup","name":"operation","select":"transform"}

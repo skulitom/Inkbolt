@@ -1025,10 +1025,24 @@ A genuine B02 pilot on that same candidate passed every artifact and engine
 check. It published the snapshot and all three PNGs through MCP with zero client
 approval refusals. It retained the sibling-index error and CLI help attempts.
 The [pilot evidence](BENCHMARK_RESULTS.md#b02-client-approval-configuration-pilot)
-verifies this setup, not five-repetition efficiency or full acceptance. Before
-the next broad interface increment, address those observed guidance gaps and
-remeasure using the explicit external client configuration. No judge or prompt
-changes are planned, and the earlier results remain retained.
+verifies this setup, not five-repetition efficiency or full acceptance. Earlier
+results and all failed attempts remain retained.
+
+The next focused increment adds JSON CLI help (`--help` and `-h`) with runnable
+request examples, plus operation-schema and error guidance for the final
+zero-based sibling index. Reorder semantics remain unchanged: parentage and
+sibling order do not prescribe global snapshot storage order. Process tests run
+the advertised examples, check workspace validation and lack of input effects,
+and repair an invalid global index using the reported sibling scope while
+preserving every item. Windows passed 50 Python tests and one focused Rust schema
+test in 79.9 seconds; WSL passed 47 Python tests and the same Rust check in 45.5
+seconds, with three explicit platform skips. Both also passed fresh formatting,
+locked build and all-target Clippy, with no failed, pending or reused selected
+checks. Reports remain external under `w5-cli-guidance-`; the unchanged tested
+candidate is `a78b00939244a45beeadaf5c68868cc72ea6e465381225bfea3b870c1830d84a`.
+Only this record and the primary status table changed afterward. Full milestone
+acceptance remains open. Remeasure using the verified external client approval
+configuration before further interface work; task prompts and judges stay fixed.
 
 Five-repetition model trials for the other nineteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence

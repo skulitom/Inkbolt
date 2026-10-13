@@ -478,8 +478,12 @@ pub enum Operation {
         mode: layout::Distribution,
         reference: layout::Reference,
     },
+    /// Move an item within its existing parent's sibling stack without changing its parent.
     Reorder {
         id: String,
+        /// Final zero-based sibling position under the same parent (root items are siblings).
+        /// Must be less than that parent's sibling count, including the moved item.
+        /// This is not an offset into document.items and does not prescribe global storage order.
         index: usize,
     },
     Properties {
@@ -1890,10 +1894,14 @@ fn apply_one(
         Operation::Reorder { id, index: at } => {
             let i = index(document, id)?;
             unlocked(document, i)?;
-            if *at >= scene::children(document, document.items[i].parent.as_deref()).len() {
+            let sibling_count =
+                scene::children(document, document.items[i].parent.as_deref()).len();
+            if *at >= sibling_count {
                 return Err(Error::new(
                     "INVALID_OPERATION",
-                    "Stack index must identify a final item position",
+                    format!(
+                        "Reorder index {at} must be a final zero-based sibling position less than {sibling_count} (the sibling count under the same parent, including this item); it is not an offset into document.items"
+                    ),
                 ));
             }
             let item = document.items.remove(i);

@@ -1831,6 +1831,7 @@ fn capability_report() -> Value {
         "progress":"render_tiles;cooperative_cancellation_between_tiles"
     });
     capabilities["agent_discovery"] = json!({
+        "cli_help_arguments":["--help","-h"],
         "lookup":"schema.lookup", "index":"index",
         "large_schema_outline_bytes":schema::OUTLINE_BYTES,
         "full_schema":"schema", "mcp_default":"full",

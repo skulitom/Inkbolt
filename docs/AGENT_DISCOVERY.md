@@ -27,6 +27,12 @@ changes an existing client.
 
 ## Focused schemas
 
+For CLI discovery, `inkbolt --help` (or `-h`) returns one successful JSON envelope
+with compact usage, request examples and the focused lookup path. It does not
+read stdin or execute those examples. `--workspace ABSOLUTE_DIRECTORY` may precede
+the help flag, with the usual existing-directory validation. Capabilities report
+the supported flags in `agent_discovery.cli_help_arguments`.
+
 `schema.lookup` is a read-only CLI/library/MCP command. The original argument-free `schema` command still returns the complete engine schema unchanged in shape.
 
 ```json
@@ -34,6 +40,7 @@ changes an existing client.
 {"command":"schema.lookup","name":"document.create"}
 {"command":"schema.lookup","name":"operation"}
 {"command":"schema.lookup","name":"operation","select":"transform"}
+{"command":"schema.lookup","name":"operation","select":"reorder"}
 {"command":"schema.lookup","name":"document.edit","select":"Operation","full":true}
 ```
 
@@ -42,6 +49,13 @@ changes an existing client.
 Results report `detail`, `name`, `select` and the serialized `schema_bytes`. Schemas through 12 KiB return `detail:"full"` and `schema`, including every referenced definition. Larger schemas return `detail:"outline"`, fields, tagged variants and reachable definition names. An outline is not a validation schema. `full:true` always requests the complete selected schema. The index is already complete and rejects `select` and `full:true`.
 
 `select` chooses one variant of the named root (for example the `transform` operation) or a referenced definition listed in that root's outline. Selection never changes execution. If a selected definition is itself a large tagged union, use its shared alias to select a variant, or request its complete schema. Definition names come from the current schema generator; shared aliases are the supported discovery names. Unknown names or selectors return `SCHEMA_NOT_FOUND` without echoing their text. Names/selectors are limited to 128 UTF-8 bytes.
+
+`reorder.index` is the final zero-based position among items with the same parent,
+including the moved item; root items are siblings. For two children, valid indexes
+are 0 and 1 regardless of their offsets in `document.items`. Reorder preserves
+parentage and does not prescribe the flat array's global storage order. The focused
+operation schema explains this scope, and an out-of-range error reports the sibling
+count. Inspect parent IDs and sibling order before choosing the index.
 
 Compact listings defer large document, operation, item, content, geometry and paint definitions. Their descriptions and `x-inkbolt-schema` annotations identify the lookup. Deferred paint accepts both solid RGBA arrays and paint objects. These intentionally abbreviated listings do not replace runtime validation: the shared Rust request types still reject unsupported semantics and unknown fields.
 

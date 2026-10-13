@@ -234,7 +234,7 @@ Each batch requires the exact revision of the supplied document, contains 1..64 
 | clip | id, clip | Set, revise, disable or release an editable geometric clip |
 | align | ids, axis, anchor, reference | Align selected world geometry to an explicit reference |
 | distribute | ids, axis, mode, reference | Distribute at least three selected objects by gaps or centers |
-| reorder | id, index | Move to the declared final stack position |
+| reorder | id, index | Move to a final zero-based sibling position under the same parent; index must be below the sibling count including this item, not an offset into document.items |
 | properties | id; optional name, visible, locked, opacity, fill_opacity, coverage, blend | Change supplied properties only |
 | transform | id, matrix; optional space, anchor | Replace, world-compose or local-compose a matrix, optionally around an explicit anchor |
 | vector | id, geometry, fill, stroke; optional fill_rule | Replace editable geometry/appearance of a vector item |

@@ -1,12 +1,14 @@
 """Compact discovery and routed execution, checked through independent processes."""
 from contextlib import closing
+import copy
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 
 from test_mcp import Client
-from test_sessions_cli import invoke
+from test_sessions_cli import EXE, invoke
 
 
 def catalog(client):
@@ -21,6 +23,71 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_cli_help_is_compact_json_with_working_examples_and_no_input_effects(self):
+        flags = invoke(dict(command='capabilities'))['result']['agent_discovery']['cli_help_arguments']
+        self.assertEqual(flags, ['--help', '-h'])
+        reference = None
+        with tempfile.TemporaryDirectory() as directory:
+            for prefix in ([], ['--workspace', directory]):
+                for flag in flags:
+                    with self.subTest(prefix=prefix, flag=flag):
+                        result = subprocess.run([str(EXE), *prefix, flag], input=b'not a JSON request',
+                                                capture_output=True, timeout=20)
+                        self.assertEqual(result.returncode, 0, result.stdout)
+                        self.assertEqual(result.stderr, b'')
+                        self.assertEqual(len(result.stdout.splitlines()), 1)
+                        self.assertLess(len(result.stdout), 4096)
+                        reply = json.loads(result.stdout)
+                        self.assertTrue(reply['ok'])
+                        if reference is None:
+                            reference = reply
+                        self.assertEqual(reply, reference)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+        for request in reference['result']['examples']:
+            with self.subTest(request=request):
+                self.assertTrue(invoke(request)['ok'])
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([str(EXE), '--workspace', str(Path(directory) / 'missing'), '--help'],
+                                    capture_output=True, timeout=20)
+            self.assertEqual(result.returncode, 1)
+            self.assertFalse(json.loads(result.stdout)['ok'])
+
+    def test_reorder_guidance_identifies_sibling_scope_and_preserves_other_items(self):
+        focused = invoke(dict(command='schema.lookup', name='operation', select='reorder'))['result']
+        self.assertEqual(focused['detail'], 'full')
+        description = focused['schema']['properties']['index']['description']
+        self.assertIn('zero-based sibling position', description)
+        self.assertIn('including the moved item', description)
+        self.assertIn('not an offset into document.items', description)
+        doc = invoke(dict(command='document.create', id='sibling-order', kind='vector', width=8, height=8))['result']
+        doc['items'] = [
+            dict(id='g0', content=dict(type='group')),
+            dict(id='a', parent='g0', content=dict(type='group')),
+            dict(id='g1', content=dict(type='group')),
+            dict(id='b', parent='g0', content=dict(type='group')),
+            dict(id='c', parent='g1', content=dict(type='group')),
+        ]
+        # Normalize defaults once, then compare exact retained objects after reordering.
+        doc = invoke(dict(command='document.edit', document=doc, expected_revision=0,
+                          operations=[dict(op='reorder', id='a', index=0)]))['result']['document']
+        before = copy.deepcopy(doc)
+        global_index = next(i for i, item in enumerate(doc['items']) if item['id'] == 'b')
+        bad = invoke(dict(command='document.edit', document=doc, expected_revision=doc['revision'],
+                          operations=[dict(op='reorder', id='b', index=global_index)]))
+        self.assertFalse(bad['ok'])
+        self.assertEqual(bad['error']['code'], 'INVALID_OPERATION')
+        self.assertIn('less than 2', bad['error']['message'])
+        self.assertIn('not an offset into document.items', bad['error']['message'])
+        good = invoke(dict(command='document.edit', document=doc, expected_revision=doc['revision'],
+                           operations=[dict(op='reorder', id='b', index=0)]))['result']['document']
+        self.assertEqual(doc, before)
+        self.assertEqual({item['id']: item for item in good['items']},
+                         {item['id']: item for item in before['items']})
+        self.assertEqual([item['id'] for item in good['items'] if item.get('parent') == 'g0'], ['b', 'a'])
+        self.assertEqual([item['id'] for item in good['items'] if item.get('parent') is None], ['g0', 'g1'])
+        self.assertEqual([item['id'] for item in good['items'] if item.get('parent') == 'g1'], ['c'])
+        self.assertEqual(good['revision'], before['revision'] + 1)
+
     def test_first_page_can_discover_and_run_commands_with_stable_complete_pagination(self):
         with tempfile.TemporaryDirectory() as directory:
             for workspace in (None, directory):

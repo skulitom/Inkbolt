@@ -18,6 +18,29 @@ fn read_request(reader: impl Read) -> Result<Value, Error> {
 fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error> {
     let request = match args {
         [] => read_request(std::io::stdin().lock())?,
+        [arg] if arg == "--help" || arg == "-h" => {
+            return Ok(json!({
+                "usage":[
+                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] < request.json",
+                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] request.json",
+                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] capabilities|schema|implementation.status",
+                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] mcp [--tools core|full]",
+                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] --help|-h"
+                ],
+                "requests":"One JSON request on stdin or in one UTF-8 request file. No arguments reads stdin.",
+                "workspace":"Optional existing absolute directory; selects default stores and resolves request paths within it.",
+                "responses":{"success":"One JSON line with ok:true and result; exit code 0.",
+                    "failure":"One JSON line with ok:false and error containing code and message; exit code 1.",
+                    "mcp":"MCP stdio protocol instead of CLI envelopes; use --tools core for compact discovery."},
+                "discovery":"Use schema.lookup for command arguments or one operation. Full schema and capabilities are larger responses.",
+                "examples":[
+                    {"command":"schema.lookup","name":"index"},
+                    {"command":"schema.lookup","name":"document.create"},
+                    {"command":"schema.lookup","name":"operation","select":"reorder"},
+                    {"command":"document.create","id":"example","kind":"vector","width":32,"height":32}
+                ]
+            }));
+        }
         [arg] if arg == "capabilities" || arg == "schema" || arg == "implementation.status" => {
             json!({"command":arg.to_str().unwrap()})
         }
@@ -33,7 +56,7 @@ fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error>
         _ => {
             return Err(Error::new(
                 "INVALID_REQUEST",
-                "Use optional --workspace DIR followed by stdin, one request file, capabilities, schema, implementation.status, or mcp --tools core|full",
+                "Use --help for CLI usage, JSON examples and focused schema discovery",
             ));
         }
     };
