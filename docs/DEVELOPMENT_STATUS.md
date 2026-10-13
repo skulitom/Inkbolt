@@ -1010,6 +1010,26 @@ explicit client approval configuration for the supplied local engine in one
 pilot, then repeat matched trials; retain sandboxing and conservative engine
 annotations. Item-ordering guidance remains a separate measured candidate.
 
+The Codex adapter now accepts an explicit external `--mcp-approval-mode`; omission
+keeps client defaults and no failure automatically retries with broader access.
+The override applies only to the supplied server after its configuration and
+executable identity checks. Baseline/bridge arms receive no server or engine
+grant. Model/settings, task prompts, shell sandboxing and engine tool annotations
+stay unchanged. Thirteen adapter controls plus driver/comparison coverage passed
+42 tests on Windows in 18.0 seconds and WSL in 9.7 seconds, with no skips, failures
+or pending selected checks. Unchanged format/build/Clippy stages reused prior
+passes. Reports remain external under `w2-codex-approval-`; tested candidate:
+`bdffa598686967936c79c57e1297068e31f04422e72c757cd7b455e9d4877aa6`.
+
+A genuine B02 pilot on that same candidate passed every artifact and engine
+check. It published the snapshot and all three PNGs through MCP with zero client
+approval refusals. It retained the sibling-index error and CLI help attempts.
+The [pilot evidence](BENCHMARK_RESULTS.md#b02-client-approval-configuration-pilot)
+verifies this setup, not five-repetition efficiency or full acceptance. Before
+the next broad interface increment, address those observed guidance gaps and
+remeasure using the explicit external client configuration. No judge or prompt
+changes are planned, and the earlier results remain retained.
+
 Five-repetition model trials for the other nineteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

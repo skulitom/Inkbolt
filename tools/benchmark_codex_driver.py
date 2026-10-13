@@ -17,6 +17,7 @@ import time
 MAX_METADATA = 1024 * 1024
 MAX_TRANSCRIPT = 64 * 1024 * 1024
 MAX_EVENT = 8 * 1024 * 1024
+MCP_APPROVAL_MODES = ('auto', 'prompt', 'writes', 'approve')
 DISABLED_FEATURES = ('apps', 'plugins', 'remote_plugin', 'browser_use',
     'browser_use_external', 'computer_use', 'image_generation', 'multi_agent',
     'memories', 'goals', 'skill_search')
@@ -65,7 +66,9 @@ def regular(path, limit=MAX_METADATA):
     return path.read_bytes()
 
 
-def prepare(request, executable):
+def prepare(request, executable, mcp_approval_mode=None):
+    require(mcp_approval_mode is None or mcp_approval_mode in MCP_APPROVAL_MODES,
+            'Unknown MCP approval mode')
     contract = request['contract']
     require(request['schema_version'] == contract['schema_version'] == 1 and
             digest(canonical(contract)) == request['contract_sha256'], 'Invalid request identity')
@@ -117,6 +120,8 @@ def prepare(request, executable):
                 'Engine executable identity differs')
         for key, value in dict(command=server['command'], args=server['args'], required=True).items():
             argv += ['--config', 'mcp_servers.inkbolt.' + key + '=' + json.dumps(value)]
+        if mcp_approval_mode is not None:
+            argv += ['--config', 'mcp_servers.inkbolt.default_tools_approval_mode=' + json.dumps(mcp_approval_mode)]
     # B19/B20 supply only their measured bridge instead of a direct engine.
     tools = {key: request[key] for key in ('tool_policy', 'baseline_tools',
              'engine_executable', 'recovery_bridge', 'handoff_bridge') if request.get(key) is not None}
@@ -144,9 +149,9 @@ def observed_usage(events):
     return result or None
 
 
-def run(request_path, executable):
+def run(request_path, executable, mcp_approval_mode=None):
     request = strict_json(regular(request_path)); contract = request['contract']
-    argv, prompt, workspace = prepare(request, executable)
+    argv, prompt, workspace = prepare(request, executable, mcp_approval_mode)
     options = dict(creationflags=subprocess.CREATE_NO_WINDOW) if os.name == 'nt' else {}
     version = subprocess.run([str(executable), '--version'], stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL, timeout=15, check=True, **options).stdout.decode('utf-8').strip()
@@ -195,10 +200,12 @@ def run(request_path, executable):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client-executable', required=True, type=Path)
+    parser.add_argument('--mcp-approval-mode', choices=MCP_APPROVAL_MODES,
+                        help='Explicit approval policy for the supplied Inkbolt server only; omitted keeps client defaults')
     parser.add_argument('request', type=Path)
     args = parser.parse_args(argv)
     try:
-        run(args.request, args.client_executable)
+        run(args.request, args.client_executable, args.mcp_approval_mode)
     except (ValueError, KeyError, TypeError, OSError, subprocess.SubprocessError) as error:
         print(type(error).__name__ + ': ' + str(error), file=sys.stderr)
         return 2

@@ -27,6 +27,23 @@ the adapter additionally checks the client's reported version. It accepts exactl
 silently ignoring them. Supported values depend on the chosen model/client.
 An unavailable model or client failure remains a failed attempt.
 
+For an evaluation authorized to execute the supplied local engine unattended,
+add `--mcp-approval-mode approve` to this adapter's external `argv` in both arms.
+This sets `mcp_servers.inkbolt.default_tools_approval_mode` only after validating
+the exact server configuration and executable hash. The baseline and bridge
+tasks have no such server, so the option grants them no engine access. Omission
+preserves the client's default; there is no automatic retry with broader access.
+The adapter accepts the documented `auto`, `prompt`, `writes` and `approve`
+values. See the [official MCP configuration](https://learn.chatgpt.com/docs/extend/mcp).
+Record the chosen mode in the run conditions and retain the external config.
+
+Global unattended approval policy alone does not authorize every MCP tool.
+The recorded first-page trials used that global policy without a server override,
+and the client refused dispatcher publication calls before engine execution.
+Verify an explicitly selected server policy in a retained pilot before a batch.
+This option does not alter the task prompt, model/settings, engine annotations,
+shell permissions, sandbox, managed policy or installed user configuration.
+
 The adapter uses the client's existing sign-in without reading or copying
 credentials. It starts a fresh ephemeral execution with user configuration and
 host skill discovery excluded, workspace writes allowed, and approvals disabled

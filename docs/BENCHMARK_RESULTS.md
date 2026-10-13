@@ -2,8 +2,8 @@
 
 Two five-pair B02 evaluations are recorded below. The first-page discovery
 change preserved artifact success but did not meet its token-reduction target.
-The follow-up also exposed client approval refusals that need to be resolved
-before expanding the interface work.
+The follow-up also exposed client approval refusals. A separate setup pilot below
+verified an explicit external configuration that permits MCP publication.
 
 ## B02 at c7d9f30: initial five matched icon-sheet trials
 
@@ -168,3 +168,30 @@ captures remain separate from the initial runs:
 | Inkbolt-arm report | `c432074c3e97dce7fc01cf61440ad7c7b4a78a035c2b9e125901673231f13406` |
 | Baseline-arm report | `2438ddeb8d7b16f87f277b0260d8c5f62119c742b104aa05d2350d346a98a6c5` |
 | Matched comparison report | `ab880b37dad6e63835ec9ff5d561d90658547c6b2a4665a6d3c7c35dabd62b4f` |
+
+## B02 client approval configuration pilot
+
+One subsequent genuine trial used the same client/model/settings and unchanged
+B02 prompt/checks, with the externally selected `--mcp-approval-mode approve`
+option described in the [driver contract](BENCHMARK_CODEX.md). The engine binary
+was unchanged from the first-page experiment. This pilot passed all artifact and
+native-source checks, including source preservation. Its transcript records four
+successful `inkbolt_run` publication calls for the snapshot and three PNGs, with
+zero client approval refusals. Shell commands inspected local files/pixels and
+attempted CLI discovery; they did not publish the outputs. The sibling-stack
+reorder error still occurred.
+
+The client reported 436,301 input tokens and 2,073 output tokens, with 360,320
+cached input tokens tracked separately, and 103.6 seconds of agent execution.
+This is one setup pilot without a paired baseline, not an efficiency comparison
+or part of either five-pair aggregate. The shell sandbox, prompt, model/settings
+and engine effect annotations were preserved; the external config and exact
+client argument array record the server policy. Future matched trials must use
+the same external config in both arms. All full-suite completion gates remain open.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Tested/pilot source candidate | `bdffa598686967936c79c57e1297068e31f04422e72c757cd7b455e9d4877aa6` |
+| Pilot report | `d0975df5a530a5045d94fadf793c9849c11a75edd1682ecbd2d054976c7fdafb` |
+| Client transcript | `e3daf8ac7812efe4e3cb0300a62ee05c1a114f4fa42726f016fc76fed47f27d3` |
+| External client configuration | `7210961872baca5a7afc9f8668aa935135d311ad9beb83156563c0e633c0cf02` |

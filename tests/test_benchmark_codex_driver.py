@@ -86,6 +86,8 @@ class CodexDriverTests(unittest.TestCase):
             self.assertIn(setting, argv)
         self.assertFalse(any('mcp_servers.' in arg for arg in argv))
         self.assertNotIn('engine_executable', prompt)
+        approved, _, _ = driver.prepare(self.request, Path(sys.executable), 'approve')
+        self.assertEqual(approved, argv)  # Identical paired configuration grants no baseline engine.
         if sys.platform == 'win32': self.assertIn('windows.sandbox="elevated"',argv)
         for field in ('mcp_config', 'engine_executable'):
             bad = dict(self.request, **{field:'unexpected'})
@@ -102,8 +104,27 @@ class CodexDriverTests(unittest.TestCase):
         argv, _, _ = driver.prepare(self.request, engine)
         self.assertIn('mcp_servers.inkbolt.required=true',argv)
         self.assertIn('mcp_servers.inkbolt.command='+json.dumps(str(engine)),argv)
+        self.assertFalse(any('default_tools_approval_mode' in arg for arg in argv))
+        approved, prompt, _ = driver.prepare(self.request, engine, 'approve')
+        self.assertIn('mcp_servers.inkbolt.default_tools_approval_mode="approve"', approved)
+        self.assertIn('approval_policy="never"', approved)
+        self.assertIn('workspace-write', approved)
+        self.assertEqual(prompt, driver.prepare(self.request, engine)[1])
+        self.assertEqual(set(approved)-set(argv), {'mcp_servers.inkbolt.default_tools_approval_mode="approve"'})
+        self.contract['engine_sha256'] = '0'*64; self.bind()
+        with self.assertRaisesRegex(ValueError,'Engine executable identity'):
+            driver.prepare(self.request, engine, 'approve')
+        self.contract['engine_sha256'] = driver.digest(engine.read_bytes()); self.bind()
         mcp['mcpServers']['unexpected'] = {}; Path(self.request['mcp_config']).write_bytes(driver.canonical(mcp))
-        with self.assertRaisesRegex(ValueError,'Unexpected MCP'): driver.prepare(self.request, engine)
+        with self.assertRaisesRegex(ValueError,'Unexpected MCP'): driver.prepare(self.request, engine, 'approve')
+
+    def test_mcp_policy_is_explicit_on_the_command_line_and_unknown_modes_fail(self):
+        with patch.object(driver, 'run') as run:
+            self.assertEqual(driver.main(['--client-executable', sys.executable,
+                '--mcp-approval-mode', 'approve', str(self.request_path)]), 0)
+            run.assert_called_once_with(self.request_path, Path(sys.executable), 'approve')
+        with self.assertRaisesRegex(ValueError,'Unknown MCP approval mode'):
+            driver.prepare(self.request, Path(sys.executable), 'unexpected')
 
     def test_changed_prompt_fixture_and_contract_fail_before_client_execution(self):
         original = copy.deepcopy(self.request)
