@@ -27,23 +27,27 @@ from workload_cases import sha, save_json
 
 
 class BenchmarkTypographyTests(unittest.TestCase):
-    def prepare(self, root, independent_names=False):
+    def prepare(self, root, independent_names=False, first_baseline=None):
         trial = Trial(EXE,root,'B07',1,'cli',CHECKS['B07'])
         self.addCleanup(trial.close)
-        if independent_names:
+        if independent_names or first_baseline is not None:
             call = trial.call
-            def renamed(step, command, **arguments):
-                if arguments.get('session_id') == 'work': arguments['session_id'] = 'artist-type'
-                if command == 'session.create':
-                    doc = typography_document('artist-sheet','artist-font',arguments['document']['fonts']['face'])
-                    doc['metadata'] = {'title':'Multilingual study'}
-                    for i,item in enumerate(doc['items']):
-                        item.update(id=f'artist-{i}',name=f'Study row {i}',metadata={'title':f'Row {i}'})
-                    arguments['document'] = doc
-                if command == 'text.inspect' and arguments['id'].startswith('row-'):
-                    arguments['id'] = arguments['id'].replace('row-','artist-')
-                return call('artist-'+step,command,**arguments)
-            trial.call = renamed
+            def authored(step, command, **arguments):
+                if independent_names:
+                    if arguments.get('session_id') == 'work': arguments['session_id'] = 'artist-type'
+                    if command == 'session.create':
+                        doc = typography_document('artist-sheet','artist-font',arguments['document']['fonts']['face'])
+                        doc['metadata'] = {'title':'Multilingual study'}
+                        for i,item in enumerate(doc['items']):
+                            item.update(id=f'artist-{i}',name=f'Study row {i}',metadata={'title':f'Row {i}'})
+                        arguments['document'] = doc
+                    if command == 'text.inspect' and arguments['id'].startswith('row-'):
+                        arguments['id'] = arguments['id'].replace('row-','artist-')
+                if command == 'session.create' and first_baseline is not None:
+                    for item in arguments['document']['items']:
+                        item['content']['frame']['first_baseline'] = dict(first_baseline)
+                return call('authored-'+step,command,**arguments)
+            trial.call = authored
         fixture(trial); trial.begin(PROMPT.read_text(encoding='utf-8')); solve(trial)
         return trial
 
@@ -74,6 +78,18 @@ class BenchmarkTypographyTests(unittest.TestCase):
             row = trial.finish()
             self.assertEqual(row['status'],'passed',row)
             self.assertIsNone(row['first_verified_preview_seconds'])
+
+    def test_explicit_baseline_placement_keeps_independent_glyph_and_pixel_oracles(self):
+        for metric,minimum,valid in (('fixed',200,True),('ascent',0,True),('fixed',199,False)):
+            with self.subTest(metric=metric,minimum=minimum), tempfile.TemporaryDirectory() as directory:
+                trial = self.prepare(Path(directory)/'baseline',first_baseline=dict(metric=metric,minimum=minimum))
+                trial.results.clear(); trial.begin_judging(); judge(trial)
+                row = trial.finish(); checks = {check['name']:check['status'] for check in row['checks']}
+                self.assertEqual(row['status'],'passed' if valid else 'failed',row)
+                self.assertEqual(checks['editable-text-and-font'],'pass')
+                self.assertEqual(checks['history-valid'],'pass')
+                for name in ('glyph-cluster-order','typography-pixels'):
+                    self.assertEqual(checks[name],'pass' if valid else 'fail',row)
 
     def test_solver_logs_cannot_hide_false_clusters_changed_source_or_unrelated_history(self):
         # Reuse only exact raw PNG/dimensions/expected-byte tuples inside this

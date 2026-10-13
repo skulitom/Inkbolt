@@ -130,6 +130,11 @@ def judge(case):
     for target,item in zip(expected['items'],actual['items'],strict=True):
         target.update(id=item['id'],name=item['name'])
         if 'metadata' in item: target['metadata'] = item['metadata']
+        # The prompt prescribes baseline positions, not a particular placement
+        # control. Authored glyph origins and fresh pixels still judge placement.
+        frame = item['content']['frame']
+        if 'first_baseline' in frame:
+            target['content']['frame']['first_baseline'] = frame['first_baseline']
     normalized = case.call('judge-expected','document.validate',document=expected)
     case.check('editable-text-and-font',lambda:require(type(actual['revision']) is int and actual['revision'] >= 0 and
         actual == reopened == normalized,'Typography changed editable text, frame geometry, formatting or original font/license'))

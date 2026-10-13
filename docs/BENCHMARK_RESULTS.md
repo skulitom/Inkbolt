@@ -454,3 +454,75 @@ and `w2-svg-palette-sol-comparison-five-01`, with separate trace review files.
 | Inkbolt report | `13bc20d7fc032c105037cf4b715a83034380575481372997f0a60b630343ff36` |
 | Baseline report | `ef6a6603aac9534468539d097c072aeb79e027faeaf70d1638c8fe2e2fdf9e74` |
 | Matched comparison | `006c77ecd151342ec6af21579bc8200b5277fb2cd8e79981fa0fcffad48be9e6` |
+
+## B06/B07 at a7e034e: captured trials rejudged
+
+Five new repetitions per task and arm used the same external Codex CLI 0.160.0
+configuration (`gpt-6.1-sol`, medium reasoning, explicit MCP approval option).
+These identify the evaluation only; the engine and harness have no model default.
+The unchanged release executable and pinned baseline tools match the preceding
+batch. Inkbolt ran before the baseline on the shared Windows host, with task
+order rotated by repetition. This chat scheduled no concurrent Inkbolt checks
+or benchmarks; other host workloads were uncontrolled and OS caches could be
+warm. Both original and rejudged source candidates stayed unchanged. Both tasks
+have five matched pairs with no global or task matching issues.
+
+| Task | Inkbolt / baseline artifact passes | Median input + output tokens | Median client seconds |
+| --- | --- | ---: | ---: |
+| B06 linked text flow | 5/5 / 5/5 | 337,131 / 76,580 | 113.8 / 53.5 |
+| B07 multilingual typography | 5/5 / 0/5 | 405,058 / 218,798 | 111.8 / 148.3 |
+
+B06 triggers the existing cost signal: matching shared artifact success at
+**4.40x** median observed token use with Inkbolt. Its saved historical-flow and
+history checks also passed; those engine-only checks do not apply to the baseline.
+Five equal outcomes do not prove equivalence or isolate the cost of those extra
+guarantees. Medians include failed attempts. B07 has no successful-pair cost
+signal because its baseline mapping checks failed.
+
+Every B07 image passed the delivered and independent fresh-render pixel checks
+in both arms. All five Inkbolt attempts originally failed only the engine's
+snapshot judge: the model explicitly selected a fixed baseline of 200, while
+the reference omitted that setting and obtained the same position from ascent.
+Prompt version 1 prescribes positions, not a storage representation. A focused
+Windows/WSL correction admits explicit controls while keeping independent
+glyph/cluster positions and pixel checks; a one-pixel shift still fails. Rejudging
+the existing captures changed only those five snapshot checks. All ten Inkbolt
+attempts now pass their complete workflows. The original failures remain in
+their original reports; no model was rerun and no attempt was added or discarded.
+
+All five baseline B07 failures remain. Each mapping lists a Hebrew base glyph
+before its zero-advance mark within the shared scalar interval [2,4); the fixed
+oracle lists the mark first. The entries, glyph IDs, source intervals, origins
+and advances otherwise match. Review this within-cluster ordering convention
+before drawing general reliability conclusions. The results show no rendering
+advantage for either arm on this sheet.
+
+All twenty transcripts and generated command/script bodies were reviewed. No
+repository/judge reads, extra engines/models or baseline Inkbolt access were
+observed. B07 Inkbolt repetitions two and four used 37 and 40 MCP items plus
+five and three shell items respectively; the other eight used CLI only. Invalid
+schema selectors, relative paths, image-option errors, JSON comparison false
+alarms and Windows text-encoding errors remain in the traces and usage. This
+batch does not isolate MCP's effect. Cached input is already included in input
+totals. Billing, model-call counts, full engine calls/traffic/retries, first
+verified preview and engine-only memory remain unknown.
+
+Original captures/reports remain under `w2-text-sol-{model,baseline}-five-01` and
+`w2-text-sol-comparison-five-01`; the new reports are under the corresponding
+`rejudged-02` directories. `w2-text-capture-rejudge-integrity-01.json` verifies
+all twenty original and imported workspaces, transcripts, driver results,
+observed usage and client durations stayed identical. Separate trace reviews
+and baseline-placement/mapping audits are retained. B08/B09 are next after
+their store assumptions are checked. Full-suite, sister-project and readiness
+gates remain open, with no engine checkpoint changes.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Original source candidate | `bc2aac5d628d8cd3cbd5740789bda9eeb1972957a2545e7868ef461721e5d517` |
+| Tested rejudging candidate | `095c7c0e1371266b168279206e01f563212f81bd44ae0f6148b2b831e593fb0f` |
+| Original Inkbolt report | `3092be7bb880fe670812636786866a5b8599598876a3759d99bb139d7dfc75a9` |
+| Original baseline report | `a8ff136b19a61ac2e49df022b700d148c7efa3b1006a48a3555d567f6e8576d2` |
+| Original comparison | `f5a5f6943b71d9ebec479a8f5fde1d19945aeccdd9731bf4df94211f11db66d1` |
+| Rejudged Inkbolt report | `8765717495fc03ba6b78949d88f24197a3b8d66d5f9dcdb577dab9bda026762c` |
+| Rejudged baseline report | `4a8ac2ee3a44e629e6ef69830ea13488328099b6fc964c08372deb02662e5aeb` |
+| Rejudged comparison | `d5bab3caad15ad9fe76db30dfe414a3723a8bdc57f5097dbf557c9725ec89043` |

@@ -7,8 +7,8 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained hosted Windows/Linux/macOS matrix passed at `171a1c5`,
-including the matched benchmark reporter; see below.
+The latest retained hosted Windows/Linux/macOS matrix passed at `8bc8982`,
+including the Windows job-fixture corrections; see below.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
@@ -127,7 +127,7 @@ macOS each ran 179 Rust and 2362 Python tests with 35 explicit skips. Production
 session behavior and existing assertions are unchanged. See the exact candidate,
 timings and retained evidence in [development status](DEVELOPMENT_STATUS.md).
 
-The [latest retained matrix at `171a1c5`](https://github.com/skulitom/Inkbolt/actions/runs/38421962898)
+The [earlier matrix at `171a1c5`](https://github.com/skulitom/Inkbolt/actions/runs/38421962898)
 passed all 241 fresh stages on every platform, with unchanged inputs and no
 failures, pending checks or reused passes. Windows ran 213 Rust and 2473 Python
 tests with seven skips in 4488.8 seconds. Linux and macOS each ran 179 Rust and
@@ -148,8 +148,8 @@ Windows exposed the same short-path fixture mismatch, plus two separate job-test
 timing/contention failures. The fixtures now allow cold startup before testing
 actual deadline stops and retry only documented busy responses while preserving
 the snapshot assertions. Focused Windows checks passed in 140.6 seconds; WSL
-passed the platform boundary with explicit job skips in 7.0 seconds. Hosted
-confirmation of those later job-fixture changes remains pending. See
+passed the platform boundary with explicit job skips in 7.0 seconds. The complete
+`8bc8982` matrix below subsequently confirmed those job-fixture changes. See
 [retained evidence](DEVELOPMENT_STATUS.md).
 
 The [matrix at `a1a0339`](https://github.com/skulitom/Inkbolt/actions/runs/38440855374)
@@ -160,19 +160,20 @@ Python tests with 48 skips, in 1443.1 and 3034.6 seconds respectively. All input
 were unchanged, with no failed, pending or reused stages. Reports/logs are
 retained under `w1-public-ci-a1a0339`, candidate
 `f985ad1ec589c62a2a342d58356d64d24095e61314e2a66a42d11afb4811d2db`.
-This is the latest complete matrix; it predates the later B01/B03 store-judge
+This earlier complete matrix predates the later B01/B03 store-judge
 and Windows job-fixture changes, whose focused checks remain separately scoped.
 
-The [newer `8bc8982` run](https://github.com/skulitom/Inkbolt/actions/runs/38446529203)
-passed all 242 fresh Linux stages: 179 Rust and 2451 Python tests, 48 explicit
-skips, in 1421.4 seconds, with unchanged inputs and no failed/pending/reused
-stages. Evidence is retained under `w1-public-ci-8bc8982/linux`, candidate
+The [complete `8bc8982` matrix](https://github.com/skulitom/Inkbolt/actions/runs/38446529203)
+passed all 242 fresh stages on every platform. Windows ran 213 Rust and 2492
+Python tests with seven explicit skips in 4448.6 seconds. Linux and macOS each
+ran 179 Rust and 2451 Python tests with 48 skips, in 1421.4 and 2161.0 seconds
+respectively. All inputs stayed unchanged; no checks failed, remained pending
+or reused older passes. Reports/logs are retained under `w1-public-ci-8bc8982`
+in the corresponding platform directories, with shared candidate
 `72ed74353fa11496d6b06b678dbf5708d87f54ee4778da875a7d23eae566b63f`.
-macOS also passed all 242 fresh stages, with the same test/skip counts and source
-fingerprint, in 2161.0 seconds. Its retained report/logs are under
-`w1-public-ci-8bc8982/macos`; inputs stayed unchanged and no checks failed,
-remained pending or reused older passes. Windows remains pending; these results
-do not supersede the complete matrix or include the later B05-B07 judge corrections.
+This confirms the B01/B03 store judges and Windows job-fixture timing/busy-retry
+corrections. It predates the later B05-B07 judge corrections, whose focused
+Windows/WSL checks do not establish a newer complete matrix.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

@@ -130,8 +130,8 @@ dependency boundaries omitted the new icon benchmark from its expected consumer
 list. Both the icon and large-layout lifecycle tests are now listed explicitly;
 the assertion remains strict. All 22 verifier tests passed locally on Windows
 and Linux in 30.2 and 15.3 seconds, including verification overhead. New-module
-guidance now includes this focused check. The latest complete hosted matrix is
-still required; those failed runs are not counted as passes.
+guidance now includes this focused check. A subsequent complete hosted matrix
+is recorded below; those failed runs are not counted as passes.
 
 The [hosted `fbc7fea` run](https://github.com/skulitom/Inkbolt/actions/runs/38197982149)
 passed all 221 fresh stages on Ubuntu and macOS in 1137.3 and 2258.2 seconds,
@@ -229,7 +229,7 @@ confirm complete-suite coverage, unchanged inputs and no failed, pending or
 reused checks. Reports and logs are retained under `w1-public-ci-171a1c5`, with
 shared candidate fingerprint
 `19205e33567634035ef3531377ad668baf9eb3947c4a405510777024507f714c`.
-This is the latest fully retained platform milestone. It predates the Codex
+This earlier fully retained platform milestone predates the Codex
 adapter and first-page discovery change and does not establish Unix job support.
 
 The later [hosted `9909329` run](https://github.com/skulitom/Inkbolt/actions/runs/38431558895)
@@ -275,13 +275,13 @@ ran 179 Rust and 2449 Python tests with 48 skips, in 1443.1/3034.6 seconds.
 All inputs stayed unchanged, with no failed, pending or reused stages. Retained
 reports/logs are under `w1-public-ci-a1a0339`, candidate
 `f985ad1ec589c62a2a342d58356d64d24095e61314e2a66a42d11afb4811d2db`.
-This confirms the path-alias correction. It predates the later store-judge and
-job-fixture changes; their current-revision hosted acceptance remains pending.
-The later `8bc8982` Linux job passed all 242 fresh stages (179 Rust, 2451 Python,
-48 explicit skips) in 1421.4 seconds, with unchanged inputs and no failures,
-pending checks or reuse. macOS passed the same 242 stages and test/skip counts
-in 2161.0 seconds, also with unchanged inputs and no failed/pending/reused checks.
-Windows at that revision remains pending. See
+This confirms the path-alias correction. The later complete `8bc8982` matrix
+also confirms the B01/B03 store judges and Windows job-fixture changes: all 242
+fresh stages passed on every platform. Windows ran 213 Rust and 2492 Python
+tests, with seven skips, in 4448.6 seconds. Linux/macOS each ran 179 Rust and
+2451 Python tests, with 48 skips, in 1421.4/2161.0 seconds. Inputs stayed
+unchanged; no stages failed, remained pending or reused passes. These reports
+predate the later B05-B07 judge corrections. See
 [the retained platform evidence](PLATFORMS.md).
 
 ## W2 and the next behavior increments
@@ -1175,10 +1175,31 @@ tests in 79.9/64.7 seconds, with three explicit Linux skips, unchanged Cargo
 passes reused and no failed/pending selected checks. Reproductions and reports
 remain under `w2-text-stores-before-01` and `w2-text-stores-`, tested candidate
 `46e8c61586fe94fdf7f5e7249bd41530ad1d79115e74c632068a14ac075b1230`.
-Next, run their genuine matched trials. This correction changes judging only;
+This correction changes judging only;
 model settings remain external and no engine behavior or checkpoint changed.
 
-Five-repetition model trials for the other fifteen tasks, further smaller-model
+Five matched B06/B07 pairs at `a7e034e` are now retained and reviewed. Both B06
+arms passed all five attempts, with 337,131/76,580 median input-plus-output tokens
+(4.40x). All B07 delivered/fresh pixels passed in both arms. Inkbolt's original
+B07 failures came solely from the judge prescribing default baseline storage
+where the prompt allowed equivalent explicit placement. The corrected judge
+retains independent glyph and pixel oracles; fixed/ascent controls pass and a
+one-pixel shift fails. The first negative fixture overflowed its frame before
+judging; its retained failure led to a renderable upward-shift fixture.
+Focused Windows/WSL verification passed 36/33 Python tests in 113.6/82.3 seconds,
+with three explicit Linux skips, unchanged Cargo passes reused, and no failed or
+pending selected checks. Tested candidate:
+`095c7c0e1371266b168279206e01f563212f81bd44ae0f6148b2b831e593fb0f`.
+
+Rejudging the twenty captured attempts changed only the five Inkbolt B07
+snapshot checks to passes; original reports, workspaces, transcripts and observed
+usage/timing remain intact. Baseline B07 still fails the fixed glyph-list order
+within one combining-mark cluster, despite matching entries and geometry.
+Review that convention before general reliability claims. B06 reinforces the
+interaction-cost signal; B07 has no successful-pair cost signal. See
+[the results and evidence identities](BENCHMARK_RESULTS.md#b06b07-at-a7e034e-captured-trials-rejudged).
+
+Five-repetition model trials for the other thirteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

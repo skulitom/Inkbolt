@@ -59,6 +59,12 @@ linked or external copies cannot substitute for retained resources. The judge
 does not import the font on the agent's behalf or assume the default store name;
 captured trials must also reopen after workspace relocation.
 
+B07 accepts explicit first-baseline controls as well as default ascent placement.
+The prompt prescribes local glyph origins and sheet baselines, not one storage
+encoding for those positions. Independent authored glyph/cluster coordinates and
+both delivered/fresh pixels still reject a shifted baseline; all other text,
+font, frame, snapshot and history checks are unchanged.
+
 B03, B05, B06 and B07 likewise locate the session ID from `session.json` within the captured
 workspace, using its canonical database filename. A missing, linked, external
 or ambiguous store fails. The engine then reads both declared revisions and
