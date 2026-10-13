@@ -221,16 +221,16 @@ reports confirm complete-suite coverage, unchanged inputs and no failed,
 pending or reused checks. Reports and logs are under `w1-public-ci-d0719a1`;
 their common candidate fingerprint is
 `0d80abe1ec91235c63bd1f5aa48f92908d0ecfad59af0caf52aabe8bfab17919`.
-The newer [hosted `107274c` run](https://github.com/skulitom/Inkbolt/actions/runs/38411827178)
-passed all 239 fresh stages on each platform. Windows ran 213 Rust and 2453
-Python tests with four skips in 3232.6 seconds; Linux/macOS each ran 179 Rust
-and 2412 Python tests with 45 skips, in 1471.6/3123.0 seconds. All three reports
+The newer [hosted `171a1c5` run](https://github.com/skulitom/Inkbolt/actions/runs/38421962898)
+passed all 241 fresh stages on each platform. Windows ran 213 Rust and 2473
+Python tests with seven skips in 4488.8 seconds; Linux/macOS each ran 179 Rust
+and 2432 Python tests with 48 skips, in 1274.1/2698.0 seconds. All three reports
 confirm complete-suite coverage, unchanged inputs and no failed, pending or
-reused checks. Reports and logs are retained under `w1-public-ci-107274c`, with
+reused checks. Reports and logs are retained under `w1-public-ci-171a1c5`, with
 shared candidate fingerprint
-`caac16db5d90d4c78c70f36bc6e47115af7663b4230065d1b60510930de1ad8c`.
-This is the latest fully retained platform milestone. It predates the comparison
-reporter and Codex adapter and does not establish Unix job support.
+`19205e33567634035ef3531377ad668baf9eb3947c4a405510777024507f714c`.
+This is the latest fully retained platform milestone. It predates the Codex
+adapter and first-page discovery change and does not establish Unix job support.
 
 ## W2 and the next behavior increments
 
@@ -993,8 +993,22 @@ contains 22 tools over three pages, 71,562 JSON bytes and 71,778 wire bytes.
 Reports remain external under `w5-first-page-`; the tested candidate is
 `06579314368aa264f13ed5d5a173a91bc0ffe691a22a5a2d09eac942f5edfcc2`.
 Only this evidence record and the primary status table changed afterward.
-This is focused implementation evidence; full milestone acceptance and the
-five-pair usability remeasurement remain open.
+This is focused implementation evidence; full milestone acceptance remains open.
+
+Five new B02 pairs at `9909329` passed both arms with unchanged candidate
+`5e57d183bcaa3a6d16856980590db43643f60374cf361b3190e6981b3b628edb`.
+Median reported input-plus-output tokens were 564,296 versus baseline 41,249
+(13.68x), and client execution was 123.0 versus 42.4 seconds. All five Inkbolt
+trials now used MCP but still fell back to CLI publication: the client refused
+nine dispatcher calls under its unattended approval setting. Every trial also
+hit a sibling-stack reorder index error. These observations do not establish
+underlying model-call counts. Original captures, matching reports and trace
+counts remain external under `w5-first-page-b02-` and `w5-first-page-trace-counts-01`.
+See the [follow-up aggregate](BENCHMARK_RESULTS.md#b02-at-9909329-first-page-discovery-follow-up).
+The token-reduction target was not met. Before broader interface work, verify an
+explicit client approval configuration for the supplied local engine in one
+pilot, then repeat matched trials; retain sandboxing and conservative engine
+annotations. Item-ordering guidance remains a separate measured candidate.
 
 Five-repetition model trials for the other nineteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence

@@ -17,7 +17,7 @@ Use the [matched comparison tool](BENCHMARK_COMPARISON.md) to compare retained
 external model/baseline reports. It preserves all task IDs and failures, separates
 artifact checks from engine guarantees, and keeps missing usage unknown.
 Synthetic comparisons cannot establish model performance or the W2 acceptance gate.
-The [recorded genuine B02 results](BENCHMARK_RESULTS.md) cover five matched pairs;
+The [recorded genuine B02 results](BENCHMARK_RESULTS.md) cover two five-pair evaluations;
 the remaining task inventory and full acceptance are still open.
 
 ## Running and preserving evidence

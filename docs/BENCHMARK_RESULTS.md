@@ -1,6 +1,11 @@
 # Recorded agent evaluation results
 
-## B02: five matched icon-sheet trials
+Two five-pair B02 evaluations are recorded below. The first-page discovery
+change preserved artifact success but did not meet its token-reduction target.
+The follow-up also exposed client approval refusals that need to be resolved
+before expanding the interface work.
+
+## B02 at c7d9f30: initial five matched icon-sheet trials
 
 Both arms passed all five B02 artifact trials. Inkbolt's median reported
 input-plus-output usage was **8.60 times** the baseline's, and median client
@@ -100,3 +105,66 @@ remain external. These SHA-256 identities bind the published summary to them:
 | Baseline-arm report | `1628ac44fc37b36d33f06e62c4257192d624aa5a15fa4c2b65d6d2ee6b4195de` |
 | Matched comparison report | `2005145ec9ff99fab67619fa2408ebe1aaf5a77ccc78d48d7c0e00f2f4980a29` |
 | First-page runtime probe | `1f08a9ebcfd082a1d748a5869747d8017bad827c1306f06a4467b7c1e7425849` |
+
+## B02 at 9909329: first-page discovery follow-up
+
+Commit `9909329f034b5458d984a96be4309445b2cac6a4` exposes schema lookup and
+the general dispatcher on the first compact page. Five new genuine trials per
+arm used the same external client/model/settings, prompt, judges and pinned
+baseline tools as the initial evaluation. Both arms used the unchanged candidate
+below, on the same host, sequentially with Inkbolt first and baseline second.
+There were no concurrent local engine tests or benchmarks; OS caches could be
+warm. The two evaluations were separate runs, not randomized paired observations
+of the old and new engine revisions.
+
+| Measurement | Inkbolt arm | No-Inkbolt baseline |
+| --- | ---: | ---: |
+| Retained attempts | 5 | 5 |
+| Artifact success | 5/5 | 5/5 |
+| Complete applicable workflow | 5/5 | 5/5 |
+| Native editable-source check | 5/5 | Not applicable |
+| 95% Wilson interval for artifact success | 56.6%-100% | 56.6%-100% |
+| Median input + output tokens | 564,296 | 41,249 |
+| Input + output token range | 420,520-636,076 | 40,913-56,432 |
+| Median client execution, seconds | 123.0 | 42.4 |
+| Client execution range, seconds | 97.3-135.9 | 38.1-49.4 |
+
+Every attempt passed, with observed usage and execution time. The fixed policy
+again flags the artifact tie and excessive token usage: **13.68x** the baseline
+median. Inkbolt's token median increased from 487,207 to 564,296. Its execution
+median decreased from 159.0 to 123.0 seconds, but this small sequential sample
+does not isolate the cause or establish a general speed improvement. The same
+unknown metrics and billing/memory limitations stated above apply. Full-suite,
+matched-baseline and sister-comparison completion gates remain false.
+
+All five Inkbolt trials now used MCP, with 15-21 recorded MCP call items each,
+and all still used the CLI. Every trial received an invalid-operation response
+after attempting a document-wide item index in the sibling-stack reorder
+operation. In addition, every trial's dispatcher publication attempt was refused
+by the evaluation client because tool approval was required while its unattended
+approval policy was `never`: nine such refusals across five trials. These are
+client refusals before engine execution, not nine failed engine publications.
+Recorded MCP items are not underlying model-call counts or a complete count of
+engine calls across both transports. Transcript review found only the supplied
+engine/image tools and task/workspace reads, with no repository/judge reads.
+
+The first-page change made the entry points usable for discovery, but the
+predeclared token target was not met. Keep the result and stop broader interface
+expansion pending a focused check of the evaluation client's explicit approval
+configuration for the supplied local engine. Verify that configuration in one
+pilot before another five-pair run; keep model/settings external, both arms
+matched, sandboxing enabled and engine tool-effect annotations truthful. The
+documented [client configuration interface](https://learn.chatgpt.com/docs/config-file/config-reference)
+provides server/tool approval settings. The item-ordering errors are a separate
+candidate for focused guidance after the client setup is verified.
+
+These additional SHA-256 identities bind the follow-up evidence; its raw
+captures remain separate from the initial runs:
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Source candidate | `5e57d183bcaa3a6d16856980590db43643f60374cf361b3190e6981b3b628edb` |
+| Inkbolt release executable | `40a3c7f88ef8aa50d96a468494173287ffa864bddb5705fccc4ab9485f17562f` |
+| Inkbolt-arm report | `c432074c3e97dce7fc01cf61440ad7c7b4a78a035c2b9e125901673231f13406` |
+| Baseline-arm report | `2438ddeb8d7b16f87f277b0260d8c5f62119c742b104aa05d2350d346a98a6c5` |
+| Matched comparison report | `ab880b37dad6e63835ec9ff5d561d90658547c6b2a4665a6d3c7c35dabd62b4f` |

@@ -7,8 +7,8 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained hosted Windows/Linux/macOS matrix passed at `107274c`,
-including the benchmark handoff-capture work; see below.
+The latest retained hosted Windows/Linux/macOS matrix passed at `171a1c5`,
+including the matched benchmark reporter; see below.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
@@ -127,16 +127,16 @@ macOS each ran 179 Rust and 2362 Python tests with 35 explicit skips. Production
 session behavior and existing assertions are unchanged. See the exact candidate,
 timings and retained evidence in [development status](DEVELOPMENT_STATUS.md).
 
-The [latest retained matrix at `107274c`](https://github.com/skulitom/Inkbolt/actions/runs/38411827178)
-passed all 239 fresh stages on every platform, with unchanged inputs and no
-failures, pending checks or reused passes. Windows ran 213 Rust and 2453 Python
-tests with four skips in 3232.6 seconds. Linux and macOS each ran 179 Rust and
-2412 Python tests with 45 skips, in 1471.6 and 3123.0 seconds respectively.
-Reports and logs are retained externally under `w1-public-ci-107274c`; the shared
+The [latest retained matrix at `171a1c5`](https://github.com/skulitom/Inkbolt/actions/runs/38421962898)
+passed all 241 fresh stages on every platform, with unchanged inputs and no
+failures, pending checks or reused passes. Windows ran 213 Rust and 2473 Python
+tests with seven skips in 4488.8 seconds. Linux and macOS each ran 179 Rust and
+2432 Python tests with 48 skips, in 1274.1 and 2698.0 seconds respectively.
+Reports and logs are retained externally under `w1-public-ci-171a1c5`; the shared
 candidate fingerprint is
-`caac16db5d90d4c78c70f36bc6e47115af7663b4230065d1b60510930de1ad8c`.
-This revision predates the comparison reporter and Codex adapter; their focused
-checks do not establish full-suite acceptance at the latest revision.
+`19205e33567634035ef3531377ad668baf9eb3947c4a405510777024507f714c`.
+This revision predates the Codex adapter and first-page discovery change; their
+focused checks do not establish full-suite acceptance at the latest revision.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable
