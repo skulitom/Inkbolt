@@ -17,6 +17,7 @@ import benchmark_typography
 import benchmark_mask
 import benchmark_retouch
 import benchmark_photo
+import benchmark_mixed
 from benchmark_baseline import judge_diagram, file_hash
 from benchmark_baseline_icons import judge_icons
 from benchmark_baseline_large_layout import judge_large_layout
@@ -27,6 +28,7 @@ from benchmark_baseline_typography import judge_typography
 from benchmark_baseline_mask import judge_mask
 from benchmark_baseline_retouch import judge_retouch
 from benchmark_baseline_photo import judge_photo
+from benchmark_baseline_mixed import judge_mixed
 from workload_cases import save, save_json, sha
 from verify_process import run as run_owned, unavailable_memory, MEMORY_SCOPE, MEMORY_METHOD
 import measurement_host
@@ -35,7 +37,8 @@ MIGRATIONS = {'B01':(benchmark_diagram, judge_diagram), 'B02':(benchmark_icons, 
               'B03':(benchmark_large_layout, judge_large_layout), 'B04':(benchmark_svg, judge_svg_artwork),
               'B05':(benchmark_palette, judge_palette), 'B06':(benchmark_flow, judge_flow),
               'B07':(benchmark_typography, judge_typography), 'B08':(benchmark_mask, judge_mask),
-              'B09':(benchmark_retouch, judge_retouch), 'B10':(benchmark_photo, judge_photo)}
+              'B09':(benchmark_retouch, judge_retouch), 'B10':(benchmark_photo, judge_photo),
+              'B11':(benchmark_mixed, judge_mixed)}
 MIGRATED_TASKS = tuple(MIGRATIONS)
 MAX_METADATA = 1024*1024
 MAX_TRANSCRIPT = 64*1024*1024

@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B10 also support `--arm model` and
+`--arm reference` is the existing default. B01-B11 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -179,7 +179,18 @@ are checked independently of solver logs. Both external arms retain the fixed
 256 MiB budget; their broader owned-tree observation is an explicitly labelled
 upper bound, never engine-only memory. See the [driver contract](BENCHMARK_DRIVER.md).
 Linux artifact/history checks execute, while its unavailable commit-memory check
-fails explicitly. B11-B20 still interleave solving and judging. All required checks have
+fails explicitly.
+
+B11 separates its original mixed-image fixture, [shared prompt](../tools/benchmark_prompts/B11.md),
+reference solver and delivered-evidence judge. Both saved compositions, canonical
+image bytes, final head and every current/historical pixel are checked independently
+of solver logs. The baseline retains editable vector/group/shadow controls and a
+separate mask; pinned Pillow decodes both images before a fresh composition with
+unquantized intermediate values. The fresh result and delivered preview face the
+same unchanged rational oracle. Its two engine-only checks are explicitly not
+applicable. See the [driver contract](BENCHMARK_DRIVER.md).
+
+B12-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 

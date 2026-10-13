@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B10. B11-B20 remain visible as
+The W2 external lifecycle currently supports B01-B11. B12-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -259,6 +259,21 @@ the seven engine-specific checks are explicitly not applicable in the baseline.
 Linux runs retain their artifact/history results but fail the memory-budget check
 explicitly because this commit-memory observation is unavailable. They are not
 reported as complete B10 passes.
+
+B11's [shared prompt](../tools/benchmark_prompts/B11.md) retains the original
+32 by 24 image under an isolated masked vector group. Only the shadow offset
+changes. The judge reopens both snapshots, checks the complete composition and
+canonical image bytes, renders current/original states, and binds them to the
+saved revisions and final head. It accepts independently chosen IDs and multiple
+editing steps; correct solver logs cannot replace the delivered evidence.
+
+The baseline retains editable vector/group/shadow controls in a bounded manifest
+and a separate opaque grayscale PNG mask. Pinned Pillow reopens the original and
+mask; independent numeric composition retains intermediate precision until final
+8-bit conversion. Both that fresh result and the delivered preview must match the
+unchanged rational oracle. Image paths and all supported controls are admitted
+before decoding. The five original check IDs/classes remain unchanged; historical
+pixels and session integrity are explicitly not applicable in the baseline.
 
 ## Preparation and import
 

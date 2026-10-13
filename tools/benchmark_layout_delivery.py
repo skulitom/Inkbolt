@@ -1,4 +1,4 @@
-"""Original mixed-composition, variant and physical-delivery task adapters."""
+"""Original variant and physical-delivery task adapters."""
 import copy
 from fractions import Fraction as F
 
@@ -13,59 +13,6 @@ from test_swatch_profiles_cli import managed
 from cmyk_fixtures import cmyk_profile
 from pdf_reader import Pdf
 from test_ink_delivery_cli import painted
-
-
-def mixed_pixels(source,offset):
-    """Exact rational source-over; no engine evaluator or rendered reference."""
-    def premul(rgba):return [F(c*rgba[3],255**2) for c in rgba[:3]]+[F(rgba[3],255)]
-    def over(back,front):return [s+b*(1-front[3]) for b,s in zip(back,front,strict=True)]
-    result=bytearray()
-    for y in range(24):
-        for x in range(32):
-            p=premul(source[(y*32+x)*4:(y*32+x+1)*4])
-            shadow=[F(0)]*4
-            if 8+offset[0]<=x<20+offset[0] and 6+offset[1]<=y<16+offset[1]:
-                shadow=[v*F(173,255) for v in premul([0,0,0,128])]
-            ink=[v/2 for v in premul([30,150,70,173])] if 8<=x<20 and 6<=y<16 else [F(0)]*4
-            group=over(shadow,ink)
-            mask=F(128,255) if x<16 else F(1)
-            p=over(p,[v*mask*F(3,4) for v in group])
-            if 25<=x<29 and 2<=y<6:p=premul(ORANGE)
-            result.extend(int(v/p[3]*255+F(1,2)) for v in p[:3])
-            result.append(int(p[3]*255+F(1,2)))
-    return bytes(result)
-
-
-def mixed_composition(case):
-    original=bytes(v for y in range(24) for x in range(32) for v in (x*5,y*7,(x+y)*4,255))
-    case.source('original.png',png(32,24,original))
-    case.begin('Import original.png into a 32x24 raster document with the large_raster profile. Above it place an isolated '
-        'group at opacity .75 with a linked full-canvas scalar mask: 128 left of x=16, 255 elsewhere. '
-        'Its child is a green RGBA (30,150,70,173) vector rectangle (8,6,12,10), fill opacity .5, '
-        'and a black alpha-128 shadow at offset (3,2), sigma 0. Add unrelated orange artwork '
-        '(25,2,4,4) above the group. Review and change only the shadow offset to (5,-1). '
-        'Preserve the pinned image, masks, original controls and previous revision; review both.')
-    imported=case.call('image','asset.import',source_path='original.png')['asset']
-    shadow=dict(id='shadow',operator=dict(type='shadow',offset=[3,2],sigma=0),color=[0,0,0,128])
-    group=dict(id='group',opacity=.75,mask=dict(width=32,height=24,
-        gray_hex=bytes(128 if x<16 else 255 for y in range(24) for x in range(32)).hex(),linked=True),
-        content=dict(type='group',isolated=True))
-    art=rectangle('art',8,6,12,10,[30,150,70,173]);art.update(parent='group',fill_opacity=.5,effects=[shadow])
-    items=[dict(id='image',content=dict(type='image',asset_id='photo',width=32,height=24)),group,art,rectangle('unrelated',25,2,4,4,ORANGE)]
-    saved=store(case,document('mixed','raster',32,24,resource_profile='large_raster',assets=dict(photo=imported),items=items))
-    before=source_snapshot(case,saved,'before')
-    changed=copy.deepcopy(before['items'][2]['effects']);changed[0]['operator']['offset']=[5,-1]
-    action=dict(type='edit',operations=[dict(op='effects',id='art',effects=changed)])
-    proposal=case.call('review','session.dry_run',session_id='work',request_id='shadow',expected_revision=0,action=action)
-    case.call('apply','session.apply_proposal',proposal=proposal['proposal'],action=action,response_mode='compact')
-    current=source_snapshot(case,ref(1))
-    wanted=copy.deepcopy(before);wanted['revision']=1;wanted['items'][2]['effects']=changed
-    case.check('composition-retained',lambda:require(current==wanted,'Composition revision changed unrelated controls'))
-    case.check('resource-identity',lambda:require(current['assets']['photo']['sha256']==sha(canonical(32,24,original)),
-        'Original raster identity changed'))
-    view(case,'preview',ref(1),'mixed-pixels',32,24,mixed_pixels(original,(5,-1)))
-    view(case,'historical',saved,'historical-pixels',32,24,mixed_pixels(original,(3,2)))
-    verify_history(case)
 
 
 def layout_variants(case):
