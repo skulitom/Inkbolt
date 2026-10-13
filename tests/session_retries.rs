@@ -9,22 +9,40 @@ use serde_json::json;
 use std::{
     fs,
     path::PathBuf,
+    sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
+
+static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
 struct OwnedRoot(PathBuf);
 impl OwnedRoot {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "inkbolt-retry-{}-{}",
-            std::process::id(),
+        Self::at(
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
+                .as_nanos(),
+        )
+    }
+
+    fn at(timestamp: u128) -> Self {
+        // Clock resolution does not guarantee uniqueness across parallel tests.
+        // Keep exclusive creation, including when an earlier process left a root.
+        for _ in 0..1024 {
+            let path = std::env::temp_dir().join(format!(
+                "inkbolt-retry-{}-{}-{}",
+                std::process::id(),
+                timestamp,
+                NEXT_ROOT.fetch_add(1, Ordering::Relaxed)
+            ));
+            match fs::create_dir(&path) {
+                Ok(()) => return Self(path),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => panic!("Cannot create owned retry fixture: {error}"),
+            }
+        }
+        panic!("Cannot allocate an unused retry fixture root")
     }
 }
 impl Drop for OwnedRoot {
@@ -33,6 +51,20 @@ impl Drop for OwnedRoot {
         let _ = fs::remove_file(self.0.join(format!("{}.sqlite3", assets::sha256(b"work"))));
         let _ = fs::remove_dir(&self.0);
     }
+}
+
+#[test]
+fn retry_roots_remain_distinct_with_repeated_clock_values() {
+    let roots = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..16).map(|_| scope.spawn(|| OwnedRoot::at(0))).collect();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>()
+    });
+    let paths: std::collections::HashSet<_> = roots.iter().map(|root| &root.0).collect();
+    assert_eq!(paths.len(), roots.len());
+    assert!(roots.iter().all(|root| root.0.is_dir()));
 }
 
 fn document() -> Document {

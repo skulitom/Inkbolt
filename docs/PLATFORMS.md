@@ -117,6 +117,12 @@ and 2241.3 seconds respectively. The shared candidate fingerprint was
 `4e52a6f0ff99f44c8ac28876ba466d6c444fb08a8a7b177f834e4cb4aec6dfcf`.
 These full milestone runs do not replace the 180-second routine feedback budget.
 
+The later `3ac68d6` macOS run exposed a collision between timestamp-named test
+directories. Fixture allocation now uses an atomic sequence and exclusive
+creation. Concurrent repeated-clock and complete session-retry checks pass on
+Windows/Linux; fresh hosted macOS confirmation is pending. Production session
+behavior and existing assertions are unchanged. See [development status](DEVELOPMENT_STATUS.md).
+
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable
 path. The [Windows configuration](../examples/mcp-config.windows.json) uses an

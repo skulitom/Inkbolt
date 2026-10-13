@@ -181,6 +181,18 @@ Reports and logs are retained externally under `w1-public-ci-5dfb699-`. This
 establishes the declared platform tier at that revision, including the contention
 fix; Unix jobs, distribution and overall W1 completion remain separate work.
 
+The [later hosted run at `3ac68d6`](https://github.com/skulitom/Inkbolt/actions/runs/38371259325)
+found a macOS test-fixture race: parallel session-retry tests could receive the
+same clock value and attempt to create the same temporary directory. The owned
+fixture now combines time with an atomic sequence, retains exclusive creation
+and retries only name collisions. A deterministic test allocates 16 concurrent
+roots with the same supplied clock value. It passed with formatting, locked build
+and all-target Clippy in 32.4 seconds on Windows and 11.1 seconds on Linux. The
+complete session-retry integration target also passed on both platforms (three
+Windows tests, four Linux tests). Session behavior, deadlines and assertions are
+unchanged. Fresh hosted macOS confirmation remains required; the failed run is
+not a complete platform pass. Evidence remains external under `w1-retry-roots-`.
+
 ## W2 and the next behavior increments
 
 B01 separates fixtures, its versioned prompt, reference solving and an independent
