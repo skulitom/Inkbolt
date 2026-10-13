@@ -138,6 +138,15 @@ candidate fingerprint is
 This revision predates the Codex adapter and first-page discovery change; their
 focused checks do not establish full-suite acceptance at the latest revision.
 
+The subsequent [run at `9909329`](https://github.com/skulitom/Inkbolt/actions/runs/38431558895)
+passed all 242 fresh Linux stages (179 Rust and 2446 Python tests, 48 skips,
+1257.3 seconds). macOS failed an evaluation-test fixture that compared aliased
+temporary paths with resolved paths. The fixture now matches the real harness's
+resolved-path contract; a Linux alias reproduction failed before the correction
+and all 13 checks passed afterward. Focused Windows/WSL checks also passed.
+Hosted macOS confirmation remains pending; this does not supersede the last
+complete matrix. See [retained evidence](DEVELOPMENT_STATUS.md).
+
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable
 path. The [Windows configuration](../examples/mcp-config.windows.json) uses an

@@ -232,6 +232,24 @@ shared candidate fingerprint
 This is the latest fully retained platform milestone. It predates the Codex
 adapter and first-page discovery change and does not establish Unix job support.
 
+The later [hosted `9909329` run](https://github.com/skulitom/Inkbolt/actions/runs/38431558895)
+passed all 242 fresh Linux stages: 179 Rust and 2446 Python tests, with 48 explicit
+skips, in 1257.3 seconds. Its macOS job failed only the Codex evaluation-adapter
+test module; Windows was still running when this evidence was recorded. Reports
+and logs are retained under `w1-public-ci-9909329`, with common candidate
+`0860d87bb953c6fbc54cb48a93d46cde6809b1c7387c9c26b156c7534d893c45`.
+The fixture used an unresolved temporary root while the adapter and real harness
+use resolved paths. macOS's `/var` alias exposed two path assertions and one MCP
+configuration mismatch. An aliased Linux temporary root reproduced all three.
+The fixture now resolves its root, matching the actual harness without changing
+adapter validation or engine behavior. All 13 adapter checks then passed under
+the same alias condition, plus ordinary Windows/WSL checks in 13.5/5.6 seconds;
+unchanged formatting/build/Clippy checks reused their prior passes. No selected
+checks failed or remained pending. Reports and the before/after reproduction are
+under `w2-codex-path-alias-`; tested candidate:
+`871a566e7752ad5f828b8e92ce4f42178e14450f83b3009b683ae08832bf11f9`.
+Hosted macOS confirmation and a new complete matrix remain pending.
+
 ## W2 and the next behavior increments
 
 B01 separates fixtures, its versioned prompt, reference solving and an independent

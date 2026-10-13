@@ -30,7 +30,8 @@ class CodexDriverTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        # Match the real harness's resolved paths, including macOS /var aliases.
+        self.root = Path(self.temporary.name).resolve()
         self.workspace = self.root/'workspace'; self.workspace.mkdir()
         self.evidence = self.root/'evidence'; self.evidence.mkdir()
         self.prompt = b'Create the specified original artifact.\n'

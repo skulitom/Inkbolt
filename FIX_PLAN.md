@@ -25,7 +25,7 @@ standing authorization.
 | Workstream | Current status | Next action |
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
-| W1 | Full Windows/Linux/macOS hosted acceptance passed at `171a1c5`, with all reports retained | Maintain platform coverage; Unix jobs remain open |
+| W1 | Full hosted matrix passed at `171a1c5`; later `9909329` Linux acceptance passed. Its macOS evaluation-fixture path failure is corrected with a Linux reproduction and focused Windows/WSL checks | Confirm the fixture correction in hosted macOS CI and retain the latest matrix; Unix jobs remain open |
 | W2 | All twenty tasks have external lifecycles/capture import and matched reporting. [Three five-pair B02 evaluations](docs/BENCHMARK_RESULTS.md) passed both arms; latest guidance removed help/reorder failures but retained a 5.44x token gap. A separate pilot verified explicit MCP approval. B17-B19 have no baseline | Broaden coverage with B01/B03 pilots and external smaller-model configurations, then complete five-repetition evidence for the other nineteen tasks. Retain failures; B19/B20 require Windows and B10 Linux memory evidence remains required |
 | W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
 | W3a.1-2 | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance | Other W3a items remain open; prioritize them using W2 evidence |
