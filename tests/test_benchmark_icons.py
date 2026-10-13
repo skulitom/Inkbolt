@@ -108,6 +108,14 @@ class BenchmarkIconTests(unittest.TestCase):
 
     def test_svg_admission_retains_independent_viewports_and_rejects_wrong_sources(self):
         self.assertEqual(len(svg_boards(ICONS_SVG.encode())), 3)
+        # The task requires hidden viewport overflow. Declaring it on the
+        # outer canvas must not invalidate otherwise identical board artwork.
+        clipped = ICONS_SVG.replace('width="112"', 'width="112" overflow="hidden"', 1)
+        self.assertEqual(svg_boards(clipped.encode()), svg_boards(ICONS_SVG.encode()))
+        explicit = ICONS_SVG.replace('<rect ', '<rect fill-opacity="1" stroke-opacity="1" ')
+        boards = svg_boards(explicit.encode())
+        self.assertEqual(len(boards),3)
+        self.assertTrue(all(b'fill-opacity="1"' in board and b'stroke-opacity="1"' in board for board in boards))
         shifted = ICONS_SVG.replace('x="12" y="11"', 'transform="translate(12,11)" x="0" y="0"')
         self.assertEqual(len(svg_boards(shifted.encode())), 3)
         for source in [ICONS_SVG.replace('x="40"','x="39"'),
@@ -117,6 +125,8 @@ class BenchmarkIconTests(unittest.TestCase):
                        ICONS_SVG.replace('<rect','<image',1),
                        ICONS_SVG.replace('fill="#145096"','fill="url(file:///external)"'),
                        ICONS_SVG.replace('id="board-0"','id="board-0" overflow="visible"'),
+                       ICONS_SVG.replace('width="112"','width="112" overflow="visible"',1),
+                       ICONS_SVG.replace('width="112"','width="112" overflow="unknown"',1),
                        '<!DOCTYPE svg>'+ICONS_SVG]:
             with self.assertRaises((TaskFailure,ValueError)):
                 svg_boards(source.encode())

@@ -72,6 +72,21 @@ class ComparisonTests(unittest.TestCase):
         m=suite(self.root/'model','model',**(model_options or {}));b=suite(self.root/'baseline','baseline',**(baseline_options or {}))
         return compare(load_report(m,'model'),load_report(b,'baseline'))
 
+    def test_creation_tasks_match_empty_asset_manifests_but_reject_missing_asset_differences(self):
+        def empty(row,contract,usage):
+            contract['fixtures']={};row['sources']={}
+        options=dict(tasks=('B02','B13'),edit=empty)
+        result=self.compare(options,options)
+        for row in result['tasks']:
+            if row['task'] in ('B02','B13'):
+                self.assertTrue(row['minimum_repetitions_met'],row['issues'])
+                self.assertEqual(row['arms']['model']['artifact']['passed'],5)
+        result=self.compare(options,dict(tasks=('B02','B13')))
+        for row in result['tasks']:
+            if row['task'] in ('B02','B13'):
+                self.assertFalse(row['comparable'])
+                self.assertTrue(any('different fixtures' in message for message in row['issues']))
+
     def test_equal_small_samples_are_signals_not_completion_or_equivalence(self):
         result=self.compare();row=result['tasks'][0]
         self.assertFalse(result['decision_ready']);self.assertFalse(result['actual_model_benchmark_complete'])

@@ -918,9 +918,42 @@ external under `w2-comparison-`. No engine behavior or checkpoint credit changed
 The owner authorized genuine Codex evaluations, including smaller-model trials.
 Model selection and settings belong only in external per-run configuration, with
 identical settings in each pair; no model is hardcoded into Inkbolt or the harness.
-Client integration, arbitrary legacy transcript adapters, genuine model trials
-and B10 Linux commit-memory evidence remain open. Full W2 milestone acceptance
-remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
+The [local Codex evaluation adapter](BENCHMARK_CODEX.md) now runs a pinned client
+with externally selected model/reasoning settings, retains its JSON events and
+observed usage, and preserves unknown model-call counts. The client version and
+driver binaries are bound to each run. Native Windows sandbox selection is
+explicit; the initial pilot without that selection remains a retained failure.
+No sandbox bypass, model default or automatic model substitution was added.
+
+Genuine B02 pilots ran with two externally configured models through client
+version 0.160.0, one trial per arm. The primary-model pilot passed both arms;
+the smaller-model pilot passed the baseline and failed Inkbolt's required snapshot
+structure. The first baseline judgments exposed two oracle restrictions absent
+from the shared prompt: outer hidden overflow and rectangle fill/stroke opacity
+attributes. Admission now preserves those declarations for the unchanged pinned
+rendering, exact pixels, geometry and editable-source requirements. Empty source
+manifests are also accepted by comparison for creation tasks whose hashed prompt
+is their only input. Both corrections have regression controls.
+
+All four original captures were rejudged without modifying their workspace or
+capture bytes. The paired comparisons retain original usage and solve times,
+including the smaller-model failure, with no evidence-matching issues. Neither
+one-pair pilot earns a five-repetition losing-task signal, full-suite completion
+or an efficiency claim. Evidence stays external under `w2-codex-`, including
+original failures, external configurations and final comparisons.
+
+Final focused Windows verification executed 32 tests in 30.4 seconds; WSL
+executed 29 in 17.9 seconds with three explicit Windows-only verifier skips.
+The twelve adapter and nineteen comparison controls reused identical passing
+inputs in these final reports, as did unchanged format/build/Clippy stages.
+There were no failures or pending selected checks. This is focused feedback,
+not fresh full-suite acceptance. Final tested/rejudged candidate:
+`66f718ea49c6623e53c84d2e2ed9276a4505f4f46c2a0bd60f1205e6eaa395a8`.
+Only this status record and the primary plan changed afterward.
+
+Five-repetition model trials across the fixed suite, arbitrary legacy transcript
+adapters and B10 Linux commit-memory evidence remain open. Full W2 milestone
+acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
 plan's decision rule; accepted outcomes remain required.
 

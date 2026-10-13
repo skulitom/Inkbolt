@@ -7,6 +7,9 @@ complete model benchmark or evidence that Inkbolt beats the baseline.
 
 ## Configure a client
 
+For an installed Codex CLI, use the [local evaluation adapter](BENCHMARK_CODEX.md).
+Its model and settings are supplied entirely by external run configuration.
+
 Keep configuration, transcripts, generated workspaces, tools and reports outside
 the repository. A version-1 driver configuration has exactly these fields:
 
@@ -78,8 +81,11 @@ B02 delivers `editable.svg` and `board-0.png`, `board-1.png`, `board-2.png`.
 The [shared icon-sheet prompt](../tools/benchmark_prompts/B02.md) specifies stable
 board/icon IDs, spacing, ownership, sizes and colors. Its SVG source contains
 three independent nested viewports; admission rejects external resources and
-unbounded or changed geometry before rendering. The judge extracts each source
-viewport into a fresh standalone SVG and compares its pinned-renderer output
+unbounded or changed geometry before rendering. Explicit `overflow="hidden"`
+is also admitted on the outer canvas. Rectangle fill/stroke opacity attributes
+are retained for independent rendering and the unchanged exact pixel checks.
+The judge extracts each source viewport
+into a fresh standalone SVG and compares its pinned-renderer output
 and the delivered PNG with the same independently calculated pixels used by the
 Inkbolt arm. No engine process or build is used in this baseline. The model arm
 validates the delivered snapshot and freshly renders all three artboards; judge

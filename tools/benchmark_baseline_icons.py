@@ -18,10 +18,11 @@ def svg_boards(raw):
     require(len(raw) <= 1024*1024 and b'<!DOCTYPE' not in raw.upper(),
             'B02 SVG is too large or has a document type')
     root = ET.fromstring(raw)
-    require(root.tag == NS+'svg' and set(root.attrib) <= {'width','height','viewBox','version'},
+    require(root.tag == NS+'svg' and set(root.attrib) <= {'width','height','viewBox','version','overflow'},
             'Expected the bounded outer SVG canvas')
     require(_numbers(root.get('width','')) == [112] and _numbers(root.get('height','')) == [32]
-            and _numbers(root.get('viewBox','0 0 112 32')) == [0,0,112,32], 'Icon sheet canvas changed')
+            and _numbers(root.get('viewBox','0 0 112 32')) == [0,0,112,32]
+            and root.get('overflow','hidden') == 'hidden', 'Icon sheet canvas changed')
     boards = list(root)
     require(len(boards) == 3, 'Expected three independent SVG boards')
     standalone = []
@@ -36,7 +37,8 @@ def svg_boards(raw):
         require(len(board) == 1, 'Each board must own exactly one editable icon')
         icon = board[0]
         require(icon.tag == NS+'rect' and not list(icon) and icon.get('id') == f'icon-{index}'
-                and set(icon.attrib) <= {'id','x','y','width','height','fill','stroke','stroke-width','opacity','transform'},
+                and set(icon.attrib) <= {'id','x','y','width','height','fill','fill-opacity',
+                    'stroke','stroke-width','stroke-opacity','opacity','transform'},
                 'Expected the task-specified editable rectangle')
         require(all('url(' not in value.lower() for value in icon.attrib.values()), 'External paints are not task inputs')
         x,y,w,h = [float(icon.get(key,'0')) for key in ('x','y','width','height')]

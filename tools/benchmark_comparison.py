@@ -73,8 +73,10 @@ def retained_contract(root, row, provenance):
     for key,value in dict(task=task,repetition=rep,arm=provenance['arm'],client=provenance['client'],
                           model=provenance['model'],kind=provenance['driver_kind']).items():
         require(contract[key]==value,'Request contract differs: '+key)
+    # Creation tasks can have no source assets; their prompt is still hashed
+    # separately and both arms must retain the same (possibly empty) manifest.
     require(hash_string(contract['prompt_sha256']) and isinstance(contract['fixtures'],dict) and
-            bool(contract['fixtures']) and all(hash_string(v) for v in contract['fixtures'].values()),'Invalid fixture/prompt identities')
+            all(hash_string(v) for v in contract['fixtures'].values()),'Invalid fixture/prompt identities')
     if 'prompt_sha256' in row:require(row['prompt_sha256']==contract['prompt_sha256'],'Row prompt differs')
     if 'sources' in row:require(row['sources']==contract['fixtures'],'Row fixture identities differ')
     engine=(provenance.get('build') or {}).get('executable_sha256')
