@@ -21,10 +21,45 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_first_page_can_discover_and_run_commands_with_stable_complete_pagination(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for workspace in (None, directory):
+                with self.subTest(workspace=workspace), closing(Client(('--tools', 'core'), workspace=workspace)) as c:
+                    c.initialize()
+                    first = c.rpc('tools/list')['result']
+                    names = [tool['name'] for tool in first['tools']]
+                    self.assertEqual(names[:2], ['inkbolt_schema_lookup', 'inkbolt_run'])
+                    self.assertEqual(len(names), 8)
+                    # Use only tools discovered on page one before following its cursor.
+                    schema = c.rpc('tools/call', dict(name=names[0], arguments=dict(name='document.create')))['result']
+                    self.assertFalse(schema['isError'])
+                    self.assertEqual(schema['structuredContent']['result']['detail'], 'full')
+                    made = c.rpc('tools/call', dict(name=names[1], arguments=dict(command='document.create',
+                        arguments=dict(id='first-page', kind='vector', width=8, height=8))))['result']
+                    self.assertFalse(made['isError'])
+                    self.assertEqual(made['structuredContent']['result']['id'], 'first-page')
+                    caps = c.tool('run', command='capabilities', arguments={})['structuredContent']['result']
+                    self.assertEqual(caps['agent_discovery']['mcp_compact_first_tools'], names[:2])
+                    self.assertEqual(first['nextCursor'], 'inkbolt-tools-core-v2:8')
+                    self.assertEqual(first, c.rpc('tools/list')['result'])
+                    page = first
+                    while 'nextCursor' in page:
+                        params = dict(cursor=page['nextCursor'])
+                        page = c.rpc('tools/list', params)['result']
+                        self.assertEqual(page, c.rpc('tools/list', params)['result'])
+                        names.extend(tool['name'] for tool in page['tools'])
+                    self.assertEqual(len(names), 22)
+                    self.assertEqual(len(set(names)), len(names))
+                    self.assertEqual(names[2:], sorted(names[2:]))
+                    self.assertEqual(names, [tool['name'] for tool in catalog(c)])
+                    for cursor in ('inkbolt-tools-core-v1:8', 'inkbolt-tools-v1:8'):
+                        self.assertEqual(c.rpc('tools/list', dict(cursor=cursor))['error']['code'], -32602)
+
     def test_small_catalog_and_schema_lookup_preserve_legacy_discovery(self):
         with closing(Client(('--tools', 'core'))) as core, closing(Client()) as full:
             core.initialize(); full.initialize()
             small, large = catalog(core), catalog(full)
+            self.assertEqual([t['name'] for t in large], sorted(t['name'] for t in large))
             size = len(json.dumps(small, separators=(',', ':')).encode())
             self.assertLessEqual(size, 96 * 1024)
             self.assertLess(size * 10, len(json.dumps(large, separators=(',', ':')).encode()))

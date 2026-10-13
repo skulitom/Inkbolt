@@ -24,6 +24,7 @@ pub use crate::limits::mcp::MAX_RESPONSE_BYTES;
 use crate::limits::mcp::PAGE;
 
 pub use crate::limits::mcp::CORE_CATALOG_BYTES;
+pub const CORE_ENTRY_POINTS: &[&str] = &["inkbolt_schema_lookup", "inkbolt_run"];
 const CORE: &[&str] = &[
     "schema.lookup",
     "document.create",
@@ -58,7 +59,7 @@ impl CatalogMode {
     fn cursor(self) -> &'static str {
         match self {
             Self::Full => "inkbolt-tools-v1:",
-            Self::Core => "inkbolt-tools-core-v1:",
+            Self::Core => "inkbolt-tools-core-v2:",
         }
     }
 }
@@ -682,6 +683,17 @@ pub fn run_in_workspace(
         }
     });
     let tools = catalog_in_workspace(mode, workspace.is_some());
+    let mut listed_tools: Vec<_> = tools.values().map(|(_, tool)| tool).collect();
+    if mode == CatalogMode::Core {
+        // Stable sorting preserves alphabetical order after the entry points.
+        // Even a client inspecting one page can discover and run every command.
+        listed_tools.sort_by_key(|tool| {
+            CORE_ENTRY_POINTS
+                .iter()
+                .position(|name| tool["name"] == *name)
+                .unwrap_or(CORE_ENTRY_POINTS.len())
+        });
+    }
     let mut initialized = false;
     let mut ready = false;
     let mut seen = HashSet::new();
@@ -856,7 +868,7 @@ pub fn run_in_workspace(
                             continue;
                         }
                     };
-                    let mut result = json!({"tools":tools.values().skip(start).take(PAGE).map(|(_,v)|v).collect::<Vec<_>>()});
+                    let mut result = json!({"tools":listed_tools.iter().skip(start).take(PAGE).collect::<Vec<_>>()});
                     if start + PAGE < tools.len() {
                         result["nextCursor"] = json!(format!("{}{}", mode.cursor(), start + PAGE));
                     }

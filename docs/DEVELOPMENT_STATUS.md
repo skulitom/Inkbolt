@@ -979,6 +979,23 @@ Remeasure five matched B02 pairs with unchanged client/model/settings and judges
 expect fewer discovery workarounds and lower usage without losing the 5/5
 artifact/workflow result. Reassess before expanding if that benefit is absent.
 
+The first-page increment now places schema lookup and the dispatcher before the
+remaining alphabetically ordered compact tools. Full discovery keeps its prior
+order and cursors. Compact cursors use a new order version, so old continuations
+fail explicitly. Independent process checks execute a command using only the
+first page, with and without workspace defaults, and verify repeated pages,
+complete unique inventory, advertised entry points and rejected stale cursors.
+Focused Windows checks passed in 104.6 seconds and WSL checks in 49.0 seconds:
+one Rust catalog check and ten Python discovery/protocol tests on each platform,
+plus fresh formatting, locked build and all-target Clippy. No selected checks
+failed, remained pending or reused prior passes. The measured compact catalog
+contains 22 tools over three pages, 71,562 JSON bytes and 71,778 wire bytes.
+Reports remain external under `w5-first-page-`; the tested candidate is
+`06579314368aa264f13ed5d5a173a91bc0ffe691a22a5a2d09eac942f5edfcc2`.
+Only this evidence record and the primary status table changed afterward.
+This is focused implementation evidence; full milestone acceptance and the
+five-pair usability remeasurement remain open.
+
 Five-repetition model trials for the other nineteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

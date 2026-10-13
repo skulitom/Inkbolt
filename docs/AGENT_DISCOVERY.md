@@ -12,7 +12,18 @@ The everyday tools cover document creation, inspection, object queries, edits an
 
 The inner arguments are ordinary engine fields without `command`. Optional `response_format` belongs to the outer arguments. The dispatcher is conservatively annotated as potentially mutating; individual commands retain their actual effects. Unknown commands, recursive dispatch, unexpected fields and malformed nested arguments fail before execution. It cannot bypass revision checks, resource validation, locks, retries or create-only publication.
 
-Both catalogs retain deterministic eight-tool pagination. Cursors belong to their catalog mode and cannot be exchanged between modes. Discovery mode is fixed for the lifetime of the process; no environment variable silently changes an existing client.
+Both catalogs retain deterministic eight-tool pagination. The compact catalog
+starts with `inkbolt_schema_lookup` and `inkbolt_run`, so its first page provides
+access to every command and its arguments. Remaining compact tools and the full
+catalog use alphabetical name order. Capabilities report the compact entry
+points in `agent_discovery.mcp_compact_first_tools`.
+
+Cursors belong to their catalog mode and order version. Compact cursors now use
+`inkbolt-tools-core-v2:`; old compact cursors fail explicitly rather than resuming
+at a different tool. Full-catalog cursors are unchanged. Treat cursors as opaque
+and begin discovery without one on a new connection. Discovery mode and order
+are fixed for the lifetime of the process; no environment variable silently
+changes an existing client.
 
 ## Focused schemas
 

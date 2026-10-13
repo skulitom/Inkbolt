@@ -30,7 +30,7 @@ standing authorization.
 | W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
 | W3a.1-2 | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance | Other W3a items remain open; prioritize them using W2 evidence |
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |
-| W3c / W4 / W5.2+ / W6 | Open; substantial work | B02 motivates a bounded W5.2 first-page discovery change, followed by five-pair remeasurement; use W2's decision rule for broader work |
+| W3c / W4 / W5.2+ / W6 | Open; substantial work. W5.2 first-page entry points have focused Windows/Linux checks | Remeasure five B02 pairs before judging the discovery benefit; full milestone acceptance remains open. Use W2's decision rule for broader work |
 | W7 / W8 | Distribution and published usability evidence remain open; README checkpoint headline moved | Ship only verified platform tiers; publish comparable results after trials |
 | W9 | Deferred, outside active scope | No learned-model plugin work |
 

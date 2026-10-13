@@ -1836,6 +1836,7 @@ fn capability_report() -> Value {
         "full_schema":"schema", "mcp_default":"full",
         "mcp_compact_arguments":["mcp","--tools","core"],
         "mcp_compact_budget_bytes":mcp::CORE_CATALOG_BYTES,
+        "mcp_compact_first_tools":mcp::CORE_ENTRY_POINTS,
         "mcp_dispatcher":"inkbolt_run", "execution_validation":"complete_typed_request"
     });
     capabilities["session_proposals"] = json!({"dry_run":"session.dry_run","apply":"session.apply_proposal","version":1,"actions":"all_session_actions","database_dry_run_access":"read_only","history_changed_by_dry_run":false,"bound_inputs":["session_id","request_id","expected_revision","request_fingerprint","base_state_sha256","result_state_sha256"],"comparison":"structural_with_optional_pixels","preview":"optional_full_canvas_PNG_at_scale_one","persistent_proposal_store":false,"proposal_is_authorization":false,"history_storage_and_receipt_limits":"shared_with_real_apply;filesystem_commit_can_still_fail"});
