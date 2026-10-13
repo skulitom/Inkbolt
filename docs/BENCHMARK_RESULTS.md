@@ -397,3 +397,60 @@ and `w2-breadth-sol-comparison-five-01`, with separate trace reviews and
 | Inkbolt report | `abf3044104010b5fc36043eb4c5edf1b8df03878da86d55539a86bb76fd920f2` |
 | Baseline report | `632a0f5dda0a8de1f951f1d415b94978c546674bf0d8b2010a4a09b835982a85` |
 | Matched comparison | `a3ef9a766ea7ecb721f77dbc871ab651ae4ddf9e631b06a7ee751d0e3ea5949d` |
+
+## B04/B05 at dabe447: five matched pairs
+
+Five fresh repetitions per task and arm used the same external Codex CLI
+0.160.0 configuration (`gpt-6.1-sol`, medium reasoning, explicit MCP approval
+option) as the preceding batch. These are evaluation metadata, not model
+defaults. The engine and pinned baseline tools were unchanged. The Inkbolt arm
+preceded the baseline on the shared Windows host; task order rotated within
+each arm. No other Inkbolt verification or benchmark ran in this chat, other
+host workloads were uncontrolled, and OS caches could be warm. Both source
+candidates stayed unchanged; both tasks have five matched pairs and no matching
+issues. Every attempt and its original transcript remains retained.
+
+| Task | Inkbolt / baseline artifact passes | Median input + output tokens | Median client seconds |
+| --- | --- | ---: | ---: |
+| B04 SVG import/edit | 5/5 / 5/5 | 206,924 / 57,528 | 71.2 / 56.7 |
+| B05 shared palette | 5/5 / 5/5 | 270,958 / 54,973 | 93.8 / 35.6 |
+
+Both tasks trigger the existing cost signal: baseline artifact success matches
+Inkbolt, whose median observed token totals are **3.60x** and **4.93x** those of
+the baseline, respectively. All Inkbolt-only native-source and palette live-reference/history
+checks passed; these are explicitly not applicable in the baseline. Five equal
+outcomes do not prove equivalence, and this comparison does not isolate the cost
+of those additional guarantees. Cached input is included in input totals, never
+added twice. These ratios are not billing or causal performance estimates.
+
+Every B04 baseline retained the original SVG IDs and description. Every Inkbolt
+B04 delivery remapped IDs and omitted the description, with exact losses openly
+reported and judged. All retained the requested editable path and passed pixel
+checks. Every B05 Inkbolt attempt chose a nondefault session directory; the
+corrected judge found and verified its original/current snapshots and history.
+
+All twenty traces and generated command/script bodies were reviewed. No
+repository/judge reads, extra models/engines or baseline Inkbolt access were
+observed. All Inkbolt attempts chose CLI execution; this batch does not measure
+MCP approval behavior. Invalid schema selectors, full-schema fallbacks, a JSON
+property-order comparison false alarm and a mistaken historical publication
+request remain in the traces and usage. Some agents also retained extra local
+copies of the task prompt. Complete model-call/engine-call counts, traffic,
+retries, first verified preview and engine-only memory remain unknown; completed
+shell items are not substituted for these metrics.
+
+This extends the fewer-interactions signal beyond B02/B03 into input admission
+and palette authoring. Continue the remaining tasks before making a substantial
+W3c/W4/W5.2+/W6 choice from the full decision rule. B06/B07 are next after their
+audited resource-location assumptions are corrected and checked. Full-suite,
+matched sister-project and readiness gates remain open; checkpoints are unchanged.
+
+Reports/workspaces are retained under `w2-svg-palette-sol-{model,baseline}-five-01`
+and `w2-svg-palette-sol-comparison-five-01`, with separate trace review files.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Shared source candidate | `cddc5b424cf3f1154733069dc615c302621a8da7311ef21aa32f316460eeca3f` |
+| Inkbolt report | `13bc20d7fc032c105037cf4b715a83034380575481372997f0a60b630343ff36` |
+| Baseline report | `ef6a6603aac9534468539d097c072aeb79e027faeaf70d1638c8fe2e2fdf9e74` |
+| Matched comparison | `006c77ecd151342ec6af21579bc8200b5277fb2cd8e79981fa0fcffad48be9e6` |

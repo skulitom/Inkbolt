@@ -277,6 +277,10 @@ reports/logs are under `w1-public-ci-a1a0339`, candidate
 `f985ad1ec589c62a2a342d58356d64d24095e61314e2a66a42d11afb4811d2db`.
 This confirms the path-alias correction. It predates the later store-judge and
 job-fixture changes; their current-revision hosted acceptance remains pending.
+The later `8bc8982` Linux job passed all 242 fresh stages (179 Rust, 2451 Python,
+48 explicit skips) in 1421.4 seconds, with unchanged inputs and no failures,
+pending checks or reuse. Windows/macOS at that revision remain pending. See
+[the retained platform evidence](PLATFORMS.md).
 
 ## W2 and the next behavior increments
 
@@ -1150,7 +1154,18 @@ under `w2-b05-store-before-01` and `w2-b05-session-store-`, tested candidate
 `53ff8ce326af86910d2ba5c70c8c641f18075125a3db3294a6cf54ac605a5c0e`.
 This fixes judging only; it does not change engine behavior or add model evidence.
 
-Five-repetition model trials for the other seventeen tasks, further smaller-model
+Five matched B04/B05 pairs at `dabe447` then passed both arms on both tasks.
+Median input-plus-output usage was 206,924/57,528 for SVG editing (3.60x) and
+270,958/54,973 for palette editing (4.93x). Both trigger the fixed cost signal;
+all palette engine-only live-reference/history checks also passed. All twenty
+traces were reviewed; no prohibited tool or repository/judge access was observed.
+Both candidates stayed unchanged and selected comparisons had no matching
+issues. SVG baselines retained IDs/description while Inkbolt honestly reported
+their loss. See [the full scope and identities](BENCHMARK_RESULTS.md#b04b05-at-dabe447-five-matched-pairs).
+Next, correct the independently audited B06/B07 resource-store assumptions
+before their genuine trials; preserve all content, font and history oracles.
+
+Five-repetition model trials for the other fifteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

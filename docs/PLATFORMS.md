@@ -163,6 +163,14 @@ retained under `w1-public-ci-a1a0339`, candidate
 This is the latest complete matrix; it predates the later B01/B03 store-judge
 and Windows job-fixture changes, whose focused checks remain separately scoped.
 
+The [newer `8bc8982` run](https://github.com/skulitom/Inkbolt/actions/runs/38446529203)
+passed all 242 fresh Linux stages: 179 Rust and 2451 Python tests, 48 explicit
+skips, in 1421.4 seconds, with unchanged inputs and no failed/pending/reused
+stages. Evidence is retained under `w1-public-ci-8bc8982/linux`, candidate
+`72ed74353fa11496d6b06b678dbf5708d87f54ee4778da875a7d23eae566b63f`.
+Windows/macOS results for that revision remain pending; this Linux pass does
+not supersede the complete matrix or include the later B05 judge correction.
+
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable
 path. The [Windows configuration](../examples/mcp-config.windows.json) uses an
