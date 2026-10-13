@@ -160,7 +160,7 @@ def main():
         else:solve_recovery(root,send)
     elif request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,retry_of=None,**arguments):
-            if task in ('B03','B05','B06','B07','B08','B09') and '--custom-session-store' in sys.argv:
+            if task in ('B03','B05','B06','B07','B08','B09','B10') and '--custom-session-store' in sys.argv:
                 if command.startswith('session.'):arguments['session_root']='chosen sessions'
                 document=arguments.get('document')
                 if isinstance(document,dict) and 'session_id' in document:

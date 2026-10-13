@@ -29,18 +29,20 @@ class ExternalPhotoTests(unittest.TestCase):
 
     def test_external_model_relocated_capture_and_damaged_delivery_controls(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver('--photo-names');configuration['timeout_seconds']=90
+            root=Path(directory);configuration=driver('--photo-names','--custom-session-store');configuration['timeout_seconds']=90
             row=run_external_task(EXE,root/'live','B10',1,'model',configuration)
             self.assert_photo(row)
             self.assertEqual(row['judge_engine_commands'],9)
             self.assertIsNone(row['peak_commit_bytes']);self.assertFalse(row['memory_complete'])
             before=workspace_files(root/'live/workspace')
+            self.assertFalse((root/'live/workspace/.inkbolt/sessions').exists())
             (root/'live').rename(root/'captured')  # Every old absolute resource root is now absent.
             imported=run_external_task(EXE,root/'import','B10',1,'model',configuration,import_source=root/'captured')
             self.assert_photo(imported)
             self.assertEqual(imported['checks'],row['checks'])
             self.assertEqual(imported['external_process_tree_memory'],row['external_process_tree_memory'])
             workspace=root/'import/workspace'
+            self.assertFalse((workspace/'.inkbolt/sessions').exists())
             self.assertEqual(before,workspace_files(workspace))
             self.assertEqual(before,workspace_files(root/'captured/workspace'))
             self.assertEqual(json.loads((workspace/'editable.json').read_bytes())['id'],'original-studio')

@@ -65,7 +65,7 @@ encoding for those positions. Independent authored glyph/cluster coordinates and
 both delivered/fresh pixels still reject a shifted baseline; all other text,
 font, frame, snapshot and history checks are unchanged.
 
-B03 and B05-B09 likewise locate the session ID from `session.json` within the captured
+B03 and B05-B10 likewise locate the session ID from `session.json` within the captured
 workspace, using its canonical database filename. A missing, linked, external
 or ambiguous store fails. The engine then reads both declared revisions and
 verifies the full history from that explicit root; filename discovery alone

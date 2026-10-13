@@ -8,6 +8,7 @@ from pathlib import Path
 
 from benchmark_diagram import delivered
 from benchmark_graphics import store, source_snapshot, png_check
+from benchmark_large_layout import retained_session_store
 from benchmark_runtime import require, safe_name, strict_json
 from workload_cases import document, native_png, check_tiff, save, save_json, sha
 
@@ -204,10 +205,12 @@ def judge(case):
             isinstance(locator['requests'],dict) and set(locator['requests'])==set(names),'Invalid photo session locator')
     safe_name(locator['session_id'])
     require(len(set(locator['requests'].values()))==4,'Photo request IDs must be distinct')
+    session_root=retained_session_store(case,locator['session_id'])
     receipts={}
     for role in names:
         safe_name(locator['requests'][role])
-        receipts[role]=case.call('judge-'+role+'-receipt','session.receipt',session_id=locator['session_id'],request_id=locator['requests'][role])
+        receipts[role]=case.call('judge-'+role+'-receipt','session.receipt',session_root=session_root,
+                                session_id=locator['session_id'],request_id=locator['requests'][role])
     wanted=copy.deepcopy(wanted_before);wanted['revision']=1
     wanted['items'][0]['content']['grid']['patches']=[dict(region=REGION,data_hex=patch.hex())]
     review=strict_json(delivered(case,'review.json'))
@@ -240,7 +243,7 @@ def judge(case):
             check_tiff(case.root/(name+'.tiff'),WIDTH,HEIGHT,samples)
             check_tiff(path,WIDTH,HEIGHT,samples)
         case.check(name+'-native-samples',native)
-    verified=case.call('judge-history','session.verify',session_id=locator['session_id'])
+    verified=case.call('judge-history','session.verify',session_root=session_root,session_id=locator['session_id'])
     case.check('history-valid',lambda:require(verified['valid'] and verified['revision']==3 and
         all(receipts[role]['document']==snapshots[role] and receipts[role]['receipt']['revision']==revision and
             receipts[role]['receipt']['request_id']==locator['requests'][role]

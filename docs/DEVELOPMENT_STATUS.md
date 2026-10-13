@@ -1223,9 +1223,21 @@ JSON text-comparison false alarms remain in the evidence. These small raster
 fixtures reinforce the interaction-cost signal; they do not establish scale
 performance or isolate the cost of Inkbolt's extra history guarantees. See
 [the full comparison and identities](BENCHMARK_RESULTS.md#b08b09-at-38f0397-five-matched-pairs).
-The read-only next-task audit identifies B10's omitted session roots for
-reproduction before trials. B13 has no corresponding judge-store assumption;
-B17/B18's fixed stores belong to their harness-seeded fault contracts.
+B10's synthetic capture also reproduced `SESSION_NOT_FOUND` for a valid custom
+session directory. Its judge now uses checked retained-store discovery for all
+four receipts and final history verification. The unchanged capture passes with
+identical workspace bytes and process-memory evidence; judging still uses nine
+engine calls. Native tile identities, every TIFF sample, low-bit corruption
+controls, proposal/history checks and the 256 MiB memory requirement are
+unchanged. This is synthetic regression evidence, not a new model trial.
+Focused Windows/WSL verification passed 32/29 Python tests in 96.5/79.1 seconds,
+with three explicit Linux skips, unchanged Cargo checks reused and no failed or
+pending selected checks. Linux's unavailable commit-memory measurement still
+fails the task's budget check as required by the test. Reports and before/after
+captures are retained under `w2-photo-session-`, tested candidate
+`3a7ad369fedb0526ab981017649cfec8551d609e2e7f5d33da6c18f8b10781ab`.
+B13 has no corresponding judge-store assumption; B17/B18's fixed stores belong
+to their harness-seeded fault contracts.
 
 Five-repetition model trials for the other eleven tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
