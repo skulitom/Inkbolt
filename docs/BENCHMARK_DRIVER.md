@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B12. B13-B20 remain visible as
+The W2 external lifecycle currently supports B01-B13. B14-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -294,6 +294,25 @@ independently renders each selected viewport and checks the delivered PNG too.
 The original seven check IDs/classes remain fixed. Typed engine bindings and
 session integrity are explicitly not applicable there. Retained delivery hashes
 establish content identity, not authenticated filesystem history.
+
+B13's [shared prompt](../tools/benchmark_prompts/B13.md) keeps the exact transparent
+1920 by 1080 artwork, straight RGBA samples, stripped sRGB delivery and private
+editable source note. The model judge reopens the source, checks the full preset
+and artwork controls, preflights and publishes a fresh PNG, and independently
+attempts duplicate publication into a protected copy. Its three publication
+calls use an explicitly recorded, judge-only CLI workspace, including when the
+reference solve uses MCP. Captured workspaces remain unchanged. These calls and
+their bytes are counted as judge work; they cannot supply solve preview timing.
+
+The baseline retains a bounded editable SVG and a create-only delivery recipe.
+Pinned Pillow encodes straight RGBA samples directly from the admitted geometry
+and paint; its independent publication probe must refuse an existing protected
+file and preserve its bytes. Both fresh and delivered PNGs face the same pixel,
+sRGB and metadata checks. Missing/duplicate/invalid color tags, ICC profiles,
+descriptive/private records and animation reject. All four original check IDs
+and classes are unchanged; only the Inkbolt snapshot check is not applicable
+to the baseline. Delivery hashes are content evidence, not authenticated client
+action history.
 
 ## Preparation and import
 

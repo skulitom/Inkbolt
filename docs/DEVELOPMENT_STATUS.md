@@ -516,7 +516,32 @@ pinned imaging tools; the judge independently renders each viewport. Prompt hash
 Evidence remains external under `w2-b12-`. These are shared-host correctness
 results, not genuine model trials, performance comparisons or full W2 acceptance.
 
-B13-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B13 separates the transparent-screen prompt, six-command reference solve and
+independent judge. All four original checks remain fixed. Both delivered and
+freshly rendered PNGs must preserve exact straight-alpha pixels and a single
+valid sRGB declaration while stripping private/descriptive metadata. The editable
+source retains its private note. Fresh publication and duplicate-output probes
+use owned judge directories, including when rechecking relocated captures;
+captured files remain unchanged. These separate CLI probes are explicitly counted
+as judge traffic and excluded from persistent MCP server memory measurements.
+The baseline retains admitted editable SVG and a content-bound create-only recipe;
+pinned Pillow independently renders and probes a protected copy. Its engine-only
+snapshot check is explicitly not applicable. This demonstrates reproducible
+publication behavior, not authenticated historical client actions.
+
+Focused verification passed 50 tests on Windows in 129.7 seconds and 48 on Linux
+in 109.7 seconds, with two explicit Windows-counter skips. No selected stage failed
+or remained pending; unchanged engine formatting/build/Clippy results were reused.
+Both reports and final trials retained unchanged candidate fingerprint:
+`9ea5084f4a6f17917d978b90ae9e884bb55b4fca48dca30ddc472dc12be61fa5`.
+Five real-tool synthetic baseline trials passed on each platform; all five Windows
+captures passed rejudging. Controls reject altered geometry, alpha, private notes,
+delivered pixels, color metadata, manifest identities and protected output bytes.
+Prompt hash: `eef3d91c9764e67b5071b1cfa73eda4621c852f3df63ad5de48339b4681390db`.
+Evidence remains external under `w2-b13-`. These are shared-host correctness
+results, not genuine model trials, performance comparisons or full W2 acceptance.
+
+B14-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

@@ -146,7 +146,7 @@ class BenchmarkDriverTests(unittest.TestCase):
             with patch('benchmark_driver.run_owned',side_effect=AssertionError('Preparation launched a client')):
                 row=run_external_task(EXE,root/'prepared','B01',1,'model',driver(),prepare=True)
             self.assertEqual(row['status'],'prepared')
-            self.assertEqual(run_external_task(EXE,root/'open','B13',1,'model',driver())['status'],'not_implemented')
+            self.assertEqual(run_external_task(EXE,root/'open','B14',1,'model',driver())['status'],'not_implemented')
             for task in ('B17','B18','B19'):
                 self.assertEqual(run_external_task(None,root/task,task,1,'baseline',driver(),fake_tools())['status'],'not_applicable')
 

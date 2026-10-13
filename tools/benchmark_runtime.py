@@ -242,13 +242,21 @@ class Trial:
     def memory_observations(self):
         memory = [row.get('memory') for row in self.calls if row.get('phase') != 'judge'] if self.transport == 'cli' else [self.server_memory]
         scope = 'individual solve CLI processes' if self.transport == 'cli' else 'complete persistent MCP server lifetime, including judge calls'
+        if self.transport == 'mcp' and any('judge_workspace' in row for row in self.calls):
+            scope += '; separate judge-workspace CLI processes are excluded'
         return memory, scope
 
     def extra_results(self):
         return {}
 
-    def call(self, step, command, *, expected_error=None, retry_of=None, discard=False, preview=False, **arguments):
+    def call(self, step, command, *, expected_error=None, retry_of=None, discard=False, preview=False, judge_workspace=None, **arguments):
         require(self.agent_started is not None, 'Start the task before making measured calls')
+        if judge_workspace is not None:
+            from pathlib import Path
+            selected = Path(judge_workspace)
+            require(self.phase == 'judge' and selected.is_dir() and not selected.is_symlink() and
+                selected.resolve().is_relative_to(getattr(self, 'judge_root', self.root).resolve()),
+                'A judge workspace must be an owned directory within the judge root')
         # Async jobs need their own containment/worker accounting adapter. Never
         # route one through the synchronous timeout cleanup implemented here.
         self.validate_command(command)
@@ -260,13 +268,16 @@ class Trial:
                     'A retry must repeat an earlier exact request')
         row = dict(step=step, phase=self.phase, command=command, request_sha256=fingerprint,
                    retry_of=retry_of, response_observed=not discard, expected_error=expected_error)
+        if judge_workspace is not None:
+            row.update(judge_workspace=str(selected.resolve()), transport='cli')
         self.calls.append(row)
         try:
-            if self.transport == 'cli':
+            if self.transport == 'cli' or judge_workspace is not None:
                 prefix = self.prefix(step)
                 payload = json.dumps(request, separators=(',', ':')).encode()
                 save(prefix.with_suffix('.request.json'), payload)
-                metrics, stdout, stderr = self.execute([str(self.executable), '--workspace', str(self.root)], payload)
+                metrics, stdout, stderr = self.execute([str(self.executable), '--workspace',
+                    str(selected.resolve() if judge_workspace is not None else self.root)], payload)
                 save(prefix.with_suffix('.response.json'), stdout)
                 save(prefix.with_suffix('.stderr.txt'), stderr)
                 row.update(request_bytes=len(payload), response_bytes=len(stdout), **metrics)
@@ -351,6 +362,10 @@ class Trial:
         memory_complete = bool(memory) and all(m and m.get('available') for m in memory)
         memory_values = [m for m in memory if m and m.get('available')]
         traffic = self.calls if self.transport == 'cli' else self.protocol
+        if self.transport == 'mcp':
+            # Independent publication probes use their own workspace/process;
+            # count their retained wire bytes once, exclusively as judge work.
+            traffic = traffic + [row for row in self.calls if 'judge_workspace' in row]
         judge_traffic = [row for row in traffic if row.get('phase') == 'judge']
         traffic = [row for row in traffic if row.get('phase') != 'judge']
         def invalid(row):

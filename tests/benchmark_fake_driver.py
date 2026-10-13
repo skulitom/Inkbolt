@@ -26,6 +26,8 @@ from benchmark_mixed import solve as solve_mixed,original_pixels as mixed_source
 from benchmark_baseline_mixed import manifest as mixed_manifest
 from benchmark_variants import solve as solve_variants,expected_picture as variant_picture,BOARDS
 from benchmark_variants_client import author as author_variants
+from benchmark_screen import solve as solve_screen,expected_picture as screen_picture,delivery_identity
+from benchmark_screen_client import SVG as SCREEN_SVG
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -84,9 +86,9 @@ def main():
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12')
+    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13')
     if request['contract']['arm']=='model':
-        def call(step,command,preview=False,**arguments):
+        def call(step,command,preview=False,expected_error=None,**arguments):
             if task=='B10' and '--photo-names' in sys.argv:
                 if arguments.get('session_id')=='work':arguments['session_id']='portrait-session'
                 if 'request_id' in arguments:arguments['request_id']='owner-'+arguments['request_id']
@@ -95,18 +97,21 @@ def main():
             process=subprocess.run([request['engine_executable'],'--workspace',str(root)],input=payload,capture_output=True,timeout=20)
             response=json.loads(process.stdout)
             events.append(dict(step=step,request=payload.decode(),response=process.stdout.decode()))
+            if expected_error is not None:
+                assert not response['ok'] and response['error']['code']==expected_error and process.returncode==1
+                return response['error']
             assert response['ok'] and process.returncode==0
             return response['result']
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
          'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo,
-         'B11':solve_mixed,'B12':solve_variants}[task](SimpleNamespace(root=root,call=call))
+         'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen}[task](SimpleNamespace(root=root,call=call))
         if task=='B10' and '--photo-names' in sys.argv:
             locator=json.loads((root/'session.json').read_bytes())
             locator['requests']={role:'owner-'+name for role,name in locator['requests'].items()}
             (root/'session.json').write_text(json.dumps(locator),encoding='utf-8')
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
-        if task in ('B10','B11','B12'):
+        if task in ('B10','B11','B12','B13'):
             pass  # A separate client writes the editable manifest.
         elif task=='B09':
             (root/'editable.json').write_text(json.dumps(retouch_manifest()),encoding='utf-8')
@@ -132,7 +137,14 @@ def main():
             else: source = SVG if task == 'B01' else ICONS_SVG
             (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B12':
+        if task=='B13':
+            if renderer['version']=='synthetic-fixture':
+                (root/'editable.svg').write_text(SCREEN_SVG,encoding='utf-8')
+                raw=png(1920,1080,screen_picture());(root/'screen.png').write_bytes(raw)
+                (root/'delivery.json').write_text(json.dumps(delivery_identity(raw)),encoding='utf-8')
+            else:
+                subprocess.run([request['baseline_tools']['python']['path'],'-I',str(ROOT/'tests/benchmark_screen_client.py'),str(root)],check=True)
+        elif task=='B12':
             if renderer['version']=='synthetic-fixture':
                 author_variants(root);identities={}
                 for name,w,h,_,_ in BOARDS:
@@ -234,7 +246,7 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
                 str(root/'editable.svg'),str(root/'preview.png')],check=True)
         events.append(dict(kind='synthetic',action='authored baseline fixture'))
     if '--changed-prompt' in sys.argv: (root/'task.txt').write_text('changed',encoding='utf-8')
-    preview_name='board-1.png' if task=='B02' else 'square.png' if task=='B12' else 'preview.png'
+    preview_name='board-1.png' if task=='B02' else 'square.png' if task=='B12' else 'screen.png' if task=='B13' else 'preview.png'
     if '--wrong-image' in sys.argv: (root/preview_name).write_bytes(png(1,1,b'\0'*4))
     target=Path(request['result_path'])
     (target.parent/'transcript.jsonl').write_text('\n'.join(json.dumps(row) for row in events)+'\n',encoding='utf-8')

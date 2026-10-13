@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B12 also support `--arm model` and
+`--arm reference` is the existing default. B01-B13 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -199,7 +199,15 @@ keeps editable shared SVG instances, dataset values and restored base, with a
 named rendering companion for the original unnamed font. The companion retains
 every glyph/metric table. Its two engine-only checks are explicitly not applicable.
 
-B13-B20 still interleave solving and judging. All required checks have
+B13 separates its [creation prompt](../tools/benchmark_prompts/B13.md), reference
+solve and delivery judge. It checks full editable controls, the private source note,
+exact straight alpha, sRGB/metadata policy and create-only publication. Both arms
+render fresh images and independently attempt duplicate publication into protected
+copies outside the captured workspace. The baseline uses pinned Pillow and keeps
+editable SVG plus its delivery recipe. The four original check IDs/classes remain
+fixed; its Inkbolt snapshot check is explicitly not applicable.
+
+B14-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 
@@ -345,6 +353,11 @@ Complete print/interchange scope remains governed by the original feature regist
   response, or match both hash and length to a successful PNG publication result.
   A judge render, missing/lost response, wrong media type or mismatched identity
   cannot supply missing preview timing.
+  B13's independent publication probes use a separate judge-only CLI workspace;
+  its reference solve transport remains unchanged. Explicit probe rows retain
+  their command bytes, timing and process observations, counted once as judge
+  traffic even in MCP trials. MCP server memory excludes these separate judge
+  processes and the reported scope says so.
   B19's overlapping CLI callers mean summed round trips need not equal wall time.
 - Windows memory uses OS lifetime high-water marks: the maximum individual CLI
   process peak (excluding separately tagged judge calls) or the persistent MCP

@@ -66,32 +66,6 @@ def verify_history(case):
     case.check('history-valid',lambda:require(result['valid'],'Invalid saved history'))
 
 
-def transparent_delivery(case):
-    case.begin('Create a transparent 1920x1080 vector screen graphic with one RGBA (20,80,150,128) '
-        'rectangle at (10,20), size 200x100. Retain editable source and private source metadata. '
-        'Preflight and deliver screen.png with sRGB straight alpha and no matte or descriptions. '
-        'Prove a duplicate publication cannot overwrite the output.')
-    preset=case.call('preset','preset.create',id='screen',version=1,preset=dict(type='screen',size='presentation_hd',
-        kind='vector',background=dict(type='transparent')))
-    doc=preset['document'];item=rectangle('graphic',10,20,200,100,[20,80,150,128]);item['parent']='canvas'
-    doc['items'].append(item);doc['metadata']=dict(private={'note':'original private source note'})
-    saved=store(case,doc)
-    output=preset['delivery']|dict(file_name='screen.png')
-    preflight=case.call('preflight','document.preflight',document=saved,output=output)
-    require(preflight['ready'],'Screen output is not ready')
-    delivered=case.call('deliver','document.publish',document=saved,output=output)
-    raw=(case.root/'screen.png').read_bytes()
-    case.check('transparent-pixels',lambda:png_check(raw,1920,1080,pixels(1920,1080,[(10,20,200,100,[20,80,150,128])])),preview_step='deliver')
-    _,_,_,chunks=png_pixels(raw)
-    case.check('screen-color',lambda:require(b'sRGB' in chunks and b'iCCP' not in chunks and b'tEXt' not in chunks
-        and sha(raw)==delivered['sha256'],'Screen color/metadata or delivery identity changed'))
-    actual=source_snapshot(case,saved)
-    case.check('editable-source',lambda:require(actual['items'][1]['content']['geometry']==item['content']['geometry'] and
-        actual['metadata']['private']['note']=='original private source note','Editable controls or private source metadata changed'))
-    case.call('collision','document.publish',document=saved,output=output,expected_error='OUTPUT_EXISTS')
-    case.check('no-overwrite',lambda:require((case.root/'screen.png').read_bytes()==raw,'Existing output was overwritten'))
-
-
 def two_items():
     return document('revisions','vector',32,16,items=[rectangle('target',2,4,8,8,BLUE),rectangle('other',22,4,8,8,GREEN)])
 
