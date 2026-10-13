@@ -326,6 +326,13 @@ or receipts from the source fixtures.
 The three binding keys may appear in any order, with their corresponding saved
 base values. Their exact targets, types, dataset values and inheritance remain
 required; reordering cannot substitute a different binding or change a snapshot.
+Item roles are located through their type and parent, not a fixed flat-array
+position. Full item data and each parent's sibling order remain exact; harmless
+interleaving of different parents' items is accepted, including arrays produced
+by native `add` operations. Saved snapshots must still match their actual history
+and current head. The prompt's artboard names may be retained as matching display
+labels or represented by the fixed IDs with default empty labels. Other labels,
+changed parents, sibling order, geometry or properties still fail.
 
 The baseline retains one shared text/image definition instanced by three SVG
 viewports, the original and restored base SVGs, editable dataset values and

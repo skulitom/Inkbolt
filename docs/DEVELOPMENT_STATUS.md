@@ -284,6 +284,16 @@ unchanged; no stages failed, remained pending or reused passes. These reports
 predate the later B05-B07 judge corrections. See
 [the retained platform evidence](PLATFORMS.md).
 
+The latest retained [complete matrix at `7a07f07`](https://github.com/skulitom/Inkbolt/actions/runs/38468108741)
+passed 242 fresh stages on every platform. Windows ran 213 Rust and 2495 Python
+tests with seven explicit skips in 2950.1 seconds; Linux/macOS each ran 179 Rust
+and 2454 Python tests with 48 skips, in 1426.3/3026.1 seconds. All reports confirm
+unchanged inputs, complete-suite coverage and no failed, pending or reused
+checks. Report and log hashes are retained under `w1-public-ci-7a07f07`, candidate
+`6e3153244579fd3e0dcdebd7c42185b3787d71854664171b9f71b239364ae3a3`.
+Later B10/B13 delivery and B11/B12 store/hierarchy judge corrections retain their
+focused Windows/WSL evidence; these hosted results do not cover those later edits.
+
 ## W2 and the next behavior increments
 
 B01 separates fixtures, its versioned prompt, reference solving and an independent
@@ -1285,9 +1295,31 @@ to include the new store-folder snapshot test; earlier failures remain retained.
 Reports and before/after captures are under `w2-mixed-variants-stores-` and
 `w2-variant-binding-order-before-01`, tested candidate
 `0d48913ef6dd4f800b1bcd3f8648ad0a6ee84894d444eca4bbb38f053f707f8b`.
-These corrections prepare genuine trials; they award no model or engine credit.
+That synthetic preparation awards no model or engine credit.
 
-Five-repetition model trials for the other nine tasks, further smaller-model
+B11/B12 now have five genuine matched pairs each. Mixed composition passes 3/5
+with Inkbolt versus 5/5 with the baseline: two Inkbolt attempts added an unrequested
+image lock. Layout variants pass 5/5 in both arms at 9.17x median reported tokens
+with Inkbolt. Three original layout judge crashes were reproduced with a
+synthetic author using native `add` operations. Judging now finds item roles by
+type and parent, preserving exact item fields and sibling order while accepting
+different cross-parent interleaving. The exact artboard names from the prompt
+table may be display labels or fixed IDs with default empty labels; other labels
+remain rejected. Native history must still match each delivered snapshot exactly.
+
+The new regression covers an imported capture with custom resource/session and
+receipt roots, different binding order, native item insertion and table labels.
+Negative cases retain changed sibling/root order, parents, properties and labels.
+Windows executed 56 Python tests in 80.3 seconds; Linux executed 53 with three
+explicit platform skips in 53.1 seconds. Cargo checks were reused, with no failed
+or pending selected checks. Reports are under `w2-variant-order-`, tested candidate
+`04f6923675698f2f3451127b137c259988fef43962209db01cf5adeb52e05f46`.
+All twenty genuine captures were rejudged with unchanged workspaces, transcripts,
+client results, usage and captured memory. No model was rerun. B11 lock failures
+and all baseline outcomes are unchanged; only the three B12 judge errors become
+passes. See [results and review limits](BENCHMARK_RESULTS.md#b11b12-at-30c4ebd-mixed-composition-and-layout-variants).
+
+Five-repetition model trials for the other seven tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

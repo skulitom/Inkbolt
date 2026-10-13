@@ -160,6 +160,20 @@ def main():
         else:solve_recovery(root,send)
     elif request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,retry_of=None,**arguments):
+            added_items=None
+            if task=='B12' and '--variant-add-items' in sys.argv and command=='session.create':
+                # Author through native edits, which may interleave different parents' items.
+                document=json.loads(json.dumps(arguments['document']));added_items=document['items']
+                document['items']=[];arguments['document']=document
+                if '--variant-child-order' in sys.argv:added_items[1:3]=reversed(added_items[1:3])
+                if '--variant-root-order' in sys.argv:added_items[3:7]=added_items[5:7]+added_items[3:5]
+                if '--variant-reparent' in sys.argv:added_items[2]['parent']=None
+                if '--variant-extra-property' in sys.argv:added_items[0]['opacity']=0.9
+                if '--variant-board-labels' in sys.argv:
+                    for item in added_items:
+                        if item['id'] in ('wide','square','tall'):item['name']=item['id']
+                if '--variant-wrong-board-label' in sys.argv:
+                    next(item for item in added_items if item['id']=='wide')['name']='different'
             if task in ('B03','B05','B06','B07','B08','B09','B10','B11','B12') and '--custom-session-store' in sys.argv:
                 if command.startswith('session.'):arguments['session_root']='chosen sessions'
                 document=arguments.get('document')
@@ -188,6 +202,10 @@ def main():
                 assert not response['ok'] and response['error']['code']==expected_error and process.returncode==1
                 return response['error']
             assert response['ok'] and process.returncode==0
+            if added_items is not None:
+                return call(step+'-add-items','session.apply',session_id=arguments['session_id'],
+                    request_id='author-items',expected_revision=response['result']['document_ref']['revision'],
+                    action=dict(type='edit',operations=[dict(op='add',item=item) for item in added_items]),response_mode='compact')
             return response['result']
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
          'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo,

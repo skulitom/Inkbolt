@@ -1,11 +1,12 @@
 # Recorded agent evaluation results
 
-Five-pair evaluations now cover B01-B10 and B13, with separate smaller-model
-pilots. Eight tasks matched baseline artifact success with higher median token
-use. The latest photo task passed 3/5 with Inkbolt versus 5/5 with the baseline;
-screen artwork passed 5/5 in both arms at 7.51x median token use with Inkbolt.
+Five-pair evaluations now cover B01-B13, with separate smaller-model pilots.
+Nine tasks matched baseline artifact success with higher median token use.
+Photo repair and mixed composition each passed 3/5 with Inkbolt versus 5/5 with
+the baseline. Layout variants passed 5/5 in both arms at 9.17x median token use
+with Inkbolt after tested judge corrections.
 The evidence below preserves failures, judge corrections and exact build
-identities. Nine tasks, further smaller-model trials and the separate
+identities. Seven tasks, further smaller-model trials and the separate
 sister-project comparison remain open; these partial batches are not full-suite
 acceptance.
 
@@ -678,3 +679,86 @@ reviews retain the identity and review checks.
 | Rejudged Inkbolt report | `54ebcd79653411ec490cb90be67f8b8d913e47c2676de70f6f41c8c535590ad1` |
 | Rejudged baseline report | `6f5468d57866598014ac6fc07435b956ad6e2bfe7075abdd0cde8135df56b770` |
 | Rejudged comparison | `b5ae766dcb21748c2dc38ac87ab359c8a001a66e1ea6a8601922563a1eba7b98` |
+
+## B11/B12 at 30c4ebd: mixed composition and layout variants
+
+Five genuine repetitions per task and arm used the same external Codex CLI
+0.160.0 configuration (`gpt-6.1-sol`, medium reasoning, explicit MCP approval).
+These are evaluation settings, not product or harness defaults. Inkbolt ran
+before the baseline on the shared Windows host, rotating task order between
+repetitions. Sources and tools stayed fixed through both arms. No other local
+Inkbolt verification or benchmarks ran during those solves; other host workloads
+were uncontrolled and OS caches could be warm. The baseline retained pinned
+resvg 0.47.0 and Pillow 12.3.0 in the external Python 3.11 environment.
+
+| Task | Inkbolt / baseline artifact passes | Median input + output tokens, all attempts | Median client seconds, all attempts |
+| --- | --- | ---: | ---: |
+| B11 mixed masked composition | 3/5 / 5/5 | 395,699 / 72,214 | 114.8 / 46.8 |
+| B12 shared layout variants | 5/5 / 5/5 | 566,966 / 61,799 | 128.8 / 46.0 |
+
+Complete applicable workflow counts match artifact counts. B12 triggers the
+fixed cost signal at **9.17x** median input-plus-output tokens. B11 has only
+three jointly successful pairs, so the fixed policy does not publish a cost
+ratio; all-attempt medians retain its failures. Five trials give wide 95% Wilson
+intervals: 23.1%-88.2% for 3/5 and 56.6%-100% for 5/5. These small 32 by 24
+composition and three-artboard fixtures do not establish production scale,
+general reliability, statistical equivalence or the cause of the token gap.
+
+The original B12 judge stopped three Inkbolt attempts at a fixed array-position
+assumption. Native `add` operations produced a different cross-parent item
+interleaving while preserving the requested hierarchy and sibling order.
+A synthetic client reproduced the same failure before the correction. The
+judge now locates roles by content and parent and compares all fields plus each
+parent's ordered children. It still rejects changed parents, sibling order,
+binding targets, resources, properties, receipts and saved history. One attempt
+also used the exact names from the prompt's artboard table as display labels.
+Those labels and default empty labels are accepted; unrelated labels fail.
+The prompt and its fixed IDs, geometry and other defaults are unchanged.
+
+All twenty original captures were rejudged after focused Windows and WSL
+verification. The three B12 errors now pass every artifact and engine check;
+all other outcomes remain unchanged. Original reports, full workspace hashes,
+transcripts, client results, token/time observations and captured process-memory
+evidence match the originals. No model attempt was rerun, added or discarded.
+The separate synthetic before/after capture also passes unchanged and receives
+no model credit.
+
+B11 Inkbolt repetitions one and three still fail: both added `locked:true` to
+the original image although the prompt requires default remaining properties.
+That is the sole difference between each saved original and the independent
+template. Current pixels and original resource identity pass, while complete
+composition and saved-state/history checks fail. The judge correction does not
+waive those lock changes. Inkbolt's saved-revision and typed-binding guarantees
+remain engine-only requirements, inapplicable to the baseline.
+
+All completed direct command/MCP events and available generated script bodies
+were reviewed. All ten Inkbolt attempts used CLI only. No prohibited access was
+observed, but file-change events omit patch bodies; some intermediate versions
+are unavailable. B11 repetition four removed its helper after further edits,
+so its final nested helper behavior cannot be fully attested. No image-view tool
+was observed; clients' claims of visual review are not independently verified.
+Repeated schema lookups, invalid selectors and relative-path imports without a
+workspace remain in the usage. Token totals include cached input and are not
+billing estimates. Full model/engine call counts, traffic/retries, first verified
+preview and engine-only memory remain unknown. Captured client-tree memory is
+separate evidence, not an engine memory measurement.
+
+The results reinforce workspace guidance and operation discovery as priorities.
+Continue B14-B20 and the separate sister-project comparison before the full W2
+decision gate. No engine checkpoint or complete readiness gate gains credit.
+Evidence remains under `w2-mixed-variants-sol-{model,baseline}-five-01` and the
+corresponding `rejudged-01` directories. The original and rejudged comparisons,
+`w2-mixed-variants-capture-rejudge-integrity-01.json`, arm reviews and retained
+script bodies preserve the outcome and review boundaries.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Original source candidate | `278a9c1f7ace6247504ea3e29f2b9b0f19d6db071a2c57051aa9e7c1485636a1` |
+| Tested rejudging candidate | `04f6923675698f2f3451127b137c259988fef43962209db01cf5adeb52e05f46` |
+| Release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| Original Inkbolt report | `efda116a63ec37d1c305f1e9d835979320b1a9345385cf2467f20fe4f8b5b9e9` |
+| Original baseline report | `2687b06b3d2def5c871464e0ccf0c8447f24c1b313f2198b5469a1efa4a1a536` |
+| Original comparison | `aebceb45d795b2a3979926c0536e68f5ebc632113d5c113ee0cfac7a3c377526` |
+| Rejudged Inkbolt report | `b6b886736298b1756630d6dfc07243454af49f78f66390d37a44672323737c9c` |
+| Rejudged baseline report | `57380085b0485a31a0c24596ff1756c05f8cb798aa7e9fd47f5194a71f0e3123` |
+| Rejudged comparison | `8f76b4837778e02596cf4703fc793b04c4fcb9b200f06f66a7a4cc3dffdfbd9f` |

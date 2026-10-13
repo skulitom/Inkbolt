@@ -28,12 +28,29 @@ def fixture(case):
     case.source('renderer.ttf',geometric_font(family=FONT_FAMILY))
 
 
+def hierarchical_state(value):
+    """Compare exact item data and sibling order, ignoring cross-parent interleaving."""
+    items=value['items'];by_id={};siblings={}
+    for item in items:
+        identity=item['id'];parent=item.get('parent')
+        require(isinstance(identity,str) and identity not in by_id,'Item IDs must be unique strings')
+        require(parent is None or isinstance(parent,str),'Item parent must be an ID or null')
+        by_id[identity]=item;siblings.setdefault(parent,[]).append(identity)
+    return ({key:data for key,data in value.items() if key!='items'},by_id,siblings)
+
+
 def names_from(base):
     items=base['items'];require(len(items)==9,'Expected one shared source and three instances')
-    return dict(document=base['id'],shared=items[0]['id'],title=items[1]['id'],image=items[2]['id'],
-        face=items[1]['content']['frame']['style']['font_id'],green=items[2]['content']['asset_id'],
+    hierarchical_state(base)
+    def one(kind,parent):
+        matches=[item for item in items if item['content']['type']==kind and item.get('parent')==parent]
+        require(len(matches)==1,'Expected exactly one '+kind+' under '+str(parent))
+        return matches[0]
+    shared=one('component_source',None);title=one('text',shared['id']);image=one('image',shared['id'])
+    return dict(document=base['id'],shared=shared['id'],title=title['id'],image=image['id'],
+        face=title['content']['frame']['style']['font_id'],green=image['content']['asset_id'],
         orange=base['variants']['definition']['datasets']['square']['values']['image']['value'],
-        copies=[items[i]['id'] for i in (4,6,8)])
+        copies=[one('instance',name)['id'] for name,*_ in BOARDS])
 
 
 def initial_document(font,assets,names=None):
@@ -99,6 +116,12 @@ def expected_base(case,base,n):
     assets={name:dict(width=2,height=2,sha256=sha(canonical(2,2,bytes(color)*4)),storage=dict(type='stored'),
         provenance=dict(source_sha256=case.sources[name+'.png'],interpretation='declared_srgb')) for name,color in [('green',GREEN),('orange',ORANGE)]}
     value=initial_document(font,assets,n);value['revision']=base['revision']
+    # The prompt names each artboard and fixes its ID. Either the default empty
+    # label or that exact table name is valid; unrelated labels remain unequal.
+    authored={item['id']:item for item in base['items']}
+    for item in value['items']:
+        if item['id'] in ROWS and authored[item['id']].get('name')==item['id']:
+            item['name']=item['id']
     wanted_definition=definition(n);bindings={row['key']:row for row in wanted_definition['bindings']}
     order=[row['key'] for row in base['variants']['definition']['bindings']]
     require(len(order)==3 and all(isinstance(key,str) for key in order) and set(order)==set(bindings),
@@ -119,19 +142,24 @@ def judge(case):
     font_root=asset_root=None
     def preserved():
         nonlocal font_root,asset_root
-        require(base==template and base==reopened['base'],'The complete base layout or variant definition changed')
+        require(hierarchical_state(base)==hierarchical_state(template) and base==reopened['base'],
+                'The complete base layout or variant definition changed')
         wanted=copy.deepcopy(base);wanted['revision']=snapshots['restored']['revision']
-        require(wanted==snapshots['restored']==reopened['restored'],'The complete base was not restored')
+        require(hierarchical_state(wanted)==hierarchical_state(snapshots['restored']) and
+                snapshots['restored']==reopened['restored'],'The complete base was not restored')
         font_root=retained_font_store(case)
         asset_root=retained_asset_store(case,[canonical(2,2,bytes(color)*4) for color in (GREEN,ORANGE)])
     require(case.check('base-preserved',preserved),'The complete base and original resources were not retained')
     def bindings():
-        require(base==template,'The variant definition differs from the requested bindings/inheritance')
+        require(hierarchical_state(base)==hierarchical_state(template),
+                'The variant definition differs from the requested bindings/inheritance')
         for name,(label,position,image) in ROWS.items():
             actual=snapshots[name];wanted=copy.deepcopy(base);wanted['revision']=actual['revision']
-            wanted['variants']['selected']=name;wanted['items'][1]['content']['frame']['text']=label
-            wanted['items'][2]['transform'][4:]=position;wanted['items'][2]['content']['asset_id']=names[image]
-            require(wanted==actual==reopened[name],'Selection changed bindings or unrelated shared state: '+name)
+            wanted['variants']['selected']=name;items={item['id']:item for item in wanted['items']}
+            items[names['title']]['content']['frame']['text']=label
+            items[names['image']]['transform'][4:]=position;items[names['image']]['content']['asset_id']=names[image]
+            require(hierarchical_state(wanted)==hierarchical_state(actual) and actual==reopened[name],
+                    'Selection changed bindings or unrelated shared state: '+name)
     case.check('variant-bindings',bindings)
     for name,w,h,_,_ in BOARDS:
         rendered=case.call('judge-render-'+name,'document.preview',document=reopened[name],

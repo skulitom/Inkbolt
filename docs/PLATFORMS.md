@@ -7,8 +7,8 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained hosted Windows/Linux/macOS matrix passed at `a7e034e`,
-including the Windows job-fixture corrections; see below.
+The latest retained hosted Windows/Linux/macOS matrix passed at `7a07f07`;
+later judge changes have focused checks, as recorded below.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
@@ -175,16 +175,20 @@ This confirms the B01/B03 store judges and Windows job-fixture timing/busy-retry
 corrections. It predates the later B05-B07 judge corrections, whose focused
 Windows/WSL checks do not establish a newer complete matrix.
 
-The [newer complete matrix at `a7e034e`](https://github.com/skulitom/Inkbolt/actions/runs/38455636448)
-passed all 242 fresh stages on every platform. Windows ran 213 Rust and 2494
-Python tests, with seven explicit skips, in 4527.0 seconds. Linux and macOS each
-ran 179 Rust and 2453 Python tests, with 48 skips, in 789.4 and 2807.7 seconds
+The [latest retained complete matrix at `7a07f07`](https://github.com/skulitom/Inkbolt/actions/runs/38468108741)
+passed all 242 fresh stages on every platform. Windows ran 213 Rust and 2495
+Python tests, with seven explicit skips, in 2950.1 seconds. Linux and macOS each
+ran 179 Rust and 2454 Python tests, with 48 skips, in 1426.3 and 3026.1 seconds
 respectively. Inputs were unchanged, with no failed, pending or reused stages. Reports/logs are
-retained under `w1-public-ci-a7e034e` in the corresponding platform directories,
-candidate `d287fd842145010951d6b60a7018c9def78bcb66a24fe0b069e804aae115f80a`.
-These passes include the B05-B07 retained-store judges, but predate the B07
-baseline-placement, B08-B10 session-store and B10/B13 delivery-judge corrections.
-Those later changes have focused Windows/WSL checks, not a newer complete matrix.
+retained under `w1-public-ci-7a07f07`, with report and log hashes in
+`complete-matrix-audit-01.json`, candidate
+`6e3153244579fd3e0dcdebd7c42185b3787d71854664171b9f71b239364ae3a3`.
+These passes predate the later B10/B13 delivery-judge and B11/B12 store/hierarchy
+corrections. Those changes have focused Windows/WSL checks, not a newer complete
+matrix. The latest hierarchy correction executed 56 Windows Python tests in
+80.3 seconds and 53 Linux tests in 53.1 seconds, with three explicit Linux
+platform skips and unchanged Cargo checks reused. No selected check failed or
+remained pending; this is focused feedback, not complete milestone acceptance.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

@@ -13,7 +13,7 @@ from unittest.mock import patch
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
-from benchmark_variants import fixture,solve,judge,PROMPT,initial_document,FONT_FAMILY,BOARDS,expected_picture
+from benchmark_variants import fixture,solve,judge,PROMPT,initial_document,FONT_FAMILY,BOARDS,expected_picture,hierarchical_state
 from benchmark_baseline_variants import svg_layout,manifest,judge_variants
 from benchmark_driver import run_external_task,workspace_files
 from benchmark_runtime import Trial,TaskFailure
@@ -118,17 +118,46 @@ class VariantBenchmarkTests(unittest.TestCase):
 
     def test_external_capture_rejudges_moved_workspaces_without_modifying_inputs(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver('--custom-session-store','--custom-font-store','--custom-asset-store','--custom-receipt-store','--variant-binding-order')
+            root=Path(directory);configuration=driver('--custom-session-store','--custom-font-store','--custom-asset-store','--custom-receipt-store','--variant-binding-order','--variant-add-items','--variant-board-labels')
             row=run_external_task(EXE,root/'live','B12',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);before=workspace_files(root/'live/workspace')
             for name in ('sessions','fonts','assets','publications'):self.assertFalse((root/'live/workspace/.inkbolt'/name).exists())
             self.assertEqual(len(list((root/'live/workspace/chosen receipts').rglob('publications.sqlite3'))),3)
             base=json.loads((root/'live/workspace/base.json').read_bytes())
             self.assertEqual([b['key'] for b in base['variants']['definition']['bindings']],['image','place','label'])
+            self.assertEqual([item['id'] for item in base['items'][:4]],['shared','wide','square','tall'])
+            self.assertEqual({item['id']:item['name'] for item in base['items'] if item['id'] in ('wide','square','tall')},
+                             dict(wide='wide',square='square',tall='tall'))
+            self.assertEqual([item['id'] for item in base['items'] if item.get('parent')=='shared'],['title','image'])
             (root/'live').rename(root/'capture')
             imported=run_external_task(EXE,root/'import','B12',1,'model',configuration,import_source=root/'capture')
             self.assertEqual(imported['status'],'passed',imported);self.assertFalse(imported['model_trials'])
             self.assertEqual(before,workspace_files(root/'capture/workspace'));self.assertEqual(before,workspace_files(root/'import/workspace'))
+
+    def test_native_authored_tree_rejects_changed_siblings_parents_and_properties(self):
+        for fault in ('--variant-child-order','--variant-root-order','--variant-reparent','--variant-extra-property','--variant-wrong-board-label'):
+            with self.subTest(fault=fault),tempfile.TemporaryDirectory() as directory:
+                row=run_external_task(EXE,Path(directory)/'failed','B12',1,'model',driver('--variant-add-items',fault))
+                self.assertTrue((Path(directory)/'failed/workspace/session.json').is_file(),row)
+                self.assertEqual(row['status'],'failed',row)
+                if fault=='--variant-reparent':self.assertIn('Expected exactly one image',row['error'])
+                else:self.assertIn('base-preserved',[c['name'] for c in row['checks'] if c['status']=='fail'])
+
+    def test_hierarchy_comparison_retains_every_property_and_sibling_order(self):
+        value=dict(id='layout',items=[dict(id='a'),dict(id='child',parent='a',opacity=1),dict(id='b')])
+        interleaved=copy.deepcopy(value);interleaved['items']=[interleaved['items'][i] for i in (0,2,1)]
+        self.assertEqual(hierarchical_state(value),hierarchical_state(interleaved))
+        self.assertEqual([item['id'] for item in interleaved['items']],['a','b','child'])
+        for fault in ('roots','parent','property','missing','extra'):
+            changed=copy.deepcopy(interleaved)
+            if fault=='roots':changed['items'][0:2]=reversed(changed['items'][0:2])
+            elif fault=='parent':changed['items'][2]['parent']='b'
+            elif fault=='property':changed['items'][2]['opacity']=0.5
+            elif fault=='missing':changed['items'].pop()
+            else:changed['items'].append(dict(id='extra'))
+            self.assertNotEqual(hierarchical_state(value),hierarchical_state(changed),fault)
+        duplicate=copy.deepcopy(value);duplicate['items'].append(dict(id='child'))
+        with self.assertRaises(TaskFailure):hierarchical_state(duplicate)
 
     def test_custom_stores_require_intact_original_images_font_and_license(self):
         for fault in ('--missing-asset-copy','--corrupt-font-copy','--missing-font-license'):
