@@ -54,6 +54,28 @@ def rectangle_corners(item):
     return {(round(a*px+c*py+e,8),round(b*px+d*py+f,8)) for px,py in ((x,y),(x+w,y),(x,y+h),(x+w,y+h))}
 
 
+def retained_font_store(case):
+    """Find the pinned imported font/license pair without assuming the agent's store name."""
+    root = case.root.resolve()
+    font_hash = case.sources['original.ttf']
+    license_hash = case.sources['font-license.txt']
+    expected = [(font_hash, (root/'original.ttf').stat().st_size),
+                (license_hash, (root/'font-license.txt').stat().st_size)]
+    for font in sorted(root.rglob('*.font')):
+        if font.name != font_hash+'.font':
+            continue
+        paths = [font, font.with_name(license_hash+'.license')]
+        if any(not path.is_file() or path.is_symlink() or
+               not path.resolve().is_relative_to(root) or
+               any((root/parent).is_symlink() for parent in path.relative_to(root).parents)
+               for path in paths):
+            continue
+        if all(path.stat().st_size == size and sha(path.read_bytes()) == digest
+               for path, (digest, size) in zip(paths, expected)):
+            return font.parent.relative_to(root).as_posix()
+    require(False, 'Missing intact workspace font store with the pinned font and retained license')
+
+
 def judge(case):
     """Read deliverables, never the reference solver's locals or chosen IDs."""
     raw = delivered(case, 'editable.json')
@@ -91,7 +113,8 @@ def judge(case):
     reopened = case.call('judge-reopen', 'document.validate',
                         document=dict(file_path='editable.json', sha256=sha(raw)))
     rendered = case.call('judge-render', 'document.preview',
-                         document=dict(file_path='editable.json', sha256=sha(raw)), options={}, preview=True)
+                         document=dict(file_path='editable.json', sha256=sha(raw)),
+                         font_root=retained_font_store(case), options={}, preview=True)
     def picture():
         png_check(preview,128,56,expected)
         png_check(base64.b64decode(rendered['artifact']['data'], validate=True),128,56,expected)

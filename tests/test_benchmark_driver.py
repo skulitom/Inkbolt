@@ -35,6 +35,24 @@ def fake_tools():
 
 
 class BenchmarkDriverTests(unittest.TestCase):
+    def test_diagram_accepts_relocated_custom_font_store_but_requires_intact_pinned_copies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            configuration=driver('--custom-font-store')
+            row=run_external_task(EXE,root/'custom','B01',1,'model',configuration)
+            self.assertEqual(row['status'],'passed',row)
+            before=workspace_files(root/'custom/workspace')
+            imported=run_external_task(EXE,root/'relocated','B01',1,'model',configuration,import_source=root/'custom')
+            self.assertEqual(imported['status'],'passed',imported)
+            self.assertEqual(before,workspace_files(root/'custom/workspace'))
+            self.assertEqual(before,workspace_files(root/'relocated/workspace'))
+            for flag in ('--corrupt-font-copy','--missing-font-license'):
+                with self.subTest(flag=flag):
+                    row=run_external_task(EXE,root/flag[2:],'B01',1,'model',driver('--custom-font-store',flag))
+                    self.assertEqual(row['status'],'failed',row)
+                    self.assertIn('Missing intact workspace font store',row['error'])
+                    self.assertTrue(any(c['name']=='source-preservation' and c['status']=='pass' for c in row['checks']))
+
     def test_original_fixture_is_unchanged_and_named_variant_retains_glyph_pixels(self):
         self.assertEqual(sha(geometric_font()),'0bc1bae3dae5c43f7a8eb8500b12ea60f16afd6317501878cbee455b30401b11')
         # Real CLI/MCP B01 pixel tests use the named variant on both platforms.

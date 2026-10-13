@@ -160,6 +160,9 @@ def main():
         else:solve_recovery(root,send)
     elif request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,retry_of=None,**arguments):
+            if task=='B01' and '--custom-font-store' in sys.argv:
+                if command=='font.import':arguments['store_root']='chosen resources/fonts'
+                if command=='session.create':arguments['resources']=dict(font_root='chosen resources/fonts')
             if task=='B10' and '--photo-names' in sys.argv:
                 if arguments.get('session_id')=='work':arguments['session_id']='portrait-session'
                 if 'request_id' in arguments:arguments['request_id']='owner-'+arguments['request_id']
@@ -176,6 +179,11 @@ def main():
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
          'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo,
          'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen,'B14':solve_print,'B15':solve_resources,'B16':solve_repair,'B17':solve_retry,'B18':solve_conflict}[task](SimpleNamespace(root=root,call=call))
+        if task=='B01' and '--custom-font-store' in sys.argv:
+            store=root/'chosen resources/fonts'
+            if '--corrupt-font-copy' in sys.argv:
+                font=next(store.glob('*.font'));raw=bytearray(font.read_bytes());raw[0]^=1;font.write_bytes(raw)
+            if '--missing-font-license' in sys.argv:next(store.glob('*.license')).unlink()
         if task=='B10' and '--photo-names' in sys.argv:
             locator=json.loads((root/'session.json').read_bytes())
             locator['requests']={role:'owner-'+name for role,name in locator['requests'].items()}
