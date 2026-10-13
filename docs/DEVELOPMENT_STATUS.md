@@ -284,7 +284,7 @@ unchanged; no stages failed, remained pending or reused passes. These reports
 predate the later B05-B07 judge corrections. See
 [the retained platform evidence](PLATFORMS.md).
 
-The latest retained [complete matrix at `7a07f07`](https://github.com/skulitom/Inkbolt/actions/runs/38468108741)
+The retained [complete matrix at `7a07f07`](https://github.com/skulitom/Inkbolt/actions/runs/38468108741)
 passed 242 fresh stages on every platform. Windows ran 213 Rust and 2495 Python
 tests with seven explicit skips in 2950.1 seconds; Linux/macOS each ran 179 Rust
 and 2454 Python tests with 48 skips, in 1426.3/3026.1 seconds. All reports confirm
@@ -293,6 +293,16 @@ checks. Report and log hashes are retained under `w1-public-ci-7a07f07`, candida
 `6e3153244579fd3e0dcdebd7c42185b3787d71854664171b9f71b239364ae3a3`.
 Later B10/B13 delivery and B11/B12 store/hierarchy judge corrections retain their
 focused Windows/WSL evidence; these hosted results do not cover those later edits.
+
+The latest retained [complete matrix at `30c4ebd`](https://github.com/skulitom/Inkbolt/actions/runs/38476034163)
+passed 243 fresh stages on every platform. Windows ran 213 Rust and 2502 Python
+tests with seven skips in 4584.9 seconds. Linux/macOS each ran 179 Rust and 2461
+Python tests with 48 skips, in 1490.2/2715.8 seconds. All inputs stayed unchanged;
+no check failed, remained pending or reused a pass. Reports and all stage-log
+hashes are retained under `w1-public-ci-30c4ebd`, candidate
+`811f2460a6ddb536965a2b822971fe8f6fbf0d3c9094c14e7bf4625ae337e81d`.
+This includes the B10/B13 delivery and B11/B12 store corrections, but predates
+the later hierarchy and print/review judge changes. It is not current-HEAD acceptance.
 
 ## W2 and the next behavior increments
 
@@ -1340,9 +1350,10 @@ swatch labels, contained output subfolders, extra loss disclosures and successfu
 CLI review envelopes. Exact ink/profile/artwork and historical bindings remain
 required. B15 passes 5/5 in both arms at 4.83x median tokens. B14's Inkbolt
 artifacts pass 5/5, but two wrong receipt selections still fail the complete
-workflow. All five baseline PDFs hit the reader's unsupported `ri` operator;
-PDF grammar and knockout-group interpretation need review before a reliability
-comparison. See [the retained outcomes](BENCHMARK_RESULTS.md#b14b15-at-7d31cf9-print-delivery-and-resource-repair).
+workflow. The original baseline PDFs hit unsupported `ri` and equivalent PDF
+encodings. Public-specification review and tested parser corrections now admit
+four; the remaining delivery omits the required explicit black-point-compensation
+setting. See [the retained outcomes](BENCHMARK_RESULTS.md#b14b15-at-7d31cf9-print-delivery-and-resource-repair).
 
 The correction executed 57 Windows tests with one symlink skip in 56.5 seconds
 and 55 WSL tests with three platform skips in 47.6 seconds. Unchanged Cargo
@@ -1351,6 +1362,20 @@ the raw tested-input map are under `w2-print-label-folder-`, candidate
 `3e8a23d1dadbe3b1e77f128afd83516fda6e7a0055bd89a48efb259d6daacb6d`.
 The original workspaces, reports, transcripts, client results, observations and
 captured memory remain unchanged. No model was rerun and no engine credit added.
+
+The PDF correction adds scoped rendering intent, cumulative graphics state,
+indirect page/spot color-space references, equivalent rectangle traversals and
+page-group flags for this exact opaque, disjoint fixture. Altered profiles,
+crossed/changed geometry, overprint, effects and missing/changed conversion
+controls still fail. Direct consumers of the shared test reader passed on both
+platforms. Final focused runs executed 42 Windows tests with one symlink skip
+in 59.3 seconds and 40 WSL tests with three platform skips in 42.5 seconds;
+five unchanged consumer modules and Cargo checks reused identical passes.
+No selected check failed or remained pending. Reports are under
+`w2-print-pdf-grammar-`, final tested candidate
+`94a18f910c738e3f2ff1f3949ecf081046a459506ec137a432eb6a3bb4a95024`.
+All twenty original captures were rejudged again without changing workspace,
+transcript, client-result, usage or memory evidence; intermediate reports remain.
 
 Five-repetition model trials for the other five tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence

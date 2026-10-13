@@ -15,7 +15,7 @@ def recipe(root):
                dict(bounds=[140,30,80,80],kind='spot',id='spot',alternate=[0,1,0,0],tint=1)])
 
 
-def pdf_bytes(scene,rgb,cmyk):
+def pdf_bytes(scene,rgb,cmyk,*,commands=None,group_controls='/I true /K false',paint_controls=None,indirect_spaces=False):
     def number(v):return format(float(v),'.14f').rstrip('0').rstrip('.') or '0'
     def array(values):return '['+' '.join(number(v) for v in values)+']'
     width,height=[Fraction(mm)*360/127 for mm in scene['paper_mm']]
@@ -28,16 +28,24 @@ def pdf_bytes(scene,rgb,cmyk):
         x,y,w,h=item['bounds'];x+=left;y+=top
         content += [f'{number(x)} {number(y)} m',f'{number(x+w)} {number(y)} l',
                     f'{number(x+w)} {number(y+h)} l',f'{number(x)} {number(y+h)} l','h','f']
-    content.append('Q');commands=('\n'.join(content)+'\n').encode()
+    content.append('Q')
+    if commands is None:commands=('\n'.join(content)+'\n').encode()
+    if paint_controls is None:
+        paint_controls='/ca 1 /CA 1 /BM /Normal /SMask /None /op false /OP false /OPM 0 /RI /RelativeColorimetric /UseBlackPtComp /OFF'
     def stream(data,extra=''):return f'<< /Length {len(data)} {extra} >>\nstream\n'.encode()+data+b'\nendstream'
     objects=[b'<< /Type /Catalog /Pages 2 0 R >>',b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
         (f'<< /Type /Page /Parent 2 0 R /MediaBox {array(media)} /TrimBox {array(trim)} /BleedBox {array(media)} '
-         '/Group << /Type /Group /S /Transparency /CS [/ICCBased 4 0 R] /I true /K false >> '
+         f'/Group << /Type /Group /S /Transparency /CS [/ICCBased 4 0 R] {group_controls} >> '
          '/Resources << /ColorSpace << /Process [/ICCBased 5 0 R] /Spot [/Separation /Inkbolt.spot [/ICCBased 5 0 R] 6 0 R] >> '
          '/ExtGState << /Paint 8 0 R >> >> /Contents 7 0 R >>').encode(),
         stream(rgb,'/N 3'),stream(cmyk,'/N 4'),
         ('<< /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 '+array(scene['items'][1]['alternate'])+' /N 1 >>').encode(),
-        stream(commands),b'<< /Type /ExtGState /ca 1 /CA 1 /BM /Normal /SMask /None /op false /OP false /OPM 0 /RI /RelativeColorimetric /UseBlackPtComp /OFF >>']
+        stream(commands),f'<< /Type /ExtGState {paint_controls} >>'.encode()]
+    if indirect_spaces:
+        objects[2]=objects[2].replace(b'/CS [/ICCBased 4 0 R]',b'/CS 9 0 R').replace(
+            b'/Process [/ICCBased 5 0 R]',b'/Process 10 0 R').replace(
+            b'/Spot [/Separation /Inkbolt.spot [/ICCBased 5 0 R] 6 0 R]',b'/Spot 11 0 R')
+        objects += [b'[/ICCBased 4 0 R]',b'[/ICCBased 5 0 R]',b'[/Separation /Inkbolt.spot 10 0 R 6 0 R]']
     result=bytearray(b'%PDF-2.0\n');offsets=[0]
     for index,body in enumerate(objects,1):
         offsets.append(len(result));result.extend(f'{index} 0 obj\n'.encode()+body+b'\nendobj\n')

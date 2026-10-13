@@ -390,8 +390,18 @@ Ordinary Python may author native PDF; pinned Pillow color management derives
 the display preview. Admission rejects altered controls, paths or profile hashes
 before invoking that decoder. The bounded classic-xref PDF reader supports direct
 and indirect resource arrays; a separate path interpreter checks actual painted
-geometry, transforms, opacity and conversion state. Unsupported clipping/group
-effects fail explicitly. Both previews face the original exact pixel oracle.
+geometry, transforms, opacity and conversion state. Rendering intent set with
+`ri` or cumulative `gs` dictionaries follows `q`/`Q` scope. Page and spot-alternate
+color-space arrays may be indirect references; their resolved profiles remain
+exact. Cyclic starts and reversed traversal of each simple rectangle are allowed;
+crossed, missing or changed corners fail. For this standalone page's two opaque,
+disjoint rectangles, either boolean page-group isolation/knockout flag is
+equivalent. This does not admit nested groups, overlapping artwork, masks,
+clipping or other effects. Explicit black-point compensation `OFF` remains
+required; omission leaves processor choice, as explained in the
+[PDF Association application note](https://pdfa.org/resource/pdf-2-0-application-note-001-black-point-compensation/).
+These state/group rules follow ISO 32000-1 clauses 8.4.4-5 and 11.4/11.6.6.
+Both previews face the original exact pixel oracle.
 PDF deliveries are bounded to 1 MiB; recipes to 8 KiB. This proves the stated
 synthetic native declarations and display result, not press calibration, general
 PDF rendering or authenticated preflight history. All seven check IDs/classes

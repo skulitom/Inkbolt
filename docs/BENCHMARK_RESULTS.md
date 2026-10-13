@@ -5,9 +5,9 @@ Ten tasks matched baseline artifact success with higher median token use.
 Photo repair and mixed composition each passed 3/5 with Inkbolt versus 5/5 with
 the baseline. Layout variants passed 5/5 in both arms at 9.17x median token use
 with Inkbolt after tested judge corrections. Resource repair passed 5/5 in both
-arms at 4.83x tokens. Print outcomes retain unresolved baseline PDF admission
-caveats and two Inkbolt receipt-selection failures; they do not establish an
-Inkbolt reliability advantage.
+arms at 4.83x tokens. After PDF-judge corrections, print artifacts pass 5/5 with
+Inkbolt and 4/5 with the baseline. Two Inkbolt receipt-selection failures leave
+its complete workflow at 3/5; this small sample establishes no reliability advantage.
 The evidence below preserves failures, judge corrections and exact build
 identities. Five tasks, further smaller-model trials and the separate
 sister-project comparison remain open; these partial batches are not full-suite
@@ -778,19 +778,26 @@ could be warm. Model names describe this evaluation only, not product defaults.
 
 | Task | Inkbolt / baseline artifact passes | Complete workflow passes | Median input + output tokens, all attempts | Median client seconds, all attempts |
 | --- | --- | --- | ---: | ---: |
-| B14 physical print | 5/5 / 0/5* | 3/5 / 0/5* | 531,200 / 97,120 | 114.0 / 97.0 |
+| B14 physical print | 5/5 / 4/5 | 3/5 / 4/5 | 531,200 / 97,120 | 114.0 / 97.0 |
 | B15 resource repair | 5/5 / 5/5 | 5/5 / 5/5 | 274,948 / 56,972 | 89.8 / 44.2 |
 
-**B14's baseline result is constrained by the PDF judge.** Every baseline PDF
-uses `ri`, which the bounded reader rejects before it can finish checking native
-inks and profile identities. All five pass physical boxes, exact preview pixels,
-source preservation and declared losses after folder lookup is corrected. They
-also set knockout groups, while the path interpreter requires an isolated,
-non-knockout group. The prompt says "normal compositing and knockout" but excludes
-group effects. Review the supported grammar and that interpretation before
-attributing these failures to the models or claiming an Inkbolt advantage.
-The retained PDFs have not been changed or awarded passing ink/profile checks.
-B14 has no jointly successful pairs and no fixed-policy cost ratio.
+The initial B14 judge rejected every baseline PDF at the rendering-intent
+operator `ri`. Public-specification review exposed other unprescribed encoding
+restrictions: direct-only page/spot color-space arrays, a fixed first corner and
+traversal direction, and page-group flags that are equivalent for the exact
+standalone page's two opaque, disjoint rectangles. Tested corrections now admit
+those representations, while preserving scoped rendering intent, cumulative
+graphics state, exact profiles, geometry, native inks and conversion settings.
+The original prompt and all check IDs/classes remain unchanged.
+
+Four unchanged baseline captures now pass every artifact check. Repetition one
+still fails native-ink delivery because both paints omit `UseBlackPtComp OFF`.
+The prompt requires compensation off; absence leaves the choice to the PDF
+processor, as explained in the [PDF Association application note](https://pdfa.org/resource/pdf-2-0-application-note-001-black-point-compensation/).
+Its physical boxes, profiles, exact preview, source preservation and declared
+losses pass. No delivery was edited and no model was rerun. B14 has four jointly
+successful artifact pairs, below the fixed five-pair cost threshold; its cost
+ratio remains unavailable. Five trials cannot establish a reliability advantage.
 
 B15 triggers the fixed cost signal at **4.83x** median input-plus-output tokens.
 Its five paired artifact successes give a wide 95% Wilson interval of
@@ -820,7 +827,9 @@ new judge directories. Original reports and every original workspace, transcript
 client result and capture identity were checked, as were imported workspace bytes,
 usage, execution times and captured memory. No model attempt was rerun or removed.
 Evidence is under `w2-print-resources-sol-{model,baseline}-five-01`, corresponding
-`rejudged-01` roots and `w2-print-resources-capture-rejudge-integrity-01.json`.
+`rejudged-03` roots and `w2-print-resources-capture-rejudge-integrity-03.json`.
+The first correction and intermediate PDF-reader reports remain retained as
+`rejudged-01` and `rejudged-02`; their report identities are also unchanged.
 
 All completed direct commands and MCP arguments were reviewed. File-change helper
 bodies omitted from event logs were read and archived; inline creation/edit
@@ -833,18 +842,19 @@ first verified preview time and engine-only memory remain unknown. Observed
 client-tree memory has a separate scope.
 
 These results reinforce operation discovery and workspace guidance priorities.
-Review the B14 PDF admission caveat and finish B16-B20 before the full W2 decision
+Finish B16-B20 and review the remaining B01/B07 caveats before the full W2 decision
 gate. The separate sister-project comparison and B10 Linux memory evidence remain
 open. No engine checkpoint or complete readiness gate gains credit.
 
 | Evidence | SHA-256 |
 | --- | --- |
 | Original source candidate | `4e36bcaf30056c01e2343a1596caf796204cc775a4e8c4f319bd33b22efb3a89` |
-| Tested rejudging candidate | `3e8a23d1dadbe3b1e77f128afd83516fda6e7a0055bd89a48efb259d6daacb6d` |
+| First tested rejudging candidate | `3e8a23d1dadbe3b1e77f128afd83516fda6e7a0055bd89a48efb259d6daacb6d` |
+| Final tested rejudging candidate | `94a18f910c738e3f2ff1f3949ecf081046a459506ec137a432eb6a3bb4a95024` |
 | Release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
 | Original Inkbolt report | `6b4ad8e0bae50d8e05f57dcc3fcf578002256db8b5caca420c9045671b1f0f0c` |
 | Original baseline report | `b0e084662a8b05395495bee8ec447e8862dbc4c20ac2211330835b24e48cb600` |
 | Original comparison | `04b595810e96b7c82cc45feca8a40005383c887616378c43c0b52caac3726288` |
-| Rejudged Inkbolt report | `83e10a34b40228546434101a875697e9937cc72f5398199f1e0b4c0ea1e2913d` |
-| Rejudged baseline report | `ddf3f7983af95b07dc8462183aa0d597b7501652dab8da22c4c45546a4380fbb` |
-| Rejudged comparison | `fa9f8af04aa886288df5c363794bf8919f8f5962c55cfde2247670754cfe13ed` |
+| Final rejudged Inkbolt report | `983965514e72661f02a05d6634088a7d0b49b214fb8de813a02719e8e120b77f` |
+| Final rejudged baseline report | `5790ddd9509286d35d314ebd78a251a37afd3a44dc39892393ff0c3ddb7b0342` |
+| Final rejudged comparison | `1f2be28adb7fa535d53842fc171a2b4d846ec7d22515998d671e242acdfe8655` |

@@ -11,7 +11,7 @@ from unittest.mock import patch
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
-from benchmark_print import fixture,solve,judge,PROMPT,source_document,expected_picture,retained_print_file,print_files
+from benchmark_print import fixture,solve,judge,PROMPT,source_document,expected_picture,retained_print_file,print_files,native_inks,profile_identities
 from benchmark_baseline_print import manifest,judge_print,page_geometry
 from benchmark_driver import run_external_task,workspace_files
 from benchmark_runtime import Trial,TaskFailure
@@ -19,8 +19,9 @@ from benchmark_tasks import CHECKS
 from benchmark_print_client import author,pdf_bytes
 from test_benchmark_driver import driver,fake_tools
 from test_images_cli import png
-from pdf_reader import Pdf
+from benchmark_print import Pdf
 from workload_cases import sha
+from test_ink_delivery_cli import painted
 
 
 class PrintBenchmarkTests(unittest.TestCase):
@@ -239,6 +240,87 @@ class PrintBenchmarkTests(unittest.TestCase):
                 with self.subTest(key=key),self.assertRaises(TaskFailure):page_geometry(pdf)
             pdf=Pdf(raw);pdf.get(pdf.pages[0]['Resources']['ExtGState']['Paint'])['TR']='Identity'
             with self.assertRaises(TaskFailure):page_geometry(pdf)
+
+    def test_pdf_equivalent_rectangle_traversals_and_page_group_flags(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=Trial(None,Path(directory)/'equivalent','B14',1,'cli',CHECKS['B14']);self.addCleanup(case.close);fixture(case)
+            scene=manifest(case.sources);rgb=(case.root/'original-rgb.icc').read_bytes();cmyk=(case.root/'original-cmyk.icc').read_bytes()
+            height=float(106920/127)+15
+            for reverse in (False,True):
+                for start in range(4):
+                    content=['q','/Paint gs','/RelativeColorimetric ri']
+                    for x,w,color,values in ((23,100,'Process','.25 .5 .75 1'),(143,80,'Spot','1')):
+                        points=[(x,39),(x+w,39),(x+w,119),(x,119)]
+                        if reverse:points.reverse()
+                        points=points[start:]+points[:start]
+                        content += [f'/{color} cs',f'{values} scn']
+                        content += [f'{x} {height-y:.12f} '+('m' if i==0 else 'l') for i,(x,y) in enumerate(points)]
+                        content += ['h','f']
+                    commands=('\n'.join(content+['Q'])+'\n').encode()
+                    for flags in ('','/I false /K false','/I true /K false','/I false /K true','/I true /K true'):
+                        with self.subTest(reverse=reverse,start=start,flags=flags):
+                            pdf=Pdf(pdf_bytes(scene,rgb,cmyk,commands=commands,group_controls=flags,
+                                paint_controls='/ca 1 /CA 1 /AIS false /OP false /op false /UseBlackPtComp /OFF'))
+                            page_geometry(pdf);native_inks(pdf,cmyk);profile_identities(pdf,rgb,cmyk)
+                            self.assertEqual([p['state']['RI'] for p in painted(pdf)],['RelativeColorimetric']*2)
+
+    def test_pdf_indirect_page_and_spot_spaces_retain_exact_profile_checks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=Trial(None,Path(directory)/'indirect','B14',1,'cli',CHECKS['B14']);self.addCleanup(case.close);fixture(case)
+            scene=manifest(case.sources);rgb=(case.root/'original-rgb.icc').read_bytes();cmyk=(case.root/'original-cmyk.icc').read_bytes()
+            raw=pdf_bytes(scene,rgb,cmyk,indirect_spaces=True);pdf=Pdf(raw)
+            page_geometry(pdf);native_inks(pdf,cmyk);profile_identities(pdf,rgb,cmyk)
+            # A valid reference is not evidence that it resolves to the required space.
+            for fault in ('page','alternate','profile'):
+                pdf=Pdf(raw)
+                if fault=='page':pdf.objects[9]=['ICCBased',pdf.objects[10][1]]
+                elif fault=='alternate':pdf.objects[11][2]=pdf.pages[0]['Group']['CS']
+                else:pdf.streams[5]=rgb
+                with self.subTest(fault=fault),self.assertRaises(TaskFailure):
+                    profile_identities(pdf,rgb,cmyk);native_inks(pdf,cmyk)
+
+    def test_pdf_intent_state_is_cumulative_scoped_and_immutable_per_paint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=Trial(None,Path(directory)/'intent','B14',1,'cli',CHECKS['B14']);self.addCleanup(case.close);fixture(case)
+            scene=manifest(case.sources);rgb=(case.root/'original-rgb.icc').read_bytes();cmyk=(case.root/'original-cmyk.icc').read_bytes()
+            raw=pdf_bytes(scene,rgb,cmyk);original=Pdf(raw);commands=original.streams[original.pages[0]['Contents']]
+            for prefix,controls,valid in (
+                    (b'/RelativeColorimetric ri\n','/UseBlackPtComp /OFF',True),
+                    (b'/Perceptual ri\n','/UseBlackPtComp /OFF',False),
+                    (b'/Perceptual ri\n','/RI /RelativeColorimetric /UseBlackPtComp /OFF',True),
+                    (b'/RelativeColorimetric ri\nq\n/Perceptual ri\nQ\n','/UseBlackPtComp /OFF',True)):
+                pdf=Pdf(pdf_bytes(scene,rgb,cmyk,commands=prefix+commands,paint_controls=controls))
+                with self.subTest(prefix=prefix,controls=controls):
+                    if valid:page_geometry(pdf)
+                    else:
+                        with self.assertRaises(TaskFailure):page_geometry(pdf)
+                    expected='RelativeColorimetric' if valid else 'Perceptual'
+                    self.assertEqual([p['state']['RI'] for p in painted(pdf)],[expected]*2)
+            changed=commands.replace(b'/Spot cs',b'/Perceptual ri\n/Spot cs')
+            pdf=Pdf(pdf_bytes(scene,rgb,cmyk,commands=changed))
+            self.assertEqual([p['state']['RI'] for p in painted(pdf)],['RelativeColorimetric','Perceptual'])
+            with self.assertRaises(TaskFailure):page_geometry(pdf)
+
+    def test_pdf_equivalent_encodings_do_not_admit_wrong_controls_or_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=Trial(None,Path(directory)/'negative','B14',1,'cli',CHECKS['B14']);self.addCleanup(case.close);fixture(case)
+            scene=manifest(case.sources);rgb=(case.root/'original-rgb.icc').read_bytes();cmyk=(case.root/'original-cmyk.icc').read_bytes()
+            pdf=Pdf(pdf_bytes(scene,rgb,cmyk));commands=pdf.streams[pdf.pages[0]['Contents']]
+            for controls in ('','/UseBlackPtComp /ON','/UseBlackPtComp /DEF','/UseBlackPtComp /OFF /AIS true',
+                    '/UseBlackPtComp /OFF /op true','/UseBlackPtComp /OFF /OP true',
+                    '/UseBlackPtComp /OFF /ca .5','/UseBlackPtComp /OFF /BM /Multiply',
+                    '/UseBlackPtComp /OFF /SMask /Other','/UseBlackPtComp /OFF /TR /Identity'):
+                with self.subTest(controls=controls),self.assertRaises(TaskFailure):
+                    page_geometry(Pdf(pdf_bytes(scene,rgb,cmyk,paint_controls=controls)))
+            for flags in ('/I 1','/K 0','/K /true','/Extra false'):
+                with self.subTest(flags=flags),self.assertRaises(TaskFailure):
+                    page_geometry(Pdf(pdf_bytes(scene,rgb,cmyk,group_controls=flags)))
+            for changed in (commands.replace(b'123 39 l',b'123 119 l').replace(b'123 119 l\n23 119 l',b'123 39 l\n23 119 l',1),
+                    commands.replace(b'23 39 m',b'24 39 m'),commands.replace(b'123 39 l\n',b''),
+                    b'/RelativeColorimetric /Other ri\n'+commands,b'1 ri\n'+commands,
+                    b'NaN ri\n'+commands,b'1 q\n'+commands,commands.replace(b'h\nf',b'h\nW\nf')):
+                with self.subTest(commands=changed),self.assertRaises(TaskFailure):
+                    page_geometry(Pdf(pdf_bytes(scene,rgb,cmyk,commands=changed)))
 
 
 if __name__=='__main__':unittest.main()

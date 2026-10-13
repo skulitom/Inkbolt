@@ -1,4 +1,5 @@
 """B14 bounded editable print recipe, independent PDF geometry and ICC preview."""
+import math
 import subprocess
 
 from benchmark_diagram import delivered
@@ -32,40 +33,54 @@ def page_geometry(pdf):
         'Resources','Contents','Group','UserUnit','Rotate'} and page.get('Rotate',0)==0 and
         page.get('CropBox',page['MediaBox'])==page['MediaBox'],'Unsupported print page controls or crop')
     group=page['Group']
-    require(set(group)<={'Type','S','CS','I','K'} and group.get('S')=='Transparency' and group.get('I') is True and
-        group.get('K',False) is False,'Unsupported print page blending group')
+    # This standalone page contains exactly two opaque, disjoint rectangles.
+    # Page isolation is implicit; either knockout flag produces the same paints.
+    require(set(group)<={'Type','S','CS','I','K'} and group.get('Type','Group')=='Group' and
+        group.get('S')=='Transparency' and all(type(group.get(key,False)) is bool for key in ('I','K')),
+        'Unsupported print page blending group')
     def visit(data,resources,matrix):
         args=[];path=[];stack=[];state={}
         for token in data.split():
             if token.startswith(b'/'):args.append(token[1:].decode());continue
-            try:args.append(float(token));continue
+            try:number=float(token)
             except ValueError:pass
+            else:
+                require(math.isfinite(number),'Nonfinite print operand');args.append(number);continue
+            if token in (b'q',b'Q',b'h',b'n',b'f'):require(not args,'Unexpected print operator operands')
             if token==b'q':stack.append((matrix[:],state.copy()))
-            elif token==b'Q':matrix,state=stack.pop()
+            elif token==b'Q':
+                require(bool(stack),'Unbalanced print graphics state');matrix,state=stack.pop()
             elif token==b'cm':
                 require(len(args)==6,'Invalid print transform');matrix=multiply(matrix,args)
-            elif token==b'gs':state=pdf.get(resources['ExtGState'][args[0]])
+            elif token==b'gs':
+                require(len(args)==1 and isinstance(args[0],str),'Invalid print graphics-state name')
+                state={**state,**pdf.get(resources['ExtGState'][args[0]])}
+            elif token==b'ri':
+                require(len(args)==1 and isinstance(args[0],str),'Invalid print rendering intent')
+                state={**state,'RI':args[0]}
             elif token in (b'm',b'l'):
                 require(len(args)==2,'Invalid print path');p=point(matrix,args);path.append((token,[p[0]*unit,(height-p[1])*unit]))
             elif token==b'h':path.append((token,[]))
             elif token==b'n':path=[]
             elif token==b'f':
-                require(set(state)<={'Type','ca','CA','BM','SMask','op','OP','OPM','RI','UseBlackPtComp'} and
+                require(set(state)<={'Type','ca','CA','BM','SMask','AIS','op','OP','OPM','RI','UseBlackPtComp'} and
                     state.get('ca',1)==1 and state.get('BM','Normal')=='Normal' and state.get('SMask','None')=='None' and
-                    not state.get('op',False) and state.get('RI','RelativeColorimetric')=='RelativeColorimetric' and
+                    state.get('AIS',False) is False and state.get('op',False) is False and state.get('OP',False) is False and
+                    state.get('RI','RelativeColorimetric')=='RelativeColorimetric' and
                     state.get('UseBlackPtComp')=='OFF','Print paint opacity, compositing or conversion policy changed')
                 paths.append(path);path=[]
             else:require(token in (b'cs',b'sc',b'scn'),'Unsupported print geometry operator')
             args=[]
         require(not args and not stack and not path,'Incomplete print content')
     visit(pdf.streams[page['Contents']],page['Resources'],[1,0,0,1,0,0])
-    expected=[]
-    for x,w in ((23,100),(143,80)):
-        expected.append([(b'm',[x,39]),(b'l',[x+w,39]),(b'l',[x+w,119]),(b'l',[x,119]),(b'h',[])])
     require(len(paths)==2,'Expected exactly two native rectangle paints')
-    for actual,wanted in zip(paths,expected,strict=True):
-        require(len(actual)==len(wanted) and all(op==eop and len(p)==len(ep) and all(abs(a-b)<1e-9 for a,b in zip(p,ep,strict=True))
-            for (op,p),(eop,ep) in zip(actual,wanted,strict=True)),'Delivered PDF artwork geometry differs')
+    for actual,(x,w) in zip(paths,((23,100),(143,80)),strict=True):
+        require([op for op,_ in actual]==[b'm',b'l',b'l',b'l',b'h'],'Expected a closed four-corner rectangle')
+        wanted=[[x,39],[x+w,39],[x+w,119],[x,119]];points=[p for _,p in actual[:-1]]
+        rings=[wanted[i:]+wanted[:i] for i in range(4)]
+        rings += [list(reversed(ring)) for ring in rings]
+        require(any(all(len(p)==2 and all(abs(a-b)<1e-9 for a,b in zip(p,ep,strict=True))
+            for p,ep in zip(points,ring,strict=True)) for ring in rings),'Delivered PDF artwork geometry differs')
 
 
 COMPOSE='''from PIL import Image,ImageCms

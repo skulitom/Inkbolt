@@ -7,7 +7,7 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained hosted Windows/Linux/macOS matrix passed at `7a07f07`;
+The latest retained hosted Windows/Linux/macOS matrix passed at `30c4ebd`;
 later judge changes have focused checks, as recorded below.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
@@ -175,7 +175,7 @@ This confirms the B01/B03 store judges and Windows job-fixture timing/busy-retry
 corrections. It predates the later B05-B07 judge corrections, whose focused
 Windows/WSL checks do not establish a newer complete matrix.
 
-The [latest retained complete matrix at `7a07f07`](https://github.com/skulitom/Inkbolt/actions/runs/38468108741)
+The [retained complete matrix at `7a07f07`](https://github.com/skulitom/Inkbolt/actions/runs/38468108741)
 passed all 242 fresh stages on every platform. Windows ran 213 Rust and 2495
 Python tests, with seven explicit skips, in 2950.1 seconds. Linux and macOS each
 ran 179 Rust and 2454 Python tests, with 48 skips, in 1426.3 and 3026.1 seconds
@@ -201,6 +201,23 @@ platform skips in 47.6 seconds. Cargo checks were reused; no selected check
 failed or remained pending. Both `w2-print-label-folder-` reports bind candidate
 `3e8a23d1dadbe3b1e77f128afd83516fda6e7a0055bd89a48efb259d6daacb6d`.
 These remain focused checks, not a new full platform milestone.
+
+The subsequent B14 PDF-grammar correction executed 42 Windows tests with one
+symlink skip in 59.3 seconds and 40 WSL tests with three platform skips in 42.5
+seconds. Five unchanged test-reader consumer modules and Cargo checks reused
+identical passes; no selected check failed or remained pending. Final reports
+under `w2-print-pdf-grammar-` bind candidate
+`94a18f910c738e3f2ff1f3949ecf081046a459506ec137a432eb6a3bb4a95024`.
+
+The [latest retained full matrix at `30c4ebd`](https://github.com/skulitom/Inkbolt/actions/runs/38476034163)
+passed all 243 fresh stages per platform. Windows ran 213 Rust and 2502 Python
+tests, with seven skips, in 4584.9 seconds. Linux/macOS each ran 179 Rust and
+2461 Python tests, with 48 skips, in 1490.2/2715.8 seconds. Inputs stayed
+unchanged, with no failed, pending or reused checks. Reports/logs and their hashes
+are retained under `w1-public-ci-30c4ebd`, candidate
+`811f2460a6ddb536965a2b822971fe8f6fbf0d3c9094c14e7bf4625ae337e81d`.
+This covers the B10/B13 delivery and B11/B12 store corrections; it predates
+the later hierarchy and B14/B15 judge changes and is not current-HEAD acceptance.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

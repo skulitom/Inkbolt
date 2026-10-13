@@ -91,7 +91,7 @@ def physical_boxes(pdf):
 
 
 def profile_identities(pdf,rgb,cmyk):
-    ink=painted(pdf);space=pdf.pages[0]['Group']['CS']
+    ink=painted(pdf);space=pdf.get(pdf.pages[0]['Group']['CS'])
     require(space[0]=='ICCBased' and pdf.streams[space[1]]==rgb,'Page blending profile differs')
     require(ink[0]['space'][0]=='ICCBased' and pdf.streams[ink[0]['space'][1]]==cmyk,'Process source profile differs')
     for ref,n,alternate in ((space[1],3,'DeviceRGB'),(ink[0]['space'][1],4,'DeviceCMYK')):
@@ -106,7 +106,7 @@ def native_inks(pdf,cmyk):
     ink=painted(pdf)
     require(len(ink)==2 and ink[0]['values']==[.25,.5,.75,1],'Process components changed')
     require(ink[1]['space'][:2]==['Separation','Inkbolt.spot'] and ink[1]['values']==[1],'Spot identity or tint changed')
-    alternate=ink[1]['space'][2]
+    alternate=pdf.get(ink[1]['space'][2])
     require(alternate[0]=='ICCBased' and pdf.streams[alternate[1]]==cmyk,'Spot source profile changed')
     function=pdf.get(ink[1]['space'][3])
     require(function.get('FunctionType')==2 and function.get('Domain')==[0,1] and function.get('N')==1 and

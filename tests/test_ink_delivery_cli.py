@@ -35,7 +35,12 @@ def painted(pdf):
             except ValueError:pass
             if token==b'q':stack.append((space,values,state,path))
             elif token==b'Q':space,values,state,path=stack.pop()
-            elif token==b'gs':state=pdf.get(resources['ExtGState'][args[0]])
+            elif token==b'gs':
+                assert len(args)==1 and isinstance(args[0],str)
+                state={**state,**pdf.get(resources['ExtGState'][args[0]])}
+            elif token==b'ri':
+                assert len(args)==1 and isinstance(args[0],str)
+                state={**state,'RI':args[0]}
             elif token in (b'rg',b'k',b'g'):
                 space={b'rg':'DeviceRGB',b'k':'DeviceCMYK',b'g':'DeviceGray'}[token];values=args[:]
             elif token==b'cs':space=pdf.get(resources['ColorSpace'][args[0]])
