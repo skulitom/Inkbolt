@@ -1,12 +1,10 @@
 """Original scripted task adapters with separate geometry/pixel/source oracles."""
 import base64
-import copy
 import json
 
 from benchmark_runtime import require
 from workload_cases import document, rectangle, save, sha
 from test_editing_cli import png_pixels
-from synthetic_font import geometric_font
 
 
 BLUE = [20, 80, 150, 255]
@@ -112,41 +110,4 @@ def conflicting_writers(case):
         [i['content']['geometry'] for i in current['items']]==[i['content']['geometry'] for i in two_items()['items']], 'Conflict resolution lost an intent or source geometry'))
     view(case,'preview',ref(2),'conflict-pixels',32,16,pixels(32,16,[(5,4,8,8,BLUE),(20,4,8,8,GREEN)]))
     view(case,'historical',saved,'historical-pixels',32,16,pixels(32,16,[(2,4,8,8,BLUE),(22,4,8,8,GREEN)]))
-    verify_history(case)
-
-
-def seeded_repair(case):
-    case.source('original.ttf',geometric_font())
-    case.source('font-license.txt',b'Original synthetic Inkbolt font; permission to use and redistribute.')
-    case.begin('Diagnose an overflowing AA text frame: size 20, width 12, height 24, no wrapping. '
-        'Change only its width to 24 through a reviewed proposal, preserving the text/font and '
-        'unrelated rectangle at (32,20), size 8x8. Review, preflight and publish repaired.png.')
-    font=case.call('font','font.import',source_path='original.ttf',license_path='font-license.txt')
-    frame=dict(text='AA',width=12,height=24,wrap=False,style=dict(font_id='face',size=20,fill=BLUE))
-    doc=document('repair','vector',48,32,fonts=dict(face=font),items=[dict(id='label',content=dict(type='text',frame=frame)),rectangle('other',32,20,8,8,GREEN)])
-    saved=store(case,doc);before=source_snapshot(case,saved,'before')
-    diagnosed=case.call('diagnose','document.check',document=saved)
-    failed=case.call('failed-preflight','document.preflight',document=saved,output=dict(file_name='repaired.png',format='png'))
-    case.check('seeded-diagnosis',lambda:require(diagnosed['status']=='fail' and not failed['ready'] and
-        any(i['error']['code']=='TEXT_OVERFLOW' and i['error']['item_id']=='label' and
-            'text.inspect' in i['recovery']['commands'] for i in diagnosed['issues']),'Overflow was not actionable'))
-    fixed=copy.deepcopy(frame);fixed['width']=24
-    action=dict(type='edit',operations=[dict(op='text',id='label',frame=fixed)])
-    proposed=case.call('review','session.dry_run',session_id='work',request_id='repair',expected_revision=0,
-        action=action,options=dict(preview=True),preview=True)
-    raw=base64.b64decode(proposed['preview']['data'],validate=True)
-    save(case.root/'review.png',raw)
-    expected=pixels(48,32,[(1,2,8,14,BLUE),(13,2,8,14,BLUE),(32,20,8,8,GREEN)])
-    case.check('repair-pixels',lambda:png_check(raw,48,32,expected),preview_step='review')
-    case.call('apply-repair','session.apply_proposal',proposal=proposed['proposal'],action=action,response_mode='compact')
-    current=source_snapshot(case,ref(1))
-    wanted=copy.deepcopy(before);wanted['revision']=1;wanted['items'][0]['content']['frame']['width']=24
-    case.check('no-collateral-edits',lambda:require(current==wanted and current['fonts']['face']['sha256']==case.sources['original.ttf'],'Repair changed collateral content'))
-    ready=case.call('preflight','document.preflight',document=ref(1),output=dict(file_name='repaired.png',format='png'))
-    require(ready['ready'] and not (case.root/'repaired.png').exists(),'Preflight wrote output or failed')
-    delivered=case.call('deliver','session.publish',session_id='work',expected_revision=1,output=dict(file_name='repaired.png',format='png'))
-    def delivered_correct():
-        require(delivered['sha256']==ready['prepared_output']['sha256'],'Preflight/publication identity changed')
-        png_check((case.root/'repaired.png').read_bytes(),48,32,expected)
-    case.check('preflight-delivery',delivered_correct)
     verify_history(case)

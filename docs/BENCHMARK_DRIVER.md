@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B15. B16-B20 remain visible as
+The W2 external lifecycle currently supports B01-B16. B17-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -355,6 +355,31 @@ and composes the repaired cache; both fresh and delivered pixels face the origin
 oracle. Diagnostic array order is immaterial, but exact code/location pairs are
 required. All six check IDs/classes remain fixed, with only the two Inkbolt
 history/binding checks explicitly not applicable to the baseline.
+
+B16's [shared prompt](../tools/benchmark_prompts/B16.md) keeps the original
+font/license hashes and overflow setup: AA at size 20, width 12, height 24,
+without wrapping, plus an unrelated rectangle. Only the width changes to 24.
+Its independent model judge reopens both snapshots, checks every normalized
+control and actual font/license bytes, and reruns the original actionable
+diagnosis, failed preflight, repaired preview and successful preflight. Durable
+creation/repair/publication receipts, current history, retained proposal hashes
+and the normalized text-action fingerprint must agree. The retained review
+image and delivered PNG face the original exact pixel oracle. A new output name
+lets the judge preflight without modifying the captured workspace. It uses local
+captured font resources rather than following old stored resource paths.
+
+The baseline retains before/after JSON recipes and editable SVG text in a bounded
+16 KiB contract per source, with explicit no-wrap/error semantics in the recipe.
+Its admission checks all controls and forbids external resources or unrequested
+SVG constructs before launching the pinned rasterizer. Original SFNT advance
+metrics independently establish overflow and the required width. A named font
+companion differs only in the name table and associated checksums; original
+font/license identities remain retained. Pinned resvg renders the actual repaired
+SVG, and fresh/delivered/review pixels face the same oracle. The prepared and
+published byte identities must match; reports establish content consistency, not
+authenticated historical actions. All five fixed check IDs/classes remain;
+only Inkbolt history is not applicable to the baseline. Synthetic client runs
+remain infrastructure evidence, never model trials.
 
 ## Preparation and import
 

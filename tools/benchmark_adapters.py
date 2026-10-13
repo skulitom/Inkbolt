@@ -1,5 +1,6 @@
 """Explicit reference-adapter inventory, separate from accepted task requirements."""
-from benchmark_graphics import seeded_repair, lost_response, conflicting_writers
+from benchmark_graphics import lost_response, conflicting_writers
+from benchmark_repair import seeded_repair
 from benchmark_resources import resource_repair
 from benchmark_typography import multilingual
 from benchmark_print import physical_print

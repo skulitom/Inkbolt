@@ -603,7 +603,36 @@ Evidence remains external under `w2-b15-`. These are shared-host correctness
 results, not authenticated client-review history, genuine model trials,
 performance comparisons or full W2 acceptance.
 
-B16-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B16 separates the original overflowing text fixture, shared prompt, eleven-command
+solve and independent twelve-command judge. The original font/license hashes and
+all five check IDs/classes remain unchanged. A rendering companion adds a family
+name while preserving all non-naming font tables apart from the checksum. The
+judge checks complete original/repaired controls, actual font/license bytes,
+fresh diagnosis/preflight/preview, retained proposal fingerprints and durable
+creation/repair/publication receipts. Only frame width changes from 12 to 24;
+text, font, overflow policy and unrelated artwork remain exact. Independent IDs
+and relocated captures pass without solver results or stale resource-root access.
+Changed sources, reports, review/delivery pixels, fingerprints and histories fail.
+
+The baseline retains bounded before/after recipes and editable SVG text. It reads
+the original font advances, rejects unsupported or changed controls before
+rendering, and uses pinned resvg plus Python/Pillow to prepare and publish the
+repaired image. Both arms check the four original artifact outcomes, including
+exact prepared/delivered byte identities. Only Inkbolt history is not applicable.
+
+Focused verification passed 49 tests on Windows in 129.5 seconds and 47 on Linux
+in 106.1 seconds, with two explicit Windows-counter skips. No selected stage failed
+or remained pending; unchanged engine formatting/build/Clippy results were reused.
+Both final reports and trials retained unchanged candidate fingerprint:
+`4e3bc53e5f6e23766b25c9ef5e6db405f4e589ed16238f76d43c6da041196896`.
+Five real-tool synthetic baseline trials passed on each platform; all five Windows
+captures passed rejudging. Prompt hash:
+`895b9e155ab4b7e14c33a768ed81af333f695073a21671aa30fa0ee172f77366`.
+Evidence remains external under `w2-b16-`. These are shared-host correctness
+results, not authenticated client-review history, genuine model trials,
+performance comparisons or full W2 acceptance.
+
+B17-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
