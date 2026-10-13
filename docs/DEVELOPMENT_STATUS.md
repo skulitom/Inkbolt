@@ -1212,7 +1212,22 @@ selected checks. Before/after captures and reports remain under
 `w2-mask-retouch-stores-`, tested candidate
 `4f8d4fd1a3e4982a02981b49af8236d8695832d8edd01769f1d4779e05107991`.
 
-Five-repetition model trials for the other thirteen tasks, further smaller-model
+Five genuine matched pairs per task at `38f0397` subsequently passed both B08/B09
+arms on every attempt. Median input-plus-output usage was 327,734/43,824 for
+masking (7.48x) and 354,590/43,008 for retouching (8.24x). Every Inkbolt saved
+original/history check also passed; seven attempts used nondefault session
+directories. All twenty transcripts and command bodies were reviewed without
+observed prohibited access, and both source candidates stayed unchanged.
+Repeated schema discovery, rejected PNG options, reversed clone transforms and
+JSON text-comparison false alarms remain in the evidence. These small raster
+fixtures reinforce the interaction-cost signal; they do not establish scale
+performance or isolate the cost of Inkbolt's extra history guarantees. See
+[the full comparison and identities](BENCHMARK_RESULTS.md#b08b09-at-38f0397-five-matched-pairs).
+The read-only next-task audit identifies B10's omitted session roots for
+reproduction before trials. B13 has no corresponding judge-store assumption;
+B17/B18's fixed stores belong to their harness-seeded fault contracts.
+
+Five-repetition model trials for the other eleven tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

@@ -526,3 +526,64 @@ gates remain open, with no engine checkpoint changes.
 | Rejudged Inkbolt report | `8765717495fc03ba6b78949d88f24197a3b8d66d5f9dcdb577dab9bda026762c` |
 | Rejudged baseline report | `4a8ac2ee3a44e629e6ef69830ea13488328099b6fc964c08372deb02662e5aeb` |
 | Rejudged comparison | `d5bab3caad15ad9fe76db30dfe414a3723a8bdc57f5097dbf557c9725ec89043` |
+
+## B08/B09 at 38f0397: five matched pairs
+
+Five fresh repetitions per task and arm used the same external Codex CLI 0.160.0
+configuration (`gpt-6.1-sol`, medium reasoning, explicit MCP approval option).
+The model name identifies this evaluation only; no engine or harness default
+was introduced. The release executable and pinned baseline tools were unchanged.
+Inkbolt ran before the baseline on the shared Windows host, rotating task order
+by repetition. This chat ran no other Inkbolt checks or benchmarks concurrently;
+other host workloads were uncontrolled and OS caches could be warm. Both source
+candidates stayed unchanged, and both tasks have five matched pairs with no
+global or task matching issues.
+
+| Task | Inkbolt / baseline artifact passes | Median input + output tokens | Median client seconds |
+| --- | --- | ---: | ---: |
+| B08 foreground mask | 5/5 / 5/5 | 327,734 / 43,824 | 93.7 / 32.3 |
+| B09 local retouch | 5/5 / 5/5 | 354,590 / 43,008 | 102.0 / 29.2 |
+
+Both tasks trigger the existing cost signal: matching shared artifact success
+at **7.48x** and **8.24x** median observed token use with Inkbolt. All Inkbolt
+saved-original and history checks also passed; those engine-only checks are not
+applicable to the baseline. Seven Inkbolt attempts chose nondefault session
+directories, and the corrected judges verified their exact original/current
+states. Five equal outcomes do not prove equivalence or isolate the cost of
+the extra history guarantees. These exact 16 by 16 fixtures measure basic
+workflow use, not production-scale raster latency or memory.
+
+All twenty transcripts, command bodies and MCP arguments were reviewed. No
+repository/judge reads, extra engines/models or baseline Inkbolt access were
+observed. Four Inkbolt attempts mixed MCP and shell calls: B08 repetitions one
+and two used MCP for discovery, while B09 repetitions three and five also used
+it for editing and publication. The other six used CLI only. The baseline used
+the pinned Python/Pillow environment and ordinary local file inspection. Its
+mask deliveries retained the original layer and separate selection/mask images;
+its retouch deliveries retained the exact repaired editable pixel layer.
+
+Invalid nested-schema selectors, full-schema fallbacks, rejected PNG options,
+reversed clone transforms, and JSON text comparisons that mistook serialization
+differences for state changes remain in the transcripts and usage. No attempt
+was retried or discarded by the harness. Cached input is included in input totals,
+never added twice; these ratios are not billing estimates. Complete model/engine
+call counts, engine traffic/retries, first verified preview and engine-only
+memory remain unknown. Event counts are not substituted for those measurements,
+and this batch does not isolate MCP's effect.
+
+The results extend the interaction-cost signal to these raster workflows.
+Continue B10 and the remaining task coverage before the full plan decision gate;
+the native photograph's exact precision and memory requirements remain distinct.
+Full-suite, sister-project and readiness gates remain open, with no engine
+checkpoint changes. Reports/workspaces remain under
+`w2-mask-retouch-sol-{model,baseline}-five-01` and
+`w2-mask-retouch-sol-comparison-five-01`. Separate trace reviews and
+`w2-mask-retouch-sol-evidence-audit-01.json` retain the identity checks.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Shared source candidate | `89c7856f7aada09c66da34a5e96d31ebe5f4b9a1671083cdd67a8b452c5dd36c` |
+| Release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| Inkbolt report | `41bda628113e00aecf37e101fa2b883e73191d9fd4895956a8f135fab5f2d5fa` |
+| Baseline report | `f22b7f737b7cb8c79f2411c41c4f1926b411a14830946cbe94f3faffec150717` |
+| Matched comparison | `f3228271c9a41526e899a4937495cb26fda9aec1d87853e2cc505e493a2251bf` |

@@ -175,6 +175,15 @@ This confirms the B01/B03 store judges and Windows job-fixture timing/busy-retry
 corrections. It predates the later B05-B07 judge corrections, whose focused
 Windows/WSL checks do not establish a newer complete matrix.
 
+The [newer run at `a7e034e`](https://github.com/skulitom/Inkbolt/actions/runs/38455636448)
+passed all 242 fresh Linux stages: 179 Rust and 2453 Python tests, with 48
+explicit skips, in 789.4 seconds. Inputs were unchanged, with no failed, pending
+or reused stages. Reports/logs are retained under `w1-public-ci-a7e034e/linux`,
+candidate `d287fd842145010951d6b60a7018c9def78bcb66a24fe0b069e804aae115f80a`.
+Windows and macOS were still running when this evidence was retained. This
+Linux pass includes the B05-B07 retained-store judges, but predates the B07
+baseline-placement and B08/B09 session-store judge changes.
+
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable
 path. The [Windows configuration](../examples/mcp-config.windows.json) uses an
