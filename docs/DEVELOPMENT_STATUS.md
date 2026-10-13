@@ -252,8 +252,24 @@ under `w2-codex-path-alias-`; tested candidate:
 Windows' short temporary name exposed the same fixture mismatch. The two job
 failures are separate: a 1.5-second deadline expired before the fixture reached
 its publication checkpoint, and a snapshot test treated documented retryable
-`JOB_BUSY` as an unexpected result. Their correction and a new complete hosted
-matrix remain pending; the earlier matrix is not current-revision acceptance.
+`JOB_BUSY` as an unexpected result. The deadline fixture now gives its cold
+processes ten seconds to reach their checkpoints. Both attempts still block
+until the actual request deadline; the test still requires timeout before
+publication, committed output after publication, and no cancellation by an
+observer. The snapshot fixture retries only `JOB_BUSY` within a fixed 20-second
+observation bound. It still requires ten successful four-row pages, one complete
+generation per page, and concurrent progress across generations.
+
+Production deadlines, locking and job semantics are unchanged. Focused Windows
+verification passed all 17 job tests plus the Rust deadline test in 140.6 seconds,
+including fresh format/build/Clippy. WSL passed the two platform-boundary tests
+and explicitly skipped the 17 unsupported job tests in 7.0 seconds, also with
+fresh format/build/Clippy. Neither run had failures, pending checks or reused
+passes. Reports and candidate hashes are retained under `w1-job-fixture-timing-`;
+their common candidate is
+`dc8895207d7ee4e8787c9255c9635d515ed76b77d52e28bf9e16267df0df6a5b`.
+A new complete hosted matrix remains pending; the earlier matrix is not
+current-revision acceptance.
 
 ## W2 and the next behavior increments
 

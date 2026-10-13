@@ -76,12 +76,17 @@ class JobTests(unittest.TestCase):
         return self.cli('job.start',request_id=rid,document=doc or self.document(),output=dict(file_name=name or rid+'.png',format='png'),**kw)
 
     def start_retry_busy(self,doc):
+        return self.cli_retry_busy('job.start',request_id='one',document=doc,output=dict(file_name='one.png',format='png'))
+
+    def cli_retry_busy(self,command,**arguments):
         # Contention has a bounded wait, not a promise of immediate admission.
         # Retry exactly the same request; all other errors remain test failures.
-        request=json.dumps(dict(command='job.start',request_id='one',document=doc,output=dict(file_name='one.png',format='png'))).encode()
+        request=json.dumps(dict(command=command,**arguments)).encode()
         deadline=time.monotonic()+20
         while True:
-            process=subprocess.run([str(EXE),'--workspace',str(self.root)],input=request,capture_output=True,timeout=20)
+            remaining=deadline-time.monotonic()
+            self.assertGreater(remaining,0,'Job request remained busy beyond the observation deadline')
+            process=subprocess.run([str(EXE),'--workspace',str(self.root)],input=request,capture_output=True,timeout=remaining)
             self.assertEqual(process.stderr,b'');reply=json.loads(process.stdout)
             if reply['ok']:
                 self.assertEqual(process.returncode,0,reply)
@@ -361,7 +366,7 @@ class JobTests(unittest.TestCase):
                 try:
                     self.assertTrue(ready.wait(5))
                     for _ in range(10):
-                        page=self.cli('job.list');self.assertEqual(page['returned'],4)
+                        page=self.cli_retry_busy('job.list');self.assertEqual(page['returned'],4)
                         values={row['progress']['completed'] for row in page['records']}
                         self.assertEqual(len(values),1,page);observed.extend(values)
                 finally:stop.set();future.result(timeout=5)

@@ -359,8 +359,12 @@ fn publication_lock_wins_late_cancel_and_crash_after_link_recovers_success() {
 }
 #[test]
 fn deadline_stops_a_noncooperating_attempt_without_cancelling_an_observer() {
+    // The request lifetime includes cold process startup and publication. Give
+    // the fixture time to reach its checkpoint on hosted runners; the blocked
+    // attempt must still be stopped by that actual request deadline in both cases.
+    let lifetime = 10_000;
     let mut owned = Owned::new();
-    owned.start("before_prepare", 1500);
+    owned.start("before_prepare", lifetime);
     let observer = Control::default();
     observer.cancel();
     assert_eq!(
@@ -375,7 +379,7 @@ fn deadline_stops_a_noncooperating_attempt_without_cancelling_an_observer() {
     assert_eq!(terminal["error"]["code"], "JOB_TIMEOUT");
     assert!(!owned.root.join("one.png").exists());
     let mut published = Owned::new();
-    published.start("published", 1500);
+    published.start("published", lifetime);
     let terminal = published.terminal();
     assert_eq!(terminal["state"], "completed", "{terminal:#}");
     assert!(published.root.join("one.png").exists());

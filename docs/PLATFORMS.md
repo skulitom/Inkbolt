@@ -145,8 +145,11 @@ temporary paths with resolved paths. The fixture now matches the real harness's
 resolved-path contract; a Linux alias reproduction failed before the correction
 and all 13 checks passed afterward. Focused Windows/WSL checks also passed.
 Windows exposed the same short-path fixture mismatch, plus two separate job-test
-timing/contention failures. Their correction and hosted confirmation remain
-pending; this does not supersede the last complete matrix. See
+timing/contention failures. The fixtures now allow cold startup before testing
+actual deadline stops and retry only documented busy responses while preserving
+the snapshot assertions. Focused Windows checks passed in 140.6 seconds; WSL
+passed the platform boundary with explicit job skips in 7.0 seconds. Hosted
+confirmation remains pending; this does not supersede the last complete matrix. See
 [retained evidence](DEVELOPMENT_STATUS.md).
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
