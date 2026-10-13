@@ -1,12 +1,15 @@
 # Recorded agent evaluation results
 
-Five-pair evaluations now cover B01-B13, with separate smaller-model pilots.
-Nine tasks matched baseline artifact success with higher median token use.
+Five-pair evaluations now cover B01-B15, with separate smaller-model pilots.
+Ten tasks matched baseline artifact success with higher median token use.
 Photo repair and mixed composition each passed 3/5 with Inkbolt versus 5/5 with
 the baseline. Layout variants passed 5/5 in both arms at 9.17x median token use
-with Inkbolt after tested judge corrections.
+with Inkbolt after tested judge corrections. Resource repair passed 5/5 in both
+arms at 4.83x tokens. Print outcomes retain unresolved baseline PDF admission
+caveats and two Inkbolt receipt-selection failures; they do not establish an
+Inkbolt reliability advantage.
 The evidence below preserves failures, judge corrections and exact build
-identities. Seven tasks, further smaller-model trials and the separate
+identities. Five tasks, further smaller-model trials and the separate
 sister-project comparison remain open; these partial batches are not full-suite
 acceptance.
 
@@ -762,3 +765,86 @@ script bodies preserve the outcome and review boundaries.
 | Rejudged Inkbolt report | `b6b886736298b1756630d6dfc07243454af49f78f66390d37a44672323737c9c` |
 | Rejudged baseline report | `57380085b0485a31a0c24596ff1756c05f8cb798aa7e9fd47f5194a71f0e3123` |
 | Rejudged comparison | `8f76b4837778e02596cf4703fc793b04c4fcb9b200f06f66a7a4cc3dffdfbd9f` |
+
+## B14/B15 at 7d31cf9: print delivery and resource repair
+
+Five attempts per task and arm used the same external Codex CLI 0.160.0,
+`gpt-6.1-sol` medium configuration, explicit MCP approval mode, shared Windows
+host and pinned baseline tools as the preceding batches. The Inkbolt arm ran
+first, then the baseline; task order rotated per repetition. The repository and
+engine stayed unchanged throughout, with no concurrent local verification or
+benchmarks from this chat. Other host workloads were uncontrolled and caches
+could be warm. Model names describe this evaluation only, not product defaults.
+
+| Task | Inkbolt / baseline artifact passes | Complete workflow passes | Median input + output tokens, all attempts | Median client seconds, all attempts |
+| --- | --- | --- | ---: | ---: |
+| B14 physical print | 5/5 / 0/5* | 3/5 / 0/5* | 531,200 / 97,120 | 114.0 / 97.0 |
+| B15 resource repair | 5/5 / 5/5 | 5/5 / 5/5 | 274,948 / 56,972 | 89.8 / 44.2 |
+
+**B14's baseline result is constrained by the PDF judge.** Every baseline PDF
+uses `ri`, which the bounded reader rejects before it can finish checking native
+inks and profile identities. All five pass physical boxes, exact preview pixels,
+source preservation and declared losses after folder lookup is corrected. They
+also set knockout groups, while the path interpreter requires an isolated,
+non-knockout group. The prompt says "normal compositing and knockout" but excludes
+group effects. Review the supported grammar and that interpretation before
+attributing these failures to the models or claiming an Inkbolt advantage.
+The retained PDFs have not been changed or awarded passing ink/profile checks.
+B14 has no jointly successful pairs and no fixed-policy cost ratio.
+
+B15 triggers the fixed cost signal at **4.83x** median input-plus-output tokens.
+Its five paired artifact successes give a wide 95% Wilson interval of
+56.6%-100% in either arm. The small synthetic repair fixture does not establish
+general reliability, production-scale recovery or a cause for the cost gap.
+All attempts remain in the distributions; cached input is already included and
+the ratio is not a billing estimate.
+
+The original judge stopped B14 outputs stored in valid subfolders or carrying
+unprescribed swatch display names. B15 repetitions three and four retained the
+complete successful CLI response around their dry-run result. Tested corrections
+now admit those choices, retaining all native controls, source/profile identities,
+preview pixels, review proposals and history requirements. Additional print-loss
+disclosures are accepted only when every required limitation remains present.
+Native receipt binding is checked under the existing engine-only history check;
+the common artifact check remains independent. No check ID or class was removed.
+
+B14 Inkbolt repetitions two and five still select snapshot publication receipts
+in session.json. Correct PDF receipts also exist, but the judge must verify the
+delivered request ID, not silently choose another. Their artifacts and saved
+history otherwise pass; the complete workflow remains failed. This identifies
+receipt selection and clearer delivery guidance as follow-up work, not corrupt
+PDFs or broken session history.
+
+After focused Windows/WSL checks, all twenty original captures were imported into
+new judge directories. Original reports and every original workspace, transcript,
+client result and capture identity were checked, as were imported workspace bytes,
+usage, execution times and captured memory. No model attempt was rerun or removed.
+Evidence is under `w2-print-resources-sol-{model,baseline}-five-01`, corresponding
+`rejudged-01` roots and `w2-print-resources-capture-rejudge-integrity-01.json`.
+
+All completed direct commands and MCP arguments were reviewed. File-change helper
+bodies omitted from event logs were read and archived; inline creation/edit
+commands remain available for deleted helpers. No direct prohibited access was
+observed. This is not authenticated isolation or complete nested-process evidence.
+Inkbolt B14 repetition two used MCP schema tools; the other Inkbolt trials used
+CLI commands. No image-view tool call was observed, so numerical pixel checks do
+not establish visual review. Full model/engine call counts, traffic/retries,
+first verified preview time and engine-only memory remain unknown. Observed
+client-tree memory has a separate scope.
+
+These results reinforce operation discovery and workspace guidance priorities.
+Review the B14 PDF admission caveat and finish B16-B20 before the full W2 decision
+gate. The separate sister-project comparison and B10 Linux memory evidence remain
+open. No engine checkpoint or complete readiness gate gains credit.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Original source candidate | `4e36bcaf30056c01e2343a1596caf796204cc775a4e8c4f319bd33b22efb3a89` |
+| Tested rejudging candidate | `3e8a23d1dadbe3b1e77f128afd83516fda6e7a0055bd89a48efb259d6daacb6d` |
+| Release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| Original Inkbolt report | `6b4ad8e0bae50d8e05f57dcc3fcf578002256db8b5caca420c9045671b1f0f0c` |
+| Original baseline report | `b0e084662a8b05395495bee8ec447e8862dbc4c20ac2211330835b24e48cb600` |
+| Original comparison | `04b595810e96b7c82cc45feca8a40005383c887616378c43c0b52caac3726288` |
+| Rejudged Inkbolt report | `83e10a34b40228546434101a875697e9937cc72f5398199f1e0b4c0ea1e2913d` |
+| Rejudged baseline report | `ddf3f7983af95b07dc8462183aa0d597b7501652dab8da22c4c45546a4380fbb` |
+| Rejudged comparison | `fa9f8af04aa886288df5c363794bf8919f8f5962c55cfde2247670754cfe13ed` |

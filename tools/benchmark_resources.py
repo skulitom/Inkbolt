@@ -58,6 +58,16 @@ def reviewed_fingerprint(resources,revision):
         sort_keys=True,separators=(',',':'),ensure_ascii=False).encode('utf-8'))
 
 
+def reported_review(raw):
+    value=strict_json(raw)
+    require(isinstance(value,dict),'Invalid retained dry-run result')
+    if 'ok' in value:
+        require(set(value)=={'ok','result'} and value['ok'] is True and isinstance(value['result'],dict),
+            'Invalid retained dry-run response')
+        value=value['result']
+    return value
+
+
 def expected_picture():return pixels(16,8,[(0,0,8,8,BLUE),(8,0,8,8,GREEN)])
 
 
@@ -147,7 +157,7 @@ def judge(case):
         require(old['receipt']['action']=='create' and old['receipt']['revision']==0 and old['document']==before==old_saved and
             new['receipt']['action']=='resources' and new['document']==after and new['receipt']['revision']==locator['after_revision'],
             'The durable create/repair receipts do not retain their original artwork and revisions')
-        review=strict_json(delivered(case,'review.json'));proposal=review['proposal']
+        review=reported_review(delivered(case,'review.json'));proposal=review['proposal']
         require(review['dry_run'] and review['committed'] is False and review['source_changed'] is False and
             review['predicted_receipt']==new['receipt'] and review['proposed_resources']==new['resources'] and
             proposal['version']==1 and proposal['request_fingerprint']==reviewed_fingerprint(new['resources'],0) and

@@ -199,7 +199,7 @@ class ExternalTrial(Trial):
         preview=None
         for check,filename in MIGRATIONS[self.task][0].PREVIEW_FILES.items():
             if any(c['name']==check and c['status']=='pass' for c in self.checks):
-                path=self.root/filename
+                path=self.root/getattr(self,'preview_paths',{}).get(filename,filename)
                 if path.is_file() and observed.get('first_preview_sha256')==file_hash(path):
                     preview=observed.get('first_preview_seconds')
         return dict(driver=evidence,driver_failure=self.driver_failure,model_trials=evidence.get('kind')=='model',

@@ -1334,7 +1334,25 @@ were reused; no selected checks failed or remained pending. Evidence is under
 `a144f4c829b0b3c4dbf801fc9974551a3e7f73e5468e1912c8b4e85d59edb9e5`.
 This is synthetic judge preparation, without new model or engine credit.
 
-Five-repetition model trials for the other seven tasks, further smaller-model
+B14/B15 now have five genuine matched attempts per arm at `7d31cf9`. Rejudging
+all twenty unchanged captures after tested corrections accepts caller-chosen
+swatch labels, contained output subfolders, extra loss disclosures and successful
+CLI review envelopes. Exact ink/profile/artwork and historical bindings remain
+required. B15 passes 5/5 in both arms at 4.83x median tokens. B14's Inkbolt
+artifacts pass 5/5, but two wrong receipt selections still fail the complete
+workflow. All five baseline PDFs hit the reader's unsupported `ri` operator;
+PDF grammar and knockout-group interpretation need review before a reliability
+comparison. See [the retained outcomes](BENCHMARK_RESULTS.md#b14b15-at-7d31cf9-print-delivery-and-resource-repair).
+
+The correction executed 57 Windows tests with one symlink skip in 56.5 seconds
+and 55 WSL tests with three platform skips in 47.6 seconds. Unchanged Cargo
+checks were reused; no selected checks failed or remained pending. Reports and
+the raw tested-input map are under `w2-print-label-folder-`, candidate
+`3e8a23d1dadbe3b1e77f128afd83516fda6e7a0055bd89a48efb259d6daacb6d`.
+The original workspaces, reports, transcripts, client results, observations and
+captured memory remain unchanged. No model was rerun and no engine credit added.
+
+Five-repetition model trials for the other five tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

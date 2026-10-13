@@ -195,6 +195,13 @@ symlink skip in 39.5 seconds and 43 WSL tests with three platform skips in
 pending. Both reports under `w2-print-resources-store-` bind candidate
 `a144f4c829b0b3c4dbf801fc9974551a3e7f73e5468e1912c8b4e85d59edb9e5`.
 
+The B14/B15 delivery-label/folder and review-envelope correction executed 57
+Windows tests with one symlink skip in 56.5 seconds and 55 WSL tests with three
+platform skips in 47.6 seconds. Cargo checks were reused; no selected check
+failed or remained pending. Both `w2-print-label-folder-` reports bind candidate
+`3e8a23d1dadbe3b1e77f128afd83516fda6e7a0055bd89a48efb259d6daacb6d`.
+These remain focused checks, not a new full platform milestone.
+
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable
 path. The [Windows configuration](../examples/mcp-config.windows.json) uses an

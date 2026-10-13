@@ -370,8 +370,17 @@ RGB and CMYK fixtures, fractional A4 trim size, asymmetric bleed, native process
 and spot declarations and display preview. The model judge validates all editable
 controls, saved source/current head and completed publication receipt; it freshly
 preflights and publishes into an owned judge directory. Captures stay unchanged,
-including after relocation. Fresh and delivered PDF identities, reported losses,
-physical boxes, embedded profiles and native operands must agree.
+including after relocation. Fresh and delivered PDF identities, physical boxes,
+embedded profiles and native operands must agree. Added swatch display labels
+are caller-chosen; their ink definitions, profiles and tint controls remain exact.
+The named deliverables may occupy subfolders inside the capture. Lookup requires
+one contained, nonlinked file per name; missing or ambiguous files fail. Preview
+timing, when supplied, binds the bytes at the admitted preview path.
+Delivery limitations must include every engine-reported PDF loss and both prompt
+disclaimers; additional disclosures are allowed. This artifact check is separate
+from the engine-only history check, which still requires the selected completed
+PDF receipt to match the delivery and saved source. A snapshot receipt cannot
+stand in for the print publication.
 The session and publication stores may use caller-chosen folders inside the
 capture. Their delivered IDs must locate unique stores; the engine still checks
 the retained receipt and saved history. Missing, ambiguous or corrupt stores fail.
@@ -394,6 +403,9 @@ model judge checks full document equality apart from revision, both replacement
 cache identities, correctly paired diagnostic locations and a fresh preview.
 Creation/repair receipts, current session state and history must agree with the
 retained proposal's source/result hashes and resource-action fingerprint.
+The full dry-run result may be retained directly or inside the CLI's exact
+successful `{"ok":true,"result":...}` envelope. Error responses, extra envelope
+fields and changed proposal data fail the same historical-binding check.
 The saved session is located by its delivered ID inside the capture, without
 requiring a default session folder. Missing, ambiguous or corrupt history fails.
 

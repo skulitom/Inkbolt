@@ -4,13 +4,14 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
-from benchmark_print import fixture,solve,judge,PROMPT,source_document,expected_picture
+from benchmark_print import fixture,solve,judge,PROMPT,source_document,expected_picture,retained_print_file,print_files
 from benchmark_baseline_print import manifest,judge_print,page_geometry
 from benchmark_driver import run_external_task,workspace_files
 from benchmark_runtime import Trial,TaskFailure
@@ -67,15 +68,16 @@ class PrintBenchmarkTests(unittest.TestCase):
             root=Path(directory);case=self.prepare(root/'model',custom=True);original_call=case.call
             files={name:(case.root/name).read_bytes() for name in ('editable.json','preview.png','print.pdf','delivery.json')}
             case.results.clear();case.begin_judging()
-            for fault in ('geometry','profile','pixels','pdf','losses'):
+            for fault in ('geometry','profile','ink','pixels','pdf','losses','missing-loss'):
                 with self.subTest(fault=fault):
                     for name,data in files.items():(case.root/name).write_bytes(data)
                     case.judge_root=root/fault;case.judge_root.mkdir();case.checks.clear()
                     case.call=lambda step,command,**arguments:original_call(fault+'-'+step,command,**arguments)
-                    if fault in ('geometry','profile'):
+                    if fault in ('geometry','profile','ink'):
                         value=json.loads(files['editable.json'])
                         if fault=='geometry':value['items'][1]['content']['geometry']['width']=101
-                        else:value['output_profile']={'type':'builtin','name':'srgb'}
+                        elif fault=='profile':value['output_profile']={'type':'builtin','name':'srgb'}
+                        else:value['swatches']['process']['definition']['color']['components'][0]=.5
                         (case.root/'editable.json').write_text(json.dumps(value),encoding='utf-8')
                     elif fault=='pixels':(case.root/'preview.png').write_bytes(png(1,1,bytes(4)))
                     elif fault=='pdf':
@@ -84,18 +86,26 @@ class PrintBenchmarkTests(unittest.TestCase):
                         value=json.loads(files['delivery.json']);value['sha256']=sha(changed)
                         (case.root/'delivery.json').write_text(json.dumps(value),encoding='utf-8')
                     else:
-                        value=json.loads(files['delivery.json']);value['losses']=[]
+                        value=json.loads(files['delivery.json'])
+                        if fault=='missing-loss':value['losses'].pop(0)
+                        else:value['losses']=[]
                         (case.root/'delivery.json').write_text(json.dumps(value),encoding='utf-8')
                     try:judge(case)
                     except TaskFailure:pass
-                    expected='editable-print-source' if fault in ('geometry','profile') else 'print-preview' if fault=='pixels' else 'declared-losses'
+                    expected='editable-print-source' if fault in ('geometry','profile','ink') else 'print-preview' if fault=='pixels' else 'declared-losses'
                     self.assertIn(expected,[c['name'] for c in case.checks if c['status']=='fail'],case.checks)
 
     def test_external_capture_rejudges_after_original_workspace_moves(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver('--custom-session-store','--custom-receipt-store')
+            root=Path(directory);configuration=driver('--custom-session-store','--custom-receipt-store',
+                '--print-labels','--print-delivery-folder','--print-extra-losses','--preview-usage')
             row=run_external_task(EXE,root/'live','B14',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);before=workspace_files(root/'live/workspace')
+            self.assertEqual(row['first_verified_preview_seconds'],.5)
+            self.assertFalse((root/'live/workspace/print.pdf').exists())
+            snapshot=json.loads((root/'live/workspace/print output/editable.json').read_bytes())
+            self.assertEqual({key:value['name'] for key,value in snapshot['swatches'].items()},
+                {'process':'Chosen process label','spot':'Chosen spot label'})
             self.assertFalse((root/'live/workspace/.inkbolt/sessions').exists())
             self.assertFalse((root/'live/workspace/.inkbolt/publications').exists())
             self.assertEqual(len(list((root/'live/workspace/chosen sessions').glob('*.sqlite3'))),1)
@@ -103,6 +113,7 @@ class PrintBenchmarkTests(unittest.TestCase):
             (root/'live').rename(root/'moved')
             imported=run_external_task(EXE,root/'import','B14',1,'model',configuration,import_source=root/'moved')
             self.assertEqual(imported['status'],'passed',imported);self.assertFalse(imported['model_trials'])
+            self.assertEqual(imported['first_verified_preview_seconds'],.5)
             self.assertEqual(before,workspace_files(root/'moved/workspace'));self.assertEqual(before,workspace_files(root/'import/workspace'))
 
     def test_custom_history_and_receipt_stores_must_be_unique_and_intact(self):
@@ -127,11 +138,51 @@ class PrintBenchmarkTests(unittest.TestCase):
                         if duplicate.exists():duplicate.unlink()
 
     def test_baseline_never_launches_engine_and_keeps_engine_checks_not_applicable(self):
-        with tempfile.TemporaryDirectory() as directory,patch('benchmark_baseline_print.render_preview',return_value=expected_picture()), \
+        with tempfile.TemporaryDirectory() as directory,patch('benchmark_baseline_print.render_preview',return_value=expected_picture()) as render, \
              patch('benchmark_driver.ExternalTrial.call',side_effect=AssertionError('Baseline launched Inkbolt')):
-            row=run_external_task(None,Path(directory)/'baseline','B14',1,'baseline',driver('--preview-usage'),fake_tools())
+            row=run_external_task(None,Path(directory)/'baseline','B14',1,'baseline',driver('--preview-usage','--print-delivery-folder'),fake_tools())
             self.assertEqual(row['status'],'passed',row);self.assertEqual(row['first_verified_preview_seconds'],.5)
             self.assertEqual({c['name'] for c in row['checks'] if c['status']=='not_applicable'}, {'editable-print-source','history-valid'})
+            self.assertEqual(render.call_args.args[2],'print output/editable.json')
+
+    def test_print_file_lookup_accepts_separate_folders_but_rejects_ambiguous_deliveries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory).resolve();case=SimpleNamespace(root=root)
+            expected={name:f'folder {i}/{name}' for i,name in enumerate(('editable.json','preview.png','print.pdf','delivery.json'))}
+            for name,path in expected.items():
+                file=root/path;file.parent.mkdir();file.write_text(name,encoding='utf-8')
+            self.assertEqual(print_files(case),expected);self.assertEqual(case.preview_paths,{'preview.png':expected['preview.png']})
+            (root/'print.pdf').write_bytes(b'duplicate')
+            with self.assertRaisesRegex(TaskFailure,'ambiguous'):print_files(case)
+            (root/'print.pdf').unlink();(root/expected['print.pdf']).unlink()
+            with self.assertRaisesRegex(TaskFailure,'Missing'):print_files(case)
+
+    def test_print_file_lookup_rejects_linked_delivery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base=Path(directory).resolve();root=base/'capture';root.mkdir();external=base/'external.pdf';external.write_bytes(b'external')
+            try:(root/'print.pdf').symlink_to(external)
+            except OSError as error:self.skipTest('Host cannot create fixture symlinks: '+str(error))
+            with self.assertRaisesRegex(TaskFailure,'linked'):retained_print_file(SimpleNamespace(root=root),'print.pdf')
+
+    def test_wrong_nested_preview_has_no_verified_observation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            row=run_external_task(EXE,Path(directory)/'bad-preview','B14',1,'model',
+                driver('--print-labels','--print-delivery-folder','--preview-usage','--wrong-image'))
+            self.assertEqual(row['status'],'failed',row);self.assertIsNone(row['first_verified_preview_seconds'])
+            self.assertIn('print-preview',[c['name'] for c in row['checks'] if c['status']=='fail'])
+
+    def test_snapshot_receipt_cannot_stand_in_for_print_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=self.prepare(Path(directory)/'wrong-receipt',custom=True)
+            path=case.root/'session.json';locator=json.loads(path.read_bytes())
+            case.call('publish-other-source','document.publish',
+                document=dict(session_root='chosen sessions',session_id=locator['session_id'],revision=locator['revision']),
+                output=dict(file_name='other-snapshot.json',format='snapshot'),
+                receipt=dict(receipt_root='chosen receipts',request_id='wrong-pdf-receipt'))
+            locator['publication']='wrong-pdf-receipt';path.write_text(json.dumps(locator),encoding='utf-8')
+            case.results.clear();case.begin_judging();judge(case)
+            self.assertEqual([c['name'] for c in case.checks if c['status']=='fail'],['history-valid'])
+            self.assertIn({'name':'declared-losses','status':'pass','check_class':'artifact'},case.checks)
 
     def test_baseline_pdf_mutations_cannot_hide_behind_a_correct_preview_or_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -161,7 +212,7 @@ class PrintBenchmarkTests(unittest.TestCase):
     def test_recipe_admission_precedes_profile_decoder_and_rejects_paths_boolean_numbers(self):
         with tempfile.TemporaryDirectory() as directory:
             case=Trial(None,Path(directory)/'bounded','B14',1,'cli',CHECKS['B14']);self.addCleanup(case.close);fixture(case)
-            good=manifest(case.sources)
+            good=author(case.root);(case.root/'preview.png').write_bytes(png(240,130,expected_picture()))
             for fault in ('path','boolean','profile','bleed'):
                 with self.subTest(fault=fault):
                     value=copy.deepcopy(good)

@@ -4,7 +4,7 @@ import subprocess
 from benchmark_diagram import delivered
 from benchmark_baseline_mixed import same_controls
 from benchmark_graphics import png_check
-from benchmark_print import artifact_checks,declared_losses,expected_picture
+from benchmark_print import artifact_checks,declared_losses,expected_picture,print_files
 from benchmark_runtime import require,strict_json
 from pdf_reader import multiply,point
 
@@ -18,8 +18,8 @@ def manifest(sources):
                dict(bounds=[140,30,80,80],kind='spot',id='spot',alternate=[0,1,0,0],tint=1)])
 
 
-def admitted_manifest(case):
-    raw=delivered(case,'editable.json');require(len(raw)<=8192,'Print recipe exceeds its bounded contract')
+def admitted_manifest(case,path='editable.json'):
+    raw=delivered(case,path);require(len(raw)<=8192,'Print recipe exceeds its bounded contract')
     value=strict_json(raw)
     require(same_controls(value,manifest(case.sources)),'Print paper, bleed, native inks or source profile identities changed')
     return value
@@ -71,7 +71,7 @@ def page_geometry(pdf):
 COMPOSE='''from PIL import Image,ImageCms
 from pathlib import Path
 import json,sys
-root=Path(sys.argv[1]);scene=json.loads((root/'editable.json').read_bytes())
+root=Path(sys.argv[1]);scene=json.loads((root/sys.argv[2]).read_bytes())
 profile=ImageCms.ImageCmsProfile(str(root/scene['ink_profile']['file']))
 transform=ImageCms.buildTransformFromOpenProfiles(profile,ImageCms.createProfile('sRGB'),'CMYK','RGB',renderingIntent=1,flags=0)
 canvas=Image.new('RGBA',(240,130))
@@ -84,24 +84,24 @@ print(canvas.tobytes().hex())
 '''
 
 
-def render_preview(case,tools):
-    result=subprocess.run([tools['python']['path'],'-I','-c',COMPOSE,str(case.root)],cwd=case.root,timeout=30,capture_output=True)
+def render_preview(case,tools,recipe='editable.json'):
+    result=subprocess.run([tools['python']['path'],'-I','-c',COMPOSE,str(case.root),recipe],cwd=case.root,timeout=30,capture_output=True)
     require(result.returncode==0,'Pinned Pillow could not render the admitted ICC print preview')
     pixels=bytes.fromhex(result.stdout.decode('ascii').strip())
     require(len(pixels)==240*130*4,'Print preview dimensions changed');return pixels
 
 
 def judge_print(case,tools):
-    admitted_manifest(case)
-    raw=delivered(case,'print.pdf');rgb=delivered(case,'original-rgb.icc');cmyk=delivered(case,'original-cmyk.icc')
+    files=print_files(case);admitted_manifest(case,files['editable.json'])
+    raw=delivered(case,files['print.pdf']);rgb=delivered(case,'original-rgb.icc');cmyk=delivered(case,'original-cmyk.icc')
     # Native declarations alone do not prove that the delivered page paints the
     # requested geometry. Keep this assertion within the existing ink criterion.
     artifact_checks(case,(raw,),rgb,cmyk,native_geometry=page_geometry)
-    rendered=render_preview(case,tools)
+    rendered=render_preview(case,tools,files['editable.json'])
     def picture():
         require(rendered==expected_picture(),'Fresh ICC preview differs from the original oracle')
-        png_check(delivered(case,'preview.png'),240,130,expected_picture())
+        png_check(delivered(case,files['preview.png']),240,130,expected_picture())
     case.check('print-preview',picture)
-    case.check('declared-losses',lambda:declared_losses(strict_json(delivered(case,'delivery.json')),raw))
+    case.check('declared-losses',lambda:declared_losses(strict_json(delivered(case,files['delivery.json'])),raw))
     case.not_applicable('editable-print-source','This check reopens an Inkbolt snapshot; the baseline retains the admitted editable print recipe and original profiles.')
     case.not_applicable('history-valid','Inkbolt saved history is unavailable to the no-engine arm.')

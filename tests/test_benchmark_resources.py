@@ -66,7 +66,8 @@ class ResourceBenchmarkTests(unittest.TestCase):
             names=['editable.json','diagnostics.json','preview.png','bindings.json','review.json','session.json',
                    'repaired-assets/'+cache_name(0),'repaired-assets/'+cache_name(1),'broken-assets/'+cache_name(0)]
             good={name:(case.root/name).read_bytes() for name in names}
-            for fault in ('artwork','diagnosis','replacement','pixels','bindings','review','fingerprint','root','history','missing'):
+            for fault in ('artwork','diagnosis','replacement','pixels','bindings','review','fingerprint','root','history','missing',
+                          'envelope-error','envelope-boolean','envelope-extra','envelope-proposal'):
                 with self.subTest(fault=fault):
                     for name,data in good.items():(case.root/name).write_bytes(data)
                     missing=case.root/'broken-assets'/cache_name(1)
@@ -79,6 +80,12 @@ class ResourceBenchmarkTests(unittest.TestCase):
                     elif fault=='bindings':value=dict(before='broken-assets',after='other-assets');name='bindings.json'
                     elif fault in ('review','fingerprint'):
                         value=json.loads(good['review.json']);value['proposal']['base_state_sha256' if fault=='review' else 'request_fingerprint']='0'*64;name='review.json'
+                    elif fault.startswith('envelope-'):
+                        value=dict(ok=True,result=json.loads(good['review.json']));name='review.json'
+                        if fault=='envelope-error':value['ok']=False
+                        elif fault=='envelope-boolean':value['ok']=1
+                        elif fault=='envelope-extra':value['extra']='ignored'
+                        else:value['result']['proposal']['base_state_sha256']='0'*64
                     elif fault in ('root','history'):
                         value=json.loads(good['session.json']);name='session.json'
                         if fault=='root':value['workspace_root']=str(case.root.parent/'wrong')
@@ -92,14 +99,19 @@ class ResourceBenchmarkTests(unittest.TestCase):
                     except TaskFailure:pass
                     expected={'artwork':'unchanged-artwork','bindings':'unchanged-artwork','diagnosis':'located-diagnostics',
                         'replacement':'verified-replacements','pixels':'repaired-pixels','missing':'verified-replacements',
-                        'review':'old-bindings-preserved','fingerprint':'old-bindings-preserved','root':'old-bindings-preserved','history':'history-valid'}[fault]
+                        'review':'old-bindings-preserved','fingerprint':'old-bindings-preserved','root':'old-bindings-preserved','history':'history-valid',
+                        'envelope-error':'old-bindings-preserved','envelope-boolean':'old-bindings-preserved',
+                        'envelope-extra':'old-bindings-preserved','envelope-proposal':'old-bindings-preserved'}[fault]
                     self.assertIn(expected,[c['name'] for c in case.checks if c['status']=='fail'],case.checks)
 
     def test_external_capture_rejudges_without_following_old_absolute_resource_roots(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver('--custom-session-store')
+            root=Path(directory);configuration=driver('--custom-session-store','--resource-review-envelope')
             row=run_external_task(EXE,root/'live','B15',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);before=workspace_files(root/'live/workspace')
+            review=json.loads((root/'live/workspace/review.json').read_bytes())
+            self.assertEqual(set(review),{'ok','result'});self.assertIs(review['ok'],True)
+            self.assertIn('proposal',review['result'])
             self.assertFalse((root/'live/workspace/.inkbolt/sessions').exists())
             self.assertEqual(len(list((root/'live/workspace/chosen sessions').glob('*.sqlite3'))),1)
             self.assertEqual(json.loads((root/'live/workspace/bindings.json').read_bytes()),

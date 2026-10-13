@@ -161,6 +161,8 @@ def main():
     elif request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,retry_of=None,**arguments):
             added_items=None
+            if task=='B14' and '--print-labels' in sys.argv and command=='session.create':
+                for key,value in arguments['document']['swatches'].items():value['name']='Chosen '+key+' label'
             if task=='B12' and '--variant-add-items' in sys.argv and command=='session.create':
                 # Author through native edits, which may interleave different parents' items.
                 document=json.loads(json.dumps(arguments['document']));added_items=document['items']
@@ -381,7 +383,20 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
         source=json.loads((root/'editable.json').read_bytes())
         for item in source['items']:item['transform']=[float(v) for v in item['transform']]
         (root/'editable.json').write_text(json.dumps(source),encoding='utf-8')
+    if task=='B14' and '--print-extra-losses' in sys.argv:
+        path=root/'delivery.json';value=json.loads(path.read_bytes())
+        value['losses'].append('This display preview is not a press proof.')
+        path.write_text(json.dumps(value),encoding='utf-8')
+    if task=='B15' and '--resource-review-envelope' in sys.argv:
+        path=root/'review.json';value=json.loads(path.read_bytes())
+        path.write_text(json.dumps(dict(ok=True,result=value)),encoding='utf-8')
     preview_name='board-1.png' if task=='B02' else 'square.png' if task=='B12' else 'screen.png' if task=='B13' else 'review.png' if task=='B16' else 'preview.png'
+    if task=='B14' and '--print-delivery-folder' in sys.argv:
+        directory=root/'print output';directory.mkdir()
+        for name in ('editable.json','preview.png','print.pdf','delivery.json','session.json'):
+            path=root/name
+            if path.exists():path.rename(directory/name)
+        preview_name='print output/preview.png'
     if '--wrong-image' in sys.argv: (root/preview_name).write_bytes(png(1,1,b'\0'*4))
     target=Path(request['result_path'])
     (target.parent/'transcript.jsonl').write_text('\n'.join(json.dumps(row) for row in events)+'\n',encoding='utf-8')
