@@ -6,11 +6,10 @@ runs on Ubuntu 22.04 under WSL2, x86-64, with Rust 1.98.1 and Python 3.11.
 Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
-The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance
-at `1e8ac2d`: 177 Rust tests and 2,265 Python tests, with 34 explicit platform
-skips. Subsequent MCP/SVG increments have fresh Windows/WSL evidence; their hosted
-matrix is pending. This does not establish full W1, distribution, Unix jobs or
-scale acceptance.
+The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
+The complete hosted Windows/Linux/macOS matrix passed at `5dfb699`, including
+the MCP/SVG increments and publication-contention fix; see the evidence below.
+This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
 to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked
@@ -108,7 +107,15 @@ each passed all 216 fresh stages. Windows still reported an expected `JOB_BUSY`
 response mishandled by a polling test and a concurrent print-render timeout.
 That poll now uses the existing bounded busy-retry helper; Windows and macOS
 verification run serially without relaxing any deadline or image oracle. A
-complete hosted matrix on the latest main revision remains open.
+complete hosted matrix subsequently passed at
+[`5dfb699`](https://github.com/skulitom/Inkbolt/actions/runs/38207200768), including
+the production publication-lock retry. All three platforms ran 227 fresh stages
+with no failures, pending checks or reused passes. Windows ran 212 Rust tests
+and 2,376 Python tests with one explicit skip in 3672.1 seconds. Linux and macOS
+each ran 178 Rust tests and 2,341 Python tests with 36 explicit skips, in 1039.2
+and 2241.3 seconds respectively. The shared candidate fingerprint was
+`4e52a6f0ff99f44c8ac28876ba466d6c444fb08a8a7b177f834e4cb4aec6dfcf`.
+These full milestone runs do not replace the 180-second routine feedback budget.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

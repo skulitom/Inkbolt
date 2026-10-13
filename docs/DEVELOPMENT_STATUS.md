@@ -32,7 +32,7 @@ older results. The final focused change took 108.5 seconds on Windows and
 [development loop](DEVELOPMENT_LOOP.md). W0 completion does not complete
 W1, any additional engine checkpoint, the scale targets or the overall goal.
 
-## W1: verified preparation, hosted evidence pending
+## W1: core platform tier and hosted matrix verified; Unix jobs open
 
 Linux tier 1 covers core/library/CLI/MCP, sessions and durable publication/history
 receipts on Ubuntu 22.04 under WSL2, using native Linux storage. Background jobs
@@ -72,7 +72,7 @@ The owner approved activation, the exact workflow-path rule and Cargo cache on
 the initial 3.11.13 pin has only Linux hosted distributions. CI now pins 3.13.16,
 whose official setup manifest includes all three runner platforms/architectures;
 Python 3.11 remains the supported minimum and the locally verified version.
-The complete hosted matrix on the latest revision has not passed. Local
+The full hosted matrix subsequently passed at `5dfb699`, as recorded below. Local
 verification does not replace those hosted results. See
 [platform coverage](PLATFORMS.md).
 
@@ -153,8 +153,7 @@ the rolled-back publication-permit acquisition, checking the existing job contro
 and retaining the original attempt and prepared bytes. No encoding, link or
 whole job is retried; other errors, external request waits and completed-output
 recovery retain their existing behavior. Discovery and the job contract describe
-this distinction. Hosted confirmation of the original intermittent failure is
-still required.
+this distinction. The full hosted run at `5dfb699` subsequently passed with this fix.
 
 Focused Windows verification passed all 12 Rust job tests and 26 Python
 job/publication tests. The first 46.2-second window completed build, formatting,
@@ -169,8 +168,18 @@ both recorded unchanged inputs and source fingerprint:
 `27cb2d55db3886278b5470828865eaf38d4fdcb22d71c2d162f3a246ad3abf8d`.
 The failing before-fix log and final reports are retained externally under
 `w1-job-contention-`. These are focused correctness checks, not complete milestone
-acceptance or isolated performance measurements; the corrected hosted matrix is
-pending.
+acceptance or isolated performance measurements.
+
+The [full hosted matrix at `5dfb699`](https://github.com/skulitom/Inkbolt/actions/runs/38207200768)
+then passed all 227 stages on Windows, Linux and macOS. Each stage ran freshly;
+none failed, remained pending or reused a previous result. Windows ran 212 Rust
+and 2,376 Python tests with one explicit skip in 3672.1 seconds. Linux and macOS
+each ran 178 Rust and 2,341 Python tests with 36 explicit skips, in 1039.2 and
+2241.3 seconds. All three reports confirmed unchanged inputs and fingerprint
+`4e52a6f0ff99f44c8ac28876ba466d6c444fb08a8a7b177f834e4cb4aec6dfcf`.
+Reports and logs are retained externally under `w1-public-ci-5dfb699-`. This
+establishes the declared platform tier at that revision, including the contention
+fix; Unix jobs, distribution and overall W1 completion remain separate work.
 
 ## W2 and the next behavior increments
 
@@ -408,7 +417,41 @@ Both reports recorded unchanged candidate fingerprint
 Evidence is retained externally under `w2-external-memory-final-`; these are
 shared-host correctness checks, not isolated performance or full W2 acceptance.
 
-B10-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B10 now separates the unchanged photograph fixture, shared prompt, reference
+solver and independent delivered-evidence judge. Its original PNG identity remains
+`f779277bae78c973c8cb229b014bc4771fe25de47879d868c220f792077d9958`.
+The judge reconstructs all 135 native block identities from the original channels,
+checks the exact patch and reviewed state, binds original/edit/undo/redo snapshots
+to durable receipts and the final head, and checks delivered and freshly exported
+TIFF samples. Publication hashes and the focused PNG also remain required.
+An independently named session and captured workspace relocated away from its old
+absolute resource roots pass. Damaged deliverables cannot hide behind retained
+correct responses. The baseline's separately authored byte-processing client
+preserves native depth, with pinned Pillow used for preview and independent TIFF
+admission. All ten original check IDs/classes and the 256 MiB budget are retained.
+
+Final focused checks passed 41 tests on Windows in 96.7 seconds and 39 on Linux
+in 82.3 seconds, with two explicit Windows-counter skips on Linux. Linux now runs
+the full CLI/MCP photograph and external capture checks, asserting that only its
+unavailable commit-memory budget fails. No selected verification stage failed or
+remained pending; unchanged engine formatting/build/Clippy results were reused.
+Both final reports recorded unchanged inputs and candidate fingerprint:
+`9673684f785c911ec01b34b5633dfb994e1d170ed909ed6300e2646c5c3c1a14`.
+
+Five synthetic baseline trials with the real pinned tools passed on Windows,
+and all five captured runs passed rejudging with their original memory evidence.
+All five Linux trials passed native samples, focused preview and source preservation;
+their overall result remains failed solely because commit-memory evidence is
+unavailable. No Linux B10 budget pass is claimed. Real-tool controls accepted the
+correct TIFF and rejected eight malformed/changed variants, including a single
+native low-bit change, depth, sample meaning, alpha, orientation and dimensions.
+The tests, trials and controls share the candidate above. Prompt SHA-256:
+`da84a8022674bdf878bcd5b3dc61b67e21b4278a9261e6d8d373817ee55f4677`.
+Evidence is retained externally under `w2-b10-`; these are shared-host correctness
+results with synthetic clients, not genuine model trials, isolated performance
+comparisons or full W2 acceptance.
+
+B11-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

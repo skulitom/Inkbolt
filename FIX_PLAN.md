@@ -25,8 +25,8 @@ standing authorization.
 | Workstream | Current status | Next action |
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
-| W1 | Linux/macOS core tier, toolchain pinning and public guard verified; Windows publication lock retry passes focused job checks and Linux shared-code checks | Obtain full hosted acceptance of the contention fix; Unix jobs remain open |
-| W2 | B01-B09 external lifecycles, captured-trial import and scoped memory reporting pass focused Windows/Linux checks; pinned baselines tested with synthetic clients | Migrate B10-B20 fixtures/prompts/judges, preserving B10's memory budget, and add comparison reporting; real model evidence remains required |
+| W1 | Full Windows/Linux/macOS hosted acceptance passed at `5dfb699`, including the publication-contention fix and scoped external memory evidence | Maintain platform coverage; Unix jobs remain open |
+| W2 | B01-B10 external lifecycles and captured-trial import pass focused Windows/Linux checks; B10 baseline artifacts pass on both platforms, with Linux commit memory explicitly unproven | Migrate B11-B20 and comparison reporting; real model trials and Linux memory evidence remain required |
 | W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
 | W3a.1-2 | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance | Other W3a items remain open; prioritize them using W2 evidence |
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |
@@ -157,7 +157,7 @@ See the status table, [platform support](docs/PLATFORMS.md) and
 Linux tier 1 does not establish macOS, Unix jobs or full W1 completion.
 The owner approved the reviewed three-platform CI workflow, its narrow path
 allowance and Cargo cache on 11 October 2026. Task 6's activation approval is
-satisfied; hosted matrix evidence remains pending.
+satisfied; the full hosted matrix passed at `5dfb699` as recorded in the status table.
 
 **Tasks**
 

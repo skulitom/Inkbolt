@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B09 also support `--arm model` and
+`--arm reference` is the existing default. B01-B10 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -172,7 +172,14 @@ Correct preview bytes cannot hide a wrong retained repair or unrelated pixels.
 The four original check IDs and their artifact/engine classes are unchanged;
 saved-revision and history checks are explicitly not applicable to the baseline.
 
-B10-B20 still interleave solving and judging. All required checks have
+B10 separates its original native photograph fixture, [shared prompt](../tools/benchmark_prompts/B10.md),
+reference solver and delivered-evidence judge. Original native block identities,
+exact reviewed patch, saved receipts, undo/redo, current head and every TIFF sample
+are checked independently of solver logs. Both external arms retain the fixed
+256 MiB budget; their broader owned-tree observation is an explicitly labelled
+upper bound, never engine-only memory. See the [driver contract](BENCHMARK_DRIVER.md).
+Linux artifact/history checks execute, while its unavailable commit-memory check
+fails explicitly. B11-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 
@@ -211,13 +218,16 @@ bounded synthetic photographic study does not establish camera/RAW support,
 production-photo representativeness or full A5 acceptance.
 
 The B10 budget is fixed at **256 MiB peak committed memory** before measurement.
-It covers every engine call, including import, review, preview and full-size
+The reference arm covers every solve engine call, including import, review, preview and full-size
 delivery; MCP uses its complete persistent-server lifetime. It excludes the
 Python fixture/judge and is not total system memory. Missing or zero observations
 and even a one-byte overrun fail. `memory-budget.json` records the unchanged
 ceiling, measurement scope and every observed process peak. The fixture generator
 may reuse its immutable bytes between repetitions; every engine workspace,
 import, session and delivery remains fresh, and generation precedes task timing.
+External arms separately label their enclosing client/launcher process peak as a
+conservative upper bound; they do not report it as exact engine-only memory.
+Unavailable Linux commit observations fail this budget check explicitly.
 
 B19 uses the ordinary executable without test pause hooks or database writes by
 the harness. It observes the owned queue's checksummed rows, cancels an active

@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B09. B10-B20 remain visible as
+The W2 external lifecycle currently supports B01-B10. B11-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -225,8 +225,11 @@ processes through cleanup. Fixture generation and independent judging happen
 outside that tree. Remote or already-running workers are outside this scope;
 clients must not present offloaded work as a fully measured local solve. This
 broader observation is not relabelled as engine-only memory. The existing
-`memory_complete` stays false and engine-only peak fields stay null. B10's
-external adapter and fixed memory-budget judge remain open.
+`memory_complete` stays false and engine-only peak fields stay null. B10 uses the
+largest individual process peak as a conservative upper bound for the fixed
+256 MiB budget. A larger enclosing-client peak does not prove an engine overrun,
+but does fail to establish the budget. The aggregate job peak is reported
+separately and is not compared with that per-process ceiling.
 
 Only the harness supplies this field; client-reported memory is rejected.
 Timeouts and failed clients retain available observations without becoming
@@ -236,6 +239,26 @@ Linux resident-set memory is not substituted for Windows commit. Import validate
 the recorded shape and preserves the original measurement; it never measures the
 judge and attributes that result to the old solve. Capture identity is still not
 an authenticated attestation.
+
+B10's [shared prompt](../tools/benchmark_prompts/B10.md) retains the original
+1920 by 1080 RGBA16 source and exact same-layer clone repair. The model arm
+delivers the import and proposal results, original/edited/undone/redone snapshots,
+focused PNG, two native TIFFs and a locator containing its chosen session/request
+IDs. The judge independently builds native block identities from the original
+channels, binds every snapshot and the review to durable receipts and the final
+head, checks all immutable tile files, and freshly renders/exports the delivered
+states. Its generated files stay outside external solver workspaces. Captures
+rejudge after the original workspace and its absolute resource roots move.
+
+The baseline retains an editable native TIFF with a bounded layer manifest and
+the same focused PNG. Python byte processing is permitted to avoid accidental
+8-bit multichannel conversion. The judge compares every TIFF channel with the
+original numerical oracle and reopens the single-image RGBA16 TIFF with pinned
+Pillow. All original check IDs/classes and the 256 MiB budget remain unchanged;
+the seven engine-specific checks are explicitly not applicable in the baseline.
+Linux runs retain their artifact/history results but fail the memory-budget check
+explicitly because this commit-memory observation is unavailable. They are not
+reported as complete B10 passes.
 
 ## Preparation and import
 

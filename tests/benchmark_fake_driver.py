@@ -21,6 +21,7 @@ from benchmark_mask import solve as solve_mask, selected_pixels, expected_pictur
 from benchmark_baseline_mask import manifest as mask_manifest
 from benchmark_retouch import solve as solve_retouch
 from benchmark_baseline_retouch import manifest as retouch_manifest
+from benchmark_photo import solve as solve_photo
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -79,9 +80,13 @@ def main():
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09')
+    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,**arguments):
+            if task=='B10' and '--photo-names' in sys.argv:
+                if arguments.get('session_id')=='work':arguments['session_id']='portrait-session'
+                if 'request_id' in arguments:arguments['request_id']='owner-'+arguments['request_id']
+                if command=='sample.import':arguments['id']='original-studio'
             payload=json.dumps(dict(command=command,**arguments)).encode()
             process=subprocess.run([request['engine_executable'],'--workspace',str(root)],input=payload,capture_output=True,timeout=20)
             response=json.loads(process.stdout)
@@ -89,10 +94,16 @@ def main():
             assert response['ok'] and process.returncode==0
             return response['result']
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
-         'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch}[task](SimpleNamespace(root=root,call=call))
+         'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo}[task](SimpleNamespace(root=root,call=call))
+        if task=='B10' and '--photo-names' in sys.argv:
+            locator=json.loads((root/'session.json').read_bytes())
+            locator['requests']={role:'owner-'+name for role,name in locator['requests'].items()}
+            (root/'session.json').write_text(json.dumps(locator),encoding='utf-8')
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
-        if task=='B09':
+        if task=='B10':
+            pass  # The separate byte-processing client writes the native layer manifest.
+        elif task=='B09':
             (root/'editable.json').write_text(json.dumps(retouch_manifest()),encoding='utf-8')
         elif task=='B08':
             (root/'editable.json').write_text(json.dumps(mask_manifest()),encoding='utf-8')
@@ -116,7 +127,10 @@ def main():
             else: source = SVG if task == 'B01' else ICONS_SVG
             (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B09':
+        if task=='B10':
+            options=[] if renderer['version']=='synthetic-fixture' else ['--pillow']
+            subprocess.run([request['baseline_tools']['python']['path'],'-I',str(ROOT/'tests/benchmark_photo_client.py'),str(root),*options],check=True)
+        elif task=='B09':
             if renderer['version']=='synthetic-fixture':
                 source=json.loads((root/'source.json').read_bytes())
                 original=bytes.fromhex(source['items'][0]['content']['rgba_hex']); pixels=bytearray(original)
