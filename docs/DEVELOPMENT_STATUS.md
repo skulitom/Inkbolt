@@ -201,6 +201,13 @@ This confirms the fixture fix and declared platform tier at `20ac313`, not later
 unverified commits or Unix jobs. Reports/logs are retained externally under
 `w1-public-ci-20ac313`; local evidence remains under `w1-retry-roots-`.
 
+The later [hosted `48929e8` run](https://github.com/skulitom/Inkbolt/actions/runs/38385966170)
+passed Windows and Linux, and macOS completed its full verification step
+successfully. Its evidence-upload step failed with GitHub endpoint DNS error
+`ENOTFOUND`; that job/run remains failed. This does not replace `20ac313` as the
+latest completely retained three-platform acceptance. Subsequent main runs
+continue through the same full matrix.
+
 ## W2 and the next behavior increments
 
 B01 separates fixtures, its versioned prompt, reference solving and an independent
@@ -632,7 +639,43 @@ Evidence remains external under `w2-b16-`. These are shared-host correctness
 results, not authenticated client-review history, genuine model trials,
 performance comparisons or full W2 acceptance.
 
-B17-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B17 separates the unchanged two-object fixture, recovery prompt, solve and
+independent receipt/history judge. The reference retains its nine commands;
+external clients start after two harness commands create the session and withhold
+the move response. Setup costs and response identity are retained separately from
+client metrics, checked after execution and preserved on import without reinjection.
+The judge reopens original/edit/undo sources and durable receipts, checks fresh
+pixels, and repeats the historical retry on a private copy of the captured store.
+Captured files stay unchanged; altered requests, receipts, extra revisions,
+artwork and setup evidence fail. All five checks remain fixed. The no-engine
+baseline remains explicitly not applicable to this engine-specific task.
+
+The combined Windows check found a real cancellation-cleanup race in the existing
+external-client timeout fixture. A nested-job control reproduced locked working
+folders in 20 of 20 immediate removals despite zero active job processes. Waiting
+on handles to owned members eliminated those 20 failures. The helper now pins and
+rechecks job membership, waits within the existing three-second cleanup bound,
+and closes its handles. The regression performs eight immediate removals without
+retry or grace sleeps. Query/wait failures leave memory evidence unavailable.
+The original failed run remains retained; its unchanged driver-only recheck also
+passed, but that transient pass was not substituted for the fix and regression.
+
+Final focused verification passed 51 tests on Windows in 140.1 seconds and 48 on
+Linux in 92.3 seconds, with three explicit Windows-only skips. All selected stages,
+including formatting, locked build and all-target Clippy, ran afresh and passed.
+The nine Windows recovery/handoff consumer tests also passed in 54.7 seconds,
+with unchanged build checks reused. No selected stages failed or remained pending.
+Final reports and trials retained unchanged candidate fingerprint:
+`932c66671c2b49513384032fb6e30cd9d2ca29a26e6a3a3b6509dfdbec29d162`.
+Five external synthetic recovery trials passed on each platform; all five Windows
+captures passed rejudging. Prompt hash:
+`f575638fd7aeda0c5faaee06affa8eec1297b006aa0824e5edffc373d57be4e6`.
+Evidence remains external under `w2-b17-`. Linux release-build setup took 162.3
+seconds separately from the 92.3-second routine checks. These are shared-host
+correctness results, not authenticated client behavior, genuine model trials,
+performance comparisons or full W2 acceptance.
+
+B18-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

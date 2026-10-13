@@ -23,6 +23,7 @@ import benchmark_screen
 import benchmark_print
 import benchmark_resources
 import benchmark_repair
+import benchmark_retry
 from benchmark_baseline import judge_diagram, file_hash
 from benchmark_baseline_icons import judge_icons
 from benchmark_baseline_large_layout import judge_large_layout
@@ -50,7 +51,8 @@ MIGRATIONS = {'B01':(benchmark_diagram, judge_diagram), 'B02':(benchmark_icons, 
               'B09':(benchmark_retouch, judge_retouch), 'B10':(benchmark_photo, judge_photo),
               'B11':(benchmark_mixed, judge_mixed), 'B12':(benchmark_variants, judge_variants),
               'B13':(benchmark_screen, judge_screen), 'B14':(benchmark_print, judge_print),
-              'B15':(benchmark_resources, judge_resources), 'B16':(benchmark_repair, judge_repair)}
+              'B15':(benchmark_resources, judge_resources), 'B16':(benchmark_repair, judge_repair),
+              'B17':(benchmark_retry, None)}
 MIGRATED_TASKS = tuple(MIGRATIONS)
 MAX_METADATA = 1024*1024
 MAX_TRANSCRIPT = 64*1024*1024
@@ -177,6 +179,7 @@ class ExternalTrial(Trial):
         self.driver_evidence=None
         self.driver_failure=None
         self.driver_execution={}
+        self.setup=None
 
     def prefix(self, step):
         # Keep judge traffic outside the captured solver workspace, so importing
@@ -196,6 +199,7 @@ class ExternalTrial(Trial):
                 if path.is_file() and observed.get('first_preview_sha256')==file_hash(path):
                     preview=observed.get('first_preview_seconds')
         return dict(driver=evidence,driver_failure=self.driver_failure,model_trials=evidence.get('kind')=='model',
+            harness_setup=evidence.get('harness_setup',self.setup),
             token_usage=observed.get('token_usage'),model_calls=observed.get('model_calls'),
             agent_seconds=observed.get('agent_seconds'),scripted_wall_seconds=None,
             first_verified_preview_seconds=preview,
@@ -216,6 +220,30 @@ def contract(case, configuration, tools):
         baseline_tools=None if tools is None else {k:{a:b for a,b in v.items() if a!='path'} for k,v in tools.items()})
 
 
+def setup_files(evidence,task):
+    names=getattr(MIGRATIONS[task][0],'SETUP_FILES',())
+    files={}
+    for name in names:
+        safe_name(name);path=evidence/name
+        require(path.is_file() and not path.is_symlink() and path.stat().st_size<=MAX_METADATA,'Missing, linked or oversized harness setup evidence')
+        files[name]=file_hash(path)
+    return files
+
+
+def validate_setup(evidence,task,value):
+    files=setup_files(evidence,task)
+    if not files:
+        require(value is None,'Unexpected harness setup evidence');return None
+    require(isinstance(value,dict) and set(value)=={'files','engine_commands','request_bytes','response_bytes','engine_roundtrip_seconds'} and
+        value['files']==files,'Harness setup evidence identity mismatch')
+    for key in ('engine_commands','request_bytes','response_bytes'):
+        require(type(value[key]) is int and value[key]>0,'Invalid harness setup '+key)
+    require(type(value['engine_roundtrip_seconds']) in (int,float) and math.isfinite(value['engine_roundtrip_seconds']) and
+        value['engine_roundtrip_seconds']>=0,'Invalid harness setup duration')
+    require(value['engine_commands']==2,'Lost-response setup must contain creation and one withheld edit')
+    return value
+
+
 def validate_result(evidence, request_contract, capture, files):
     result=read_json(evidence/'driver-result.json')
     require(set(result)=={'schema_version','contract_sha256','kind','client','model','transcript','observations'},
@@ -229,10 +257,11 @@ def validate_result(evidence, request_contract, capture, files):
             capture['result_sha256']==file_hash(evidence/'driver-result.json') and
             capture['transcript_sha256']==file_hash(raw), 'Captured evidence identity mismatch')
     execution_memory(capture['execution'])
+    setup=validate_setup(evidence,request_contract['task'],capture.get('harness_setup'))
     return dict(kind=result['kind'],client=result['client'],model=result['model'],observations=observed,
         transcript_sha256=capture['transcript_sha256'],result_sha256=capture['result_sha256'],
         workspace_sha256=sha(canonical(files)),contract_sha256=sha(canonical(request_contract)),
-        original_host=capture['host'],execution=capture['execution'])
+        original_host=capture['host'],execution=capture['execution'],harness_setup=setup)
 
 
 def import_capture(source, case, evidence, expected):
@@ -254,6 +283,9 @@ def import_capture(source, case, evidence, expected):
     result=read_json(source/'evidence/driver-result.json')
     for name in ('driver-result.json','capture.json',result['transcript']):
         save(evidence/name,(source/'evidence'/name).read_bytes())
+    for name in (validated['harness_setup'] or {}).get('files',{}):
+        save(evidence/name,(source/'evidence'/name).read_bytes())
+    validate_setup(evidence,expected['task'],validated['harness_setup'])
     validated['imported']=True
     return validated
 
@@ -287,9 +319,16 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
         request['mcp_config']=str((evidence/'mcp-config.json').resolve())
         request['engine_executable']=str(case.executable.resolve())
     save_json(evidence/'request.json',request)
+    if not import_source and hasattr(adapter,'prepare_external'):
+        adapter.prepare_external(case)
+        rows=[row for row in case.calls if row['phase']=='setup']
+        case.setup=dict(files=setup_files(evidence,task),engine_commands=len(rows),
+            request_bytes=sum(row['request_bytes'] for row in rows),response_bytes=sum(row['response_bytes'] for row in rows),
+            engine_roundtrip_seconds=sum(row['seconds'] for row in rows))
+        validate_setup(evidence,task,case.setup)
     if prepare:
         row=dict(task=task,repetition=repetition,arm=arm,status='prepared',model_trials=False,
-                 contract=expected,request=str(evidence/'request.json'))
+                 contract=expected,request=str(evidence/'request.json'),harness_setup=case.setup)
         save_json(base/'result.json',row);return row
     try:
         if import_source:
@@ -311,6 +350,7 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
             capture=dict(schema_version=1,contract=expected,workspace_files=files,
                 result_sha256=file_hash(evidence/'driver-result.json'),transcript_sha256=file_hash(raw),
                 host=measurement_host.identity(),execution=execution,driver_identity=pinned)
+            if case.setup is not None:capture['harness_setup']=case.setup
             save_json(evidence/'capture.json',capture)
             case.driver_evidence=validate_result(evidence,expected,capture,files)
     except Exception as error:

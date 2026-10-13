@@ -67,31 +67,6 @@ def two_items():
     return document('revisions','vector',32,16,items=[rectangle('target',2,4,8,8,BLUE),rectangle('other',22,4,8,8,GREEN)])
 
 
-def lost_response(case):
-    seed=case.seed(two_items())
-    case.begin('Open source.json, move target three pixels right and save the edit with request ID move. '
-        'The adapter will drop that successful response. Recover the original receipt and retry safely. '
-        'Undo, retry the old request again, and prove neither retry duplicates or reapplies the edit.')
-    store(case,seed)
-    request=dict(session_id='work',request_id='move',expected_revision=0,response_mode='compact',
-        action=dict(type='edit',operations=[dict(op='transform',id='target',matrix=[1,0,0,1,3,0],space='world')]))
-    case.call('lost','session.apply',discard=True,**request)
-    recovered=case.call('recover-receipt','session.receipt',session_id='work',request_id='move',response_mode='compact')
-    # The hidden response is inspected by this independent receipt oracle only;
-    # the scripted recovery path uses the already-known request ID.
-    original=case.results['lost']['result']
-    case.check('original-receipt',lambda:require(recovered['receipt_summary']==original['receipt_summary'],'Recovered a different receipt'))
-    retry=case.call('retry','session.apply',retry_of='lost',**request)
-    case.check('retry-idempotent',lambda:require(retry['replayed'] and retry['receipt_summary']==original['receipt_summary'] and
-        retry['document_ref']['revision']==1,'Retry changed the edit or its revision'))
-    view(case,'preview',ref(1),'edited-pixels',32,16,pixels(32,16,[(5,4,8,8,BLUE),(22,4,8,8,GREEN)]))
-    case.call('undo','session.apply',session_id='work',request_id='undo',expected_revision=1,action=dict(type='undo'),response_mode='compact')
-    case.call('retry-after-undo','session.apply',retry_of='lost',**request)
-    current=source_snapshot(case,ref(2))
-    case.check('undo-preserved',lambda:require(current['revision']==2 and all(i['transform']==[1,0,0,1,0,0] for i in current['items']), 'Historical retry reapplied an undone change'))
-    verify_history(case)
-
-
 def conflicting_writers(case):
     seed=case.seed(two_items())
     case.begin('Open source.json. Review a proposal to move target three pixels right. A different '

@@ -26,7 +26,7 @@ standing authorization.
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
 | W1 | Full Windows/Linux/macOS hosted acceptance passed at `20ac313`, including the publication-contention and concurrent fixture fixes | Maintain platform coverage; Unix jobs remain open |
-| W2 | B01-B16 external lifecycles and captured-trial import pass focused Windows/Linux checks; B16 overflow-repair baseline passes on both platforms, with B10 Linux commit memory explicitly unproven | Migrate B17-B20 and comparison reporting; real model trials and Linux memory evidence remain required |
+| W2 | B01-B17 external lifecycles and captured-trial import pass focused Windows/Linux checks; B17 injects and independently verifies lost-response recovery; B10 Linux commit memory remains explicitly unproven | Migrate B18-B20 and comparison reporting; real model trials and Linux memory evidence remain required |
 | W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
 | W3a.1-2 | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance | Other W3a items remain open; prioritize them using W2 evidence |
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |

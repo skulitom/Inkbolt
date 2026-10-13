@@ -49,6 +49,12 @@ class WindowsJob:
         self.api.TerminateJobObject.restype = w.BOOL
         self.api.QueryInformationJobObject.argtypes = [w.HANDLE, ctypes.c_int, ctypes.c_void_p, w.DWORD, ctypes.c_void_p]
         self.api.QueryInformationJobObject.restype = w.BOOL
+        self.api.OpenProcess.argtypes = [w.DWORD, w.BOOL, w.DWORD]
+        self.api.OpenProcess.restype = w.HANDLE
+        self.api.IsProcessInJob.argtypes = [w.HANDLE, w.HANDLE, ctypes.POINTER(w.BOOL)]
+        self.api.IsProcessInJob.restype = w.BOOL
+        self.api.WaitForSingleObject.argtypes = [w.HANDLE, w.DWORD]
+        self.api.WaitForSingleObject.restype = w.DWORD
         self.handle = self.api.CreateJobObjectW(None, None)
         if not self.handle:
             raise ctypes.WinError(ctypes.get_last_error())
@@ -72,28 +78,69 @@ class WindowsJob:
                     peak_process_commit_bytes=limits.peak_process,
                     peak_job_commit_bytes=limits.peak_job, reason=None)
 
+    def owned_handles(self, deadline):
+        """Pin only current members of this job; PIDs alone can be reused."""
+        from ctypes import wintypes as w
+        capacity = 32
+        while capacity <= 65536 and time.monotonic() < deadline:
+            buffer = ctypes.create_string_buffer(8 + ctypes.sizeof(ctypes.c_size_t)*capacity)
+            if self.api.QueryInformationJobObject(self.handle, 3, buffer, len(buffer), None):
+                count = ctypes.c_uint32.from_buffer(buffer, 4).value
+                assigned = ctypes.c_uint32.from_buffer(buffer).value
+                if count > capacity:
+                    return [], False
+                if assigned > count:
+                    capacity = max(capacity*2, assigned)
+                    continue
+                handles = []; complete = True
+                for pid in (ctypes.c_size_t*count).from_buffer(buffer, 8):
+                    if time.monotonic() >= deadline:
+                        return handles, False
+                    handle = self.api.OpenProcess(0x100000 | 0x1000, False, pid)  # SYNCHRONIZE | QUERY_LIMITED_INFORMATION
+                    if not handle:
+                        # A member may have exited between enumeration and open.
+                        complete = complete and ctypes.get_last_error() == 87
+                        continue
+                    member = w.BOOL()
+                    if self.api.IsProcessInJob(handle, self.handle, ctypes.byref(member)) and member.value:
+                        handles.append(handle)
+                    else:
+                        complete = False
+                        self.api.CloseHandle(handle)
+                return handles, complete
+            if ctypes.get_last_error() != 234:  # ERROR_MORE_DATA: the job grew during enumeration.
+                return [], False
+            capacity *= 2
+        return [], False
+
     def close(self, observe_memory=False):
         memory = unavailable_memory('Owned process cleanup was not observed complete', MEMORY_METHOD)
         if self.handle:
-            # Closing a job requests termination but does not wait for every
-            # descendant's executable handle to close. Observe the owned job's
-            # active count before returning to the caller's file cleanup.
+            # Active count can reach zero before terminated descendants release
+            # their current-directory handles. Also wait on pinned process
+            # handles, within the same cleanup deadline, before file cleanup.
             accounting = (ctypes.c_uint64 * 6)()
+            deadline = time.monotonic() + 3
+            handles, complete = self.owned_handles(deadline)
             try:
                 self.api.TerminateJobObject(self.handle, 125)
-                deadline = time.monotonic() + 3
                 while time.monotonic() < deadline:
                     if not self.api.QueryInformationJobObject(self.handle, 1, ctypes.byref(accounting), ctypes.sizeof(accounting), None):
                         break
                     active = ctypes.cast(ctypes.byref(accounting, 40), ctypes.POINTER(ctypes.c_uint32))[0]
                     if active == 0:
-                        if observe_memory:
+                        for handle in handles:
+                            remaining = max(0, int((deadline-time.monotonic())*1000))
+                            complete = self.api.WaitForSingleObject(handle, remaining) == 0 and complete
+                        if observe_memory and complete:
                             # Read lifetime peaks before releasing the job. Its
                             # children may all have exited between observations.
                             memory = self.memory()
                         break
                     time.sleep(.01)
             finally:
+                for handle in handles:
+                    self.api.CloseHandle(handle)
                 self.api.CloseHandle(self.handle)
                 self.handle = None
         return memory if observe_memory else None

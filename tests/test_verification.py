@@ -118,7 +118,7 @@ class VerificationTests(unittest.TestCase):
             'test_agent_benchmark_photo','test_agent_benchmark_recovery',
             'test_benchmark_driver',  # Captures complete external trial workspaces.
             'test_benchmark_icons','test_benchmark_large_layout',  # Exercise that capture lifecycle.
-            'test_benchmark_svg','test_benchmark_palette','test_benchmark_flow','test_benchmark_typography','test_benchmark_mask','test_benchmark_retouch','test_benchmark_photo','test_benchmark_mixed','test_benchmark_variants','test_benchmark_screen','test_benchmark_print','test_benchmark_resources','test_benchmark_repair',
+            'test_benchmark_svg','test_benchmark_palette','test_benchmark_flow','test_benchmark_typography','test_benchmark_mask','test_benchmark_retouch','test_benchmark_photo','test_benchmark_mixed','test_benchmark_variants','test_benchmark_screen','test_benchmark_print','test_benchmark_resources','test_benchmark_repair','test_benchmark_retry',
             'test_wsl_verification',  # The WSL snapshot binds the whole candidate.
         })
         # Refactoring must still invalidate actual shared helper consumers and
@@ -243,6 +243,16 @@ class VerificationTests(unittest.TestCase):
         row = process.run([sys.executable, str(parent), str(child)], self.root, timeout=3)
         self.assertEqual(row['status'], 'passed')
         self.assertLess(row['seconds'], 3)
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows terminated-process directory handles')
+    def test_timeout_releases_descendant_working_directories_before_returning(self):
+        command = "import subprocess,sys,time;[subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)']) for _ in range(3)];time.sleep(60)"
+        for index in range(8):
+            directory = self.root / ('cancelled-' + str(index)); directory.mkdir()
+            row = process.run([sys.executable, '-c', command], directory, timeout=.2, observe_memory=True)
+            self.assertEqual(row['status'], 'deferred')
+            self.assertTrue(row['memory']['available'], row)
+            directory.rmdir()  # No retry or grace sleep may hide an owned handle leak.
 
     def test_scheduler_does_not_launch_pending_checks_after_deadline(self):
         with redirect_stdout(io.StringIO()):

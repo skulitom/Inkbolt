@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B16. B17-B20 remain visible as
+The W2 external lifecycle currently supports B01-B17. B18-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -381,9 +381,39 @@ authenticated historical actions. All five fixed check IDs/classes remain;
 only Inkbolt history is not applicable to the baseline. Synthetic client runs
 remain infrastructure evidence, never model trials.
 
+B17's [recovery prompt](../tools/benchmark_prompts/B17.md) starts the external
+client after the harness has created work from the unchanged two-object fixture
+and sent the exact retry-request.json once. The harness deliberately withholds
+the successful move response from solver inputs. It retains that response in
+lost-response.json outside the workspace, pins its identity before client launch,
+and checks it again afterward. The client recovers the receipt, retries before
+undo, reviews the moved image, undoes once, retries again and saves the restored
+revision. The reference retains all nine original commands; external client
+recovery has seven reference calls plus two separately measured setup calls.
+
+`harness_setup` records file identities, engine command count, request/response
+bytes and roundtrip duration. These are harness observations, separate from
+client-reported metrics and the owned external process's memory measurements.
+Missing client usage remains unknown. Captured trials retain and validate setup
+identity/metrics and never reinject the edit on import. The setup and client
+execute on the same shared host; this is not a security sandbox. The client's
+tool policy forbids reading setup responses; capture hashes establish identity,
+not an authenticated attestation that a client obeyed that policy.
+
+The independent judge compares retained attempts with the withheld response and
+fresh durable receipts, checks exact original/edit/undo sources and fresh pixels,
+and repeats the historical retry on a bounded private copy of the captured
+session. Original captured files remain unchanged. The copy must preserve head
+revision 2 and the restored state while returning the original move receipt from
+revision 1. Wrong request fields, receipts, state IDs, extra revisions, changed
+artwork and setup evidence fail. Both original fixture identity and all five
+check IDs/classes remain fixed. The engine-specific no-engine baseline remains
+explicitly not applicable, without launching Inkbolt or the client.
+
 ## Preparation and import
 
-`--prepare-only` writes requests and fixtures without launching the client. It
+`--prepare-only` writes requests and fixtures without launching the client. B17
+also executes its two harness setup calls and retains the withheld response. It
 returns `prepared`, never a task pass. For now, use a configured client adapter
 to capture a prepared/external-client session in this protocol. Arbitrary older
 client transcript formats require an adapter; automatic format detection and a
