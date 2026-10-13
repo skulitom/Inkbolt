@@ -26,7 +26,7 @@ standing authorization.
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
 | W1 | Full Windows/Linux/macOS hosted acceptance passed at `d0719a1`, with all reports retained | Maintain platform coverage; Unix jobs remain open |
-| W2 | All twenty tasks separate solving from judging and have external lifecycles/capture import; B01-B16/B20 have baselines, B17-B19 are explicitly inapplicable there. Focused checks pass; B19/B20 require Windows and B10 Linux commit memory remains unproven | Implement matched comparison/losing-task reporting, then run genuine model/baseline trials; Linux memory evidence remains required |
+| W2 | All twenty tasks have external lifecycles/capture import and matched comparison/losing-task reporting; B01-B16/B20 have baselines, B17-B19 are explicitly inapplicable there. Windows/Linux focused controls pass; genuine model trials remain open | Run paired trials using externally configured client/model/settings; B19/B20 require Windows and B10 Linux commit-memory evidence remains required |
 | W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
 | W3a.1-2 | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance | Other W3a items remain open; prioritize them using W2 evidence |
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |

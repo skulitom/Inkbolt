@@ -892,9 +892,35 @@ Only status records in this document, PLATFORMS.md and the primary plan changed
 afterward. Evidence is external under `w2-b20-external-`; pinned tool identities
 remain under `w2-b20-consumer-tools`. No engine behavior or checkpoint changed.
 
-Matched comparison/losing-task reporting, arbitrary legacy transcript adapters,
-genuine model trials and B10 Linux commit-memory evidence remain open;
-full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
+Matched comparison and losing-task reporting now preserve every selected attempt,
+separate artifact success from engine guarantees, and keep unavailable usage
+unknown. The fixed policy requires five matched repetitions; cost signals require
+five jointly successful artifact pairs and complete observations. Reports retain
+uncertainty intervals, failed/missing checks and evidence mismatches. Full model,
+baseline and sister-product completion remain separate gates. See the
+[comparison contract](BENCHMARK_COMPARISON.md).
+
+Eighteen original comparison controls cover matching, evidence changes, missing
+and failed attempts, engine-only failures, cost accounting and completion flags.
+Final focused Windows verification passed 44 tests in 39.8 seconds; WSL passed
+41 tests in 21.7 seconds with three explicit Windows-only verifier skips. Both
+had unchanged inputs, no failures and no pending selected stages. Unchanged
+format/build/Clippy results were reused; this is not fresh full-suite acceptance.
+Final candidate: `e06cb76bb0e4b9d4a1989cede7bedafc774c3206576c2bbf44e1b371d7f04efd`.
+Only this status record and the primary plan changed afterward.
+
+The retained five-pair B20 synthetic controls produced identical scores and
+measurements from live and imported captures. Both arms passed five artifact
+trials; the equality signal is correctly visible, while all model-completion
+flags remain false and unknown usage produces no cost signal. Evidence remains
+external under `w2-comparison-`. No engine behavior or checkpoint credit changed.
+
+The owner authorized genuine Codex evaluations, including smaller-model trials.
+Model selection and settings belong only in external per-run configuration, with
+identical settings in each pair; no model is hardcoded into Inkbolt or the harness.
+Client integration, arbitrary legacy transcript adapters, genuine model trials
+and B10 Linux commit-memory evidence remain open. Full W2 milestone acceptance
+remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
 plan's decision rule; accepted outcomes remain required.
 

@@ -13,6 +13,11 @@ B17-B19 support the model arm; their engine-specific baselines remain explicitly
 applicable. B19 and B20 external execution requires Windows. Full matched-trial
 acceptance remains open.
 
+Use the [matched comparison tool](BENCHMARK_COMPARISON.md) to compare retained
+external model/baseline reports. It preserves all task IDs and failures, separates
+artifact checks from engine guarantees, and keeps missing usage unknown.
+Synthetic comparisons cannot establish model performance or the W2 acceptance gate.
+
 ## Running and preserving evidence
 
 Use a new external directory under an existing parent. The tool builds the locked

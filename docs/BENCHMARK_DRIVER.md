@@ -541,5 +541,7 @@ identity cannot independently authenticate how an external transcript was made.
 
 `actual_model_benchmark_complete` is derived from a complete fixed twenty-task,
 at-least-five-repetition model-arm run with retained genuine-client evidence and
-unchanged inputs. B01-only runs cannot set it. The matched comparison/losing-task
-report and real model trials remain required.
+unchanged inputs. B01-only runs cannot set it. The
+[matched comparison report](BENCHMARK_COMPARISON.md) checks retained identities,
+separates artifact/workflow scores and produces a losing-task list with explicit
+usage uncertainty. Genuine matched model/baseline trials remain required.
