@@ -213,6 +213,14 @@ Python tests with 35 skips, in 1124.4/3135.2 seconds. Every report confirms
 complete-suite coverage, unchanged inputs and no failed, pending or reused
 checks. Their common candidate fingerprint is
 `30fdfae481ac1757a86019d6ce9cd56a40fbaf00f62073da46fab021b3873c42`.
+The subsequent [hosted `d0719a1` run](https://github.com/skulitom/Inkbolt/actions/runs/38402258810)
+passed all 237 fresh stages on every platform. Windows ran 213 Rust and 2447
+Python tests with one skip in 4320.2 seconds; Linux/macOS each ran 179 Rust and
+2409 Python tests with 39 skips, in 1251.5/2901.0 seconds. All three retained
+reports confirm complete-suite coverage, unchanged inputs and no failed,
+pending or reused checks. Reports and logs are under `w1-public-ci-d0719a1`;
+their common candidate fingerprint is
+`0d80abe1ec91235c63bd1f5aa48f92908d0ecfad59af0caf52aabe8bfab17919`.
 This is the latest fully retained platform milestone, not full acceptance of
 subsequent focused benchmark increments or Unix jobs.
 
@@ -837,10 +845,55 @@ Only this status document and the primary plan table changed afterward. Evidence
 is external under `w2-b20-judge-`; the original interleaved control is retained
 under `w2-b20-reference-before-01` and the pinned tool identities under
 `w2-b20-consumer-tools`. External-client, capture/import and no-engine B20 baseline
-integration remain open, as does full W2 milestone acceptance.
+integration were still open at that reference-separation checkpoint.
 
-B20's external adapter/baseline, broader baseline judges, arbitrary legacy transcript
-adapters, matched comparison reporting and genuine model trials remain open;
+B20 now has an external lifecycle and no-Inkbolt baseline. Its local bridge owns
+both engines, measures their commands/processes, enforces consumer workspace
+paths and freezes delivery hashes after compilation. The prompt binds the exact
+task IDs while allowing independent client step labels. Ordinary returned engine
+errors can be repaired. Captures bind actual requests/responses, a fixed metric
+schema and observed preview bytes/timestamps; imports retain solve measurements
+and rejudge moved workspaces without running the client or rewriting history.
+
+The baseline authors editable layer JSON and exact PNG frames with pinned image
+tools. Both arms use the same pinned consumer solely to compile/render the
+required video. The baseline calls no Inkbolt process, including while judging.
+It preserves all seven artifact checks; all eight engine checks are explicitly
+not applicable. Pinned Pillow reconstructs the edit, and independent decoders
+check every video frame, clock and silent PCM sample. This does not grant typed
+handoff or managed-history guarantees to ordinary files.
+
+The final focused Windows gate passed 50 tests in 90.4 seconds, with formatting,
+locked build and all-target Clippy rerun. It includes real consumer/image tools,
+both moved-capture paths, distinct step labels, repaired engine errors, changed
+preview/evidence rejection, baseline isolation and consumer path bounds. Shared
+B19 recovery and generic driver tests pass after the capture-hook extension.
+WSL passed 45 selected tests in 91.1 seconds, including the shared reference
+adapters, with twelve explicit skips: six external-tool B20 cases, three B19 job
+cases and three Windows verifier cases. Its unchanged Rust checks reused passes.
+No selected check remains failed or pending. The earlier focused Windows run
+also passed (41 tests, 57.3 seconds); all reports are retained.
+
+Five fresh synthetic-client runs and five imported rejudgments passed in each
+arm. Every source/import workspace retained its captured hashes and measured
+solve data. The model path measured 15 Inkbolt plus 21 consumer solve commands,
+nine judge queries per engine and 20 decoder/probe calls. The baseline measured
+zero Inkbolt commands, six consumer commands and 16 independent decoder/probe
+calls. Consumer process observations were complete with zero active processes;
+baseline Inkbolt memory remains unavailable. Five fresh CLI and five MCP
+references also passed on that same candidate. These shared-host synthetic
+controls establish neither a model success rate nor an efficiency advantage.
+
+Final Windows/Linux/reference/external candidate fingerprint:
+`0c1686e14bf9d087222e0e92d5bd7bae8a0a91646aca4272e84409bce45a8b46`.
+Prompt version 2 hash:
+`ca5e7d5b97f0e8fecb605c203fea6e195066f9b5cf8183972f77d830eeae62a8`.
+Only status records in this document, PLATFORMS.md and the primary plan changed
+afterward. Evidence is external under `w2-b20-external-`; pinned tool identities
+remain under `w2-b20-consumer-tools`. No engine behavior or checkpoint changed.
+
+Matched comparison/losing-task reporting, arbitrary legacy transcript adapters,
+genuine model trials and B10 Linux commit-memory evidence remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
 plan's decision rule; accepted outcomes remain required.

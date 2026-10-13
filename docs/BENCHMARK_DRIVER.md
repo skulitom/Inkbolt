@@ -1,8 +1,8 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B19. B20 remains visible as
-`not_implemented` until their fixtures/prompts/judges are separated; the baseline
-reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
+The W2 external lifecycle supports B01-B20. B19 and B20 require Windows for
+their measured process controls. The baseline reports B17-B19 as
+`not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
 
 ## Configure a client
@@ -205,7 +205,8 @@ client provides observed data, replace null with an object containing
   is accepted only when those PNG bytes pass the independent artifact judge.
 
 Do not estimate unavailable metrics. Engine-only memory and engine round-trip
-timing remain unknown in this lifecycle; judge traffic is retained separately.
+timing remain unknown unless a task's harness observes them separately, as in
+B19 and B20 below; judge traffic is retained separately.
 Reports preserve failures and distributions of available observations, including
 token counts. Retained client reports are evidence, not authenticated attestations.
 
@@ -224,8 +225,9 @@ external client and locally spawned descendants, including tools and engine
 processes through cleanup. Fixture generation and independent judging happen
 outside that tree. Remote or already-running workers are outside this scope;
 clients must not present offloaded work as a fully measured local solve. This
-broader observation is not relabelled as engine-only memory. The existing
-`memory_complete` stays false and engine-only peak fields stay null. B10 uses the
+broader observation is not relabelled as engine-only memory. Without a separate
+engine observation, `memory_complete` stays false and engine-only peak fields
+stay null. B10 uses the
 largest individual process peak as a conservative upper bound for the fixed
 256 MiB budget. A larger enclosing-client peak does not prove an engine overrun,
 but does fail to establish the budget. The aggregate job peak is reported
@@ -472,6 +474,50 @@ content identities and unchanged source/destination captures remain mandatory.
 Unix jobs remain unsupported, so B19's external model arm refuses those hosts
 explicitly. Its entire no-engine baseline stays not applicable.
 
+B20's [linked-graphic prompt](../tools/benchmark_prompts/B20.md) supplies the same
+original two-frame source to both arms. Pass explicit `--cutbolt`, `--ffmpeg`
+and `--ffprobe` paths; executable hashes are bound into the contract and checked
+before and after execution. The request supplies handoff_bridge argv, with no
+direct engine executable or MCP configuration. Send sequential JSON messages
+with engine inkbolt or consumer, command, arguments and your own unique step
+label. Capabilities/schema discovery goes through the same measured bridge.
+The judge locates consumer actions by their actual requests and order, without
+requiring reference-client step labels. Required object/session/request IDs
+are stated in the prompt.
+
+All engine processes are harness-owned; consumer paths stay within the trial
+workspace, with fixed store and output destinations. The broker limits message
+size, count and total traffic, freezes delivered-file identities after compilation,
+and retains actual command responses and complete process observations. Ordinary
+returned engine errors can be repaired; control, containment and judge failures
+still fail. Preparation starts no engines. Consumer accounting currently requires
+Windows, so this external adapter explicitly refuses other platforms.
+
+handoff-control.json and handoff-observations.json remain outside the solver
+workspace. harness_handoff binds their bytes, recorded requests/responses, fixed
+metric fields and observed preview identities/timestamps. Import copies and
+validates these two proof files, retains original solve costs, and independently
+reopens histories and decodes outputs without launching the client. Separate raw
+consumer logs remain in the original evidence directory. Moving a captured run
+does not require rewriting saved assets or history. Capture identities are not
+authenticated attestations or a filesystem security sandbox.
+
+The model arm reports separately measured Inkbolt CLI memory, consumer process
+tree memory and combined command/traffic totals. Client-tree memory excludes
+these separately owned engine processes. Judge queries and decoders are excluded
+from solve metrics. A verified model-arm preview uses its actual observed engine
+response time and PNG hash; token/model usage remains unknown unless supplied.
+
+The B20 baseline authors an editable layer manifest, exact PNG frames and ordinary
+consumer scene/project JSON with the pinned image tools. It never builds or calls
+Inkbolt, including during judging. Both arms use the same pinned Cutbolt consumer
+solely to compile and render the required video. This is a common video dependency,
+not an Inkbolt handoff or saved-history guarantee for the baseline. Pinned Pillow
+reconstructs the edit, and independent decoding checks every video frame, timestamp
+and silent PCM sample. Both arms retain the same seven artifact checks; all eight
+engine checks stay visible as not applicable in the baseline. Its Inkbolt command
+count is zero and Inkbolt memory is unavailable; consumer costs remain measured.
+
 ## Preparation and import
 
 `--prepare-only` writes requests and fixtures without launching the client. B17
@@ -495,5 +541,5 @@ identity cannot independently authenticate how an external transcript was made.
 
 `actual_model_benchmark_complete` is derived from a complete fixed twenty-task,
 at-least-five-repetition model-arm run with retained genuine-client evidence and
-unchanged inputs. B01-only runs cannot set it. The remaining adapter migrations,
-matched comparison/losing-task report and real owner-run trials remain required.
+unchanged inputs. B01-only runs cannot set it. The matched comparison/losing-task
+report and real model trials remain required.

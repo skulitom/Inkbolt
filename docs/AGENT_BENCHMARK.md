@@ -7,10 +7,11 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B16 also support `--arm model` and
+`--arm reference` is the existing default. B01-B16 and B20 support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 B17-B19 support the model arm; their engine-specific baselines remain explicitly not
-applicable. The other external migrations and full matched-trial acceptance remain open.
+applicable. B19 and B20 external execution requires Windows. Full matched-trial
+acceptance remains open.
 
 ## Running and preserving evidence
 
@@ -415,8 +416,13 @@ The reference records 15 Inkbolt and 21 consumer solve commands. Nine fresh
 Inkbolt queries, nine consumer queries and 20 independent decoder/probe calls are
 reported as judge work. `total_engine_*` fields now cover solve work in both
 engines; consumer judge queries and decoding are excluded from solve wall time.
-All fifteen original checks remain fixed. External-client/capture and no-engine
-baseline adapters for B20 remain required; this separation does not complete them.
+All fifteen original checks remain fixed. B20 also supports external clients,
+relocated capture import and a no-Inkbolt baseline through the
+[driver contract](BENCHMARK_DRIVER.md). A bounded local bridge observes both
+engines and initial delivery hashes; the judge identifies workflow steps from
+actual requests and ordering. The baseline authors graphics with pinned image
+tools and shares only the required video consumer. It runs the same seven
+artifact checks; eight engine checks remain explicitly not applicable.
 
 The fixture shapes, labels, fonts, image samples and failure conditions are
 original and deliberately bounded. Exact integer geometry supplies an independent
@@ -440,7 +446,7 @@ Complete print/interchange scope remains governed by the original feature regist
   Report/row schema version 2 separates calls marked `phase:"judge"` from ordinary
   counts, bytes and round-trip time, preserving their raw records and separate
   `judge_*` totals. `judge_separated:true` identifies separated reference tasks
-  (B01-B20); external lifecycle support is B01-B19, with B19 requiring Windows.
+  (B01-B20); external lifecycle support is B01-B20, with B19 and B20 requiring Windows.
   Judge calls alone cannot establish a successful solve.
   For B20 these ordinary fields describe Inkbolt; `consumer` records the Cutbolt
   side. `total_engine_commands`, `total_engine_retries`, `total_request_bytes`,
@@ -511,3 +517,11 @@ force is required because the external tool/configuration bytes are outside the
 repository cache inputs. Each consumer checks executable hashes before and after.
 These tests clear solver caches, preserve delivered bytes, reject twelve altered
 artifact/observation cases and detect real extra revisions in both saved stores.
+
+`test_benchmark_handoff_external` always checks preparation and command boundaries.
+Its three Windows integration tests additionally require
+`INKBOLT_B20_BASELINE_TOOLS`, naming the pinned baseline JSON configuration. Run
+that module with `--force` and both tool variables set. It verifies measured live
+and moved-capture runs for both arms, independent step labels, repaired engine
+errors, baseline isolation, bad preview/evidence rejection and consumer path
+bounds. Missing external tools are explicit skips in ordinary hosted checks.

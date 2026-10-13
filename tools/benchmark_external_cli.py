@@ -6,6 +6,7 @@ import traceback
 from benchmark_driver import (config,driver_identity,read_json,run_external_task,model_run_complete,MIGRATED_TASKS)
 from benchmark_baseline import tool_identity,file_hash
 from benchmark_tasks import TASKS,SUITE,CHECKS,check_class
+from benchmark_consumer import tool_identities
 from measure_workloads import ROOT,candidate_identity,release_build,save_json,sha
 import measurement_host
 
@@ -15,11 +16,13 @@ def run_suite(args, output, aggregate):
     driver=driver_identity(configuration)
     baseline_config=read_json(args.baseline_tools) if args.baseline_tools else None
     tools=tool_identity(baseline_config) if baseline_config else None
+    consumer_tools={name:getattr(args,name).resolve() for name in ('cutbolt','ffmpeg','ffprobe') if getattr(args,name)}
+    consumer_identity=tool_identities(consumer_tools) if consumer_tools else None
     candidates=candidate_identity();environment=measurement_host.identity()
     executable,build=release_build(output) if args.arm=='model' else (None,None)
     selected=tuple(args.tasks or TASKS)
     identity=dict(schema_version=1,suite=SUITE,arm=args.arm,client=configuration['client'],model=configuration['model'],
-        driver_kind=configuration['kind'],driver=driver,baseline_tools=tools,build=build,environment=environment,
+        driver_kind=configuration['kind'],driver=driver,baseline_tools=tools,consumer_tools=consumer_identity,build=build,environment=environment,
         conditions=args.conditions,candidate_files=candidates,candidate_sha256=sha(json.dumps(candidates,sort_keys=True,separators=(',',':')).encode()),
         selected_tasks=selected,repetitions=args.repetitions,
         git_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip())
@@ -34,7 +37,7 @@ def run_suite(args, output, aggregate):
             name=f'{repetition:02d}-{task}';base=output/name
             try:
                 row=run_external_task(executable,base,task,repetition,args.arm,configuration,tools,
-                    args.import_root.resolve()/name if args.import_root else None,args.prepare_only)
+                    args.import_root.resolve()/name if args.import_root else None,args.prepare_only,consumer_tools=consumer_tools)
             except Exception as error:
                 base.mkdir(exist_ok=True)
                 row=dict(task=task,repetition=repetition,arm=args.arm,status='failed',model_trials=False,
@@ -45,7 +48,8 @@ def run_suite(args, output, aggregate):
             print(json.dumps(dict(task=task,repetition=repetition,arm=args.arm,status=row['status'])),flush=True)
     unchanged=(candidates==candidate_identity() and environment==measurement_host.identity() and
                driver==driver_identity(configuration) and (tools is None or tools==tool_identity(baseline_config)) and
-               (executable is None or file_hash(executable)==build['executable_sha256']))
+               (executable is None or file_hash(executable)==build['executable_sha256']) and
+               (not consumer_tools or consumer_identity==tool_identities(consumer_tools)))
     success=all(row['status'] in (('prepared','not_applicable') if args.prepare_only else ('passed','not_applicable')) for row in rows)
     report=dict(schema_version=2,suite=SUITE,arm=args.arm,transport='external-client',
         selected_tasks=selected,all_tasks=list(TASKS),repetitions=args.repetitions,

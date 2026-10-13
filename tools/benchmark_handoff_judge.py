@@ -26,6 +26,31 @@ def authored():
 def read_json(case,name):return strict_json(delivered(case,name))
 
 
+def consumer_roles(report,records):
+    """Locate workflow observations by requests/order, never client step names."""
+    from pathlib import Path
+    rows=report['calls'];roles={}
+    def pick(role,command,predicate=lambda request:True,after=-1,before=None,error=False):
+        matches=[i for i,row in enumerate(rows) if after<i<(len(rows) if before is None else before) and
+            row['command']==command and row['step'] in records and records[row['step']]['response'].get('ok') is (not error) and
+            predicate(records[row['step']]['request'])]
+        require(matches,'Missing observed consumer workflow role: '+role)
+        index=matches[0];roles[role]=rows[index]['step'];return index
+    initial=pick('initial','session.apply',lambda r:r.get('request_id')=='initial')
+    compiled=pick('delivery-1-compile','scene.render',lambda r:Path(r.get('output','')).parent.name=='delivery-1',after=initial)
+    relink=pick('relink','session.apply',lambda r:r.get('request_id')=='relink',after=compiled)
+    reviewed=pick('review-relink','session.preview',lambda r:r.get('expected_revision')==1,after=compiled,before=relink)
+    undo=pick('undo','session.undo',lambda r:r.get('request_id')=='undo',after=relink)
+    retry=pick('retry','session.apply',lambda r:r.get('request_id')=='relink',after=undo)
+    pick('stale','session.apply',lambda r:r.get('request_id')=='stale',after=relink,before=undo,error=True)
+    for role,after,before in (('timeline-before',initial,compiled),('before-relink',compiled,reviewed),
+        ('after-review',reviewed,relink),('restored',undo,retry),('after-retry',retry,None)):
+        pick(role,'session.get',after=after,before=before)
+    pick('timeline-after','session.get',lambda r:r.get('revision')==2,after=relink)
+    pick('historical','session.get',lambda r:r.get('revision')==1,after=relink)
+    return roles
+
+
 def durable_inputs(case):
     original=case.call('judge-authored','document.validate',document=authored())
     receipts={name:case.call('judge-receipt-'+name,'session.receipt',session_id='work',request_id=name) for name in ('create','move')}
@@ -55,9 +80,11 @@ def judge_retained(case,original,receipts,current,history,final,preview,inspecti
     require(set(observed)=={'schema_version','consumer','records','delivery_files'} and observed['schema_version']==1,
         'Unexpected handoff observation fields')
     records=observed['records'];report=observed['consumer'];attempts=read_json(case,'consumer-attempts.json')
+    roles=consumer_roles(report,records)
+    def record(role):return records[roles[role]]
     require(set(attempts)=={'initial','review','relink','stale','undo','retry'},'Unexpected retained consumer attempts')
     def response(step,error=False):
-        value=records[step]['response'];require(value.get('ok') is (not error),'Unexpected observed consumer response')
+        value=record(step)['response'];require(value.get('ok') is (not error),'Unexpected observed consumer response')
         return value['error' if error else 'result']
     def project_response(step):
         value=response(step);return value.get('project',value)
@@ -122,7 +149,7 @@ def judge_retained(case,original,receipts,current,history,final,preview,inspecti
             'Export or preview implicitly changed the consumer timeline')
         steps=[r['step'] for r in report['calls']]
         order=['initial','timeline-before','delivery-1-compile','before-relink','review-relink','after-review','relink']
-        require([steps.index(step) for step in order]==sorted(steps.index(step) for step in order),'Consumer review/relink order changed')
+        require([steps.index(roles[step]) for step in order]==sorted(steps.index(roles[step]) for step in order),'Consumer review/relink order changed')
     case.check('no-implicit-relink',no_relink)
     def explicit():
         target=copy.deepcopy(expected);target['revision']=2;target['assets'].append(asset(1));target['tracks']['tracks'][0]['clips'][0]['asset_id']='graphic-r1'
@@ -132,8 +159,8 @@ def judge_retained(case,original,receipts,current,history,final,preview,inspecti
             projects[1]==read_json(case,'historical.json')==project_response('historical'),'Replacement changed unrelated state or old history')
         require(attempts['initial']==saved['initial']==response('initial') and attempts['relink']==saved['relink']==response('relink') and
             attempts['review']==response('review-relink')==saved['relink']['changes'] and
-            records['review-relink']['request']['operations']==records['relink']['request']['operations'] and
-            records['review-relink']['request']['expected_revision']==records['relink']['request']['expected_revision']==1,
+            record('review-relink')['request']['operations']==record('relink')['request']['operations'] and
+            record('review-relink')['request']['expected_revision']==record('relink')['request']['expected_revision']==1,
             'Explicit relink or its review differs from durable receipts')
     case.check('explicit-consumer-revision',explicit)
     def undo_retry():
@@ -141,10 +168,10 @@ def judge_retained(case,original,receipts,current,history,final,preview,inspecti
         require(projects[3]==head==restored==read_json(case,'restored.json')==read_json(case,'after-retry.json')==
             project_response('restored')==project_response('after-retry'),'Undo or retry changed the restored consumer state')
         require(attempts['undo']==saved['undo']==response('undo') and attempts['retry']==saved['relink']==response('retry') and
-            records['retry']['request']==records['relink']['request'] and attempts['stale']==response('stale',True) and
-            attempts['stale']['code']=='REVISION_CONFLICT' and records['stale']['request']['expected_revision']==1 and
-            records['stale']['request']['operations']==records['relink']['request']['operations'] and
-            records['stale']['request']['request_id']=='stale','Undo, stale rejection or exact retry evidence differs')
+            record('retry')['request']==record('relink')['request'] and attempts['stale']==response('stale',True) and
+            attempts['stale']['code']=='REVISION_CONFLICT' and record('stale')['request']['expected_revision']==1 and
+            record('stale')['request']['operations']==record('relink')['request']['operations'] and
+            record('stale')['request']['request_id']=='stale','Undo, stale rejection or exact retry evidence differs')
         require(checked==dict(valid=True,migration_required=False,store_schema_version=2,projects=[dict(project_id='linked',revision=3)],
             requests=4,revisions=4),'Consumer history contains extra or invalid revisions')
     case.check('consumer-undo-retry',undo_retry)
@@ -162,7 +189,8 @@ def judge_retained(case,original,receipts,current,history,final,preview,inspecti
         require(report['memory_complete'] and report['tools']==case.consumer.identities and case.consumer.unchanged() and
             report['commands']==len(report['calls'])==len(records) and report['commands']>0,'Missing consumer process accounting')
         for row in report['calls']:
-            require(row['phase']=='task' and row['status'] in ('success','expected_error') and row['memory_available'] and
+            returned_error=row['status']=='failure' and isinstance(row.get('engine_error'),dict) and records[row['step']]['response'].get('ok') is False
+            require(row['phase']=='task' and (row['status'] in ('success','expected_error') or returned_error) and row['memory_available'] and
                 row['active_processes']==0 and row['processes']>=1 and row['peak_tree_commit_bytes']>0 and
                 row['peak_process_commit_bytes']>0 and row['step'] in records,'Incomplete observed consumer process lifetime')
             request=records[row['step']]['request']

@@ -26,6 +26,7 @@ import benchmark_repair
 import benchmark_retry
 import benchmark_conflict
 import benchmark_recovery_external
+import benchmark_handoff_external
 from benchmark_baseline import judge_diagram, file_hash
 from benchmark_baseline_icons import judge_icons
 from benchmark_baseline_large_layout import judge_large_layout
@@ -54,7 +55,8 @@ MIGRATIONS = {'B01':(benchmark_diagram, judge_diagram), 'B02':(benchmark_icons, 
               'B11':(benchmark_mixed, judge_mixed), 'B12':(benchmark_variants, judge_variants),
               'B13':(benchmark_screen, judge_screen), 'B14':(benchmark_print, judge_print),
               'B15':(benchmark_resources, judge_resources), 'B16':(benchmark_repair, judge_repair),
-              'B17':(benchmark_retry, None), 'B18':(benchmark_conflict, None), 'B19':(benchmark_recovery_external,None)}
+              'B17':(benchmark_retry, None), 'B18':(benchmark_conflict, None), 'B19':(benchmark_recovery_external,None),
+              'B20':(benchmark_handoff_external,benchmark_handoff_external.judge_baseline)}
 MIGRATED_TASKS = tuple(MIGRATIONS)
 MAX_METADATA = 1024*1024
 MAX_TRANSCRIPT = 64*1024*1024
@@ -222,6 +224,7 @@ def contract(case, configuration, tools):
         baseline_tools=None if tools is None else {k:{a:b for a,b in v.items() if a!='path'} for k,v in tools.items()})
     adapter=MIGRATIONS[case.task][0]
     if hasattr(adapter,'control_identity'):value['control_files']=adapter.control_identity()
+    if hasattr(adapter,'contract_fields'):value.update(adapter.contract_fields(case))
     return value
 
 
@@ -268,7 +271,10 @@ def validate_result(evidence, request_contract, capture, files):
         workspace_sha256=sha(canonical(files)),contract_sha256=sha(canonical(request_contract)),
         original_host=capture['host'],execution=capture['execution'],harness_setup=setup)
     adapter=MIGRATIONS[request_contract['task']][0]
-    if hasattr(adapter,'validate_capture'):validated['harness_recovery']=adapter.validate_capture(evidence,capture.get('harness_recovery'))
+    if hasattr(adapter,'validate_capture'):
+        key=getattr(adapter,'CAPTURE_KEY','harness_recovery')
+        validated[key]=adapter.validate_capture(evidence,capture.get(key))
+        if 'arm' in validated[key]:require(validated[key]['arm']==request_contract['arm'],'Harness capture changed its arm')
     return validated
 
 
@@ -294,14 +300,15 @@ def import_capture(source, case, evidence, expected):
     for name in (validated['harness_setup'] or {}).get('files',{}):
         save(evidence/name,(source/'evidence'/name).read_bytes())
     validate_setup(evidence,expected['task'],validated['harness_setup'])
-    if validated.get('harness_recovery'):
-        for name in validated['harness_recovery']['files']:save(evidence/name,(source/'evidence'/name).read_bytes())
-        MIGRATIONS[expected['task']][0].validate_capture(evidence,validated['harness_recovery'])
+    adapter=MIGRATIONS[expected['task']][0];key=getattr(adapter,'CAPTURE_KEY','harness_recovery')
+    if validated.get(key):
+        for name in validated[key]['files']:save(evidence/name,(source/'evidence'/name).read_bytes())
+        adapter.validate_capture(evidence,validated[key])
     validated['imported']=True
     return validated
 
 
-def run_external_task(executable, base, task, repetition, arm, configuration, tools=None, import_source=None, prepare=False):
+def run_external_task(executable, base, task, repetition, arm, configuration, tools=None, import_source=None, prepare=False,consumer_tools=None):
     base.mkdir();evidence=base/'evidence';evidence.mkdir()
     if arm=='baseline' and task in BASELINE_NOT_APPLICABLE:
         row=dict(task=task,repetition=repetition,arm=arm,status='not_applicable',reason=BASELINE_NOT_APPLICABLE[task],model_trials=False)
@@ -313,7 +320,8 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
     require(arm in ('model','baseline'), 'Invalid external arm')
     adapter,baseline_judge=MIGRATIONS[task]
     factory=getattr(adapter,'external_trial',ExternalTrial)
-    case=factory(executable if arm=='model' else None,base/'workspace',task,repetition,'cli',CHECKS[task],arm=arm)
+    options=dict(consumer_tools=consumer_tools) if task=='B20' else {}
+    case=factory(executable if arm=='model' else None,base/'workspace',task,repetition,'cli',CHECKS[task],arm=arm,**options)
     case.judge_root=evidence
     case.result_path=base/'result.json'
     adapter.fixture(case);case.begin(adapter.PROMPT.read_text(encoding='utf-8'))
@@ -365,7 +373,8 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
                 result_sha256=file_hash(evidence/'driver-result.json'),transcript_sha256=file_hash(raw),
                 host=measurement_host.identity(),execution=execution,driver_identity=pinned)
             if case.setup is not None:capture['harness_setup']=case.setup
-            if hasattr(case,'harness_recovery'):capture['harness_recovery']=case.harness_recovery
+            key=getattr(adapter,'CAPTURE_KEY','harness_recovery')
+            if hasattr(case,key):capture[key]=getattr(case,key)
             save_json(evidence/'capture.json',capture)
             case.driver_evidence=validate_result(evidence,expected,capture,files)
     except Exception as error:

@@ -37,6 +37,7 @@ from benchmark_repair_client import author as author_repair,publish as publish_r
 from benchmark_retry import solve as solve_retry
 from benchmark_conflict import solve as solve_conflict
 from benchmark_recovery_client import solve as solve_recovery
+from benchmark_handoff import solve as solve_handoff
 from benchmark_recovery_bridge import exchange as recovery_exchange
 from test_images_cli import png
 
@@ -96,8 +97,46 @@ def main():
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15','B16','B17','B18','B19')
-    if request['contract']['arm']=='model' and task=='B19':
+    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15','B16','B17','B18','B19','B20')
+    if task=='B20':
+        assert request['mcp_config'] is None and 'engine_executable' not in request
+        def send(message):
+            if '--handoff-names' in sys.argv:
+                message['step']='client-'+message['step']
+                if message.get('retry_of'):message['retry_of']='client-'+message['retry_of']
+            if '--handoff-cli' in sys.argv:
+                result=subprocess.run(request['handoff_bridge'],input=json.dumps(message).encode(),capture_output=True,timeout=90)
+                response=json.loads(result.stdout);assert result.returncode==(0 if response['ok'] else 1)
+            else:response=recovery_exchange(request['handoff_bridge'][-1],message)
+            events.append(dict(step=message['step'],request=json.dumps(message),response=json.dumps(response)))
+            return response
+        if '--probe-error' in sys.argv:
+            for engine in ('inkbolt','consumer'):
+                response=send(dict(engine=engine,step='missing',command='session.receipt',arguments={}))
+                assert not response['ok'] and response['error']['code']!='BENCHMARK_CONTROL_ERROR',response
+        if '--baseline-engine' in sys.argv:
+            response=send(dict(engine='inkbolt',step='forbidden',command='capabilities',arguments={}))
+            assert not response['ok'] and response['error']['code']=='BENCHMARK_CONTROL_ERROR',response
+        if '--consumer-escape' in sys.argv:
+            response=send(dict(engine='consumer',step='escape',command='session.get',arguments=dict(store_root=str(root.parent),project_id='linked')))
+            assert not response['ok'] and response['error']['code']=='BENCHMARK_CONTROL_ERROR',response
+        def command(engine):
+            def call(step,name,expected_error=None,retry_of=None,preview=False,**arguments):
+                response=send(dict(engine=engine,step=step,command=name,arguments=arguments,
+                    expected_error=expected_error,retry_of=retry_of,preview=preview))
+                if expected_error:
+                    assert not response['ok'] and response['error']['code']==expected_error,response
+                    return response['error']
+                assert response['ok'],response
+                return response['result']
+            return call
+        if request['contract']['arm']=='model':
+            solve_handoff(SimpleNamespace(root=root,call=command('inkbolt'),consumer=SimpleNamespace(call=command('consumer')),
+                observe_delivery=lambda identities:None))
+        else:
+            from benchmark_handoff_client import solve_baseline
+            solve_baseline(root,request['baseline_tools'],command('consumer'))
+    elif request['contract']['arm']=='model' and task=='B19':
         assert request['mcp_config'] is None and 'engine_executable' not in request
         def send(message):
             if '--recovery-full' in sys.argv and message.get('command')=='session.apply':message['arguments']['response_mode']='full'

@@ -92,7 +92,7 @@ def tree_command(argv, payload, environment, timeout):
 
 
 class Consumer:
-    COMMANDS={'scene.inspect','scene.render','session.create','session.get','session.preview',
+    COMMANDS={'capabilities','schema','scene.inspect','scene.render','session.create','session.get','session.preview',
               'session.apply','session.undo','session.check','session.receipt','session.history','render.run'}
 
     def __init__(self, root, tools, timeout=90):
@@ -132,6 +132,7 @@ class Consumer:
             require(type(envelope.get('ok')) is bool and metrics['exit_code']==int(not envelope['ok']),
                     'Consumer exit/envelope mismatch')
             self.records[step]=dict(request=json.loads(payload),response=copy.deepcopy(envelope))
+            if not envelope['ok']:row['engine_error']=envelope.get('error')
             if expected_error:
                 require(not envelope['ok'] and envelope.get('error',{}).get('code')==expected_error,
                         'Expected consumer diagnostic did not occur')
