@@ -14,8 +14,10 @@ all A1-A7 acceptance gates, original checkpoint criteria, B01-B20 outcomes,
 matched sister-project comparisons and existing recovery guarantees remain
 required. W9's optional learned-model integration stays deferred.
 
-W0's shared limit definitions are complete. Continue with W1 platform support, W2 actual
-model trials with a separate no-engine baseline, and W5.1 payload deduplication.
+W0's shared limit definitions and W5.1 payload deduplication are complete within
+their verified scope. Continue W1's remaining platform work and W2's actual
+model trials with a separate no-engine baseline, using the primary plan's current
+status table to distinguish completed slices from remaining work.
 Continue through everyday vector inputs, declared-tolerance curved booleans,
 larger native raster workflows, measured interface improvements, distribution,
 broader interchange admission and evidence-based documentation in the plan's
@@ -40,7 +42,9 @@ The owner additionally requested Linux execution and testing using WSL.
 The current W1 slice adds native Linux verification of core/CLI/MCP, sessions and
 receipts, with visible capability-based job skips and independent caches.
 See [platform support](PLATFORMS.md). W0 now also has fresh full Windows/Linux
-acceptance. macOS, CI activation, Linux jobs and release/scale evidence remain open.
+acceptance. Hosted Windows/Linux/macOS CI subsequently passed; Linux jobs and
+release/scale evidence remain open. The platform document records exact revisions
+and distinguishes full hosted acceptance from later focused checks.
 
 ## Delivery gates
 

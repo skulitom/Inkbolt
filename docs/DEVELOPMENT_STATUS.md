@@ -1262,6 +1262,31 @@ remain in the retained reports. Evidence is under `w2-photo-screen-judge-`, with
 tested candidate `2d7fa5e3eddaa00f616189c548d16d0c7d0e4d974687861c6fdf232e27c4ebeb`.
 This remains focused judge evidence, not a new engine feature or full acceptance.
 
+B11/B12 synthetic trials reproduced false failures when valid resources,
+sessions and publication receipts used custom folders. Their judges now locate
+exact original image bytes and pinned font/license files within the capture,
+bind saved states to the selected session, and locate each publication request
+read-only before engine verification. Separate receipt folders are admitted;
+missing/ambiguous IDs and damaged resources still fail. B12 also admits the
+three prescribed keyed bindings in a different order, preserving corresponding
+saved base values and every target, type, dataset and snapshot requirement.
+This ordering correction was reproduced before any genuine B12 trials.
+
+All three retained failing synthetic captures pass after rejudging, with identical
+workspace files, transcripts, client results and captured memory. B11/B12 still
+use seven/eighteen judge engine calls. Moved-capture tests retain no default
+resource/session stores; B12 uses three separate receipt folders. Corrupt and
+missing images/fonts/licenses, altered receipt checksums and binding targets
+remain rejected. Windows executed 56 Python tests with one explicit symlink
+creation skip in 62.2 seconds; WSL executed 54 with three platform skips in
+39.1 seconds. Unchanged Cargo checks were reused, with no failed or pending
+selected checks in the final runs. The verifier's dependency test was updated
+to include the new store-folder snapshot test; earlier failures remain retained.
+Reports and before/after captures are under `w2-mixed-variants-stores-` and
+`w2-variant-binding-order-before-01`, tested candidate
+`0d48913ef6dd4f800b1bcd3f8648ad0a6ee84894d444eca4bbb38f053f707f8b`.
+These corrections prepare genuine trials; they award no model or engine credit.
+
 Five-repetition model trials for the other nine tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

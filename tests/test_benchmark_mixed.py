@@ -95,13 +95,22 @@ class MixedBenchmarkTests(unittest.TestCase):
 
     def test_external_capture_rejudges_after_original_resource_roots_move(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver()
+            root=Path(directory);configuration=driver('--custom-session-store','--custom-asset-store')
             row=run_external_task(EXE,root/'live','B11',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);self.assertFalse(row['model_trials']);self.assertIsNone(row['model_calls'])
+            self.assertFalse((root/'live/workspace/.inkbolt/assets').exists());self.assertFalse((root/'live/workspace/.inkbolt/sessions').exists())
             before=workspace_files(root/'live/workspace');(root/'live').rename(root/'capture')
             imported=run_external_task(EXE,root/'import','B11',1,'model',configuration,import_source=root/'capture')
             self.assertEqual(imported['status'],'passed',imported);self.assertEqual(imported['checks'],row['checks'])
             self.assertEqual(before,workspace_files(root/'capture/workspace'));self.assertEqual(before,workspace_files(root/'import/workspace'))
+
+    def test_missing_or_corrupt_custom_image_store_is_not_repaired_by_judging(self):
+        for fault in ('--missing-asset-copy','--corrupt-asset-copy'):
+            with self.subTest(fault=fault),tempfile.TemporaryDirectory() as directory:
+                row=run_external_task(EXE,Path(directory)/'failed','B11',1,'model',
+                    driver('--custom-session-store','--custom-asset-store',fault))
+                self.assertEqual(row['status'],'failed',row)
+                self.assertIn('resource-identity',[c['name'] for c in row['checks'] if c['status']=='fail'])
 
     def test_baseline_verifies_retained_layers_and_fresh_composition_without_engine_access(self):
         good=dict(pixels=original_pixels(),mask=mask_samples(),rendered=mixed_pixels(original_pixels(),(5,-1)))

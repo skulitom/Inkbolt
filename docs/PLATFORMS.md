@@ -7,7 +7,7 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained hosted Windows/Linux/macOS matrix passed at `8bc8982`,
+The latest retained hosted Windows/Linux/macOS matrix passed at `a7e034e`,
 including the Windows job-fixture corrections; see below.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 

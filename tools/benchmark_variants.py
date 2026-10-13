@@ -3,8 +3,10 @@ import base64
 import copy
 from pathlib import Path
 
-from benchmark_diagram import delivered
+from benchmark_diagram import delivered,retained_font_store
 from benchmark_graphics import BLUE,GREEN,ORANGE,document,pixels,png_check,store,source_snapshot
+from benchmark_large_layout import retained_session_store
+from benchmark_stores import retained_asset_store,retained_publication_store
 from benchmark_runtime import require,safe_name,strict_json
 from benchmark_typography import LICENSE
 from synthetic_font import geometric_font
@@ -97,8 +99,14 @@ def expected_base(case,base,n):
     assets={name:dict(width=2,height=2,sha256=sha(canonical(2,2,bytes(color)*4)),storage=dict(type='stored'),
         provenance=dict(source_sha256=case.sources[name+'.png'],interpretation='declared_srgb')) for name,color in [('green',GREEN),('orange',ORANGE)]}
     value=initial_document(font,assets,n);value['revision']=base['revision']
-    value['variants']=dict(definition=definition(n),selected=None,base=[dict(type='text',value=dict(text='A',ranges=[])),
-        dict(type='position',value=[2,16]),dict(type='image',value=n['green'])])
+    wanted_definition=definition(n);bindings={row['key']:row for row in wanted_definition['bindings']}
+    order=[row['key'] for row in base['variants']['definition']['bindings']]
+    require(len(order)==3 and all(isinstance(key,str) for key in order) and set(order)==set(bindings),
+            'Expected exactly the label, place and image binding keys')
+    wanted_definition['bindings']=[bindings[key] for key in order]
+    initial=dict(label=dict(type='text',value=dict(text='A',ranges=[])),
+                 place=dict(type='position',value=[2,16]),image=dict(type='image',value=n['green']))
+    value['variants']=dict(definition=wanted_definition,selected=None,base=[initial[key] for key in order])
     return case.call('judge-template','document.validate',document=value)
 
 
@@ -108,17 +116,15 @@ def judge(case):
     base=snapshots['base'];names=names_from(base);template=expected_base(case,base,names)
     reopened={key:case.call('judge-reopen-'+key,'document.validate',document=dict(file_path=name,sha256=sha(delivered(case,name))))
               for key,name in files.items()}
+    font_root=asset_root=None
     def preserved():
+        nonlocal font_root,asset_root
         require(base==template and base==reopened['base'],'The complete base layout or variant definition changed')
         wanted=copy.deepcopy(base);wanted['revision']=snapshots['restored']['revision']
         require(wanted==snapshots['restored']==reopened['restored'],'The complete base was not restored')
-        require(delivered(case,'.inkbolt/fonts/'+case.sources['original.ttf']+'.font')==delivered(case,'original.ttf') and
-            delivered(case,'.inkbolt/fonts/'+case.sources['font-license.txt']+'.license')==delivered(case,'font-license.txt'),
-            'The retained font/license bytes changed')
-        for name,color in [('green',GREEN),('orange',ORANGE)]:
-            resource=canonical(2,2,bytes(color)*4)
-            require(delivered(case,'.inkbolt/assets/'+sha(resource)+'.rgba8')==resource,'Retained image pixels changed')
-    case.check('base-preserved',preserved)
+        font_root=retained_font_store(case)
+        asset_root=retained_asset_store(case,[canonical(2,2,bytes(color)*4) for color in (GREEN,ORANGE)])
+    require(case.check('base-preserved',preserved),'The complete base and original resources were not retained')
     def bindings():
         require(base==template,'The variant definition differs from the requested bindings/inheritance')
         for name,(label,position,image) in ROWS.items():
@@ -129,7 +135,7 @@ def judge(case):
     case.check('variant-bindings',bindings)
     for name,w,h,_,_ in BOARDS:
         rendered=case.call('judge-render-'+name,'document.preview',document=reopened[name],
-                          options=dict(focus=dict(type='artboard',id=name)),preview=True)
+                          font_root=font_root,asset_root=asset_root,options=dict(focus=dict(type='artboard',id=name)),preview=True)
         def picture(name=name,w=w,h=h,rendered=rendered):
             png_check(delivered(case,name+'.png'),w,h,expected_picture(name))
             png_check(base64.b64decode(rendered['artifact']['data'],validate=True),w,h,expected_picture(name))
@@ -141,11 +147,13 @@ def judge(case):
     revisions=[locator['revisions'][name] for name in files]
     require(all(type(v) is int and v>=0 for v in revisions) and all(a<b for a,b in zip(revisions,revisions[1:])),
             'Base, selected and restored revisions must be in increasing order')
-    saved={name:case.call('judge-saved-'+name,'document.validate',document=dict(session_id=locator['session_id'],revision=revision))
+    session_root=retained_session_store(case,locator['session_id'])
+    saved={name:case.call('judge-saved-'+name,'document.validate',document=dict(session_root=session_root,session_id=locator['session_id'],revision=revision))
            for name,revision in locator['revisions'].items()}
     receipts={}
     for name,request in locator['publications'].items():
-        safe_name(request);receipts[name]=case.call('judge-receipt-'+name,'publication.receipt',request_id=request)
+        safe_name(request);receipts[name]=case.call('judge-receipt-'+name,'publication.receipt',
+            receipt_root=retained_publication_store(case,request),request_id=request)
     def outputs():
         identities=strict_json(delivered(case,'outputs.json'))
         require(set(identities)==set(ROWS),'All three delivery identities must be retained')
@@ -156,7 +164,7 @@ def judge(case):
                 result['artboard_id']==name and result['variant']==name and result['format']=='png',
                 'Earlier output differs from its completed publication receipt: '+name)
     case.check('outputs-preserved',outputs)
-    verified=case.call('judge-history','session.verify',session_id=locator['session_id'])
+    verified=case.call('judge-history','session.verify',session_root=session_root,session_id=locator['session_id'])
     case.check('history-valid',lambda:require(verified['valid'] and verified['revision']==revisions[-1] and
         all(saved[name]==snapshots[name] and saved[name]['revision']==locator['revisions'][name] for name in files),
         'History must bind every selected snapshot and the restored current head'))

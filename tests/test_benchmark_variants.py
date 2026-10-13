@@ -1,8 +1,10 @@
 """B12 independent state, resource, viewport and durable publication checks."""
 import copy
+from contextlib import closing
 import json
 from pathlib import Path
 import struct
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -82,12 +84,13 @@ class VariantBenchmarkTests(unittest.TestCase):
             self.assertEqual(locator['session_id'],'family-session');self.assertEqual(locator['revisions']['restored'],6)
 
     def test_damaged_controls_resources_deliveries_receipts_and_head_reject(self):
-        for fault in ('binding','inheritance','restored','board','image','font','preview','output-hash','receipt','old-state','new-head','missing'):
+        for fault in ('binding','binding-target','inheritance','restored','board','image','font','preview','output-hash','receipt','receipt-bytes','old-state','new-head','missing'):
             with self.subTest(fault=fault),tempfile.TemporaryDirectory() as directory:
                 case=self.prepare(Path(directory)/fault)
-                name='base.json' if fault in ('binding','inheritance') else 'restored.json' if fault=='restored' else 'source-square.json'
+                name='base.json' if fault in ('binding','binding-target','inheritance') else 'restored.json' if fault=='restored' else 'source-square.json'
                 path=case.root/name;data=json.loads(path.read_bytes())
                 if fault=='binding':data['variants']['definition']['bindings'][0]['key']='other'
+                elif fault=='binding-target':data['variants']['definition']['bindings'][0]['item_id']='image'
                 elif fault=='inheritance':data['variants']['definition']['datasets']['square'].pop('parent')
                 elif fault=='restored':data['items'][1]['content']['frame']['style']['size']=21
                 elif fault=='board':data['items'][5]['content']['frame']['width']=33
@@ -97,6 +100,9 @@ class VariantBenchmarkTests(unittest.TestCase):
                 elif fault=='preview':(case.root/'square.png').write_bytes(png(1,1,bytes(4)))
                 elif fault=='output-hash':
                     p=case.root/'outputs.json';value=json.loads(p.read_bytes());value['wide']='0'*64;p.write_text(json.dumps(value),encoding='utf-8')
+                elif fault=='receipt-bytes':
+                    with closing(sqlite3.connect(case.root/'.inkbolt/publications/publications.sqlite3')) as db:
+                        db.execute("UPDATE publications SET sha256=?",('0'*64,));db.commit()
                 elif fault in ('receipt','old-state'):
                     p=case.root/'session.json';value=json.loads(p.read_bytes())
                     if fault=='receipt':value['publications']['wide']=value['publications']['square']
@@ -112,13 +118,25 @@ class VariantBenchmarkTests(unittest.TestCase):
 
     def test_external_capture_rejudges_moved_workspaces_without_modifying_inputs(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver()
+            root=Path(directory);configuration=driver('--custom-session-store','--custom-font-store','--custom-asset-store','--custom-receipt-store','--variant-binding-order')
             row=run_external_task(EXE,root/'live','B12',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);before=workspace_files(root/'live/workspace')
+            for name in ('sessions','fonts','assets','publications'):self.assertFalse((root/'live/workspace/.inkbolt'/name).exists())
+            self.assertEqual(len(list((root/'live/workspace/chosen receipts').rglob('publications.sqlite3'))),3)
+            base=json.loads((root/'live/workspace/base.json').read_bytes())
+            self.assertEqual([b['key'] for b in base['variants']['definition']['bindings']],['image','place','label'])
             (root/'live').rename(root/'capture')
             imported=run_external_task(EXE,root/'import','B12',1,'model',configuration,import_source=root/'capture')
             self.assertEqual(imported['status'],'passed',imported);self.assertFalse(imported['model_trials'])
             self.assertEqual(before,workspace_files(root/'capture/workspace'));self.assertEqual(before,workspace_files(root/'import/workspace'))
+
+    def test_custom_stores_require_intact_original_images_font_and_license(self):
+        for fault in ('--missing-asset-copy','--corrupt-font-copy','--missing-font-license'):
+            with self.subTest(fault=fault),tempfile.TemporaryDirectory() as directory:
+                row=run_external_task(EXE,Path(directory)/'failed','B12',1,'model',driver(
+                    '--custom-session-store','--custom-font-store','--custom-asset-store','--custom-receipt-store',fault))
+                self.assertEqual(row['status'],'failed',row)
+                self.assertIn('base-preserved',[c['name'] for c in row['checks'] if c['status']=='fail'])
 
     def test_baseline_uses_fresh_viewports_and_never_launches_engine(self):
         for fault in ('none','render','delivery'):

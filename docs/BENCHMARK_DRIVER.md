@@ -65,7 +65,7 @@ encoding for those positions. Independent authored glyph/cluster coordinates and
 both delivered/fresh pixels still reject a shifted baseline; all other text,
 font, frame, snapshot and history checks are unchanged.
 
-B03 and B05-B10 likewise locate the session ID from `session.json` within the captured
+B03 and B05-B12 likewise locate the session ID from `session.json` within the captured
 workspace, using its canonical database filename. A missing, linked, external
 or ambiguous store fails. The engine then reads both declared revisions and
 verifies the full history from that explicit root; filename discovery alone
@@ -297,6 +297,8 @@ changes. The judge reopens both snapshots, checks the complete composition and
 canonical image bytes, renders current/original states, and binds them to the
 saved revisions and final head. It accepts independently chosen IDs and multiple
 editing steps; correct solver logs cannot replace the delivered evidence.
+The image store is located by its exact canonical source bytes, and the saved
+session by its ID; neither location must use the reference solver's folder name.
 
 The baseline retains editable vector/group/shadow controls in a bounded manifest
 and a separate opaque grayscale PNG mask. Pinned Pillow reopens the original and
@@ -315,7 +317,15 @@ The model judge independently checks all snapshots, typed binding definitions,
 inheritance, retained resource bytes, saved revisions and restored head. It
 compares earlier PNGs with completed durable publication receipts and freshly
 renders each selected artboard. Arbitrary non-artboard IDs and extra edit steps
-are accepted; captures rejudge after their original resource roots move.
+are accepted; captures rejudge after their original resource roots move. The
+judge finds intact font/license and image stores inside the capture. Publication
+request IDs may live in separate retained receipt folders: read-only lookup
+finds each ID, then the engine validates the selected ledger and receipt. Missing
+or ambiguous receipt identities fail, and lookup never reconstructs resources
+or receipts from the source fixtures.
+The three binding keys may appear in any order, with their corresponding saved
+base values. Their exact targets, types, dataset values and inheritance remain
+required; reordering cannot substitute a different binding or change a snapshot.
 
 The baseline retains one shared text/image definition instanced by three SVG
 viewports, the original and restored base SVGs, editable dataset values and

@@ -6,6 +6,8 @@ from pathlib import Path
 
 from benchmark_diagram import delivered
 from benchmark_graphics import ORANGE, document, rectangle, store, source_snapshot, png_check
+from benchmark_large_layout import retained_session_store
+from benchmark_stores import retained_asset_store
 from benchmark_runtime import require, safe_name, strict_json
 from test_images_cli import png, canonical
 from workload_cases import save, save_json, sha
@@ -97,12 +99,13 @@ def judge(case):
         wanted['items'][2]['effects'][0]['operator']['offset']=[5,-1]
         require(actual==wanted,'Only the shadow offset and revision may change')
     case.check('composition-retained',retained)
+    asset_root=None
     def resources():
+        nonlocal asset_root
         require(before['assets']==actual['assets']=={names['asset']:asset},'Pinned original image identity or interpretation changed')
-        require(delivered(case,'.inkbolt/assets/'+asset['sha256']+'.rgba8')==canonical(32,24,original_pixels()),
-                'Stored original pixels differ from their independently encoded source')
-    case.check('resource-identity',resources)
-    rendered=case.call('judge-preview','document.preview',document=reopened,preview=True)
+        asset_root=retained_asset_store(case,[canonical(32,24,original_pixels())])
+    require(case.check('resource-identity',resources),'The original image store was not retained')
+    rendered=case.call('judge-preview','document.preview',document=reopened,asset_root=asset_root,preview=True)
     def picture():
         expected=mixed_pixels(original_pixels(),(5,-1))
         png_check(delivered(case,'preview.png'),32,24,expected)
@@ -113,16 +116,17 @@ def judge(case):
     safe_name(locator['session_id'])
     require(type(locator['original_revision']) is int and locator['original_revision']==0 and
             type(locator['current_revision']) is int and locator['current_revision']==actual['revision']>0,'Invalid original/current revisions')
-    old=case.call('judge-original-revision','document.validate',document=dict(session_id=locator['session_id'],revision=0))
-    current=case.call('judge-current-revision','document.validate',document=dict(session_id=locator['session_id'],revision=actual['revision']))
-    historical=case.call('judge-historical','document.preview',document=old,preview=True)
+    session_root=retained_session_store(case,locator['session_id'])
+    old=case.call('judge-original-revision','document.validate',document=dict(session_root=session_root,session_id=locator['session_id'],revision=0))
+    current=case.call('judge-current-revision','document.validate',document=dict(session_root=session_root,session_id=locator['session_id'],revision=actual['revision']))
+    historical=case.call('judge-historical','document.preview',document=old,asset_root=asset_root,preview=True)
     def old_picture():
         require(old==original,'Saved original revision differs from the requested composition')
         expected=mixed_pixels(original_pixels(),(3,2))
         png_check(delivered(case,'historical.png'),32,24,expected)
         png_check(base64.b64decode(historical['artifact']['data'],validate=True),32,24,expected)
     case.check('historical-pixels',old_picture)
-    verified=case.call('judge-history','session.verify',session_id=locator['session_id'])
+    verified=case.call('judge-history','session.verify',session_root=session_root,session_id=locator['session_id'])
     case.check('history-valid',lambda:require(verified['valid'] and verified['revision']==actual['revision'] and
         old==original and current==actual,'History must bind the original composition, final delivery and current head'))
 
