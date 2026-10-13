@@ -488,7 +488,35 @@ including changed source pixels behind an unchanged correct preview. Prompt hash
 Evidence remains external under `w2-b11-`. These are shared-host correctness
 results, not genuine model trials, performance comparisons or full W2 acceptance.
 
-B12-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B12 separates the original layout-variant fixture, shared prompt, reference solve
+and independent judge. The four original font/license/image files remain unchanged;
+a named rendering companion supplies SVG font selection while preserving every
+glyph/metric table. The reference still uses 18 solve commands. Its separate judge
+checks all five snapshots, the restored current head, complete typed definitions
+and inheritance, pinned resource bytes, and earlier PNGs against completed durable
+publication receipts. All three delivered and freshly rendered boards face the
+unchanged pixel oracle. Arbitrary non-artboard IDs, extra edit steps and relocated
+captures pass; incorrect controls, resources, outputs, receipt bindings and history
+fail. The baseline retains shared editable SVG instances, dataset values and the
+restored base. The seven original check IDs/classes remain fixed, with its two
+engine-only checks explicitly not applicable.
+
+The separated reference metric now recognizes a successful PNG publication only
+when both hash and byte count match the independently checked image. Judge calls,
+lost/missing responses and wrong media/identities cannot invent preview timing.
+Focused verification passed 50 tests on Windows in 108.4 seconds and 48 on Linux
+in 77.3 seconds, with two explicit Windows-counter skips. No selected stage failed
+or remained pending; unchanged engine formatting/build/Clippy results were reused.
+Both reports and the final trials retained unchanged candidate fingerprint:
+`4d1113cfdd2aebe4eb3ca8815f13323a21fec015f43e2c8d02b7e5875d4bf9af`.
+Five real-tool synthetic baseline trials passed on each platform; all five Windows
+captures passed rejudging. The client renders full sheets and crops boards with
+pinned imaging tools; the judge independently renders each viewport. Prompt hash:
+`1355cb1b113d313f2ccc62db1923350b002e5acbdd863e5faf3d82509c404894`.
+Evidence remains external under `w2-b12-`. These are shared-host correctness
+results, not genuine model trials, performance comparisons or full W2 acceptance.
+
+B13-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B11 also support `--arm model` and
+`--arm reference` is the existing default. B01-B12 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -190,7 +190,16 @@ unquantized intermediate values. The fresh result and delivered preview face the
 same unchanged rational oracle. Its two engine-only checks are explicitly not
 applicable. See the [driver contract](BENCHMARK_DRIVER.md).
 
-B12-B20 still interleave solving and judging. All required checks have
+B12 separates its original variant fixture, [shared prompt](../tools/benchmark_prompts/B12.md),
+reference solver and delivered-evidence judge. All five saved snapshots, the
+restored head, retained resources, typed definitions/inheritance and completed
+publication receipts are checked independently of solver logs. Each selected
+artboard is freshly rendered against the original exact geometry. The baseline
+keeps editable shared SVG instances, dataset values and restored base, with a
+named rendering companion for the original unnamed font. The companion retains
+every glyph/metric table. Its two engine-only checks are explicitly not applicable.
+
+B13-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 
@@ -332,7 +341,9 @@ Complete print/interchange scope remains governed by the original feature regist
   First verified preview is the recorded completion time of the earliest image
   response or delivery later accepted by its independent pixel oracle. It is a
   retrospective availability measure, not a model's assessment of usefulness.
-  B01 matches the judged PNG bytes to an observed solve response; a judge render
+  Separated reference tasks match judged PNG bytes to an observed solve preview
+  response, or match both hash and length to a successful PNG publication result.
+  A judge render, missing/lost response, wrong media type or mismatched identity
   cannot supply missing preview timing.
   B19's overlapping CLI callers mean summed round trips need not equal wall time.
 - Windows memory uses OS lifetime high-water marks: the maximum individual CLI

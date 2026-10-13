@@ -24,6 +24,8 @@ from benchmark_baseline_retouch import manifest as retouch_manifest
 from benchmark_photo import solve as solve_photo
 from benchmark_mixed import solve as solve_mixed,original_pixels as mixed_source,mask_samples as mixed_mask,mixed_pixels
 from benchmark_baseline_mixed import manifest as mixed_manifest
+from benchmark_variants import solve as solve_variants,expected_picture as variant_picture,BOARDS
+from benchmark_variants_client import author as author_variants
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -82,7 +84,7 @@ def main():
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11')
+    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,**arguments):
             if task=='B10' and '--photo-names' in sys.argv:
@@ -97,14 +99,14 @@ def main():
             return response['result']
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
          'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo,
-         'B11':solve_mixed}[task](SimpleNamespace(root=root,call=call))
+         'B11':solve_mixed,'B12':solve_variants}[task](SimpleNamespace(root=root,call=call))
         if task=='B10' and '--photo-names' in sys.argv:
             locator=json.loads((root/'session.json').read_bytes())
             locator['requests']={role:'owner-'+name for role,name in locator['requests'].items()}
             (root/'session.json').write_text(json.dumps(locator),encoding='utf-8')
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
-        if task in ('B10','B11'):
+        if task in ('B10','B11','B12'):
             pass  # A separate client writes the editable manifest.
         elif task=='B09':
             (root/'editable.json').write_text(json.dumps(retouch_manifest()),encoding='utf-8')
@@ -130,7 +132,18 @@ def main():
             else: source = SVG if task == 'B01' else ICONS_SVG
             (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B11':
+        if task=='B12':
+            if renderer['version']=='synthetic-fixture':
+                author_variants(root);identities={}
+                for name,w,h,_,_ in BOARDS:
+                    raw=png(w,h,variant_picture(name));(root/(name+'.png')).write_bytes(raw)
+                    identities[name]=hashlib.sha256(raw).hexdigest()
+                (root/'editable.svg').write_bytes((root/'base.svg').read_bytes())
+                (root/'outputs.json').write_text(json.dumps(identities),encoding='utf-8')
+            else:
+                subprocess.run([request['baseline_tools']['python']['path'],'-I',str(ROOT/'tests/benchmark_variants_client.py'),
+                                str(root),renderer['path']],check=True)
+        elif task=='B11':
             if renderer['version']=='synthetic-fixture':
                 (root/'editable.json').write_text(json.dumps(mixed_manifest(hashlib.sha256((root/'original.png').read_bytes()).hexdigest())),encoding='utf-8')
                 gray=bytes(v for alpha in mixed_mask() for v in (alpha,alpha,alpha,255))
@@ -221,14 +234,15 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
                 str(root/'editable.svg'),str(root/'preview.png')],check=True)
         events.append(dict(kind='synthetic',action='authored baseline fixture'))
     if '--changed-prompt' in sys.argv: (root/'task.txt').write_text('changed',encoding='utf-8')
-    if '--wrong-image' in sys.argv: (root/('board-1.png' if task=='B02' else 'preview.png')).write_bytes(png(1,1,b'\0'*4))
+    preview_name='board-1.png' if task=='B02' else 'square.png' if task=='B12' else 'preview.png'
+    if '--wrong-image' in sys.argv: (root/preview_name).write_bytes(png(1,1,b'\0'*4))
     target=Path(request['result_path'])
     (target.parent/'transcript.jsonl').write_text('\n'.join(json.dumps(row) for row in events)+'\n',encoding='utf-8')
     observed=None
     if '--usage' in sys.argv:
         observed=dict(source='client_reported',token_usage=dict(input_tokens=20,output_tokens=10),model_calls=2,agent_seconds=1.5)
     if '--preview-usage' in sys.argv:
-        preview=root/('board-1.png' if task=='B02' else 'preview.png')
+        preview=root/preview_name
         observed=dict(source='client_reported',agent_seconds=1.5,first_preview_seconds=.5,
                       first_preview_sha256=hashlib.sha256(preview.read_bytes()).hexdigest())
     if '--invalid-usage' in sys.argv: observed=dict(source='client_reported',model_calls=True)

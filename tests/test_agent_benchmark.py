@@ -21,6 +21,29 @@ from test_images_cli import png
 
 
 class AgentBenchmarkTests(unittest.TestCase):
+    def test_verified_file_preview_requires_matching_observed_solve_publication(self):
+        raw=png(1,1,bytes([20,80,150,255]))
+        from workload_cases import sha
+        for fault in ('none','hash','size','format','media','judge','lost','failed','missing','command'):
+            with self.subTest(fault=fault),tempfile.TemporaryDirectory() as directory:
+                case=Trial(None,Path(directory)/'publication','B12',1,'cli',[])
+                result=dict(format='png',media_type='image/png',bytes=len(raw),sha256=sha(raw))
+                row=dict(step='chosen-by-client',phase='task',status='success',response_observed=True,
+                         command='document.publish',completed_task_seconds=.25)
+                if fault=='hash':result['sha256']='0'*64
+                elif fault=='size':result['bytes']+=1
+                elif fault=='format':result['format']='snapshot'
+                elif fault=='media':result['media_type']='application/json'
+                elif fault=='judge':row['phase']='judge'
+                elif fault=='lost':row['response_observed']=False
+                elif fault=='failed':row['status']='failure'
+                elif fault=='command':row['command']='document.validate'
+                case.calls.append(row)
+                if fault!='missing':case.results[row['step']]=dict(result=result)
+                case.verified_preview(raw)
+                self.assertEqual(case.first_preview,.25 if fault=='none' else None)
+                case.close()
+
     def test_fixed_twenty_outcomes_match_the_accepted_plan_and_open_tasks_stay_visible(self):
         text=(ROOT/'docs/AGENT_READINESS.md').read_text(encoding='utf-8')
         self.assertEqual(list(TASKS),[f'B{i:02d}' for i in range(1,21)])

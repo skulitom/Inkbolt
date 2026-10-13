@@ -15,66 +15,6 @@ from pdf_reader import Pdf
 from test_ink_delivery_cli import painted
 
 
-def layout_variants(case):
-    case.source('original.ttf',geometric_font());case.source('font-license.txt',LICENSE)
-    for name,color in [('green',GREEN),('orange',ORANGE)]:case.source(name+'.png',png(2,2,bytes(color)*4))
-    case.begin('Build one editable shared component with blue size-20 original.ttf label A at '
-        '(2,0), plus a 4x4 green image at (2,16). Place it on wide 48x24, square 32x32 and tall '
-        '24x48 artboards. Define typed text, position and image bindings. Wide selects AAA and '
-        'green at (36,16); square inherits wide but selects AA and orange at (24,24); tall selects '
-        'A and green at (10,38). Export each corresponding artboard under its own name. '
-        'Restore the base and preserve definitions, fonts, images, previous outputs and history.')
-    font=case.call('font','font.import',source_path='original.ttf',license_path='font-license.txt')
-    assets={name:case.call('image-'+name,'asset.import',source_path=name+'.png')['asset'] for name in ['green','orange']}
-    items=[dict(id='shared',content=dict(type='component_source')),
-        dict(id='title',parent='shared',transform=[1,0,0,1,2,0],content=dict(type='text',frame=dict(
-            text='A',width=44,height=24,wrap=False,style=dict(font_id='face',size=20,fill=BLUE)))),
-        dict(id='image',parent='shared',transform=[1,0,0,1,2,16],content=dict(type='image',asset_id='green',width=4,height=4))]
-    boards=[('wide',48,24,0,0),('square',32,32,56,0),('tall',24,48,0,40)]
-    for name,w,h,x,y in boards:
-        items.extend([dict(id=name,transform=[1,0,0,1,x,y],content=dict(type='frame',frame=dict(role='artboard',width=w,height=h))),
-            dict(id='copy-'+name,parent=name,content=dict(type='instance',instance=dict(source='shared')))])
-    store(case,document('variants','vector',96,96,fonts=dict(face=font),assets=assets,items=items))
-    val=lambda kind,value:dict(type=kind,value=value)
-    definition=dict(bindings=[dict(key=k,item_id=i,property=p) for k,i,p in [('label','title','text'),('place','image','position'),('image','image','image')]],
-        datasets=dict(wide=dict(values=dict(label=val('text',dict(text='AAA')),place=val('position',[36,16]),image=val('image','green'))),
-            square=dict(parent='wide',values=dict(label=val('text',dict(text='AA')),place=val('position',[24,24]),image=val('image','orange'))),
-            tall=dict(values=dict(label=val('text',dict(text='A')),place=val('position',[10,38]),image=val('image','green')))))
-    apply(case,'define',0,[dict(op='variants_set',definition=definition)])
-    base=source_snapshot(case,ref(1),'base');snapshots=[];outputs={}
-    for index,(name,w,h,_,_) in enumerate(boards):
-        revision=index+2
-        apply(case,'select-'+name,revision-1,[dict(op='variant_select',dataset=name)])
-        actual=source_snapshot(case,ref(revision),'source-'+name);snapshots.append(actual)
-        count,x,y,color={'wide':(3,36,16,GREEN),'square':(2,24,24,ORANGE),'tall':(1,10,38,GREEN)}[name]
-        output=dict(format='png',file_name=name+'.png',artboard_id=name)
-        delivered=case.call('deliver-'+name,'document.publish',document=ref(revision),output=output)
-        raw=(case.root/(name+'.png')).read_bytes();outputs[name]=sha(raw)
-        expected=pixels(w,h,[(3+12*i,2,8,14,BLUE) for i in range(count)]+[(x,y,4,4,color)])
-        case.check(name+'-pixels',lambda raw=raw,w=w,h=h,expected=expected:png_check(raw,w,h,expected),preview_step='deliver-'+name)
-        require(delivered['sha256']==sha(raw),'Variant output identity changed')
-    def bindings():
-        require(base['fonts']['face']['sha256']==case.sources['original.ttf'] and
-            base['fonts']['face']['license_sha256']==case.sources['font-license.txt'] and
-            all(base['assets'][name]['sha256']==sha(canonical(2,2,bytes(color)*4)) for name,color in [('green',GREEN),('orange',ORANGE)]),
-            'Variant font or image differs from its original source')
-        for actual,(name,_,_,_,_) in zip(snapshots,boards,strict=True):
-            wanted={'wide':('AAA',[36,16],'green'),'square':('AA',[24,24],'orange'),'tall':('A',[10,38],'green')}[name]
-            require(actual['variants']['selected']==name and actual['variants']['definition']==base['variants']['definition'],
-                'Variant definition/selection changed')
-            require(actual['items'][1]['content']['frame']['text']==wanted[0] and actual['items'][2]['transform'][4:]==wanted[1]
-                and actual['items'][2]['content']['asset_id']==wanted[2],'Variant resolved incorrect bindings')
-            require(actual['fonts']==base['fonts'] and actual['assets']==base['assets'] and actual['items'][3:]==base['items'][3:],
-                'A variant changed resources or shared placements')
-    case.check('variant-bindings',bindings)
-    apply(case,'restore-base',4,[dict(op='variant_select',dataset=None)])
-    restored=source_snapshot(case,ref(5),'restored');wanted=copy.deepcopy(base);wanted['revision']=5
-    case.check('base-preserved',lambda:require(restored==wanted,'Variant selection did not restore captured base'))
-    case.check('outputs-preserved',lambda:require(all(sha((case.root/(name+'.png')).read_bytes())==digest for name,digest in outputs.items()),
-        'A subsequent variant overwrote an earlier output'))
-    verify_history(case)
-
-
 def physical_print(case):
     rgb=linear_profile();cmyk=cmyk_profile()
     case.source('original-rgb.icc',rgb);case.source('original-cmyk.icc',cmyk)

@@ -210,17 +210,24 @@ class Trial:
         self.phase = 'judge'
 
     def verified_preview(self, raw):
-        """Match judged bytes to an observed solve response without a chosen step ID."""
+        """Match judged image bytes to an observed preview/publication response."""
         for row in self.calls:
             if (row.get('phase') == 'judge' or row['status'] != 'success'
-                    or not row['response_observed'] or row['command'] != 'document.preview'):
+                    or not row['response_observed']):
                 continue
-            artifact = self.results.get(row['step'], {}).get('result', {}).get('artifact', {})
-            if artifact.get('encoding') != 'base64':
-                continue
-            try:
-                matches = base64.b64decode(artifact.get('data', ''), validate=True) == raw
-            except (ValueError, TypeError):
+            result = self.results.get(row['step'], {}).get('result', {})
+            if row['command'] == 'document.preview':
+                artifact = result.get('artifact', {})
+                if artifact.get('encoding') != 'base64':
+                    continue
+                try:
+                    matches = base64.b64decode(artifact.get('data', ''), validate=True) == raw
+                except (ValueError, TypeError):
+                    continue
+            elif row['command'] in ('document.publish', 'session.publish'):
+                matches = (result.get('format') == 'png' and result.get('media_type') == 'image/png'
+                           and result.get('bytes') == len(raw) and result.get('sha256') == sha(raw))
+            else:
                 continue
             if matches:
                 elapsed = row['completed_task_seconds']

@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B11. B12-B20 remain visible as
+The W2 external lifecycle currently supports B01-B12. B13-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -274,6 +274,26 @@ mask; independent numeric composition retains intermediate precision until final
 unchanged rational oracle. Image paths and all supported controls are admitted
 before decoding. The five original check IDs/classes remain unchanged; historical
 pixels and session integrity are explicitly not applicable in the baseline.
+
+B12's [shared prompt](../tools/benchmark_prompts/B12.md) keeps the original font,
+license and two image fixtures. A supplied named font companion changes only
+naming/checksum metadata, so the baseline rasterizer can select the same glyphs
+and metrics without changing the unnamed original. Both arms export the same
+three artboard sizes and restore their editable base after selecting each row.
+The model judge independently checks all snapshots, typed binding definitions,
+inheritance, retained resource bytes, saved revisions and restored head. It
+compares earlier PNGs with completed durable publication receipts and freshly
+renders each selected artboard. Arbitrary non-artboard IDs and extra edit steps
+are accepted; captures rejudge after their original resource roots move.
+
+The baseline retains one shared text/image definition instanced by three SVG
+viewports, the original and restored base SVGs, editable dataset values and
+delivery hashes. It embeds only the exact supplied image bytes and renders with
+system fonts disabled. Admission precedes the pinned rasterizer; the judge
+independently renders each selected viewport and checks the delivered PNG too.
+The original seven check IDs/classes remain fixed. Typed engine bindings and
+session integrity are explicitly not applicable there. Retained delivery hashes
+establish content identity, not authenticated filesystem history.
 
 ## Preparation and import
 
