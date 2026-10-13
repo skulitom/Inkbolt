@@ -382,8 +382,8 @@ errors or retries. Input totals include cached context without adding cached or
 reasoning tokens twice. Billing, model-call counts, full engine traffic/retries,
 first verified preview and engine-only memory remain unknown.
 
-The next work is broader B04/B05 evidence after correcting the palette judge's
-unprescribed default-store assumption. B03 reinforces the need to reduce
+The next work is broader B04/B05 evidence; the palette judge's unprescribed
+default-store assumption now has a focused Windows/WSL correction. B03 reinforces the need to reduce
 discovery overhead, while the full task matrix must still guide substantial
 W3c/W4/W5.2+/W6 ordering. This batch does not complete W2 or change checkpoints.
 

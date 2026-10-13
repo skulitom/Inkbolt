@@ -59,7 +59,7 @@ linked or external copies cannot substitute for retained resources. The judge
 does not import the font on the agent's behalf or assume the default store name;
 captured trials must also reopen after workspace relocation.
 
-B03 likewise locates the session ID from `session.json` within the captured
+B03 and B05 likewise locate the session ID from `session.json` within the captured
 workspace, using its canonical database filename. A missing, linked, external
 or ambiguous store fails. The engine then reads both declared revisions and
 verifies the full history from that explicit root; filename discovery alone

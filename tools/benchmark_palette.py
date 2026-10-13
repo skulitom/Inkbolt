@@ -4,6 +4,7 @@ import copy
 from pathlib import Path
 
 from benchmark_diagram import delivered
+from benchmark_large_layout import retained_session_store
 from benchmark_graphics import BLUE, GREEN, ORANGE, pixels, png_check, store, apply, source_snapshot
 from benchmark_runtime import require, safe_name, strict_json
 from workload_cases import document, rectangle, save, save_json, sha
@@ -68,13 +69,14 @@ def judge(case):
     require(isinstance(locator,dict) and set(locator) == {'session_id','original_revision','current_revision'},
         'Expected a session ID and the original/current revision numbers')
     safe_name(locator['session_id'])
+    session_root = retained_session_store(case, locator['session_id'])
     require(type(locator['original_revision']) is int and locator['original_revision'] == 0 and
         type(locator['current_revision']) is int and locator['current_revision'] == actual['revision'] > 0,
         'Session revisions do not identify the original and delivered snapshots')
     old = case.call('judge-original-revision','document.validate',
-        document=dict(session_id=locator['session_id'],revision=locator['original_revision']))
+        document=dict(session_id=locator['session_id'],revision=locator['original_revision'],session_root=session_root))
     current = case.call('judge-current-revision','document.validate',
-        document=dict(session_id=locator['session_id'],revision=locator['current_revision']))
+        document=dict(session_id=locator['session_id'],revision=locator['current_revision'],session_root=session_root))
     # Render the loaded, resource-free snapshot so captured sessions remain
     # judgeable after relocation without trusting their old absolute roots.
     historical = case.call('judge-historical','document.preview',document=old,preview=True)
@@ -83,7 +85,7 @@ def judge(case):
         png_check(delivered(case,'historical.png'),32,16,expected_picture(False))
         png_check(base64.b64decode(historical['artifact']['data'],validate=True),32,16,expected_picture(False))
     case.check('historical-pixels',history_picture)
-    verified = case.call('judge-history','session.verify',session_id=locator['session_id'])
+    verified = case.call('judge-history','session.verify',session_id=locator['session_id'],session_root=session_root)
     case.check('history-valid',lambda:require(verified['valid'] and verified['revision'] == actual['revision']
         and old == original and current == actual,
         'Saved history must be valid and contain the exact original and delivered snapshots'))

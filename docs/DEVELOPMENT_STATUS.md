@@ -1137,6 +1137,19 @@ reliability advantage. All twenty traces were reviewed, both source candidates
 remained unchanged, and the selected comparisons had no matching issues.
 See [the complete scope and evidence](BENCHMARK_RESULTS.md#b01b03-at-8bc8982-five-matched-pairs).
 
+B05 had the same default-session-store assumption: a synthetic custom-store
+reproduction passed live swatch/pixel checks but failed `SESSION_NOT_FOUND`.
+Its judge now reuses B03's checked retained-store discovery for both revisions
+and history verification. The existing capture test uses a nondefault directory,
+asserts no default store exists, and verifies relocation without changing either
+workspace. Existing collateral-edit, source, false-history and pixel controls
+remain unchanged. Focused Windows/WSL checks passed 32/29 Python tests in
+37.9/17.7 seconds, with three explicit Linux skips, unchanged Cargo passes
+reused and no failed/pending selected checks. Reproduction and reports remain
+under `w2-b05-store-before-01` and `w2-b05-session-store-`, tested candidate
+`53ff8ce326af86910d2ba5c70c8c641f18075125a3db3294a6cf54ac605a5c0e`.
+This fixes judging only; it does not change engine behavior or add model evidence.
+
 Five-repetition model trials for the other seventeen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
