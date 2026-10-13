@@ -2,36 +2,31 @@
 
 Local graphics editing for AI agents.
 
-Inkbolt gives agents structured tools to create and revise vector artwork,
-raster images and layered documents. Build graphics, inspect the result, make
-precise edits and deliver files while keeping the source editable.
+Inkbolt lets agents create graphics, preview their work, make precise revisions
+and export the result while keeping an editable source. Use it for diagrams,
+illustrations, layouts and image assets.
 
-Use it through a **JSON command-line interface**, **MCP over stdio**, or the
-**Rust library**. The engine runs locally, with no account, network service or
-telemetry. It works with any client that can use these interfaces; no particular
-model is required.
+It runs locally through **MCP over stdio**, a **JSON command-line interface**, or
+the **Rust library**. There is no account, network service or telemetry, and no
+particular AI model is required.
 
 ## What you can do
 
-- **Create graphics:** combine paths, text, images and artboards for diagrams,
-  illustrations, layouts and screen assets.
-- **Edit images:** work with layers, selections, masks, adjustments and retouching,
-  with native-depth pixel storage for supported workflows.
-- **Review changes:** inspect document structure, request focused previews,
-  compare revisions and check output settings before delivery.
-- **Keep work editable:** save sessions with revision checks, undo/redo,
-  named snapshots and recoverable publication receipts.
-- **Deliver files:** export supported artwork to PNG, TIFF, SVG and PDF,
-  using explicit color settings and outputs that do not overwrite existing files.
+- **Build compositions** from vector shapes, text and images.
+- **Revise artwork** with targeted edits, layers, masks and image adjustments.
+- **Review and continue** using previews, saved sessions, undo/redo and revision
+  comparisons.
+- **Deliver assets** as PNG, TIFF, SVG or PDF within the supported workflows,
+  preserving source files and refusing to overwrite existing outputs.
 
-Each workflow has documented limits. Unsupported input or output semantics
-produce explicit errors; declared approximations and conversion losses are
-reported to the caller.
+Agents can discover tools and request individual operation schemas as they work.
+Unsupported features fail explicitly; approximations and conversion losses are
+reported.
 
 ## Get started
 
-Install Rust with rustup, then build from the repository root. The checked-in
-toolchain file selects the development compiler and Cargo.lock pins dependencies.
+Install Rust with rustup, then build from the repository root using the pinned
+toolchain and dependencies.
 
 **Windows**
 
@@ -50,21 +45,15 @@ cargo build --locked
 ```
 
 The example returns editable artwork as JSON. The final command starts the MCP
-stdio adapter for a client to connect to. See the [MCP configuration
-examples](examples/mcp-config.json) and [runnable workflows](examples/README.md)
-for previews, saved sessions and file delivery.
-
-Run `inkbolt --help` for request examples. Agents can discover compact tool
-summaries and request the schema for a single operation as they work. Workspace
-defaults and saved revision references keep repeated requests small.
+adapter. See the [client configuration examples](examples/mcp-config.json), or
+run `inkbolt --help` for command-line request examples.
 
 ## Documentation
 
 | Start here | Details |
 | --- | --- |
 | [Examples](examples/README.md) | Runnable graphics and image workflows |
-| [Agent interface](docs/AGENT_INTERFACE.md) | Commands, requests and results |
-| [Tool discovery](docs/AGENT_DISCOVERY.md) | MCP tools and focused schemas |
+| [Agent interface](docs/AGENT_INTERFACE.md) and [tool discovery](docs/AGENT_DISCOVERY.md) | Commands, MCP tools and schemas |
 | [Workspaces and sessions](docs/AGENT_WORKSPACE.md) | Local resources and saved revision references |
 | [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
@@ -72,20 +61,17 @@ defaults and saved revision references keep repeated requests small.
 ## Project status
 
 Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
-receipts have Windows, Linux and macOS verification. Background export jobs are
-currently Windows-only. Broader interchange, larger raster workloads and agent
-usability improvements are ongoing. Check the [resource limits](docs/LIMITS.md)
-and relevant feature contract before choosing a workflow.
+receipts have Windows, Linux and macOS verification; background export jobs are
+currently Windows-only. Broader format support, larger image workloads and agent
+usability remain active work. See the [resource limits](docs/LIMITS.md) for current
+bounds.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.
 [Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their
 limitations separately from engine feature coverage.
 
-For development, use Python 3.11+ and `python tools/verify.py` for focused checks
-within a three-minute budget; use `--thorough` for milestone verification.
-Public clones use `--public`. See the [development loop](docs/DEVELOPMENT_LOOP.md),
-[architecture](docs/ARCHITECTURE.md) and [contribution boundaries](docs/RESEARCH.md)
-for setup, testing and source requirements.
+Contributors can start with the [development guide](docs/DEVELOPMENT_LOOP.md),
+[architecture](docs/ARCHITECTURE.md) and [source requirements](docs/RESEARCH.md).
 
 ## License
 
