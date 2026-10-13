@@ -59,6 +59,13 @@ linked or external copies cannot substitute for retained resources. The judge
 does not import the font on the agent's behalf or assume the default store name;
 captured trials must also reopen after workspace relocation.
 
+B03 likewise locates the session ID from `session.json` within the captured
+workspace, using its canonical database filename. A missing, linked, external
+or ambiguous store fails. The engine then reads both declared revisions and
+verifies the full history from that explicit root; filename discovery alone
+does not validate a database. Historical and current snapshots must still match
+the original and delivered documents exactly after capture relocation.
+
 ## Pinned baseline
 
 The no-engine arm uses the same prompt and original inputs. B01 includes the

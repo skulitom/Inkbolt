@@ -144,8 +144,10 @@ passed all 242 fresh Linux stages (179 Rust and 2446 Python tests, 48 skips,
 temporary paths with resolved paths. The fixture now matches the real harness's
 resolved-path contract; a Linux alias reproduction failed before the correction
 and all 13 checks passed afterward. Focused Windows/WSL checks also passed.
-Hosted macOS confirmation remains pending; this does not supersede the last
-complete matrix. See [retained evidence](DEVELOPMENT_STATUS.md).
+Windows exposed the same short-path fixture mismatch, plus two separate job-test
+timing/contention failures. Their correction and hosted confirmation remain
+pending; this does not supersede the last complete matrix. See
+[retained evidence](DEVELOPMENT_STATUS.md).
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

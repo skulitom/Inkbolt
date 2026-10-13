@@ -10,7 +10,7 @@ from unittest.mock import patch
 from test_cli import EXE, ROOT
 sys.path.insert(0, str(ROOT/'tools'))
 from agent_benchmark import run_task
-from benchmark_large_layout import fixture, solve, judge, PROMPT, expected_picture
+from benchmark_large_layout import fixture, solve, judge, PROMPT, expected_picture, retained_session_store
 from benchmark_baseline_large_layout import svg_layout
 from benchmark_driver import run_external_task, workspace_files
 from benchmark_runtime import Trial, TaskFailure
@@ -19,9 +19,18 @@ from benchmark_tasks import CHECKS
 from benchmark_fake_driver import layout_svg
 from test_benchmark_driver import driver, fake_tools
 from test_images_cli import png
+from workload_cases import sha
 
 
 class BenchmarkLargeLayoutTests(unittest.TestCase):
+    def setUp(self):
+        # Re-judging a capture repeats identical images. Cache only exact raw
+        # PNG/dimensions/expected-pixel tuples within this test; changed images
+        # still run the independent decoder and every engine render still runs.
+        checker = patch('benchmark_large_layout.png_check', lru_cache(maxsize=8)(png_check))
+        checker.start()
+        self.addCleanup(checker.stop)
+
     def prepare(self, root, alternate_session=False):
         trial = Trial(EXE, root, 'B03', 1, 'cli', CHECKS['B03'])
         self.addCleanup(trial.close)
@@ -117,17 +126,36 @@ class BenchmarkLargeLayoutTests(unittest.TestCase):
             judge(trial)
 
     def test_external_model_capture_is_rejudged_without_mutating_its_workspace(self):
+        for flags in (('--custom-session-store',),):
+            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); configuration = driver(*flags)
+                row = run_external_task(EXE,root/'live','B03',1,'model',configuration)
+                self.assertEqual(row['status'],'passed',row)
+                self.assertFalse(row['model_trials']); self.assertIsNone(row['model_calls'])
+                before = workspace_files(root/'live/workspace')
+                imported = run_external_task(EXE,root/'import','B03',1,'model',configuration,import_source=root/'live')
+                self.assertEqual(imported['status'],'passed',imported)
+                self.assertEqual(row['checks'],imported['checks'])
+                self.assertEqual(before,workspace_files(root/'live/workspace'))
+                self.assertEqual(before,workspace_files(root/'import/workspace'))
+
+    def test_session_location_must_be_unambiguous_and_does_not_waive_database_validation(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory); configuration = driver()
-            row = run_external_task(EXE,root/'live','B03',1,'model',configuration)
-            self.assertEqual(row['status'],'passed',row)
-            self.assertFalse(row['model_trials']); self.assertIsNone(row['model_calls'])
-            before = workspace_files(root/'live/workspace')
-            imported = run_external_task(EXE,root/'import','B03',1,'model',configuration,import_source=root/'live')
-            self.assertEqual(imported['status'],'passed',imported)
-            self.assertEqual(row['checks'],imported['checks'])
-            self.assertEqual(before,workspace_files(root/'live/workspace'))
-            self.assertEqual(before,workspace_files(root/'import/workspace'))
+            trial = self.prepare(Path(directory)/'locations')
+            self.assertEqual(retained_session_store(trial, 'work'), '.inkbolt/sessions')
+            with self.assertRaisesRegex(TaskFailure, 'Missing or ambiguous'):
+                retained_session_store(trial, 'unknown')
+            # A second copy cannot silently replace the session named by the delivery.
+            name = sha(b'work')+'.sqlite3'
+            duplicate = trial.root/'another-store'; duplicate.mkdir()
+            (duplicate/name).write_bytes((trial.root/'.inkbolt/sessions'/name).read_bytes())
+            with self.assertRaisesRegex(TaskFailure, 'Missing or ambiguous'):
+                retained_session_store(trial, 'work')
+            (duplicate/name).unlink()
+            (trial.root/'.inkbolt/sessions'/name).write_bytes(b'not a database')
+            trial.begin_judging()
+            with self.assertRaises(TaskFailure):
+                judge(trial)
 
     def test_baseline_never_calls_the_engine_and_checks_preview_identity(self):
         for incorrect in (False,True):

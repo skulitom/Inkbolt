@@ -264,3 +264,75 @@ applies to both arms.
 | Inkbolt-arm report | `1c1697dcd26aaccb6e760fe165f2adbb3c8940941e072e9bc1a6ac6f6f7b353b` |
 | Baseline-arm report | `96c016d9bea5c7153f23ab74fb9c454f93b2df90056159c401155416f9812e1c` |
 | Matched comparison report | `085294024818692b92f53dbc537925f5b583fcf5c6014310c89b99efbe752fbc` |
+
+## B01/B03 breadth pilots and capture rejudgment
+
+Single-attempt pilots broadened coverage to labelled diagrams (B01) and a
+5,000-object edit with saved history (B03). Codex CLI 0.160.0 used externally
+configured `gpt-6.1-sol` and `gpt-6-luna`, each with medium reasoning and the
+explicit MCP approval option. Each model used the same configuration in its two
+arms. No model is built into the harness, engine or acceptance criteria.
+The pinned baseline tools and release executable match the preceding B02 batch.
+Runs were sequential on the shared Windows development host; OS caches could
+be warm. Each model's Inkbolt arm preceded its baseline arm. They were not
+randomized, and the two model configurations are separate pilot samples.
+
+| External model | Task | Inkbolt / baseline outcome | Input + output tokens, Inkbolt / baseline | Client seconds, Inkbolt / baseline |
+| --- | --- | --- | ---: | ---: |
+| gpt-6.1-sol | B01 | Pass / fail | 363,329 / 57,926 | 104.2 / 41.7 |
+| gpt-6.1-sol | B03 | Pass / pass | 379,095 / 67,137 | 149.9 / 38.3 |
+| gpt-6-luna | B01 | Pass / fail | 698,196 / 64,542 | 133.5 / 23.8 |
+| gpt-6-luna | B03 | Pass / pass | 575,269 / 66,564 | 104.2 / 31.8 |
+
+Outcomes above use corrected judges on the original captured bytes. Sol's B01
+initially failed because the judge assumed the default font store. Luna's B03
+initially failed because the judge assumed the default session store. Neither
+prompt prescribes those store names. The corrected judges locate retained
+resources inside the capture and still verify exact font/license identities,
+editable content, all pixels and, for B03, exact original/current snapshots and
+full history integrity. Missing, linked or corrupt font/license copies fail;
+missing, linked, ambiguous or corrupt session stores also fail. Regression tests cover nondefault stores and
+capture relocation; [verification evidence](DEVELOPMENT_STATUS.md) records the
+focused Windows/Linux results. Artifact and engine requirements did not change.
+
+Both B01 baseline failures remain. Sol delivered a `defs/style` font embedding
+outside the prompt's bounded editable SVG contract. Luna's text placement
+differed from the required frame positions; its renderer invocation also omitted
+the supplied font. Neither failure was relaxed or retried. Both B03 baselines
+passed shared artifact checks; saved history is explicitly not applicable there.
+
+All eight transcripts and generated command/script bodies were reviewed.
+Observed tools and reads stayed within the supplied engine/image tools and
+workspace material; no repository/judge reads, additional model calls or baseline
+engine access were observed. All Inkbolt trials used CLI execution and no MCP
+calls. Shell/schema, relative-path and output-option errors remain in the raw
+traces. Rejudgment preserved transcript and workspace hashes, token usage and
+original client durations; it did not rerun the models or replace original
+reports. Judge execution is separate from client execution.
+
+These are pilots, not five-repetition acceptance or evidence of relative
+reliability/efficiency. Input totals include cached context; cached tokens are
+reported separately in the raw rows and are not added again. Model-call counts,
+complete engine traffic/retries, first verified preview and engine-only memory
+remain unknown. Neither comparison has matching issues for B01/B03, but both
+retain false minimum-repetition and full-suite completion gates. Complete the
+required repetitions and broader task coverage before further priority changes.
+
+Original captures remain under `w2-breadth-*-pilot-01`; new reports are under
+`w2-breadth-*-rejudged-02` and `w2-breadth-*-comparison-pilot-02`. The trace review
+is retained separately. Sol's original candidate was
+`7bac198d1f816e4907c55c1fb54a4f138839313b17efa3abc747d48fa40fa6a5`;
+Luna's was `8f25bdc287d0cbc5c87609146bd58f027dc669f4cc12c9139d76a886d3e89041`.
+Both used the unchanged release executable identified in the preceding table.
+
+| Rejudged evidence | SHA-256 |
+| --- | --- |
+| Shared tested/judged source candidate | `115d0ecb4e8a4f3110df3936fe8c29db48cc8dd5e8fae9c171f614cd1af2f46b` |
+| Sol Inkbolt report | `6b996520eac294d80e9631e722dbcb532aacd3b8e241cf436cc2c9f2ca6a72fa` |
+| Sol baseline report | `c4ce824949269a14126824c3c17d8289652784a6cb43682c1bc16f723a3c22b0` |
+| Sol comparison | `83dcb595c1332c8d844cfa6b5e90ef1dd31a5fed45556846786cedefcf7bc828` |
+| Luna Inkbolt report | `c891df9bfde9e83f21b8b662199547bc6c1baab2c13d32f36fda11dd08f029f1` |
+| Luna baseline report | `42866663ce11e65a86288c69291091e76971a2ce484c2f45a957f719f7caeac7` |
+| Luna comparison | `b1c8002ea52f7aa66dce5bc3567159f75cb1221d9e7097672e8d604252c3a35f` |
+| Sol external configuration | `7210961872baca5a7afc9f8668aa935135d311ad9beb83156563c0e633c0cf02` |
+| Luna external configuration | `6b34578c04ebb0bb7597d48820f9e58720a0ecef42fa2b27e2145d40472320c3` |

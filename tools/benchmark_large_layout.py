@@ -39,6 +39,22 @@ def expected_picture(moved=True):
     return pixels(1000, 500, rectangles)
 
 
+def retained_session_store(case, session_id):
+    """Locate the delivered session inside the capture; the engine still verifies its contents."""
+    root = case.root.resolve()
+    name = sha(session_id.encode('utf-8'))+'.sqlite3'
+    stores = []
+    for path in sorted(root.rglob('*.sqlite3')):
+        if path.name != name:
+            continue
+        require(path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(root)
+                and not any((root/parent).is_symlink() for parent in path.relative_to(root).parents),
+                'Linked or external session store')
+        stores.append(path.parent.relative_to(root).as_posix())
+    require(len(stores) == 1, 'Missing or ambiguous captured session store for the delivered session ID')
+    return stores[0]
+
+
 def judge(case):
     raw = delivered(case, 'editable.json')
     actual = strict_json(raw)
@@ -69,8 +85,9 @@ def judge(case):
     require(type(locator['original_revision']) is int and locator['original_revision'] == 0 and
             type(locator['current_revision']) is int and locator['current_revision'] == actual['revision'] > 0,
             'Session revisions do not identify the original and delivered snapshots')
-    old_ref = dict(session_id=locator['session_id'], revision=locator['original_revision'])
-    new_ref = dict(session_id=locator['session_id'], revision=locator['current_revision'])
+    session_root = retained_session_store(case, locator['session_id'])
+    old_ref = dict(session_root=session_root, session_id=locator['session_id'], revision=locator['original_revision'])
+    new_ref = dict(session_root=session_root, session_id=locator['session_id'], revision=locator['current_revision'])
     old = case.call('judge-original-revision', 'document.validate', document=old_ref)
     current = case.call('judge-current-revision', 'document.validate', document=new_ref)
     # Re-render the exact saved snapshot read above. This resource-free fixture
@@ -82,7 +99,7 @@ def judge(case):
         png_check(delivered(case, 'historical.png'), 1000, 500, expected_picture(False))
         png_check(base64.b64decode(historical['artifact']['data'], validate=True), 1000, 500, expected_picture(False))
     case.check('historical-pixels', history_picture)
-    verified = case.call('judge-history', 'session.verify', session_id=locator['session_id'])
+    verified = case.call('judge-history', 'session.verify', session_root=session_root, session_id=locator['session_id'])
     case.check('history-valid', lambda: require(verified['valid'] and verified['revision'] == actual['revision']
         and old == original and current == actual,
         'Saved history must be valid and contain the exact original and delivered snapshots'))

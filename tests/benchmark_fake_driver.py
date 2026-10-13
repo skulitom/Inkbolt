@@ -160,6 +160,11 @@ def main():
         else:solve_recovery(root,send)
     elif request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,retry_of=None,**arguments):
+            if task=='B03' and '--custom-session-store' in sys.argv:
+                if command.startswith('session.'):arguments['session_root']='chosen sessions'
+                document=arguments.get('document')
+                if isinstance(document,dict) and 'session_id' in document:
+                    arguments['document']=dict(document,session_root='chosen sessions')
             if task=='B01' and '--custom-font-store' in sys.argv:
                 if command=='font.import':arguments['store_root']='chosen resources/fonts'
                 if command=='session.create':arguments['resources']=dict(font_root='chosen resources/fonts')

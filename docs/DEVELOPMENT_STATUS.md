@@ -235,7 +235,8 @@ adapter and first-page discovery change and does not establish Unix job support.
 The later [hosted `9909329` run](https://github.com/skulitom/Inkbolt/actions/runs/38431558895)
 passed all 242 fresh Linux stages: 179 Rust and 2446 Python tests, with 48 explicit
 skips, in 1257.3 seconds. Its macOS job failed only the Codex evaluation-adapter
-test module; Windows was still running when this evidence was recorded. Reports
+test module. Windows subsequently failed that same path-alias fixture, one Rust
+job deadline fixture and one Python concurrent job-list fixture. Reports
 and logs are retained under `w1-public-ci-9909329`, with common candidate
 `0860d87bb953c6fbc54cb48a93d46cde6809b1c7387c9c26b156c7534d893c45`.
 The fixture used an unresolved temporary root while the adapter and real harness
@@ -248,7 +249,11 @@ unchanged formatting/build/Clippy checks reused their prior passes. No selected
 checks failed or remained pending. Reports and the before/after reproduction are
 under `w2-codex-path-alias-`; tested candidate:
 `871a566e7752ad5f828b8e92ce4f42178e14450f83b3009b683ae08832bf11f9`.
-Hosted macOS confirmation and a new complete matrix remain pending.
+Windows' short temporary name exposed the same fixture mismatch. The two job
+failures are separate: a 1.5-second deadline expired before the fixture reached
+its publication checkpoint, and a snapshot test treated documented retryable
+`JOB_BUSY` as an unexpected result. Their correction and a new complete hosted
+matrix remain pending; the earlier matrix is not current-revision acceptance.
 
 ## W2 and the next behavior increments
 
@@ -1072,8 +1077,32 @@ measure the MCP policy's effect. One insertion-index error plus schema/output
 mistakes remain retained. The lower observed usage does not isolate causes across
 sequential batches, and the baseline still triggers the fixed cost signal.
 See the [complete result and evidence identities](BENCHMARK_RESULTS.md#b02-at-8586e82-cli-help-and-sibling-index-guidance).
-Broaden coverage with B01/B03 and smaller-model pilots before further icon-task
-tuning; all full-suite gates and engine checkpoint criteria remain unchanged.
+Broader B01/B03 pilots now cover two externally configured models, with one
+attempt per arm/task/model. Both Inkbolt pilots passed both tasks after capture
+rejudgment; both baselines passed B03 and failed B01's editable-source contract.
+See [the pilot record](BENCHMARK_RESULTS.md#b01b03-breadth-pilots-and-capture-rejudgment).
+These small samples do not establish comparative reliability, efficiency or a
+new priority signal. Model selection remains entirely external, without defaults
+or fallback models in the harness or engine.
+
+The genuine pilots exposed hidden judge assumptions about default font/session
+store names. B01 now locates exact retained font/license bytes; B03 locates the
+unambiguous canonical session database and passes its explicit root to engine
+history checks. Missing/corrupt resources and ambiguous/corrupt history still
+fail. Relocation tests preserve captured bytes. Original attempts, transcripts,
+usage and initial judge failures remain retained; no model reran for rejudgment.
+
+B01's focused Windows/WSL checks passed in 40.5/18.9 seconds. B03's first Windows
+window reached its 180-second bound and remains pending in that retained report.
+Avoiding duplicate exact-image decoding within each test and using the custom
+store in the existing capture test kept all engine renders and changed-image
+checks. Final Windows/WSL checks passed 33/30 Python tests in 158.8/135.0 seconds,
+with three explicit Linux skips and no failed or pending selected checks.
+Windows ran fresh format/build/Clippy; Linux reused identical prior passes.
+Reports are under `w2-b01-font-store-` and `w2-b03-session-store-`; final tested
+and rejudged candidate:
+`115d0ecb4e8a4f3110df3936fe8c29db48cc8dd5e8fae9c171f614cd1af2f46b`.
+Full-suite gates and engine checkpoint criteria remain unchanged.
 
 Five-repetition model trials for the other nineteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
