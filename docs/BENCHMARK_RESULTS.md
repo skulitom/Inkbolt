@@ -336,3 +336,64 @@ Both used the unchanged release executable identified in the preceding table.
 | Luna comparison | `b1c8002ea52f7aa66dce5bc3567159f75cb1221d9e7097672e8d604252c3a35f` |
 | Sol external configuration | `7210961872baca5a7afc9f8668aa935135d311ad9beb83156563c0e633c0cf02` |
 | Luna external configuration | `6b34578c04ebb0bb7597d48820f9e58720a0ecef42fa2b27e2145d40472320c3` |
+
+## B01/B03 at 8bc8982: five matched pairs
+
+Five new repetitions per task and arm used Codex CLI 0.160.0, externally selected
+`gpt-6.1-sol` with medium reasoning, and the same explicit MCP approval option.
+The engine and pinned baseline tools match the preceding pilots. Model choice
+remains external; these names identify this evaluation only. The Inkbolt arm
+preceded the baseline on the shared Windows host. No other Inkbolt verification
+or benchmark ran concurrently in this chat; other host workloads were
+uncontrolled and OS caches could be warm. Task order rotated by repetition.
+Neither arm changed its source inputs, and both selected tasks have five matched
+pairs with no global or task matching issues.
+
+| Task | Inkbolt / baseline artifact passes | Median input + output tokens | Median client seconds |
+| --- | --- | ---: | ---: |
+| B01 diagram | 5/5 / 0/5 | 299,232 / 71,327 | 95.9 / 45.7 |
+| B03 5,000-object edit | 5/5 / 5/5 | 349,212 / 65,011 | 128.9 / 41.8 |
+
+Medians include all attempts, including B01 baseline failures. B03 triggers the
+existing signal: matching shared artifact success and **5.37x** median observed
+token use with Inkbolt. Every Inkbolt B03 trial also passed saved-revision and
+history checks, which are not applicable to the baseline. Five equal artifact
+outcomes do not prove equivalence or isolate the cost of those extra semantics.
+The broader decision and full-suite gates remain false.
+
+All five B01 baselines embedded the supplied font in a CSS `style` element,
+usually inside `defs`, beyond the judge's supported source subset. They also
+included frame metadata attributes outside that subset. Admission stopped the
+original judge before pixel checks; the failures were retained without retries.
+A separate post-hoc check of the unchanged delivered PNG bytes against the
+existing independent pixel oracle passed all five images. It did not re-render
+SVG, validate source/font semantics or convert task failures to passes. B01's
+font-retention wording and bounded source contract need review before using
+these failures as general reliability evidence. There is no successful-pair
+token-cost signal for B01 and no demonstrated rendering advantage from this batch.
+
+All twenty transcripts, command bodies and generated scripts were reviewed.
+No repository/judge reads, additional engines/models or baseline Inkbolt access
+were observed. Two Inkbolt attempts mixed MCP with shell calls: B01 repetition
+one used 21 MCP items and B03 repetition five used 27; the other eight used CLI
+only. Invalid schema selectors, relative resource paths and publication options
+remain in the traces. Shell-item counts do not measure complete engine calls,
+errors or retries. Input totals include cached context without adding cached or
+reasoning tokens twice. Billing, model-call counts, full engine traffic/retries,
+first verified preview and engine-only memory remain unknown.
+
+The next work is broader B04/B05 evidence after correcting the palette judge's
+unprescribed default-store assumption. B03 reinforces the need to reduce
+discovery overhead, while the full task matrix must still guide substantial
+W3c/W4/W5.2+/W6 ordering. This batch does not complete W2 or change checkpoints.
+
+External evidence is retained under `w2-breadth-sol-{model,baseline}-five-01`
+and `w2-breadth-sol-comparison-five-01`, with separate trace reviews and
+`w2-breadth-sol-b01-supplemental-pixels-01.json`.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Shared source candidate | `5de6a49ce7e146936c0f7f9b04960c9200a9ca23744d157bb6c8eda9d68d4812` |
+| Inkbolt report | `abf3044104010b5fc36043eb4c5edf1b8df03878da86d55539a86bb76fd920f2` |
+| Baseline report | `632a0f5dda0a8de1f951f1d415b94978c546674bf0d8b2010a4a09b835982a85` |
+| Matched comparison | `a3ef9a766ea7ecb721f77dbc871ab651ae4ddf9e631b06a7ee751d0e3ea5949d` |

@@ -268,8 +268,15 @@ fresh format/build/Clippy. Neither run had failures, pending checks or reused
 passes. Reports and candidate hashes are retained under `w1-job-fixture-timing-`;
 their common candidate is
 `dc8895207d7ee4e8787c9255c9635d515ed76b77d52e28bf9e16267df0df6a5b`.
-A new complete hosted matrix remains pending; the earlier matrix is not
-current-revision acceptance.
+The [hosted matrix at `a1a0339`](https://github.com/skulitom/Inkbolt/actions/runs/38440855374)
+has since passed all 242 fresh stages on each platform: Windows ran 213 Rust
+and 2490 Python tests with seven skips in 2651.7 seconds; Linux and macOS each
+ran 179 Rust and 2449 Python tests with 48 skips, in 1443.1/3034.6 seconds.
+All inputs stayed unchanged, with no failed, pending or reused stages. Retained
+reports/logs are under `w1-public-ci-a1a0339`, candidate
+`f985ad1ec589c62a2a342d58356d64d24095e61314e2a66a42d11afb4811d2db`.
+This confirms the path-alias correction. It predates the later store-judge and
+job-fixture changes; their current-revision hosted acceptance remains pending.
 
 ## W2 and the next behavior increments
 
@@ -1120,7 +1127,17 @@ and rejudged candidate:
 `115d0ecb4e8a4f3110df3936fe8c29db48cc8dd5e8fae9c171f614cd1af2f46b`.
 Full-suite gates and engine checkpoint criteria remain unchanged.
 
-Five-repetition model trials for the other nineteen tasks, further smaller-model
+Five new matched pairs per task at `8bc8982` passed every Inkbolt B01/B03 attempt
+and every baseline B03 attempt. B03's median input-plus-output use was
+349,212/65,011 tokens (5.37x), triggering the existing cost signal. B01's five
+baseline attempts failed SVG admission for embedded font CSS, but a separately
+retained post-hoc check found every delivered PNG pixel-correct. Those task
+failures remain unchanged; they do not establish a general rendering or
+reliability advantage. All twenty traces were reviewed, both source candidates
+remained unchanged, and the selected comparisons had no matching issues.
+See [the complete scope and evidence](BENCHMARK_RESULTS.md#b01b03-at-8bc8982-five-matched-pairs).
+
+Five-repetition model trials for the other seventeen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

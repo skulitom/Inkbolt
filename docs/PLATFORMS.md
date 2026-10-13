@@ -149,8 +149,19 @@ timing/contention failures. The fixtures now allow cold startup before testing
 actual deadline stops and retry only documented busy responses while preserving
 the snapshot assertions. Focused Windows checks passed in 140.6 seconds; WSL
 passed the platform boundary with explicit job skips in 7.0 seconds. Hosted
-confirmation remains pending; this does not supersede the last complete matrix. See
+confirmation of those later job-fixture changes remains pending. See
 [retained evidence](DEVELOPMENT_STATUS.md).
+
+The [matrix at `a1a0339`](https://github.com/skulitom/Inkbolt/actions/runs/38440855374)
+subsequently passed all 242 fresh stages on Windows, Linux and macOS, including
+the evaluation path-alias correction. Windows ran 213 Rust and 2490 Python tests
+with seven skips in 2651.7 seconds; Linux and macOS each ran 179 Rust and 2449
+Python tests with 48 skips, in 1443.1 and 3034.6 seconds respectively. All inputs
+were unchanged, with no failed, pending or reused stages. Reports/logs are
+retained under `w1-public-ci-a1a0339`, candidate
+`f985ad1ec589c62a2a342d58356d64d24095e61314e2a66a42d11afb4811d2db`.
+This is the latest complete matrix; it predates the later B01/B03 store-judge
+and Windows job-fixture changes, whose focused checks remain separately scoped.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable
