@@ -340,6 +340,9 @@ class Trial:
     def has_solve_evidence(self):
         return any(row.get('phase') != 'judge' for row in self.calls)
 
+    def calls_succeeded(self):
+        return all(row['status'] in ('success','expected_error','response_lost') for row in self.calls)
+
     def close(self):
         if self.server is not None:
             try: self.server.close()
@@ -356,8 +359,7 @@ class Trial:
         complete = not missing and all(check['status'] == 'pass' or (self.arm == 'baseline' and
             check['status'] == 'not_applicable' and check_class(self.task,check['name']) == 'engine') for check in self.checks)
         solve_calls = [row for row in self.calls if row.get('phase') != 'judge']
-        success = complete and self.has_solve_evidence() and not self.error and all(
-            row['status'] in ('success','expected_error','response_lost') for row in self.calls)
+        success = complete and self.has_solve_evidence() and not self.error and self.calls_succeeded()
         memory, memory_scope = self.memory_observations()
         memory_complete = bool(memory) and all(m and m.get('available') for m in memory)
         memory_values = [m for m in memory if m and m.get('available')]

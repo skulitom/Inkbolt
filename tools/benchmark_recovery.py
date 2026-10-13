@@ -129,7 +129,7 @@ def durable_inputs(case):
     receipt=case.call('judge-result','job.result',request_id='recover')
     preview=case.call('judge-preview','document.preview',document=original,options=dict(focus=dict(type='region',bounds=[32,40,56,60])),preview=True)
     fresh=case.call('judge-render','document.preview',document=original,options={},preview=True)
-    overwrite=case.call('judge-overwrite','document.publish',document=ref(1),output=dict(file_name='recovered.png',format='png'),expected_error='OUTPUT_EXISTS')
+    overwrite=case.call('judge-overwrite','document.publish',document=current['document'],output=dict(file_name='recovered.png',format='png'),expected_error='OUTPUT_EXISTS')
     return dict(original=original,receipts=receipts,final=final,current=current,history=history,cancelled=cancelled,completed=completed,
         receipt=receipt,preview=preview,fresh=fresh,overwrite=overwrite)
 
@@ -195,7 +195,8 @@ def judge_retained(case,original,receipts,final,current,history,cancelled,comple
         require(before['seconds']<=after['seconds'] and before['outputs']==after['outputs'] and
             before['outputs']['cancelled.png'] is None and before['outputs']['recovered.png']['sha256']==digest and
             before['outputs']['recovered.png']['bytes']==len(raw) and
-            (case.root/'recovered.png').stat().st_ino==after['outputs']['recovered.png']['identity'][0],
+            ((getattr(case,'driver_evidence',None) or {}).get('imported') is True or
+             (case.root/'recovered.png').stat().st_ino==after['outputs']['recovered.png']['identity'][0]),
             'Replay replaced or altered the physical publication')
         ledger=case.root/'.inkbolt/jobs/publications/publications.sqlite3'
         require(ledger.is_file() and not ledger.is_symlink() and ledger.resolve().is_relative_to(case.root.resolve()),'Missing or linked publication ledger')

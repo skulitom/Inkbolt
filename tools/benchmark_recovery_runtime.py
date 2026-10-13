@@ -68,7 +68,12 @@ class RecoveryTrial(Trial):
         self.ledger = self.root/'.inkbolt/jobs/jobs.sqlite3'
 
     def begin(self, prompt):
+        self.start_containment()
+        super().begin(prompt)
+
+    def start_containment(self):
         require(os.name == 'nt', 'The recovery benchmark currently requires verified Windows containment')
+        require(self.container is None and not self.closed,'Recovery containment already started or closed')
         self.container = WindowsJob()
         self.api = self.container.api
         signatures = {
@@ -88,7 +93,6 @@ class RecoveryTrial(Trial):
         self.console_path=os.path.normcase(str(Path(directory.value)/'conhost.exe'))
         self.observer=threading.Thread(target=self.observe,daemon=True)
         self.observer.start()
-        super().begin(prompt)
 
     def spawn(self, argv, **options):
         # Detached standard streams still use the explicit pipes. Unlike an
@@ -343,7 +347,7 @@ class RecoveryTrial(Trial):
                 process.wait(timeout=5)
                 process._handle.Close()
             self.frontend_processes.clear()
-            save_json(self.root/'recovery-evidence.json',dict(events=self.events,
+            save_json(getattr(self,'judge_root',self.root)/'recovery-evidence.json',dict(events=self.events,
                 processes=list(self.workers.values()),accounting=self.accounting,observer_error=self.observer_error))
 
     def memory_observations(self):

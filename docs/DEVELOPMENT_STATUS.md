@@ -204,9 +204,17 @@ unverified commits or Unix jobs. Reports/logs are retained externally under
 The later [hosted `48929e8` run](https://github.com/skulitom/Inkbolt/actions/runs/38385966170)
 passed Windows and Linux, and macOS completed its full verification step
 successfully. Its evidence-upload step failed with GitHub endpoint DNS error
-`ENOTFOUND`; that job/run remains failed. This does not replace `20ac313` as the
-latest completely retained three-platform acceptance. Subsequent main runs
-continue through the same full matrix.
+`ENOTFOUND`; that job/run remains failed. The subsequent
+[hosted `699b136` run](https://github.com/skulitom/Inkbolt/actions/runs/38391594759)
+passed all 234 fresh stages on Windows, Linux and macOS, with all reports and
+logs retained under `w1-public-ci-699b136`. Windows ran 213 Rust and 2426 Python
+tests with one skip in 4130.6 seconds; Linux/macOS each ran 179 Rust and 2392
+Python tests with 35 skips, in 1124.4/3135.2 seconds. Every report confirms
+complete-suite coverage, unchanged inputs and no failed, pending or reused
+checks. Their common candidate fingerprint is
+`30fdfae481ac1757a86019d6ce9cd56a40fbaf00f62073da46fab021b3873c42`.
+This is the latest fully retained platform milestone, not full acceptance of
+subsequent focused benchmark increments or Unix jobs.
 
 ## W2 and the next behavior increments
 
@@ -718,7 +726,8 @@ checks exact pixels, editable controls, attempt counts, absence before resume,
 physical publication identity, overwrite refusal and source/history preservation.
 All eight original checks remain fixed. Twelve judge calls are separated from
 solve costs; container accounting still includes every command and background
-process. The external controller and captured-trial integration remain open.
+process. The external controller and captured-trial integration are now implemented
+and have the focused evidence below; full W2 acceptance remains open.
 
 Nine Windows recovery tests passed in 113.7 seconds, including both transports,
 cache-independent rejudging, real extra revisions and eleven retained-artifact
@@ -748,7 +757,44 @@ control under `w2-b19-reference-before-01`. These shared-host correctness
 references are not model trials, performance comparisons or full W2 acceptance.
 No engine behavior, supported platform tier or checkpoint credit changed.
 
-B19-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B19's external lifecycle now uses a bounded local bridge with three harness-owned
+fault controls. The client chooses ordinary import/edit/review/job/retry commands;
+the harness owns the engine process tree, observes real cancellation/interruption
+and releases its queue gate on client failure. Preparation starts no processes.
+Complete traffic, preview timing, process peaks and fault/output observations stay
+outside the solver workspace and are bound into the capture. Rejudging opens the
+captured durable state without reinjecting faults. All eight original checks,
+source preservation and complete process observations remain required. Synthetic
+clients cannot claim model credit; client/model usage and engine measurements are
+reported separately. A repaired engine diagnostic remains a measured call without
+changing a correct external task into a failure; live/import scoring agrees.
+
+Focused Windows checks passed 40 tests in 77.4 seconds and 32 shared/reference
+tests in 114.3 seconds. Linux ran the same selected modules in 82.2 seconds: 58
+tests executed, with eleven explicit job/containment skips and three Windows
+verification skips. Formatting, locked build and all-target Clippy reused
+unchanged passes; no selected check failed or remained pending. Regressions cover
+the real bridge CLI, relative preparation paths, full/compact receipts, repaired
+invalid requests, failed clients, invalid fault controls, wrong pixels, moved
+captures, changed evidence, metric-schema injection and unchanged source/import
+workspaces. Earlier failed feedback is retained; the live/import scoring mismatch
+was corrected before these final passes.
+
+Five fresh release external trials and five imported rejudgments passed, each
+with 23 observed solve commands, 12 judge commands, three retries, three expected
+refusals and complete engine memory observations. Every owned engine tree closed
+with zero active processes. Each imported capture preserved the original measured
+metrics and preview timing, and all original/imported workspace hashes matched.
+The final Windows/Linux/trial candidate fingerprint was
+`709cd315e62078687e5472aeac458161e1489aaef47ade27cb0c3edc17160d9d`;
+prompt version 2 hash was
+`dbe1586ac7e7da36479931fa062caccee90041577e685ea21fd9e55658506eb9`.
+Only this status document and the primary plan table changed afterward. Evidence
+is retained externally under `w2-b19-external-`. These are shared-host synthetic
+correctness checks, not genuine model trials, performance comparisons, Unix job
+support, additional checkpoint credit or full-suite milestone acceptance.
+
+B20's external adapter, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

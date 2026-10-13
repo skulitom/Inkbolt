@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B18. B19-B20 remain visible as
+The W2 external lifecycle currently supports B01-B19. B20 remains visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -436,15 +436,41 @@ setup evidence fail. Captured source files remain unchanged during import and
 judging. These identity checks are not authenticated proof of historical client
 behavior. The entire engine-specific no-engine baseline remains not applicable.
 
-B19's fixture/prompt/reference solve and independent judge are separated. Its
-external fault controller remains required before adding it to this lifecycle:
-it must own the engine processes, admit the original revision before the later
-edit, inject both faults during observed rendering, retain independent fault and
-inspection evidence, and close every owned process. Captured-trial import must
-rejudge without reinjecting faults or changing captured files. A client-authored
-claim that a cancellation or interruption happened cannot replace those controls.
-Unix jobs remain unsupported. B19 therefore still reports not implemented for
-the external model arm, and its no-engine baseline stays not applicable.
+B19's [recovery prompt](../tools/benchmark_prompts/B19.md) uses a local command
+bridge. Its request has recovery_bridge argv and no direct engine executable or
+MCP configuration. The client sends sequential JSON command/control messages on
+stdin. The harness owns every engine process and provides three bounded controls:
+cancel-active, hold-queue and interrupt-queued. The client still imports, edits,
+reviews, submits, inspects, resumes and retries through ordinary engine commands.
+Controls accept no process IDs and use the observed owned runner/supervisor.
+Admission must precede the newer edit; a client failure releases the queue gate
+and closes both the separate client tree and engine tree. No network listener,
+engine test hook or database mutation is introduced. Message/count/traffic bounds
+and command/client deadlines are enforced. Preparation starts no processes.
+
+The request contract binds the control helper identities. recovery-control.json,
+recovery-observations.json, recovery-evidence.json and actual engine traffic stay
+outside the client workspace and are bound into harness_recovery. Capture
+validation requires complete process accounting, measured traffic/memory and an
+exact metric schema; imported metrics cannot supply a verdict or model credit.
+Original artifact/history/fault checks remain mandatory. The harness reports
+observed engine metrics and preview availability; client/model/token usage remains
+separate and unknown unless supplied. B19's client-process memory excludes the
+separately owned engine tree, whose individual process peaks are reported directly.
+These are shared-host observations, not authentication or a security sandbox.
+Returned engine errors remain in the observed calls and can be repaired by the
+client; they do not by themselves fail a successfully judged external task.
+Invalid-call counts use the same INVALID_JSON/INVALID_REQUEST classification
+as the reference adapter. Unrecovered artifact, judge, protocol or containment
+failures still fail, with identical scoring for live and imported evidence.
+
+Import copies and validates retained evidence, reopens the captured documents,
+job/session receipts and publication ledger, and rejudges without reinjecting
+faults. Original before/after physical file identities must match each other;
+the copied file's new identity is not compared to its original inode. File
+content identities and unchanged source/destination captures remain mandatory.
+Unix jobs remain unsupported, so B19's external model arm refuses those hosts
+explicitly. Its entire no-engine baseline stays not applicable.
 
 ## Preparation and import
 

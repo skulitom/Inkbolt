@@ -115,7 +115,7 @@ class VerificationTests(unittest.TestCase):
             'test_implementation_registry','test_repo_guard','test_verification',
             'test_verification_runner','test_workload_gates','test_wide_workload_gates',
             'test_agent_benchmark','test_agent_benchmark_handoff',
-            'test_agent_benchmark_photo','test_agent_benchmark_recovery',
+            'test_agent_benchmark_photo','test_agent_benchmark_recovery','test_benchmark_recovery_external',
             'test_benchmark_driver',  # Captures complete external trial workspaces.
             'test_benchmark_icons','test_benchmark_large_layout',  # Exercise that capture lifecycle.
             'test_benchmark_svg','test_benchmark_palette','test_benchmark_flow','test_benchmark_typography','test_benchmark_mask','test_benchmark_retouch','test_benchmark_photo','test_benchmark_mixed','test_benchmark_variants','test_benchmark_screen','test_benchmark_print','test_benchmark_resources','test_benchmark_repair','test_benchmark_retry','test_benchmark_conflict',

@@ -36,6 +36,8 @@ from benchmark_repair import solve as solve_repair,expected_picture as repair_pi
 from benchmark_repair_client import author as author_repair,publish as publish_repair
 from benchmark_retry import solve as solve_retry
 from benchmark_conflict import solve as solve_conflict
+from benchmark_recovery_client import solve as solve_recovery
+from benchmark_recovery_bridge import exchange as recovery_exchange
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -94,8 +96,30 @@ def main():
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15','B16','B17','B18')
-    if request['contract']['arm']=='model':
+    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15','B16','B17','B18','B19')
+    if request['contract']['arm']=='model' and task=='B19':
+        assert request['mcp_config'] is None and 'engine_executable' not in request
+        def send(message):
+            if '--recovery-full' in sys.argv and message.get('command')=='session.apply':message['arguments']['response_mode']='full'
+            if '--recovery-cli' in sys.argv:
+                result=subprocess.run(request['recovery_bridge'],input=json.dumps(message).encode(),capture_output=True,timeout=90)
+                response=json.loads(result.stdout);assert result.returncode==(0 if response['ok'] else 1)
+            else:response=recovery_exchange(request['recovery_bridge'][-1],message)
+            events.append(dict(step=message['step'],request=json.dumps(message),response=json.dumps(response)))
+            return response
+        if '--probe-error' in sys.argv:
+            response=send(dict(step='missing',command='session.receipt',arguments={}))
+            assert response['ok'] is False and response['error']['code']=='INVALID_REQUEST'
+        if '--bad-control' in sys.argv:send(dict(step='bad',control='interrupt-queued',arguments={'pid':123}))
+        elif '--hold-and-stop' in sys.argv:
+            # A real owned cancellation precedes taking the queue lease.
+            def stop_at_gate(message):
+                response=send(message)
+                if message.get('control')=='hold-queue':raise RuntimeError('Synthetic client stopped while holding queue')
+                return response
+            solve_recovery(root,stop_at_gate)
+        else:solve_recovery(root,send)
+    elif request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,retry_of=None,**arguments):
             if task=='B10' and '--photo-names' in sys.argv:
                 if arguments.get('session_id')=='work':arguments['session_id']='portrait-session'

@@ -9,7 +9,7 @@ an explicitly selected local Cutbolt installation. This advances A1; it does not
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
 `--arm reference` is the existing default. B01-B16 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
-B17-B18 support the model arm; their engine-specific baselines remain explicitly not
+B17-B19 support the model arm; their engine-specific baselines remain explicitly not
 applicable. The other external migrations and full matched-trial acceptance remain open.
 
 ## Running and preserving evidence
@@ -265,9 +265,9 @@ wrong proposals/errors or altered setup fail. All five checks remain fixed; the
 whole no-engine baseline stays not applicable.
 
 B19 now separates its original texture fixture, [recovery prompt](../tools/benchmark_prompts/B19.md),
-controlled reference solve and independent judge. Its external fault controller
-and capture/import integration remain open, so the external arm still reports
-not implemented. B20 still interleaves solving and judging. All required checks
+controlled reference solve and independent judge. External clients use the
+owned-process bridge described in the driver contract; captured evidence is
+rejudged without repeating faults. B20 still interleaves solving and judging. All required checks
 have explicit artifact/engine classes; classification does not migrate a judge.
 No real model trial is claimed by synthetic driver tests or reference runs.
 
@@ -362,8 +362,12 @@ process identities, final-file observations and accounting. CLI launch teardown
 may overlap an independent CLI cancellation caller; MCP stays serial on its
 persistent connection. Both transports retain every request and response.
 Container totals include the separate judge CLI processes; ordinary process/call
-metrics exclude them. The fixed reference workflow is not an external-client
-bridge: genuine agent fault requests and captured-trial rejudging remain required.
+metrics exclude them. External clients use the local file-channel bridge to
+request ordinary commands and owned fault controls. Their engine tree is measured
+separately from their client/launcher tree. Captures retain the fault observations,
+actual engine traffic, process accounting and preview availability; import never
+reinjects faults. Required artifact checks remain independent of those recorded
+metrics. Genuine model trials are still required.
 
 B20 uses an original 32x16 two-frame transparent animation with 3/25- and
 2/25-second holds, looped twice at 25 fps. A reviewed edit moves only the first
@@ -417,7 +421,7 @@ Complete print/interchange scope remains governed by the original feature regist
   Report/row schema version 2 separates calls marked `phase:"judge"` from ordinary
   counts, bytes and round-trip time, preserving their raw records and separate
   `judge_*` totals. `judge_separated:true` identifies separated reference tasks
-  (currently B01-B19); external lifecycle support remains B01-B18.
+  (currently B01-B19); external lifecycle support is B01-B19, with B19 requiring Windows.
   Judge calls alone cannot establish a successful solve.
   For B20 these ordinary fields describe Inkbolt; `consumer` records the Cutbolt
   side. `total_engine_commands`, `total_engine_retries`, `total_request_bytes`,

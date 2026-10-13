@@ -25,6 +25,7 @@ import benchmark_resources
 import benchmark_repair
 import benchmark_retry
 import benchmark_conflict
+import benchmark_recovery_external
 from benchmark_baseline import judge_diagram, file_hash
 from benchmark_baseline_icons import judge_icons
 from benchmark_baseline_large_layout import judge_large_layout
@@ -53,7 +54,7 @@ MIGRATIONS = {'B01':(benchmark_diagram, judge_diagram), 'B02':(benchmark_icons, 
               'B11':(benchmark_mixed, judge_mixed), 'B12':(benchmark_variants, judge_variants),
               'B13':(benchmark_screen, judge_screen), 'B14':(benchmark_print, judge_print),
               'B15':(benchmark_resources, judge_resources), 'B16':(benchmark_repair, judge_repair),
-              'B17':(benchmark_retry, None), 'B18':(benchmark_conflict, None)}
+              'B17':(benchmark_retry, None), 'B18':(benchmark_conflict, None), 'B19':(benchmark_recovery_external,None)}
 MIGRATED_TASKS = tuple(MIGRATIONS)
 MAX_METADATA = 1024*1024
 MAX_TRANSCRIPT = 64*1024*1024
@@ -214,11 +215,14 @@ class ExternalTrial(Trial):
 
 
 def contract(case, configuration, tools):
-    return dict(schema_version=1,task=case.task,repetition=case.repetition,arm=case.arm,
+    value=dict(schema_version=1,task=case.task,repetition=case.repetition,arm=case.arm,
         prompt_sha256=case.prompt_sha256,fixtures=case.sources,client=configuration['client'],
         model=configuration['model'],kind=configuration['kind'],
         engine_sha256=file_hash(case.executable) if case.executable else None,
         baseline_tools=None if tools is None else {k:{a:b for a,b in v.items() if a!='path'} for k,v in tools.items()})
+    adapter=MIGRATIONS[case.task][0]
+    if hasattr(adapter,'control_identity'):value['control_files']=adapter.control_identity()
+    return value
 
 
 def setup_files(evidence,task):
@@ -259,10 +263,13 @@ def validate_result(evidence, request_contract, capture, files):
             capture['transcript_sha256']==file_hash(raw), 'Captured evidence identity mismatch')
     execution_memory(capture['execution'])
     setup=validate_setup(evidence,request_contract['task'],capture.get('harness_setup'))
-    return dict(kind=result['kind'],client=result['client'],model=result['model'],observations=observed,
+    validated=dict(kind=result['kind'],client=result['client'],model=result['model'],observations=observed,
         transcript_sha256=capture['transcript_sha256'],result_sha256=capture['result_sha256'],
         workspace_sha256=sha(canonical(files)),contract_sha256=sha(canonical(request_contract)),
         original_host=capture['host'],execution=capture['execution'],harness_setup=setup)
+    adapter=MIGRATIONS[request_contract['task']][0]
+    if hasattr(adapter,'validate_capture'):validated['harness_recovery']=adapter.validate_capture(evidence,capture.get('harness_recovery'))
+    return validated
 
 
 def import_capture(source, case, evidence, expected):
@@ -287,6 +294,9 @@ def import_capture(source, case, evidence, expected):
     for name in (validated['harness_setup'] or {}).get('files',{}):
         save(evidence/name,(source/'evidence'/name).read_bytes())
     validate_setup(evidence,expected['task'],validated['harness_setup'])
+    if validated.get('harness_recovery'):
+        for name in validated['harness_recovery']['files']:save(evidence/name,(source/'evidence'/name).read_bytes())
+        MIGRATIONS[expected['task']][0].validate_capture(evidence,validated['harness_recovery'])
     validated['imported']=True
     return validated
 
@@ -301,10 +311,11 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
             reason='The separated fixture, prompt and artifact judge are not migrated yet.',model_trials=False)
         save_json(base/'result.json',row);return row
     require(arm in ('model','baseline'), 'Invalid external arm')
-    case=ExternalTrial(executable if arm=='model' else None,base/'workspace',task,repetition,'cli',CHECKS[task],arm=arm)
+    adapter,baseline_judge=MIGRATIONS[task]
+    factory=getattr(adapter,'external_trial',ExternalTrial)
+    case=factory(executable if arm=='model' else None,base/'workspace',task,repetition,'cli',CHECKS[task],arm=arm)
     case.judge_root=evidence
     case.result_path=base/'result.json'
-    adapter,baseline_judge=MIGRATIONS[task]
     adapter.fixture(case);case.begin(adapter.PROMPT.read_text(encoding='utf-8'))
     expected=contract(case,configuration,tools)
     pinned=driver_identity(configuration)
@@ -319,6 +330,7 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
             args=['--workspace',str(case.root.resolve()),'mcp','--tools','core']))))
         request['mcp_config']=str((evidence/'mcp-config.json').resolve())
         request['engine_executable']=str(case.executable.resolve())
+    if hasattr(adapter,'configure_request'):adapter.configure_request(case,request)
     save_json(evidence/'request.json',request)
     if not import_source and hasattr(adapter,'prepare_external'):
         adapter.prepare_external(case)
@@ -336,8 +348,9 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
             case.driver_evidence=import_capture(import_source,case,evidence,expected)
         else:
             require(configuration['argv'], 'The external driver command is empty')
-            execution=run_owned(configuration['argv']+[str((evidence/'request.json').resolve())],case.root,
-                                configuration['timeout_seconds'],observe_memory=True)
+            if hasattr(adapter,'execute_client'):execution=adapter.execute_client(case,configuration,(evidence/'request.json').resolve())
+            else:execution=run_owned(configuration['argv']+[str((evidence/'request.json').resolve())],case.root,
+                                    configuration['timeout_seconds'],observe_memory=True)
             # Do not retain arbitrary console output: client credentials must
             # stay out of logs. The declared transcript is the evidence surface.
             execution.pop('output',None)
@@ -352,6 +365,7 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
                 result_sha256=file_hash(evidence/'driver-result.json'),transcript_sha256=file_hash(raw),
                 host=measurement_host.identity(),execution=execution,driver_identity=pinned)
             if case.setup is not None:capture['harness_setup']=case.setup
+            if hasattr(case,'harness_recovery'):capture['harness_recovery']=case.harness_recovery
             save_json(evidence/'capture.json',capture)
             case.driver_evidence=validate_result(evidence,expected,capture,files)
     except Exception as error:

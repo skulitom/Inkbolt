@@ -7,8 +7,8 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The complete hosted Windows/Linux/macOS matrix passed at `5dfb699`, including
-the MCP/SVG increments and publication-contention fix; see the evidence below.
+The latest retained hosted Windows/Linux/macOS matrix passed at `699b136`,
+including the MCP/SVG increments and publication-contention fix; see below.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
@@ -126,6 +126,16 @@ fix. Windows ran 213 Rust and 2396 Python tests with one explicit skip; Linux an
 macOS each ran 179 Rust and 2362 Python tests with 35 explicit skips. Production
 session behavior and existing assertions are unchanged. See the exact candidate,
 timings and retained evidence in [development status](DEVELOPMENT_STATUS.md).
+
+The [latest retained matrix at `699b136`](https://github.com/skulitom/Inkbolt/actions/runs/38391594759)
+passed all 234 fresh stages on every platform, with unchanged inputs and no
+failures, pending checks or reused passes. Windows ran 213 Rust and 2426 Python
+tests with one skip in 4130.6 seconds. Linux and macOS each ran 179 Rust and
+2392 Python tests with 35 skips, in 1124.4 and 3135.2 seconds respectively.
+Reports and logs are retained externally under `w1-public-ci-699b136`; the shared
+candidate fingerprint is
+`30fdfae481ac1757a86019d6ce9cd56a40fbaf00f62073da46fab021b3873c42`.
+Later focused benchmark changes are not full-suite acceptance at that revision.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable
