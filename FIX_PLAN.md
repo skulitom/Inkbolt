@@ -25,12 +25,12 @@ standing authorization.
 | Workstream | Current status | Next action |
 | --- | --- | --- |
 | W0 | Complete and closed | Change limits only with a capability or safety change that needs them; no further consolidation campaign |
-| W1 | Full Windows/Linux/macOS hosted acceptance passed at `d0719a1`, with all reports retained | Maintain platform coverage; Unix jobs remain open |
-| W2 | All twenty tasks have external lifecycles/capture import and matched reporting. The local Codex adapter has genuine B02 pilots for two externally selected models; full five-repetition evidence remains open. B17-B19 have no baseline | Run five matched repetitions across the fixed suite; retain every failure and keep model/settings external. B19/B20 require Windows; B10 Linux commit-memory evidence remains required |
+| W1 | Full Windows/Linux/macOS hosted acceptance passed at `107274c`, with all reports retained | Maintain platform coverage; Unix jobs remain open |
+| W2 | All twenty tasks have external lifecycles/capture import and matched reporting. [Five genuine B02 pairs](docs/BENCHMARK_RESULTS.md) passed both arms; Inkbolt used 8.60x median input/output tokens. B17-B19 have no baseline | Complete the other nineteen tasks and smaller-model evidence; retain every failure and keep model/settings external. B19/B20 require Windows; B10 Linux commit-memory evidence remains required |
 | W5.1 | Complete: single-copy PNG delivery, structured responses and measured traffic reductions; fresh Windows/Linux acceptance passed | Keep the transport contract; use W2 evidence to prioritize W5.2+ |
 | W3a.1-2 | Arcs and rounded rectangles complete with fresh Windows/Linux acceptance | Other W3a items remain open; prioritize them using W2 evidence |
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |
-| W3c / W4 / W5.2+ / W6 | Open; substantial work | Use W2's decision rule below to select and sequence the next measured increments |
+| W3c / W4 / W5.2+ / W6 | Open; substantial work | B02 motivates a bounded W5.2 first-page discovery change, followed by five-pair remeasurement; use W2's decision rule for broader work |
 | W7 / W8 | Distribution and published usability evidence remain open; README checkpoint headline moved | Ship only verified platform tiers; publish comparable results after trials |
 | W9 | Deferred, outside active scope | No learned-model plugin work |
 

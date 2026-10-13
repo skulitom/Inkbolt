@@ -221,8 +221,16 @@ reports confirm complete-suite coverage, unchanged inputs and no failed,
 pending or reused checks. Reports and logs are under `w1-public-ci-d0719a1`;
 their common candidate fingerprint is
 `0d80abe1ec91235c63bd1f5aa48f92908d0ecfad59af0caf52aabe8bfab17919`.
-This is the latest fully retained platform milestone, not full acceptance of
-subsequent focused benchmark increments or Unix jobs.
+The newer [hosted `107274c` run](https://github.com/skulitom/Inkbolt/actions/runs/38411827178)
+passed all 239 fresh stages on each platform. Windows ran 213 Rust and 2453
+Python tests with four skips in 3232.6 seconds; Linux/macOS each ran 179 Rust
+and 2412 Python tests with 45 skips, in 1471.6/3123.0 seconds. All three reports
+confirm complete-suite coverage, unchanged inputs and no failed, pending or
+reused checks. Reports and logs are retained under `w1-public-ci-107274c`, with
+shared candidate fingerprint
+`caac16db5d90d4c78c70f36bc6e47115af7663b4230065d1b60510930de1ad8c`.
+This is the latest fully retained platform milestone. It predates the comparison
+reporter and Codex adapter and does not establish Unix job support.
 
 ## W2 and the next behavior increments
 
@@ -951,8 +959,29 @@ not fresh full-suite acceptance. Final tested/rejudged candidate:
 `66f718ea49c6623e53c84d2e2ed9276a4505f4f46c2a0bd60f1205e6eaa395a8`.
 Only this status record and the primary plan changed afterward.
 
-Five-repetition model trials across the fixed suite, arbitrary legacy transcript
-adapters and B10 Linux commit-memory evidence remain open. Full W2 milestone
+Five genuine matched B02 pairs now ran at unchanged commit `c7d9f30`, using the
+same externally configured client, model and settings. Both arms passed all five
+artifact and applicable workflow checks. Median input-plus-output usage was
+487,207 tokens for Inkbolt versus 56,624 for the baseline (8.60x), and measured
+client execution was 159.0 versus 49.7 seconds. The [published aggregate](BENCHMARK_RESULTS.md)
+records conditions, wide success intervals, unknown metrics and evidence hashes.
+All ten original outcomes and transcripts remain external under
+`w2-codex-sol-b02-*-five-01`; comparison and first-page probe evidence are retained
+beside them. The candidate fingerprint is
+`abdfa023c342ea73d4cd9c0b39e2806e54ba5624099559dfcdd3045b5fdcf413`.
+No judge changed between these arms, and the earlier pilots remain separate.
+
+This B02 signal promotes a bounded W5.2 discovery change: expose schema lookup
+and the general dispatcher on the first compact tool page, preserving inventory,
+byte budget and behavior. The recorded CLI discovery workarounds and runtime
+page probe motivate a hypothesis, not a proven client-pagination defect.
+Remeasure five matched B02 pairs with unchanged client/model/settings and judges;
+expect fewer discovery workarounds and lower usage without losing the 5/5
+artifact/workflow result. Reassess before expanding if that benefit is absent.
+
+Five-repetition model trials for the other nineteen tasks, further smaller-model
+trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
+remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
 plan's decision rule; accepted outcomes remain required.
