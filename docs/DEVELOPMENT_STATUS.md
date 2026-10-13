@@ -1040,9 +1040,22 @@ seconds, with three explicit platform skips. Both also passed fresh formatting,
 locked build and all-target Clippy, with no failed, pending or reused selected
 checks. Reports remain external under `w5-cli-guidance-`; the unchanged tested
 candidate is `a78b00939244a45beeadaf5c68868cc72ea6e465381225bfea3b870c1830d84a`.
-Only this record and the primary status table changed afterward. Full milestone
-acceptance remains open. Remeasure using the verified external client approval
-configuration before further interface work; task prompts and judges stay fixed.
+Only this record and the primary status table changed before commit `8586e82`.
+Full milestone acceptance remains open.
+
+Five matched B02 pairs at `8586e82` passed both arms on unchanged candidate
+`cd888dde1f5765d78fee3bdac3512f56e9202ffe269608253ae47b3a82d15b27`.
+The external client/model/settings matched, including explicit server approval;
+task prompts and judges stayed fixed. Median input-plus-output tokens were
+313,114 versus 57,582 (5.44x), with client execution at 112.8 versus 46.6 seconds.
+Every Inkbolt trial successfully used CLI help, read the reorder description and
+avoided reorder-index failures. All chose CLI execution, so this batch does not
+measure the MCP policy's effect. One insertion-index error plus schema/output
+mistakes remain retained. The lower observed usage does not isolate causes across
+sequential batches, and the baseline still triggers the fixed cost signal.
+See the [complete result and evidence identities](BENCHMARK_RESULTS.md#b02-at-8586e82-cli-help-and-sibling-index-guidance).
+Broaden coverage with B01/B03 and smaller-model pilots before further icon-task
+tuning; all full-suite gates and engine checkpoint criteria remain unchanged.
 
 Five-repetition model trials for the other nineteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence

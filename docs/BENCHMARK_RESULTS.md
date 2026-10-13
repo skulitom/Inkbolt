@@ -1,9 +1,11 @@
 # Recorded agent evaluation results
 
-Two five-pair B02 evaluations are recorded below. The first-page discovery
-change preserved artifact success but did not meet its token-reduction target.
-The follow-up also exposed client approval refusals. A separate setup pilot below
-verified an explicit external configuration that permits MCP publication.
+Three five-pair B02 evaluations are recorded below. The latest CLI-help and
+sibling-index guidance preserved 5/5 success in both arms and removed the observed
+help/reorder failures. Inkbolt still used **5.44 times** the baseline's median
+reported input-plus-output tokens. A separate setup pilot verified explicit MCP
+approval; the latest five trials chose CLI execution. Broader task and smaller-model
+evidence remain required.
 
 ## B02 at c7d9f30: initial five matched icon-sheet trials
 
@@ -195,3 +197,70 @@ the same external config in both arms. All full-suite completion gates remain op
 | Pilot report | `d0975df5a530a5045d94fadf793c9849c11a75edd1682ecbd2d054976c7fdafb` |
 | Client transcript | `e3daf8ac7812efe4e3cb0300a62ee05c1a114f4fa42726f016fc76fed47f27d3` |
 | External client configuration | `7210961872baca5a7afc9f8668aa935135d311ad9beb83156563c0e633c0cf02` |
+
+## B02 at 8586e82: CLI-help and sibling-index guidance
+
+Five new pairs used commit `8586e82ade30069fb2eabe6e13a112ec549e12a5`, the same
+Windows host, Codex CLI 0.160.0, externally selected `gpt-6.1-sol` with medium
+reasoning, unchanged B02 prompt/checks, and the same pinned baseline tools as
+above. Both arms used the pilot-verified external configuration with explicit
+MCP approval. The five Inkbolt runs preceded the five baseline runs; execution
+was sequential, not randomized, on the shared host with no concurrent local
+engine verification or benchmarks. OS caches could be warm. Candidate identity
+remained unchanged, and the comparison found no evidence-matching issues.
+
+| Measurement | Inkbolt arm | No-Inkbolt baseline |
+| --- | ---: | ---: |
+| Artifact success / retained attempts | 5/5 | 5/5 |
+| Complete applicable workflow | 5/5 | 5/5 |
+| Native editable-source check | 5/5 | Not applicable |
+| 95% Wilson interval for artifact success | 56.6%-100% | 56.6%-100% |
+| Median input + output tokens | 313,114 | 57,582 |
+| Input + output token range | 274,123-394,769 | 56,782-70,869 |
+| Median client execution, seconds | 112.8 | 46.6 |
+| Client execution range, seconds | 99.9-129.7 | 40.0-54.6 |
+| Median cached input tokens, reported separately | 253,312 | 35,328 |
+
+The 5.44x token ratio still triggers the fixed cost signal. Inkbolt's observed
+median was 44.5% below the previous five-run median of 564,296, but the engine
+guidance, client approval configuration and execution paths differed across
+batches. This small sequential sample does not isolate causes or establish
+general performance, equivalence or billing savings. Cached context is included
+in input totals and is not added twice. Model-call counts, complete engine
+traffic/retries and first verified preview time remain unknown.
+
+All five Inkbolt traces successfully used `--help`, looked up the `reorder`
+operation, and avoided the previous sibling-reorder failure. They used 10-13
+completed shell items each and no MCP calls. Thus zero approval refusals in this
+batch do not measure the server policy's effect; the separate MCP pilot remains
+the evidence for that setting. The agents arranged the required flat snapshot
+item order explicitly before engine validation/publication. One trial attempted
+an invalid global insertion index and repaired it; schema-selector and output-option
+errors also remain in the captures. No prompt, judge or insertion/reorder semantics
+were changed to improve the scores.
+
+Transcript and generated-script review found only the supplied engine/image
+tools, workspace inputs/outputs and owned temporary files. No repository/judge
+reads, additional model use or baseline engine access were observed. All ten
+attempts remain retained. These observations count client items, not underlying
+model or engine calls.
+
+The next work is broader B01/B03 and smaller-model evaluation before further
+B02-specific tuning. The insertion-index and schema-discovery gaps remain
+recorded, while larger W3c/W4/W5.2+/W6 priorities await evidence across tasks.
+The other nineteen tasks, Linux scale evidence and sister-engine comparison
+remain open. All four full-suite completion gates remain false; no checkpoint
+credit or full W2/W5.2 milestone completion follows from these results.
+
+The complete captures, reports and comparison remain outside the repository
+under `w5-cli-guidance-b02-`; reviewed trace counts and final candidate hashes
+are retained alongside them. The same configuration hash as the pilot above
+applies to both arms.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Source candidate | `cd888dde1f5765d78fee3bdac3512f56e9202ffe269608253ae47b3a82d15b27` |
+| Inkbolt release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| Inkbolt-arm report | `1c1697dcd26aaccb6e760fe165f2adbb3c8940941e072e9bc1a6ac6f6f7b353b` |
+| Baseline-arm report | `96c016d9bea5c7153f23ab74fb9c454f93b2df90056159c401155416f9812e1c` |
+| Matched comparison report | `085294024818692b92f53dbc537925f5b583fcf5c6014310c89b99efbe752fbc` |
