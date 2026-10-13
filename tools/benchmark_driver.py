@@ -24,6 +24,7 @@ import benchmark_print
 import benchmark_resources
 import benchmark_repair
 import benchmark_retry
+import benchmark_conflict
 from benchmark_baseline import judge_diagram, file_hash
 from benchmark_baseline_icons import judge_icons
 from benchmark_baseline_large_layout import judge_large_layout
@@ -52,7 +53,7 @@ MIGRATIONS = {'B01':(benchmark_diagram, judge_diagram), 'B02':(benchmark_icons, 
               'B11':(benchmark_mixed, judge_mixed), 'B12':(benchmark_variants, judge_variants),
               'B13':(benchmark_screen, judge_screen), 'B14':(benchmark_print, judge_print),
               'B15':(benchmark_resources, judge_resources), 'B16':(benchmark_repair, judge_repair),
-              'B17':(benchmark_retry, None)}
+              'B17':(benchmark_retry, None), 'B18':(benchmark_conflict, None)}
 MIGRATED_TASKS = tuple(MIGRATIONS)
 MAX_METADATA = 1024*1024
 MAX_TRANSCRIPT = 64*1024*1024
@@ -240,7 +241,7 @@ def validate_setup(evidence,task,value):
         require(type(value[key]) is int and value[key]>0,'Invalid harness setup '+key)
     require(type(value['engine_roundtrip_seconds']) in (int,float) and math.isfinite(value['engine_roundtrip_seconds']) and
         value['engine_roundtrip_seconds']>=0,'Invalid harness setup duration')
-    require(value['engine_commands']==2,'Lost-response setup must contain creation and one withheld edit')
+    require(value['engine_commands']==MIGRATIONS[task][0].SETUP_COMMANDS,'Unexpected harness setup command count')
     return value
 
 

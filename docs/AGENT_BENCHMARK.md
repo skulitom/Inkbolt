@@ -9,7 +9,7 @@ an explicitly selected local Cutbolt installation. This advances A1; it does not
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
 `--arm reference` is the existing default. B01-B16 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
-B17 supports the model arm; its engine-specific baseline remains explicitly not
+B17-B18 support the model arm; their engine-specific baselines remain explicitly not
 applicable. The other external migrations and full matched-trial acceptance remain open.
 
 ## Running and preserving evidence
@@ -250,7 +250,21 @@ pixels, then retries on a private session copy to prove undo preservation withou
 changing captured files. All five original checks remain; the whole no-engine
 baseline stays explicitly not applicable.
 
-B18-B20 still interleave solving and judging. All required checks have
+B18 separates its unchanged two-object fixture, [conflict prompt](../tools/benchmark_prompts/B18.md),
+solve and independent judge. The harness creates revision 0, reviews the target
+move, then commits the other writer's move. External clients receive the stale
+request at revision 1, reject it, review/apply a replacement and deliver current
+and historical artwork. The reference retains ten calls: three setup and seven
+solve calls. Setup retains a bounded pre-client database outside the workspace,
+with pinned identities checked after execution and on import. The judge reopens
+all three saved states and durable receipts, binds the reviewed replacement's
+normalized action fingerprint and before/after state hashes, checks fresh pixels,
+and reproduces the stale rejection against a private copy of the pre-client state.
+That probe must preserve revision 1. Extra commits, lost edits, changed controls,
+wrong proposals/errors or altered setup fail. All five checks remain fixed; the
+whole no-engine baseline stays not applicable.
+
+B19-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 
@@ -377,7 +391,7 @@ Complete print/interchange scope remains governed by the original feature regist
   Raw request/response lengths include actual framing and image payloads.
   Report/row schema version 2 separates calls marked `phase:"judge"` from ordinary
   counts, bytes and round-trip time, preserving their raw records and separate
-  `judge_*` totals. `judge_separated:true` identifies migrated tasks (currently B01-B17).
+  `judge_*` totals. `judge_separated:true` identifies migrated tasks (currently B01-B18).
   Judge calls alone cannot establish a successful solve.
   For B20 these ordinary fields describe Inkbolt; `consumer` records the Cutbolt
   side. `total_engine_commands`, `total_engine_retries`, `total_request_bytes`,

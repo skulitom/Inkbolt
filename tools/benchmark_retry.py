@@ -13,6 +13,7 @@ from workload_cases import save,save_json,sha
 PROMPT=Path(__file__).with_name('benchmark_prompts')/'B17.md'
 PREVIEW_FILES={'edited-pixels':'preview.png'}
 SETUP_FILES=('lost-response.json',)
+SETUP_COMMANDS=2
 
 
 def edit_request():

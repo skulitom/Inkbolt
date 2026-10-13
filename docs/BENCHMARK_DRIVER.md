@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B17. B18-B20 remain visible as
+The W2 external lifecycle currently supports B01-B18. B19-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -410,10 +410,37 @@ artwork and setup evidence fail. Both original fixture identity and all five
 check IDs/classes remain fixed. The engine-specific no-engine baseline remains
 explicitly not applicable, without launching Inkbolt or the client.
 
+B18's [conflict prompt](../tools/benchmark_prompts/B18.md) starts the client at
+revision 1 with an actual stale-request.json. Three separately measured harness
+commands create revision 0, review the target move and commit the other writer's
+move. The client submits the stale request unchanged, retains its actual error,
+reviews/applies the replacement at revision 1 and delivers editable.json,
+preview.png and historical.png. It also retains rejected.json and review.json.
+The original reference has ten commands including setup, seven after setup.
+
+conflict-setup.json and a bounded copy of the pre-client database stay outside the
+solver workspace. Their identities are pinned before launch, checked afterward
+and preserved on import without rerunning setup. The supplied request is bound
+to that evidence. The judge reopens all original/other-writer/final documents and
+receipts, checks current and historical pixels, and binds the replacement's
+normalized action fingerprint and base/result state hashes to its durable receipt.
+It reproduces the original stale rejection on a private copy of the pre-client
+database and checks that revision 1 stays unchanged. Testing only the final head
+would instead encounter an already committed request ID and prove a different
+condition. The private probe preserves resource bindings and workspace boundaries;
+it does not render through resource paths outside that private workspace.
+
+Original source bytes and all five check IDs/classes remain fixed. Extra commits,
+lost edits, changed geometry/paint/controls, wrong proposals/errors and altered
+setup evidence fail. Captured source files remain unchanged during import and
+judging. These identity checks are not authenticated proof of historical client
+behavior. The entire engine-specific no-engine baseline remains not applicable.
+
 ## Preparation and import
 
 `--prepare-only` writes requests and fixtures without launching the client. B17
-also executes its two harness setup calls and retains the withheld response. It
+also executes its two harness setup calls and retains the withheld response;
+B18 executes its three setup calls and retains the pre-client conflict state. It
 returns `prepared`, never a task pass. For now, use a configured client adapter
 to capture a prepared/external-client session in this protocol. Arbitrary older
 client transcript formats require an adapter; automatic format detection and a

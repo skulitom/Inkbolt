@@ -35,6 +35,7 @@ from benchmark_resources_client import author as author_resources
 from benchmark_repair import solve as solve_repair,expected_picture as repair_picture
 from benchmark_repair_client import author as author_repair,publish as publish_repair
 from benchmark_retry import solve as solve_retry
+from benchmark_conflict import solve as solve_conflict
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -93,7 +94,7 @@ def main():
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15','B16','B17')
+    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15','B16','B17','B18')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,retry_of=None,**arguments):
             if task=='B10' and '--photo-names' in sys.argv:
@@ -111,7 +112,7 @@ def main():
             return response['result']
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
          'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo,
-         'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen,'B14':solve_print,'B15':solve_resources,'B16':solve_repair,'B17':solve_retry}[task](SimpleNamespace(root=root,call=call))
+         'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen,'B14':solve_print,'B15':solve_resources,'B16':solve_repair,'B17':solve_retry,'B18':solve_conflict}[task](SimpleNamespace(root=root,call=call))
         if task=='B10' and '--photo-names' in sys.argv:
             locator=json.loads((root/'session.json').read_bytes())
             locator['requests']={role:'owner-'+name for role,name in locator['requests'].items()}

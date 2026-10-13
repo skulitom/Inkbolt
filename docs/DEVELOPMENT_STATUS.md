@@ -675,7 +675,40 @@ seconds separately from the 92.3-second routine checks. These are shared-host
 correctness results, not authenticated client behavior, genuine model trials,
 performance comparisons or full W2 acceptance.
 
-B18-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B18 separates the unchanged two-object fixture, conflict prompt, solve and
+independent judge. Three harness commands create the session, review the target
+move and commit the other writer's move. The client starts with a real stale
+proposal at revision 1; the reference retains ten commands including setup.
+Bounded pre-client database evidence and the supplied request are pinned before
+client execution and preserved on import. The judge reopens all three states and
+durable receipts, binds the replacement's action fingerprint and state hashes,
+checks current/historical pixels and reproduces the stale rejection on a private
+copy of the pre-client store. The rejected request must leave revision 1 unchanged.
+Wrong requests/errors/proposals, lost edits, changed controls, extra commits and
+altered setup fail. Captured files remain unchanged. All five checks and the
+engine-specific no-engine exclusion remain fixed.
+
+Windows passed 59 selected tests in 121.5 seconds; Linux passed 56 in 87.3 seconds
+with three explicit Windows-only skips. Formatting, locked build and all-target
+Clippy reused identical passing inputs; all selected Python modules ran afresh.
+No selected stage failed or remained pending. The broader Windows candidate
+differs from the final candidate only by a removed trailing blank line in the
+shared graphics helper; all eight conflict tests passed again in 32.4 seconds
+after that whitespace cleanup. Linux and the repeated conflict trials used final
+candidate fingerprint:
+`78e088272ae4468811f7b6b57b60f38fb56d95e291d9137cfda4177e410cb0f6`.
+Five external synthetic trials passed on each platform and all five Windows
+captures passed rejudging, with identical candidate/prompt hashes and unchanged
+inputs. Prompt hash:
+`5b604b46bd953456eddb22e87e08751ba41a3c0d9e8dca39bf02fb7cf99049ef`.
+Evidence remains external under `w2-b18-`. Initial failed development checks are
+retained: the judge was corrected to respect captured resource-path boundaries,
+and the reference immutability test now distinguishes new traffic logs from
+changed input/delivery files. These are shared-host correctness results, not
+authenticated client behavior, genuine model trials, performance comparisons or
+full W2 milestone acceptance. No engine behavior or checkpoint credit changed.
+
+B19-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
