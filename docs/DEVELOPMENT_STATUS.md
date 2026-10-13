@@ -1199,6 +1199,19 @@ Review that convention before general reliability claims. B06 reinforces the
 interaction-cost signal; B07 has no successful-pair cost signal. See
 [the results and evidence identities](BENCHMARK_RESULTS.md#b06b07-at-a7e034e-captured-trials-rejudged).
 
+Before B08/B09 trials, retained synthetic captures reproduced false
+`SESSION_NOT_FOUND` errors for valid nondefault session directories. Both judges
+now use checked session-store discovery for original/current revision reads and
+history verification. The existing independent pixel/state/history assertions
+remain unchanged. Both original captures now pass after relocation, with every
+workspace byte retained and no default session directory created. These are
+synthetic judging checks, not additional model evidence.
+Focused Windows/WSL checks passed 40/37 Python tests in 34.7/17.7 seconds, with
+three explicit Linux skips, unchanged Cargo passes reused and no failed/pending
+selected checks. Before/after captures and reports remain under
+`w2-mask-retouch-stores-`, tested candidate
+`4f8d4fd1a3e4982a02981b49af8236d8695832d8edd01769f1d4779e05107991`.
+
 Five-repetition model trials for the other thirteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

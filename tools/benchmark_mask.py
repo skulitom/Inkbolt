@@ -5,6 +5,7 @@ from pathlib import Path
 
 from benchmark_diagram import delivered
 from benchmark_graphics import png_check, store, apply, source_snapshot
+from benchmark_large_layout import retained_session_store
 from benchmark_runtime import require, safe_name, strict_json
 from workload_cases import document, save, save_json, sha
 
@@ -74,15 +75,16 @@ def judge(case):
     safe_name(locator['session_id'])
     require(type(locator['original_revision']) is int and locator['original_revision'] == 0 and
         type(locator['current_revision']) is int and locator['current_revision'] == actual['revision'] > 0,'Invalid original/current revisions')
-    old = case.call('judge-original-revision','document.validate',document=dict(session_id=locator['session_id'],revision=0))
-    current = case.call('judge-current-revision','document.validate',document=dict(session_id=locator['session_id'],revision=actual['revision']))
+    session_root = retained_session_store(case,locator['session_id'])
+    old = case.call('judge-original-revision','document.validate',document=dict(session_root=session_root,session_id=locator['session_id'],revision=0))
+    current = case.call('judge-current-revision','document.validate',document=dict(session_root=session_root,session_id=locator['session_id'],revision=actual['revision']))
     historical = case.call('judge-historical','document.preview',document=old,preview=True)
     def historical_picture():
         require(old == original,'The saved original differs from the source fixture')
         png_check(delivered(case,'historical.png'),16,16,original_pixels())
         png_check(base64.b64decode(historical['artifact']['data'],validate=True),16,16,original_pixels())
     case.check('historical-pixels',historical_picture)
-    verified = case.call('judge-history','session.verify',session_id=locator['session_id'])
+    verified = case.call('judge-history','session.verify',session_root=session_root,session_id=locator['session_id'])
     case.check('history-valid',lambda:require(verified['valid'] and verified['revision'] == actual['revision'] and
         old == original and current == actual,'History must bind the exact original fixture, delivery and current head'))
 

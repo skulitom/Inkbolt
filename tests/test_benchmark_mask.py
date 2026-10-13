@@ -107,13 +107,15 @@ class BenchmarkMaskTests(unittest.TestCase):
 
     def test_external_capture_is_independently_rejudged_after_relocation(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory); configuration = driver()
+            root = Path(directory); configuration = driver('--custom-session-store')
             row = run_external_task(EXE,root/'live','B08',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row)
             self.assertFalse(row['model_trials']); self.assertIsNone(row['model_calls'])
+            self.assertFalse((root/'live/workspace/.inkbolt/sessions').exists())
             before = workspace_files(root/'live/workspace')
             imported = run_external_task(EXE,root/'import','B08',1,'model',configuration,import_source=root/'live')
             self.assertEqual(imported['status'],'passed',imported); self.assertEqual(row['checks'],imported['checks'])
+            self.assertFalse((root/'import/workspace/.inkbolt/sessions').exists())
             self.assertEqual(before,workspace_files(root/'live/workspace')); self.assertEqual(before,workspace_files(root/'import/workspace'))
 
     def test_baseline_never_launches_engine_and_checks_components_and_both_outputs(self):
