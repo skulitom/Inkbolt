@@ -6,6 +6,7 @@ from pathlib import Path
 
 from benchmark_diagram import delivered
 from benchmark_graphics import BLUE,GREEN,document,pixels,png_check,store,source_snapshot
+from benchmark_large_layout import retained_session_store
 from benchmark_runtime import require,safe_name,strict_json
 from test_images_cli import png,canonical
 from workload_cases import save,save_json,sha
@@ -132,10 +133,11 @@ def judge(case):
         all(type(locator[k]) is int and locator[k]>=0 for k in ('before_revision','after_revision')) and
         locator['before_revision']==0 and locator['after_revision']>0,'Invalid repair session locator')
     for key in ('session_id','creation','repair'):safe_name(locator[key])
-    records={key:case.call('judge-receipt-'+key,'session.receipt',session_id=locator['session_id'],request_id=locator[key]) for key in ('creation','repair')}
-    current=case.call('judge-current','session.read',session_id=locator['session_id'])
-    old_saved=case.call('judge-old','document.validate',document=dict(session_id=locator['session_id'],revision=locator['before_revision']))
-    verified=case.call('judge-history','session.verify',session_id=locator['session_id'])
+    session_root=retained_session_store(case,locator['session_id'])
+    records={key:case.call('judge-receipt-'+key,'session.receipt',session_root=session_root,session_id=locator['session_id'],request_id=locator[key]) for key in ('creation','repair')}
+    current=case.call('judge-current','session.read',session_root=session_root,session_id=locator['session_id'])
+    old_saved=case.call('judge-old','document.validate',document=dict(session_root=session_root,session_id=locator['session_id'],revision=locator['before_revision']))
+    verified=case.call('judge-history','session.verify',session_root=session_root,session_id=locator['session_id'])
     def bindings():
         old,new=records['creation'],records['repair'];base=path_parts(locator['workspace_root'])
         require(path_parts(old['resources']['asset_root'])==base/'broken-assets' and

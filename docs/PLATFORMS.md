@@ -183,12 +183,17 @@ respectively. Inputs were unchanged, with no failed, pending or reused stages. R
 retained under `w1-public-ci-7a07f07`, with report and log hashes in
 `complete-matrix-audit-01.json`, candidate
 `6e3153244579fd3e0dcdebd7c42185b3787d71854664171b9f71b239364ae3a3`.
-These passes predate the later B10/B13 delivery-judge and B11/B12 store/hierarchy
-corrections. Those changes have focused Windows/WSL checks, not a newer complete
-matrix. The latest hierarchy correction executed 56 Windows Python tests in
+These passes predate the later B10/B13 delivery-judge, B11/B12 store/hierarchy
+and B14/B15 store corrections. Those changes have focused Windows/WSL checks,
+not a newer complete matrix. The hierarchy correction executed 56 Windows Python tests in
 80.3 seconds and 53 Linux tests in 53.1 seconds, with three explicit Linux
 platform skips and unchanged Cargo checks reused. No selected check failed or
 remained pending; this is focused feedback, not complete milestone acceptance.
+The subsequent B14/B15 store correction executed 45 Windows tests with one
+symlink skip in 39.5 seconds and 43 WSL tests with three platform skips in
+31.2 seconds. Cargo checks were reused and no selected check failed or remained
+pending. Both reports under `w2-print-resources-store-` bind candidate
+`a144f4c829b0b3c4dbf801fc9974551a3e7f73e5468e1912c8b4e85d59edb9e5`.
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

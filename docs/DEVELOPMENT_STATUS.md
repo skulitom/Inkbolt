@@ -1319,6 +1319,21 @@ client results, usage and captured memory. No model was rerun. B11 lock failures
 and all baseline outcomes are unchanged; only the three B12 judge errors become
 passes. See [results and review limits](BENCHMARK_RESULTS.md#b11b12-at-30c4ebd-mixed-composition-and-layout-variants).
 
+B14/B15 preparation reproduced false failures for valid custom session stores
+and a custom B14 publication store. Their judges now locate unique captured
+stores by the delivered IDs before native receipt/history verification. Both
+original synthetic captures pass rejudging with unchanged files, transcripts,
+client results and usage; the judges still use nine/ten engine calls. B15's
+explicit broken/repaired resource folders, original absolute binding data and
+reviewed resource-only change remain required. Tests reject missing, duplicate
+and corrupt stores, altered print artifacts, invalid reviews and historical
+resource changes. Windows executed 45 tests with one symlink skip in 39.5 seconds;
+WSL executed 43 with three platform skips in 31.2 seconds. Unchanged Cargo checks
+were reused; no selected checks failed or remained pending. Evidence is under
+`w2-print-resources-store-`, tested candidate
+`a144f4c829b0b3c4dbf801fc9974551a3e7f73e5468e1912c8b4e85d59edb9e5`.
+This is synthetic judge preparation, without new model or engine credit.
+
 Five-repetition model trials for the other seven tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

@@ -21,14 +21,20 @@ from test_images_cli import png,canonical
 
 
 class ResourceBenchmarkTests(unittest.TestCase):
-    def prepare(self,root,independent=False):
+    def prepare(self,root,independent=False,custom=False):
         case=Trial(EXE,root,'B15',1,'cli',CHECKS['B15']);self.addCleanup(case.close)
         fixture(case);case.begin(PROMPT.read_text(encoding='utf-8'));original=case.call
         def call(step,command,**arguments):
-            if arguments.get('session_id')=='work':arguments['session_id']='studio-resources'
-            if 'request_id' in arguments:arguments['request_id']='owner-'+arguments['request_id']
+            if independent:
+                if arguments.get('session_id')=='work':arguments['session_id']='studio-resources'
+                if 'request_id' in arguments:arguments['request_id']='owner-'+arguments['request_id']
+            if custom:
+                if command.startswith('session.'):arguments['session_root']='chosen sessions'
+                document=arguments.get('document')
+                if isinstance(document,dict) and 'session_id' in document:
+                    arguments['document']=dict(document,session_root='chosen sessions')
             return original(step,command,**arguments)
-        if independent:case.call=call
+        if independent or custom:case.call=call
         solve(case);case.call=original
         if independent:
             locator=json.loads((case.root/'session.json').read_bytes());locator['creation']='owner-create'
@@ -56,7 +62,7 @@ class ResourceBenchmarkTests(unittest.TestCase):
 
     def test_bad_diagnostics_replacements_artwork_reviews_and_history_fail(self):
         with tempfile.TemporaryDirectory() as directory:
-            case=self.prepare(Path(directory)/'negative');original=case.call;case.results.clear();case.begin_judging()
+            case=self.prepare(Path(directory)/'negative',custom=True);original=case.call;case.results.clear();case.begin_judging()
             names=['editable.json','diagnostics.json','preview.png','bindings.json','review.json','session.json',
                    'repaired-assets/'+cache_name(0),'repaired-assets/'+cache_name(1),'broken-assets/'+cache_name(0)]
             good={name:(case.root/name).read_bytes() for name in names}
@@ -91,13 +97,34 @@ class ResourceBenchmarkTests(unittest.TestCase):
 
     def test_external_capture_rejudges_without_following_old_absolute_resource_roots(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver()
+            root=Path(directory);configuration=driver('--custom-session-store')
             row=run_external_task(EXE,root/'live','B15',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);before=workspace_files(root/'live/workspace')
+            self.assertFalse((root/'live/workspace/.inkbolt/sessions').exists())
+            self.assertEqual(len(list((root/'live/workspace/chosen sessions').glob('*.sqlite3'))),1)
+            self.assertEqual(json.loads((root/'live/workspace/bindings.json').read_bytes()),
+                dict(before='broken-assets',after='repaired-assets'))
             (root/'live').rename(root/'moved')
             imported=run_external_task(EXE,root/'import','B15',1,'model',configuration,import_source=root/'moved')
             self.assertEqual(imported['status'],'passed',imported);self.assertFalse(imported['model_trials'])
             self.assertEqual(before,workspace_files(root/'moved/workspace'));self.assertEqual(before,workspace_files(root/'import/workspace'))
+
+    def test_custom_session_store_requires_unique_intact_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=self.prepare(Path(directory)/'model',custom=True);original=case.call
+            path=next((case.root/'chosen sessions').glob('*.sqlite3'));raw=path.read_bytes()
+            duplicate=case.root/'duplicate'/path.name;case.results.clear();case.begin_judging()
+            for fault in ('missing','ambiguous','corrupt'):
+                with self.subTest(fault=fault):
+                    case.checks.clear();case.call=lambda step,command,**arguments:original(fault+'-'+step,command,**arguments)
+                    if fault=='missing':path.unlink()
+                    elif fault=='ambiguous':duplicate.parent.mkdir();duplicate.write_bytes(raw)
+                    else:path.write_bytes(b'corrupt retained store')
+                    with self.assertRaises(TaskFailure):judge(case)
+                    self.assertEqual({c['name']:c['status'] for c in case.checks},
+                        {name:'pass' for name in ('unchanged-artwork','located-diagnostics','verified-replacements','repaired-pixels')})
+                    path.write_bytes(raw)
+                    if duplicate.exists():duplicate.unlink()
 
     def test_baseline_checks_pinned_decoding_and_fresh_pixels_without_engine_access(self):
         for fault in ('none','decoded','pixels'):

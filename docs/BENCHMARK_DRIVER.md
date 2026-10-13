@@ -372,6 +372,9 @@ controls, saved source/current head and completed publication receipt; it freshl
 preflights and publishes into an owned judge directory. Captures stay unchanged,
 including after relocation. Fresh and delivered PDF identities, reported losses,
 physical boxes, embedded profiles and native operands must agree.
+The session and publication stores may use caller-chosen folders inside the
+capture. Their delivered IDs must locate unique stores; the engine still checks
+the retained receipt and saved history. Missing, ambiguous or corrupt stores fail.
 
 The baseline retains a bounded logical print recipe and original profile files.
 Ordinary Python may author native PDF; pinned Pillow color management derives
@@ -391,10 +394,13 @@ model judge checks full document equality apart from revision, both replacement
 cache identities, correctly paired diagnostic locations and a fresh preview.
 Creation/repair receipts, current session state and history must agree with the
 retained proposal's source/result hashes and resource-action fingerprint.
+The saved session is located by its delivered ID inside the capture, without
+requiring a default session folder. Missing, ambiguous or corrupt history fails.
 
 The recorded absolute workspace root locates stored binding data; the judge
 compares those paths lexically and never follows them after relocation. Only the
 captured broken/repaired directories are used for fresh diagnosis and rendering.
+Those two resource directory names remain explicit requirements of the task.
 It neither repairs old states nor changes captured files. This establishes
 consistent retained content, not authenticated historical review actions.
 

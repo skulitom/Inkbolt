@@ -6,7 +6,9 @@ from pathlib import Path
 
 from benchmark_diagram import delivered
 from benchmark_graphics import rectangle,pixels,png_check,store,source_snapshot
+from benchmark_large_layout import retained_session_store
 from benchmark_runtime import require,safe_name,strict_json
+from benchmark_stores import retained_publication_store
 from cmyk_fixtures import cmyk_profile
 from test_profiles_cli import embedded,linear_profile
 from test_swatch_profiles_cli import managed
@@ -142,15 +144,17 @@ def judge(case):
     locator=strict_json(delivered(case,'session.json'))
     require(set(locator)=={'session_id','revision','publication'} and type(locator['revision']) is int and locator['revision']>=0,'Invalid print session locator')
     for key in ('session_id','publication'):safe_name(locator[key])
-    receipt=case.call('judge-receipt','publication.receipt',request_id=locator['publication'])
+    receipt=case.call('judge-receipt','publication.receipt',request_id=locator['publication'],
+        receipt_root=retained_publication_store(case,locator['publication']))
     def losses():
         value=strict_json(delivered(case,'delivery.json'));declared_losses(value,raw);result=receipt['result']
         require(receipt['state']=='complete' and result['sha256']==value['sha256']==sha(fresh)==fresh_result['sha256']==ready['prepared_output']['sha256'] and
             result['losses']==value['losses']==fresh_result['losses'] and result['format']=='pdf' and result['document_id']==actual['id'] and
             result['revision']==actual['revision'],'Delivered PDF or limitations differ from fresh preflight or the completed receipt')
     case.check('declared-losses',losses)
-    saved=case.call('judge-saved','document.validate',document=dict(session_id=locator['session_id'],revision=locator['revision']))
-    history=case.call('judge-history','session.verify',session_id=locator['session_id'])
+    session_root=retained_session_store(case,locator['session_id'])
+    saved=case.call('judge-saved','document.validate',document=dict(session_root=session_root,session_id=locator['session_id'],revision=locator['revision']))
+    history=case.call('judge-history','session.verify',session_root=session_root,session_id=locator['session_id'])
     case.check('history-valid',lambda:require(saved==actual and history['valid'] and history['revision']==locator['revision']==actual['revision'],
         'Saved source and verified current history differ'))
 

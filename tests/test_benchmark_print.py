@@ -23,20 +23,27 @@ from workload_cases import sha
 
 
 class PrintBenchmarkTests(unittest.TestCase):
-    def prepare(self,root,independent=False):
+    def prepare(self,root,independent=False,custom=False):
         case=Trial(EXE,root,'B14',1,'cli',CHECKS['B14']);self.addCleanup(case.close)
         fixture(case);case.begin(PROMPT.read_text(encoding='utf-8'))
         original=case.call
         def call(step,command,**arguments):
-            if command=='preset.create':arguments['id']='studio-page'
-            if arguments.get('session_id')=='work':arguments['session_id']='studio-session'
+            if independent:
+                if command=='preset.create':arguments['id']='studio-page'
+                if arguments.get('session_id')=='work':arguments['session_id']='studio-session'
+            if custom:
+                if command.startswith('session.'):arguments['session_root']='chosen sessions'
+                document=arguments.get('document')
+                if isinstance(document,dict) and 'session_id' in document:
+                    arguments['document']=dict(document,session_root='chosen sessions')
+                if 'receipt' in arguments:arguments['receipt']['receipt_root']='chosen receipts'
             return original(step,command,**arguments)
+        if independent or custom:case.call=call
         if independent:
-            case.call=call
             with patch('benchmark_print.source_document',side_effect=lambda preset,rgb,cmyk:source_document(preset,rgb,cmyk,
                 dict(board='sheet',process='process-ink',items=['left','right']))):solve(case)
-            case.call=original
         else:solve(case)
+        case.call=original
         return case
 
     def test_original_outcomes_on_cli_and_mcp_with_separated_solver(self):
@@ -57,7 +64,7 @@ class PrintBenchmarkTests(unittest.TestCase):
 
     def test_changed_source_delivery_pixels_and_declared_losses_fail(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);case=self.prepare(root/'model');original_call=case.call
+            root=Path(directory);case=self.prepare(root/'model',custom=True);original_call=case.call
             files={name:(case.root/name).read_bytes() for name in ('editable.json','preview.png','print.pdf','delivery.json')}
             case.results.clear();case.begin_judging()
             for fault in ('geometry','profile','pixels','pdf','losses'):
@@ -86,13 +93,38 @@ class PrintBenchmarkTests(unittest.TestCase):
 
     def test_external_capture_rejudges_after_original_workspace_moves(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver()
+            root=Path(directory);configuration=driver('--custom-session-store','--custom-receipt-store')
             row=run_external_task(EXE,root/'live','B14',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);before=workspace_files(root/'live/workspace')
+            self.assertFalse((root/'live/workspace/.inkbolt/sessions').exists())
+            self.assertFalse((root/'live/workspace/.inkbolt/publications').exists())
+            self.assertEqual(len(list((root/'live/workspace/chosen sessions').glob('*.sqlite3'))),1)
+            self.assertEqual(len(list((root/'live/workspace/chosen receipts').rglob('publications.sqlite3'))),1)
             (root/'live').rename(root/'moved')
             imported=run_external_task(EXE,root/'import','B14',1,'model',configuration,import_source=root/'moved')
-            self.assertEqual(imported['status'],'passed',imported)
+            self.assertEqual(imported['status'],'passed',imported);self.assertFalse(imported['model_trials'])
             self.assertEqual(before,workspace_files(root/'moved/workspace'));self.assertEqual(before,workspace_files(root/'import/workspace'))
+
+    def test_custom_history_and_receipt_stores_must_be_unique_and_intact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);case=self.prepare(root/'model',custom=True);original=case.call
+            paths=[next((case.root/name).glob('*.sqlite3')) for name in ('chosen sessions','chosen receipts')]
+            originals={path:path.read_bytes() for path in paths};case.results.clear();case.begin_judging()
+            for index,path in enumerate(paths):
+                for fault in ('missing','ambiguous','corrupt'):
+                    with self.subTest(store=path.parent.name,fault=fault):
+                        label=f'{index}-{fault}';case.judge_root=root/label;case.judge_root.mkdir();case.checks.clear()
+                        case.call=lambda step,command,**arguments:original(label+'-'+step,command,**arguments)
+                        duplicate=case.root/'duplicate'/path.name
+                        if fault=='missing':path.unlink()
+                        elif fault=='ambiguous':
+                            duplicate.parent.mkdir(exist_ok=True);duplicate.write_bytes(originals[path])
+                        else:path.write_bytes(b'corrupt retained store')
+                        with self.assertRaises(TaskFailure):judge(case)
+                        self.assertTrue(all(c['status']=='pass' for c in case.checks),case.checks)
+                        self.assertIn('native-inks',[c['name'] for c in case.checks])
+                        path.write_bytes(originals[path])
+                        if duplicate.exists():duplicate.unlink()
 
     def test_baseline_never_launches_engine_and_keeps_engine_checks_not_applicable(self):
         with tempfile.TemporaryDirectory() as directory,patch('benchmark_baseline_print.render_preview',return_value=expected_picture()), \
