@@ -3,7 +3,8 @@ import base64
 import json
 from pathlib import Path
 
-from benchmark_diagram import delivered
+from benchmark_diagram import delivered, retained_font_store
+from benchmark_large_layout import retained_session_store
 from benchmark_graphics import BLUE, pixels, png_check, store, source_snapshot
 from benchmark_runtime import require, safe_name, strict_json
 from synthetic_bidi_font import bidi_font
@@ -114,6 +115,7 @@ def solve(case):
 
 def judge(case):
     report = report_glyphs(case)
+    font_root = retained_font_store(case)
     raw = delivered(case,'editable.json'); actual = strict_json(raw)
     reopened = case.call('judge-reopen','document.validate',document=dict(file_path='editable.json',sha256=sha(raw)))
     require(len(actual['items']) == 4 and len(actual['fonts']) == 1,'Expected four editable text rows and one original font')
@@ -131,10 +133,10 @@ def judge(case):
     normalized = case.call('judge-expected','document.validate',document=expected)
     case.check('editable-text-and-font',lambda:require(type(actual['revision']) is int and actual['revision'] >= 0 and
         actual == reopened == normalized,'Typography changed editable text, frame geometry, formatting or original font/license'))
-    layouts = [case.call(f'judge-inspect-{i}','text.inspect',document=reopened,id=item['id']) for i,item in enumerate(actual['items'])]
+    layouts = [case.call(f'judge-inspect-{i}','text.inspect',document=reopened,id=item['id'],font_root=font_root) for i,item in enumerate(actual['items'])]
     case.check('glyph-cluster-order',lambda:require(report == [observed_glyphs(row) for row in layouts] == authored_geometry()[0],
         'Glyph forms, visual order, logical clusters, origins or advances differ'))
-    rendered = case.call('judge-preview','document.preview',document=reopened,preview=True)
+    rendered = case.call('judge-preview','document.preview',document=reopened,font_root=font_root,preview=True)
     def picture():
         png_check(delivered(case,'preview.png'),1000,960,expected_picture())
         png_check(base64.b64decode(rendered['artifact']['data'],validate=True),1000,960,expected_picture())
@@ -142,10 +144,11 @@ def judge(case):
     locator = strict_json(delivered(case,'session.json'))
     require(isinstance(locator,dict) and set(locator) == {'session_id','current_revision'},'Invalid session locator')
     safe_name(locator['session_id'])
+    session_root = retained_session_store(case, locator['session_id'])
     require(type(locator['current_revision']) is int and locator['current_revision'] == actual['revision'],'Invalid current revision')
     saved = case.call('judge-current-revision','document.validate',
-        document=dict(session_id=locator['session_id'],revision=locator['current_revision']))
-    verified = case.call('judge-history','session.verify',session_id=locator['session_id'])
+        document=dict(session_id=locator['session_id'],revision=locator['current_revision'],session_root=session_root))
+    verified = case.call('judge-history','session.verify',session_id=locator['session_id'],session_root=session_root)
     case.check('history-valid',lambda:require(verified['valid'] and verified['revision'] == actual['revision'] and saved == actual,
         'Valid saved history must contain the exact delivered snapshot at its current head'))
 

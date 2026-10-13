@@ -51,7 +51,7 @@ client version and executable/tool identities. The transcript and usage must
 refer to this contract. `--transport` selects the reference runner's transport;
 external-client reports describe the actual adapter protocol as external.
 
-For B01 native snapshots, the agent may choose any font store inside the captured
+For B01, B06 and B07 native snapshots, the agent may choose any font store inside the captured
 workspace. The judge finds a complete content-addressed font/license pair there,
 checks both lengths and hashes against the original inputs, and supplies that
 store when independently rendering the published snapshot. Missing, corrupted,
@@ -59,7 +59,7 @@ linked or external copies cannot substitute for retained resources. The judge
 does not import the font on the agent's behalf or assume the default store name;
 captured trials must also reopen after workspace relocation.
 
-B03 and B05 likewise locate the session ID from `session.json` within the captured
+B03, B05, B06 and B07 likewise locate the session ID from `session.json` within the captured
 workspace, using its canonical database filename. A missing, linked, external
 or ambiguous store fails. The engine then reads both declared revisions and
 verifies the full history from that explicit root; filename discovery alone

@@ -3,7 +3,8 @@ import base64
 import copy
 from pathlib import Path
 
-from benchmark_diagram import delivered
+from benchmark_diagram import delivered, retained_font_store
+from benchmark_large_layout import retained_session_store
 from benchmark_graphics import BLUE, GREEN, pixels, png_check, store, source_snapshot
 from benchmark_runtime import require, safe_name, strict_json
 from synthetic_font import geometric_font
@@ -85,11 +86,12 @@ def expected_picture():
 
 def judge(case):
     report = read_report(case)
+    font_root = retained_font_store(case)
     raw = delivered(case,'editable.json'); actual = strict_json(raw)
     original = case.call('judge-source','document.validate',document=dict(file_path='source.json',sha256=case.sources['source.json']))
     reopened = case.call('judge-reopen','document.validate',document=dict(file_path='editable.json',sha256=sha(raw)))
-    diagnosis = case.call('judge-original-flow','story.inspect',document=original,id='article')['layout']
-    layout = case.call('judge-current-flow','story.inspect',document=reopened,id='article')['layout']
+    diagnosis = case.call('judge-original-flow','story.inspect',document=original,id='article',font_root=font_root)['layout']
+    layout = case.call('judge-current-flow','story.inspect',document=reopened,id='article',font_root=font_root)['layout']
     case.check('original-overflow',lambda:require(report['original_overset'] == diagnosis['overset'] == dict(paragraph=0,offset=8)
         and flow_lines(diagnosis) == expected_lines(False),'The original overflow diagnosis differs from the authored source capacity'))
     case.check('reading-order',lambda:require(report['final_overset'] is None and layout['overset'] is None and
@@ -102,7 +104,7 @@ def judge(case):
         require(font['sha256'] == case.sources['original.ttf'] and font['license_sha256'] == case.sources['font-license.txt'],
             'The original font or license identity changed')
     case.check('retained-source',retained)
-    rendered = case.call('judge-preview','document.preview',document=reopened,preview=True)
+    rendered = case.call('judge-preview','document.preview',document=reopened,font_root=font_root,preview=True)
     def picture():
         png_check(delivered(case,'preview.png'),96,48,expected_picture())
         png_check(base64.b64decode(rendered['artifact']['data'],validate=True),96,48,expected_picture())
@@ -110,16 +112,17 @@ def judge(case):
     locator = strict_json(delivered(case,'session.json'))
     require(isinstance(locator,dict) and set(locator) == {'session_id','original_revision','current_revision'},'Invalid session locator')
     safe_name(locator['session_id'])
+    session_root = retained_session_store(case, locator['session_id'])
     require(type(locator['original_revision']) is int and locator['original_revision'] == 0 and
         type(locator['current_revision']) is int and locator['current_revision'] == actual['revision'] > 0,'Invalid original/current revisions')
-    old = case.call('judge-original-revision','document.validate',document=dict(session_id=locator['session_id'],revision=0))
-    current = case.call('judge-current-revision','document.validate',document=dict(session_id=locator['session_id'],revision=actual['revision']))
+    old = case.call('judge-original-revision','document.validate',document=dict(session_id=locator['session_id'],revision=0,session_root=session_root))
+    current = case.call('judge-current-revision','document.validate',document=dict(session_id=locator['session_id'],revision=actual['revision'],session_root=session_root))
     # A captured session retains its old absolute roots. Inspect its exact
     # snapshot using the current workspace's captured, content-checked fonts.
-    historical = case.call('judge-historical-flow','story.inspect',document=old,id='article')['layout']
+    historical = case.call('judge-historical-flow','story.inspect',document=old,id='article',font_root=font_root)['layout']
     case.check('historical-flow',lambda:require(old == original and historical == diagnosis,
         'Historical source or overflow changed'))
-    verified = case.call('judge-history','session.verify',session_id=locator['session_id'])
+    verified = case.call('judge-history','session.verify',session_id=locator['session_id'],session_root=session_root)
     case.check('history-valid',lambda:require(verified['valid'] and verified['revision'] == actual['revision'] and
         old == original and current == actual,'History must bind the exact original fixture, final delivery and session head'))
 

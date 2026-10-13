@@ -279,7 +279,9 @@ This confirms the path-alias correction. It predates the later store-judge and
 job-fixture changes; their current-revision hosted acceptance remains pending.
 The later `8bc8982` Linux job passed all 242 fresh stages (179 Rust, 2451 Python,
 48 explicit skips) in 1421.4 seconds, with unchanged inputs and no failures,
-pending checks or reuse. Windows/macOS at that revision remain pending. See
+pending checks or reuse. macOS passed the same 242 stages and test/skip counts
+in 2161.0 seconds, also with unchanged inputs and no failed/pending/reused checks.
+Windows at that revision remains pending. See
 [the retained platform evidence](PLATFORMS.md).
 
 ## W2 and the next behavior increments
@@ -1162,8 +1164,19 @@ traces were reviewed; no prohibited tool or repository/judge access was observed
 Both candidates stayed unchanged and selected comparisons had no matching
 issues. SVG baselines retained IDs/description while Inkbolt honestly reported
 their loss. See [the full scope and identities](BENCHMARK_RESULTS.md#b04b05-at-dabe447-five-matched-pairs).
-Next, correct the independently audited B06/B07 resource-store assumptions
-before their genuine trials; preserve all content, font and history oracles.
+Before genuine B06/B07 trials, four synthetic reproductions independently
+confirmed `FONT_MISSING`/`SESSION_NOT_FOUND` for valid custom stores. Both judges
+now reuse the checked retained-font and session-store discovery, including
+historical flow inspection. Relocated captures pass without default directories
+or workspace changes; corrupted imported fonts and missing retained licenses
+fail even when intact original inputs remain. Content, shaping, pixels and
+history oracles are unchanged. Focused Windows/WSL checks passed 43/40 Python
+tests in 79.9/64.7 seconds, with three explicit Linux skips, unchanged Cargo
+passes reused and no failed/pending selected checks. Reproductions and reports
+remain under `w2-text-stores-before-01` and `w2-text-stores-`, tested candidate
+`46e8c61586fe94fdf7f5e7249bd41530ad1d79115e74c632068a14ac075b1230`.
+Next, run their genuine matched trials. This correction changes judging only;
+model settings remain external and no engine behavior or checkpoint changed.
 
 Five-repetition model trials for the other fifteen tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence

@@ -160,12 +160,12 @@ def main():
         else:solve_recovery(root,send)
     elif request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,retry_of=None,**arguments):
-            if task in ('B03','B05') and '--custom-session-store' in sys.argv:
+            if task in ('B03','B05','B06','B07') and '--custom-session-store' in sys.argv:
                 if command.startswith('session.'):arguments['session_root']='chosen sessions'
                 document=arguments.get('document')
                 if isinstance(document,dict) and 'session_id' in document:
                     arguments['document']=dict(document,session_root='chosen sessions')
-            if task=='B01' and '--custom-font-store' in sys.argv:
+            if task in ('B01','B06','B07') and '--custom-font-store' in sys.argv:
                 if command=='font.import':arguments['store_root']='chosen resources/fonts'
                 if command=='session.create':arguments['resources']=dict(font_root='chosen resources/fonts')
             if task=='B10' and '--photo-names' in sys.argv:
@@ -184,7 +184,7 @@ def main():
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
          'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo,
          'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen,'B14':solve_print,'B15':solve_resources,'B16':solve_repair,'B17':solve_retry,'B18':solve_conflict}[task](SimpleNamespace(root=root,call=call))
-        if task=='B01' and '--custom-font-store' in sys.argv:
+        if task in ('B01','B06','B07') and '--custom-font-store' in sys.argv:
             store=root/'chosen resources/fonts'
             if '--corrupt-font-copy' in sys.argv:
                 font=next(store.glob('*.font'));raw=bytearray(font.read_bytes());raw[0]^=1;font.write_bytes(raw)

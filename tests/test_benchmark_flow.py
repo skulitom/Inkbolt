@@ -102,16 +102,26 @@ class BenchmarkFlowTests(unittest.TestCase):
 
     def test_external_capture_rejudges_relocated_saved_fonts_and_history(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory); configuration = driver()
+            root = Path(directory); configuration = driver('--custom-font-store','--custom-session-store')
             row = run_external_task(EXE,root/'live','B06',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row)
             self.assertFalse(row['model_trials']); self.assertIsNone(row['model_calls'])
+            self.assertFalse((root/'live/workspace/.inkbolt/sessions').exists())
+            self.assertFalse((root/'live/workspace/.inkbolt/fonts').exists())
             before = workspace_files(root/'live/workspace')
             imported = run_external_task(EXE,root/'import','B06',1,'model',configuration,import_source=root/'live')
             self.assertEqual(imported['status'],'passed',imported)
             self.assertEqual(row['checks'],imported['checks'])
             self.assertEqual(before,workspace_files(root/'live/workspace'))
             self.assertEqual(before,workspace_files(root/'import/workspace'))
+
+    def test_retained_font_or_license_cannot_be_replaced_by_original_input(self):
+        for flag in ('--corrupt-font-copy','--missing-font-license'):
+            with self.subTest(flag=flag), tempfile.TemporaryDirectory() as directory:
+                row = run_external_task(EXE,Path(directory)/'broken','B06',1,'model',
+                    driver('--custom-font-store','--custom-session-store',flag))
+                self.assertEqual(row['status'],'failed',row)
+                self.assertIn('Missing intact workspace font store',row['error'])
 
     def test_baseline_has_no_engine_and_verifies_delivered_and_fresh_pixels(self):
         for incorrect in ('none','delivery','fresh-render'):
