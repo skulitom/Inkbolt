@@ -267,7 +267,8 @@ whole no-engine baseline stays not applicable.
 B19 now separates its original texture fixture, [recovery prompt](../tools/benchmark_prompts/B19.md),
 controlled reference solve and independent judge. External clients use the
 owned-process bridge described in the driver contract; captured evidence is
-rejudged without repeating faults. B20 still interleaves solving and judging. All required checks
+rejudged without repeating faults. B20 now also separates reference solving from
+independent durable/artifact judging; its external lifecycle remains open. All required checks
 have explicit artifact/engine classes; classification does not migrate a judge.
 No real model trial is claimed by synthetic driver tests or reference runs.
 
@@ -399,6 +400,24 @@ assignment fails the call and cleans up only its owned processes. Decoder/judge
 work is recorded separately and excluded from consumer memory. The three explicit
 executables are hashed before and after each trial and the complete suite.
 
+B20's [versioned prompt](../tools/benchmark_prompts/B20.md) names the original
+fixture, deliverables and review/relink/retry workflow. The solve performs no
+artifact scoring or independent decoding. At its end the harness freezes actual
+consumer requests/responses, process observations and the first observed delivery
+hashes in handoff-observations.json. The judge reopens both histories and receipts,
+checks exact source and consumer revisions, compares retained reviews/attempts
+with durable and observed results, and decodes the five finished movies. It starts
+no new edits or renders. Consumer assets use content-bound relative paths for
+future capture relocation; saved history is preserved. Clearing solver response
+caches does not prevent judgment.
+
+The reference records 15 Inkbolt and 21 consumer solve commands. Nine fresh
+Inkbolt queries, nine consumer queries and 20 independent decoder/probe calls are
+reported as judge work. `total_engine_*` fields now cover solve work in both
+engines; consumer judge queries and decoding are excluded from solve wall time.
+All fifteen original checks remain fixed. External-client/capture and no-engine
+baseline adapters for B20 remain required; this separation does not complete them.
+
 The fixture shapes, labels, fonts, image samples and failure conditions are
 original and deliberately bounded. Exact integer geometry supplies an independent
 pixel oracle; source snapshots, decoded PNG samples, resource hashes and history
@@ -421,18 +440,18 @@ Complete print/interchange scope remains governed by the original feature regist
   Report/row schema version 2 separates calls marked `phase:"judge"` from ordinary
   counts, bytes and round-trip time, preserving their raw records and separate
   `judge_*` totals. `judge_separated:true` identifies separated reference tasks
-  (currently B01-B19); external lifecycle support is B01-B19, with B19 requiring Windows.
+  (B01-B20); external lifecycle support is B01-B19, with B19 requiring Windows.
   Judge calls alone cannot establish a successful solve.
   For B20 these ordinary fields describe Inkbolt; `consumer` records the Cutbolt
   side. `total_engine_commands`, `total_engine_retries`, `total_request_bytes`,
-  `total_response_bytes` and `total_engine_roundtrip_seconds` include both engines.
+  `total_response_bytes` and `total_engine_roundtrip_seconds` include solve work
+  in both engines; `consumer.judge_*` records its independent read-only queries.
 - Retries identify a previous byte-equivalent logical request through its canonical
   hash. Expected failures, invalid calls and replayed receipts are separate counts.
   B17 retains a deliberately dropped response for the judge and explicitly marks
   it unobserved by the scripted recovery path.
-- Round-trip time includes process or stdio transport and JSON costs. For migrated
-  tasks, scripted wall time stops before judging; other adapters still include
-  their interleaved oracle work. Both include discovery after fixture setup.
+- Round-trip time includes process or stdio transport and JSON costs. Reference
+  scripted wall time stops before judging and includes discovery after fixture setup.
   First verified preview is the recorded completion time of the earliest image
   response or delivery later accepted by its independent pixel oracle. It is a
   retrospective availability measure, not a model's assessment of usefulness.
@@ -480,3 +499,15 @@ run the release driver with `--task B20 --repetitions 1` and all three executabl
 paths for focused real-consumer feedback, on each changed transport. Run full
 `python tools/verify.py --thorough` at a milestone. Repeated release benchmark
 trials are milestone evidence, separate from the 180-second routine feedback loop.
+
+`test_benchmark_handoff_judge` always checks the original fixture and independent
+decoder rejection cases. Its three durable integration tests require Windows and
+an explicit `INKBOLT_B20_TEST_TOOLS` path to an external JSON object containing
+absolute cutbolt, ffmpeg and ffprobe executable paths. Without it those tests are
+explicit skips, never real-consumer evidence. Pin the binaries and retain the
+configuration externally. Run `python tools/verify.py --force --only
+test_benchmark_handoff_judge,test_agent_benchmark_handoff` with that variable set;
+force is required because the external tool/configuration bytes are outside the
+repository cache inputs. Each consumer checks executable hashes before and after.
+These tests clear solver caches, preserve delivered bytes, reject twelve altered
+artifact/observation cases and detect real extra revisions in both saved stores.

@@ -1,4 +1,5 @@
 """Explicit local consumer tools, retained traffic and Windows tree accounting."""
+import copy
 import ctypes
 from ctypes import wintypes as w
 import json
@@ -92,13 +93,13 @@ def tree_command(argv, payload, environment, timeout):
 
 class Consumer:
     COMMANDS={'scene.inspect','scene.render','session.create','session.get','session.preview',
-              'session.apply','session.undo','session.check','render.run'}
+              'session.apply','session.undo','session.check','session.receipt','session.history','render.run'}
 
     def __init__(self, root, tools, timeout=90):
         self.identities=tool_identities(tools)
         self.root=Path(root);self.root.mkdir()
         self.judge_root=self.root/'judge';self.judge_root.mkdir()
-        self.timeout=timeout;self.calls=[];self.judges=[];self.names=set()
+        self.timeout=timeout;self.calls=[];self.judges=[];self.names=set();self.records={};self.phase='task'
         self.environment=os.environ.copy()
         self.environment.update(CUTBOLT_FFMPEG=self.identities['ffmpeg']['path'],
             CUTBOLT_FFPROBE=self.identities['ffprobe']['path'],
@@ -107,6 +108,8 @@ class Consumer:
 
     def call(self, step, command, expected_error=None, retry_of=None, **fields):
         require(command in self.COMMANDS, 'Consumer command is outside the bounded synchronous workflow')
+        require(self.phase!='judge' or command in ('scene.inspect','session.get','session.check','session.receipt','session.history'),
+                'Consumer judging must not edit or render the delivered workspace')
         safe_name(step);require(step not in self.names,'Duplicate consumer step');self.names.add(step)
         payload=json.dumps(dict(command=command,**fields),separators=(',',':')).encode()
         fingerprint=sha(payload)
@@ -115,7 +118,7 @@ class Consumer:
             require(len(previous)==1 and previous[0]['request_sha256']==fingerprint,'Consumer retry changed its request')
         prefix=self.root/f'{len(self.calls)+1:03d}-{step}'
         save(prefix.with_suffix('.request.json'),payload)
-        row=dict(step=step,command=command,request_sha256=fingerprint,request_bytes=len(payload),
+        row=dict(step=step,phase=self.phase,command=command,request_sha256=fingerprint,request_bytes=len(payload),
                  response_bytes=0,retry_of=retry_of,expected_error=expected_error,status='failure')
         self.calls.append(row)
         try:
@@ -128,6 +131,7 @@ class Consumer:
             envelope=strict_json(stdout)
             require(type(envelope.get('ok')) is bool and metrics['exit_code']==int(not envelope['ok']),
                     'Consumer exit/envelope mismatch')
+            self.records[step]=dict(request=json.loads(payload),response=copy.deepcopy(envelope))
             if expected_error:
                 require(not envelope['ok'] and envelope.get('error',{}).get('code')==expected_error,
                         'Expected consumer diagnostic did not occur')
@@ -153,11 +157,14 @@ class Consumer:
         return self.identities==tool_identities({k:v['path'] for k,v in self.identities.items()})
 
     def result(self):
-        complete=bool(self.calls) and all(r.get('memory_available') for r in self.calls)
-        return dict(tools=self.identities,commands=len(self.calls),calls=self.calls,judges=self.judges,
-            request_bytes=sum(r['request_bytes'] for r in self.calls),
-            response_bytes=sum(r['response_bytes'] for r in self.calls),
-            roundtrip_seconds=sum(r.get('seconds',0) for r in self.calls),
-            retries=sum(r['retry_of'] is not None for r in self.calls),memory_complete=complete,
-            peak_tree_commit_bytes=max(r['peak_tree_commit_bytes'] for r in self.calls) if complete else None,
+        calls=[r for r in self.calls if r['phase']!='judge'];judges=[r for r in self.calls if r['phase']=='judge']
+        complete=bool(calls) and all(r.get('memory_available') for r in calls)
+        return dict(tools=self.identities,commands=len(calls),calls=calls,judges=self.judges,judge_calls=judges,
+            judge_engine_commands=len(judges),judge_request_bytes=sum(r['request_bytes'] for r in judges),
+            judge_response_bytes=sum(r['response_bytes'] for r in judges),judge_roundtrip_seconds=sum(r.get('seconds',0) for r in judges),
+            request_bytes=sum(r['request_bytes'] for r in calls),
+            response_bytes=sum(r['response_bytes'] for r in calls),
+            roundtrip_seconds=sum(r.get('seconds',0) for r in calls),
+            retries=sum(r['retry_of'] is not None for r in calls),memory_complete=complete,
+            peak_tree_commit_bytes=max(r['peak_tree_commit_bytes'] for r in calls) if complete else None,
             scope='Cutbolt CLI plus all inherited encoder/probe processes, OS job commit peak per call; independent decoder/judge excluded')

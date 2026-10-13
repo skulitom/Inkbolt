@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from benchmark_consumer import Consumer
-from benchmark_graphics import ref, source_snapshot, store, verify_history, view, png_check
+from benchmark_graphics import ref, source_snapshot, store, png_check
 from benchmark_runtime import Trial, require, safe_name
 from workload_cases import save, save_json, sha
 
@@ -15,6 +15,8 @@ WIDTH,HEIGHT=32,16
 RATE=dict(num=25,den=1)
 DURATION=dict(num=2,den=5)
 SCHEDULE=(0,0,0,1,1)*2
+PROMPT=Path(__file__).with_name('benchmark_prompts')/'B20.md'
+PREVIEW_FILES={'revised-preview':'preview.png'}
 
 
 def original_frames():
@@ -53,19 +55,21 @@ def check_timestamps(report, count):
     require(max(errors,default=F(0))<=F(1001,1000000), 'Consumer frame clock changed')
 
 
-def check_movie(consumer, name, movie, frames):
-    expected=b''.join(frames)
+def decode_movie(consumer, name, movie):
     common=['-nostdin','-v','error','-i',str(movie)]
     actual=consumer.judge(name+'-rgba','ffmpeg',common+['-map','0:v:0','-f','rawvideo','-pix_fmt','rgba','-'])
-    require(actual==expected, 'Consumer decoded pixels/alpha or frame order differ: '+name)
     pcm=consumer.judge(name+'-pcm','ffmpeg',common+['-map','0:a:0','-f','s16le','-acodec','pcm_s16le','-'])
-    require(len(pcm)==len(frames)*1920*4 and not any(pcm), 'Consumer silent audio sample clock changed')
     times=consumer.judge(name+'-time','ffprobe',['-v','error','-select_streams','v:0','-show_frames',
         '-show_entries','frame=best_effort_timestamp_time','-of','json',str(movie)])
-    check_timestamps(json.loads(times),len(frames))
     stream=consumer.judge(name+'-stream','ffprobe',['-v','error','-show_streams',
         '-show_entries','stream=codec_type,width,height,avg_frame_rate,codec_name,pix_fmt,sample_rate,channels','-of','json',str(movie)])
-    streams=json.loads(stream)['streams']
+    return dict(rgba=actual,pcm=pcm,times=json.loads(times),streams=json.loads(stream)['streams'])
+
+
+def check_decoded(value,frames):
+    require(value['rgba']==b''.join(frames),'Consumer decoded pixels/alpha or frame order differ')
+    require(len(value['pcm'])==len(frames)*1920*4 and not any(value['pcm']),'Consumer silent audio sample clock changed')
+    check_timestamps(value['times'],len(frames));streams=value['streams']
     video=[s for s in streams if s['codec_type']=='video'];audio=[s for s in streams if s['codec_type']=='audio']
     require(len(streams)==2 and len(video)==len(audio)==1 and (video[0]['width'],video[0]['height'])==(WIDTH,HEIGHT)
         and F(video[0]['avg_frame_rate'])==25 and video[0]['codec_name']=='ffv1',
@@ -74,7 +78,10 @@ def check_movie(consumer, name, movie, frames):
             'Consumer audio format, rate or channels changed')
 
 
-def write_bundle(bundle, root, expected_source, frames):
+def check_movie(consumer,name,movie,frames):check_decoded(decode_movie(consumer,name,movie),frames)
+
+
+def write_bundle(bundle, root):
     files={}
     for file in bundle['files']:
         name=safe_name(file['path']);require(name not in files,'Duplicate handoff filename')
@@ -82,15 +89,7 @@ def write_bundle(bundle, root, expected_source, frames):
         require(len(raw)==file['bytes'] and sha(raw)==file['sha256'],'Handoff file identity differs')
         files[name]=raw
     pin=bundle['handoff'];manifest=pin['manifest'];manifest_file=bundle['manifest_file']
-    require(sha(files[manifest_file['path']])==pin['sha256'] and json.loads(files[manifest_file['path']])==manifest,
-            'Pinned manifest differs from its delivered bytes')
-    require(json.loads(files[manifest['source']['snapshot']['path']])==expected_source,'Editable handoff source changed')
-    require(len(manifest['frames'])==2,'Handoff animation frame count changed')
-    for frame,expected in zip(manifest['frames'],frames,strict=True):
-        png_check(files[frame['image']['path']],WIDTH,HEIGHT,expected)
     scene=json.loads(files[manifest['scene']['path']])
-    require(scene['transparent'] and scene['color']=='srgb_straight_encoded'
-        and scene['layers'][0]['alpha_mode']=='straight','Handoff color or alpha interpretation changed')
     root.mkdir()
     for name in [n for n in files if n!=manifest_file['path']]+[manifest_file['path']]:save(root/name,files[name])
     return scene,{str(root/name):sha(raw) for name,raw in files.items()}
@@ -99,11 +98,23 @@ def write_bundle(bundle, root, expected_source, frames):
 class HandoffTrial(Trial):
     def __init__(self,*args,consumer_tools=None,**kwargs):
         super().__init__(*args,**kwargs)
-        self.consumer_tools=consumer_tools or {};self.consumer=None;self.consumer_checked=False
+        self.consumer_tools=consumer_tools or {};self.consumer=None;self.consumer_checked=False;self.delivery_hashes={}
 
     def begin(self,prompt):
         self.consumer=Consumer(self.root/'consumer',self.consumer_tools,self.timeout)
         super().begin(prompt)
+
+    def observe_delivery(self,identities):
+        for name,digest in identities.items():
+            relative=Path(name).relative_to(self.root).as_posix()
+            require(relative not in self.delivery_hashes,'Delivery was already observed')
+            self.delivery_hashes[relative]=digest
+
+    def begin_judging(self):
+        super().begin_judging()
+        save_json(getattr(self,'judge_root',self.root)/'handoff-observations.json',dict(schema_version=1,
+            consumer=self.consumer.result(),records=copy.deepcopy(self.consumer.records),delivery_files=self.delivery_hashes))
+        self.consumer.phase='judge'
 
     def close(self):
         super().close()
@@ -115,25 +126,23 @@ class HandoffTrial(Trial):
 
     def extra_results(self):
         consumer=self.consumer.result() if self.consumer is not None else None
-        traffic=self.calls if self.transport=='cli' else self.protocol
-        return dict(consumer=consumer,total_engine_commands=len(self.calls)+(consumer['commands'] if consumer else 0),
-            total_engine_retries=sum(r['retry_of'] is not None for r in self.calls)+(consumer['retries'] if consumer else 0),
+        calls=[r for r in self.calls if r['phase']!='judge']
+        traffic=[r for r in (self.calls if self.transport=='cli' else self.protocol) if r['phase']!='judge']
+        return dict(consumer=consumer,total_engine_commands=len(calls)+(consumer['commands'] if consumer else 0),
+            total_engine_retries=sum(r['retry_of'] is not None for r in calls)+(consumer['retries'] if consumer else 0),
             total_request_bytes=sum(r.get('request_bytes',0) for r in traffic)+(consumer['request_bytes'] if consumer else 0),
             total_response_bytes=sum(r.get('response_bytes',0) for r in traffic)+(consumer['response_bytes'] if consumer else 0),
             total_engine_roundtrip_seconds=sum(r.get('seconds',0) for r in traffic)+(consumer['roundtrip_seconds'] if consumer else 0),
             consumer_peak_tree_commit_bytes=consumer['peak_tree_commit_bytes'] if consumer else None)
 
 
-def linked_graphic(case):
-    first,second=original_frames();moved=shifted(first)
+def fixture(case):
+    first,second=original_frames()
     case.source('original.rgba',first+second)
-    case.begin('Revise a linked 32x16 two-frame transparent graphic already used by a saved Cutbolt '
-        'overlay timeline. Move only the first frame artwork four pixels right; preserve the second '
-        'frame, 3/25 and 2/25 holds, two loops at 25 fps, straight encoded-sRGB alpha and source history. '
-        'Review and commit the Inkbolt edit, export a content-pinned successor, inspect and compile '
-        'it in Cutbolt, then explicitly review and replace only the first timeline clip. Keep the '
-        'unrelated clip, old delivery and every historical revision unchanged. Verify decoded color, '
-        'alpha, frame order, timestamps, silence, undo, a retried receipt and stale-writer rejection.')
+
+
+def solve(case):
+    first,second=original_frames()
     consumer=case.consumer
     doc=case.call('create','document.create',id='linked-graphic',kind='raster',width=WIDTH,height=HEIGHT)
     items=[dict(id=name,content=dict(type='raster',width=WIDTH,height=HEIGHT,rgba_hex=raw.hex()))
@@ -145,23 +154,20 @@ def linked_graphic(case):
     saved=store(case,doc);before=source_snapshot(case,saved,'before')
     options=dict(link_key='graphic',selection=dict(type='sequence'),duration=DURATION,frame_rate=RATE,
                  timing='strict',end='loop',alpha=dict(type='transparent'))
-    hashes={}
-    def deliver(revision,source,frames,previous=None):
+    def deliver(revision,previous=None):
         name=f'delivery-{revision}'
         bundle=case.call(name,'handoff.export',document=ref(revision),options=options,previous=previous)
-        folder=case.root/name;scene,identities=write_bundle(bundle,folder,source,frames);hashes.update(identities)
-        inspected=case.call(name+'-inspect','handoff.inspect',handoff=bundle['handoff'],input_root=name,include_schedule=True)
-        require(inspected['files_verified'] and inspected['selected_frames']==list(SCHEDULE),'Pinned frame schedule changed')
+        folder=case.root/name;scene,identities=write_bundle(bundle,folder)
+        save_json(case.root/(name+'-handoff.json'),bundle['handoff'])
+        case.call(name+'-inspect','handoff.inspect',handoff=bundle['handoff'],input_root=name,include_schedule=True)
         consumer.call(name+'-inspect','scene.inspect',scene=scene,input_root=str(folder))
         movie=folder/'compiled.mkv'
         rendered=consumer.call(name+'-compile','scene.render',scene=scene,input_root=str(folder),
             output_root=str(folder),output=str(movie))
-        asset=copy.deepcopy(rendered['asset']);asset['id']=f'graphic-r{revision}'
-        hashes[str(movie)]=sha(movie.read_bytes())
-        expected=[consumer_rgba(frames[index]) for index in SCHEDULE]
-        case.check(name+'-pixels-clock',lambda:check_movie(consumer,name,movie,expected))
-        return bundle['handoff'],asset,expected
-    old,old_asset,old_frames=deliver(0,before,(first,second))
+        asset=copy.deepcopy(rendered['asset']);asset['id']=f'graphic-r{revision}';asset['path']=name+'/compiled.mkv'
+        identities[str(movie)]=sha(movie.read_bytes());case.observe_delivery(identities)
+        return bundle['handoff'],asset
+    old,old_asset=deliver(0)
     session=dict(store_root=str(case.root/'cutbolt-store'),project_id='linked')
     (case.root/'cutbolt-store').mkdir()
     consumer.call('create','session.create',store_root=session['store_root'],id='linked',width=WIDTH,height=HEIGHT,
@@ -175,56 +181,45 @@ def linked_graphic(case):
         edit('place',track_id='overlay',clip=clip('unrelated',old_asset,DURATION),collision='reject')])
     def snapshot(step,revision=None):
         result=consumer.call(step,'session.get',**session,**({} if revision is None else dict(revision=revision)))
-        return result.get('project',result)
+        value=result.get('project',result);save_json(case.root/(step+'.json'),value);return value
     timeline_before=snapshot('timeline-before',original['revision'])
     action=dict(type='edit',operations=[dict(op='transform',id='art',matrix=[1,0,0,1,4,0])])
     proposed=case.call('review','session.dry_run',session_id='work',request_id='move',expected_revision=0,
         action=action,options=dict(include_document=True))
+    save_json(case.root/'review.json',proposed)
     case.call('commit','session.apply_proposal',proposal=proposed['proposal'],action=action,response_mode='compact')
     after=source_snapshot(case,ref(1),'after')
-    wanted=copy.deepcopy(before);wanted['revision']=1;wanted['items'][0]['transform']=[1,0,0,1,4,0]
-    case.check('reviewed-source-only',lambda:require(after==wanted and proposed['proposed_document']==wanted,'Unreviewed source changes'))
-    view(case,'preview',ref(1),'revised-preview',WIDTH,HEIGHT,moved)
-    new,new_asset,new_frames=deliver(1,after,(moved,second),old)
-    case.check('pinned-successor',lambda:require(new['manifest']['previous']['sha256']==old['sha256']
-        and new['manifest']['source']['revision']==1 and old['manifest']['source']['revision']==0,'Invalid revision predecessor'))
-    case.check('no-implicit-relink',lambda:require(snapshot('before-relink')==timeline_before,'Export implicitly changed the consumer timeline'))
+    preview=case.call('preview','document.preview',document=ref(1),options={},preview=True)
+    save(case.root/'preview.png',base64.b64decode(preview['artifact']['data'],validate=True))
+    _,new_asset=deliver(1,old)
+    snapshot('before-relink')
     operations=[dict(op='media.add',asset=new_asset),edit('remove',clip_ids=['graphic'],links='reject_partial'),
         edit('place',track_id='overlay',clip=clip('graphic',new_asset,dict(num=0,den=1)),collision='reject')]
-    consumer.call('review-relink','session.preview',**session,expected_revision=original['revision'],operations=operations)
-    require(snapshot('after-review')==timeline_before,'Consumer preview committed an edit')
+    attempts={};attempts['review']=consumer.call('review-relink','session.preview',**session,expected_revision=original['revision'],operations=operations)
+    snapshot('after-review')
     changed=consumer.call('relink','session.apply',**session,request_id='relink',expected_revision=original['revision'],operations=operations)
     timeline_after=snapshot('timeline-after',changed['revision'])
-    def explicit_revision():
-        expected=copy.deepcopy(timeline_before);expected['revision']=changed['revision']
-        expected['assets'].append(new_asset)
-        # Placement order is not playback order. Only the target may move in the array.
-        actual=copy.deepcopy(timeline_after)
-        for project in (actual,expected):project['tracks']['tracks'][0]['clips'].sort(key=lambda c:c['id'])
-        for item in expected['tracks']['tracks'][0]['clips']:
-            if item['id']=='graphic':item['asset_id']=new_asset['id']
-        require(actual==expected,'Consumer replacement changed unrelated project state')
-        require(snapshot('historical',original['revision'])==timeline_before,'Old consumer revision changed')
-    case.check('explicit-consumer-revision',explicit_revision)
-    consumer.call('stale','session.apply',**session,request_id='stale',expected_revision=original['revision'],
+    snapshot('historical',original['revision'])
+    attempts['stale']=consumer.call('stale','session.apply',**session,request_id='stale',expected_revision=original['revision'],
         operations=operations,expected_error='REVISION_CONFLICT')
     undone=consumer.call('undo','session.undo',**session,request_id='undo',expected_revision=changed['revision'])
     restored=snapshot('restored',undone['revision'])
     replay=consumer.call('retry','session.apply',**session,request_id='relink',expected_revision=original['revision'],
         operations=operations,retry_of='relink')
-    def history():
-        expected=copy.deepcopy(timeline_before);expected['revision']=undone['revision']
-        require(restored==expected and replay==changed and snapshot('after-retry')==restored,'Undo or exact retry lost its history contract')
-    case.check('consumer-undo-retry',history)
-    for name,project,frames in [('original',timeline_before,old_frames*2),
-            ('revised',timeline_after,new_frames+old_frames),('undone',restored,old_frames*2)]:
+    snapshot('after-retry');attempts.update(initial=original,relink=changed,undo=undone,retry=replay)
+    save_json(case.root/'consumer-attempts.json',attempts)
+    for name,project in [('original',timeline_before),('revised',timeline_after),('undone',restored)]:
         movie=case.root/(name+'.mkv')
         consumer.call(name+'-render','render.run',project=project,input_root=str(case.root),output_root=str(case.root),output=str(movie))
-        case.check(name+'-timeline',lambda n=name,p=movie,f=frames:check_movie(consumer,n,p,[over_black(v) for v in f]))
     case.call('old-inspect','handoff.inspect',handoff=old,input_root='delivery-0')
-    case.check('old-source-history',lambda:require(source_snapshot(case,saved,'historical-source')==before,'Old Inkbolt revision changed'))
-    case.check('immutable-deliveries',lambda:require(all(sha(Path(p).read_bytes())==h for p,h in hashes.items()),
-        'Original compiled media or pinned delivery files changed'))
-    verify_history(case)
-    case.check('consumer-processes',lambda:require(consumer.result()['memory_complete'] and consumer.unchanged()
-        and all(r['status'] in ('success','expected_error') for r in consumer.calls),'Consumer accounting, executables or calls failed'))
+    source_snapshot(case,saved,'historical-source')
+    case.call('verify-history','session.verify',session_id='work')
+
+
+def judge(case):
+    from benchmark_handoff_judge import judge as independent_judge
+    independent_judge(case)
+
+
+def linked_graphic(case):
+    fixture(case);case.begin(PROMPT.read_text(encoding='utf-8'));solve(case);case.begin_judging();judge(case)

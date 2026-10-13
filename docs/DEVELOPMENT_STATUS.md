@@ -794,7 +794,52 @@ is retained externally under `w2-b19-external-`. These are shared-host synthetic
 correctness checks, not genuine model trials, performance comparisons, Unix job
 support, additional checkpoint credit or full-suite milestone acceptance.
 
-B20's external adapter, broader baseline judges, arbitrary legacy transcript
+B20 now separates its original two-frame RGBA fixture, versioned prompt,
+reference solve and independent durable/artifact judge. The solve records actual
+reviews, attempts, snapshots and outputs. The harness freezes observed consumer
+traffic, process accounting and initial delivery hashes. Judgment reopens both
+saved histories and receipts, verifies the exact source edit and explicit relink,
+and independently decodes all five movies. No judge command edits or renders the
+delivered workspace. Relative, content-bound consumer asset paths prepare for
+later capture relocation without rewriting history. All fifteen original checks
+remain mandatory; no engine behavior or checkpoint credit changed.
+
+The final focused Windows gate passed 35 tests in 40.7 seconds with the pinned
+real consumer/encoder/probe tools. It reran formatting, locked build and
+all-target Clippy without reuse. The seven shared benchmark and four external
+recovery tests also passed; that earlier 124.5-second run retained a verifier
+dependency assertion failure. Narrowing the new test's artifact enumeration
+removed an accidental whole-repository dependency, and the final focused gate
+passed that assertion. An earlier negative test wrote an unchanged pixel; it now
+flips a byte. These failed feedback reports remain retained. The real-tool tests
+clear solver caches, preserve delivered files and both databases, reject twelve
+altered artifact/observation cases and detect actual extra revisions in both
+engines. Their explicit external-tool configuration requires force-refreshing
+selected checks; ordinary CI retains explicit skips when those tools are absent.
+
+WSL passed the same selected portable modules in 85.0 seconds, with 35 tests
+executed and eleven explicit skips: five B20 Windows/external-consumer tests,
+three B19 job checks and three Windows verifier checks. Unchanged Rust checks
+reused passing results. No selected check remains unresolved. Five CLI and five
+MCP release references passed. Each measured 15 Inkbolt and 21 consumer solve
+commands, then nine fresh queries per engine and 20 independent decoder/probe
+calls. All consumer process observations were complete, with zero active
+processes at close. Consumer judge cost and decoding are excluded from solve
+traffic and wall time; the individual Inkbolt and consumer-tree memory scopes
+remain separate. These are shared-host correctness references, not performance
+comparisons or genuine model trials.
+
+Final Windows/Linux/reference candidate fingerprint:
+`270af313bbd4b1509cee2fa28ed7e1ac6f280875548fbbb80890c1e9bc44c215`.
+Prompt version 1 hash:
+`e889d8bacc7bbd2e90d9947cd3651d71fe8f283d195659609cec791b2fb7ad86`.
+Only this status document and the primary plan table changed afterward. Evidence
+is external under `w2-b20-judge-`; the original interleaved control is retained
+under `w2-b20-reference-before-01` and the pinned tool identities under
+`w2-b20-consumer-tools`. External-client, capture/import and no-engine B20 baseline
+integration remain open, as does full W2 milestone acceptance.
+
+B20's external adapter/baseline, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the
