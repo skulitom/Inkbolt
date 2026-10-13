@@ -1,148 +1,93 @@
 # Inkbolt
 
-An original local vector and raster editing engine for agents. Cutbolt handles time; Inkbolt handles paths, pixels and layered documents. Use the Rust library, structured JSON CLI or MCP over stdio. No listener, account, telemetry or external editing application is required at runtime.
+Local graphics editing for AI agents.
 
-Agent usability is a separate [readiness workstream](docs/AGENT_READINESS.md). Compact discovery, focused schemas, workspace defaults, pinned saved/file references, compact session responses and [paged inspection](docs/AGENT_INSPECTION.md) reduce repeated context. [Focused previews and contact sheets](docs/FOCUSED_PREVIEWS.md) include exact coordinate maps; [visual revision comparisons](docs/VISUAL_COMPARISONS.md) add aligned images and change masks. MCP sends each supported PNG payload once; optional structured responses also omit duplicated result text. [Document checks and export preflight](docs/DOCUMENT_CHECKS.md) support explicit repairs. [Checked backups](docs/SESSION_BACKUPS.md) preserve full session history; [explicit migration and linked continuation](docs/SESSION_LINEAGE.md) upgrade copies and start fresh history without discarding the original. [Durable publication receipts](docs/PUBLICATION_RECEIPTS.md) recover prepared outputs and lost responses on Windows and Linux. [Durable local export jobs](docs/JOBS.md) add persistent submission, paged discovery, cancellation and recovery. The Windows [recovery audit](docs/RECOVERY_CONTRACTS.md) covers writer interruption and a complete CLI/MCP workflow. Larger raster workloads and complete readiness evidence remain on that plan.
+Inkbolt gives agents structured tools to create and revise vector artwork,
+raster images and layered documents. Build graphics, inspect the result, make
+precise edits and deliver files while keeping the source editable.
 
-## Start locally
+Use it through a **JSON command-line interface**, **MCP over stdio**, or the
+**Rust library**. The engine runs locally, with no account, network service or
+telemetry. It works with any client that can use these interfaces; no particular
+model is required.
 
-[Native block documents](docs/NATIVE_SAMPLE_STORAGE.md) provide opt-in multi-megapixel PNG/TIFF import, exact local patch edits, native clone/heal retouching, bounded paint/erase/smudge/mixer strokes and durable history. Opt-in [tiled evaluation](docs/RENDER_QUALITY.md) renders screen, social and print-sized images with bounded floating-point surfaces and native-depth TIFF strips. Source precision and files stay intact. Bounded tile neighborhoods support blur, detail, local creative and spatial filters, plus retained shadows, strokes and overlays. PNG imports decode ordinary or interlaced pass rows directly into native blocks; native TIFF imports decode one band of strips or tiles at a time, preserving separate planes and floating-point samples. Radial and twist filters also trace bounded source neighborhoods. Wrapped borders, streaming import for remaining formats, broader native operators and the complete scale acceptance gate remain in progress.
+## What you can do
 
-Build with Rust/Cargo; `rust-toolchain.toml` pins development to Rust 1.98.1 with formatting and Clippy. The minimum supported compiler is Rust 1.89, required by file locking and the locked color-engine dependency and checked across all targets on Windows and Linux. Development verification also uses Python 3.11+. Dependencies are locked in Cargo.lock and remain in the external package cache.
+- **Create graphics:** combine paths, text, images and artboards for diagrams,
+  illustrations, layouts and screen assets.
+- **Edit images:** work with layers, selections, masks, adjustments and retouching,
+  with native-depth pixel storage for supported workflows.
+- **Review changes:** inspect document structure, request focused previews,
+  compare revisions and check output settings before delivery.
+- **Keep work editable:** save sessions with revision checks, undo/redo,
+  named snapshots and recoverable publication receipts.
+- **Deliver files:** export supported artwork to PNG, TIFF, SVG and PDF,
+  using explicit color settings and outputs that do not overwrite existing files.
+
+Each workflow has documented limits. Unsupported input or output semantics
+produce explicit errors; declared approximations and conversion losses are
+reported to the caller.
+
+## Get started
+
+Install Rust with rustup, then build from the repository root. The checked-in
+toolchain file selects the development compiler and Cargo.lock pins dependencies.
+
+**Windows**
 
 ```powershell
 cargo build --locked
-.\target\debug\inkbolt.exe examples/create-vector.json
-.\target\debug\inkbolt.exe examples/create-raster.json
+.\target\debug\inkbolt.exe examples/add-svg.json
 .\target\debug\inkbolt.exe mcp --tools core
 ```
 
-Linux (including WSL on native Linux storage):
+**Linux and macOS**
 
 ```bash
 cargo build --locked
-./target/debug/inkbolt examples/create-vector.json
+./target/debug/inkbolt examples/add-svg.json
 ./target/debug/inkbolt mcp --tools core
 ```
 
-Linux core, CLI/MCP, sessions and durable receipts have a dedicated
-[WSL verification workflow](docs/PLATFORMS.md). Background jobs remain Windows-only.
-From this Windows checkout, `python tools/verify_wsl.py` accepts the usual quick
-selectors and `--thorough`, with separate Linux caches and explicit platform skips.
+The example returns editable artwork as JSON. The final command starts the MCP
+stdio adapter for a client to connect to. See the [MCP configuration
+examples](examples/mcp-config.json) and [runnable workflows](examples/README.md)
+for previews, saved sessions and file delivery.
 
-For an MCP client, use [the configuration example](examples/mcp-config.json) with your executable path. The compact catalog exposes everyday tools and a dispatcher for every engine command. Existing clients can keep `inkbolt mcp` or explicitly select `mcp --tools full`. See [discovery and schemas](docs/AGENT_DISCOVERY.md).
+Run `inkbolt --help` for request examples. Agents can discover compact tool
+summaries and request the schema for a single operation as they work. Workspace
+defaults and saved revision references keep repeated requests small.
 
-Add `--workspace C:\Work\Graphics` before `mcp` or a request file to select an existing workspace with default session/resource stores. Snapshot arguments can reference an exact saved revision, for example `{"session_id":"poster","revision":3}`. See [workspaces and references](docs/AGENT_WORKSPACE.md) for path, resource and compatibility rules.
+## Documentation
 
-Set `response_mode:"compact"` on session creation, reads, edits and receipt recovery to receive pinned references and summaries. Full responses remain the default; see [compact responses](docs/AGENT_RESPONSES.md).
+| Start here | Details |
+| --- | --- |
+| [Examples](examples/README.md) | Runnable graphics and image workflows |
+| [Agent interface](docs/AGENT_INTERFACE.md) | Commands, requests and results |
+| [Tool discovery](docs/AGENT_DISCOVERY.md) | MCP tools and focused schemas |
+| [Workspaces and sessions](docs/AGENT_WORKSPACE.md) | Local resources and saved revision references |
+| [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
+| [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
 
-Send one JSON request on stdin, or pass one request file. `--help` (or `-h`)
-returns compact JSON usage and runnable request examples. Discover one operation without loading the complete schema:
+## Project status
 
-```json
-{"command":"schema.lookup","name":"operation","select":"transform"}
-```
+Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
+receipts have Windows, Linux and macOS verification. Background export jobs are
+currently Windows-only. Broader interchange, larger raster workloads and agent
+usability improvements are ongoing. Check the [resource limits](docs/LIMITS.md)
+and relevant feature contract before choosing a workflow.
 
-Success is `{"ok":true,"result":...}` with exit code 0; failure is `{"ok":false,"error":{"code":"...","message":"..."}}` with exit code 1. `capabilities` reports detailed limits; `schema` retains the complete request schema; `implementation.status` returns the checkpoint registry.
+The [primary plan](FIX_PLAN.md) tracks development priorities.
+[Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their
+limitations separately from engine feature coverage.
 
-## Editing workflow
+For development, use Python 3.11+ and `python tools/verify.py` for focused checks
+within a three-minute budget; use `--thorough` for milestone verification.
+Public clones use `--public`. See the [development loop](docs/DEVELOPMENT_LOOP.md),
+[architecture](docs/ARCHITECTURE.md) and [contribution boundaries](docs/RESEARCH.md)
+for setup, testing and source requirements.
 
-Author editable artwork with the atomic [`add_svg` operation](docs/SVG_IMPORT.md#insert-into-an-existing-document).
-It inserts SVG fragments or complete documents into a chosen parent and returns
-item IDs, approximation receipts and losses. See the [JSON example](examples/add-svg.json).
+## License
 
-[Versioned presets](docs/PRESETS.md) create editable screen/social artwork and
-physical print pages with explicit backgrounds, color policies and delivery
-settings. The [preset workflow](examples/preset_workflow.py) demonstrates reviewed
-edits, safe retries and create-only publication.
-
-[Versioned graphics handoffs](docs/HANDOFF.md) deliver pinned stills or ordered
-sequences to Cutbolt with explicit timing and alpha policies. Checked source
-revisions produce new deliveries while preserving previously linked artwork.
-
-1. Create or import a document with explicit color and resource policies.
-2. Inspect objects, geometry and resources before building an atomic edit batch.
-3. Save a session for revisions, durable retry receipts, grouped undo/redo and named snapshots.
-4. Use a [session dry run](docs/SESSION_PROPOSALS.md) to inspect predicted changes and previews, then apply its checked proposal.
-5. Review [focused views or a contact sheet](docs/FOCUSED_PREVIEWS.md), compare and [preflight the result](docs/DOCUMENT_CHECKS.md), then publish to a new destination.
-
-Snapshot edits and ordinary exports return data. `document.publish` and `session.publish` write complete outputs without overwriting existing files. Image/font imports preserve source files and publish content-addressed copies to explicit local stores; fonts require retained license text. See [agent commands](docs/AGENT_INTERFACE.md), [sessions](docs/SESSIONS.md), [publication and comparisons](docs/AGENT_EXECUTION.md), and [runnable examples](examples/README.md).
-
-## Current boundaries
-
-The generated [resource limit reference](docs/LIMITS.md) indexes the centralized
-budgets used by validation, rendering, storage and jobs. W0 consolidation and
-Windows/Linux acceptance are complete; the current numeric limits are unchanged.
-
-[Native vector import](docs/NATIVE_VECTOR_IMPORT.md) supports an admitted subset
-of flat layers, closed RGB paths and shared artboards, with explicit color
-interpretation and loss reporting. [Editable native delivery](docs/NATIVE_VECTOR_DELIVERY.md)
-adds original text output for the declared layer/path/artboard subset, including
-safe publication and native save/reopen comparisons. The original basic native
-vector checkpoint is verified; extended native interchange remains unfinished.
-
-Explicit [layered point-text import](docs/LAYERED_TEXT_IMPORT.md) reconstructs a
-bounded local/global authoring subset into editable text with chosen pinned fonts.
-General native saved text and the original extended raster checkpoint remain open.
-
-The engine covers vector geometry, typography, artboards, retained raster edits, masks, effects, color, print preparation and bounded interchange. Each capability has specific limits and unsupported cases; the registry's verified status applies to those exact acceptance criteria.
-
-The standard document profile holds 256 items; explicit large-vector and [large-raster](docs/LARGE_RASTER.md) profiles hold 8,192 for their respective kinds. The raster profile also enables ordinary editable vector overlays over native pixel sources. Inline mutable pixel storage is limited to 65,536 pixels, and default whole evaluation to 1,048,576 pixels. Explicit tiled evaluation supports up to 16,777,216 evaluation pixels for its declared subset; native block imports retain up to 16,777,216 source pixels. Storage allowances do not increase independent processing budgets. See [large documents](docs/LARGE_VECTOR.md) and capability reporting before selecting a workload.
-
-Sessions retain external resource bindings, not a self-contained resource archive. History has explicit limits and no silent eviction. Checked backup, migration and linked continuation are available. Optional durable output receipts support recovery on the Windows and Linux backends. [Durable export jobs](docs/JOBS.md) use the contained worker library for process lifetime and memory limits. Production-sized raster editing and complete readiness evidence remain open. Unknown semantics fail explicitly.
-
-SVG import accepts elliptical arcs and rounded rectangles as editable paths
-with declared approximation bounds. It remains a strict subset; see
-[SVG import](docs/SVG_IMPORT.md). Linux background jobs and actual
-model-versus-baseline usability evidence remain open.
-
-**Engine scope: 163/167 independently verified checkpoints (97.60%).** Four checkpoints remain open. This bounded capability score does not measure production readiness or remaining effort. See the [implementation report](docs/IMPLEMENTATION.md) and [feature registry](docs/features.json).
-
-## Development and provenance
-
-Start with [FIX_PLAN.md](FIX_PLAN.md), the primary development plan; it takes
-priority over all earlier plans. Read [architecture](docs/ARCHITECTURE.md),
-[roadmap](docs/ROADMAP.md), [agent readiness](docs/AGENT_READINESS.md) and
-[research boundaries](docs/RESEARCH.md) as supporting context before extending
-behavior. Historical feature updates are retained in
-[implementation history](docs/PROGRESS_HISTORY.md).
-
-Routine feedback has a three-minute budget and reuses checks whose inputs passed unchanged:
-
-```powershell
-python tools/verify.py
-python tools/verify.py --only test_session_proposals,test_session_backups
-python tools/verify.py --rust sample_store::tests
-python tools/verify.py --last-failed
-```
-
-At milestones and before completion or feature claims, run every check afresh:
-
-```powershell
-python tools/verify.py --thorough
-python tools/check_repo.py --staged
-```
-
-The verifier includes formatting, locked build, all-target Clippy, Rust tests and Python checks. Up to four isolated workers run by default; `--jobs` supports one to eight. Quick runs return exit 2 if checks remain pending, preserve completed passes, and resume on the next invocation. `--list` explains selection/reuse. Explicit selections report their limited scope. See [the development loop](docs/DEVELOPMENT_LOOP.md) for cache boundaries, diagnostics and thorough acceptance. Concurrent check timings are not engine performance benchmarks.
-
-Public clones without the checkout-local policy use an explicit
-`python tools/verify.py --public` (or `--public --thorough` at a milestone).
-This performs structural repository checks and reports `private_policy:"not_evaluated"`.
-It cannot substitute for the private staged check or commit hook; the default
-verifier and WSL development mirror still require the local private policy.
-
-The separate [release workload measurements](docs/WORKLOAD_MEASUREMENT.md) exercise native edit/history fidelity and practical output sizes, retaining failed tasks alongside command time, response bytes and available Windows memory peaks. They guide the open scale work and do not count as model-driven task trials.
-
-The [agent task benchmark](docs/AGENT_BENCHMARK.md) keeps all twenty accepted
-workflows visible, with twenty scripted CLI/MCP adapters and independent output
-checks. Release runs retain exact traffic, resource/history checks and per-task
-measurements. Active output cancellation and crash/restart include complete owned
-worker accounting. A two-megapixel native photo-editing fixture checks every
-16-bit output sample, editable history and a fixed memory ceiling. Linked graphic
-revisions use an explicitly selected local Cutbolt installation and media tools,
-with independent decoded animation/timeline checks. Actual model trials and matched comparisons remain
-open; selected passes cannot establish complete benchmark acceptance.
-
-The original source, contracts and synthetic fixture generators belong here. Application-specific research and evidence remain in the external private root. Configure each new checkout with its external research directory and private content policy using `tools/setup_private.py`; hooks and policies do not transfer through cloning. Both candidate and staged-byte repository checks remain mandatory before commits. They supplement provenance review and do not prove originality.
-
-Original Inkbolt code is [MIT licensed](LICENSE). Dependencies retain their licenses and notices; see [dependencies](docs/DEPENDENCIES.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Never commit third-party binaries, copied implementation, original application assets or raw private research.
+Inkbolt is [MIT licensed](LICENSE). Dependencies retain their own licenses;
+see [third-party notices](THIRD_PARTY_NOTICES.md).
