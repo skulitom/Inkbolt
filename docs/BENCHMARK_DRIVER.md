@@ -283,7 +283,9 @@ The baseline retains an editable native TIFF with a bounded layer manifest and
 the same focused PNG. Python byte processing is permitted to avoid accidental
 8-bit multichannel conversion. The judge compares every TIFF channel with the
 original numerical oracle and reopens the single-image RGBA16 TIFF with pinned
-Pillow. All original check IDs/classes and the 256 MiB budget remain unchanged;
+Pillow. The independent TIFF reader retains both BYTE and UNDEFINED byte fields,
+including embedded-profile records, without changing native sample checks.
+All original check IDs/classes and the 256 MiB budget remain unchanged;
 the seven engine-specific checks are explicitly not applicable in the baseline.
 Linux runs retain their artifact/history results but fail the memory-budget check
 explicitly because this commit-memory observation is unavailable. They are not
@@ -327,7 +329,10 @@ establish content identity, not authenticated filesystem history.
 B13's [shared prompt](../tools/benchmark_prompts/B13.md) keeps the exact transparent
 1920 by 1080 artwork, straight RGBA samples, stripped sRGB delivery and private
 editable source note. The model judge reopens the source, checks the full preset
-and artwork controls, preflights and publishes a fresh PNG, and independently
+and artwork controls, and requires the exact note as a metadata value. The
+author chooses its placement within Inkbolt's metadata schema; missing or
+changed notes still fail.
+It preflights and publishes a fresh PNG, and independently
 attempts duplicate publication into a protected copy. Its three publication
 calls use an explicitly recorded, judge-only CLI workspace, including when the
 reference solve uses MCP. Captured workspaces remain unchanged. These calls and

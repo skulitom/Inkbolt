@@ -59,6 +59,13 @@ def screen_color(raw):
             'Screen delivery must strip profiles and descriptive/private records')
 
 
+def contains_source_note(value):
+    """The prompt fixes the note's text, not its author-chosen metadata keys."""
+    if isinstance(value,dict):return any(contains_source_note(v) for v in value.values())
+    if isinstance(value,list):return any(contains_source_note(v) for v in value)
+    return value==NOTE
+
+
 def judge(case):
     raw=delivered(case,'screen.png');source=delivered(case,'editable.json');actual=strict_json(source)
     reopened=case.call('judge-reopen','document.validate',document=dict(file_path='editable.json',sha256=sha(source)))
@@ -67,8 +74,9 @@ def judge(case):
     require(len(actual['items'])==2,'Expected an artboard and one editable rectangle')
     expected=source_document(preset,actual['items'][1]['id'],actual['items'][0]['id']);expected['revision']=actual['revision']
     expected['items'][0]['name']=actual['items'][0].get('name')
+    expected['metadata']=actual.get('metadata')
     normalized=case.call('judge-template','document.validate',document=expected)
-    require(case.check('editable-source',lambda:require(actual==normalized==reopened,
+    require(case.check('editable-source',lambda:require(actual==normalized==reopened and contains_source_note(actual.get('metadata')),
         'Editable geometry, private note or screen document controls changed')),'The editable screen source was not admitted')
     directory=getattr(case,'judge_root',case.root)
     target=directory/'judge-screen.png';protected=directory/'judge-protected.png'

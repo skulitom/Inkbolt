@@ -1,11 +1,13 @@
 # Recorded agent evaluation results
 
-Three five-pair B02 evaluations are recorded below. The latest CLI-help and
-sibling-index guidance preserved 5/5 success in both arms and removed the observed
-help/reorder failures. Inkbolt still used **5.44 times** the baseline's median
-reported input-plus-output tokens. A separate setup pilot verified explicit MCP
-approval; the latest five trials chose CLI execution. Broader task and smaller-model
-evidence remain required.
+Five-pair evaluations now cover B01-B10 and B13, with separate smaller-model
+pilots. Eight tasks matched baseline artifact success with higher median token
+use. The latest photo task passed 3/5 with Inkbolt versus 5/5 with the baseline;
+screen artwork passed 5/5 in both arms at 7.51x median token use with Inkbolt.
+The evidence below preserves failures, judge corrections and exact build
+identities. Nine tasks, further smaller-model trials and the separate
+sister-project comparison remain open; these partial batches are not full-suite
+acceptance.
 
 ## B02 at c7d9f30: initial five matched icon-sheet trials
 
@@ -587,3 +589,92 @@ checkpoint changes. Reports/workspaces remain under
 | Inkbolt report | `41bda628113e00aecf37e101fa2b883e73191d9fd4895956a8f135fab5f2d5fa` |
 | Baseline report | `f22b7f737b7cb8c79f2411c41c4f1926b411a14830946cbe94f3faffec150717` |
 | Matched comparison | `f3228271c9a41526e899a4937495cb26fda9aec1d87853e2cc505e493a2251bf` |
+
+## B10/B13 at 7a07f07: five matched pairs with retained-capture corrections
+
+Five genuine repetitions per task and arm used the same external Codex CLI
+0.160.0 configuration (`gpt-6.1-sol`, medium reasoning, explicit MCP approval).
+The model is evaluation metadata only. Inkbolt ran before the baseline on the
+shared Windows host, rotating task order by repetition. No other Inkbolt checks
+or benchmarks were scheduled by this chat during those solves; other workloads
+were uncontrolled and OS caches could be warm. Both arms retained the same
+source candidate, release executable and pinned baseline tools.
+
+| Task | Inkbolt / baseline artifact passes | Median input + output tokens, all attempts | Median client seconds, all attempts |
+| --- | --- | ---: | ---: |
+| B10 native photograph repair | 3/5 / 5/5 | 606,589 / 75,674 | 144.9 / 83.2 |
+| B13 transparent screen artwork | 5/5 / 5/5 | 313,210 / 41,717 | 101.7 / 35.6 |
+
+Complete applicable workflow counts match artifact counts. B13 triggers the
+existing cost signal at **7.51x** median input-plus-output tokens. B10 has only
+three jointly successful pairs, so the fixed policy does not produce a cost
+ratio; the all-attempt medians above retain failures. Five attempts give wide
+95% Wilson intervals: 23.1%-88.2% for 3/5 and 56.6%-100% for 5/5. They do not
+establish general reliability or statistical equivalence.
+
+The original judge rejected every baseline B10 TIFF at an embedded ICC profile
+stored with TIFF UNDEFINED byte type 7. Its byte reader now preserves that field
+for both byte orders. Fresh judging verifies every 16-bit channel and pinned
+Pillow reopening. Original B13 Inkbolt repetition one had the exact private
+note in `metadata.note`; the judge had demanded `metadata.private.note`, which
+the prompt never prescribed. It now admits placement within the engine's
+metadata schema while requiring the exact note value and all original source,
+pixel, color and create-only publication checks. Regression controls cover
+changed/missing notes, geometry, alpha, private delivery records, file identity,
+overwrite protection and native low-bit corruption.
+
+All twenty unchanged captures were rejudged after focused Windows/WSL checks.
+The five baseline photo failures and one screen-source failure now pass; the
+other outcomes are unchanged. Original reports remain alongside the new reports.
+Full workspace hashes, transcripts, client results, token/time observations and
+captured process-memory evidence match their originals. No model was rerun and
+no attempt was added or discarded.
+
+B10 Inkbolt repetitions two and five still fail. Their commands omitted the
+workspace option, then interpreted the resulting import error as requiring an
+explicit store. They departed from the prompt's `storage:{}` contract and used
+`native-tiles`. Immutable-store checks fail and fresh rendering cannot find the
+tiles at the required default root. Missing downstream checks remain failures;
+the delivered TIFFs from those attempts do not receive independent pixel credit.
+The three successful attempts pass exact native samples, immutable tiles,
+proposal/history checks and the 256 MiB per-process bound. That bound uses
+captured peaks across owned client/tool processes; it is not exact engine-only
+memory. The baseline passes its applicable sample, preview and memory checks;
+Inkbolt history guarantees remain explicitly inapplicable there. This is a
+2.07 MP fixture, not the larger W4 workload gate.
+
+All completed command/MCP events and retained generated helper bodies were
+reviewed. No prohibited repository/judge reads, extra model/engine use or
+baseline Inkbolt access were observed. File-change events omit patch bodies,
+so earlier overwritten helper versions are not fully retained. No image-view
+tool was observed; numerical validation does not prove visual review. Only
+B13 Inkbolt repetition one used MCP alongside shell calls; the other nine used
+CLI only. Every Inkbolt photo attempt first tried an unsupported repair operation
+before finding native retouch. Invalid schema selectors and workspace/path
+errors remain in the recorded usage. Client-written error summaries are not
+substituted for captured command responses.
+
+Prioritize actionable workspace errors and clearer native-operation discovery,
+then remeasure their effect with the same task contracts. Continue B11/B12 and
+the remaining coverage before the full plan decision gate. Token totals already
+include cached input and are not billing estimates. Full model/engine call
+counts, traffic/retries, first verified preview and engine-only memory remain
+unknown. Extra native-source/history obligations and mixed transports prevent
+a causal attribution of the cost difference. No checkpoint credit changes.
+
+Evidence is retained under `w2-photo-screen-sol-{model,baseline}-five-01` and
+the corresponding `rejudged-01` directories, with original/rejudged comparison
+reports. `w2-photo-screen-capture-rejudge-integrity-01.json` and separate trace
+reviews retain the identity and review checks.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Original source candidate | `a6fbc0f46e6e4875b1e93a67864df5246d7b3fa34732e061eb4ff1c06e42aaa5` |
+| Tested rejudging candidate | `2d7fa5e3eddaa00f616189c548d16d0c7d0e4d974687861c6fdf232e27c4ebeb` |
+| Release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| Original Inkbolt report | `2c882673d3e268effddb16b57adf4bb8b11b276ab5b043c4769a065a6380715c` |
+| Original baseline report | `ea9feb88f29fa5abed557eb5142c57d84e2351c0e461fbbbeaae183f1214d4f4` |
+| Original comparison | `44a342ab7214ed60e4c5a1d77254fe0e980578321592e1fbbc5f0228f45f2556` |
+| Rejudged Inkbolt report | `54ebcd79653411ec490cb90be67f8b8d913e47c2676de70f6f41c8c535590ad1` |
+| Rejudged baseline report | `6f5468d57866598014ac6fc07435b956ad6e2bfe7075abdd0cde8135df56b770` |
+| Rejudged comparison | `b5ae766dcb21748c2dc38ac87ab359c8a001a66e1ea6a8601922563a1eba7b98` |

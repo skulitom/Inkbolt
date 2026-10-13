@@ -48,7 +48,7 @@ def tiff_tags(data):
     assert u('H',2)==(42,)
     at=u('I',4)[0];count=u('H',at)[0];result={}
     for i in range(count):
-        entry=at+2+12*i;tag,kind,n=u('HHI',entry);fmt,size={1:('B',1),2:('B',1),3:('H',2),4:('I',4),5:('I',8)}[kind]
+        entry=at+2+12*i;tag,kind,n=u('HHI',entry);fmt,size={1:('B',1),2:('B',1),3:('H',2),4:('I',4),5:('I',8),7:('B',1)}[kind]
         offset=entry+8 if n*size<=4 else u('I',entry+8)[0]
         result[tag]=u(fmt*(n*2 if kind==5 else n),offset)
     return result
@@ -72,6 +72,20 @@ def jpeg_segments(data):
 
 class ImageInterchangeTests(unittest.TestCase):
     invoke=editing.EditingCliTests.invoke
+
+    def test_independent_tiff_reader_preserves_inline_and_external_undefined_bytes(self):
+        for endian,marker in (('<',b'II'),('>',b'MM')):
+            for kind in (1,7):
+                for payload in (b'\xff',b'\x00\x80\xff\x01',b'\x00\x80\xff\x01\x7f\x02\xfe'):
+                    with self.subTest(endian=endian,kind=kind,payload=payload):
+                        pack=lambda fmt,*values:struct.pack(endian+fmt,*values)
+                        value=payload.ljust(4,b'\0') if len(payload)<=4 else pack('I',26)
+                        data=marker+pack('HIH',42,8,1)+pack('HHI',34675,kind,len(payload))+value+pack('I',0)
+                        if len(payload)>4:data+=payload
+                        self.assertEqual(tiff_tags(data),{34675:tuple(payload)})
+                        if len(payload)>4:
+                            with self.assertRaises(struct.error):tiff_tags(data[:-1])
+
     def document(self,width=17,height=11,opaque=False):
         d=self.invoke(dict(command='document.create',id='image-fixture',kind='raster',width=width,height=height))
         pixels=bytes(c for y in range(height) for x in range(width) for c in (30+x*5%150,40+y*7%150,60+(x+y)*3%150,255 if opaque else [0,64,128,192,255][(x+y)%5]))

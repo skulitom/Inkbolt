@@ -10,7 +10,7 @@ from unittest.mock import patch
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
-from benchmark_screen import solve,judge,PROMPT,source_document,expected_picture,screen_color,delivery_identity
+from benchmark_screen import solve,judge,PROMPT,NOTE,source_document,expected_picture,screen_color,delivery_identity,contains_source_note
 from benchmark_baseline_screen import screen_shape,judge_screen
 from benchmark_driver import run_external_task,workspace_files
 from benchmark_runtime import Trial,TaskFailure
@@ -52,6 +52,26 @@ class ScreenBenchmarkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             case=self.prepare(Path(directory)/'independent',True);case.results.clear();case.begin_judging();judge(case)
             row=case.finish();self.assertEqual(row['status'],'passed',row);self.assertIsNone(row['first_verified_preview_seconds'])
+
+    def test_source_note_allows_author_keys_but_requires_unchanged_value(self):
+        variants=[({'note':NOTE},True),({'private':{'review':NOTE},'tags':['context']},True),
+                  ({},False),({'note':'lost'},False),({'note':NOTE+' changed'},False)]
+        self.assertFalse(contains_source_note({NOTE:'key only'}))
+        self.assertTrue(contains_source_note({'tags':[NOTE]}))
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);case=self.prepare(root/'workspace');source=json.loads((case.root/'editable.json').read_bytes())
+            case.results.clear();case.begin_judging();original_call=case.call
+            for index,(metadata,valid) in enumerate(variants):
+                with self.subTest(metadata=metadata):
+                    doc=copy.deepcopy(source);doc['metadata']=metadata
+                    (case.root/'editable.json').write_text(json.dumps(doc),encoding='utf-8')
+                    case.checks.clear();case.judge_root=root/str(index);case.judge_root.mkdir()
+                    case.call=lambda step,command,**arguments:original_call(str(index)+'-'+step,command,**arguments)
+                    if valid:
+                        judge(case);self.assertEqual({c['name'] for c in case.checks if c['status']=='pass'},set(CHECKS['B13']))
+                    else:
+                        with self.assertRaises(TaskFailure):judge(case)
+                        self.assertIn('editable-source',[c['name'] for c in case.checks if c['status']=='fail'])
 
     def test_changed_source_alpha_metadata_identity_and_collision_fail_independent_checks(self):
         with tempfile.TemporaryDirectory() as directory:

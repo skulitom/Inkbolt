@@ -1239,7 +1239,30 @@ captures are retained under `w2-photo-session-`, tested candidate
 B13 has no corresponding judge-store assumption; B17/B18's fixed stores belong
 to their harness-seeded fault contracts.
 
-Five-repetition model trials for the other eleven tasks, further smaller-model
+B10/B13 now have five genuine matched pairs per task. After two tested judge
+corrections, photo repair passes 3/5 with Inkbolt versus 5/5 with the baseline;
+screen delivery passes 5/5 in both arms at 7.51x median reported tokens with
+Inkbolt. Two photo attempts still fail the explicit default-storage contract.
+All twenty saved captures were rejudged without new model execution, with
+unchanged workspace files, transcripts, client results, usage and captured memory.
+The original failures remain in their original reports. See
+[outcomes, limitations and identities](BENCHMARK_RESULTS.md#b10b13-at-7a07f07-five-matched-pairs-with-retained-capture-corrections).
+
+The TIFF judge now retains UNDEFINED byte fields such as embedded profiles in
+either byte order. The screen judge admits author-chosen placement of the exact
+source note within the engine metadata schema. Native samples, source geometry,
+alpha, privacy, collision and history requirements are unchanged. New controls
+cover inline/external TIFF bytes, truncation and missing/changed metadata notes.
+The focused Windows selection covers 55 Python tests: 30 executed and 25 reused
+from identical passes, in 70.5 seconds. Its fresh screen-module pass took 129.0
+seconds. Linux executed 52 with three explicit skips in 129.4 seconds. Cargo
+checks were reused; no selected checks failed or remained pending in the final
+runs. Earlier fixture failures and an unrelated stale no-match Rust filter
+remain in the retained reports. Evidence is under `w2-photo-screen-judge-`, with
+tested candidate `2d7fa5e3eddaa00f616189c548d16d0c7d0e4d974687861c6fdf232e27c4ebeb`.
+This remains focused judge evidence, not a new engine feature or full acceptance.
+
+Five-repetition model trials for the other nine tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
