@@ -190,8 +190,12 @@ roots with the same supplied clock value. It passed with formatting, locked buil
 and all-target Clippy in 32.4 seconds on Windows and 11.1 seconds on Linux. The
 complete session-retry integration target also passed on both platforms (three
 Windows tests, four Linux tests). Session behavior, deadlines and assertions are
-unchanged. Fresh hosted macOS confirmation remains required; the failed run is
-not a complete platform pass. Evidence remains external under `w1-retry-roots-`.
+unchanged. The [hosted `20ac313` run](https://github.com/skulitom/Inkbolt/actions/runs/38377988007)
+now confirms the fix on macOS: all 230 fresh stages passed, with 2362 Python tests
+executed and 35 explicit skips, in 2630.3 seconds. Its Linux job passed the same
+stage/test counts in 1310.1 seconds. The Windows job remains in progress, so the
+complete three-platform result is still open. Logs are retained externally under
+`w1-public-ci-20ac313-`; local evidence remains under `w1-retry-roots-`.
 
 ## W2 and the next behavior increments
 
@@ -541,7 +545,32 @@ Prompt hash: `eef3d91c9764e67b5071b1cfa73eda4621c852f3df63ad5de48339b4681390db`.
 Evidence remains external under `w2-b13-`. These are shared-host correctness
 results, not genuine model trials, performance comparisons or full W2 acceptance.
 
-B14-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B14 separates the original two ICC fixtures, shared print prompt, seven-command
+reference solve and independent nine-command judge. All seven original check
+IDs/classes remain fixed. The judge checks full editable controls, saved history,
+fresh preview/PDF/preflight and the completed original publication receipt;
+independent IDs and relocated captures pass without consulting solver results.
+Both original profile hashes are unchanged. The baseline retains a bounded
+editable print recipe and authors native PDF using ordinary Python. Pinned Pillow
+independently derives its ICC display preview. A bounded PDF reader checks exact
+physical boxes, embedded bytes/channel declarations, native process/spot operands
+and functions, painted geometry, transforms and compositing state. Source/history
+checks are explicitly not applicable there. Incorrect profiles, inks, geometry,
+preview pixels, limitations and unsupported PDF controls fail.
+
+Focused verification passed 50 tests on Windows in 137.2 seconds and 48 on Linux
+in 106.0 seconds, with two explicit Windows-counter skips. No selected stage failed
+or remained pending; unchanged engine formatting/build/Clippy results were reused.
+Both final reports and trials retained unchanged candidate fingerprint:
+`8818ab4cd2d7ddbe2139b9781798f9ccd208d2a70a1403c2d7a876e798476f22`.
+Five real-tool synthetic baseline trials passed on each platform; all five Windows
+captures passed rejudging. Prompt hash:
+`29b6d9cda5c6e5c789a65da1d1fcdc89196a144b339bedd5e750a27c594afb74`.
+Evidence remains external under `w2-b14-`. These are shared-host correctness
+results, not press calibration, genuine model trials, performance comparisons or
+full W2 acceptance. The new bounded reader is not a general PDF rasterizer.
+
+B15-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

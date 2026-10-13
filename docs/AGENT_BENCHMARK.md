@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B13 also support `--arm model` and
+`--arm reference` is the existing default. B01-B14 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -207,7 +207,16 @@ copies outside the captured workspace. The baseline uses pinned Pillow and keeps
 editable SVG plus its delivery recipe. The four original check IDs/classes remain
 fixed; its Inkbolt snapshot check is explicitly not applicable.
 
-B14-B20 still interleave solving and judging. All required checks have
+B14 separates the original profile fixture, [shared print prompt](../tools/benchmark_prompts/B14.md),
+seven-command solver and independent judge. Full editable controls, saved history,
+fresh preview/PDF/preflight and completed publication receipts bind the delivered
+page and its limitations. The baseline keeps a bounded editable print recipe and
+the original RGB/CMYK profiles. Pinned Pillow regenerates the ICC preview; an
+independent parser checks native PDF geometry, boxes, profiles and ink operands.
+All seven check IDs/classes remain fixed; snapshot/history checks are explicitly
+not applicable to the baseline. These display checks do not establish a press proof.
+
+B15-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 
@@ -334,7 +343,7 @@ Complete print/interchange scope remains governed by the original feature regist
   Raw request/response lengths include actual framing and image payloads.
   Report/row schema version 2 separates calls marked `phase:"judge"` from ordinary
   counts, bytes and round-trip time, preserving their raw records and separate
-  `judge_*` totals. `judge_separated:true` identifies migrated tasks (currently B01).
+  `judge_*` totals. `judge_separated:true` identifies migrated tasks (currently B01-B14).
   Judge calls alone cannot establish a successful solve.
   For B20 these ordinary fields describe Inkbolt; `consumer` records the Cutbolt
   side. `total_engine_commands`, `total_engine_retries`, `total_request_bytes`,
@@ -353,8 +362,8 @@ Complete print/interchange scope remains governed by the original feature regist
   response, or match both hash and length to a successful PNG publication result.
   A judge render, missing/lost response, wrong media type or mismatched identity
   cannot supply missing preview timing.
-  B13's independent publication probes use a separate judge-only CLI workspace;
-  its reference solve transport remains unchanged. Explicit probe rows retain
+  B13/B14 independent publication probes use a separate judge-only CLI workspace;
+  their reference solve transport remains unchanged. Explicit probe rows retain
   their command bytes, timing and process observations, counted once as judge
   traffic even in MCP trials. MCP server memory excludes these separate judge
   processes and the reported scope says so.

@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B13. B14-B20 remain visible as
+The W2 external lifecycle currently supports B01-B14. B15-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -313,6 +313,26 @@ descriptive/private records and animation reject. All four original check IDs
 and classes are unchanged; only the Inkbolt snapshot check is not applicable
 to the baseline. Delivery hashes are content evidence, not authenticated client
 action history.
+
+B14's [shared prompt](../tools/benchmark_prompts/B14.md) retains the exact original
+RGB and CMYK fixtures, fractional A4 trim size, asymmetric bleed, native process
+and spot declarations and display preview. The model judge validates all editable
+controls, saved source/current head and completed publication receipt; it freshly
+preflights and publishes into an owned judge directory. Captures stay unchanged,
+including after relocation. Fresh and delivered PDF identities, reported losses,
+physical boxes, embedded profiles and native operands must agree.
+
+The baseline retains a bounded logical print recipe and original profile files.
+Ordinary Python may author native PDF; pinned Pillow color management derives
+the display preview. Admission rejects altered controls, paths or profile hashes
+before invoking that decoder. The bounded classic-xref PDF reader supports direct
+and indirect resource arrays; a separate path interpreter checks actual painted
+geometry, transforms, opacity and conversion state. Unsupported clipping/group
+effects fail explicitly. Both previews face the original exact pixel oracle.
+PDF deliveries are bounded to 1 MiB; recipes to 8 KiB. This proves the stated
+synthetic native declarations and display result, not press calibration, general
+PDF rendering or authenticated preflight history. All seven check IDs/classes
+remain fixed; only the two Inkbolt source/history checks are not applicable.
 
 ## Preparation and import
 

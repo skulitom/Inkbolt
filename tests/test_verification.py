@@ -118,7 +118,7 @@ class VerificationTests(unittest.TestCase):
             'test_agent_benchmark_photo','test_agent_benchmark_recovery',
             'test_benchmark_driver',  # Captures complete external trial workspaces.
             'test_benchmark_icons','test_benchmark_large_layout',  # Exercise that capture lifecycle.
-            'test_benchmark_svg','test_benchmark_palette','test_benchmark_flow','test_benchmark_typography','test_benchmark_mask','test_benchmark_retouch','test_benchmark_photo','test_benchmark_mixed','test_benchmark_variants','test_benchmark_screen',
+            'test_benchmark_svg','test_benchmark_palette','test_benchmark_flow','test_benchmark_typography','test_benchmark_mask','test_benchmark_retouch','test_benchmark_photo','test_benchmark_mixed','test_benchmark_variants','test_benchmark_screen','test_benchmark_print',
             'test_wsl_verification',  # The WSL snapshot binds the whole candidate.
         })
         # Refactoring must still invalidate actual shared helper consumers and

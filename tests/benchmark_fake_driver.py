@@ -28,6 +28,8 @@ from benchmark_variants import solve as solve_variants,expected_picture as varia
 from benchmark_variants_client import author as author_variants
 from benchmark_screen import solve as solve_screen,expected_picture as screen_picture,delivery_identity
 from benchmark_screen_client import SVG as SCREEN_SVG
+from benchmark_print import solve as solve_print,expected_picture as print_picture
+from benchmark_print_client import author as author_print
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -86,7 +88,7 @@ def main():
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13')
+    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,**arguments):
             if task=='B10' and '--photo-names' in sys.argv:
@@ -104,14 +106,14 @@ def main():
             return response['result']
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
          'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo,
-         'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen}[task](SimpleNamespace(root=root,call=call))
+         'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen,'B14':solve_print}[task](SimpleNamespace(root=root,call=call))
         if task=='B10' and '--photo-names' in sys.argv:
             locator=json.loads((root/'session.json').read_bytes())
             locator['requests']={role:'owner-'+name for role,name in locator['requests'].items()}
             (root/'session.json').write_text(json.dumps(locator),encoding='utf-8')
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
-        if task in ('B10','B11','B12','B13'):
+        if task in ('B10','B11','B12','B13','B14'):
             pass  # A separate client writes the editable manifest.
         elif task=='B09':
             (root/'editable.json').write_text(json.dumps(retouch_manifest()),encoding='utf-8')
@@ -137,7 +139,12 @@ def main():
             else: source = SVG if task == 'B01' else ICONS_SVG
             (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B13':
+        if task=='B14':
+            if renderer['version']=='synthetic-fixture':
+                author_print(root);(root/'preview.png').write_bytes(png(240,130,print_picture()))
+            else:
+                subprocess.run([request['baseline_tools']['python']['path'],'-I',str(ROOT/'tests/benchmark_print_client.py'),str(root)],check=True)
+        elif task=='B13':
             if renderer['version']=='synthetic-fixture':
                 (root/'editable.svg').write_text(SCREEN_SVG,encoding='utf-8')
                 raw=png(1920,1080,screen_picture());(root/'screen.png').write_bytes(raw)

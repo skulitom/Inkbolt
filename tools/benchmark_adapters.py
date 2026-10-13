@@ -3,7 +3,7 @@ from benchmark_graphics import (
     resource_repair,
     seeded_repair, lost_response, conflicting_writers)
 from benchmark_typography import multilingual
-from benchmark_layout_delivery import physical_print
+from benchmark_print import physical_print
 from benchmark_variants import layout_variants
 from benchmark_screen import transparent_delivery
 from benchmark_mixed import mixed_composition
