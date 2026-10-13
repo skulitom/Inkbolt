@@ -120,10 +120,12 @@ These full milestone runs do not replace the 180-second routine feedback budget.
 The later `3ac68d6` macOS run exposed a collision between timestamp-named test
 directories. Fixture allocation now uses an atomic sequence and exclusive
 creation. Concurrent repeated-clock and complete session-retry checks pass on
-Windows/Linux. The `20ac313` hosted macOS job now passes all 230 fresh stages,
-confirming the fixture fix; its Linux job also passes. The Windows job remains
-in progress, so that full matrix is not yet a pass. Production session behavior
-and existing assertions are unchanged. See [development status](DEVELOPMENT_STATUS.md).
+Windows/Linux. The [complete `20ac313` hosted run](https://github.com/skulitom/Inkbolt/actions/runs/38377988007)
+now passes all 230 fresh stages on Windows, Linux and macOS, confirming the fixture
+fix. Windows ran 213 Rust and 2396 Python tests with one explicit skip; Linux and
+macOS each ran 179 Rust and 2362 Python tests with 35 explicit skips. Production
+session behavior and existing assertions are unchanged. See the exact candidate,
+timings and retained evidence in [development status](DEVELOPMENT_STATUS.md).
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

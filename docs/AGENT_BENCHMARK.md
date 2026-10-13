@@ -7,7 +7,7 @@ adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
 an explicitly selected local Cutbolt installation. This advances A1; it does not establish
 autonomous agent success, a matched Cutbolt comparison or complete readiness.
-`--arm reference` is the existing default. B01-B14 also support `--arm model` and
+`--arm reference` is the existing default. B01-B15 also support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 The other external task migrations and full model/baseline acceptance remain open.
 
@@ -216,7 +216,18 @@ independent parser checks native PDF geometry, boxes, profiles and ink operands.
 All seven check IDs/classes remain fixed; snapshot/history checks are explicitly
 not applicable to the baseline. These display checks do not establish a press proof.
 
-B15-B20 still interleave solving and judging. All required checks have
+B15 separates its original missing/corrupt resource fixtures, [shared prompt](../tools/benchmark_prompts/B15.md),
+eleven-command solver and independent judge. It checks exact replacement cache
+bytes, complete unchanged artwork, paired diagnostic locations and both delivered
+and fresh preview pixels. Retained proposals, action fingerprints and durable
+receipts bind the original and repaired session resources. Relocated captures use
+explicit local resource copies for diagnosis/rendering while saved roots remain
+unchanged. The baseline retains the original document plus an editable binding
+recipe, verifies original decoding with pinned Pillow and renders the repaired
+cache. Its two engine-history checks are explicitly not applicable; all six check
+IDs/classes remain fixed. Neither arm may fill the original missing cache file.
+
+B16-B20 still interleave solving and judging. All required checks have
 explicit artifact/engine classes; classification does not migrate those judges.
 No real model trial is claimed by synthetic driver tests or reference runs.
 
@@ -343,7 +354,7 @@ Complete print/interchange scope remains governed by the original feature regist
   Raw request/response lengths include actual framing and image payloads.
   Report/row schema version 2 separates calls marked `phase:"judge"` from ordinary
   counts, bytes and round-trip time, preserving their raw records and separate
-  `judge_*` totals. `judge_separated:true` identifies migrated tasks (currently B01-B14).
+  `judge_*` totals. `judge_separated:true` identifies migrated tasks (currently B01-B15).
   Judge calls alone cannot establish a successful solve.
   For B20 these ordinary fields describe Inkbolt; `consumer` records the Cutbolt
   side. `total_engine_commands`, `total_engine_retries`, `total_request_bytes`,

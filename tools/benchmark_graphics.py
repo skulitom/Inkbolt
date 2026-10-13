@@ -7,7 +7,6 @@ from benchmark_runtime import require
 from workload_cases import document, rectangle, save, sha
 from test_editing_cli import png_pixels
 from synthetic_font import geometric_font
-from test_images_cli import png, canonical
 
 
 BLUE = [20, 80, 150, 255]
@@ -113,41 +112,6 @@ def conflicting_writers(case):
         [i['content']['geometry'] for i in current['items']]==[i['content']['geometry'] for i in two_items()['items']], 'Conflict resolution lost an intent or source geometry'))
     view(case,'preview',ref(2),'conflict-pixels',32,16,pixels(32,16,[(5,4,8,8,BLUE),(20,4,8,8,GREEN)]))
     view(case,'historical',saved,'historical-pixels',32,16,pixels(32,16,[(2,4,8,8,BLUE),(22,4,8,8,GREEN)]))
-    verify_history(case)
-
-
-def resource_repair(case):
-    assets={};items=[]
-    for index,color in enumerate([BLUE,GREEN]):
-        raw=bytes(color)*4
-        case.source(f'original-{index}.png',png(2,2,raw))
-        assets[f'asset-{index}']=dict(width=2,height=2,sha256=sha(canonical(2,2,raw)),storage=dict(type='stored'))
-        items.append(dict(id=f'image-{index}',transform=[1,0,0,1,index*8,0],content=dict(type='image',asset_id=f'asset-{index}',width=8,height=8)))
-    # Construct corrupt and missing cache fixtures directly; never replace a valid
-    # resource or original media file to introduce the fault.
-    corrupt='broken-assets/'+assets['asset-0']['sha256']+'.rgba8'
-    case.source(corrupt,b'original deliberately corrupt cache fixture')
-    seed=case.seed(document('resources','vector',16,8,assets=assets,items=items))
-    case.begin('source.json binds one corrupt and one missing image cache under broken-assets. '
-        'Diagnose both at their resource locations, recreate exact resources from original-0.png '
-        'and original-1.png in repaired-assets, review and commit only the resource binding change. '
-        'Preserve artwork, original media, the old broken cache and historical bindings.')
-    saved=store(case,seed,resources=dict(asset_root='broken-assets'))
-    diagnosed=case.call('diagnose','document.check',document=saved)
-    case.check('located-diagnostics',lambda:require(diagnosed['status']=='fail' and
-        {i['error']['code'] for i in diagnosed['issues']}=={'ASSET_MISSING','ASSET_CORRUPT'} and
-        {i['location']['pointer'] for i in diagnosed['issues']}=={'/assets/asset-0','/assets/asset-1'},'Missing/corrupt resources were not independently located'))
-    imported=[case.call(f'repair-{i}','asset.import',source_path=f'original-{i}.png',store_root='repaired-assets')['asset'] for i in range(2)]
-    case.check('verified-replacements',lambda:require([a['sha256'] for a in imported]==[a['sha256'] for a in assets.values()], 'Replacement resource identity differs'))
-    before=source_snapshot(case,saved,'before')
-    action=dict(type='resources',resources=dict(asset_root='repaired-assets'))
-    proposal=case.call('review','session.dry_run',session_id='work',request_id='repair',expected_revision=0,action=action)
-    case.call('apply-repair','session.apply_proposal',proposal=proposal['proposal'],action=action,response_mode='compact')
-    current=source_snapshot(case,ref(1))
-    case.check('unchanged-artwork',lambda:require(current['items']==before['items'] and current['assets']==before['assets'],'Resource repair edited artwork'))
-    view(case,'preview',ref(1),'repaired-pixels',16,8,pixels(16,8,[(0,0,8,8,BLUE),(8,0,8,8,GREEN)]))
-    old=case.call('old-diagnostics','document.check',document=saved)
-    case.check('old-bindings-preserved',lambda:require(old==diagnosed and not (case.root/'broken-assets'/(assets['asset-1']['sha256']+'.rgba8')).exists(),'Historical resource binding or missing cache was silently repaired'))
     verify_history(case)
 
 

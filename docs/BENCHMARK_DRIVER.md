@@ -1,6 +1,6 @@
 # External benchmark drivers and captured trials
 
-The W2 external lifecycle currently supports B01-B14. B15-B20 remain visible as
+The W2 external lifecycle currently supports B01-B15. B16-B20 remain visible as
 `not_implemented` until their fixtures/prompts/judges are separated; the baseline
 reports B17-B19 as `not_applicable` with engine-specific reasons. This is not a
 complete model benchmark or evidence that Inkbolt beats the baseline.
@@ -333,6 +333,28 @@ PDF deliveries are bounded to 1 MiB; recipes to 8 KiB. This proves the stated
 synthetic native declarations and display result, not press calibration, general
 PDF rendering or authenticated preflight history. All seven check IDs/classes
 remain fixed; only the two Inkbolt source/history checks are not applicable.
+
+B15's [shared prompt](../tools/benchmark_prompts/B15.md) preserves all four original
+fixture hashes: two PNGs, one corrupt cache entry and the source document. The
+model judge checks full document equality apart from revision, both replacement
+cache identities, correctly paired diagnostic locations and a fresh preview.
+Creation/repair receipts, current session state and history must agree with the
+retained proposal's source/result hashes and resource-action fingerprint.
+
+The recorded absolute workspace root locates stored binding data; the judge
+compares those paths lexically and never follows them after relocation. Only the
+captured broken/repaired directories are used for fresh diagnosis and rendering.
+It neither repairs old states nor changes captured files. This establishes
+consistent retained content, not authenticated historical review actions.
+
+The baseline keeps the unchanged logical source and a separate before/after
+binding recipe. Admission rejects changed artwork, descriptors, paths, malformed
+cache entries and unrequested repair of the original missing entry before the
+pinned imaging process runs. Pillow independently decodes the two original PNGs
+and composes the repaired cache; both fresh and delivered pixels face the original
+oracle. Diagnostic array order is immaterial, but exact code/location pairs are
+required. All six check IDs/classes remain fixed, with only the two Inkbolt
+history/binding checks explicitly not applicable to the baseline.
 
 ## Preparation and import
 

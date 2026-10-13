@@ -191,11 +191,15 @@ and all-target Clippy in 32.4 seconds on Windows and 11.1 seconds on Linux. The
 complete session-retry integration target also passed on both platforms (three
 Windows tests, four Linux tests). Session behavior, deadlines and assertions are
 unchanged. The [hosted `20ac313` run](https://github.com/skulitom/Inkbolt/actions/runs/38377988007)
-now confirms the fix on macOS: all 230 fresh stages passed, with 2362 Python tests
-executed and 35 explicit skips, in 2630.3 seconds. Its Linux job passed the same
-stage/test counts in 1310.1 seconds. The Windows job remains in progress, so the
-complete three-platform result is still open. Logs are retained externally under
-`w1-public-ci-20ac313-`; local evidence remains under `w1-retry-roots-`.
+now passes on all three platforms with 230 fresh stages each, no failures,
+pending checks or reused passes. Windows ran 213 Rust tests and 2396 Python tests
+with one explicit skip in 3937.6 seconds. Linux and macOS each ran 179 Rust tests
+and 2362 Python tests with 35 explicit skips, in 1310.1 and 2630.3 seconds
+respectively. All three reports confirm unchanged candidate fingerprint:
+`60af4fdb58926c196becb6e3cd039cad6a405602a5b7bba58f067252373a9da8`.
+This confirms the fixture fix and declared platform tier at `20ac313`, not later
+unverified commits or Unix jobs. Reports/logs are retained externally under
+`w1-public-ci-20ac313`; local evidence remains under `w1-retry-roots-`.
 
 ## W2 and the next behavior increments
 
@@ -570,7 +574,36 @@ Evidence remains external under `w2-b14-`. These are shared-host correctness
 results, not press calibration, genuine model trials, performance comparisons or
 full W2 acceptance. The new bounded reader is not a general PDF rasterizer.
 
-B15-B20 external adapters, broader baseline judges, arbitrary legacy transcript
+B15 separates the original missing/corrupt resource fixture, shared prompt,
+eleven-command solve and independent ten-command judge. All four fixture hashes
+and six check IDs/classes remain unchanged. The judge checks complete artwork,
+correct code/location pairs, exact replacement bytes, fresh/delivered pixels and
+the original missing/corrupt cache. Creation/repair receipts, current saved state,
+retained proposal state hashes and resource-action fingerprint must agree.
+Independent session/request IDs and relocated captures pass without accessing
+solver results or stale absolute roots. Captured files remain unchanged.
+
+The baseline retains the editable source and a separate resource-binding recipe.
+Pinned Pillow independently decodes the original PNGs and composes the repaired
+cache. Changed artwork/descriptors, malformed replacements, repaired old cache,
+incorrect diagnostics, pixels, review hashes or historical bindings fail. Numeric
+equivalents such as 8 and 8.0 are accepted; boolean replacements are rejected.
+Only its two Inkbolt history checks are explicitly not applicable.
+
+Focused verification passed 49 tests on Windows in 122.9 seconds and 47 on Linux
+in 94.6 seconds, with two explicit Windows-counter skips. No selected stage failed
+or remained pending; unchanged engine formatting/build/Clippy results were reused.
+Both final reports and trials retained unchanged candidate fingerprint:
+`41106fbd0735235e7ef9d86c61bc363b130abf9d17916c147f8826b013b076bc`.
+Five real-tool synthetic baseline trials passed on each platform; all five Windows
+captures passed rejudging. A separate pinned-tool numeric-equivalence control also
+passed. Prompt hash:
+`a0249e33438b2c65d8ec70fba2d9f6e644e754f1bded98f290c0cdb9fcb30c5f`.
+Evidence remains external under `w2-b15-`. These are shared-host correctness
+results, not authenticated client-review history, genuine model trials,
+performance comparisons or full W2 acceptance.
+
+B16-B20 external adapters, broader baseline judges, arbitrary legacy transcript
 adapters, matched comparison reporting and genuine model trials remain open;
 full W2 milestone acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
 bounded increments. W2 evidence will sequence the substantial work using the

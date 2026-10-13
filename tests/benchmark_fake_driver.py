@@ -30,6 +30,8 @@ from benchmark_screen import solve as solve_screen,expected_picture as screen_pi
 from benchmark_screen_client import SVG as SCREEN_SVG
 from benchmark_print import solve as solve_print,expected_picture as print_picture
 from benchmark_print_client import author as author_print
+from benchmark_resources import solve as solve_resources,expected_picture as resources_picture
+from benchmark_resources_client import author as author_resources
 from test_images_cli import png
 
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="56" font-family="Inkbolt Diagram Fixture" font-size="20"><rect x="8" y="8" width="48" height="36" fill="#145096"/><rect x="80" y="8" width="40" height="36" fill="#1e9646"/><rect x="56" y="25" width="24" height="2" fill="#505050"/><text x="20" y="32" fill="white">AA</text><text x="96" y="32" fill="white">A</text></svg>'
@@ -88,7 +90,7 @@ def main():
     assert request['contract']['kind']=='synthetic', 'A fake driver cannot impersonate a model'
     if '--timeout' in sys.argv: time.sleep(30)
     root=Path(request['workspace']);events=[];task=request['contract']['task']
-    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14')
+    assert task in ('B01','B02','B03','B04','B05','B06','B07','B08','B09','B10','B11','B12','B13','B14','B15')
     if request['contract']['arm']=='model':
         def call(step,command,preview=False,expected_error=None,**arguments):
             if task=='B10' and '--photo-names' in sys.argv:
@@ -106,14 +108,14 @@ def main():
             return response['result']
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
          'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo,
-         'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen,'B14':solve_print}[task](SimpleNamespace(root=root,call=call))
+         'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen,'B14':solve_print,'B15':solve_resources}[task](SimpleNamespace(root=root,call=call))
         if task=='B10' and '--photo-names' in sys.argv:
             locator=json.loads((root/'session.json').read_bytes())
             locator['requests']={role:'owner-'+name for role,name in locator['requests'].items()}
             (root/'session.json').write_text(json.dumps(locator),encoding='utf-8')
     else:
         assert request['mcp_config'] is None and 'engine_executable' not in request
-        if task in ('B10','B11','B12','B13','B14'):
+        if task in ('B10','B11','B12','B13','B14','B15'):
             pass  # A separate client writes the editable manifest.
         elif task=='B09':
             (root/'editable.json').write_text(json.dumps(retouch_manifest()),encoding='utf-8')
@@ -139,7 +141,13 @@ def main():
             else: source = SVG if task == 'B01' else ICONS_SVG
             (root/'editable.svg').write_text(source,encoding='utf-8')
         renderer=request['baseline_tools']['resvg']
-        if task=='B14':
+        if task=='B15':
+            if renderer['version']=='synthetic-fixture':
+                author_resources(root,[bytes([20,80,150,255])*4,bytes([30,150,70,255])*4])
+                (root/'preview.png').write_bytes(png(16,8,resources_picture()))
+            else:
+                subprocess.run([request['baseline_tools']['python']['path'],'-I',str(ROOT/'tests/benchmark_resources_client.py'),str(root)],check=True)
+        elif task=='B14':
             if renderer['version']=='synthetic-fixture':
                 author_print(root);(root/'preview.png').write_bytes(png(240,130,print_picture()))
             else:
@@ -253,6 +261,10 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
                 str(root/'editable.svg'),str(root/'preview.png')],check=True)
         events.append(dict(kind='synthetic',action='authored baseline fixture'))
     if '--changed-prompt' in sys.argv: (root/'task.txt').write_text('changed',encoding='utf-8')
+    if task=='B15' and request['contract']['arm']=='baseline' and '--resource-float-json' in sys.argv:
+        source=json.loads((root/'editable.json').read_bytes())
+        for item in source['items']:item['transform']=[float(v) for v in item['transform']]
+        (root/'editable.json').write_text(json.dumps(source),encoding='utf-8')
     preview_name='board-1.png' if task=='B02' else 'square.png' if task=='B12' else 'screen.png' if task=='B13' else 'preview.png'
     if '--wrong-image' in sys.argv: (root/preview_name).write_bytes(png(1,1,b'\0'*4))
     target=Path(request['result_path'])
