@@ -10,7 +10,7 @@ from unittest.mock import patch
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
-from benchmark_repair import fixture,solve,judge,PROMPT,initial_document,FONT_FAMILY,expected_picture
+from benchmark_repair import fixture,solve,judge,PROMPT,initial_document,original_font,FONT_FAMILY,expected_picture
 from benchmark_baseline_repair import judge_repair,measured_width
 from benchmark_driver import run_external_task,workspace_files
 from benchmark_runtime import Trial,TaskFailure
@@ -73,6 +73,27 @@ class RepairBenchmarkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             case=self.prepare(Path(directory)/'names',True);case.results.clear();case.begin_judging();judge(case)
             row=case.finish();self.assertEqual(row['status'],'passed',row);self.assertIsNone(row['first_verified_preview_seconds'])
+
+    def test_omitted_defaults_preserve_source_semantics_but_repaired_revision_must_match(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=self.prepare(Path(directory)/'defaults');original=case.call;case.results.clear();case.begin_judging()
+            before=initial_document(original_font(case))
+            (case.root/'before.json').write_text(json.dumps(before),encoding='utf-8')
+            for fault in ('none','missing-revision','stale-revision','changed-resolution','changed-artwork'):
+                with self.subTest(fault=fault):
+                    after=initial_document(original_font(case));after['revision']=1
+                    after['items'][0]['content']['frame']['width']=24
+                    if fault=='missing-revision':del after['revision']
+                    elif fault=='stale-revision':after['revision']=0
+                    elif fault=='changed-resolution':after['resolution_ppi']=72
+                    elif fault=='changed-artwork':after['items'][1]['content']['geometry']['x']=31
+                    (case.root/'editable.json').write_text(json.dumps(after),encoding='utf-8');case.checks.clear()
+                    case.call=lambda step,command,**arguments:original(fault+'-'+step,command,**arguments)
+                    if fault=='none':
+                        judge(case);self.assertTrue(all(c['status']=='pass' for c in case.checks),case.checks)
+                    else:
+                        with self.assertRaises(TaskFailure):judge(case)
+                        self.assertIn('no-collateral-edits',[c['name'] for c in case.checks if c['status']=='fail'])
 
     def test_changed_sources_diagnosis_review_pixels_delivery_and_history_fail(self):
         with tempfile.TemporaryDirectory() as directory:

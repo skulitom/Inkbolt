@@ -453,9 +453,17 @@ The full review may be stored directly or in the exact successful CLI
 `{"ok":true,"result":{...}}` envelope; proposal and image checks remain identical.
 Publication binding belongs to the engine-only history check, so a wrong receipt
 cannot invalidate otherwise correct artifact pixels or delivery identities.
+Snapshot comparison uses the reopened document values, so omitted defaults are
+accepted only when every control has the same meaning. The delivered repaired
+source must still reopen as revision 1 and match saved history; an omitted
+revision defaults to 0 and fails. Version 2 makes that file requirement explicit.
 
 The baseline retains before/after JSON recipes and editable SVG text in a bounded
 16 KiB contract per source, with explicit no-wrap/error semantics in the recipe.
+Prompt version 2 also specifies the font map, integer font-file byte length,
+boolean wrap control and bare RGBA arrays. The version-1 trials exposed missing
+type information in those instructions and remain separate preliminary evidence;
+fresh matched version-2 trials are required before comparing repair reliability.
 Its admission checks all controls and forbids external resources or unrequested
 SVG constructs before launching the pinned rasterizer. Original SFNT advance
 metrics independently establish overflow and the required width. A named font

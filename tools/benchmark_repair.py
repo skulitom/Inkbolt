@@ -100,10 +100,11 @@ def judge(case):
     normalized=case.call('judge-template','document.validate',document=initial_document(original_font(case),names))
     reopened={key:case.call('judge-reopen-'+key,'document.validate',document=dict(file_path=file,sha256=sha(delivered(case,file))))
         for key,file in [('before','before.json'),('after','editable.json')]}
+    before,after=reopened['before'],reopened['after']
     def unchanged():
         require(type(after['revision']) is int and after['revision']==1,'Expected one committed repair')
         wanted=copy.deepcopy(normalized);wanted['revision']=1;wanted['items'][0]['content']['frame']['width']=24
-        require(before==reopened['before']==normalized and after==reopened['after']==wanted,
+        require(before==normalized and after==wanted,
             'Repair changed text, font, overflow policy, unrelated artwork or other controls')
         for suffix,name in (('.font','original.ttf'),('.license','font-license.txt')):
             require(delivered(case,'.inkbolt/fonts/'+case.sources[name]+suffix)==delivered(case,name),'Imported font/license bytes differ')

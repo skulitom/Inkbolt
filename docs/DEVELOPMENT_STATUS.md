@@ -1396,6 +1396,27 @@ Reports and the raw tested-input map use the same external evidence prefix;
 tested fingerprint `7a6e5b7f40cfdb7e130f3cb9db2c457c3891545401e739a28ce191baf07e5564`.
 This is judge preparation, not new model evidence or engine feature credit.
 
+The first genuine B16 batch at `3c52ce4` retained five attempts per arm. Four
+Inkbolt deliveries omitted the repaired revision; the fifth exposed an extra
+raw-serialization restriction despite reopening to the exact expected document.
+The judge now compares normalized snapshots, keeping wrong revisions and all
+collateral changes as failures. Rejudging all ten unchanged captures yields 1/5
+complete Inkbolt workflows and 0/5 baseline workflows. Baseline recipe types
+were not fully specified in prompt version 1, so the preliminary batch does not
+establish comparative reliability. Version 2 explicitly supplies those types
+and native snapshot revisions. See [results and provenance](BENCHMARK_RESULTS.md#b16-at-3c52ce4-preliminary-text-repair-trials).
+
+The default-field correction executed 37 Windows tests in 33.5 seconds and
+34 WSL tests with three platform skips in 17.8 seconds, fingerprint
+`b145613796e741388e7ca9599db61ae8d67957247010e5d5bb8400e2ec2aa2a5`.
+The clarified version-2 task then passed all 11 repair tests on each platform,
+in 36.0/16.6 seconds, fingerprint
+`42c67a9be4f9ceaf7654843253c9fd8f96e1811d9ca7b9ead35cf13990989910`.
+All selected checks passed or reused identical Cargo passes, with no pending
+checks and unchanged inputs. Reports/raw tested-input maps are under
+`w2-repair-defaults-` and `w2-repair-prompt-v2-`. Every original failure remains;
+fresh version-2 model/baseline trials are required. No engine credit changed.
+
 Five-repetition model trials for the other five tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

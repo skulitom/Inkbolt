@@ -13,6 +13,10 @@ identities. Five tasks, further smaller-model trials and the separate
 sister-project comparison remain open; these partial batches are not full-suite
 acceptance.
 
+A preliminary B16 batch exposed a default-field judge bug and underspecified
+recipe types. Its retained failures and correction are recorded below; a fresh
+matched prompt-version-2 batch is required before drawing comparison conclusions.
+
 ## B02 at c7d9f30: initial five matched icon-sheet trials
 
 Both arms passed all five B02 artifact trials. Inkbolt's median reported
@@ -858,3 +862,69 @@ open. No engine checkpoint or complete readiness gate gains credit.
 | Final rejudged Inkbolt report | `983965514e72661f02a05d6634088a7d0b49b214fb8de813a02719e8e120b77f` |
 | Final rejudged baseline report | `5790ddd9509286d35d314ebd78a251a37afd3a44dc39892393ff0c3ddb7b0342` |
 | Final rejudged comparison | `1f2be28adb7fa535d53842fc171a2b4d846ec7d22515998d671e242acdfe8655` |
+
+## B16 at 3c52ce4: preliminary text-repair trials
+
+Five attempts per arm used Codex CLI 0.160.0 with externally selected
+`gpt-6.1-sol`, medium effort, and the same pinned baseline tools as the preceding
+batches. Inkbolt ran first, then the baseline on the shared Windows host. Inputs
+and the engine stayed unchanged, with no concurrent local engine verification
+or benchmarks from this chat. Other host workloads were uncontrolled and caches
+could be warm. Model selection is evaluation configuration only.
+
+| Measurement, prompt version 1 | Inkbolt | Baseline |
+| --- | ---: | ---: |
+| Retained attempts | 5 | 5 |
+| Original complete passes | 0/5 | 0/5 |
+| Complete passes after default-field correction | 1/5 | 0/5 |
+| Median input + output tokens, all attempts | 481,327 | 129,382 |
+| Median client execution, seconds, all attempts | 114.6 | 94.3 |
+
+The first four Inkbolt attempts saved hand-written repaired recipes without a
+revision field. Reopening them yields revision 0, so they do not deliver the
+committed revision-1 source. Those failures remain. Attempt five saved revision
+1 correctly but omitted ordinary default fields. Its independently reopened
+before/after documents already matched the complete expected states; the judge
+incorrectly required the raw JSON to include every serialized default. Comparing
+the reopened values corrects that restriction while preserving exact controls,
+revision, fonts, pixels, proposals and durable history. Tested negatives still
+reject missing/stale revisions, altered resolution and changed artwork.
+
+The baseline recipes used alternative font containers, tagged paint objects,
+string wrap controls or base64 font data in the byte-length field. The judge
+rejects those forms, but the version-1 prompt did not fully specify their JSON
+types. These results therefore do not establish a reliability advantage for
+either arm. Prompt version 2 states the types and native snapshot revisions
+explicitly, without changing fixtures, check IDs/classes or required outcomes.
+A new matched batch must use that version in both arms; do not pool it with
+these preliminary attempts.
+
+A separate post-hoc diagnostic found all ten review/final PNG pairs exact at
+every pixel. That does not waive failed editable-source checks or turn checks
+skipped after source refusal into passes. No successful matched pair supports a
+cost ratio. All attempts remain in the token/time distributions; cached input is
+already included, and client time includes tool work. Full model/engine call
+counts, traffic, retries, first verified preview time and engine-only memory
+remain unknown. Client-tree memory has a separate observed scope.
+
+All completed direct command bodies, including inline helper creation/edits,
+were reviewed. No direct prohibited access or image-view call was observed;
+this is not authenticated isolation, nested-process attestation or visual review.
+All ten original captures, reports, workspace files, transcripts, usage, times
+and memory observations remained unchanged during rejudging. Evidence is under
+`w2-repair-sol-{model,baseline}-five-01` and corresponding `rejudged-01` roots,
+with `w2-repair-capture-rejudge-integrity-01.json` and arm-review records.
+This advances benchmark preparation and snapshot-delivery guidance; no engine
+checkpoint or complete readiness gate gains credit.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Original source candidate | `429238a8bdc98f74a71f985cadc0e8f6fd2bd8545e2208b28f398034280e5885` |
+| Tested default-field judge | `b145613796e741388e7ca9599db61ae8d67957247010e5d5bb8400e2ec2aa2a5` |
+| Release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| Original Inkbolt report | `ed11b72ff22cab8c2fbf5d866833e2996964dae9948331d22eb1fc55209c8f61` |
+| Original baseline report | `52ff8cbd110e454da73acecb647e65ee510bebc0b6b755c38e9a7b950483fa13` |
+| Original comparison | `9997c4a7d37625eb84064a7cfc0696fcfb199ef18746ba0b46a280d36d17812a` |
+| Rejudged Inkbolt report | `f823f698f2749a6e1a189bbe3da6d3919d8947947b7e376222144c739bc84367` |
+| Rejudged baseline report | `da500971d4d94e13b97dd3873aba7654e47da66ce52728e2dc3593b1434e0618` |
+| Rejudged comparison | `b76ede6bd8f1ede6cf5852e84c80413fe4b8e630f576e66e3e42afdac8100fa8` |

@@ -216,6 +216,16 @@ pending. Both `w2-repair-contract-` reports bind tested fingerprint
 `7a6e5b7f40cfdb7e130f3cb9db2c457c3891545401e739a28ce191baf07e5564`.
 This is focused benchmark coverage, not a new full platform milestone.
 
+B16's normalized-default correction executed 37 Windows tests in 33.5 seconds
+and 34 WSL tests with three platform skips in 17.8 seconds; tested fingerprint
+`b145613796e741388e7ca9599db61ae8d67957247010e5d5bb8400e2ec2aa2a5`.
+After clarifying prompt version 2, all 11 repair tests passed on each platform
+in 36.0/16.6 seconds, fingerprint
+`42c67a9be4f9ceaf7654843253c9fd8f96e1811d9ca7b9ead35cf13990989910`.
+Unchanged Cargo passes were reused, with no failed/pending checks or input
+changes. Evidence is under `w2-repair-defaults-` and `w2-repair-prompt-v2-`;
+neither focused run establishes full-suite acceptance.
+
 The [latest retained full matrix at `30c4ebd`](https://github.com/skulitom/Inkbolt/actions/runs/38476034163)
 passed all 243 fresh stages per platform. Windows ran 213 Rust and 2502 Python
 tests, with seven skips, in 4584.9 seconds. Linux/macOS each ran 179 Rust and
