@@ -66,6 +66,31 @@ def regular(path, limit=MAX_METADATA):
     return path.read_bytes()
 
 
+def bridge_directory(request, workspace):
+    """Allow the owned file channel without granting the evidence directory."""
+    contract=request['contract']
+    expected={'B19':'recovery_bridge','B20':'handoff_bridge'}.get(contract['task'])
+    supplied=[key for key in ('recovery_bridge','handoff_bridge') if request.get(key) is not None]
+    if expected is None:
+        require(not supplied,'Unexpected bridge for this task')
+        return None
+    require(supplied==[expected] and (contract['task']!='B19' or contract['arm']=='model') and
+            not request.get('engine_executable') and not request.get('mcp_config'),
+            'Expected only the measured task bridge')
+    bridge=request[expected]
+    require(isinstance(bridge,list) and len(bridge)==3 and
+            all(isinstance(arg,str) and arg for arg in bridge),'Invalid bridge argv')
+    evidence=workspace.parent/'evidence';channel=evidence/'control-channel'
+    require(Path(request['transcript_directory']).resolve()==evidence and evidence.is_dir() and
+            not evidence.is_symlink() and evidence.resolve()==evidence,
+            'Unexpected or linked bridge evidence directory')
+    supplied_channel=Path(bridge[-1])
+    require(supplied_channel.is_absolute() and supplied_channel.resolve()==channel and
+            channel.is_dir() and not channel.is_symlink() and channel.resolve()==channel,
+            'Expected the owned, unlinked control-channel directory')
+    return channel
+
+
 def prepare(request, executable, mcp_approval_mode=None):
     require(mcp_approval_mode is None or mcp_approval_mode in MCP_APPROVAL_MODES,
             'Unknown MCP approval mode')
@@ -98,6 +123,9 @@ def prepare(request, executable, mcp_approval_mode=None):
     argv = [str(executable), 'exec', '--json', '--ephemeral', '--ignore-user-config',
             '--skip-git-repo-check', '--sandbox', 'workspace-write', '--cd', str(workspace),
             '--model', model['id'], '--color', 'never']
+    channel=bridge_directory(request,workspace)
+    if channel is not None:
+        argv += ['--add-dir',str(channel)]
     overrides = dict(approval_policy='never', model_reasoning_effort=settings['reasoning_effort'],
         project_doc_max_bytes=0, web_search='disabled')
     if os.name == 'nt':

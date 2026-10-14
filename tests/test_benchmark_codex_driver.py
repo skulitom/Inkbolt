@@ -86,6 +86,7 @@ class CodexDriverTests(unittest.TestCase):
         for setting in ('web_search="disabled"','project_doc_max_bytes=0','approval_policy="never"'):
             self.assertIn(setting, argv)
         self.assertFalse(any('mcp_servers.' in arg for arg in argv))
+        self.assertNotIn('--add-dir',argv)
         self.assertNotIn('engine_executable', prompt)
         approved, _, _ = driver.prepare(self.request, Path(sys.executable), 'approve')
         self.assertEqual(approved, argv)  # Identical paired configuration grants no baseline engine.
@@ -187,12 +188,46 @@ class CodexDriverTests(unittest.TestCase):
         self.assertFalse((self.evidence/'driver-result.json').exists())
 
     def test_bridge_metadata_is_available_without_direct_engine_configuration(self):
-        self.contract.update(arm='model',engine_sha256='0'*64)
-        self.request.update(baseline_tools=None,recovery_bridge=['python','original-bridge','channel'])
-        self.bind()
-        argv, prompt, _ = driver.prepare(self.request,Path(sys.executable))
-        self.assertIn('original-bridge',prompt)
-        self.assertFalse(any('mcp_servers.' in arg for arg in argv))
+        channel=self.evidence/'control-channel';channel.mkdir()
+        for task,arm,key in (('B19','model','recovery_bridge'),('B20','model','handoff_bridge'),('B20','baseline','handoff_bridge')):
+            with self.subTest(task=task,arm=arm):
+                self.contract.update(task=task,arm=arm,engine_sha256=None if arm=='baseline' else '0'*64)
+                for field in ('recovery_bridge','handoff_bridge'):self.request.pop(field,None)
+                self.request[key]=[sys.executable,'original-bridge',str(channel)]
+                self.bind()
+                argv, prompt, _ = driver.prepare(self.request,Path(sys.executable))
+                self.assertIn('original-bridge',prompt)
+                self.assertFalse(any('mcp_servers.' in arg for arg in argv))
+                self.assertEqual(argv.count('--add-dir'),1)
+                self.assertEqual(argv[argv.index('--add-dir')+1],str(channel))
+                self.assertIn('workspace-write',argv);self.assertIn('approval_policy="never"',argv)
+
+    def test_bridge_write_access_cannot_expand_to_evidence_or_other_tasks(self):
+        channel=self.evidence/'control-channel';channel.mkdir()
+        self.contract.update(task='B19',arm='model',engine_sha256='0'*64);self.bind()
+        self.request['recovery_bridge']=[sys.executable,'original-bridge',str(channel)]
+        for target in (self.root,self.evidence,self.workspace,self.evidence/'missing',Path('control-channel')):
+            with self.subTest(target=target):
+                bad=copy.deepcopy(self.request);bad['recovery_bridge'][-1]=str(target)
+                with self.assertRaisesRegex(ValueError,'control-channel'):driver.prepare(bad,Path(sys.executable))
+        for mutation in ('task','both','direct-engine','wrong-evidence','malformed'):
+            with self.subTest(mutation=mutation):
+                bad=copy.deepcopy(self.request)
+                if mutation=='task':bad['contract']['task']='B02'
+                elif mutation=='both':bad['handoff_bridge']=bad['recovery_bridge']
+                elif mutation=='direct-engine':bad['engine_executable']=sys.executable
+                elif mutation=='wrong-evidence':bad['transcript_directory']=str(self.workspace)
+                else:bad['recovery_bridge']=[str(channel)]
+                bad['contract_sha256']=driver.digest(driver.canonical(bad['contract']))
+                with self.assertRaises(ValueError):driver.prepare(bad,Path(sys.executable))
+
+    def test_linked_bridge_directory_is_not_given_write_access(self):
+        outside=self.root/'external';outside.mkdir();channel=self.evidence/'control-channel'
+        try:channel.symlink_to(outside,target_is_directory=True)
+        except OSError as error:self.skipTest('Host cannot create fixture symlinks: '+str(error))
+        self.contract.update(task='B19',arm='model',engine_sha256='0'*64)
+        self.request['recovery_bridge']=[sys.executable,'original-bridge',str(channel)];self.bind()
+        with self.assertRaisesRegex(ValueError,'control-channel'):driver.prepare(self.request,Path(sys.executable))
 
 
 if __name__ == '__main__': unittest.main()

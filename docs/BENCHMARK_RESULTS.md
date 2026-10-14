@@ -1059,3 +1059,33 @@ sister-project comparison remain open. No engine checkpoint gains credit.
 | Native report | `55914818081c13dd82605ba6cd508768584f6889f3c712e4d28f539cb6ac8cb7` |
 | Not-applicable baseline report | `5c5730689621b479cb069c522068a68087fb3f2d28ff2aaf162411216d05bf1c` |
 | Comparison | `64d1e1f895aa6684bb0046909ba962a1b529b3af9e1c5e1827494ee749b9db3d` |
+
+## B19 at 2cf3869: retained evaluation setup failures
+
+All five genuine attempts failed before issuing an engine command. Each trace
+records a `PermissionError` when the supplied bridge tried to create its first
+control-channel request outside the client's writable workspace. Harness lifetime
+accounting confirms zero engine processes and no leaked processes for every
+attempt. These are evaluation setup failures, not evidence of job-recovery
+reliability. The five baseline rows remain not applicable.
+
+The source stayed fixed at `2cf3869d2a6ab98de6fb497851339d4ca93973ca`, candidate
+`e71211286f39516068bfe297560e87cf41b3fbde7dc53bd4faa2a31ae03fb7b1`, using
+version-3 prompt `ed2b7ba79fa7a76daff271f792c19153f1570d1793ceaf8ba8616c493c483886`.
+External settings remained Codex CLI 0.160.0, `gpt-6.1-sol`, medium effort.
+All completed direct commands were reviewed; no prohibited direct access or
+image-view call was observed. This is not authenticated isolation. All 65 files
+under `w2-job-recovery-sol-{model,baseline,comparison}-five-01` are hashed in
+`w2-job-recovery-setup-failure-hashes-01.json`; the companion review records trace
+identities and zero-process observations. None of these attempts was replaced.
+
+The adapter now grants the exact validated control-channel folder through
+`--add-dir`, while retaining the client's sandbox and excluding the enclosing
+evidence directory. A genuine pilot must verify that correction before another
+batch; source changes and later results remain separate from this failed setup.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Native report | `55cc71a4105c22d9b5481b6c080ee5a54924a31281f1cc75f4f3ceda8bc96dc7` |
+| Not-applicable baseline report | `8cd835415e481c562daaa3aca811121085e0ca332327bc7ea5af7da7496a085f` |
+| Comparison | `821948612b33097741d4cf5f9ae75de371b23b476038865e0a64bd915483080a` |

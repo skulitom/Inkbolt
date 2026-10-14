@@ -1472,6 +1472,19 @@ passes, with unchanged inputs and no pending checks. Missing/ambiguous/corrupt
 stores, changed artwork/resolution/revisions and changed resource bindings still
 fail. Synthetic preparation earns no model credit; Linux jobs remain unsupported.
 
+B19's first five genuine attempts at `2cf3869` stopped at a bridge-folder write
+denial before any engine process started. All failures and 65 captured files are
+retained in [the results](BENCHMARK_RESULTS.md#b19-at-2cf3869-retained-evaluation-setup-failures).
+The Codex adapter now grants only the existing, unlinked trial control-channel
+folder. Tests reject parent/evidence/workspace grants, other tasks, malformed or
+mixed bridge configuration, and linked channels. Ordinary tasks gain no additional
+writable folder; B20's baseline still cannot call Inkbolt. Windows executed 40
+tests with one symlink skip in 33.7 seconds; WSL executed 38 with three platform
+skips in 21.8 seconds. Reports and raw tested-input maps use `w2-bridge-sandbox-`,
+fingerprint `5374481b01065399ade94bfcddd9ad82417b34a1cd66182ddbfcd818da7efb9e`.
+All selected checks passed or reused unchanged Cargo passes, with unchanged
+inputs and no pending checks. A genuine pilot remains required before new trials.
+
 Five-repetition model trials for B19/B20, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

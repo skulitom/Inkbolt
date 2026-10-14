@@ -60,6 +60,16 @@ sandbox, since ignoring user configuration also removes that selection. Missing
 sandbox setup remains an environment failure; this adapter does not provision
 accounts, change host settings or fall back to unsandboxed execution.
 
+For B19/B20, the adapter adds the exact trial `evidence/control-channel` directory
+to the client's writable directories. The supplied bridge must point to that
+existing, unlinked folder beside the workspace. The enclosing evidence directory,
+other trials and arbitrary paths are not granted. Both B20 arms receive the same
+channel access, while the controller still refuses Inkbolt commands in its
+baseline arm. This fixes an evaluation setup failure in which the bridge could
+not submit its first request. Failed captures remain failures; check a genuine
+pilot before starting another batch. The sandbox and unattended approval policy
+stay enabled, and no host policy or installed configuration is changed.
+
 These controls define the evaluation environment; they are not a proof that an
 arbitrary model obeyed every instruction or that shell reads are isolated from
 the whole host. Review transcripts for tool-policy violations before making
