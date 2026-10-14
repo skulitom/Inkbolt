@@ -1548,7 +1548,7 @@ trials, arbitrary legacy transcript adapters, B10 Linux commit-memory evidence
 and full W2 acceptance remain open. W2 evidence continues to sequence substantial
 work using the plan's decision rule; no engine checkpoint receives credit.
 
-### Executable nested schema discovery: focused checks passed; remeasurement open
+### Executable nested schema discovery: focused checks and mixed model follow-up
 
 A read-only inventory of 95 completed B01-B19 attempts found 17 distinct JSON
 error signatures. Failed selectors appeared 48 times across 15 task IDs,
@@ -1585,8 +1585,20 @@ remain exactly equal. The measured compact catalog has 22 tools on three pages,
 is 693 bytes and its schema equals the 667-byte standalone response's schema.
 Reports and probes use the external `w5-discovery-` prefix. Final documentation
 updates follow those checks; implementation/test inputs stayed unchanged.
-Model remeasurement and full milestone acceptance remain open. These checks do
-not establish fewer model calls/tokens or complete W5 or an engine checkpoint.
+Five new attempts per task and arm at `d34851e` all passed B03/B16. Compared with
+the earlier unchanged-prompt native batches, B03 median tokens fell from 349,212
+to 300,182 and client time from 128.9 to 111.2 seconds. B16 tokens fell from
+584,833 to 574,154, but time rose from 112.9 to 160.9 seconds. The new baseline
+still used fewer tokens: native/baseline ratios are 4.62x and 5.20x. These separate
+sequential samples do not establish causation, statistical equivalence or billing
+cost. Full engine/model call counts and several required metrics remain unknown.
+
+The recorded stop condition therefore holds broad discovery expansion. Keep the
+working selector contract, preserve the mixed evidence, and address the separately
+observed request/reference problems. All twenty traces and final retained helpers
+were reviewed; 715 raw evidence files were hashed and earlier per-trial inventories
+rechecked unchanged. See [the follow-up results](BENCHMARK_RESULTS.md#b03b16-at-d34851e-nested-discovery-follow-up).
+Full W2/W5, sister-project comparison and engine checkpoint acceptance remain open.
 
 ## W3a.1-2: complete within the declared SVG subset
 

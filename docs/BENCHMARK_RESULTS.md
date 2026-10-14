@@ -20,6 +20,10 @@ stopped at prerequisites, leaving its quality unjudged. B19 accepted-trial
 coverage, B20 native success, further smaller-model trials and the separate
 sister-project comparison remain open. These batches are not full-suite acceptance.
 
+The later B03/B16 discovery follow-up passes 5/5 per task in both arms, while
+Inkbolt still uses 4.62x/5.20x baseline median tokens. Its before/after signal is
+mixed; see the [follow-up](#b03b16-at-d34851e-nested-discovery-follow-up).
+
 A preliminary B16 batch exposed a default-field judge bug and underspecified
 recipe types. Its retained failures and correction are recorded below, separately
 from the completed matched prompt-version-2 batch.
@@ -1255,3 +1259,86 @@ No engine-checkpoint credit changes.
 | Native report | `d51c73faba3bba6ea0a8be4f802c4dcafa9ca2a45d1ed3e70c94226bf8d40f40` |
 | Baseline report | `f5e84eb6ae82f2b4604f8f8ceac3ca6618ac553c0dd9d0c1fb59af4c6988badf` |
 | Comparison | `71b23175cc57ef35d5cd30cd5ce9e9f986fadb5ba92d4fa9f8290b45b64f17cd` |
+
+## B03/B16 at d34851e: nested discovery follow-up
+
+All twenty attempts passed: five per task in each arm, including every applicable
+artifact and workflow check. The native arm also passed its separate history and
+revision checks. Five successes give a 95% Wilson interval of 56.6%-100%; this
+small sample does not establish equivalence or a reliability advantage.
+
+| Task | Native / baseline passes | Native median tokens | Baseline median tokens | Token ratio | Native / baseline median seconds |
+| --- | --- | ---: | ---: | ---: | ---: |
+| B03: 5,000-object layout | 5/5 / 5/5 | 300,182 | 65,030 | 4.62x | 111.2 / 43.0 |
+| B16: text overflow repair | 5/5 / 5/5 | 574,154 | 110,396 | 5.20x | 160.9 / 105.6 |
+
+B03 token ranges were 244,561-322,369 native and 62,799-70,794 baseline; B16
+ranges were 471,075-635,301 and 96,052-154,251. Input totals include cached
+context; cached and reasoning tokens are not added again. These are not billing
+ratios. Client time includes startup, authoring and tool work, not just engine
+execution. Complete engine/model call counts, traffic, retries, first independently
+verified preview and engine-only memory remain unknown. Client-tree memory is a
+separate observation. Both tasks remain losing tasks under the fixed token policy.
+
+### Comparison with the earlier native batches
+
+The earlier B03 and version-2 B16 batches used the same prompts, client, model and
+settings. Both already passed 5/5. They ran on different revisions and at different
+times, so this is an observational comparison, not randomized causal attribution.
+
+| Task | Earlier / current median tokens | Change | Earlier / current median seconds | Change |
+| --- | ---: | ---: | ---: | ---: |
+| B03 | 349,212 / 300,182 | -14.0% | 128.9 / 111.2 | -13.7% |
+| B16 | 584,833 / 574,154 | -1.8% | 112.9 / 160.9 | +42.5% |
+
+The visible error inventory finds fewer schema-error occurrences: B03 shell
+outputs fall from six to three, plus two earlier MCP errors and none currently;
+B16 shell outputs fall from two to zero. These count distinct error codes per
+completed output event with a complete JSON envelope. Repeated reads can repeat
+errors, truncated outputs are excluded, and the transport mix differs. They are
+not complete engine-call or retry counts. All ten current native attempts use
+CLI; one earlier B03 attempt mixed CLI and MCP. Full-schema and broad capability
+requests remain, alongside path and request-field mistakes.
+
+Retain the working nested selector contract, but stop broadening discovery under
+the recorded stop condition. The mixed time/token signal and missing call metrics
+do not justify a general efficiency claim. Address demonstrated request-field,
+path and snapshot/reference friction separately. B19/B20 prompt and controller
+guidance are separate versioned follow-ups; none of their previous failures changes.
+
+### Conditions and retained evidence
+
+Both current arms used `d34851ef5ec8f43acf4457826c6fa407f5d36189`, unchanged B03
+version 1 and B16 version 2 prompts, Codex CLI 0.160.0 and the same externally
+configured `gpt-6.1-sol` medium settings. Model names remain evaluation metadata,
+with no engine or harness default. The current driver's only change from the
+earlier driver grants a bridge directory for B19/B20; neither of these tasks gets
+that bridge. Baseline tools remain pinned resvg 0.47.0 and Pillow 12.3.0.
+
+Native attempts ran before baseline attempts, sequentially on the shared Windows
+host, with rotating task order. This chat ran no concurrent local engine checks
+or benchmarks. Other host workloads were uncontrolled and caches could be warm.
+Both reports confirm unchanged inputs. Every completed direct command and final
+retained Python helper was reviewed; no prohibited repository/judge reads, other
+engine or additional model access was observed. No image-view tool was observed.
+Numeric pixel/font/hash checks do not establish visual review or authenticate
+every intermediate helper version and nested operation.
+
+All 715 raw files under the external
+`w5-nested-discovery-sol-{model,baseline,comparison}-five-01` roots are hashed in
+`w5-nested-discovery-complete-hashes-01.json`. Earlier per-trial inventories were
+rechecked unchanged. Companion review and summary records retain all twenty
+attempts. The comparator finds no matching issues; `actual_model_benchmark_complete`,
+`matched_model_baseline_complete`, `decision_ready` and `matched_cutbolt_comparison`
+remain false. No checkpoint credit changes.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Source candidate | `4626af3ad8a6023683a54d9cf441d3dd83c81b93d547b429979675da91027081` |
+| Release executable | `c4e06dff137c3c710b9837f0d02900b0b5243f732092ca4d0706cb7791b9f281` |
+| B03 prompt | `3e72bb258a2b271bf6722bd290bc8c2e481b31c905c0dd9e085d86fbab9c4c3d` |
+| B16 prompt | `f3cf3d806e477b57d847130050c063be0636ed53d207cfe756ec78d9ef0abd85` |
+| Native report | `589aa15b08e57691db94879d42bcb81ebfccaaf179b6a24ee625a8d9521614d1` |
+| Baseline report | `f3172498f91405b221d34422f101db2412826e499cc628e3cd25cb635c8cf8d7` |
+| Comparison report | `4caa8a2bef19610db1b9d287164c00ee91333e2d4236c799c229e4ad13951cae` |
+| Raw evidence inventory | `2306d4b69eef8c6814d8b0a6fcb48a8335382a8984513daafed2fe23a5fbc842` |
