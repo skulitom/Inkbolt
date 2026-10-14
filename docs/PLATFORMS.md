@@ -8,7 +8,7 @@ return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
 The latest retained successful hosted Windows/Linux/macOS matrix is `30c4ebd`.
-Linux also passed fresh full acceptance at `d34851e`; later Windows CI failures
+Linux/macOS also passed fresh full acceptance at `d34851e`; later Windows CI failures
 and their focused follow-up are recorded below.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
@@ -249,9 +249,9 @@ The [later `30ecf5b` run](https://github.com/skulitom/Inkbolt/actions/runs/38497
 passed Linux/macOS and failed two Windows stages: a test polling race and a
 job-submission timeout. The polling fix and optimized development hashing have
 focused Windows/Linux verification, with exact byte/hash assertions and existing
-deadlines retained. Linux subsequently passed all 243 fresh stages at
+deadlines retained. Linux/macOS subsequently each passed all 243 fresh stages at
 [`d34851e`](https://github.com/skulitom/Inkbolt/actions/runs/38504495500): 181 Rust,
-2,482 Python tests and 50 explicit skips in 1317.3 seconds. This predates the hash
+2,482 Python tests and 50 explicit skips in 1317.3/2910.0 seconds. This predates the hash
 profile change and does not prove current full-matrix acceptance or resolution of
 the hosted Windows timeout. See [the diagnosis and focused evidence](DEVELOPMENT_STATUS.md#windows-polling-and-development-hash-cost).
 
