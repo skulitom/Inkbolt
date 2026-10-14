@@ -1,5 +1,6 @@
 """Release-compatible recovery faults, complete process accounting and cleanup."""
 import ctypes
+import copy
 from ctypes import wintypes as w
 import json
 from pathlib import Path
@@ -15,7 +16,9 @@ sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
 from benchmark_recovery_runtime import RecoveryTrial,process_ids
 from benchmark_runtime import TaskFailure
+from benchmark_recovery import fixture,solve,durable_inputs,judge_retained,PROMPT
 from benchmark_tasks import CHECKS
+from workload_cases import sha
 
 
 class RecoveryBenchmarkTests(unittest.TestCase):
@@ -108,6 +111,46 @@ class RecoveryBenchmarkTests(unittest.TestCase):
                 self.assertIsNone(outsider.poll())
             finally:
                 trial.close();outsider.kill();outsider.communicate(timeout=5)
+
+    def test_retained_judge_accepts_defaults_but_rejects_changed_source_and_stores(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=RecoveryTrial(EXE,Path(directory)/'case','B19',1,'cli',CHECKS['B19'])
+            try:
+                fixture(case);case.begin(PROMPT.read_text(encoding='utf-8'));solve(case);case.begin_judging()
+                inputs=durable_inputs(case);path=case.root/'editable.json';original=path.read_bytes()
+                for fault in ('none','missing-revision','stale-revision','resolution','artwork','resource-binding'):
+                    with self.subTest(fault=fault):
+                        value=json.loads(original);del value['resolution_ppi']
+                        if fault=='missing-revision':del value['revision']
+                        elif fault=='stale-revision':value['revision']=0
+                        elif fault=='resolution':value['resolution_ppi']=72
+                        elif fault=='artwork':value['items'][0]['transform'][4]=1
+                        path.write_text(json.dumps(value),encoding='utf-8')
+                        changed=copy.deepcopy(inputs)
+                        changed['final']=case.call('reopen-'+fault,'document.validate',document=dict(file_path='editable.json',sha256=sha(path.read_bytes())))
+                        if fault=='resource-binding':changed['current']['resources']['asset_root']='different resources'
+                        case.checks.clear();judge_retained(case,**changed)
+                        failures=[c['name'] for c in case.checks if c['status']=='fail']
+                        if fault=='none':self.assertEqual(failures,[])
+                        else:self.assertIn('history-valid' if fault=='resource-binding' else 'revision-resource-pinning',failures)
+                path.write_bytes(original)
+                session=case.root/'.inkbolt/sessions'/(sha(b'work')+'.sqlite3');session_bytes=session.read_bytes()
+                asset=next((case.root/'.inkbolt/assets').glob('*.rgba8'));asset_bytes=asset.read_bytes()
+                duplicate=case.root/'duplicate';duplicate.mkdir();call=case.call
+                for fault in ('missing-session','ambiguous-session','corrupt-session','missing-image','corrupt-image'):
+                    with self.subTest(fault=fault):
+                        case.call=lambda step,command,**arguments:call(fault+'-'+step,command,**arguments)
+                        if fault=='missing-session':session.unlink()
+                        elif fault=='ambiguous-session':(duplicate/session.name).write_bytes(session_bytes)
+                        elif fault=='corrupt-session':session.write_bytes(b'not a session database')
+                        elif fault=='missing-image':asset.unlink()
+                        else:asset.write_bytes(b'not the pinned image samples')
+                        try:
+                            with self.assertRaises(TaskFailure):durable_inputs(case)
+                        finally:
+                            session.write_bytes(session_bytes);asset.write_bytes(asset_bytes)
+                            (duplicate/session.name).unlink(missing_ok=True)
+            finally:case.close()
 
     def test_failure_cleanup_stops_only_its_owned_tree_and_cannot_pass(self):
         with tempfile.TemporaryDirectory() as directory:

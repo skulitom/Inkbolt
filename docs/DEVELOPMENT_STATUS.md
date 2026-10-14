@@ -1449,6 +1449,29 @@ expectation of a comparable baseline is recorded with the completed reports.
 See [results and provenance](BENCHMARK_RESULTS.md#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery).
 This adds model evidence without new engine credit or full W2 acceptance.
 
+B19 pre-trial checks reproduced three synthetic false failures: chosen session
+and image-resource folders, and an omitted optional resolution field. The judge
+now locates the unique retained session and exact original image samples, and
+compares reopened source semantics. All three unchanged captures rejudge
+successfully; all 486 original evidence files and workspace contents remain
+unchanged. Evidence is under `w2-job-recovery-contract-`, with final rejudging in
+`after-02`; the unsuccessful first correction remains retained. Prompt version 3
+explicitly fixes the harness-controlled job queue at `.inkbolt/jobs`. It leaves
+session/image folders selectable. Process ownership, twelve judge calls, exact
+revisions/resources, publication identity and all original checks remain required.
+
+Focused Windows checks executed 42 tests with one symlink skip in 124.7 seconds;
+WSL executed 28 with 15 explicit skips in 19.8 seconds. Tested fingerprint:
+`fc1452ec2037b9dd5e82e349250b8ad7c54f8144fc1005df59e7d059819b717e`.
+A final negative-test state reset reran the judge module: four Windows tests in
+103.7 seconds, and one WSL fixture test with three job skips in 6.1 seconds,
+fingerprint `d1f2f045f6fe6363b5eec51d7b4dd7b92676e187f8e8e08fa96c5c9b3020c218`.
+Reports and raw tested-input maps are under `w2-job-recovery-contract-` and
+`w2-job-recovery-judge-`. All selected checks passed or reused unchanged Cargo
+passes, with unchanged inputs and no pending checks. Missing/ambiguous/corrupt
+stores, changed artwork/resolution/revisions and changed resource bindings still
+fail. Synthetic preparation earns no model credit; Linux jobs remain unsupported.
+
 Five-repetition model trials for B19/B20, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

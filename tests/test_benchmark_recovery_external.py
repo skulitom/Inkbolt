@@ -44,7 +44,8 @@ class RecoveryExternalTests(unittest.TestCase):
 
     def test_real_cli_bridge_retains_costs_and_import_rejudges_without_faults_or_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver('--recovery-cli','--preview-usage','--recovery-full','--probe-error');configuration['timeout_seconds']=60
+            root=Path(directory);configuration=driver('--recovery-cli','--preview-usage','--recovery-full','--probe-error',
+                '--custom-session-store','--custom-asset-store','--recovery-compact-source');configuration['timeout_seconds']=60
             row=run_external_task(EXE,root/'live','B19',1,'model',configuration)
             self.assertEqual(row['status'],'passed',{k:row.get(k) for k in ('status','error','driver_failure','checks')})
             self.assertFalse(row['model_trials']);self.assertGreaterEqual(row['engine_commands'],23)
@@ -53,6 +54,10 @@ class RecoveryExternalTests(unittest.TestCase):
             self.assertEqual(row['expected_errors'],3);self.assertGreater(row['first_verified_preview_seconds'],0)
             self.assertEqual(row['preview_timing_source'],'harness_observed')
             self.assertTrue(row['memory_complete']);self.assertGreater(row['peak_commit_bytes'],0)
+            workspace=root/'live/workspace';snapshot=json.loads((workspace/'editable.json').read_bytes())
+            self.assertEqual(snapshot['revision'],1);self.assertNotIn('resolution_ppi',snapshot)
+            self.assertTrue((workspace/'chosen sessions').is_dir());self.assertTrue((workspace/'chosen resources/images').is_dir())
+            self.assertFalse((workspace/'.inkbolt/sessions').exists());self.assertFalse((workspace/'.inkbolt/assets').exists())
             control=row['harness_recovery'];self.assertEqual(control['metrics']['engine_commands'],row['engine_commands'])
             before=workspace_files(root/'live/workspace');(root/'live').rename(root/'moved')
             with patch('benchmark_recovery_external.execute_client',side_effect=AssertionError('Import injected a fault')):

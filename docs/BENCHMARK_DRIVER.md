@@ -551,6 +551,10 @@ Admission must precede the newer edit; a client failure releases the queue gate
 and closes both the separate client tree and engine tree. No network listener,
 engine test hook or database mutation is introduced. Message/count/traffic bounds
 and command/client deadlines are enforced. Preparation starts no processes.
+Prompt version 3 explicitly fixes the observed job queue and publication ledger
+at `.inkbolt/jobs`. Session and image-resource folders may be chosen within the
+workspace; the judge locates the unique session and exact original image samples
+without redirecting fault controls to another queue.
 
 The request contract binds the control helper identities. recovery-control.json,
 recovery-observations.json, recovery-evidence.json and actual engine traffic stay
@@ -573,6 +577,11 @@ job/session receipts and publication ledger, and rejudges without reinjecting
 faults. Original before/after physical file identities must match each other;
 the copied file's new identity is not compared to its original inode. File
 content identities and unchanged source/destination captures remain mandatory.
+The source check compares reopened semantics, allowing omitted optional defaults
+while still requiring revision 1 and every original/edit control. Missing,
+ambiguous or invalid session stores, missing/corrupt image samples, changed
+resolution, artwork or resource bindings remain failures. The twelve independent
+judge calls, original check IDs and observed process/publication checks remain.
 Unix jobs remain unsupported, so B19's external model arm refuses those hosts
 explicitly. Its entire no-engine baseline stays not applicable.
 

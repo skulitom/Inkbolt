@@ -116,6 +116,7 @@ class VerificationTests(unittest.TestCase):
             'test_verification_runner','test_workload_gates','test_wide_workload_gates',
             'test_agent_benchmark','test_agent_benchmark_handoff',
             'test_agent_benchmark_photo','test_agent_benchmark_recovery','test_benchmark_recovery_external','test_benchmark_handoff_external',
+            'test_benchmark_recovery_judge',  # Retained session/image-store discovery.
             'test_benchmark_driver',  # Captures complete external trial workspaces.
             'test_benchmark_stores',  # Snapshots complete generated resource/receipt folders.
             'test_benchmark_icons','test_benchmark_large_layout',  # Exercise that capture lifecycle.

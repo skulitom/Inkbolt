@@ -139,6 +139,15 @@ def main():
     elif request['contract']['arm']=='model' and task=='B19':
         assert request['mcp_config'] is None and 'engine_executable' not in request
         def send(message):
+            arguments=message['arguments'];command=message.get('command','')
+            if '--custom-session-store' in sys.argv:
+                if command.startswith('session.'):arguments['session_root']='chosen sessions'
+                document=arguments.get('document')
+                if isinstance(document,dict) and 'session_id' in document:
+                    arguments['document']=dict(document,session_root='chosen sessions')
+            if '--custom-asset-store' in sys.argv:
+                if command=='asset.import':arguments['store_root']='chosen resources/images'
+                if command=='session.create':arguments.setdefault('resources',{}).update(asset_root='chosen resources/images')
             if '--recovery-full' in sys.argv and message.get('command')=='session.apply':message['arguments']['response_mode']='full'
             if '--recovery-cli' in sys.argv:
                 result=subprocess.run(request['recovery_bridge'],input=json.dumps(message).encode(),capture_output=True,timeout=90)
@@ -393,7 +402,7 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
     if task=='B16' and '--repair-review-envelope' in sys.argv:
         path=root/'review.json';value=json.loads(path.read_bytes())
         path.write_text(json.dumps(dict(ok=True,result=value)),encoding='utf-8')
-    if task in ('B17','B18') and '--recovery-compact-source' in sys.argv:
+    if task in ('B17','B18','B19') and '--recovery-compact-source' in sys.argv:
         path=root/'editable.json';value=json.loads(path.read_bytes())
         del value['resolution_ppi']
         path.write_text(json.dumps(value),encoding='utf-8')

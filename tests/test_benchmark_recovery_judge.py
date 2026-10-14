@@ -14,6 +14,7 @@ from benchmark_recovery_runtime import RecoveryTrial
 from benchmark_tasks import CHECKS
 from benchmark_runtime import Trial
 from test_images_cli import png
+from workload_cases import sha
 
 
 class RecoveryFixtureTests(unittest.TestCase):
@@ -47,7 +48,7 @@ class RecoveryJudgeTests(unittest.TestCase):
             # Reuse the same freshly observed durable state while testing only
             # mutations to retained client artifacts. Real DB changes below
             # and the transport test rerun every engine oracle.
-            durable=durable_inputs(case)
+            durable=durable_inputs(case);original_final=durable['final']
             names=['attempts.json','editable.json','preview.png','recovered.png','recovery-observations.json']
             good={name:(case.root/name).read_bytes() for name in names}
             faults={'cancel':'active-cancellation','inspection':'interrupted-unpublished','receipt':'single-publication-no-overwrite',
@@ -57,6 +58,7 @@ class RecoveryJudgeTests(unittest.TestCase):
             for fault,expected in faults.items():
                 with self.subTest(fault=fault):
                     for name,raw in good.items():(case.root/name).write_bytes(raw)
+                    durable['final']=original_final
                     case.checks.clear()
                     if fault in ('cancel','inspection','receipt'):
                         value=json.loads(good['attempts.json'])
@@ -67,6 +69,10 @@ class RecoveryJudgeTests(unittest.TestCase):
                     elif fault=='current':
                         value=json.loads(good['editable.json']);value['items'][0]['opacity']=.5
                         (case.root/'editable.json').write_text(json.dumps(value),encoding='utf-8')
+                        # The oracle compares reopened source semantics. Refresh
+                        # that independent input after changing the delivery.
+                        durable['final']=case.call('reopen-changed-source','document.validate',
+                            document=dict(file_path='editable.json',sha256=sha((case.root/'editable.json').read_bytes())))
                     elif fault in ('review-pixels','output-pixels'):
                         (case.root/('preview.png' if fault=='review-pixels' else 'recovered.png')).write_bytes(png(1,1,bytes(4)))
                     else:

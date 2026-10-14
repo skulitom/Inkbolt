@@ -9,7 +9,9 @@ import time
 
 from benchmark_diagram import delivered
 from benchmark_graphics import GREEN,ORANGE,document,rectangle,store,apply,source_snapshot,ref,png_check
+from benchmark_large_layout import retained_session_store
 from benchmark_runtime import require,strict_json
+from benchmark_stores import retained_asset_store
 from test_images_cli import png,canonical
 from workload_cases import save,save_json,sha
 
@@ -117,18 +119,21 @@ def terminal_identity(value):
 
 
 def durable_inputs(case):
-    asset=dict(width=WIDTH,height=HEIGHT,sha256=sha(canonical(WIDTH,HEIGHT,original_pixels())),storage=dict(type='stored'),
+    session_root=retained_session_store(case,'work')
+    samples=canonical(WIDTH,HEIGHT,original_pixels())
+    asset_root=retained_asset_store(case,[samples])
+    asset=dict(width=WIDTH,height=HEIGHT,sha256=sha(samples),storage=dict(type='stored'),
         provenance=dict(source_sha256=case.sources['original.png'],interpretation='declared_srgb'))
     original=case.call('judge-original','document.validate',document=authored(asset))
-    receipts={name:case.call('judge-receipt-'+name,'session.receipt',session_id='work',request_id=name) for name in ('create','newer')}
+    receipts={name:case.call('judge-receipt-'+name,'session.receipt',session_root=session_root,session_id='work',request_id=name) for name in ('create','newer')}
     final=case.call('judge-reopen','document.validate',document=dict(file_path='editable.json',sha256=sha(delivered(case,'editable.json'))))
-    current=case.call('judge-current','session.read',session_id='work')
-    history=case.call('judge-history','session.verify',session_id='work')
+    current=case.call('judge-current','session.read',session_root=session_root,session_id='work')
+    history=case.call('judge-history','session.verify',session_root=session_root,session_id='work')
     cancelled=case.call('judge-cancelled','job.status',request_id='cancel')
     completed=case.call('judge-completed','job.status',request_id='recover')
     receipt=case.call('judge-result','job.result',request_id='recover')
-    preview=case.call('judge-preview','document.preview',document=original,options=dict(focus=dict(type='region',bounds=[32,40,56,60])),preview=True)
-    fresh=case.call('judge-render','document.preview',document=original,options={},preview=True)
+    preview=case.call('judge-preview','document.preview',document=original,asset_root=asset_root,options=dict(focus=dict(type='region',bounds=[32,40,56,60])),preview=True)
+    fresh=case.call('judge-render','document.preview',document=original,asset_root=asset_root,options={},preview=True)
     overwrite=case.call('judge-overwrite','document.publish',document=current['document'],output=dict(file_name='recovered.png',format='png'),expected_error='OUTPUT_EXISTS')
     return dict(original=original,receipts=receipts,final=final,current=current,history=history,cancelled=cancelled,completed=completed,
         receipt=receipt,preview=preview,fresh=fresh,overwrite=overwrite)
@@ -181,7 +186,9 @@ def judge_retained(case,original,receipts,final,current,history,cancelled,comple
     case.check('recovered-pixels',picture)
     wanted=copy.deepcopy(original);wanted['revision']=1;wanted['items'][1]['content']['fill']=ORANGE
     def pinning():
-        require(receipts['create']['document']==original and final==strict_json(delivered(case,'editable.json'))==wanted==current['document']==receipts['newer']['document'],
+        # Reopened semantics retain every source control and required revision,
+        # without requiring optional defaults to appear in the JSON spelling.
+        require(receipts['create']['document']==original and final==wanted==current['document']==receipts['newer']['document'],
             'Pinned or current artwork changed geometry, resources or unrelated controls')
         require(receipt['revision']==0 and completed['attempt']==2 and completed['document']['revision']==0 and
             terminal_identity(attempts['completed'])==terminal_identity(completed),'Recovery did not retain the admitted revision and original resource')
