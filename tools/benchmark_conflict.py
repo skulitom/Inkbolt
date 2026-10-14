@@ -6,6 +6,7 @@ from pathlib import Path
 
 from benchmark_diagram import delivered
 from benchmark_graphics import BLUE,GREEN,two_items,pixels,png_check,store,apply,source_snapshot
+from benchmark_resources import reported_review
 from benchmark_runtime import require,strict_json
 from workload_cases import save,save_json,sha
 
@@ -80,7 +81,7 @@ def action_fingerprint(revision):
 
 def judge(case):
     setup,raw=read_setup(case);request=strict_json(delivered(case,'stale-request.json'))
-    rejected=strict_json(delivered(case,'rejected.json'));reviewed=strict_json(delivered(case,'review.json'))
+    rejected=strict_json(delivered(case,'rejected.json'))
     original=case.call('judge-source','document.validate',document=dict(file_path='source.json',sha256=case.sources['source.json']))
     final=case.call('judge-reopen','document.validate',document=dict(file_path='editable.json',sha256=sha(delivered(case,'editable.json'))))
     receipts={name:case.call('judge-receipt-'+name,'session.receipt',session_id='work',request_id=name) for name in ('create','other-writer','move-target')}
@@ -111,8 +112,11 @@ def judge(case):
             'Rejected stale proposal changed the captured other-writer state')
     case.check('stale-rejected',stale)
     def intents():
+        reviewed=reported_review(delivered(case,'review.json'))
+        # document.validate has reopened defaults and retained the saved
+        # revision; equivalent JSON need not serialize every default field.
         require(receipts['create']['document']==original and receipts['other-writer']['document']==other==before['document'] and
-            receipts['move-target']['document']==wanted==current['document']==final==strict_json(delivered(case,'editable.json')),
+            receipts['move-target']['document']==wanted==current['document']==final,
             'Recovery lost an edit or changed source geometry, appearance or unrelated controls')
         require(reviewed['proposal']==dict(version=1,session_id='work',request_id='move-target',expected_revision=1,
             request_fingerprint=action_fingerprint(1),base_state_sha256=receipts['other-writer']['receipt']['state_sha256'],

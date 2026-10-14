@@ -45,7 +45,8 @@ class RetryBenchmarkTests(unittest.TestCase):
             case=self.prepare(Path(directory)/'negative');original=case.call;case.results.clear();case.begin_judging()
             names=['attempts.json','editable.json','preview.png',SETUP_FILES[0]]
             good={name:(case.root/name).read_bytes() for name in names}
-            for fault in ('receipt','retry','request','head','pixels','artwork','injected'):
+            for fault in ('receipt','retry','request','head','pixels','artwork','injected',
+                          'missing-revision','stale-revision','resolution'):
                 with self.subTest(fault=fault):
                     for name,raw in good.items():(case.root/name).write_bytes(raw)
                     case.checks.clear();case.call=lambda step,command,**arguments:original(fault+'-'+step,command,**arguments)
@@ -59,15 +60,20 @@ class RetryBenchmarkTests(unittest.TestCase):
                         else:value['retry-after-undo']['result']['current_revision']=3
                         (case.root/'attempts.json').write_text(json.dumps(value),encoding='utf-8')
                     elif fault=='pixels':(case.root/'preview.png').write_bytes(png(1,1,bytes(4)))
-                    elif fault=='artwork':
-                        value=json.loads(good['editable.json']);value['items'][1]['content']['geometry']['x']=21
+                    elif fault in ('artwork','missing-revision','stale-revision','resolution'):
+                        value=json.loads(good['editable.json'])
+                        if fault=='artwork':value['items'][1]['content']['geometry']['x']=21
+                        elif fault=='missing-revision':del value['revision']
+                        elif fault=='stale-revision':value['revision']=1
+                        else:value['resolution_ppi']=72
                         (case.root/'editable.json').write_text(json.dumps(value),encoding='utf-8')
                     else:
                         value=json.loads(good[SETUP_FILES[0]]);value['response']['receipt_summary']['request_id']='different'
                         (case.judge_root/SETUP_FILES[0]).write_text(json.dumps(value),encoding='utf-8')
                     judge(case)
                     expected={'receipt':'original-receipt','retry':'retry-idempotent','request':'retry-idempotent','head':'retry-idempotent',
-                        'pixels':'edited-pixels','artwork':'undo-preserved','injected':'original-receipt'}[fault]
+                        'pixels':'edited-pixels','artwork':'undo-preserved','injected':'original-receipt',
+                        'missing-revision':'undo-preserved','stale-revision':'undo-preserved','resolution':'undo-preserved'}[fault]
                     self.assertIn(expected,[c['name'] for c in case.checks if c['status']=='fail'],case.checks)
 
     def test_duplicate_real_edit_cannot_be_hidden_by_retained_success_reports(self):
@@ -80,11 +86,13 @@ class RetryBenchmarkTests(unittest.TestCase):
 
     def test_external_harness_drops_response_before_client_and_import_preserves_setup(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver('--preview-usage')
+            root=Path(directory);configuration=driver('--preview-usage','--recovery-compact-source')
             row=run_external_task(EXE,root/'live','B17',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);self.assertFalse(row['model_trials'])
             self.assertEqual(row['harness_setup']['engine_commands'],2);self.assertIsNone(row['engine_commands'])
             self.assertEqual(row['first_verified_preview_seconds'],.5)
+            saved=json.loads((root/'live/workspace/editable.json').read_bytes())
+            self.assertNotIn('resolution_ppi',saved);self.assertEqual(saved['revision'],2)
             self.assertEqual(set(row['harness_setup']['files']),set(SETUP_FILES));self.assertGreater(row['harness_setup']['response_bytes'],0)
             self.assertFalse((root/'live/workspace'/SETUP_FILES[0]).exists())
             events=[json.loads(s) for s in (root/'live/evidence/transcript.jsonl').read_text().splitlines()]

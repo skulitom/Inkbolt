@@ -48,7 +48,9 @@ class ConflictBenchmarkTests(unittest.TestCase):
             case=self.prepare(Path(directory)/'negative');original=case.call;case.results.clear();case.begin_judging()
             names=['rejected.json','review.json','editable.json','preview.png','historical.png',*SETUP_FILES]
             good={name:(case.root/name).read_bytes() for name in names}
-            for fault in ('error','request','fingerprint','base','prediction','artwork','pixels','history-pixels'):
+            for fault in ('error','request','fingerprint','base','prediction','artwork','pixels','history-pixels',
+                          'missing-revision','stale-revision','resolution','review-error','review-nonboolean',
+                          'review-extra','review-result','review-missing','review-malformed'):
                 with self.subTest(fault=fault):
                     for name,raw in good.items():(case.root/name).write_bytes(raw)
                     case.checks.clear();case.call=lambda step,command,**arguments:original(fault+'-'+step,command,**arguments)
@@ -65,14 +67,28 @@ class ConflictBenchmarkTests(unittest.TestCase):
                         elif fault=='base':value['proposal']['base_state_sha256']='0'*64
                         else:value['predicted_receipt']['revision']=3
                         (case.root/'review.json').write_text(json.dumps(value),encoding='utf-8')
-                    elif fault=='artwork':
-                        value=json.loads(good['editable.json']);value['items'][1]['content']['geometry']['x']=21
+                    elif fault in ('artwork','missing-revision','stale-revision','resolution'):
+                        value=json.loads(good['editable.json'])
+                        if fault=='artwork':value['items'][1]['content']['geometry']['x']=21
+                        elif fault=='missing-revision':del value['revision']
+                        elif fault=='stale-revision':value['revision']=1
+                        else:value['resolution_ppi']=72
                         (case.root/'editable.json').write_text(json.dumps(value),encoding='utf-8')
+                    elif fault.startswith('review-'):
+                        value=dict(ok=True,result=json.loads(good['review.json']))
+                        if fault=='review-error':value=dict(ok=False,error=dict(code='REVISION_CONFLICT'))
+                        elif fault=='review-nonboolean':value['ok']=1
+                        elif fault=='review-extra':value['extra']=True
+                        elif fault=='review-result':value['result']=[]
+                        elif fault=='review-missing':del value['result']
+                        raw=b'{' if fault=='review-malformed' else json.dumps(value).encode()
+                        (case.root/'review.json').write_bytes(raw)
                     else:(case.root/('preview.png' if fault=='pixels' else 'historical.png')).write_bytes(png(1,1,bytes(4)))
                     judge(case)
                     expected=('stale-rejected' if fault in ('error','request') else 'conflict-pixels' if fault=='pixels' else
                         'historical-pixels' if fault=='history-pixels' else 'both-intents-preserved')
                     self.assertIn(expected,[c['name'] for c in case.checks if c['status']=='fail'],case.checks)
+                    self.assertEqual({c['name'] for c in case.checks},set(CHECKS['B18']))
 
     def test_extra_real_commit_cannot_be_hidden_by_correct_deliverables(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -84,11 +100,15 @@ class ConflictBenchmarkTests(unittest.TestCase):
 
     def test_external_setup_precedes_client_and_import_preserves_original_state(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver('--preview-usage')
+            root=Path(directory);configuration=driver('--preview-usage','--recovery-compact-source','--conflict-review-envelope')
             row=run_external_task(EXE,root/'live','B18',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);self.assertFalse(row['model_trials'])
             self.assertEqual(row['harness_setup']['engine_commands'],3);self.assertIsNone(row['engine_commands'])
             self.assertEqual(row['first_verified_preview_seconds'],.5)
+            saved=json.loads((root/'live/workspace/editable.json').read_bytes())
+            self.assertNotIn('resolution_ppi',saved);self.assertEqual(saved['revision'],2)
+            review=json.loads((root/'live/workspace/review.json').read_bytes())
+            self.assertEqual(set(review),{'ok','result'});self.assertIs(review['ok'],True)
             self.assertEqual(set(row['harness_setup']['files']),set(SETUP_FILES))
             for name in SETUP_FILES:self.assertFalse((root/'live/workspace'/name).exists())
             events=[json.loads(s) for s in (root/'live/evidence/transcript.jsonl').read_text().splitlines()]

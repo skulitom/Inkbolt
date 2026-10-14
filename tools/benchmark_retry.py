@@ -137,7 +137,9 @@ def judge(case):
     verified=case.call('judge-retry-history','session.verify',session_id='work',judge_workspace=directory)
     def undone():
         wanted=copy.deepcopy(original);wanted['revision']=2
-        require(final==strict_json(delivered(case,'editable.json'))==wanted==current['document']==receipts['undo']['document']==probe['document'],
+        # Compare reopened semantics, including the required revision, rather
+        # than requiring every optional default to be serialized in the file.
+        require(final==wanted==current['document']==receipts['undo']['document']==probe['document'],
             'Undo or a historical retry changed the restored source')
         require(fresh['replayed'] is True and fresh['current_revision']==probe['revision']==2 and fresh['receipt_summary']==fault['response']['receipt_summary'] and
             fresh['document_ref']['revision']==1 and verified['valid'] and verified['revision']==2,'Fresh replay of the captured session reapplied the old edit')

@@ -1,21 +1,22 @@
 # Recorded agent evaluation results
 
-Five-pair evaluations now cover B01-B15, with separate smaller-model pilots.
-Ten tasks matched baseline artifact success with higher median token use.
+Five-pair evaluations now cover B01-B16, with separate smaller-model pilots.
+Eleven tasks matched baseline artifact success with higher median token use.
 Photo repair and mixed composition each passed 3/5 with Inkbolt versus 5/5 with
 the baseline. Layout variants passed 5/5 in both arms at 9.17x median token use
 with Inkbolt after tested judge corrections. Resource repair passed 5/5 in both
-arms at 4.83x tokens. After PDF-judge corrections, print artifacts pass 5/5 with
+arms at 4.83x tokens; version-2 text repair passed 5/5 in both at 4.47x.
+After PDF-judge corrections, print artifacts pass 5/5 with
 Inkbolt and 4/5 with the baseline. Two Inkbolt receipt-selection failures leave
 its complete workflow at 3/5; this small sample establishes no reliability advantage.
 The evidence below preserves failures, judge corrections and exact build
-identities. Five tasks, further smaller-model trials and the separate
+identities. Four tasks, further smaller-model trials and the separate
 sister-project comparison remain open; these partial batches are not full-suite
 acceptance.
 
 A preliminary B16 batch exposed a default-field judge bug and underspecified
-recipe types. Its retained failures and correction are recorded below; a fresh
-matched prompt-version-2 batch is required before drawing comparison conclusions.
+recipe types. Its retained failures and correction are recorded below, separately
+from the completed matched prompt-version-2 batch.
 
 ## B02 at c7d9f30: initial five matched icon-sheet trials
 
@@ -846,7 +847,7 @@ first verified preview time and engine-only memory remain unknown. Observed
 client-tree memory has a separate scope.
 
 These results reinforce operation discovery and workspace guidance priorities.
-Finish B16-B20 and review the remaining B01/B07 caveats before the full W2 decision
+Finish B17-B20 and review the remaining B01/B07 caveats before the full W2 decision
 gate. The separate sister-project comparison and B10 Linux memory evidence remain
 open. No engine checkpoint or complete readiness gate gains credit.
 
@@ -896,8 +897,8 @@ rejects those forms, but the version-1 prompt did not fully specify their JSON
 types. These results therefore do not establish a reliability advantage for
 either arm. Prompt version 2 states the types and native snapshot revisions
 explicitly, without changing fixtures, check IDs/classes or required outcomes.
-A new matched batch must use that version in both arms; do not pool it with
-these preliminary attempts.
+The matched version-2 batch below uses that contract in both arms and is not
+pooled with these preliminary attempts.
 
 A separate post-hoc diagnostic found all ten review/final PNG pairs exact at
 every pixel. That does not waive failed editable-source checks or turn checks
@@ -928,3 +929,57 @@ checkpoint or complete readiness gate gains credit.
 | Rejudged Inkbolt report | `f823f698f2749a6e1a189bbe3da6d3919d8947947b7e376222144c739bc84367` |
 | Rejudged baseline report | `da500971d4d94e13b97dd3873aba7654e47da66ce52728e2dc3593b1434e0618` |
 | Rejudged comparison | `b76ede6bd8f1ede6cf5852e84c80413fe4b8e630f576e66e3e42afdac8100fa8` |
+
+## B16 at a048690: explicit version-2 repair contract
+
+Both arms passed all five artifact trials under prompt version 2. All five
+Inkbolt trials also passed the proposal, saved-revision and durable-publication
+history checks. The baseline's engine-specific history check remains not
+applicable. No B16 judge correction or prompt change was needed for this batch.
+
+| Measurement, five attempts per arm | Inkbolt | Baseline |
+| --- | ---: | ---: |
+| Artifact passes | 5/5 | 5/5 |
+| Median input + output tokens | 584,833 | 130,703 |
+| Median client execution, seconds | 112.9 | 82.4 |
+
+Median token use was **4.47x** the baseline's. Cached input is already included
+in input tokens; this is not a billing-cost ratio. Five equal outcomes do not
+prove reliability equivalence: the 95% Wilson interval is approximately
+0.566-1.000 for each arm, assuming independent trials. Under the fixed policy,
+this task supplies another signal to reduce interface cost. Completed traces
+show repeated schema/definition searches, full-schema fallbacks and workspace
+path corrections. These observations motivate changes, but do not isolate how
+much of the cost any single change would remove. Remeasure after implementation.
+
+Commit `a048690fa443dfb57a986d1a4d5dc38b8bc740fc` and prompt
+`f3cf3d806e477b57d847130050c063be0636ed53d207cfe756ec78d9ef0abd85`
+stayed fixed. Both arms used externally configured Codex CLI 0.160.0 with
+`gpt-6.1-sol`, medium effort. Baseline tools remained resvg 0.47.0 and Pillow
+12.3.0. Model selection is evaluation configuration only. Inkbolt ran first,
+then the baseline, on the same shared Windows host without concurrent local
+engine verification or benchmarks from this chat. Other host workloads were
+uncontrolled, caches could be warm, and order was not randomized.
+
+All completed direct commands, inline helpers and retained scripts created by
+file-change calls were reviewed. No direct prohibited access or image-view call
+was observed. This is not authenticated isolation, complete nested-process
+attestation or visual review. Numeric pixel checks and independent artifact
+judging remain distinct from seeing the image. Full model/engine call counts,
+traffic, retries, first verified preview time and engine-only memory remain
+unknown; observed client-tree memory has a separate scope.
+
+The 487 retained files under `w2-repair-v2-sol-{model,baseline,comparison}-five-01`
+have a complete hash inventory in `w2-repair-v2-complete-hashes-01.json`;
+arm-review records retain trace and helper identities. Version-1 failures remain
+separate. B17-B20, further smaller-model trials, complete metric coverage and
+the sister-project comparison remain open. No engine checkpoint or complete
+readiness gate gains credit.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Source candidate | `17387bb11cd57c5a0624516de999355a698858c8bd0e657b60063a0583d33af5` |
+| Release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| Inkbolt report | `5678475448a41cc96e7cbb6d3c00fb6873b536cda15906fcb66032006b4bf35e` |
+| Baseline report | `b340d8340f9c0312a2d57d12794f59523f4d3e0c2abc39e6a223fa67798322da` |
+| Comparison | `6772c4e6ceb20b8341d1c48f21588214b121965e2756db87b4be32e20a7b5cd9` |

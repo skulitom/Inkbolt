@@ -501,7 +501,9 @@ fresh durable receipts, checks exact original/edit/undo sources and fresh pixels
 and repeats the historical retry on a bounded private copy of the captured
 session. Original captured files remain unchanged. The copy must preserve head
 revision 2 and the restored state while returning the original move receipt from
-revision 1. Wrong request fields, receipts, state IDs, extra revisions, changed
+revision 1. Saved artwork is compared after reopening its ordinary defaults;
+omitting a default field is valid, but missing/stale revisions or changed
+resolution still fail. Wrong request fields, receipts, state IDs, extra revisions, changed
 artwork and setup evidence fail. Both original fixture identity and all five
 check IDs/classes remain fixed. The engine-specific no-engine baseline remains
 explicitly not applicable, without launching Inkbolt or the client.
@@ -512,6 +514,12 @@ commands create revision 0, review the target move and commit the other writer's
 move. The client submits the stale request unchanged, retains its actual error,
 reviews/applies the replacement at revision 1 and delivers editable.json,
 preview.png and historical.png. It also retains rejected.json and review.json.
+The review accepts either the result object or its exact successful CLI envelope
+(`ok: true` and an object `result`, with no extra envelope fields). Invalid
+reviews fail the intent check while independent pixel/history checks still run.
+The final document is compared after reopening defaults, with revision 2 and
+every source control still required. The explicit rejected.json error contract
+and B17 attempts.json result contracts are unchanged.
 The original reference has ten commands including setup, seven after setup.
 
 conflict-setup.json and a bounded copy of the pre-client database stay outside the

@@ -393,6 +393,13 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
     if task=='B16' and '--repair-review-envelope' in sys.argv:
         path=root/'review.json';value=json.loads(path.read_bytes())
         path.write_text(json.dumps(dict(ok=True,result=value)),encoding='utf-8')
+    if task in ('B17','B18') and '--recovery-compact-source' in sys.argv:
+        path=root/'editable.json';value=json.loads(path.read_bytes())
+        del value['resolution_ppi']
+        path.write_text(json.dumps(value),encoding='utf-8')
+    if task=='B18' and '--conflict-review-envelope' in sys.argv:
+        path=root/'review.json';value=json.loads(path.read_bytes())
+        path.write_text(json.dumps(dict(ok=True,result=value)),encoding='utf-8')
     preview_name='board-1.png' if task=='B02' else 'square.png' if task=='B12' else 'screen.png' if task=='B13' else 'review.png' if task=='B16' else 'preview.png'
     if task=='B14' and '--print-delivery-folder' in sys.argv:
         directory=root/'print output';directory.mkdir()

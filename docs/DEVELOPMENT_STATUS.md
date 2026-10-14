@@ -1414,10 +1414,32 @@ in 36.0/16.6 seconds, fingerprint
 `42c67a9be4f9ceaf7654843253c9fd8f96e1811d9ca7b9ead35cf13990989910`.
 All selected checks passed or reused identical Cargo passes, with no pending
 checks and unchanged inputs. Reports/raw tested-input maps are under
-`w2-repair-defaults-` and `w2-repair-prompt-v2-`. Every original failure remains;
-fresh version-2 model/baseline trials are required. No engine credit changed.
+`w2-repair-defaults-` and `w2-repair-prompt-v2-`. Every original failure remains.
+The fresh version-2 batch at `a048690` passed 5/5 in both arms; Inkbolt's full
+history checks also passed. Median token use was 584,833 versus 130,703 (4.47x),
+and client time was 112.9 versus 82.4 seconds. Its unchanged candidate,
+487 retained files and complete direct-trace review are recorded separately in
+[the results](BENCHMARK_RESULTS.md#b16-at-a048690-explicit-version-2-repair-contract).
+No engine credit changed.
 
-Five-repetition model trials for the other five tasks, further smaller-model
+B17/B18 pre-trial checks retained three synthetic false failures: omitted
+default resolution in each restored document and B18's successful CLI review
+envelope. The judges now compare reopened document semantics and accept that
+strict envelope. All three unchanged captures rejudge successfully; explicit
+revision 2, exact requests, every source control, receipts and setup hashes
+remain required. Negatives cover missing/stale revisions, changed resolution,
+malformed/error/nonboolean/extra-field envelopes, altered proposals, duplicate
+commits and unrelated artwork. Malformed reviews no longer suppress independent
+pixel/history checks. Default session stores remain part of the supplied setup.
+
+Focused Windows checks executed 42 tests in 32.7 seconds; WSL executed 39 tests
+with three platform skips in 19.2 seconds. Both reused unchanged Cargo passes,
+with no failed/pending checks and unchanged inputs. Evidence, capture integrity
+and raw tested-input maps are under `w2-retry-conflict-contract-`, tested
+fingerprint `f17fe2bed1e4e25d82dd2f7314a3962f2a736fa245e1c432ed0a8e29135a31f1`.
+These are synthetic harness corrections, not model trials or engine credit.
+
+Five-repetition model trials for the remaining four tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

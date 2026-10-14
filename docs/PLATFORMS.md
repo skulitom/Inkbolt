@@ -226,6 +226,14 @@ Unchanged Cargo passes were reused, with no failed/pending checks or input
 changes. Evidence is under `w2-repair-defaults-` and `w2-repair-prompt-v2-`;
 neither focused run establishes full-suite acceptance.
 
+B17/B18's reopened-default and review-envelope judge corrections executed 42
+Windows tests in 32.7 seconds and 39 WSL tests with three platform skips in
+19.2 seconds. Cargo passes were reused, inputs stayed unchanged and no selected
+check failed or remained pending. The `w2-retry-conflict-contract-` reports bind
+tested fingerprint
+`f17fe2bed1e4e25d82dd2f7314a3962f2a736fa245e1c432ed0a8e29135a31f1`.
+This is focused benchmark coverage, not a new platform milestone.
+
 The [latest retained full matrix at `30c4ebd`](https://github.com/skulitom/Inkbolt/actions/runs/38476034163)
 passed all 243 fresh stages per platform. Windows ran 213 Rust and 2502 Python
 tests, with seven skips, in 4584.9 seconds. Linux/macOS each ran 179 Rust and
