@@ -1439,7 +1439,17 @@ and raw tested-input maps are under `w2-retry-conflict-contract-`, tested
 fingerprint `f17fe2bed1e4e25d82dd2f7314a3962f2a736fa245e1c432ed0a8e29135a31f1`.
 These are synthetic harness corrections, not model trials or engine credit.
 
-Five-repetition model trials for the remaining four tasks, further smaller-model
+Five genuine attempts each at `cae530a` passed B17/B18 artifact checks 5/5.
+Two B17 attempts saved CLI envelopes where the prompt requires compact results,
+leaving its complete workflow at 3/5; B18 passed 5/5. Both failures remain, and
+neither recovery task has an applicable no-engine baseline. Median tokens were
+269,176/249,608 and client times 94.6/125.0 seconds. All direct traces were
+reviewed and 746 retained files hashed; the external wrapper's incorrect
+expectation of a comparable baseline is recorded with the completed reports.
+See [results and provenance](BENCHMARK_RESULTS.md#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery).
+This adds model evidence without new engine credit or full W2 acceptance.
+
+Five-repetition model trials for B19/B20, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

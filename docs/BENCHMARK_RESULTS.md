@@ -1,6 +1,9 @@
 # Recorded agent evaluation results
 
 Five-pair evaluations now cover B01-B16, with separate smaller-model pilots.
+Five additional native attempts each cover B17/B18; those recovery tasks have no
+applicable baseline. Both pass 5/5 artifact checks, but two B17 receipt-format
+failures leave its complete workflow at 3/5. B18 passes its full workflow 5/5.
 Eleven tasks matched baseline artifact success with higher median token use.
 Photo repair and mixed composition each passed 3/5 with Inkbolt versus 5/5 with
 the baseline. Layout variants passed 5/5 in both arms at 9.17x median token use
@@ -10,7 +13,7 @@ After PDF-judge corrections, print artifacts pass 5/5 with
 Inkbolt and 4/5 with the baseline. Two Inkbolt receipt-selection failures leave
 its complete workflow at 3/5; this small sample establishes no reliability advantage.
 The evidence below preserves failures, judge corrections and exact build
-identities. Four tasks, further smaller-model trials and the separate
+identities. B19/B20, further smaller-model trials and the separate
 sister-project comparison remain open; these partial batches are not full-suite
 acceptance.
 
@@ -983,3 +986,76 @@ readiness gate gains credit.
 | Inkbolt report | `5678475448a41cc96e7cbb6d3c00fb6873b536cda15906fcb66032006b4bf35e` |
 | Baseline report | `b340d8340f9c0312a2d57d12794f59523f4d3e0c2abc39e6a223fa67798322da` |
 | Comparison | `6772c4e6ceb20b8341d1c48f21588214b121965e2756db87b4be32e20a7b5cd9` |
+
+## B17/B18 at cae530a: receipt and concurrent-edit recovery
+
+Five genuine attempts per task exercised recovery from a withheld editing
+response and recovery from another writer's intervening change. Both tasks
+passed all artifact checks. B17 passed its complete workflow in three attempts;
+B18 passed all five. Their no-engine baselines remain explicitly not applicable,
+so these results establish no comparative advantage or full-suite acceptance.
+
+| Measurement, five attempts per task | B17 lost response | B18 concurrent edit |
+| --- | ---: | ---: |
+| Artifact passes | 5/5 | 5/5 |
+| Complete workflow passes | 3/5 | 5/5 |
+| Median input + output tokens | 269,176 | 249,608 |
+| Median client execution, seconds | 94.6 | 125.0 |
+
+B17 attempts 1 and 3 put the CLI's `ok`/`result` envelope where
+[the prompt](../tools/benchmark_prompts/B17.md) explicitly requires the compact
+result itself. Their `original-receipt` and `retry-idempotent` checks failed with
+`KeyError: document_ref`. Edited pixels, restored source, undo preservation and
+history checks passed. These remain failed deliveries; the receipt contract was
+not relaxed and neither attempt was replaced. B18 preserved the other writer's
+edit and passed stale-request rejection, proposal, source, pixel and history
+checks in every attempt.
+
+All ten attempts remain in the totals, including the two failures. Cached input
+is included in input tokens and is not added again. Client execution includes
+startup and tool work. Full model/engine call counts, traffic, retries, time to
+first verified preview and engine-only memory remain unknown. Observed
+client-tree memory is retained under its separate scope. Five trials cannot
+establish general reliability; even 5/5 has a 95% Wilson interval of approximately
+0.566-1.000, assuming independent trials.
+
+Commit `cae530a9986cbb056616d7cf7ed6a0e311529ab1`, both version-1 prompts,
+the executable and source candidate stayed unchanged. The external configuration
+selected Codex CLI 0.160.0, `gpt-6.1-sol`, medium effort. These settings describe
+this evaluation only. Tasks ran sequentially, rotating order by repetition, on
+the shared Windows host. This chat ran no other local engine verification or
+benchmarks during measurement; other host workloads were uncontrolled and
+caches could be warm.
+
+Every completed direct command and inline helper was reviewed. No prohibited
+direct access or image-view tool call was observed. Some solver-authored
+transcripts reconstruct earlier responses; the retained driver event traces
+are separate evidence, and reconstructed text is not authenticated telemetry.
+This review does not establish isolation, complete nested-process attestation
+or visual inspection. Independent artifact judging remains separate.
+
+The comparison retained all ten not-applicable baseline rows and both native
+failures, with no global matching issues. Its exit 2 correctly reports the lack
+of applicable baseline pairs. The external batch wrapper incorrectly expected
+exit 0 and exited 1 after writing all reports; no trial was restarted. The
+wrapper error and original reports are retained.
+
+The 746 files under `w2-retry-conflict-sol-{model,baseline,comparison}-five-01`
+have a complete hash inventory in `w2-retry-conflict-complete-hashes-01.json`.
+`w2-retry-conflict-model-arm-review-01.json` records trace and helper identities;
+`w2-retry-conflict-summary-01.json` retains task statistics and batch outcomes.
+Repeated workspace/path corrections and discovery searches, together with the
+receipt-format failures, reinforce the existing priority for actionable errors,
+focused discovery and snapshot/receipt delivery guidance. Remeasure after changes.
+B19/B20, broader metric coverage, smaller-model trials and the separate
+sister-project comparison remain open. No engine checkpoint gains credit.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Source candidate | `3f199ad5c1f30cf1d6ccc7569d586a897fa248d6e62acee9887d88d98c12c064` |
+| Release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| B17 prompt | `f575638fd7aeda0c5faaee06affa8eec1297b006aa0824e5edffc373d57be4e6` |
+| B18 prompt | `5b604b46bd953456eddb22e87e08751ba41a3c0d9e8dca39bf02fb7cf99049ef` |
+| Native report | `55914818081c13dd82605ba6cd508768584f6889f3c712e4d28f539cb6ac8cb7` |
+| Not-applicable baseline report | `5c5730689621b479cb069c522068a68087fb3f2d28ff2aaf162411216d05bf1c` |
+| Comparison | `64d1e1f895aa6684bb0046909ba962a1b529b3af9e1c5e1827494ee749b9db3d` |
