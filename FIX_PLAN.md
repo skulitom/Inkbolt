@@ -790,6 +790,10 @@ Tasks:
    - Contents: archives with `LICENSE` and `THIRD_PARTY_NOTICES.md`, SHA-256
      checksums and an SBOM.
    - Tests: run the CI matrix tests against the built artifacts.
+   - Starting point: branch `compass/followup-2026-10-11-C-050` (`88dcbe1`) has
+     release and MCP Registry workflows, `server.json`, a Windows MCPB bundle step and
+     the `tools/check_repo.py` change, with a test, that admits them; it lacks an SBOM,
+     macOS x64 and the CI matrix tests against the built archives.
 4. **Install paths (D6).**
    - `cargo install --git https://github.com/skulitom/Inkbolt --locked`.
    - Prebuilt archives.
