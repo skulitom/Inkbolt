@@ -601,6 +601,15 @@ The judge locates consumer actions by their actual requests and order, without
 requiring reference-client step labels. Required object/session/request IDs
 are stated in the prompt.
 
+The judge locates the unique retained Inkbolt session within the capture. It
+independently reopens all three authored source snapshots, accepting omitted
+optional defaults while requiring their explicit revisions and exact semantics.
+The source review may be its result object or the exact successful CLI envelope;
+malformed reviews fail that check without suppressing other independent checks.
+Typed handoff source files, content hashes and observed consumer response objects
+remain exact contracts. Reserved nested command/step fields are protocol errors
+before either engine can run, and later successful calls cannot erase them.
+
 All engine processes are harness-owned; consumer paths stay within the trial
 workspace, with fixed store and output destinations. The broker limits message
 size, count and total traffic, freezes delivered-file identities after compilation,

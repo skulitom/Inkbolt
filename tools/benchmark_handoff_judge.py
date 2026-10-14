@@ -7,6 +7,8 @@ from benchmark_diagram import delivered
 from benchmark_handoff import (WIDTH,HEIGHT,RATE,DURATION,SCHEDULE,original_frames,shifted,
     consumer_rgba,over_black,decode_movie,check_decoded)
 from benchmark_graphics import png_check
+from benchmark_large_layout import retained_session_store
+from benchmark_resources import reported_review
 from benchmark_runtime import require,safe_name,strict_json
 from workload_cases import document,sha
 
@@ -52,11 +54,14 @@ def consumer_roles(report,records):
 
 
 def durable_inputs(case):
+    session=dict(session_root=retained_session_store(case,'work'),session_id='work')
     original=case.call('judge-authored','document.validate',document=authored())
-    receipts={name:case.call('judge-receipt-'+name,'session.receipt',session_id='work',request_id=name) for name in ('create','move')}
-    current=case.call('judge-current','session.read',session_id='work')
-    history=case.call('judge-history','session.verify',session_id='work')
+    receipts={name:case.call('judge-receipt-'+name,'session.receipt',**session,request_id=name) for name in ('create','move')}
+    current=case.call('judge-current','session.read',**session)
+    history=case.call('judge-history','session.verify',**session)
     final=case.call('judge-final','document.validate',document=dict(file_path='after.json',sha256=sha(delivered(case,'after.json'))))
+    before=case.call('judge-before','document.validate',document=dict(file_path='before.json',sha256=sha(delivered(case,'before.json'))))
+    historical=case.call('judge-historical-source','document.validate',document=dict(file_path='historical-source.json',sha256=sha(delivered(case,'historical-source.json'))))
     preview=case.call('judge-preview','document.preview',document=current['document'],options={},preview=True)
     inspections=[case.call('judge-handoff-'+str(i),'handoff.inspect',handoff=read_json(case,f'delivery-{i}-handoff.json'),
         input_root=f'delivery-{i}',include_schedule=True) for i in range(2)]
@@ -69,11 +74,11 @@ def durable_inputs(case):
     movies={name:decode_movie(consumer,'judge-'+name,case.root/path) for name,path in (
         ('delivery-0','delivery-0/compiled.mkv'),('delivery-1','delivery-1/compiled.mkv'),
         ('original','original.mkv'),('revised','revised.mkv'),('undone','undone.mkv'))}
-    return dict(original=original,receipts=receipts,current=current,history=history,final=final,preview=preview,
+    return dict(original=original,receipts=receipts,current=current,history=history,final=final,before=before,historical=historical,preview=preview,
         inspections=inspections,projects=projects,head=head,saved=saved,checked=checked,movies=movies)
 
 
-def judge_retained(case,original,receipts,current,history,final,preview,inspections,projects,head,saved,checked,movies):
+def judge_retained(case,original,receipts,current,history,final,before,historical,preview,inspections,projects,head,saved,checked,movies):
     evidence=getattr(case,'judge_root',case.root)/'handoff-observations.json'
     require(evidence.is_file() and not evidence.is_symlink() and evidence.stat().st_size<=16*1024*1024,'Missing or oversized harness observations')
     observed=strict_json(evidence.read_bytes())
@@ -89,13 +94,18 @@ def judge_retained(case,original,receipts,current,history,final,preview,inspecti
     def project_response(step):
         value=response(step);return value.get('project',value)
     wanted=copy.deepcopy(original);wanted['revision']=1;wanted['items'][0]['transform']=[1,0,0,1,4,0]
-    review=read_json(case,'review.json');first,second=original_frames();moved=shifted(first)
+    first,second=original_frames();moved=shifted(first)
     old_frames=[consumer_rgba((first,second)[i]) for i in SCHEDULE]
     new_frames=[consumer_rgba((moved,second)[i]) for i in SCHEDULE]
     pins=[read_json(case,f'delivery-{i}-handoff.json') for i in range(2)]
+    def revision(name,expected):
+        value=read_json(case,name).get('revision')
+        require(type(value) is int and value==expected,'Missing or different retained source revision: '+name)
     def source():
-        require(final==current['document']==receipts['move']['document']==wanted==read_json(case,'after.json') and
-            original==receipts['create']['document']==read_json(case,'before.json'),'Source edit or unrelated controls changed')
+        revision('before.json',0);revision('after.json',1)
+        require(final==current['document']==receipts['move']['document']==wanted and
+            original==receipts['create']['document']==before,'Source edit or unrelated controls changed')
+        review=reported_review(delivered(case,'review.json'))
         require(review['proposed_document']==wanted and review['predicted_receipt']==receipts['move']['receipt'] and
             review['proposed_resources']==receipts['move']['resources'] and review['dry_run'] is True and
             review['committed'] is False and review['source_changed'] is False and review['base_ref']['revision']==0 and
@@ -177,8 +187,10 @@ def judge_retained(case,original,receipts,current,history,final,preview,inspecti
     case.check('consumer-undo-retry',undo_retry)
     for name,frames in (('original',old_frames*2),('revised',new_frames+old_frames),('undone',old_frames*2)):
         case.check(name+'-timeline',lambda n=name,f=frames:check_decoded(movies[n],[over_black(v) for v in f]))
-    case.check('old-source-history',lambda:require(receipts['create']['document']==original==read_json(case,'historical-source.json'),
-        'Original Inkbolt revision changed'))
+    def old_source():
+        revision('historical-source.json',0)
+        require(receipts['create']['document']==original==historical,'Original Inkbolt revision changed')
+    case.check('old-source-history',old_source)
     case.check('immutable-deliveries',lambda:require(len(required_files)==12 and observed['delivery_files']==required_files,
         'An initially observed delivery, compiled movie or file inventory changed'))
     case.check('history-valid',lambda:require(history['valid'] and history['revision']==current['revision']==current['current_revision']==1 and

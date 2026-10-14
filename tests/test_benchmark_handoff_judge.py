@@ -65,7 +65,7 @@ class HandoffDurableTests(unittest.TestCase):
             judge(case);row=case.finish()
             self.assertEqual(row['status'],'passed',row['checks'])
             self.assertTrue(row['judge_separated']);self.assertIsNone(row['first_verified_preview_seconds'])
-            self.assertEqual((row['engine_commands'],row['judge_engine_commands'],row['total_engine_commands']),(15,9,36))
+            self.assertEqual((row['engine_commands'],row['judge_engine_commands'],row['total_engine_commands']),(15,11,36))
             self.assertEqual((row['consumer']['commands'],row['consumer']['judge_engine_commands']),(21,9))
             self.assertEqual(len(row['consumer']['judges']),20)
             after=self.files(case);self.assertEqual(before,{k:after[k] for k in before});case.close()
@@ -103,8 +103,63 @@ class HandoffDurableTests(unittest.TestCase):
                         elif fault=='process':value['consumer']['calls'][0]['active_processes']=1
                         else:value['records']['before-relink']['response']['result']['revision']=2
                         (case.root/name).write_text(json.dumps(value),encoding='utf-8')
+                        if fault=='source':
+                            values['final']=case.call('reopen-changed-source','document.validate',
+                                document=dict(file_path=name,sha256=sha((case.root/name).read_bytes())))
                     judge_retained(case,**values)
                     self.assertIn(expected,[row['name'] for row in case.checks if row['status']=='fail'],case.checks)
+            case.close()
+
+    def test_equivalent_sources_and_reviews_keep_strict_revision_and_history_checks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=self.prepare(Path(directory)/'equivalent');durable=durable_inputs(case)
+            sources={'before.json':'before','after.json':'final','historical-source.json':'historical'}
+            for name,field in sources.items():
+                path=case.root/name;original=path.read_bytes()
+                for fault in ('none','missing-revision','different-revision','resolution','artwork','timing'):
+                    with self.subTest(name=name,fault=fault):
+                        value=json.loads(original);del value['resolution_ppi']
+                        if fault=='missing-revision':del value['revision']
+                        elif fault=='different-revision':value['revision']+=1
+                        elif fault=='resolution':value['resolution_ppi']=72
+                        elif fault=='artwork':value['items'][1]['opacity']=.5
+                        elif fault=='timing':value['variants']['sequence']['frames'][0]['delay']['numerator']=4
+                        path.write_text(json.dumps(value),encoding='utf-8');values=copy.deepcopy(durable)
+                        values[field]=case.call('reopen-'+field+'-'+fault,'document.validate',
+                            document=dict(file_path=name,sha256=sha(path.read_bytes())))
+                        case.checks.clear();judge_retained(case,**values)
+                        failures=[row['name'] for row in case.checks if row['status']=='fail']
+                        if fault=='none':self.assertEqual(failures,[],case.checks)
+                        else:self.assertIn('old-source-history' if field=='historical' else 'reviewed-source-only',failures)
+                path.write_bytes(original)
+            path=case.root/'review.json';original=path.read_bytes();review=json.loads(original)
+            for fault in ('none','error','nonboolean','extra','missing-result','missing-proposal','different-proposal','array'):
+                with self.subTest(review=fault):
+                    value=dict(ok=True,result=copy.deepcopy(review))
+                    if fault=='error':value=dict(ok=False,error=dict(code='INVALID_REQUEST'))
+                    elif fault=='nonboolean':value['ok']=1
+                    elif fault=='extra':value['extra']=True
+                    elif fault=='missing-result':del value['result']
+                    elif fault=='missing-proposal':del value['result']['proposal']
+                    elif fault=='different-proposal':value['result']['proposal']['result_state_sha256']='0'*64
+                    elif fault=='array':value=[]
+                    path.write_text(json.dumps(value),encoding='utf-8');case.checks.clear()
+                    judge_retained(case,**copy.deepcopy(durable))
+                    failures=[row['name'] for row in case.checks if row['status']=='fail']
+                    self.assertEqual(failures,[] if fault=='none' else ['reviewed-source-only'],case.checks)
+            path.write_bytes(original)
+            session=case.root/'.inkbolt/sessions'/(sha(b'work')+'.sqlite3');raw=session.read_bytes()
+            duplicate=case.root/'duplicate';duplicate.mkdir();call=case.call
+            for fault in ('missing','ambiguous','corrupt'):
+                with self.subTest(store=fault):
+                    case.call=lambda step,command,**arguments:call(fault+'-'+step,command,**arguments)
+                    if fault=='missing':session.unlink()
+                    elif fault=='ambiguous':(duplicate/session.name).write_bytes(raw)
+                    else:session.write_bytes(b'not a session database')
+                    try:
+                        with self.assertRaises(TaskFailure):durable_inputs(case)
+                    finally:
+                        session.write_bytes(raw);(duplicate/session.name).unlink(missing_ok=True)
             case.close()
 
     def test_real_extra_revisions_in_either_engine_are_detected(self):

@@ -101,6 +101,12 @@ def main():
     if task=='B20':
         assert request['mcp_config'] is None and 'engine_executable' not in request
         def send(message):
+            if '--handoff-custom-session' in sys.argv and message['engine']=='inkbolt':
+                arguments=message['arguments']
+                if message['command'].startswith('session.'):arguments['session_root']='chosen sessions'
+                document=arguments.get('document')
+                if isinstance(document,dict) and 'session_id' in document:
+                    arguments['document']=dict(document,session_root='chosen sessions')
             if '--handoff-names' in sys.argv:
                 message['step']='client-'+message['step']
                 if message.get('retry_of'):message['retry_of']='client-'+message['retry_of']
@@ -110,6 +116,9 @@ def main():
             else:response=recovery_exchange(request['handoff_bridge'][-1],message)
             events.append(dict(step=message['step'],request=json.dumps(message),response=json.dumps(response)))
             return response
+        if '--reserved-argument' in sys.argv:
+            response=send(dict(engine='inkbolt',step='bad-command',command='schema.lookup',arguments={'command':'session.create'}))
+            assert response['ok'] is False and response['error']['code']=='BENCHMARK_CONTROL_ERROR'
         if '--probe-error' in sys.argv:
             for engine in ('inkbolt','consumer'):
                 response=send(dict(engine=engine,step='missing',command='session.receipt',arguments={}))
@@ -404,6 +413,13 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
         path=root/'delivery.json';value=json.loads(path.read_bytes())
         value['losses'].append('This display preview is not a press proof.')
         path.write_text(json.dumps(value),encoding='utf-8')
+    if task=='B20' and '--handoff-review-envelope' in sys.argv:
+        path=root/'review.json';value=json.loads(path.read_bytes())
+        path.write_text(json.dumps(dict(ok=True,result=value)),encoding='utf-8')
+    if task=='B20' and '--handoff-compact-source' in sys.argv:
+        for name in ('before.json','after.json','historical-source.json'):
+            path=root/name;value=json.loads(path.read_bytes());del value['resolution_ppi']
+            path.write_text(json.dumps(value),encoding='utf-8')
     if task=='B15' and '--resource-review-envelope' in sys.argv:
         path=root/'review.json';value=json.loads(path.read_bytes())
         path.write_text(json.dumps(dict(ok=True,result=value)),encoding='utf-8')

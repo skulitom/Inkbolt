@@ -419,7 +419,7 @@ no new edits or renders. Consumer assets use content-bound relative paths for
 future capture relocation; saved history is preserved. Clearing solver response
 caches does not prevent judgment.
 
-The reference records 15 Inkbolt and 21 consumer solve commands. Nine fresh
+The reference records 15 Inkbolt and 21 consumer solve commands. Eleven fresh
 Inkbolt queries, nine consumer queries and 20 independent decoder/probe calls are
 reported as judge work. `total_engine_*` fields now cover solve work in both
 engines; consumer judge queries and decoding are excluded from solve wall time.

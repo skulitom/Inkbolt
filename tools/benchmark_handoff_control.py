@@ -19,6 +19,7 @@ class HandoffControl:
             'Unexpected handoff message fields')
         step=safe_name(message['step']);engine=message['engine'];command=message['command'];arguments=message.get('arguments',{})
         require(isinstance(command,str) and isinstance(arguments,dict),'Invalid handoff command')
+        require(not {'command','step'} & set(arguments),'Command and step belong at message level, not in arguments')
         require('judge_workspace' not in arguments,'Clients cannot select a judge workspace')
         case=self.case;expected=message.get('expected_error');retry=message.get('retry_of')
         if engine=='inkbolt':

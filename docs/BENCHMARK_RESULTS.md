@@ -13,7 +13,9 @@ After PDF-judge corrections, print artifacts pass 5/5 with
 Inkbolt and 4/5 with the baseline. Two Inkbolt receipt-selection failures leave
 its complete workflow at 3/5; this small sample establishes no reliability advantage.
 The evidence below preserves failures, judge corrections and exact build
-identities. B19/B20, further smaller-model trials and the separate
+identities. Five B19 attempts failed the protocol gate; four nevertheless passed
+all nine independent artifact/recovery checks. B19 accepted-trial coverage, B20,
+further smaller-model trials and the separate
 sister-project comparison remain open; these partial batches are not full-suite
 acceptance.
 
@@ -1122,3 +1124,56 @@ All 254 files under `w2-job-recovery-bridge-pilot-01` are hashed in
 or image-view tool was observed; numeric pixel checks are not visual inspection,
 and direct traces/final helper hashes do not authenticate every nested operation
 or intermediate helper version.
+
+## B19 at 30ecf5b: five recovery attempts with protocol failures
+
+All five genuine client attempts remain failed overall. The first four passed
+all nine independent artifact, recovery and source-preservation checks. The fifth
+saved its preview and editable source but never admitted a cancellation job;
+only source preservation was scored, with eight checks missing. This is 0/5
+complete workflows, not a recovery reliability claim or completed model batch.
+
+Attempts 1, 3 and 4 supplied a reserved nested `command` field while discovering
+schemas. Attempt 2 first used an inline snapshot without its resource binding,
+then attached an unsupported retry annotation to a fault control. Attempt 5
+repeatedly supplied an extra `resources` field and varied the cancellation
+destination; it finally requested the queue gate before successful cancellation.
+The broad destination error did not identify that extra field. Later successful
+commands cannot erase a controller protocol failure. No criterion was relaxed.
+
+The controller rejected each attempt before accepting its driver evidence, so
+the reports retain `model_trials:false` and unknown accepted usage, timing,
+engine-count and memory aggregates. Genuine client execution and directly judged
+artifacts are retained separately; unvalidated client-result files are not
+promoted into accepted metrics. Harness process accounting records 44, 45, 57,
+65 and 13 owned processes respectively, all exited with no observer error.
+
+The five baseline rows are not applicable. The comparator reports no matching
+issues but is not decision-ready; its expected exit 2 is preserved. Runs used
+commit `30ecf5b2442902db23364c5f0a2ea4cd6ed85ec4`, the unchanged version-3 prompt,
+and the same external Codex CLI 0.160.0 / `gpt-6.1-sol` medium configuration.
+Inputs stayed fixed. Trials ran sequentially on the shared Windows host with no
+concurrent local engine verification or benchmarks; caches could be warm.
+
+All completed direct commands and retained helper files were reviewed. No
+prohibited direct access or image-view call was observed; numeric pixel checks
+are not visual review. Trial 3 manually reconstructed its returned-value file;
+this remains distinct from harness observations. Final helper hashes and direct
+traces do not attest every intermediate version or nested operation.
+The 1,305 files under `w2-job-recovery-sol-{model,baseline,comparison}-five-02`
+are hashed in `w2-job-recovery-complete-hashes-02.json`, with companion arm review
+and summary files. Earlier setup and pilot failures remain separate.
+
+Prioritize actionable discovery errors, saved-reference and snapshot guidance,
+and precise bridge argument errors before remeasuring this workflow. B20,
+accepted metric coverage and full W2 acceptance remain open. No engine
+checkpoint receives additional credit.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Source candidate | `3c9e4d73ed167cee08e03993b213e576e894af8aed1e75caad46bfdf4f6ddd08` |
+| Release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| B19 prompt | `ed2b7ba79fa7a76daff271f792c19153f1570d1793ceaf8ba8616c493c483886` |
+| Native report | `835a4c4dd806dbeb6c27700005af0e1575656208b34249d256fedfba45ea1543` |
+| Not-applicable baseline report | `fc319d392ced4b6694d67eb04ce43bf936591e8e239f4776b25bb328a5aa9f47` |
+| Comparison | `35ff00fe37146565b910be7e73b21bc45a47bfbad124bb0204986c9d93be8a4d` |

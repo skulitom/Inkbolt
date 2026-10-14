@@ -1483,7 +1483,7 @@ tests with one symlink skip in 33.7 seconds; WSL executed 38 with three platform
 skips in 21.8 seconds. Reports and raw tested-input maps use `w2-bridge-sandbox-`,
 fingerprint `5374481b01065399ade94bfcddd9ad82417b34a1cd66182ddbfcd818da7efb9e`.
 All selected checks passed or reused unchanged Cargo passes, with unchanged
-inputs and no pending checks. A genuine pilot remains required before new trials.
+inputs and no pending checks. Subsequent genuine pilot evidence follows.
 
 The genuine pilot at `5079c5a` confirmed bridge access, but retained a malformed
 message failure and exposed an independent missing final checkpoint for valid
@@ -1502,7 +1502,36 @@ All selected checks passed or reused unchanged Cargo passes, with unchanged
 inputs and no pending checks. The remaining five-attempt run stays separate from
 the earlier failed setup and pilot.
 
-Five-repetition model trials for B19/B20, further smaller-model
+Five B19 attempts at `30ecf5b` finished with 0/5 complete workflows. The first four
+passed all nine independent artifact/recovery checks, but retained malformed
+bridge-message failures. The fifth never admitted cancellation after repeatedly
+adding an unsupported control field; only source preservation was scored.
+All 224 observed engine processes exited without observer errors. The original
+1,305 captured files, direct trace/helper review and missing accepted metrics are
+retained in [the results](BENCHMARK_RESULTS.md#b19-at-30ecf5b-five-recovery-attempts-with-protocol-failures).
+These failed attempts earn no complete model-trial or engine-checkpoint credit.
+
+B20 pre-trial probes reproduced false failures for a chosen session folder,
+an exact successful review envelope and omitted optional source defaults.
+All three unchanged synthetic captures now rejudge successfully, preserving all
+960 original evidence files, source workspaces and measured solve traffic. The
+judge reopens before/after/historical sources and requires explicit revisions;
+typed handoff bytes, consumer responses and history remain exact. Judge queries
+increase from nine to eleven, with solve/consumer counts and all checks unchanged.
+Capture imports ran before the separate bridge identity change; no identity
+check was waived. The bridge now explicitly refuses reserved nested fields.
+
+Focused checks executed 38 Windows tests in 74.0 seconds and 28 WSL tests with
+ten explicit platform/tool skips in 24.8 seconds. Missing/ambiguous/corrupt
+stores, changed revisions/artwork/timing/resolution, malformed reviews and
+invalid protocol messages remain failures. All selected checks passed, with
+three unchanged Cargo passes reused only on WSL, unchanged inputs and no pending
+checks. Reports, raw tested-input identities and synthetic before/after evidence
+use the `w2-handoff-contract-` prefix. Tested fingerprint:
+`00ffc82411e869b599a5f55f03a1d33002a96ae871d893c2a8fa775f70e69815`.
+These are harness corrections and focused checks, not full milestone acceptance.
+
+Accepted B19 recovery trials, five-repetition model trials for B20, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone
 acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent

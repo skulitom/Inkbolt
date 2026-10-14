@@ -7,7 +7,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock,patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
@@ -21,6 +21,17 @@ from workload_cases import sha
 
 
 class HandoffBoundaryTests(unittest.TestCase):
+    def test_reserved_argument_fields_never_invoke_either_engine(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);call=Mock(side_effect=AssertionError('Protocol error invoked an engine'))
+            case=SimpleNamespace(root=root,arm='model',call=call,consumer=SimpleNamespace(call=call))
+            broker=HandoffControl(case,root/'channel')
+            for engine in ('inkbolt','consumer'):
+                for field in ('command','step'):
+                    with self.subTest(engine=engine,field=field),self.assertRaisesRegex(TaskFailure,'message level'):
+                        broker.dispatch(dict(engine=engine,step='bad',command='schema.lookup',arguments={field:'session.create'}))
+            call.assert_not_called()
+
     def test_preparation_starts_no_engines_and_missing_tools_are_explicit(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
@@ -64,13 +75,14 @@ class HandoffExternalTests(unittest.TestCase):
 
     def test_model_bridge_keeps_measured_costs_and_rejudges_a_moved_capture(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);flags=('--handoff-cli','--handoff-names','--probe-error','--preview-usage')
+            root=Path(directory);flags=('--handoff-cli','--handoff-names','--probe-error','--preview-usage',
+                '--handoff-custom-session','--handoff-review-envelope','--handoff-compact-source')
             row=self.run_trial(root/'live',flags=flags)
             self.assertEqual(row['status'],'passed',{k:row.get(k) for k in ('error','driver_failure','checks')})
             self.assertEqual((row['engine_commands'],row['consumer']['commands'],row['total_engine_commands']),(16,22,38))
             self.assertEqual(row['invalid_calls'],1);self.assertTrue(row['memory_complete']);self.assertFalse(row['model_trials'])
             self.assertEqual(row['preview_timing_source'],'harness_observed');self.assertGreater(row['first_verified_preview_seconds'],0)
-            self.assertEqual(row['judge_engine_commands'],9);self.assertEqual(row['consumer']['judge_engine_commands'],9)
+            self.assertEqual(row['judge_engine_commands'],11);self.assertEqual(row['consumer']['judge_engine_commands'],9)
             before=workspace_files(root/'live/workspace');(root/'live').rename(root/'moved')
             with patch('benchmark_handoff_external.execute_client',side_effect=AssertionError('Import ran the client')):
                 imported=self.run_trial(root/'import',flags=flags,source=root/'moved')
@@ -105,10 +117,11 @@ class HandoffExternalTests(unittest.TestCase):
             self.assertIn('revised-preview',[c['name'] for c in wrong['checks'] if c['status']=='fail'])
 
     def test_rejected_baseline_engine_and_outside_store_commands_remain_failures(self):
-        for arm,flag in (('baseline','--baseline-engine'),('model','--consumer-escape')):
+        for arm,flag in (('baseline','--baseline-engine'),('model','--consumer-escape'),('model','--reserved-argument')):
             with self.subTest(arm=arm),tempfile.TemporaryDirectory() as directory:
                 root=Path(directory);row=self.run_trial(root/'trial',arm,(flag,))
                 self.assertEqual(row['status'],'failed');self.assertIn('controller failed',row['driver_failure'])
+                if flag=='--reserved-argument':self.assertIn('message level',row['driver_failure'])
                 self.assertFalse((root/'projects.sqlite3').exists())
 
 
