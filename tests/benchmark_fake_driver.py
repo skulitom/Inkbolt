@@ -176,7 +176,7 @@ def main():
                         if item['id'] in ('wide','square','tall'):item['name']=item['id']
                 if '--variant-wrong-board-label' in sys.argv:
                     next(item for item in added_items if item['id']=='wide')['name']='different'
-            if task in ('B03','B05','B06','B07','B08','B09','B10','B11','B12','B14','B15') and '--custom-session-store' in sys.argv:
+            if task in ('B03','B05','B06','B07','B08','B09','B10','B11','B12','B14','B15','B16') and '--custom-session-store' in sys.argv:
                 if command.startswith('session.'):arguments['session_root']='chosen sessions'
                 document=arguments.get('document')
                 if isinstance(document,dict) and 'session_id' in document:
@@ -187,7 +187,7 @@ def main():
             if task in ('B11','B12') and '--custom-asset-store' in sys.argv:
                 if command=='asset.import':arguments['store_root']='chosen resources/images'
                 if command=='session.create':arguments.setdefault('resources',{}).update(asset_root='chosen resources/images')
-            if task in ('B12','B14') and '--custom-receipt-store' in sys.argv and 'receipt' in arguments:
+            if task in ('B12','B14','B16') and '--custom-receipt-store' in sys.argv and 'receipt' in arguments:
                 arguments['receipt']['receipt_root']='chosen receipts/'+arguments['receipt']['request_id']
             if task=='B12' and '--variant-binding-order' in sys.argv and command=='session.apply':
                 for operation in arguments['action'].get('operations',[]):
@@ -388,6 +388,9 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
         value['losses'].append('This display preview is not a press proof.')
         path.write_text(json.dumps(value),encoding='utf-8')
     if task=='B15' and '--resource-review-envelope' in sys.argv:
+        path=root/'review.json';value=json.loads(path.read_bytes())
+        path.write_text(json.dumps(dict(ok=True,result=value)),encoding='utf-8')
+    if task=='B16' and '--repair-review-envelope' in sys.argv:
         path=root/'review.json';value=json.loads(path.read_bytes())
         path.write_text(json.dumps(dict(ok=True,result=value)),encoding='utf-8')
     preview_name='board-1.png' if task=='B02' else 'square.png' if task=='B12' else 'screen.png' if task=='B13' else 'review.png' if task=='B16' else 'preview.png'

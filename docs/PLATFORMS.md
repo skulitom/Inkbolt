@@ -209,6 +209,13 @@ identical passes; no selected check failed or remained pending. Final reports
 under `w2-print-pdf-grammar-` bind candidate
 `94a18f910c738e3f2ff1f3949ecf081046a459506ec137a432eb6a3bb4a95024`.
 
+The B16 repair-judge contract correction executed 46 Windows tests with one
+symlink skip in 41.4 seconds and 44 WSL tests with three platform skips in 19.1
+seconds. Unchanged Cargo checks were reused; no selected check failed or remained
+pending. Both `w2-repair-contract-` reports bind tested fingerprint
+`7a6e5b7f40cfdb7e130f3cb9db2c457c3891545401e739a28ce191baf07e5564`.
+This is focused benchmark coverage, not a new full platform milestone.
+
 The [latest retained full matrix at `30c4ebd`](https://github.com/skulitom/Inkbolt/actions/runs/38476034163)
 passed all 243 fresh stages per platform. Windows ran 213 Rust and 2502 Python
 tests, with seven skips, in 4584.9 seconds. Linux/macOS each ran 179 Rust and

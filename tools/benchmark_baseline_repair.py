@@ -77,8 +77,8 @@ def judge_repair(case,tools):
     case.check('repair-pixels',picture)
     def delivery():
         raw=delivered(case,'repaired.png');value=strict_json(delivered(case,'delivery.json'))
-        require(same_json(value,delivery_identity(raw,sha(rendered))) and value['sha256']==value['preflight_sha256'],
-            'Fresh prepared image and retained delivery identity differ')
+        require(same_json(value,delivery_identity(raw,sha(raw))) and value['sha256']==value['preflight_sha256'],
+            'Retained prepared and delivered PNG identities differ')
         png_check(raw,48,32,expected_picture())
     case.check('preflight-delivery',delivery)
     case.not_applicable('history-valid','The baseline retains before/after sources and delivery identities; Inkbolt durable proposal/session history is unavailable.')

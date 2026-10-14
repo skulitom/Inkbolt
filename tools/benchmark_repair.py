@@ -6,7 +6,10 @@ from pathlib import Path
 
 from benchmark_diagram import delivered
 from benchmark_graphics import BLUE,GREEN,document,rectangle,pixels,png_check,store,source_snapshot
+from benchmark_large_layout import retained_session_store
+from benchmark_resources import reported_review
 from benchmark_runtime import require,safe_name,strict_json
+from benchmark_stores import retained_publication_store
 from synthetic_font import geometric_font
 from workload_cases import save,save_json,sha
 
@@ -120,27 +123,30 @@ def judge(case):
             png_check(raw,48,32,expected_picture())
     case.check('repair-pixels',picture)
     ready=case.call('judge-preflight','document.preflight',document=after,resources=resources,output=output)
+    def delivery():
+        raw=delivered(case,'repaired.png');value=strict_json(delivered(case,'delivery.json'))
+        require(ready['ready'] and not (case.root/output['file_name']).exists() and
+            value==delivery_identity(raw,ready['prepared_output']['sha256']) and value['ready'] is True and value['sha256']==value['preflight_sha256'],
+            'Fresh preflight and retained delivery identity differ')
+        png_check(raw,48,32,expected_picture())
+    case.check('preflight-delivery',delivery)
     locator=strict_json(delivered(case,'session.json'))
     require(set(locator)=={'session_id','before_revision','after_revision','creation','repair','publication'} and
         type(locator['before_revision']) is int and type(locator['after_revision']) is int and
         locator['before_revision']==0 and locator['after_revision']==1,'Invalid repair session locator')
     for key in ('session_id','creation','repair','publication'):safe_name(locator[key])
-    publication=case.call('judge-publication','publication.receipt',request_id=locator['publication'])
-    def delivery():
-        raw=delivered(case,'repaired.png');value=strict_json(delivered(case,'delivery.json'));result=publication['result']
-        require(ready['ready'] and not (case.root/output['file_name']).exists() and
-            value==delivery_identity(raw,ready['prepared_output']['sha256']) and value['ready'] is True and value['sha256']==value['preflight_sha256'],
-            'Fresh preflight and retained delivery identity differ')
-        require(publication['state']=='complete' and result['sha256']==value['sha256'] and result['format']=='png' and
-            result['revision']==1 and result['document_id']==after['id'],'Durable publication differs from the repaired output')
-        png_check(raw,48,32,expected_picture())
-    case.check('preflight-delivery',delivery)
-    receipts={key:case.call('judge-receipt-'+key,'session.receipt',session_id=locator['session_id'],request_id=locator[key])
+    publication=case.call('judge-publication','publication.receipt',request_id=locator['publication'],
+        receipt_root=retained_publication_store(case,locator['publication']))
+    session_root=retained_session_store(case,locator['session_id'])
+    receipts={key:case.call('judge-receipt-'+key,'session.receipt',session_root=session_root,session_id=locator['session_id'],request_id=locator[key])
         for key in ('creation','repair')}
-    current=case.call('judge-current','session.read',session_id=locator['session_id'])
-    verified=case.call('judge-history','session.verify',session_id=locator['session_id'])
+    current=case.call('judge-current','session.read',session_root=session_root,session_id=locator['session_id'])
+    verified=case.call('judge-history','session.verify',session_root=session_root,session_id=locator['session_id'])
     def history():
-        old,new=receipts['creation'],receipts['repair'];review=strict_json(delivered(case,'review.json'));proposal=review['proposal']
+        result=publication['result']
+        require(publication['state']=='complete' and result['sha256']==sha(delivered(case,'repaired.png')) and result['format']=='png' and
+            result['revision']==1 and result['document_id']==after['id'],'Durable publication differs from the repaired output')
+        old,new=receipts['creation'],receipts['repair'];review=reported_review(delivered(case,'review.json'));proposal=review['proposal']
         require(old['receipt']['action']=='create' and old['receipt']['revision']==0 and old['document']==before and
             new['receipt']['action']=='edit' and new['receipt']['revision']==1 and new['document']==after and
             old['resources']==new['resources']==current['resources']==review['proposed_resources'],'Saved repair changed source or resource bindings')

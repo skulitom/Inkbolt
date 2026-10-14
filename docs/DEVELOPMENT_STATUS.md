@@ -1377,6 +1377,25 @@ No selected check failed or remained pending. Reports are under
 All twenty original captures were rejudged again without changing workspace,
 transcript, client-result, usage or memory evidence; intermediate reports remain.
 
+B16's pre-trial audit reproduced four synthetic false failures: caller-selected
+session and publication folders, the successful CLI review envelope, and a
+different valid PNG encoding from the baseline judge's fresh renderer. Checked
+store lookup, strict envelope handling and exact decoded-pixel comparisons now
+rejudge all four unchanged captures successfully. Original captured files and
+workspace hashes are unchanged; evidence is under `w2-repair-contract-`.
+The default font store remains required by the prompt. Missing, ambiguous or
+corrupt stores, damaged font/license bytes, invalid reviews, changed publication
+bindings, wrong delivery hashes and altered pixels still fail. All original
+check IDs/classes remain; native publication binding is checked with history,
+separately from artifact delivery.
+
+Focused Windows checks executed 46 tests with one symlink skip in 41.4 seconds;
+WSL executed 44 with three platform skips in 19.1 seconds. Both reused unchanged
+Cargo checks, with no selected failures or pending checks and unchanged inputs.
+Reports and the raw tested-input map use the same external evidence prefix;
+tested fingerprint `7a6e5b7f40cfdb7e130f3cb9db2c457c3891545401e739a28ce191baf07e5564`.
+This is judge preparation, not new model evidence or engine feature credit.
+
 Five-repetition model trials for the other five tasks, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

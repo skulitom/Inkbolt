@@ -446,6 +446,13 @@ and the normalized text-action fingerprint must agree. The retained review
 image and delivered PNG face the original exact pixel oracle. A new output name
 lets the judge preflight without modifying the captured workspace. It uses local
 captured font resources rather than following old stored resource paths.
+The prompt requires the default font store, but does not prescribe session or
+publication store folders. The judge locates the delivered IDs in unique,
+contained captured stores and rejects missing, ambiguous or corrupt stores.
+The full review may be stored directly or in the exact successful CLI
+`{"ok":true,"result":{...}}` envelope; proposal and image checks remain identical.
+Publication binding belongs to the engine-only history check, so a wrong receipt
+cannot invalidate otherwise correct artifact pixels or delivery identities.
 
 The baseline retains before/after JSON recipes and editable SVG text in a bounded
 16 KiB contract per source, with explicit no-wrap/error semantics in the recipe.
@@ -455,7 +462,9 @@ metrics independently establish overflow and the required width. A named font
 companion differs only in the name table and associated checksums; original
 font/license identities remain retained. Pinned resvg renders the actual repaired
 SVG, and fresh/delivered/review pixels face the same oracle. The prepared and
-published byte identities must match; reports establish content consistency, not
+published byte identities must match. Fresh renderer bytes may use a different
+valid PNG encoding; decoded pixels must still match exactly. Both manifest
+hashes must bind the actual final PNG. Reports establish content consistency, not
 authenticated historical actions. All five fixed check IDs/classes remain;
 only Inkbolt history is not applicable to the baseline. Synthetic client runs
 remain infrastructure evidence, never model trials.
