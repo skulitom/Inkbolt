@@ -42,13 +42,31 @@ the supported flags in `agent_discovery.cli_help_arguments`.
 {"command":"schema.lookup","name":"operation","select":"transform"}
 {"command":"schema.lookup","name":"operation","select":"reorder"}
 {"command":"schema.lookup","name":"document.edit","select":"Operation","full":true}
+{"command":"schema.lookup","name":"session.apply","select":"Action/edit"}
+{"command":"schema.lookup","name":"session.apply","select":"Action/edit/Operation/transform"}
 ```
 
 `name` accepts any engine command or a shared type alias: `document`, `operation`, `action`, `item`, `content`, `geometry`, `paint`, `resources`. Command schemas describe the shared JSON interface without the command tag; they do not include MCP-specific text presentation fields. Top-level snapshot arguments include pinned saved-revision and hashed-file alternatives, and supported session commands include `response_mode`. A configured workspace adjusts defaultable roots before outlines and sizes are calculated; see [workspaces and references](AGENT_WORKSPACE.md). Shared type aliases and the legacy full schema retain the typed inline-snapshot contract.
 
 Results report `detail`, `name`, `select` and the serialized `schema_bytes`. Schemas through 12 KiB return `detail:"full"` and `schema`, including every referenced definition. Larger schemas return `detail:"outline"`, fields, tagged variants and reachable definition names. An outline is not a validation schema. `full:true` always requests the complete selected schema. The index is already complete and rejects `select` and `full:true`.
 
-`select` chooses one variant of the named root (for example the `transform` operation) or a referenced definition listed in that root's outline. Selection never changes execution. If a selected definition is itself a large tagged union, use its shared alias to select a variant, or request its complete schema. Definition names come from the current schema generator; shared aliases are the supported discovery names. Unknown names or selectors return `SCHEMA_NOT_FOUND` without echoing their text. Names/selectors are limited to 128 UTF-8 bytes.
+`select` chooses a variant of the named root (for example `transform`) or a
+reachable definition. Separate components with `/` to follow nested selections.
+Each outline variant supplies its complete next `select` value; keep the same
+`name`. For example, the `Action` outline under `session.apply` advertises
+`Action/edit`. Its operation can then be selected with
+`Action/edit/Operation/transform`. Definition names remain directly selectable
+from the named root. Shared aliases such as `action` and `operation` remain
+available; generated definition names come from the current schema.
+
+Unknown names/selectors still return `SCHEMA_NOT_FOUND` without echoing unknown
+text. Error `details.field` identifies `name` or `select`, and
+`details.schema_lookup` is a complete working request for the available choices.
+An unambiguous case correction or nested variant can also produce
+`details.suggested_lookup`; the caller decides whether to use it. Ambiguous
+variants are never chosen automatically. Empty components and definitions not
+reachable from the current selection fail. Names and entire selector paths are
+limited to 128 UTF-8 bytes. Selection and error recovery never execute edits.
 
 `reorder.index` is the final zero-based position among items with the same parent,
 including the moved item; root items are siblings. For two children, valid indexes

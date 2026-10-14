@@ -10,6 +10,11 @@ Optional `receipt:{receipt_root,request_id}` on `document.publish` and `session.
 
 For compact MCP discovery and focused `schema.lookup` queries, see [agent discovery](AGENT_DISCOVERY.md). Full CLI schemas and command results remain available. [Agent readiness](AGENT_READINESS.md) tracks the broader interface and workflow improvements separately from engine checkpoints.
 
+Follow an outline variant's `select` value with the same schema `name` to reach
+nested edits. For example, `name:"session.apply", select:"Action/edit"` selects
+the edit action. Unknown names/selectors return a working discovery request in
+`error.details.schema_lookup`, with a separate suggestion when unambiguous.
+
 Use an explicit [workspace](AGENT_WORKSPACE.md) for default resource/session roots and relative runtime paths. Top-level snapshot inputs also accept exact saved revision references; the same JSON preparation and typed execution serve CLI and MCP.
 
 Snapshot file references require a path and exact byte hash from create-only publication. Durable session commands accept optional [compact responses](AGENT_RESPONSES.md), retaining pinned recovery references while omitting repeated snapshot bodies. Full responses remain the default.

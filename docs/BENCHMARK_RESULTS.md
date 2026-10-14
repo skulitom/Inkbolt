@@ -14,10 +14,11 @@ Inkbolt and 4/5 with the baseline. Two Inkbolt receipt-selection failures leave
 its complete workflow at 3/5; this small sample establishes no reliability advantage.
 The evidence below preserves failures, judge corrections and exact build
 identities. Five B19 attempts failed the protocol gate; four nevertheless passed
-all nine independent artifact/recovery checks. B19 accepted-trial coverage, B20,
-further smaller-model trials and the separate
-sister-project comparison remain open; these partial batches are not full-suite
-acceptance.
+all nine independent artifact/recovery checks. B20's first five-pair batch passed
+0/5 native workflows versus 5/5 baseline workflows; native artifact judging
+stopped at prerequisites, leaving its quality unjudged. B19 accepted-trial
+coverage, B20 native success, further smaller-model trials and the separate
+sister-project comparison remain open. These batches are not full-suite acceptance.
 
 A preliminary B16 batch exposed a default-field judge bug and underspecified
 recipe types. Its retained failures and correction are recorded below, separately
@@ -1177,3 +1178,80 @@ checkpoint receives additional credit.
 | Native report | `835a4c4dd806dbeb6c27700005af0e1575656208b34249d256fedfba45ea1543` |
 | Not-applicable baseline report | `fc319d392ced4b6694d67eb04ce43bf936591e8e239f4776b25bb328a5aa9f47` |
 | Comparison | `35ff00fe37146565b910be7e73b21bc45a47bfbad124bb0204986c9d93be8a4d` |
+
+## B20 at fe7786d: linked-graphic delivery prerequisite failures
+
+The first genuine five-pair B20 batch passed **0/5 complete native workflows**
+and **5/5 baseline workflows**. Native artifact quality remains unjudged: only
+source preservation was scored, with fifteen checks missing per native attempt.
+The baseline passed its seven task artifact checks plus source preservation;
+its eight engine-specific checks are not applicable. This is a workflow failure
+signal, not a finding that native rendered pixels failed comparison.
+
+All five native attempts used `session_id:"linked-graphic"` instead of the
+required `"work"`; the prompt assigns `linked-graphic` to the document ID.
+Attempts 2-5 passed driver-evidence validation but failed the judge's session-store
+prerequisite. Attempt 1 also requested consumer `media.inspect`, outside the
+bridge allowlist, causing a fatal protocol failure. The prompt instructs use of
+public discovery but does not disclose that exact allowlist. Preserve this setup
+limitation and failure; a later prompt/control clarification needs a separately
+versioned run. Neither the allowed commands nor the session-ID requirement was
+waived afterward.
+
+Trace review also found nondefault item names in attempts 1-4 and a stale-error
+envelope instead of the requested error object in attempt 5. These observations
+receive no independent artifact/history score because earlier prerequisites
+stopped judging. Delivered files and client assertions cannot supply that credit.
+
+| Observation | Native arm | No-Inkbolt baseline |
+| --- | ---: | ---: |
+| Retained attempts | 5 | 5 |
+| Complete applicable workflow | 0/5 | 5/5 |
+| Attempts with accepted driver metrics | 4 failed attempts | 5 successful attempts |
+| Median input + output tokens in that accepted subset | 1,029,586.5 | 326,203 |
+| Median client execution, seconds | 237.3 | 138.5 |
+| Median total engine commands | 54.5 | 19 |
+
+Native total command counts include Inkbolt and the consumer; baseline counts
+include only the consumer. The baseline authored graphics with pinned Pillow
+and used the same consumer to render the required videos. Native work includes
+additional revision/history guarantees. These are observations of different
+outcomes and applicable scopes, not cost per successful native workflow.
+Input totals include cached context and are not billing estimates. Attempt 1's
+unaccepted client-result metrics stay excluded; native time to first independently
+verified preview is unknown. Reports retain traffic, retries and the distinct
+engine, consumer-tree and client-tree memory scopes.
+
+Both arms used commit `fe7786d1eaad316e5986edf0b804cac228481ebd`, unchanged
+version-2 prompt, Codex CLI 0.160.0 and the same external `gpt-6.1-sol` medium
+configuration. Model choice remains external evaluation metadata. All five native
+attempts ran before the five baseline attempts, sequentially on the shared
+Windows host with no concurrent local engine verification or benchmarks. Inputs
+stayed unchanged; order was not randomized and caches could be warm.
+
+All completed direct commands and final retained helpers were reviewed. No
+prohibited direct engine/evidence access or image-view tool was observed.
+Numeric pixel/hash assertions are not visual review, and these traces do not
+authenticate every intermediate helper version or nested operation. Consumer
+lifetime accounting observed 525 native-arm and 353 baseline-arm processes,
+including inherited encoders/probes, all exited with memory observation available.
+Those counts exclude other engine/client trees and are not command counts.
+
+All 3,019 files under `w2-linked-animation-sol-{model,baseline,comparison}-five-01`
+are hashed in `w2-linked-animation-complete-hashes-01.json`; companion review and
+summary records bind the ten traces and retained helpers. The comparator reports
+no matching issues and categorizes B20 as a losing task by workflow completion.
+Its full-suite `decision_ready`, `matched_model_baseline_complete` and
+`actual_model_benchmark_complete` gates remain false. B19/B20 guidance repairs
+and the trace-motivated B03/B16 discovery remeasurement remain separate next steps.
+No engine-checkpoint credit changes.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Source candidate | `3514eda7f794db9083a3a300e11ef126d155162d118541b561103eceb2b37433` |
+| Inkbolt release executable | `3fc78f0f7eb5d3273ad693e1f2726cb9fc4fe1cb837bb1dc88367daa4ec15959` |
+| B20 prompt | `ca5e7d5b97f0e8fecb605c203fea6e195066f9b5cf8183972f77d830eeae62a8` |
+| Consumer executable | `3d9aa4644525c84108b9ec276605595e3d115b6d1fc8d4523b7a48a934f5f536` |
+| Native report | `d51c73faba3bba6ea0a8be4f802c4dcafa9ca2a45d1ed3e70c94226bf8d40f40` |
+| Baseline report | `f5e84eb6ae82f2b4604f8f8ceac3ca6618ac553c0dd9d0c1fb59af4c6988badf` |
+| Comparison | `71b23175cc57ef35d5cd30cd5ce9e9f986fadb5ba92d4fa9f8290b45b64f17cd` |

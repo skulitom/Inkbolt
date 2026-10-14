@@ -156,6 +156,54 @@ pub fn lookup(name: &str, select: Option<&str>, force_full: bool) -> Result<Valu
     lookup_in_workspace(name, select, force_full, false)
 }
 
+fn lookup_request(name: &str, select: Option<&str>) -> Value {
+    let mut request = json!({"command":"schema.lookup", "name":name});
+    if let Some(select) = select {
+        request["select"] = json!(select);
+    }
+    request
+}
+
+fn variant_path(prefix: Option<&str>, tag: &str) -> String {
+    match prefix {
+        Some(prefix) => format!("{prefix}/{tag}"),
+        None => tag.to_owned(),
+    }
+}
+
+fn selector_suggestion(value: &Value, prefix: Option<&str>, selector: &str) -> Option<String> {
+    let definitions = value.get("$defs").and_then(Value::as_object);
+    let mut candidates = BTreeSet::new();
+    for (_, tag, _) in variants(value) {
+        if tag.eq_ignore_ascii_case(selector) {
+            candidates.insert(variant_path(prefix, tag));
+        }
+    }
+    if let Some(definitions) = definitions {
+        for name in definitions.keys() {
+            if name.eq_ignore_ascii_case(selector) {
+                candidates.insert(name.clone());
+            }
+        }
+        // Offer a nested route only when the current level has no matching name.
+        // Ambiguous nested tags must still be chosen from an explicit outline.
+        if candidates.is_empty() {
+            for (name, definition) in definitions {
+                for (_, tag, _) in variants(definition) {
+                    if tag.eq_ignore_ascii_case(selector) {
+                        candidates.insert(variant_path(Some(name), tag));
+                    }
+                }
+            }
+        }
+    }
+    if candidates.len() == 1 {
+        candidates.pop_first()
+    } else {
+        None
+    }
+}
+
 pub(crate) fn lookup_in_workspace(
     name: &str,
     select: Option<&str>,
@@ -190,25 +238,44 @@ pub(crate) fn lookup_in_workspace(
         complete(full()["$defs"][definition].clone(), false)
     } else {
         arguments(name, false).ok_or_else(|| {
-            Error::new(
+            let mut error = Error::new(
                 "SCHEMA_NOT_FOUND",
-                "Unknown schema name; use schema.lookup with name index",
-            )
+                "Unknown schema name; choose a command or type from schema.lookup with name index",
+            );
+            error.details = Some(Box::new(
+                json!({"field":"name", "schema_lookup":lookup_request("index", None)}),
+            ));
+            error
         })?
     };
+    let mut prefix: Option<String> = None;
     if let Some(selector) = select {
-        let selected = variants(&value)
-            .into_iter()
-            .find(|(_, tag, _)| *tag == selector)
-            .map(|(_, _, v)| v.clone())
-            .or_else(|| value.get("$defs").and_then(|d| d.get(selector)).cloned())
-            .ok_or_else(|| {
-                Error::new(
-                    "SCHEMA_NOT_FOUND",
-                    "Selector must name a listed variant or reachable definition",
-                )
-            })?;
-        value = complete(selected, false);
+        for segment in selector.split('/') {
+            let selected = variants(&value)
+                .into_iter()
+                .find(|(_, tag, _)| *tag == segment)
+                .map(|(_, tag, v)| (v.clone(), variant_path(prefix.as_deref(), tag)))
+                .or_else(|| {
+                    value.get("$defs").and_then(|d| d.get(segment))
+                        .map(|v| (v.clone(), segment.to_owned()))
+                })
+                .ok_or_else(|| {
+                    let mut error = Error::new(
+                        "SCHEMA_NOT_FOUND",
+                        "Each select component must name a listed variant or reachable definition; use details.schema_lookup for valid choices",
+                    );
+                    let mut details = json!({"field":"select", "schema_lookup":lookup_request(name, prefix.as_deref())});
+                    if let Some(suggestion) = selector_suggestion(&value, prefix.as_deref(), segment) {
+                        details["suggested_lookup"] = lookup_request(name, Some(&suggestion));
+                    }
+                    error.details = Some(Box::new(details));
+                    error
+                })?;
+            // Every reachable definition is also reachable from the named root.
+            // Resetting its route avoids growing paths when definitions recur.
+            prefix = Some(selected.1);
+            value = complete(selected.0, false);
+        }
     }
     if workspace {
         crate::workspace::describe(&mut value);
@@ -230,8 +297,8 @@ pub(crate) fn lookup_in_workspace(
     }).collect();
     Ok(
         json!({"name":name, "select":select, "detail":"outline", "schema_bytes":bytes,
-        "fields":fields, "variants":variants(&value).iter().map(|(field, tag, _)| json!({"field":field,"value":tag})).collect::<Vec<_>>(),
+        "fields":fields, "variants":variants(&value).iter().map(|(field, tag, _)| json!({"field":field,"value":tag,"select":variant_path(prefix.as_deref(), tag)})).collect::<Vec<_>>(),
         "definitions":value.get("$defs").and_then(Value::as_object).map(|m| m.keys().collect::<Vec<_>>()).unwrap_or_default(),
-        "usage":"This is an outline, not a validation schema. Select a listed variant/definition from name, or repeat this lookup with full:true for the complete schema."}),
+        "usage":"This is an outline, not a validation schema. Keep name and use a variant's select value or a listed definition name. Select components separated by / follow nested variants/definitions. Repeat this lookup with full:true for the complete schema."}),
     )
 }

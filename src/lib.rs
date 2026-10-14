@@ -417,7 +417,7 @@ pub enum Request {
     SchemaLookup {
         /// Command name, shared type alias, or index to discover available names.
         name: String,
-        /// One tagged variant or referenced definition listed in the schema outline.
+        /// A listed variant/definition, or nested components separated by /; use an outline variant's select value.
         select: Option<String>,
         /// Return the complete schema even when it exceeds the outline budget.
         #[serde(default)]
@@ -1834,6 +1834,10 @@ fn capability_report() -> Value {
         "cli_help_arguments":["--help","-h"],
         "lookup":"schema.lookup", "index":"index",
         "large_schema_outline_bytes":schema::OUTLINE_BYTES,
+        "schema_selector_separator":"/",
+        "schema_selector_max_bytes":limits::schema::MAX_SELECTOR_BYTES,
+        "schema_variant_selector_field":"select",
+        "schema_error_queries":["details.schema_lookup","details.suggested_lookup"],
         "full_schema":"schema", "mcp_default":"full",
         "mcp_compact_arguments":["mcp","--tools","core"],
         "mcp_compact_budget_bytes":mcp::CORE_CATALOG_BYTES,

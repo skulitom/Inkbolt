@@ -91,6 +91,18 @@ fn focused_schemas_are_complete_and_outlines_are_explicit() {
 fn legacy_schema_and_capabilities_match_typed_discovery() {
     assert_eq!(execute(Request::Schema {}).unwrap(), *schema::full());
     let capabilities = execute(Request::Capabilities {}).unwrap();
+    assert_eq!(
+        capabilities["agent_discovery"]["schema_selector_separator"],
+        "/"
+    );
+    assert_eq!(
+        capabilities["agent_discovery"]["schema_variant_selector_field"],
+        "select"
+    );
+    assert_eq!(
+        capabilities["agent_discovery"]["schema_selector_max_bytes"],
+        inkbolt::limits::schema::MAX_SELECTOR_BYTES
+    );
     let mut advertised: Vec<_> = capabilities["commands"]
         .as_array()
         .unwrap()
@@ -101,4 +113,107 @@ fn legacy_schema_and_capabilities_match_typed_discovery() {
     let mut actual: Vec<_> = schema::commands().collect();
     actual.sort_unstable();
     assert_eq!(advertised, actual);
+}
+
+#[test]
+fn discovery_nested_outline_routes_reach_complete_variant_schemas() {
+    for (name, definition) in [
+        ("session.apply", "Action"),
+        ("document.edit", "Operation"),
+        ("document", "Content"),
+    ] {
+        let outline = schema::lookup(name, Some(definition), false).unwrap();
+        assert_eq!(outline["detail"], "outline");
+        for variant in outline["variants"].as_array().unwrap() {
+            let select = variant["select"].as_str().unwrap();
+            assert!(select.len() <= inkbolt::limits::schema::MAX_SELECTOR_BYTES);
+            let result = schema::lookup(name, Some(select), true).unwrap();
+            check_refs(&result["schema"], &result["schema"]);
+            assert_eq!(
+                result["schema"]["properties"][variant["field"].as_str().unwrap()]["const"],
+                variant["value"]
+            );
+        }
+        // Definitions remain selectable by their existing names from the root.
+        for definition in outline["definitions"].as_array().unwrap() {
+            assert!(schema::lookup(name, definition.as_str(), false).is_ok());
+        }
+    }
+    let nested = schema::lookup(
+        "session.apply",
+        Some("Action/edit/Operation/transform"),
+        true,
+    )
+    .unwrap();
+    assert_eq!(
+        nested["schema"],
+        schema::lookup("operation", Some("transform"), true).unwrap()["schema"]
+    );
+    // A deep selection yields a short executable route in its next outline.
+    let repeated = schema::lookup(
+        "session.apply",
+        Some("Action/edit/Operation/add/Item/Content"),
+        false,
+    )
+    .unwrap();
+    for variant in repeated["variants"].as_array().unwrap() {
+        let result = schema::lookup("session.apply", variant["select"].as_str(), true).unwrap();
+        assert_eq!(
+            result["schema"]["properties"][variant["field"].as_str().unwrap()]["const"],
+            variant["value"]
+        );
+    }
+    assert_eq!(
+        schema::lookup("operation", Some("Geometry/rect"), true).unwrap()["schema"],
+        schema::lookup("geometry", Some("rect"), true).unwrap()["schema"]
+    );
+}
+
+#[test]
+fn discovery_failures_offer_working_queries_without_echoing_unknown_text() {
+    for (name, select, field) in [
+        ("private-unknown-schema", None, "name"),
+        ("session.apply", Some("private-unknown-selector"), "select"),
+        (
+            "session.apply",
+            Some("Action/private-unknown-selector"),
+            "select",
+        ),
+        ("session.apply", Some(""), "select"),
+        ("session.apply", Some("/Action"), "select"),
+        ("session.apply", Some("Action/"), "select"),
+        ("session.apply", Some("Action//edit"), "select"),
+        ("document.create", Some("Operation/transform"), "select"),
+    ] {
+        let error = schema::lookup(name, select, false).unwrap_err();
+        assert_eq!(error.code, "SCHEMA_NOT_FOUND");
+        let encoded = serde_json::to_string(&error).unwrap();
+        assert!(!encoded.contains("private-unknown"));
+        let details = error.details.unwrap();
+        assert_eq!(details["field"], field);
+        let request: Request = serde_json::from_value(details["schema_lookup"].clone()).unwrap();
+        execute(request).unwrap();
+    }
+    for (name, select, wanted) in [
+        ("session.create", "document", "Document"),
+        ("session.apply", "edit", "Action/edit"),
+        ("operation", "TRANSFORM", "transform"),
+    ] {
+        let error = schema::lookup(name, Some(select), false).unwrap_err();
+        let details = error.details.unwrap();
+        let suggestion = &details["suggested_lookup"];
+        assert_eq!(suggestion["select"], wanted);
+        let request: Request = serde_json::from_value(suggestion.clone()).unwrap();
+        execute(request).unwrap();
+    }
+    // Both Boundary and Geometry have a rect variant; a hint must not pick one.
+    let ambiguous = schema::lookup("operation", Some("rect"), false).unwrap_err();
+    assert!(ambiguous.details.unwrap().get("suggested_lookup").is_none());
+    let long = "Action/".repeat(20);
+    assert_eq!(
+        schema::lookup("session.apply", Some(&long), false)
+            .unwrap_err()
+            .code,
+        "INVALID_REQUEST"
+    );
 }

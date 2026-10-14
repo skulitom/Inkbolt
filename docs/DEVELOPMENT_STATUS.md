@@ -1531,12 +1531,62 @@ use the `w2-handoff-contract-` prefix. Tested fingerprint:
 `00ffc82411e869b599a5f55f03a1d33002a96ae871d893c2a8fa775f70e69815`.
 These are harness corrections and focused checks, not full milestone acceptance.
 
-Accepted B19 recovery trials, five-repetition model trials for B20, further smaller-model
-trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
-remain open. Full W2 milestone
-acceptance remains open. SVG arcs/rounded rectangles and the SVG insertion operation are independent
-bounded increments. W2 evidence will sequence the substantial work using the
-plan's decision rule; accepted outcomes remain required.
+Five genuine attempts per arm at `fe7786d` completed B20's first matched batch.
+The native workflow passed 0/5: one attempt violated an undisclosed consumer
+command allowlist; four had accepted driver evidence but failed the required
+session-ID prerequisite. All five used a different session ID from the prompt.
+Only source preservation was independently scored for native attempts; fifteen
+checks per attempt remain missing, so native artifact quality is unjudged.
+The baseline passed 5/5, including all seven task artifact checks and source
+preservation; its eight engine checks are not applicable. All direct completed
+commands and retained helpers were reviewed, and all 3,019 evidence files are
+hashed. See [the B20 results](BENCHMARK_RESULTS.md#b20-at-fe7786d-linked-graphic-delivery-prerequisite-failures)
+for exact identities, accepted metric scope and retained failures.
+
+Accepted B19 recovery trials, B20 native workflow success, further smaller-model
+trials, arbitrary legacy transcript adapters, B10 Linux commit-memory evidence
+and full W2 acceptance remain open. W2 evidence continues to sequence substantial
+work using the plan's decision rule; no engine checkpoint receives credit.
+
+### Executable nested schema discovery: focused checks passed; remeasurement open
+
+A read-only inventory of 95 completed B01-B19 attempts found 17 distinct JSON
+error signatures. Failed selectors appeared 48 times across 15 task IDs,
+followed by absolute-path errors (22) and generic request errors (17). These are
+visible output occurrences, not authenticated call frequencies: repeated reads,
+expected refusals and missing/truncated output prevent that interpretation.
+
+The B03/B16 traces specifically motivate the next W5 increment. A selected
+`Action` outline lists `edit`, but the original root-level selector cannot follow
+that instruction under `session.apply`. Lowercase property names such as
+`document` also fail when the reachable definition is `Document`.
+
+The change adds bounded nested selectors, executable variant selectors
+and working recovery queries in errors. It preserves exact existing selectors,
+full schemas, the catalog budget and execution validation. Expected improvement:
+fewer failed discovery calls and less full-schema output for the same edits.
+Remeasure B03/B16 with the same external client configuration and retained
+failures. If navigation errors/calls/tokens do not improve without correctness
+loss, stop broadening this approach and reassess the trace evidence. Request
+field diagnostics, path guidance, B19 recovery and B20 prompt clarity remain
+separate follow-ups.
+
+Fresh focused checks passed all eight selected stages on Windows in 123.3 seconds
+and WSL in 74.1 seconds: formatting, locked build, all-target Clippy, the guard,
+three Rust tests and 23 Python tests across discovery, workspace and MCP. Neither
+platform reused passes or had failed, skipped or pending selected tests. Other
+checks remain outside this focused scope. Both reports bind to input fingerprint
+`750c3b20963b2598de7e51c2556be108676d3144c611653d6bf6381df4569bf0`.
+
+Runtime probes reproduce the old `Action/edit` refusal and verify the new working
+route and error suggestions; the direct transform and full operation schemas
+remain exactly equal. The measured compact catalog has 22 tools on three pages,
+71,593 JSON bytes (71,809 wire bytes), below 96 KiB. The nested transform response
+is 693 bytes and its schema equals the 667-byte standalone response's schema.
+Reports and probes use the external `w5-discovery-` prefix. Final documentation
+updates follow those checks; implementation/test inputs stayed unchanged.
+Model remeasurement and full milestone acceptance remain open. These checks do
+not establish fewer model calls/tokens or complete W5 or an engine checkpoint.
 
 ## W3a.1-2: complete within the declared SVG subset
 

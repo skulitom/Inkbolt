@@ -23,6 +23,42 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_nested_schema_routes_and_error_recovery_match_cli_mcp(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for workspace in (None, directory):
+                with self.subTest(workspace=workspace), closing(Client(('--tools', 'core'), workspace=workspace)) as client:
+                    client.initialize()
+
+                    def lookup(**arguments):
+                        request = dict(command='schema.lookup', **arguments)
+                        prefix = ['--workspace', workspace] if workspace else []
+                        process = subprocess.run([str(EXE), *prefix], input=json.dumps(request).encode(),
+                                                 capture_output=True, timeout=20)
+                        self.assertEqual(process.stderr, b'')
+                        cli = json.loads(process.stdout)
+                        self.assertEqual(process.returncode, 0 if cli['ok'] else 1)
+                        mcp = client.tool('schema.lookup', **arguments)['structuredContent']
+                        self.assertEqual(cli, mcp)
+                        return cli
+
+                    error = lookup(name='session.apply', select='edit')['error']
+                    self.assertEqual(error['code'], 'SCHEMA_NOT_FOUND')
+                    self.assertEqual(error['details']['field'], 'select')
+                    suggested = dict(error['details']['suggested_lookup'])
+                    self.assertEqual(suggested.pop('command'), 'schema.lookup')
+                    edited = lookup(**suggested)['result']
+                    self.assertEqual(suggested['select'], 'Action/edit')
+                    if edited['detail'] == 'full':
+                        self.assertEqual(edited['schema']['properties']['type']['const'], 'edit')
+                    outline = lookup(name='session.apply', select='Action')['result']
+                    route = next(v['select'] for v in outline['variants'] if v['value'] == 'edit')
+                    self.assertEqual(lookup(name='session.apply', select=route)['result'], edited)
+                    transformed = lookup(name='session.apply', select='Action/edit/Operation/transform')['result']
+                    self.assertEqual(transformed['schema']['properties']['op']['const'], 'transform')
+                    self.assertEqual(transformed['schema'], lookup(name='operation', select='transform')['result']['schema'])
+                    self.assertLess(len(json.dumps(outline, separators=(',', ':')).encode()), 12 * 1024)
+                    self.assertEqual(list(Path(directory).iterdir()), [])
+
     def test_cli_help_is_compact_json_with_working_examples_and_no_input_effects(self):
         flags = invoke(dict(command='capabilities'))['result']['agent_discovery']['cli_help_arguments']
         self.assertEqual(flags, ['--help', '-h'])

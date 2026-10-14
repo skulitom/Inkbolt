@@ -10,6 +10,12 @@ Set `response_mode:"compact"` on `session.create`, `session.continue`, `session.
 
 With a workspace, the session root defaults as usual. Without one, supply `session_root`. Discover each operation's exact fields with `schema.lookup` before constructing edits.
 
+Schema outlines include executable `select` paths for nested variants. A failed
+lookup returns `error.details.field` and a working `details.schema_lookup`
+request; `details.suggested_lookup` appears only for an unambiguous alternative.
+These read-only discovery responses are independent of session response mode.
+See [focused schemas](AGENT_DISCOVERY.md#focused-schemas).
+
 Compact responses include:
 
 - `document_ref`, with the exact historical document revision and session root; use it directly in a later render, inspect, edit or publish request.
