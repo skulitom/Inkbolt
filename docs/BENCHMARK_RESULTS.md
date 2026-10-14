@@ -1089,3 +1089,36 @@ batch; source changes and later results remain separate from this failed setup.
 | Native report | `55cc71a4105c22d9b5481b6c080ee5a54924a31281f1cc75f4f3ceda8bc96dc7` |
 | Not-applicable baseline report | `8cd835415e481c562daaa3aca811121085e0ca332327bc7ea5af7da7496a085f` |
 | Comparison | `821948612b33097741d4cf5f9ae75de371b23b476038865e0a64bd915483080a` |
+
+## B19 at 5079c5a: bridge pilot and publication observation gap
+
+The genuine pilot confirmed that the narrow directory grant lets the client
+reach the engine. It delivered the requested files and passed the independent
+preview/recovered-pixel, cancellation, interrupted-state, revision/resource,
+history and source-preservation checks. The complete trial still failed.
+
+During discovery, the client put `command` inside bridge arguments as well as
+at message level. This malformed message triggered a controller protocol error;
+later successful operations do not erase it. Separately, the client validly used
+`session.publish` for the required overwrite refusal. The controller recognized
+only `document.publish`, leaving the final output checkpoint absent and failing
+the publication/no-partial-final checks. A synthetic run reproduced that missing
+checkpoint without the malformed request.
+
+The controller now observes either valid publish command and explicitly rejects
+reserved nested fields before engine execution. The pilot remains failed; no
+checkpoint is invented afterward, and its capture is not used as passing workflow
+evidence. A new batch uses the corrected controller and retains this pilot
+separately. Native and baseline task criteria are unchanged.
+
+The pilot used commit `5079c5a4fe0f24387571556fd275c0503f8a0119`, candidate
+`d1166a0fd05568e97e663c30068be00e0e8da323ff4a8ae52cc5b37b09a214f3`, the unchanged
+version-3 prompt and the previous external client/model settings. Inputs stayed
+unchanged. Its report SHA-256 is
+`96ef4d6130fbfe6138f06df5f3811ab675d52d93c4dc02b186c55c2a610dde3c`.
+All 254 files under `w2-job-recovery-bridge-pilot-01` are hashed in
+`w2-job-recovery-bridge-pilot-hashes-01.json`. The companion review records all
+39 completed items and the two retained helper files. No prohibited direct access
+or image-view tool was observed; numeric pixel checks are not visual inspection,
+and direct traces/final helper hashes do not authenticate every nested operation
+or intermediate helper version.

@@ -140,6 +140,11 @@ def main():
         assert request['mcp_config'] is None and 'engine_executable' not in request
         def send(message):
             arguments=message['arguments'];command=message.get('command','')
+            if '--recovery-session-publish' in sys.argv and command=='document.publish':
+                document=arguments.pop('document')
+                arguments.update(session_id=document['session_id'],expected_revision=document['revision'])
+                if 'session_root' in document:arguments['session_root']=document['session_root']
+                command=message['command']='session.publish'
             if '--custom-session-store' in sys.argv:
                 if command.startswith('session.'):arguments['session_root']='chosen sessions'
                 document=arguments.get('document')
@@ -158,6 +163,9 @@ def main():
         if '--probe-error' in sys.argv:
             response=send(dict(step='missing',command='session.receipt',arguments={}))
             assert response['ok'] is False and response['error']['code']=='INVALID_REQUEST'
+        if '--reserved-argument' in sys.argv:
+            response=send(dict(step='bad-command',command='schema.lookup',arguments={'command':'session.create'}))
+            assert response['ok'] is False and response['error']['code']=='BENCHMARK_CONTROL_ERROR'
         if '--bad-control' in sys.argv:send(dict(step='bad',control='interrupt-queued',arguments={'pid':123}))
         elif '--hold-and-stop' in sys.argv:
             # A real owned cancellation precedes taking the queue lease.

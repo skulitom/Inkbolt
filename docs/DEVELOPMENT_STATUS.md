@@ -1485,6 +1485,23 @@ fingerprint `5374481b01065399ade94bfcddd9ad82417b34a1cd66182ddbfcd818da7efb9e`.
 All selected checks passed or reused unchanged Cargo passes, with unchanged
 inputs and no pending checks. A genuine pilot remains required before new trials.
 
+The genuine pilot at `5079c5a` confirmed bridge access, but retained a malformed
+message failure and exposed an independent missing final checkpoint for valid
+`session.publish`. Its pixel, cancellation, interruption, pinning and history
+checks passed; the full workflow did not. The failure and all 254 files remain
+in [the results](BENCHMARK_RESULTS.md#b19-at-5079c5a-bridge-pilot-and-publication-observation-gap).
+A separate synthetic reproduction is retained under `w2-job-session-publish-before-01`.
+The controller now records either publish command, with no invented observations
+for old captures. Reserved nested command/step fields receive an explicit
+protocol error and still fail trials even when the client continues successfully.
+Focused checks executed 31 Windows tests in 103.0 seconds and 25 WSL tests with
+six platform skips in 19.3 seconds. Reports/raw tested-input maps are under
+`w2-job-session-publish-`, fingerprint
+`5f66a2d0bdbf67df8bbf549414704101d7feeec38b83cf27dcc55583f813bb9a`.
+All selected checks passed or reused unchanged Cargo passes, with unchanged
+inputs and no pending checks. The remaining five-attempt run stays separate from
+the earlier failed setup and pilot.
+
 Five-repetition model trials for B19/B20, further smaller-model
 trials, arbitrary legacy transcript adapters and B10 Linux commit-memory evidence
 remain open. Full W2 milestone

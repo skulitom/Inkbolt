@@ -62,6 +62,7 @@ class RecoveryControl:
             return {'ok':True,'result':value}
         command=message['command'];arguments=message.get('arguments',{})
         require(isinstance(command,str) and isinstance(arguments,dict),'Invalid engine command')
+        require(not {'command','step'}&set(arguments),'Command and step belong at message level, not in arguments')
         require('judge_workspace' not in arguments,'Clients cannot select a judge workspace')
         expected=message.get('expected_error')
         try:value=case.call(step,command,expected_error=expected,retry_of=message.get('retry_of'),preview=message.get('preview',False),**arguments)
@@ -72,7 +73,7 @@ class RecoveryControl:
         if command=='job.result' and arguments.get('request_id')=='recover':
             if expected=='JOB_NOT_COMPLETED' and 'interrupt-queued' in self.controls:self.checkpoint('after-inspection')
             elif expected is None:self.checkpoint('before-replays')
-        if command=='document.publish' and expected=='OUTPUT_EXISTS' and arguments.get('output',{}).get('file_name')=='recovered.png':
+        if command in ('document.publish','session.publish') and expected=='OUTPUT_EXISTS' and arguments.get('output',{}).get('file_name')=='recovered.png':
             self.checkpoint('after-replays')
         return {'ok':False,'error':value} if expected else {'ok':True,'result':value}
 

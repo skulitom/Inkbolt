@@ -551,6 +551,11 @@ Admission must precede the newer edit; a client failure releases the queue gate
 and closes both the separate client tree and engine tree. No network listener,
 engine test hook or database mutation is introduced. Message/count/traffic bounds
 and command/client deadlines are enforced. Preparation starts no processes.
+The final overwrite refusal may use either `document.publish` or
+`session.publish`; both trigger the same output-identity checkpoint. Reserved
+`command` and `step` fields belong at message level. Nesting them in arguments
+is an explicit protocol error before engine execution and still fails the trial,
+even if later engine operations succeed.
 Prompt version 3 explicitly fixes the observed job queue and publication ledger
 at `.inkbolt/jobs`. Session and image-resource folders may be chosen within the
 workspace; the judge locates the unique session and exact original image samples

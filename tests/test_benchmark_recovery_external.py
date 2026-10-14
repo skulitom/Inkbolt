@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -17,9 +18,18 @@ from benchmark_driver import run_external_task,workspace_files
 from benchmark_runtime import TaskFailure
 from test_benchmark_driver import driver,fake_tools
 from benchmark_recovery_external import validate_capture
+from benchmark_recovery_control import RecoveryControl
 
 
 class RecoveryPlatformTests(unittest.TestCase):
+    def test_reserved_command_fields_fail_explicitly_before_engine_execution(self):
+        def unexpected(*args,**kwargs):raise AssertionError('Malformed bridge message reached the engine')
+        with tempfile.TemporaryDirectory() as directory:
+            broker=RecoveryControl(SimpleNamespace(call=unexpected),Path(directory)/'channel')
+            for field in ('command','step'):
+                with self.subTest(field=field),self.assertRaisesRegex(TaskFailure,'message level'):
+                    broker.dispatch(dict(step='lookup',command='schema.lookup',arguments={field:'session.create'}))
+
     def test_baseline_is_not_applicable_and_preparation_never_starts_processes(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
@@ -45,7 +55,7 @@ class RecoveryExternalTests(unittest.TestCase):
     def test_real_cli_bridge_retains_costs_and_import_rejudges_without_faults_or_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);configuration=driver('--recovery-cli','--preview-usage','--recovery-full','--probe-error',
-                '--custom-session-store','--custom-asset-store','--recovery-compact-source');configuration['timeout_seconds']=60
+                '--custom-session-store','--custom-asset-store','--recovery-compact-source','--recovery-session-publish');configuration['timeout_seconds']=60
             row=run_external_task(EXE,root/'live','B19',1,'model',configuration)
             self.assertEqual(row['status'],'passed',{k:row.get(k) for k in ('status','error','driver_failure','checks')})
             self.assertFalse(row['model_trials']);self.assertGreaterEqual(row['engine_commands'],23)
@@ -80,11 +90,12 @@ class RecoveryExternalTests(unittest.TestCase):
             self.assertEqual(failed['status'],'failed');self.assertIn('identity mismatch',failed['driver_failure'])
 
     def test_failed_client_and_invalid_fault_control_close_only_the_owned_runtime(self):
-        for flag in ('--hold-and-stop','--bad-control'):
+        for flag in ('--hold-and-stop','--bad-control','--reserved-argument'):
             with self.subTest(flag=flag),tempfile.TemporaryDirectory() as directory:
                 root=Path(directory);configuration=driver(flag);configuration['timeout_seconds']=60
                 row=run_external_task(EXE,root/'failed','B19',1,'model',configuration)
                 self.assertEqual(row['status'],'failed');self.assertIsNotNone(row['driver_failure'])
+                if flag=='--reserved-argument':self.assertIn('message level',row['driver_failure'])
                 proof=json.loads((root/'failed/evidence/recovery-evidence.json').read_bytes())
                 self.assertEqual(proof['accounting']['active'],0);self.assertIsNone(proof['observer_error'])
                 lease=root/'failed/workspace/.inkbolt/jobs/worker.lock'
