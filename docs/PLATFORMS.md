@@ -7,8 +7,9 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained hosted Windows/Linux/macOS matrix passed at `30c4ebd`;
-later judge changes have focused checks, as recorded below.
+The latest retained successful hosted Windows/Linux/macOS matrix is `30c4ebd`.
+Linux also passed fresh full acceptance at `d34851e`; later Windows CI failures
+and their focused follow-up are recorded below.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
@@ -243,6 +244,16 @@ are retained under `w1-public-ci-30c4ebd`, candidate
 `811f2460a6ddb536965a2b822971fe8f6fbf0d3c9094c14e7bf4625ae337e81d`.
 This covers the B10/B13 delivery and B11/B12 store corrections; it predates
 the later hierarchy and B14/B15 judge changes and is not current-HEAD acceptance.
+
+The [later `30ecf5b` run](https://github.com/skulitom/Inkbolt/actions/runs/38497212073)
+passed Linux/macOS and failed two Windows stages: a test polling race and a
+job-submission timeout. The polling fix and optimized development hashing have
+focused Windows/Linux verification, with exact byte/hash assertions and existing
+deadlines retained. Linux subsequently passed all 243 fresh stages at
+[`d34851e`](https://github.com/skulitom/Inkbolt/actions/runs/38504495500): 181 Rust,
+2,482 Python tests and 50 explicit skips in 1317.3 seconds. This predates the hash
+profile change and does not prove current full-matrix acceptance or resolution of
+the hosted Windows timeout. See [the diagnosis and focused evidence](DEVELOPMENT_STATUS.md#windows-polling-and-development-hash-cost).
 
 The [Unix MCP configuration](../examples/mcp-config.unix.json) assumes `inkbolt`
 is on the client's PATH; otherwise replace it with the absolute Linux executable

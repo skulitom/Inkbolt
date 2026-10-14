@@ -215,13 +215,14 @@ class JobTests(unittest.TestCase):
     def test_background_formats_keep_exact_synchronous_bytes_and_loss_receipts(self):
         doc=self.document();doc['items']=[dict(id='square',content=dict(type='vector',geometry=dict(shape='rect',x=0,y=0,width=2,height=2),fill=[20,80,180,255]))]
         for format,extension in [('snapshot','json'),('svg','svg'),('pdf','pdf'),('jpeg','jpg'),('tiff','tif')]:
-            options=dict(format=format,file_name='job.'+extension)
-            if format=='jpeg':options['image_options']=dict(matte=[255,255,255])
-            self.cli('job.start',request_id=format,document=doc,output=options);self.finish(format)
-            result=self.cli('job.result',request_id=format)
-            direct=self.cli('document.publish',document=doc,output=dict(options,file_name='direct.'+extension))
-            self.assertEqual((self.root/('job.'+extension)).read_bytes(),(self.root/('direct.'+extension)).read_bytes())
-            self.assertEqual(result['sha256'],direct['sha256']);self.assertEqual(result['losses'],direct['losses'])
+            with self.subTest(format=format):
+                options=dict(format=format,file_name='job.'+extension)
+                if format=='jpeg':options['image_options']=dict(matte=[255,255,255])
+                self.cli('job.start',request_id=format,document=doc,output=options);self.finish(format)
+                result=self.cli('job.result',request_id=format)
+                direct=self.cli('document.publish',document=doc,output=dict(options,file_name='direct.'+extension))
+                self.assertEqual((self.root/('job.'+extension)).read_bytes(),(self.root/('direct.'+extension)).read_bytes())
+                self.assertEqual(result['sha256'],direct['sha256']);self.assertEqual(result['losses'],direct['losses'])
 
     def test_unknown_database_corrupt_state_workspace_and_existing_output_are_preserved(self):
         self.start();self.finish();self.idle()

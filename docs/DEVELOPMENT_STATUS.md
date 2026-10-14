@@ -304,6 +304,50 @@ hashes are retained under `w1-public-ci-30c4ebd`, candidate
 This includes the B10/B13 delivery and B11/B12 store corrections, but predates
 the later hierarchy and print/review judge changes. It is not current-HEAD acceptance.
 
+### Windows polling and development hash cost
+
+The [later `30ecf5b` matrix](https://github.com/skulitom/Inkbolt/actions/runs/38497212073)
+passed Linux/macOS but failed Windows. The queue-capacity Rust test unwrapped
+`JOB_BUSY` while observing the supervisor's final transaction; the five-format
+Python export test exceeded its 20-second `job.start` deadline. These failures
+remain retained under `w1-public-ci-30ecf5b`. A local unchanged-source rerun passed
+the Rust test in 47.9 seconds and the Python case in 17.94 seconds, so the hosted
+failures did not reproduce locally.
+
+The Rust observer now retries only `JOB_BUSY` within its existing 30-second
+bound and still requires the supervisor owner to clear. Other errors fail.
+The Python loop labels each format with a subtest, retaining the same deadline,
+exact synchronous/background bytes, hashes and loss-receipt assertions.
+
+Development/test builds now optimize only the pinned SHA-256 dependency, matching
+the sister project's build setting. Worker verification still reads/hashes the
+complete executable; no content check or production job behavior was removed.
+Two sequential local probes of the same five-format assertions passed. Median
+`job.start` time fell from 3.385 to 0.340 seconds; the complete case took 17.94
+then 2.72 seconds. Other host activity and caches were uncontrolled. This is a
+local development measurement, not release performance or proof of the hosted
+timeout's cause. Release settings and dependencies remain unchanged.
+
+Windows focused verification took a 94.6-second first window for formatting,
+locked build, all-target Clippy and nine receipt tests. Old duration estimates
+deferred the two job groups before launch. The 89.8-second continuation reused
+those passes and ran all 12 Rust job tests and 17 Python job tests; none failed,
+remained pending or skipped. Linux passed fresh formatting/build/Clippy and all
+11 receipt/platform Python tests in 76.4 seconds, without reuse or skips.
+Both reports record unchanged inputs and fingerprint
+`d9c7fa4261528d732494eb9ab0782ab01db8f4a6e93d5e27e2412b34975cdab0`.
+The timing reports, Windows stage logs and tested source identities are retained
+under `w1-job-ci-` and `w1-job-admission-`. Final status-only documentation follows
+these checks; implementation/test inputs remain unchanged.
+
+Separately, [hosted Linux at `d34851e`](https://github.com/skulitom/Inkbolt/actions/runs/38504495500)
+passed all 243 fresh stages: 181 Rust tests, 2,482 Python tests and 50 explicit
+skips in 1317.3 seconds. Its retained report/log inventory is under
+`w1-public-ci-d34851e`, fingerprint
+`6d11ebd28b4136acec415096fa37b220092cfe6a2092484ed3f9d9bee6447bf7`.
+That predates the development-profile change. The current full matrix and the
+Windows timeout repair remain unverified on hosted runners; Unix jobs remain open.
+
 ## W2 and the next behavior increments
 
 B01 separates fixtures, its versioned prompt, reference solving and an independent

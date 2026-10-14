@@ -30,3 +30,8 @@ jpeg-encoder = { version = "=0.7.1", default-features = false, features = ["std"
 jpeg-decoder = { version = "=0.3.2", default-features = false, features = ["platform_independent"] }
 tiff = { version = "=0.11.3", default-features = false, features = ["deflate", "lzw"] }
 moxcms = { version = "=0.9.1", default-features = false, features = ["lut", "extended_range", "options"] }
+
+# Development jobs repeatedly verify the entire pinned worker executable.
+# Keep those content checks while avoiding unoptimized hash compression in tests.
+[profile.dev.package.sha2]
+opt-level = 3

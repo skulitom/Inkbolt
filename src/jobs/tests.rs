@@ -417,10 +417,13 @@ fn queued_cancel_retry_conflict_and_active_capacity_are_durable() {
     }
     owned.release();
     owned.until(|| {
-        store::runtime(&store::required(&owned.jobs()).unwrap())
-            .unwrap()
-            .owner
-            .is_none()
+        match store::required(&owned.jobs()).and_then(|db| store::runtime(&db)) {
+            Ok(runtime) => runtime.owner.is_none(),
+            // Releasing the supervisor permits its final progress transaction.
+            // Observation retries only the documented transient store conflict.
+            Err(error) if error.code == "JOB_BUSY" => false,
+            Err(error) => panic!("{error:?}"),
+        }
     });
     assert!(!owned.root.join("one.png").exists());
 }

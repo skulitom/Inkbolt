@@ -32,6 +32,12 @@ use `cargo +1.89.0 check --locked --all-targets` for its separate compatibility
 check. Toolchain installation is setup work; keep it outside the routine check
 budget when provisioning a new machine.
 
+The development profile optimizes the pinned SHA-256 dependency used to verify
+worker and resource contents. The test profile inherits this setting. Engine
+code keeps ordinary development settings; content verification still reads and
+hashes the full bytes. Release settings, dependency versions and test deadlines
+are unchanged.
+
 After changing `docs/features.json`, run `python tools/update_report.py` before
 verification. The dedicated `test_implementation_registry` module checks the
 compiled registry, evidence references and generated report together.
