@@ -337,6 +337,15 @@ def verify(args, state, started, deadline):
         if row['status'] != 'reused':
             retain_duration(row, history.get(name, {}))
     stable = snapshot(ROOT) == baseline and file_hash(EXE) == binary and environment_identity(ROOT) == environment
+    # A fresh unfiltered Rust pass covers the current Rust suite. Retire older
+    # failed selectors from the retry queue, without manufacturing filtered passes
+    # or discarding their logs. A selector explicitly run now still stands alone.
+    broad_rust = rows.get('rust', {})
+    superseded = sorted(name for name, row in history.items()
+                        if stable and broad_rust.get('status') == 'passed'
+                        and broad_rust.get('tests', 0) > 0
+                        and name.startswith('rust:') and name not in rows
+                        and row.get('status') == 'failed')
     failures = sorted(n for n, row in rows.items() if row['status'] == 'failed')
     deferred = sorted(n for n, row in rows.items() if row['status'] == 'deferred')
     code = 1 if failures or not stable else 2 if deferred else 0
@@ -345,6 +354,7 @@ def verify(args, state, started, deadline):
                   budget_seconds=None if args.thorough else args.budget, inputs_unchanged=stable,
                   input_fingerprint=digest(baseline), environment=environment, executable=binary,
                   checks=rows, failed=failures, deferred=deferred, outside_scope=excluded,
+                  superseded_rust_filters=superseded,
                   retained_engine_copy=retained_engine,
                   python_modules_discovered=len(modules), python_tests_discovered=sum(counts.values()) if counts else None,
                   python_tests_executed=sum(row.get('tests', 0) - row.get('skipped', 0) for name, row in rows.items() if name.startswith('test_') and row['status'] == 'passed'),
@@ -360,6 +370,10 @@ def verify(args, state, started, deadline):
         output.write_text(report_path.read_text(encoding='utf-8'), encoding='utf-8')
     # Completed independent stages survive another stage exhausting its budget.
     if stable:
+        for name in superseded:
+            history[name] = dict(history[name], status='superseded', previous_status='failed',
+                                 superseded_by=dict(check='rust', fingerprint=broad_rust['fingerprint'],
+                                                    log=broad_rust['log']))
         for name, row in rows.items():
             if row['status'] != 'reused':
                 # A failure survives a deferral until the check actually passes.

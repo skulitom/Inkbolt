@@ -446,6 +446,59 @@ class VerificationTests(unittest.TestCase):
         self.assertTrue(record['complete_suite'])
         self.assertTrue(all(r['status'] == 'passed' for r in record['checks'].values()))
 
+    def test_fresh_unfiltered_rust_pass_retires_stale_retry_filters_without_claiming_they_passed(self):
+        for name in ('one', 'two'): self.write(f'tests/test_{name}.py', 'value=1')
+        self.write('engine.exe', 'test-binary')
+        state=self.root/'state';state.mkdir()
+        commands=[];python_fails=[True]
+        def fake(argv,*args):
+            commands.append(argv)
+            rust=argv[:2]==['cargo','test']
+            count=0 if rust and 'obsolete-filter' in argv else 2
+            output=f'test result: ok. {count} passed; 0 failed;' if rust else 'Ran 1 test in 0.01s\nOK\n'
+            bad=python_fails[0] and 'test_two.py' in argv
+            return dict(status='failed' if bad else 'passed',seconds=.01,exit_code=int(bad),output=output)
+        self.assertEqual(self.mini_run(['--rust','obsolete-filter'],fake,state),1)
+        old=verify.load_state(state/'state.json')['checks']['rust:obsolete-filter']
+        self.assertEqual(old['reason'],'No passing Rust test evidence')
+        self.assertEqual(self.mini_run([],fake,state),1)  # Rust passes; independent Python failure remains.
+        saved=verify.load_state(state/'state.json')
+        retired=saved['checks']['rust:obsolete-filter']
+        self.assertEqual(retired['status'],'superseded')
+        self.assertEqual(retired['previous_status'],'failed')
+        self.assertEqual(retired['log'],old['log'])
+        self.assertTrue(Path(retired['log']).exists())
+        self.assertFalse(verify.reusable(retired,retired['fingerprint']))
+        self.assertEqual(retired['superseded_by']['log'],saved['checks']['rust']['log'])
+        report=json.loads(Path(saved['latest_report']).read_text())
+        self.assertEqual(report['superseded_rust_filters'],['rust:obsolete-filter'])
+        self.assertEqual(report['failed'],['test_two'])
+        python_fails[0]=False;commands.clear()
+        self.assertEqual(self.mini_run(['--last-failed'],fake,state),0)
+        self.assertFalse(any(command[:2]==['cargo','test'] for command in commands))
+        self.assertTrue(any('test_two.py' in command for command in commands))
+
+    def test_failed_partial_or_simultaneous_rust_checks_cannot_retire_a_failed_filter(self):
+        self.write('tests/test_one.py','value=1');self.write('engine.exe','test-binary')
+        state=self.root/'state';state.mkdir()
+        fail_full=[True]
+        def fake(argv,*args):
+            rust=argv[:2]==['cargo','test']
+            missing=rust and 'obsolete-filter' in argv
+            bad=rust and len(argv)==3 and fail_full[0]
+            output=f'test result: ok. {0 if missing else 2} passed; 0 failed;' if rust else 'Ran 1 test in 0.01s\nOK\n'
+            return dict(status='failed' if bad else 'passed',seconds=.01,exit_code=int(bad),output=output)
+        self.assertEqual(self.mini_run(['--rust','obsolete-filter'],fake,state),1)
+        for args,code in [(['--only','rust'],1),(['--rust','current-filter'],0),
+                          (['--only','rust','--rust','obsolete-filter'],1)]:
+            with self.subTest(args=args):
+                if '--rust' in args: fail_full[0]=False
+                self.assertEqual(self.mini_run(args,fake,state),code)
+                saved=verify.load_state(state/'state.json')
+                self.assertEqual(saved['checks']['rust:obsolete-filter']['status'],'failed')
+                report=json.loads(Path(saved['latest_report']).read_text())
+                self.assertEqual(report['superseded_rust_filters'],[])
+
     def test_source_changes_during_run_discard_all_reuse(self):
         for n in ('one', 'two'): self.write(f'tests/test_{n}.py', 'value=1')
         source = self.write('src/lib.rs', 'original')

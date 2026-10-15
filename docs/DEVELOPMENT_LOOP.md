@@ -72,6 +72,14 @@ Invalid arguments also use the standard argument-parser exit 2 with an explicit 
 
 `--thorough` always runs the complete suite, including formatting, locked build, all-target Clippy with warnings denied, Rust tests, every discovered Python module and the candidate material guard. It ignores cached passes and has no quick deadline. Selection/cache/budget overrides cannot be combined with it. It does not replace the separate release workload, model-driven benchmark, recovery or platform evidence required for the claims being made.
 
+A fresh, unchanged unfiltered Rust pass retires older failed Rust selectors from
+the failed-check retry queue. Their history status becomes `superseded`, with
+the original failure/log and the covering Rust pass retained; it never becomes
+a reusable filtered pass. Reports list `superseded_rust_filters`. Failed,
+deferred, reused or partial Rust checks cannot retire failures, and an explicitly
+selected filter must still pass independently in that run. A no-match filter
+still fails rather than counting zero tests as a pass.
+
 ## Exact-input reuse
 
 Local state and logs live under the checkout's Git directory in `inkbolt-verify/`; they are not published. A per-checkout OS lock prevents overlapping verifiers. Reports contain per-stage commands, timings, test counts, statuses, log paths, source/environment/executable fingerprints and explicit outside-scope and pending lists. `--report EXTERNAL_PATH` also retains a report externally. Only a successful unchanged thorough run sets `complete_suite: true`; no progress/feature registry is updated automatically.
