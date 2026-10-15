@@ -1936,6 +1936,48 @@ feedback keeps the 180-second budget; fresh full acceptance is a milestone gate.
 W3a.6-8 and the overall goal remain open. No additional engine checkpoint is
 awarded; the unchanged registry remains 163/167.
 
+## W3a.6: image admission implemented; full acceptance open
+
+PNG/JPEG data URIs and relative local files under an explicit image source root
+become editable placed images. The [contract](SVG_IMPORT.md#placed-images) covers
+intrinsic and percentage sizing, aspect mapping, clipping, positioning-rectangle
+effects, inherited sampling hints and reusable components. Encoded resources
+retain original source bytes and normalized identity without writing an asset
+store. The existing snapshot-byte, asset and decoded-pixel ceilings remain in
+force; the raw-inline allowance is unchanged. This is not W4 scale acceptance.
+
+Sixteen original image tests cover independent placement pixels at two scales,
+PNG/SVG round trips, synthetic JPEG, profile conversion, source/pixel identities,
+resource limits, explicit root resolution and symlinks, shared edits, mapped IDs,
+dry runs, changed-source proposal rejection, source-free retries and undo/redo.
+A failed batch leaves session state and workspace files unchanged. Existing
+image, color, SVG, discovery, workspace and verifier regressions also ran.
+
+Focused feedback passed on matching, unchanged candidate
+`045bc115323cd611f0e7b9ddf506a0a94f33cc9d9f47b1d86c5fdc8fd62e1c6d`:
+
+| Platform | Fresh stages | Reused stages | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 3 | 15 | 41 | 1 | 31.3 |
+| Linux / WSL | 18 | 0 | 182 | 3 | 81.0 |
+
+Windows additionally reused 143 Python passes with identical relevant inputs.
+Its one new image symlink fixture lacked host privilege; that fixture ran and
+passed on Linux. Linux's three skips are Windows-specific verifier tests.
+No selected check failed or remained pending. There were 232 stages outside
+this focused scope, including the Rust test stage; build and all-target Clippy
+passed. Earlier fixture/schema mistakes and their successful corrections remain
+in the external reports. Routine feedback retained the 180-second budget.
+
+The external `w3a-images-focused-01` bundle contains both reports, all 36 selected
+stage logs, a six-part requirement review, an 886-file source inventory and a
+frozen candidate archive. Audit SHA-256:
+`f05f4cd86f6f14eaa99b88d052706595c592e4ef73e09311610e5263c532a7c3`.
+These status/documentation updates follow that frozen candidate; implementation
+and tests are unchanged. Fresh full Windows/Linux runs and the milestone review
+remain required before closing W3a.6. No new macOS, Unix-job, model-trial or
+engine-checkpoint claim is made; the registry remains 163/167 and the goal remains open.
+
 ## W3b: complete within the insertion contract
 
 `add_svg` is an atomic edit accepting fragments and complete SVG documents. It

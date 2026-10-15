@@ -101,7 +101,7 @@ pub(super) struct Binding {
     pub style: Style,
     pub clip: Option<String>,
     pub displayed: bool,
-    pub text_bounds: Option<geometry::Bounds>,
+    pub object_bounds: Option<geometry::Bounds>,
     pub text_placement: Matrix,
     pub viewport: [f64; 2],
 }
@@ -663,9 +663,8 @@ pub(super) fn local_bounds(
     transform: Matrix,
     bindings: &[Binding],
 ) -> Option<geometry::Bounds> {
-    match &d.items[index].content {
-        Content::Vector { geometry, .. } => Some(geometry::bounds(geometry, transform)),
-        Content::Text { .. } => bindings[index].text_bounds.map(|b| {
+    if let Some(b) = bindings[index].object_bounds {
+        return Some({
             let points = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
             points
                 .into_iter()
@@ -675,7 +674,10 @@ pub(super) fn local_bounds(
                 })
                 .reduce(crate::scene::union)
                 .unwrap()
-        }),
+        });
+    }
+    match &d.items[index].content {
+        Content::Vector { geometry, .. } => Some(geometry::bounds(geometry, transform)),
         Content::Group { .. } | Content::MaskSource {} => {
             crate::scene::children(d, Some(&d.items[index].id))
                 .into_iter()

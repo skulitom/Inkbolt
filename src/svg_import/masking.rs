@@ -214,7 +214,7 @@ impl Importer<'_> {
                 style: template.style.clone(),
                 clip: template.clip.clone(),
                 displayed: true,
-                text_bounds: None,
+                object_bounds: None,
                 text_placement: identity(),
                 viewport: self.viewport,
             });

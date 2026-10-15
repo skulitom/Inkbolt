@@ -1,8 +1,10 @@
 //! Bounded, original SVG-to-document mapping using a public XML parser.
 mod arcs;
 mod definitions;
+mod images;
 mod insertion;
 pub use definitions::{MAX_DEFINITIONS, MAX_REFERENCE_DEPTH};
+pub use images::ImageOptions;
 pub use insertion::InsertFontBinding;
 pub(crate) use insertion::insert;
 mod labels;
@@ -52,6 +54,7 @@ const PROPERTIES: &[&str] = &[
     "visibility",
     "isolation",
     "color-interpolation",
+    "image-rendering",
     "clip-path",
     "clip-rule",
     "stop-color",
@@ -82,6 +85,7 @@ struct Style {
     miter: f64,
     dash: crate::strokes::Dash,
     visible: bool,
+    image_sampling: Option<crate::assets::Sampling>,
     clip_rule: FillRule,
     space: crate::paint::Interpolation,
     stop_color: String,
@@ -110,6 +114,7 @@ impl Default for Style {
                 offset: 0.0,
             },
             visible: true,
+            image_sampling: None,
             clip_rule: FillRule::Nonzero,
             space: crate::paint::Interpolation::Srgb,
             stop_color: "black".into(),
@@ -263,11 +268,12 @@ fn properties<'a>(
         props.insert("mask-mode", "inherit");
     }
     styles.apply(node, &mut props)?;
-    let inner_viewport = node.has_tag_name("symbol")
+    let inner_viewport = node.has_tag_name("image")
+        || node.has_tag_name("symbol")
         || (node.has_tag_name("svg") && node.parent_element().is_some());
     if !inner_viewport && props.contains_key("overflow") {
         return Err(unsupported(
-            "Overflow is supported on symbol and nested SVG viewports only",
+            "Overflow is supported on image, symbol and nested SVG viewports only",
         ));
     }
     Ok(props)
@@ -400,6 +406,13 @@ fn styled_with_text(
                     "hidden" | "collapse" => false,
                     _ => return Err(invalid("Invalid visibility")),
                 }
+            }
+            "image-rendering" => {
+                s.image_sampling = match v {
+                    "auto" => None,
+                    "pixelated" => Some(crate::assets::Sampling::Nearest),
+                    _ => return Err(unsupported("Image rendering requires auto or pixelated")),
+                };
             }
             "opacity" => {
                 unit_interval(v)?;
@@ -617,6 +630,7 @@ struct Importer<'css> {
     definitions: definitions::Definitions,
     bindings: Vec<definitions::Binding>,
     fonts: labels::Fonts,
+    images: images::Images,
     viewport: [f64; 2],
     in_mask: bool,
     modern_masks: bool,
@@ -652,6 +666,11 @@ impl Importer<'_> {
         {
             return self.collect_definition(node, inherited);
         }
+        if tag == "image" && root_matrix.is_none() {
+            return self
+                .expand_image(node, parent, inherited)
+                .map_err(|error| reuse::located(error, node));
+        }
         let is_root = root_matrix.is_some();
         let container = is_root || tag == "g" || tag == "use";
         let is_text = tag == "text";
@@ -676,6 +695,7 @@ impl Importer<'_> {
             ],
             "g" => &[],
             "use" => reuse::ATTRIBUTES,
+            "image" => images::ATTRIBUTES,
             "symbol" => viewports::SYMBOL_ATTRIBUTES,
             "text" => &["x", "y", "dx", "dy"],
             _ => shape_attributes(tag)?,
@@ -759,7 +779,7 @@ impl Importer<'_> {
                 ));
             }
         }
-        let mut text_bounds = None;
+        let mut object_bounds = None;
         let mut text_placement = identity();
         let content = if is_text {
             let imported = labels::content(
@@ -769,7 +789,7 @@ impl Importer<'_> {
                 &mut self.fonts,
                 self.viewport,
             )?;
-            text_bounds = imported.bounds;
+            object_bounds = imported.bounds;
             text_placement = imported.placement;
             transform = geometry::multiply(transform, text_placement);
             self.losses.push("SVG text becomes a single editable frame using explicitly bound fonts. Whitespace and baseline placement are normalized; anchor alignment persists within the initial advance-width frame. Font-family expressions and XML text structure are not retained. SVG export uses glyph outlines and reports loss of text editability.".into());
@@ -822,7 +842,7 @@ impl Importer<'_> {
                 .transpose()?
                 .flatten(),
             displayed: props.get("display") != Some(&"none"),
-            text_bounds,
+            object_bounds,
             text_placement,
             viewport: self.viewport,
         });
@@ -895,6 +915,25 @@ pub fn import_controlled(
     resource_profile: ResourceProfile,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
+    import_with_images_controlled(
+        id,
+        source,
+        font_bindings,
+        font_root,
+        resource_profile,
+        ImageOptions::default(),
+        control,
+    )
+}
+pub fn import_with_images_controlled(
+    id: String,
+    source: Source,
+    font_bindings: Vec<FontBinding>,
+    font_root: Option<PathBuf>,
+    resource_profile: ResourceProfile,
+    images: ImageOptions,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
     import_with_budget(
         id,
         source,
@@ -905,12 +944,14 @@ pub fn import_controlled(
         ImportOptions {
             byte_budget: None,
             components: true,
+            images,
         },
     )
 }
 struct ImportOptions {
     byte_budget: Option<usize>,
     components: bool,
+    images: ImageOptions,
 }
 fn import_with_budget(
     id: String,
@@ -1075,7 +1116,7 @@ fn import_with_budget(
         [width, height]
     };
     let mut importer=Importer{styles:&styles,control:control.clone(),document,mappings:vec![],approximations:vec![],definitions:Default::default(),bindings:vec![],
-        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), references, use_path:vec![],template_refs:Default::default(),collected_resources:HashSet::new(),scopes:scopes::Scopes::new(root),occurrences:vec![],losses:vec![
+        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, images:images::Images::new(options.images), viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), references, use_path:vec![],template_refs:Default::default(),collected_resources:HashSet::new(),scopes:scopes::Scopes::new(root),occurrences:vec![],losses:vec![
         "Source IDs are mapped to deterministic item IDs; the root is an editable group. Retain the source for XML formatting, comments and original IDs.".into(),
         "Presentation inheritance, embedded stylesheets and inline style are resolved into editable properties. Classes, selectors and stylesheet syntax are not retained. Quadratic curves and shorthand become explicit cubic/line commands; units/viewBox become affine transforms. Original syntax is not retained.".into(),
         "Paint colors and fill/stroke opacity are quantized to RGBA8; object and group opacity retain f64 precision. Geometry is f64; display coverage uses the existing f32 renderer.".into(),

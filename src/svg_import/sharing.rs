@@ -414,6 +414,7 @@ impl Importer<'_> {
                 &[
                     "item_id",
                     "viewport_item_id",
+                    "image_item_id",
                     "resource_item_id",
                     "instance_item_id",
                     "component_source_id",

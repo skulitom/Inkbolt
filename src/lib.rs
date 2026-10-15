@@ -395,6 +395,8 @@ pub enum Request {
         id: String,
         source: svg_import::Source,
         #[serde(default)]
+        images: svg_import::ImageOptions,
+        #[serde(default)]
         font_bindings: Vec<svg_import::FontBinding>,
         #[serde(default)]
         font_root: Option<PathBuf>,
@@ -1156,9 +1158,25 @@ fn capability_report() -> Value {
     svg_import_contract["elements"]
         .as_array_mut()
         .unwrap()
-        .extend([json!("use"), json!("symbol")]);
+        .extend([json!("use"), json!("symbol"), json!("image")]);
+    svg_import_contract["resources"] =
+        json!("local_definitions_explicit_pinned_fonts_and_embedded_image_sources");
+    svg_import_contract["images"] = json!({"formats":["png","jpeg"],
+        "sources":["data_uri_base64_or_percent_bytes","relative_file_under_explicit_images.source_root"],
+        "remote_urls":false,"implicit_source_root":false,"file_writes":false,
+        "storage":"encoded_source_base64_with_source_and_normalized_pixel_hashes",
+        "default_color_policy":"assume_srgb","color_policies":["require_srgb","assume_srgb","convert_srgb"],
+        "default_sampling":"bilinear","sampling":"existing_native_image_sampling",
+        "image_rendering":{"auto":"images.sampling","pixelated":"nearest_with_declared_noninteger_scale_loss","inherited":true},
+        "dimensions":"absolute_percentage_auto;intrinsic_pixels_when_omitted;missing_axis_uses_intrinsic_ratio",
+        "aspect":"meet_slice_none_all_nine_alignments","overflow":["hidden","visible"],"default_overflow":"hidden",
+        "object_box":"positioning_rectangle_including_letterboxing","zero_size":"nonpainting_group_with_hidden_intrinsic_image",
+        "reuse":"shared_assets_and_compatible_native_components",
+        "limits":"existing_source_snapshot_asset_count_and_aggregate_decoded_pixel_budgets",
+        "mapping":["asset_id","image_item_id","viewport_item_id","image_size","empty_image"],
+        "unsupported":["image_artwork_inside_mask_sources","svg_image_sources","animations","css_geometry_and_object_fit"]});
     svg_import_contract["reuse"] = json!({"references":"literal_local_href_or_xlink_href",
-        "targets":["shapes","g","text","use","symbol","svg"],"output":"compatible_native_components;declared_context_variants_and_group_fallback",
+        "targets":["shapes","g","text","image","use","symbol","svg"],"output":"compatible_native_components;declared_context_variants_and_group_fallback",
         "styles":"source_declarations_with_placement_inheritance",
         "position":"transform_then_xy_translation_with_current_viewport_percentages",
         "nonviewport_dimensions":"validated_but_do_not_scale_shapes",
@@ -1205,7 +1223,7 @@ fn capability_report() -> Value {
     svg_import_contract["insertion"] = json!({"operation":"add_svg",
         "sources":["svg_fragment","svg_document"],"source_bytes":MAX_REQUEST_BYTES,
         "prefix_bytes":limits::transfer::MAX_PREFIX_BYTES,"placement":"parent_local",
-        "fonts":"existing_destination_bindings","compositing":"destination_working_space",
+        "fonts":"existing_destination_bindings","images":"same_images_options_and_atomic_encoded_asset_transfer","compositing":"destination_working_space",
         "full_document_viewport":"retained_as_outer_clip","fragment_viewport":"destination_logical_size_without_extra_clip",
         "ids":"deterministic_collision_checked_prefix","unsupported_policy":"error_atomic_batch"});
     let mut capabilities = json!({
@@ -1331,6 +1349,11 @@ fn capability_report() -> Value {
     capabilities["reconstruction"] = json!({"methods":["area","bicubic","lanczos3"],"bicubic_parameter":-0.5,"lanczos_radius":3,"footprint":"inverse_pixel_source_axis_bounds","downsample":"widen_and_normalize_each_axis","area":"exact_box_cell_overlap","alpha":"premultiplied_with_final_valid_rgba_projection","border":"clamp_to_source_crop","max_axis_taps":resample::MAX_AXIS_TAPS,"max_work":resample::MAX_WORK,"svg":false,"scalar_masks":false,"displacement_maps":false});
     capabilities["canvas_operations"] = json!({"document_kinds":["raster"],"operation":"canvas","actions":["crop","extent","scale","resolution"],"sampling":["nearest","bilinear","area","bicubic","lanczos3"],"sampling_boundary_epsilon_factor":limits::assets::PIXEL_BOUNDARY_EPSILONS,"extent_anchors":"nine_positions_with_floor_half_delta","content":"retained_layers_and_source_pixels","auxiliary_planes":"canvas_bound_crop_pad_or_resample","filters":"explicit_preserve_parameters_policy_required","resolution_only":true,"advanced_resamplers":true});
     capabilities["svg_import"] = svg_import_contract;
+    capabilities["encoded_image_assets"] = json!({"storage_type":"encoded","formats":["png","jpeg"],
+        "source":"immutable_base64_in_snapshot","verification":"source_hash_then_decode_and_compare_dimensions_pixel_hash_and_provenance",
+        "color_policy":"retained_in_storage","external_store_required":false,
+        "source_byte_limit":assets::MAX_IMPORT_BYTES,"aggregate_pixel_limit":assets::MAX_ASSET_PIXELS,
+        "snapshot_bytes":"resource_profile_limit_including_base64","raw_inline_pixel_limit_unchanged":true});
     capabilities["native_vector_import"] = json!({
         "command":"vector.import","source":"local_regular_file;read_only",
         "container":"editable_text_14_creator_30;or_classic_xref_PDF_with_one_reachable_editable_stream_container_12_roundtrip_24_creator_30",
@@ -2271,12 +2294,14 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             source,
             font_bindings,
             font_root,
-        } => svg_import::import_controlled(
+            images,
+        } => svg_import::import_with_images_controlled(
             id,
             source,
             font_bindings,
             font_root,
             resource_profile,
+            images,
             &context.scoped(&control)?,
         ),
         Request::VectorImport {
@@ -2837,7 +2862,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             let items: Vec<Value> = (0..document.items.len())
                 .map(|i| inspect_item(&document, i, &mut geometry))
                 .collect::<Result<_, _>>()?;
-            let assets:Vec<_>=document.assets.iter().map(|(id,a)|json!({"id":id,"width":a.width,"height":a.height,"sha256":a.sha256,"storage":match a.storage{assets::Storage::Stored=>"stored",assets::Storage::Embedded{..}=>"embedded"},"provenance":a.provenance,"used_by":document.items.iter().filter_map(|item|match &item.content{model::Content::Image{asset_id,..} if asset_id==id=>Some(&item.id),_=>None}).collect::<Vec<_>>()})).collect();
+            let assets:Vec<_>=document.assets.iter().map(|(id,a)|json!({"id":id,"width":a.width,"height":a.height,"sha256":a.sha256,"storage":match a.storage{assets::Storage::Stored=>"stored",assets::Storage::Embedded{..}=>"embedded",assets::Storage::Encoded{..}=>"encoded"},"provenance":a.provenance,"used_by":document.items.iter().filter_map(|item|match &item.content{model::Content::Image{asset_id,..} if asset_id==id=>Some(&item.id),_=>None}).collect::<Vec<_>>()})).collect();
             let fonts:Vec<_>=document.fonts.iter().map(|(id,font)|json!({"id":id,"font":font,"used_by":document.items.iter().filter(|item|instances::any_content(&item.content,&|c|match c {model::Content::Text {frame}=>text::styles(frame).any(|s|s.font_ids().any(|f|f==id)),model::Content::StoryFrame {story_id,..}=>document.stories.get(story_id).is_some_and(|story|story.styles().any(|s|s.font_ids().any(|f|f==id))),_=>false})).map(|item|&item.id).collect::<Vec<_>>()})).collect();
             Ok(
                 json!({"stories":document.stories,"swatches":swatches::inspect(&document)?,"background":backgrounds::inspect(&document),"metadata":document.metadata,"resource_manifest":metadata::manifest(&document),"id":document.id,"revision":document.revision,"kind":document.kind,"width":document.width,"height":document.height,"canvas_bounds":if document.vector_canvas.is_some(){json!(vector_canvas::bounds(&document))}else{json!([0,0,document.width,document.height])},"vector_canvas":document.vector_canvas.map(|c|c.receipt(document.resolution_ppi)).transpose()?,"output_profile":document.output_profile.as_ref().map(profiles::summary).transpose()?,"global_light":document.global_light,"resolution_ppi":document.resolution_ppi,"variants":document.variants,"selection":selections::inspect(document.selection.as_ref()),"channels":channels::inspect(&document),"ink_recipe":ink_recipes::inspect(&document),"items":items,"assets":assets,"fonts":fonts,"artboards":boards::inspect(&document)?,"resource_profile":document.resource_profile,"bounds_semantics":"Unclipped geometry only; excludes strokes, visibility and opacity. Text uses its frame here; text.inspect reports glyph ink. Resource inventories are structural; use asset.verify/font.verify to check stored bytes."}),

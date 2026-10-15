@@ -37,7 +37,13 @@ fn view_box(node: Node<'_, '_>) -> Result<Option<[f64; 4]>, Error> {
 }
 
 pub(super) fn mapping(node: Node<'_, '_>, [width, height]: [f64; 2]) -> Result<Matrix, Error> {
-    let view = view_box(node)?;
+    mapping_from(node, [width, height], view_box(node)?)
+}
+pub(super) fn mapping_from(
+    node: Node<'_, '_>,
+    [width, height]: [f64; 2],
+    view: Option<[f64; 4]>,
+) -> Result<Matrix, Error> {
     let tokens: Vec<_> = node
         .attribute("preserveAspectRatio")
         .unwrap_or("xMidYMid meet")
@@ -186,7 +192,7 @@ impl Viewport {
 }
 
 impl Importer<'_> {
-    fn viewport_group(
+    pub(super) fn viewport_group(
         &mut self,
         parent: String,
         transform: Matrix,
@@ -239,7 +245,7 @@ impl Importer<'_> {
             style: Style::default(),
             clip: None,
             displayed: visible,
-            text_bounds: None,
+            object_bounds: None,
             text_placement: identity(),
             viewport: self.viewport,
         });

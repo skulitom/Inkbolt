@@ -4,6 +4,7 @@ use crate::{
     model::{MAX_DIMENSION, MAX_STORED_PIXELS, invalid, limit},
     render,
 };
+use base64::Engine;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -48,7 +49,13 @@ pub struct Provenance {
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Storage {
     Stored,
-    Embedded { rgba_hex: String },
+    Embedded {
+        rgba_hex: String,
+    },
+    Encoded {
+        data_base64: String,
+        color_policy: ColorPolicy,
+    },
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -154,7 +161,38 @@ pub fn validate(asset: &ImageAsset) -> Result<usize, Error> {
         }
         return Ok(count as usize);
     }
+    if let Storage::Encoded { data_base64, .. } = &asset.storage {
+        encoded_bytes(asset, data_base64)?;
+    }
     Ok(0)
+}
+fn encoded_bytes(asset: &ImageAsset, data: &str) -> Result<Vec<u8>, Error> {
+    if data.len() as u64 > MAX_IMPORT_BYTES.div_ceil(3) * 4 {
+        return Err(limit("Encoded image exceeds source byte limit"));
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| invalid("Encoded image requires canonical base64"))?;
+    if bytes.len() as u64 > MAX_IMPORT_BYTES {
+        return Err(limit("Encoded image exceeds source byte limit"));
+    }
+    if asset
+        .provenance
+        .as_ref()
+        .is_none_or(|p| p.source_sha256 != sha256(&bytes))
+    {
+        return Err(Error::new(
+            "ASSET_CORRUPT",
+            "Encoded image bytes do not match their source identity",
+        ));
+    }
+    if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") && !bytes.starts_with(&[255, 216]) {
+        return Err(Error::new(
+            "UNSUPPORTED",
+            "Encoded assets require PNG or JPEG sources",
+        ));
+    }
+    Ok(bytes)
 }
 pub fn crop(asset_width: u32, asset_height: u32, crop: Option<Crop>) -> Result<Crop, Error> {
     let c = crop.unwrap_or(Crop {
@@ -211,6 +249,24 @@ pub fn load(asset: &ImageAsset, root: Option<&Path>) -> Result<Pixels, Error> {
     validate(asset)?;
     let rgba = match &asset.storage {
         Storage::Embedded { rgba_hex } => render::unhex(rgba_hex),
+        Storage::Encoded {
+            data_base64,
+            color_policy,
+        } => {
+            let bytes = encoded_bytes(asset, data_base64)?;
+            let (decoded, rgba) = decode_bytes(&bytes, *color_policy, None)?;
+            if decoded.asset.width != asset.width
+                || decoded.asset.height != asset.height
+                || decoded.asset.sha256 != asset.sha256
+                || decoded.asset.provenance != asset.provenance
+            {
+                return Err(Error::new(
+                    "ASSET_CORRUPT",
+                    "Decoded image does not match its descriptor",
+                ));
+            }
+            rgba
+        }
         Storage::Stored => {
             let root = root.ok_or_else(|| {
                 Error::new(
@@ -525,8 +581,30 @@ pub fn import_with_profile(
     absolute(source)?;
     absolute(root)?;
     let bytes = read_bounded(source, MAX_IMPORT_BYTES)?;
+    let (mut imported, rgba) = decode_bytes(&bytes, policy, declared)?;
+    imported.created = publish(&imported.asset, &rgba, root)?;
+    Ok(imported)
+}
+/// An immutable, self-contained source. Decoding has no filesystem side effects.
+pub(crate) fn encoded(bytes: &[u8], policy: ColorPolicy) -> Result<Imported, Error> {
+    let (mut imported, _) = decode_bytes(bytes, policy, None)?;
+    imported.asset.storage = Storage::Encoded {
+        data_base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+        color_policy: policy,
+    };
+    validate(&imported.asset)?;
+    Ok(imported)
+}
+fn decode_bytes(
+    bytes: &[u8],
+    policy: ColorPolicy,
+    declared: Option<&crate::profiles::Profile>,
+) -> Result<(Imported, Vec<u8>), Error> {
+    if bytes.len() as u64 > MAX_IMPORT_BYTES {
+        return Err(limit("Asset input exceeds byte limit"));
+    }
     if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
-        let decoded = crate::image_io::decode(&bytes, policy, declared)?;
+        let decoded = crate::image_io::decode(bytes, policy, declared)?;
         let asset = ImageAsset {
             width: decoded.pixels.width,
             height: decoded.pixels.height,
@@ -538,27 +616,29 @@ pub fn import_with_profile(
             storage: Storage::Stored,
             provenance: Some(Provenance {
                 source_profile_sha256: decoded.source_profile_sha256,
-                source_sha256: sha256(&bytes),
+                source_sha256: sha256(bytes),
                 interpretation: decoded.interpretation,
             }),
         };
         validate(&asset)?;
         let metadata = decoded
             .metadata
-            .or(crate::metadata::recover(&bytes, decoded.format)?);
-        let created = publish(&asset, &decoded.pixels.rgba, root)?;
-        return Ok(Imported {
-            metadata,
-            color_conversion: conversion_receipt(&asset),
-            asset,
-            created,
-            source_format: decoded.format,
-            losses: decoded.losses,
-        });
+            .or(crate::metadata::recover(bytes, decoded.format)?);
+        return Ok((
+            Imported {
+                metadata,
+                color_conversion: conversion_receipt(&asset),
+                asset,
+                created: false,
+                source_format: decoded.format,
+                losses: decoded.losses,
+            },
+            decoded.pixels.rgba,
+        ));
     }
-    let interpretation = preflight(&bytes, policy, declared.is_some())?;
+    let interpretation = preflight(bytes, policy, declared.is_some())?;
     let mut decoder = png::Decoder::new_with_limits(
-        Cursor::new(&bytes),
+        Cursor::new(bytes),
         png::Limits {
             bytes: 64 * 1024 * 1024,
         },
@@ -624,23 +704,25 @@ pub fn import_with_profile(
         storage: Storage::Stored,
         provenance: Some(Provenance {
             source_profile_sha256,
-            source_sha256: sha256(&bytes),
+            source_sha256: sha256(bytes),
             interpretation,
         }),
     };
     validate(&asset)?;
-    let metadata = crate::metadata::recover(&bytes, "png")?;
-    let created = publish(&asset, &rgba, root)?;
-    Ok(Imported {
-        metadata,
-        color_conversion: conversion_receipt(&asset),
-        asset,
-        created,
-        source_format: "png",
-        losses: vec![
-            "Recognized Inkbolt descriptions are returned separately as untrusted metadata. Other source metadata is retained only through its byte hash. Density does not change placement, which uses explicit pixel dimensions.",
-        ],
-    })
+    let metadata = crate::metadata::recover(bytes, "png")?;
+    Ok((
+        Imported {
+            metadata,
+            color_conversion: conversion_receipt(&asset),
+            asset,
+            created: false,
+            source_format: "png",
+            losses: vec![
+                "Recognized Inkbolt descriptions are returned separately as untrusted metadata. Other source metadata is retained only through its byte hash. Density does not change placement, which uses explicit pixel dimensions.",
+            ],
+        },
+        rgba,
+    ))
 }
 fn conversion_receipt(asset: &ImageAsset) -> Option<serde_json::Value> {
     let source = asset.provenance.as_ref()?.source_profile_sha256.as_ref()?;

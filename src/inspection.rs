@@ -314,7 +314,7 @@ pub fn page(d: &Document, options: &Options, control: &Control) -> Result<Value,
                 .filter(|(id, _)| chosen.is_empty() || chosen.contains(*id))
                 .collect();
             let total = entries.len();
-            ("assets","id",total,Box::new(entries.into_iter().skip(start).map(|(id,a)|Ok(json!({"id":id,"width":a.width,"height":a.height,"sha256":a.sha256,"storage":match a.storage {assets::Storage::Stored=>"stored",assets::Storage::Embedded{..}=>"embedded"},"provenance":a.provenance})))))
+            ("assets","id",total,Box::new(entries.into_iter().skip(start).map(|(id,a)|Ok(json!({"id":id,"width":a.width,"height":a.height,"sha256":a.sha256,"storage":match a.storage {assets::Storage::Stored=>"stored",assets::Storage::Embedded{..}=>"embedded",assets::Storage::Encoded{..}=>"encoded"},"provenance":a.provenance})))))
         }
         View::Fonts { ids } => {
             let chosen = selected(ids, &d.fonts.keys().map(String::as_str).collect())?;

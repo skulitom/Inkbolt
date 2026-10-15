@@ -188,6 +188,8 @@ pub enum Operation {
     AddSvg {
         svg: String,
         #[serde(default)]
+        images: crate::svg_import::ImageOptions,
+        #[serde(default)]
         parent: Option<String>,
         #[serde(default)]
         prefix: Option<String>,
@@ -993,6 +995,7 @@ fn apply_one(
         }
         Operation::AddSvg {
             svg,
+            images,
             parent,
             prefix,
             font_bindings,
@@ -1002,7 +1005,7 @@ fn apply_one(
                 svg,
                 parent.as_deref(),
                 prefix.as_deref(),
-                font_bindings,
+                (font_bindings, images),
                 font_root,
                 control,
             )?;

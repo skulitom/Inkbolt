@@ -71,10 +71,10 @@ impl References {
                     .copied()
                     .ok_or_else(|| invalid("Missing SVG use target"))?;
                 let tag = target.tag_name().name();
-                if !["g", "text", "use", "symbol", "svg"].contains(&tag) && shape_attributes(tag).is_err()
+                if !["g", "text", "use", "symbol", "svg", "image"].contains(&tag) && shape_attributes(tag).is_err()
                 {
                     return Err(unsupported(
-                        "SVG use currently references shapes, groups, text, SVG viewports, symbols or another use",
+                        "SVG use currently references shapes, groups, text, images, SVG viewports, symbols or another use",
                     ));
                 }
                 if scoped.contains(&target.id()) {
@@ -212,6 +212,7 @@ impl Importer<'_> {
         let extra = match tag {
             "g" => &[][..],
             "use" => ATTRIBUTES,
+            "image" => images::ATTRIBUTES,
             "symbol" => viewports::SYMBOL_ATTRIBUTES,
             "svg" => viewports::NESTED_ATTRIBUTES,
             "text" => &["x", "y", "dx", "dy"],
@@ -245,6 +246,13 @@ impl Importer<'_> {
                     return Err(unsupported(
                         "SVG use accepts only plain descriptions and style children",
                     ));
+                }
+            }
+            "image" => {
+                self.images
+                    .validate_template(node, &mut self.document, &mut self.losses)?;
+                if !template_children(node)?.is_empty() {
+                    return Err(unsupported("SVG image artwork children are not supported"));
                 }
             }
             "text" => {

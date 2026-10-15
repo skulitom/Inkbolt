@@ -56,7 +56,7 @@ pub(crate) fn insert(
     svg: &str,
     parent: Option<&str>,
     requested_prefix: Option<&str>,
-    font_bindings: &[InsertFontBinding],
+    bindings: (&[InsertFontBinding], &ImageOptions),
     font_root: Option<&Path>,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
@@ -65,7 +65,7 @@ pub(crate) fn insert(
         (svg, true),
         parent,
         requested_prefix,
-        font_bindings,
+        bindings,
         font_root,
         control,
     )
@@ -75,11 +75,12 @@ fn insert_attempt(
     source: (&str, bool),
     parent: Option<&str>,
     requested_prefix: Option<&str>,
-    font_bindings: &[InsertFontBinding],
+    bindings: (&[InsertFontBinding], &ImageOptions),
     font_root: Option<&Path>,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
     let (svg, components) = source;
+    let (font_bindings, images) = bindings;
     control.check()?;
     if svg.len() > crate::MAX_REQUEST_BYTES as usize {
         return Err(Error::new(
@@ -164,6 +165,7 @@ fn insert_attempt(
         ImportOptions {
             byte_budget: Some(byte_budget),
             components: components && document.kind == DocumentKind::Vector,
+            images: images.clone(),
         },
     )
     .map_err(|mut error| {
@@ -253,7 +255,7 @@ fn insert_attempt(
                 (svg, false),
                 parent,
                 requested_prefix,
-                font_bindings,
+                (font_bindings, images),
                 font_root,
                 control,
             )?;
@@ -287,6 +289,7 @@ fn insert_attempt(
                 for field in [
                     "item_id",
                     "viewport_item_id",
+                    "image_item_id",
                     "resource_item_id",
                     "host_item_id",
                     "instance_item_id",
@@ -295,6 +298,9 @@ fn insert_attempt(
                     if let Some(id) = row[field].as_str() {
                         row[field] = ids[id].clone();
                     }
+                }
+                if let Some(asset) = row["asset_id"].as_str() {
+                    row["asset_id"] = transferred["asset_ids"][asset].clone();
                 }
                 if let Some(position) = row["byte_offset"].as_u64() {
                     row["byte_offset"] = json!(position.checked_sub(offset as u64));
@@ -306,7 +312,7 @@ fn insert_attempt(
         }
     }
     Ok(json!({"root_id":ids[&root],"prefix":prefix,"item_ids":ids,
-        "font_ids":transferred["font_ids"],"mapping":imported["mapping"],
+        "font_ids":transferred["font_ids"],"asset_ids":transferred["asset_ids"],"mapping":imported["mapping"],
         "definitions":imported["definitions"],"approximations":imported["approximations"],"reuse":imported["reuse"],
         "losses":imported["losses"],"placement":"parent_local",
         "source":{"sha256":crate::assets::sha256(svg.as_bytes()),"bytes":svg.len(),

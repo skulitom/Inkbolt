@@ -8,7 +8,7 @@ See the generated [limit reference](LIMITS.md) for centralized resource ceilings
 
 Negative and fractional coordinate fidelity, normalization tolerance and consumer-preview boundaries are documented in [COORDINATE_PRECISION.md](COORDINATE_PRECISION.md).
 
-`svg.import` accepts an explicit local file or inline UTF-8 text and returns a new vector document, a source-byte SHA-256 receipt, an element-to-item mapping, normalization losses and an `approximations` array (empty when no arcs/corners were normalized). It never writes to the source or fetches linked resources. The same command is available through the Rust library, JSON CLI and MCP stdio.
+`svg.import` accepts an explicit local file or inline UTF-8 text and returns a new vector document, a source-byte SHA-256 receipt, an element-to-item mapping, normalization losses and an `approximations` array (empty when no arcs/corners were normalized). It writes no files. Local image references require an explicit source root; remote resources are refused. The same command is available through the Rust library, JSON CLI and MCP stdio.
 
 ```json
 {"command":"svg.import","id":"diagram","source":{"kind":"file","source_path":"C:/Graphics/input.svg"}}
@@ -34,7 +34,7 @@ Coordinates are local to the optional destination `parent`; its transform applie
 after imported SVG transforms. Insertion appends artwork to that container.
 Nonprinting mask sources remain top-level resource containers.
 
-The operation imports editable geometry, paints, groups and supported text using
+The operation imports editable geometry, paints, groups, images and supported text using
 the same interpretation and losses described below. It preserves the destination's
 canvas, profile, metadata and unrelated items. Imported item metadata is retained;
 source document metadata is excluded with a loss receipt. Paints use the
@@ -51,7 +51,7 @@ the importer; insertion reuses their IDs and does not duplicate font descriptors
 Missing families, unavailable/corrupt resources and unsupported text fail explicitly.
 
 `changes[].id` is the inserted root; `changes[].details` returns `root_id`, `prefix`,
-`item_ids`, `font_ids`, the source `mapping`, `definitions`, `approximations`, `reuse` and
+`item_ids`, `font_ids`, `asset_ids`, the source `mapping`, `definitions`, `approximations`, `reuse` and
 `losses`. The source receipt hashes the exact supplied UTF-8 bytes and records its
 kind. Source offsets refer to those bytes; a synthetic fragment root has
 `byte_offset:null` and `synthetic:true`. The default prefix is the first available
@@ -69,6 +69,75 @@ complete SVG's viewport wrapper consumes one item. The separate `svg.import`
 source ceilings remain unchanged. Unsupported input fails the whole edit batch;
 there is no omission mode. Revision checks, locks, dry runs, retry receipts,
 undo and redo use the ordinary atomic edit/session contracts.
+
+## Placed images
+
+W3a.6 has focused Windows/Linux verification. Fresh full acceptance remains open;
+see the [implementation checkpoint](DEVELOPMENT_STATUS.md#w3a6-image-admission-implemented-full-acceptance-open).
+
+`image` admits PNG and JPEG as editable placed images, using the shared
+[image decoder and color rules](IMAGE_IO.md). Supply a `data:image/png` or
+`data:image/jpeg` URI with base64 or percent-encoded bytes, or a relative local
+path under `images.source_root`. `href` and legacy `xlink:href` are accepted;
+conflicting values fail. Local paths may contain percent-encoded UTF-8 but
+cannot contain absolute paths, empty/dot/parent segments, backslashes, query
+strings or fragments. The resolved regular file must remain inside the explicit
+root, including after symbolic-link resolution. Remote URLs are refused.
+
+Both `svg.import` and `add_svg` accept the same optional `images` object:
+
+```json
+{"images":{"source_root":"C:/Graphics/assets","color_policy":"assume_srgb","sampling":"bilinear"}}
+```
+
+The root is absolute without a workspace; with a workspace it may be relative
+and must resolve within that workspace. It is never inferred from the SVG path,
+current directory or workspace. Omit it for data URIs. The default color policy
+is `assume_srgb`, recorded in the loss receipt and source provenance. Tagged sRGB
+retains its interpretation; RGB ICC input requires explicit `convert_srgb`.
+`require_srgb` remains available. Metadata and source density are retained in
+the original encoded bytes, not promoted into document metadata or sizing.
+
+Each distinct source becomes an `encoded` image asset containing the immutable
+PNG/JPEG bytes, original-byte hash, normalized RGBA8 hash and interpretation.
+Rendering and `asset.verify` recheck both identities. Imports, failed batches
+and session dry runs create no asset-store files; accepted snapshots no longer
+depend on the source file. Identical source bytes share one resource. Ordinary
+revision checks, proposal matching, retries and undo/redo apply to insertion.
+Changing local image bytes between a dry run and application invalidates the
+proposal. Once committed, an identical retry uses its retained receipt.
+
+`x`/`y` default to zero. Absolute units and percentages use the enclosing user
+viewport. Omitted or `auto` dimensions use intrinsic pixel size; a single supplied
+dimension derives the other from the intrinsic ratio. Explicit two-axis sizing
+uses `preserveAspectRatio`: all nine alignments, `meet`, `slice`, or `none`.
+Overflow defaults to `hidden`; `visible` retains artwork outside the positioning
+rectangle. Transforms, opacity, visibility, geometric clips and supported masks
+apply through an outer editable group. Object-bounding-box effects use the whole
+positioning rectangle, including letterboxing. Zero-size images retain a hidden
+intrinsic-sized child under a nonpainting group. Hidden and unused image sources
+are still validated. Images may be local `use` targets and share compatible
+native components.
+
+Sampling defaults to bilinear; `images.sampling` accepts the existing native
+samplers. The inherited `image-rendering` property accepts `auto` (use that
+option) and `pixelated` (nearest), through attributes, embedded CSS and inline
+style. The latter is a declared approximation at noninteger scales: Inkbolt
+does not reproduce the two-stage reconstruction described by
+[CSS Images](https://www.w3.org/TR/css-images-3/#the-image-rendering).
+Other values fail explicitly. PNG rendering remains authoritative for engine
+sampling. [SVG image sizing](https://www.w3.org/TR/SVG2/embedded.html#ImageElement)
+is the public basis for placement and positioning-rectangle bounds.
+
+Mapping rows add `asset_id`, `image_item_id`, `image_size`, and either
+`viewport_item_id` or `empty_image`. Insertion remaps resource and item IDs into
+the destination; reuse receipts identify shared editable components.
+The existing SVG source, whole-request, snapshot-byte, asset-count and aggregate
+16,777,216 decoded-pixel limits remain enforced. Encoded sources consume base64
+snapshot bytes, not the raw-inline-pixel allowance. The old 65,536 raw-inline-pixel
+limit is unchanged; this does not establish the larger W4 workload target.
+SVG sources inside `image`, animations, CSS geometry/object-fit and image artwork
+inside mask sources remain unsupported. Masks applied to image owners are supported.
 
 ## Supported interpretation
 
@@ -385,7 +454,7 @@ Opacity masks inside a mask source, mask-definition transforms, images, filters 
 
 ## Explicit boundaries
 
-Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Linked/embedded images, filters, animations, scripts and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
+Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Image sources beyond the PNG/JPEG contract above, filters, animations, scripts and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
 
 Standard input is at most 256 KiB and 4096 XML nodes. Explicit `resource_profile: "large_vector"` admits 8 MiB, 65536 XML nodes, 8192 items and 131072 aggregate commands within an 8 MiB snapshot; see [LARGE_VECTOR.md](LARGE_VECTOR.md). XML DTD declarations/markers and processing instructions are rejected; no entity resolver is installed. UTF-8 is required (an optional UTF-8 BOM is retained in the source hash). Local files are opened read-only, checked for regular-file semantics and read with a hard byte cap. Each numeric sequence is bounded to 32768 tokens, each transform list to 64 functions, definitions to 64 and gradient reference chains to 16, and all imported geometry participates in profile-specific limits (standard: 256 items including the root, 16 ancestor levels, 4096 aggregate path commands, coordinate/transform bounds and a 768 KiB snapshot). Rendering retains its separate work/pixel budgets. Cancellation is checked during node traversal and document validation; blocking filesystem reads are not forcefully interrupted.
 

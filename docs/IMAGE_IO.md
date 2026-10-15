@@ -24,6 +24,20 @@ Default `color_policy:"require_srgb"` accepts explicitly tagged sRGB PNG. Untagg
 
 Source resolution and descriptive metadata are reported as losses and represented only by the source-byte hash. Placement dimensions and document resolution are explicit engine settings. Unspecified TIFF alpha, unsupported photometric encodings and additional pages fail rather than producing a partial or reinterpreted image. PNG chunk checks, JPEG marker/scan framing and bounded TIFF decoding precede storage. Source bytes are capped at 32 MiB, decoded dimensions at 32768 per axis and 16777216 pixels; decoder buffers are capped at 64 MiB. Existing asset/document storage limits also apply.
 
+## Self-contained encoded assets
+
+SVG image admission uses `storage.type:"encoded"` with original PNG/JPEG bytes in
+`data_base64` and a retained `color_policy`. These resources need no external
+store. Loading checks the original-byte hash, then decodes and checks dimensions,
+normalized pixel identity and provenance. `asset.verify`, rendering and ordinary
+asset operations share this path. The existing 32 MiB source, aggregate decoded
+pixel and document snapshot-byte ceilings apply; base64 consumes snapshot bytes.
+The raw `embedded` storage type and its 65,536-pixel allowance are unchanged.
+`asset.embed` still explicitly converts to that bounded raw representation.
+See [SVG images](SVG_IMPORT.md#placed-images) for explicit local roots, defaults,
+placement and atomic insertion. Ordinary `asset.import` continues publishing its
+normalized content-addressed store entry.
+
 ## Export
 
 `document.export` and `artboard.export` accept `format:"jpeg"` or `format:"tiff"` plus optional `image_options`. `document.publish` and `session.publish` accept the same options inside `output`. PNG, SVG and snapshot formats reject a supplied image-options object. Unknown fields and inapplicable settings fail explicitly.

@@ -1,5 +1,12 @@
 # Architecture
 
+SVG PNG/JPEG resources use self-contained encoded image descriptors, retaining
+source bytes and the shared decoder's normalized identity. Import and atomic
+SVG insertion write no resource files; snapshot and decoded-pixel budgets remain
+independent. Source links resolve only under an explicit root. Placement groups
+separate positioning-rectangle effects, viewport clipping and intrinsic image
+mapping. See [SVG import](SVG_IMPORT.md#placed-images).
+
 Durable publication uses held-file identity on Windows and Unix: Windows volume
 plus 128-bit file ID, or Unix device plus inode encoded in the existing receipt
 layout. Retained hard links witness publication ownership across interruption;
