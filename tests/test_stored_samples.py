@@ -45,7 +45,8 @@ class StoredSampleTests(unittest.TestCase):
         source = self.root / 'original.bin'
         source.write_bytes(data)
         result = self.cli('sample.import', source_path='original.bin', id='native',
-                          color_policy=kw.pop('color_policy', 'assume_srgb'), storage={}, **kw)
+                          color_policy=kw.pop('color_policy', 'assume_srgb'),
+                          storage=kw.pop('storage', dict(storage_version=1)), **kw)
         self.assertEqual(source.read_bytes(), data)
         self.assertEqual(result['source_sha256'], hashlib.sha256(data).hexdigest())
         self.assertFalse(result['source_changed'])

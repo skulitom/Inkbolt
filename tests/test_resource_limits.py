@@ -770,7 +770,7 @@ class ResourceLimitTests(unittest.TestCase):
                  'native_sample_store_library/manifest_version':1,
                  'native_sample_store_library/candidate_transfer/version':1,
                  'native_sample_store_library/block_edits/storage_version':2,
-                 'native_sample_store_library/block_edits/default_import_storage_version':1,
+                 'native_sample_store_library/block_edits/default_import_storage_version':2,
                  'objects/surface_scale/0':1, 'pdf/scale':1,
                  'render_quality/padding_document_units/0':0,
                  'render_quality/supersample_factors/0':2,

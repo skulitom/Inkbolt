@@ -12,8 +12,10 @@ explicit move from retained document patches to committed block manifests.
 keeps pending blocks in shared memory; CLI/MCP document edits and session commits
 publish them before returning or storing the manifest-only state. Review uses
 `Candidate::transfer` and `Transfer::prepare` when an editable document is
-requested. Imports still default to legacy storage. The new mode's full storage
-acceptance and larger-scale gates remain pending.
+requested. New stored imports default to version 2; `storage.storage_version:1`
+explicitly retains the legacy format. Fresh Windows/Linux full suites passed
+default adoption and profile/HDR migration. Aggregate native-store capacity
+admission and larger-scale gates remain pending.
 
 ## Data contract
 
@@ -95,7 +97,7 @@ constant-memory decoding and does not lower or waive any existing byte limit.
 
 Native TIFF reports `normalization.decode_storage:chunk_bands_to_native_blocks`. It retains one horizontal band of source strips or tiles across every separate plane, interleaves channels into the native row, and releases that decoded band before loading the next. Full padded row strides preserve compressed edge decoding; padding is excluded from native samples. Integer values and binary32 bit patterns retain their native precision, and missing alpha becomes opaque. Cancellation is checked around chunk reads and each produced row. A codec operation itself remains bounded and synchronous. Chunk-band height is source-defined: a single full-height strip can still require a complete decoded frame. The existing 64 MiB padded-tile work limit is unchanged. This path avoids a separate complete normalized frame, but is not a constant-memory import.
 
-Raster content `{"type":"stored_samples","grid":{...}}` holds `base` (the manifest), optional `patches`, optional `profile`, and `sampling`. Each patch contains a native `region` and exact little-endian `data_hex`. Patches apply in order. `sample_replace` verifies every base dependency, preserves all outside samples, and appends a patch only when native values change. It records before/after native manifest identities and `files_written:false`. At most 256 patches and 65,536 aggregate patch pixels are retained; cumulative touched-block work is capped at 16,777,216 pixels. Ordinary snapshot byte limits also apply. Patch consolidation and unbounded edit histories are not implemented.
+Raster content `{"type":"stored_samples","grid":{...}}` holds a storage version, `base` (the manifest), optional `profile`, and `sampling`. New stored imports use version 2 with the [block-edit contract](NATIVE_COPY_ON_WRITE.md). Missing `storage_version` means legacy version 1, which also admits `patches`. Each legacy patch contains a native `region` and exact little-endian `data_hex`. Patches apply in order. Legacy `sample_replace` verifies every base dependency, preserves all outside samples, and appends a patch only when native values change. It records before/after native manifest identities and `files_written:false`. At most 256 patches and 65,536 aggregate patch pixels are retained in version 1; cumulative touched-block work is capped at 16,777,216 pixels. Version 2 retains only the current manifest after committing, with separate pending-block budgets. Session history remains bounded in either mode; explicit continuation preserves earlier history.
 
 Snapshots and session backups preserve the complete recipe, with the same explicit **external base resource dependency** as other asset-backed documents. They do not bundle native files. Bind the matching store through `asset_root`; saved references inherit session resource bindings. Render preparation checks the full base before applying patches, then caches at most 16 decoded tiles (262,144 pixels, 8 MiB of f64 RGBA). Each prepared reader permits at most twice its source pixel count in tile decoding. Cache pressure that would exceed that work rejects explicitly. Native verification, patch preparation, cache and scratch buffers participate in aggregate render budgets. No persistent cross-request cache is claimed.
 

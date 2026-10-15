@@ -5,11 +5,12 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
-from benchmark_photo import check_memory,MAX_PEAK_COMMIT_BYTES
+from benchmark_photo import check_memory,MAX_PEAK_COMMIT_BYTES,solve as solve_photo
 from benchmark_runtime import TaskFailure
 from benchmark_tasks import CHECKS
 
@@ -17,10 +18,20 @@ from benchmark_tasks import CHECKS
 class PhotoBenchmarkTests(unittest.TestCase):
     def test_complete_native_photo_task_on_cli_and_mcp(self):
         with tempfile.TemporaryDirectory() as directory:
-            for transport in ('cli','mcp'):
-                with self.subTest(transport=transport):
-                    root=Path(directory)/transport
-                    row=run_task(EXE,root,'B10',1,transport)
+            for transport,storage_version in [('cli',2),('mcp',2),('cli',1)]:
+                with self.subTest(transport=transport,storage_version=storage_version):
+                    root=Path(directory)/f'{transport}-{storage_version}'
+                    def selected_solve(case):
+                        call=case.call
+                        def select(step,command,**arguments):
+                            if command=='sample.import' and storage_version==1:
+                                arguments['storage']=dict(storage_version=1)
+                            return call(step,command,**arguments)
+                        with patch.object(case,'call',side_effect=select):solve_photo(case)
+                    with patch('benchmark_photo.solve',side_effect=selected_solve):
+                        row=run_task(EXE,root,'B10',1,transport)
+                    before=json.loads((root/'before.json').read_bytes())
+                    self.assertEqual(before['items'][0]['content']['grid'].get('storage_version',1),storage_version)
                     self.assertEqual(row['status'],'passed' if os.name=='nt' else 'failed',
                                      dict(error=row['error'],checks=row['checks'],missing=row['missing_checks']))
                     self.assertEqual({c['name'] for c in row['checks'] if c['status']=='fail'},

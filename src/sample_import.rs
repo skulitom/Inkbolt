@@ -37,6 +37,12 @@ fn decoder_limit(max_pixels: usize) -> usize {
 #[serde(deny_unknown_fields)]
 pub struct NativeStore {
     pub store_root: PathBuf,
+    /// New imports use block manifests (2); explicitly select 1 for legacy patches.
+    #[serde(default = "default_storage_version")]
+    pub storage_version: u32,
+}
+fn default_storage_version() -> u32 {
+    2
 }
 struct DecodedSource {
     width: u32,
@@ -465,6 +471,12 @@ pub fn import_with_storage(
     control.check()?;
     control.check_path(source)?;
     if let Some(storage) = storage {
+        if !matches!(storage.storage_version, 1 | 2) {
+            return Err(Error::new(
+                "INVALID_REQUEST",
+                "Native import storage_version must be 1 (legacy patches) or 2 (block manifests)",
+            ));
+        }
         assets::absolute(&storage.store_root)?;
         control.check_path(&storage.store_root)?;
     }
@@ -522,7 +534,7 @@ pub fn import_with_storage(
     };
     let decoded_bytes = spec.byte_len()?;
     let candidate;
-    let content = if storage.is_some() {
+    let content = if let Some(storage) = storage {
         candidate = Some(match decoded.pixels {
             DecodedPixels::Tiles(candidate) => candidate,
             DecodedPixels::Bytes(bytes) => {
@@ -531,7 +543,7 @@ pub fn import_with_storage(
         });
         Content::StoredSamples {
             grid: Box::new(crate::stored_samples::Grid {
-                storage_version: 1,
+                storage_version: storage.storage_version,
                 base: candidate.as_ref().unwrap().manifest().clone(),
                 patches: Vec::new(),
                 profile: None,
@@ -573,9 +585,16 @@ pub fn import_with_storage(
         let publication = candidate.publish(&storage.store_root, control)?;
         result["storage"] = json!({"kind":"native_tiles","store_root":storage.store_root,"manifest_sha256":publication.manifest.sha256,
             "created_tiles":publication.created_tiles,"existing_tiles":publication.existing_tiles,"decoded_bytes":decoded_bytes});
-        result["losses"][0] = json!(
-            "Returns a new native stored-sample document with immutable base blocks and exact retained patch edits. Original source bytes are unchanged. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported. Metadata remains separate; explicit resolution governs document size."
-        );
+        if storage.storage_version == 1 {
+            result["losses"][0] = json!(
+                "Returns a new native stored-sample document with immutable base blocks and exact retained patch edits. Original source bytes are unchanged. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported. Metadata remains separate; explicit resolution governs document size."
+            );
+        } else {
+            result["storage"]["storage_version"] = json!(2);
+            result["losses"][0] = json!(
+                "Returns a new native block-manifest document (storage version 2). Edits publish complete immutable replacement blocks before committing the current manifest; old blocks and source bytes remain unchanged. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported. Metadata remains separate; explicit resolution governs document size."
+            );
+        }
     }
     Ok(result)
 }

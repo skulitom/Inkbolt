@@ -54,7 +54,9 @@ class ExternalPhotoTests(unittest.TestCase):
                 step=path.name.split('-',1)[1].removesuffix('.request.json')
                 responses[step]=json.loads(path.with_name(path.name.replace('.request.json','.response.json')).read_bytes())['result']
             mutations={'patch':('edited.json','editable-exact-patch'),'undo':('undo-source.json','undo-editability'),
-                       'review':('review.json','editable-exact-patch'),'import':('import-report.json','native-import'),
+                       'review':('review.json','editable-exact-patch'),
+                       'review-bytes':('review.json','editable-exact-patch'),
+                       'review-manifest':('review.json','editable-exact-patch'),'import':('import-report.json','native-import'),
                        'receipt':('publication-report.json','edited-native-samples'),
                        'native':('edited.tiff','edited-native-samples'),'head':(None,'history-valid'),
                        'tile':(str(next((workspace/'.inkbolt/assets').glob('*.native-tile')).relative_to(workspace)),'immutable-tiles')}
@@ -74,10 +76,14 @@ class ExternalPhotoTests(unittest.TestCase):
                         if filename and filename.endswith('.json'):
                             value=json.loads(original)
                             if fault=='patch':
-                                p=value['items'][0]['content']['grid']['patches'][0]
-                                raw=bytearray.fromhex(p['data_hex']);raw[0]^=1;p['data_hex']=raw.hex()
+                                value['items'][0]['content']['grid']['base']['tiles'][0]='0'*64
                             elif fault=='undo':value['items'][0]['opacity']=.5
                             elif fault=='review':value['proposal']['base_state_sha256']='0'*64
+                            elif fault=='review-bytes':
+                                p=value['proposed_document']['items'][0]['content']['grid']['staged']['pending'][0]
+                                raw=bytearray.fromhex(p['data_hex']);raw[-1]^=1;p['data_hex']=raw.hex()
+                            elif fault=='review-manifest':
+                                value['proposed_document']['items'][0]['content']['grid']['staged']['manifest']['sha256']='0'*64
                             elif fault=='receipt':value['edited']['sha256']='0'*64
                             else:value['source_changed']=True
                             (workspace/filename).write_text(json.dumps(value),encoding='utf-8')

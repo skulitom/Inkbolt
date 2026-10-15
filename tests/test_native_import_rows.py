@@ -31,6 +31,8 @@ class NativeImportRowTests(unittest.TestCase):
         if 'document' in result:
             self.assertEqual(result['source_sha256'], hashlib.sha256(data).hexdigest())
             self.assertFalse(result['source_changed'])
+            self.assertEqual(result['storage']['storage_version'], 2)
+            self.assertEqual(result['document']['items'][0]['content']['grid']['storage_version'], 2)
         return result
 
     def check_blocks(self, result, width, height, depth, n, expected, encoding='encoded_srgb'):

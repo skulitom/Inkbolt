@@ -77,7 +77,7 @@ class NativeRetouchTests(unittest.TestCase):
         path=self.root/f'source-{len(list(self.root.glob("source-*")))}.tiff'
         path.write_bytes(tiff(w,h,values,depth=depth,n=n))
         args=dict(source_path=str(path),id='retouch',color_policy='assume_srgb',**kwargs)
-        if stored:args['storage']={}
+        if stored:args['storage']=dict(storage_version=1)
         return self.cli('sample.import',**args)['document']
 
     def raw(self,d,index=0):

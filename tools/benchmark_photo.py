@@ -1,4 +1,4 @@
-"""Original synthetic photographic fixture and exact native-edit benchmark judge."""
+"""Original photo fixture; storage judge v2 accepts exact legacy or block edits."""
 import base64
 import copy
 from functools import lru_cache
@@ -132,37 +132,52 @@ def tiff_output(name):
                 image_options=dict(depth='u16',channels='rgba',compression='none'))
 
 
-@lru_cache(maxsize=1)
-def original_manifest():
-    """Independent v1 native-block identities from the original channel bytes."""
-    raw=photographic_source(); hashes=[]
+def native_blocks(raw):
+    """Independent canonical blocks from every oracle channel, without the engine."""
     for y in range(0,HEIGHT,128):
         for x in range(0,WIDTH,128):
             w,h=min(128,WIDTH-x),min(128,HEIGHT-y)
             payload=b''.join(raw[(row*WIDTH+x)*8:(row*WIDTH+x+w)*8] for row in range(y,y+h))
-            hashes.append(sha(b'INKTILE1'+struct.pack('<IIBBBB',w,h,2,4,0,0)+payload))
+            blob=b'INKTILE1'+struct.pack('<IIBBBB',w,h,2,4,0,0)+payload
+            yield sha(blob),blob
+
+
+def native_manifest(raw):
+    hashes=[name for name,_ in native_blocks(raw)]
     identity=b'INKGRID1INKTILE1'+struct.pack('<IIBBBBI',WIDTH,HEIGHT,2,4,0,0,128)+b''.join(bytes.fromhex(h) for h in hashes)
     return dict(version=1,spec=dict(width=WIDTH,height=HEIGHT,depth='u16',channels='rgba',encoding='encoded_srgb'),
                 tiles=hashes,sha256=sha(identity))
 
 
-def check_tiles(case):
+@lru_cache(maxsize=1)
+def original_manifest():
+    return native_manifest(photographic_source())
+
+
+def check_tiles(case, edited_manifest=None):
     paths=list((case.root/'.inkbolt/assets').glob('*.native-tile'))
     expected={digest+'.native-tile':digest for digest in original_manifest()['tiles']}
+    if edited_manifest is not None:
+        expected.update({digest+'.native-tile':digest for digest in edited_manifest['tiles']})
     require(all(p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(case.root.resolve()) for p in paths)
             and {p.name:sha(p.read_bytes()) for p in paths}==expected,
-            'Immutable native base files differ from the independently encoded original samples')
+            'Immutable native files differ from independently encoded original and edited samples')
 
 
-def check_review(review, receipts, edited):
+def check_review(review, receipts, edited, expected_transfer=None):
     creation,commit=receipts['create'],receipts['edit']
     proposal=review['proposal']; receipt=commit['receipt']
+    projected=copy.deepcopy(review['proposed_document'])
+    grid=projected['items'][0]['content']['grid']
+    staged=grid.pop('staged',None)
+    require(staged==expected_transfer,
+            'Review must carry exactly the independently verified pending blocks')
     require(review['dry_run'] is True and review['committed'] is False and review['source_changed'] is False and
-        review['proposed_document']==edited and review['predicted_receipt']==receipt and
+        projected==edited and review['predicted_receipt']==receipt and
         proposal['session_id']==commit['session_id'] and proposal['request_id']==receipt['request_id'] and
         proposal['expected_revision']==0 and proposal['base_state_sha256']==creation['receipt']['state_sha256'] and
         proposal['result_state_sha256']==receipt['state_sha256'],
-        'Delivered review must bind the exact original state and committed native patch')
+        'Delivered review must bind the exact original state and committed native edit')
 
 
 def judge_memory(case):
@@ -193,13 +208,18 @@ def judge(case):
     snapshots={role:strict_json(delivered(case,name)) for role,name in names.items()}
     before,edited,current=(snapshots[k] for k in ('create','edit','redo'))
     imported=strict_json(delivered(case,'import-report.json'))
+    storage_version=before['items'][0]['content']['grid'].get('storage_version',1)
+    require(type(storage_version) is int and storage_version in (1,2),'Unsupported native layer storage version')
+    grid=dict(base=original_manifest())
+    if storage_version==2:grid['storage_version']=2
     wanted_before=case.call('judge-original-shape','document.validate',document=document(before['id'],'raster',WIDTH,HEIGHT,
-        items=[dict(id='pixels',content=dict(type='stored_samples',grid=dict(base=original_manifest())))]))
+        items=[dict(id='pixels',content=dict(type='stored_samples',grid=grid))]))
     case.check('native-import',lambda:require(before==wanted_before and imported['document']==before and
         imported['source_sha256']==case.sources['original.png'] and imported['source_changed'] is False and
         imported['storage']['kind']=='native_tiles' and imported['storage']['manifest_sha256']==original_manifest()['sha256'],
         'Import must retain original identity, dimensions, native depth and all exact base samples'))
-    case.check('immutable-tiles',lambda:check_tiles(case))
+    edited_manifest=native_manifest(expected) if storage_version==2 else None
+    case.check('immutable-tiles',lambda:check_tiles(case,edited_manifest))
     locator=strict_json(delivered(case,'session.json'))
     require(isinstance(locator,dict) and set(locator)=={'session_id','requests'} and
             isinstance(locator['requests'],dict) and set(locator['requests'])==set(names),'Invalid photo session locator')
@@ -212,11 +232,19 @@ def judge(case):
         receipts[role]=case.call('judge-'+role+'-receipt','session.receipt',session_root=session_root,
                                 session_id=locator['session_id'],request_id=locator['requests'][role])
     wanted=copy.deepcopy(wanted_before);wanted['revision']=1
-    wanted['items'][0]['content']['grid']['patches']=[dict(region=REGION,data_hex=patch.hex())]
+    expected_transfer=None
+    if storage_version==1:
+        wanted['items'][0]['content']['grid']['patches']=[dict(region=REGION,data_hex=patch.hex())]
+    else:
+        wanted['items'][0]['content']['grid']['base']=edited_manifest
+        pending=set(edited_manifest['tiles'])-set(original_manifest()['tiles'])
+        blocks={name:blob for name,blob in native_blocks(expected) if name in pending}
+        expected_transfer=dict(version=1,manifest=edited_manifest,
+                               pending=[dict(sha256=name,data_hex=blocks[name].hex()) for name in sorted(blocks)])
     review=strict_json(delivered(case,'review.json'))
     def exact_patch():
-        require(edited==wanted and receipts['edit']['document']==edited,'Only the exact clone patch and revision may change')
-        check_review(review,receipts,edited)
+        require(edited==wanted and receipts['edit']['document']==edited,'Only the exact clone samples and revision may change')
+        check_review(review,receipts,edited,expected_transfer)
     case.check('editable-exact-patch',exact_patch)
     for role,revision,source in [('undo',2,wanted_before),('redo',3,wanted)]:
         wanted_state=copy.deepcopy(source);wanted_state['revision']=revision

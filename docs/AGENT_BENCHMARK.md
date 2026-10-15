@@ -304,6 +304,14 @@ The ordinary synchronous
 transport still rejects background-job commands; B19 uses a separate contained
 recovery adapter with complete process accounting.
 
+B10's storage judge v2 accepts both legacy patch documents and version-2 block
+manifests. It independently constructs every expected original and edited block,
+requires the exact union of their immutable files, verifies staged review bytes
+before comparing the durable projection, and checks all native TIFF samples and
+history receipts as before. The prompt, artifact criteria and 256 MiB budget are
+unchanged. Old retained captures remain judgeable; this judge update does not
+rerun or relabel earlier model trials.
+
 B10's original analytic studio fixture includes smooth illumination, object
 edges, soft shadows, texture and grain. Linear-light values are encoded directly
 into RGBA16 sRGB samples; the source is not an 8-bit image expanded to 16 bits.

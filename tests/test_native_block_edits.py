@@ -11,6 +11,7 @@ import test_stored_samples as native
 from test_mcp import Client
 from test_samples_cli import decode
 from test_pixel_brush_cli import brush
+from test_profiles_cli import embedded, linear_profile
 
 
 class NativeBlockEditTests(unittest.TestCase):
@@ -32,6 +33,37 @@ class NativeBlockEditTests(unittest.TestCase):
 
     def migration(self):
         return dict(op='sample_storage_migrate', id='pixels')
+
+    def typed_blocks(self, spec, raw):
+        width, height = spec['width'], spec['height']
+        unit = dict(u8=1, u16=2, f32=4)[spec['depth']]
+        channels = dict(rgba=4, gray_alpha=2)[spec['channels']]
+        encoding = dict(encoded_srgb=0, linear_srgb=1, profiled_rgb=2)[spec['encoding']]
+        stride = unit * channels
+        self.assertEqual(len(raw), width * height * stride)
+        names, blocks = [], {}
+        for y in range(0, height, 128):
+            for x in range(0, width, 128):
+                w, h = min(128, width-x), min(128, height-y)
+                blob = b'INKTILE1'+struct.pack('<IIBBBB', w, h, unit, channels, encoding, 0)
+                blob += b''.join(raw[(row*width+x)*stride:(row*width+x+w)*stride] for row in range(y,y+h))
+                name = hashlib.sha256(blob).hexdigest()
+                names.append(name); blocks[name] = blob
+        typed = b'INKTILE1'+struct.pack('<IIBBBB',width,height,unit,channels,encoding,0)
+        identity = hashlib.sha256(b'INKGRID1'+typed+struct.pack('<I',128)
+                                 +b''.join(bytes.fromhex(name) for name in names)).hexdigest()
+        return dict(version=1,spec=spec,tiles=names,sha256=identity), blocks
+
+    def assert_native_bits(self, document, raw):
+        grid = self.grid(document)
+        manifest, blocks = self.typed_blocks(grid['base']['spec'], raw)
+        self.assertEqual(grid['base'], manifest)
+        staged = grid.get('staged', {})
+        pending = {row['sha256']:bytes.fromhex(row['data_hex']) for row in staged.get('pending', [])}
+        root = self.root/'.inkbolt/assets'
+        for name, blob in blocks.items():
+            actual = pending[name] if name in pending else (root/(name+'.native-tile')).read_bytes()
+            self.assertEqual(actual, blob)
 
     def check_native(self, document, expected, retained_blocks=None):
         grid = self.grid(document)
@@ -318,6 +350,104 @@ class NativeBlockEditTests(unittest.TestCase):
         for change in changed['changes']:
             self.assertFalse(change['details']['preparation_writes_files'])
             self.assertNotIn('files_written',change['details'])
+
+    def test_default_import_survives_260_edits_and_legacy_selection_stays_explicit(self):
+        original = self.imported(257,3,storage={})
+        self.assertEqual(self.grid(original)['storage_version'],2)
+        explicit = self.cli('sample.import',scoped=False,source_path=str(self.root/'original.bin'),
+                            id='native',color_policy='assume_srgb',
+                            storage=dict(store_root=str(self.root/'.inkbolt/assets')))
+        self.assertEqual(explicit['document'],original)
+        legacy = self.imported(257,3)
+        self.assertNotIn('storage_version',self.grid(legacy))
+        self.assertEqual(dict(self.grid(original),storage_version=1),dict(self.grid(legacy),storage_version=1))
+        originals = self.blocks()
+        with closing(Client(('--tools','core'),workspace=self.root)) as client:
+            client.initialize()
+            response = client.tool('run',command='sample.import',arguments=dict(
+                source_path='original.bin',id='native',storage={},color_policy='assume_srgb'))
+            self.assertFalse(response['isError'],response)
+            imported = response['structuredContent']['result']
+            self.assertEqual(imported['document'],original)
+            self.assertEqual(imported['storage']['storage_version'],2)
+            self.assertEqual(imported['storage']['created_tiles'],0)
+            current = original
+            for index in range(260):
+                values = [v for x in range(257) for v in [1000+index,x,4321,65535]]
+                current = client.success('document.edit',document=current,expected_revision=current['revision'],
+                                         operations=[self.patch(0,1,257,1,values)])['document']
+                self.assertNotIn('patches',self.grid(current))
+                self.assertNotIn('staged',self.grid(current))
+                self.assertLess(len(json.dumps(current)),2500)
+            self.check_native(current,lambda x,y:[1259,x,4321,65535] if y==1 else native.pixel(x,y))
+        self.check_native(original,native.pixel)
+        for name,blob in originals.items():self.assertEqual(self.blocks()[name],blob)
+        before = self.files()
+        self.cli('sample.import',source_path='original.bin',id='bad',storage=dict(storage_version=3),error='INVALID_REQUEST')
+        self.assertEqual(self.files(),before)
+
+    def test_profile_and_hdr_migration_review_commit_history_preserve_exact_bits(self):
+        cases = [('profiled_rgb',depth,n) for depth in ['u8','u16','f32'] for n in [2,4]]
+        cases += [('linear_srgb','f32',n) for n in [2,4]]
+        for encoding,depth,n in cases:
+            with self.subTest(encoding=encoding,depth=depth,channels=n):
+                unit,code,maximum = dict(u8=(1,'B',255),u16=(2,'H',65535),f32=(4,'f',1))[depth]
+                values = ([maximum//3]*(n-1)+[maximum])*258
+                if depth=='f32':
+                    values = ([.125]*(n-1)+[1.0])*258
+                    values[0] = -0.0
+                    values[n] = 2**-149
+                    if encoding=='linear_srgb':values[2*n:3*n] = [-4]*(n-1)+[0.0]
+                raw = bytearray(struct.pack('<'+code*len(values),*values))
+                policy = 'assume_linear_srgb' if encoding=='linear_srgb' else 'assume_srgb'
+                original = self.imported(data=native.tiff(129,2,values,depth=depth,n=n),color_policy=policy)
+                grid = self.grid(original)
+                if encoding=='profiled_rgb':
+                    spec = dict(grid['base']['spec'],encoding=encoding)
+                    manifest,blocks = self.typed_blocks(spec,raw)
+                    for name,blob in blocks.items():
+                        path = self.root/'.inkbolt/assets'/(name+'.native-tile')
+                        if path.exists():self.assertEqual(path.read_bytes(),blob)
+                        else:
+                            with path.open('xb') as stream:stream.write(blob)
+                    grid['base'] = manifest
+                    grid['profile'] = embedded(linear_profile()) if n==4 else dict(type='builtin',name='linear_srgb')
+                grid['sampling'] = 'bilinear'
+                original['items'][0]['transform'] = [1,0,0,1,0.25,0.5]
+                profile = copy.deepcopy(grid.get('profile'))
+                replacement = [maximum//2]*(n-1)+[maximum] if depth!='f32' else [.375]*(n-1)+[.75]
+                payload = struct.pack('<'+code*n,*replacement)
+                op = dict(op='sample_replace',id='pixels',region=dict(x=127,y=1,width=2,height=1),data_hex=(payload*2).hex())
+                legacy = self.edit(original,[op])['document']
+                raw[(129+127)*n*unit:] = payload*2
+                session = f'{encoding}-{depth}-{n}'
+                initial = self.cli('session.create',session_id=session,request_id='create',document=legacy)
+                before = self.files(); rows = self.states(session)
+                action = dict(type='edit',operations=[self.migration()])
+                review = self.cli('session.dry_run',session_id=session,request_id='migrate',expected_revision=0,
+                                  action=action,options=dict(include_document=True))
+                self.assertEqual(self.files(),before)
+                self.assert_native_bits(review['proposed_document'],raw)
+                committed = self.cli('session.apply_proposal',proposal=review['proposal'],action=action)
+                current = committed['document']; current_grid = self.grid(current)
+                self.assertEqual(committed['receipt'],review['predicted_receipt'])
+                self.assertEqual(self.states(session)[:len(rows)],rows)
+                self.assert_native_bits(current,raw)
+                self.assertEqual(current_grid.get('profile'),profile)
+                self.assertEqual(current_grid['sampling'],'bilinear')
+                self.assertEqual(current['items'][0]['transform'],original['items'][0]['transform'])
+                self.assertNotIn('staged',current_grid)
+                self.assertEqual(decode(self.exported(current,'f32'))[0],decode(self.exported(legacy,'f32'))[0])
+                undone = self.cli('session.apply',session_id=session,request_id='undo',expected_revision=1,action=dict(type='undo'))
+                self.assertEqual(undone['document'],dict(initial['document'],revision=2))
+                redone = self.cli('session.apply',session_id=session,request_id='redo',expected_revision=2,action=dict(type='redo'))
+                self.assertEqual(redone['document'],dict(current,revision=3))
+                op['region']['y'] = 0
+                changed = self.edit(current,[op])['document']
+                raw[127*n*unit:129*n*unit] = payload*2
+                self.assert_native_bits(changed,raw)
+                self.assertEqual(self.grid(changed).get('profile'),profile)
+                self.assertTrue(self.cli('session.verify',session_id=session)['valid'])
 
 
 if __name__ == '__main__':

@@ -2,10 +2,12 @@
 
 This is the W4.1 implementation contract under [FIX_PLAN.md](../FIX_PLAN.md).
 The explicit versioned layer and document/session commit path are implemented
-and passed fresh full Windows/Linux suites. **Default-import adoption and full
-storage acceptance remain pending**. Imports still default to
-[retained patches](NATIVE_SAMPLE_STORAGE.md), with their existing 256-patch and
-65,536 aggregate patched-pixel limits. Explicit `sample_storage_migrate` converts
+and passed fresh full Windows/Linux suites, including default-import adoption.
+**Aggregate native-store capacity admission and larger-workload acceptance remain
+pending**. New stored imports default to version 2. Explicit
+`storage:{"storage_version":1}` selects [retained patches](NATIVE_SAMPLE_STORAGE.md),
+with their existing 256-patch and 65,536 aggregate patched-pixel limits.
+Explicit `sample_storage_migrate` converts
 one stored layer to `storage_version:2`; this mode retains current block manifests
 and has no lifetime patch count or aggregate edited-pixel cap.
 
@@ -75,9 +77,13 @@ This layer migration is not `session.migrate`, which retains its existing
 supported without a database upgrade. Retrying a completed migration or edit
 must return the original receipt before loading now-missing resource blocks.
 
-New imports may adopt the new layer mode only once its commit, preview and
-recovery checks pass. Historical imports and caller-supplied legacy documents
-keep their meanings; no accepted checkpoint or compatibility fixture is replaced.
+New stored imports use version 2 after the explicit commit, preview and recovery
+boundary passed full platform suites. `storage.storage_version` accepts 1 or 2;
+other values reject before decoding or publication. Omitting `storage` still
+selects inline samples. Old imports and caller-supplied legacy documents keep
+their meanings; no accepted checkpoint or compatibility fixture is replaced.
+Legacy import output and receipts retain their previous shape when version 1 is
+selected explicitly. New version-2 import receipts declare `storage_version:2`.
 
 ## Prepare, review, publish, commit
 
@@ -148,6 +154,8 @@ storage-milestone acceptance follows the checks below.
 - Fail and interrupt before/during block publication and before/after the
   document transaction. Check concurrent writers, stale proposals, corruption,
   missing dependencies and cancellation without rewriting old resources.
+- Enforce aggregate native-store capacity across concurrent publishers, counting
+  deduplicated new bytes and interrupted work without deleting historical blocks.
 - Fresh Windows and Linux acceptance for the integrated boundary, including
   explicit platform skip accounting. Focused implementation checks remain within
   the normal 180-second feedback budget.
@@ -157,9 +165,15 @@ on each platform; see [retained evidence](DEVELOPMENT_STATUS.md#next-w41-increme
 Its document tests cover all six encoded-sRGB depth/channel layouts, exact
 260-edit histories, continuation, backup recovery, pure review and publication
 failures. Candidate-transfer tests separately cover every admitted encoding.
-Complete the profile/HDR document-migration cases and default-import adoption
-before claiming the full storage milestone. These suites do not establish the
-larger-workload memory target.
+Profile/HDR document migration and default-import adoption also passed fresh
+full suites on both platforms. Independent canonical block bytes check all
+profiled depth/channel layouts, built-in/embedded profiles, signed zero,
+subnormal and signed HDR values through review, commit and history. Default
+imports survive 260 edits without the legacy cumulative caps. The B10 judge
+checks both representations against the same independent samples and history.
+The store still needs aggregate capacity admission across concurrent publishers;
+current per-document pending and transport budgets do not establish that bound.
+The full storage milestone and larger-workload memory target remain open.
 
 Revise the design if those checks cannot preserve exact history or if measured
 memory/state growth violates the declared budgets. W4.1 does not by itself meet

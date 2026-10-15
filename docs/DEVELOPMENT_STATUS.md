@@ -2279,7 +2279,7 @@ claim to capture the earlier failed source. This is implementation feedback,
 not full W4.1 or scale acceptance. The 260-edit transport test exercises only
 pure library candidates; it does not establish committed document/history edits.
 
-The integrated increment implements explicit `sample_storage_migrate`, version-2
+The explicit-migration increment implements `sample_storage_migrate`, version-2
 native layers, pure shared pending buffers and manifest-only document/session
 commits. Focused checks cover 260 snapshot edits, all six native depth/channel
 layouts, brush/retouch routing, pure proposals, exact receipts, interrupted block
@@ -2288,10 +2288,10 @@ independent pending/transport budgets. A full-history test continues beyond the
 unchanged session capacity, checks every retained native state, restores a backup
 and replays the original receipt. All eight new Python tests ran on both
 platforms, including every encoded-sRGB depth/channel layout. Candidate-transfer
-tests separately cover all admitted encodings; profile/HDR document-migration
-cases and default-import adoption remain required. Imports remain legacy by
-default. These checks do not establish the larger workload memory target or
-complete W4.1.
+tests separately cover all admitted encodings. At that milestone, profile/HDR
+document-migration cases and default adoption remained required, and imports
+still defaulted to legacy storage. These checks do not establish the larger
+workload memory target or complete W4.1.
 
 Fresh full Windows and Linux suites passed all 256 stages per platform with no
 reuse, failures, pending checks or outside-scope stages. Windows ran 229 Rust and
@@ -2315,13 +2315,45 @@ retained; the source archive identifies the final full-suite candidate, not the
 earlier failed candidates. Subsequent status-document edits do not alter the
 tested engine or fixtures.
 
-Finish storage acceptance and default-import adoption, preserving old
+Default-import adoption is now verified: new stored imports select version 2,
+while an explicit version-1 option retains legacy output and receipt shapes.
+Independent block bytes cover profile/HDR migration, built-in/embedded profiles,
+signed zero, subnormal/negative float values and default imports beyond both old
+edit caps. All ten block-edit Python tests ran on both platforms. B10 storage
+judge v2 independently admits both representations with unchanged pixel, source,
+history and memory criteria; damaged staged bytes/manifests fail. Scripted CLI/MCP
+workflows and an explicit legacy CLI workflow pass their applicable checks.
+Linux's unavailable commit-memory check remains explicit; no new model-trial or
+efficiency claim follows from these scripted runs.
+
+Fresh default-adoption full suites passed all 256 stages per platform with no
+reuse, failures, pending checks or outside-scope stages. Windows ran 229 Rust and
+2,697 Python tests in 811.969 seconds; Linux ran 195 Rust and 2,659 Python tests in
+495.575 seconds. The same 13 Windows and 51 Linux skip categories described above
+remain explicit; none of the new tests were skipped. Runs overlapped on the same
+host, so timings are correctness-run durations, not a platform performance
+comparison. Focused Windows feedback took 146.078 seconds and exposed a wrong
+MCP entry point in the new fixture. The corrected test passed in 35.766 seconds;
+Linux's full focused selection passed in 114.174 seconds. All remain inside the
+180-second implementation budget.
+
+Both final full reports bind unchanged input fingerprint
+`c77aa72b1af695d730c77007af86d973c7799bf0686403da714edeffd3d3c080`.
+External `w4-default-block-acceptance-01/audit.json` has SHA-256
+`0e01ad42eaf9e57baa8313c7457ed834158b059a6dc7ecf39a3a3122c9b15b83`.
+Its 555 evidence files and 904 archived source entries were reread against their
+hashes. The initial failed fixture report is retained; the source archive binds
+the final candidate. Only status documentation changes after full acceptance.
+
+Next, implement aggregate native-store capacity admission across concurrent
+publishers, then bounded streaming import under W4.2, preserving old
 snapshots, exact history/retries, pure review proposals and immutable base blocks.
-The expected improvement is continued bounded editing after the current lifetime
-caps, with retained native samples and small history states. Independently verify
-edits beyond both caps, unchanged outside samples, old-state reopening, interrupted
-publication, proposals/retries and Windows/Linux behavior. Use targeted feedback
-within 180 seconds and full acceptance at the storage milestone. Do not lift
+Capacity admission must account for deduplicated new bytes and concurrent
+publishers, including interrupted work, without deleting historical blocks.
+Streaming must bound encoded input, decoded bands and pending block retention.
+Keep the verified history/retry and exact-sample contracts while adding those
+bounds. Use targeted feedback within 180 seconds and full acceptance at the
+storage milestone. Do not lift
 unrelated pixel/work budgets as a substitute for measured storage behavior.
 
 Stop and revise the storage design if exact history or create-only publication
