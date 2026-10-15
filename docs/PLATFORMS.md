@@ -42,6 +42,14 @@ No reusable-SVG test was skipped. The linked acceptance record retains exact
 inputs, logs and skip boundaries; this does not extend macOS evidence, Unix jobs
 or the separate configured handoff/model gates.
 
+The [nested-SVG milestone](DEVELOPMENT_STATUS.md#w3a5-complete-within-the-nested-viewport-contract)
+subsequently passed all 249 fresh stages per platform at `c9a5532`, again on
+matching unchanged inputs. Windows executed 216 Rust and 2,606 Python tests with
+12 explicit skips; Linux executed 182 Rust and 2,567 Python tests with 51 skips.
+No nested-SVG test was skipped. The linked record retains the source archive,
+all 498 logs and requirement review; the existing macOS, Unix-job and separately
+configured handoff/model boundaries remain unchanged.
+
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
 to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked
 `moxcms` dependency requires it, as does the standard file-locking API. Separate

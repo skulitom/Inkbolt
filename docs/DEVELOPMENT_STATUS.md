@@ -1881,13 +1881,13 @@ separate evidence remains in `w3a-scopes-focused-01`. Earlier component, symbol
 and local-reference audits remain retained as well. Full acceptance is a
 milestone gate; routine changes keep the 180-second feedback budget.
 
-W3a.5-8 remain open: nested SVG viewports, images, richer text spans and opt-in
-omission reports. This milestone adds no engine checkpoint or whole-goal credit;
-the unchanged registry remains 163/167.
+W3a.6-8 remain open: images, richer text spans and opt-in omission reports.
+Nested SVG verification follows below. No additional engine checkpoint or
+whole-goal credit is awarded; the unchanged registry remains 163/167.
 
-## W3a.5: nested SVG implementation; full acceptance pending
+## W3a.5: complete within the nested viewport contract
 
-Nested SVG viewports now retain separate outer placement/clipping and inner
+Nested SVG viewports retain separate outer placement/clipping and inner
 viewBox/appearance coordinates. Absolute, percentage and automatic dimensions,
 all nine aspect alignments, meet/slice/none and declared overflow choices use the
 [SVG import contract](SVG_IMPORT.md). Nested text, gradients, masks and reuse
@@ -1896,25 +1896,45 @@ Referenced SVGs retain compatible shared geometry and independent viewport clips
 Empty viewports preserve occurrence metadata, validate source templates and do
 not hide siblings. Limits and unsupported semantic boundaries remain explicit.
 
+The six-part requirement review covers placement, aspect mapping, clipping and
+effects, reuse/editing, explicit boundaries, and source/transaction preservation.
 Sixteen new original tests check independent rectangles at two scales, pinned
 font coverage, source-file identity, reusable geometry edits, masks, hierarchy
 limits, version conflicts and atomic insertion through MCP proposals/retry/undo.
-Windows focused feedback took **41.2 seconds**: 11 fresh stages and six matching
-passes reused, with 142 Python tests executed and 40 reused. Linux took **51.3
-seconds**, all 17 selected stages fresh, 179 Python tests executed and three
-explicit Windows-only verifier skips. Neither run failed or left a selected
-check pending. The initial Windows run retained two fixture failures, corrected
-without engine changes; it is not counted as a successful run.
+The existing SVG, component, resource, session and interface regressions also ran.
 
-The reports bind input fingerprint
-`cf3d9fc7eef6977c113d78da8d75c778bf69d606e8b10282c260e950191de8d8`.
-The external `w3a-viewports-focused-01` bundle retains both reports, all 34 stage
-logs (including the reused checks' original logs), an 884-file inventory and a
-frozen candidate archive. Audit SHA-256:
-`dc41dce99c47b0b91e2a196ac9f89159d42621d21595a0596cadb0618f81cd41`.
-Status/architecture updates followed the frozen candidate. Full milestone
-acceptance, later SVG admission tasks and the overall goal remain open; the
-engine registry remains 163/167.
+Fresh full acceptance at `c9a5532` ran consecutively on the shared host, with
+all stages fresh, matching unchanged inputs, and no failures, pending checks,
+reuse or outside-scope checks:
+
+| Platform | Stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 249 | 216 | 2,606 | 12 | 835.4 |
+| Linux / WSL | 249 | 182 | 2,567 | 51 | 453.0 |
+
+Windows skips comprise eight separately configured real-tool handoff checks,
+three unavailable symlink fixtures and one Unix-only path fixture. Linux skips
+retain the Windows job, process-accounting and host-measurement boundaries,
+including the separately configured handoff checks. No dedicated nested-SVG test
+was skipped. These runs do not establish new macOS verification, Unix job support
+or the separate handoff/model gates.
+
+Both reports bind source fingerprint
+`e40e58f80708f7826081f8cf996d38782c6d13352683610788d8fa7fff216772`.
+The external `w3a-viewports-acceptance-01` bundle retains both reports, all 498
+stage logs, the six-part requirement review, an 884-file inventory and a frozen
+candidate archive. Audit SHA-256:
+`698f68325b36735ff65d99785fe3d794fac5494f36a1bc7154b640ed1ecd8905`.
+Final documentation updates follow this frozen candidate; engine and fixture
+inputs remain unchanged.
+
+The preceding focused checks took **41.2/51.3 seconds** on Windows/Linux, retained
+under `w3a-viewports-focused-01`. Windows reused six matching passes; Linux ran
+all selected stages fresh. The initial Windows fixture failures remain retained,
+followed by their correction and the successful focused/full runs. Routine
+feedback keeps the 180-second budget; fresh full acceptance is a milestone gate.
+W3a.6-8 and the overall goal remain open. No additional engine checkpoint is
+awarded; the unchanged registry remains 163/167.
 
 ## W3b: complete within the insertion contract
 
