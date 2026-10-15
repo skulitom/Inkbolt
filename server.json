@@ -1,0 +1,13 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.skulitom/inkbolt",
+  "title": "Inkbolt vector and raster editor",
+  "description": "Local vector and raster editing engine for agents: layered documents, saved sessions and exports.",
+  "version": "0.81.0",
+  "websiteUrl": "https://github.com/skulitom/Inkbolt#readme",
+  "repository": {
+    "url": "https://github.com/skulitom/Inkbolt",
+    "source": "github",
+    "id": "1411041333"
+  }
+}
