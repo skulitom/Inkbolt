@@ -7,10 +7,23 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful hosted Windows/Linux/macOS matrix is `30c4ebd`.
-Linux/macOS also passed fresh full acceptance at `d34851e`; later Windows CI failures
-and their focused follow-up are recorded below.
+The latest retained successful hosted Windows/Linux/macOS matrix is `1d5b960`.
+It includes the bounded Windows polling fix and optimized development hashing;
+earlier failures and their focused follow-up are recorded below.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
+
+The [complete run](https://github.com/skulitom/Inkbolt/actions/runs/38509490197)
+passed 243 fresh stages on every platform, with unchanged inputs and no failed,
+pending or reused checks. Windows ran 215 Rust and 2524 Python tests, with eight
+explicit skips, in 3998.5 seconds. Linux/macOS each ran 181 Rust and 2482 Python
+tests, with 50 skips, in 1317.6/2466.0 seconds. Reports and logs are retained under
+`w1-public-ci-1d5b960`, candidate
+`f872b566645b32d4611fce01f8ae24ce9e3173b954261fa4d3478d3e5a27210c`;
+the 732-file audit is
+`b3be11b823c988bf91a2bf80ed0fb43a67afcc9fdb399cc626859bc3e8f5ada8`.
+This is a successful run after the Windows changes, not proof that intermittent
+timing failures cannot recur. Subsequent benchmark-judge edits have separate
+focused Windows/WSL evidence.
 
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
 to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked

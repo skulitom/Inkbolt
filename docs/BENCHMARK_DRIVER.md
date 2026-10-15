@@ -600,6 +600,11 @@ label. Capabilities/schema discovery goes through the same measured bridge.
 The judge locates consumer actions by their actual requests and order, without
 requiring reference-client step labels. Required object/session/request IDs
 are stated in the prompt.
+The post-relink snapshot may read the current head or explicitly request revision
+2, between relink and undo. Its observed response must contain revision 2 and
+match the independently reopened saved project. Historical reads still explicitly
+request revision 1 and must return it. Wrong revisions or observations taken
+after undo cannot supply the post-relink snapshot.
 
 The judge locates the unique retained Inkbolt session within the capture. It
 independently reopens all three authored source snapshots, accepting omitted
@@ -613,7 +618,11 @@ before either engine can run, and later successful calls cannot erase them.
 All engine processes are harness-owned; consumer paths stay within the trial
 workspace, with fixed store and output destinations. The broker limits message
 size, count and total traffic, freezes delivered-file identities after compilation,
-and retains actual command responses and complete process observations. Ordinary
+and retains actual command responses and complete process observations. Additional
+optional files such as inspection reports may accompany either arm's required
+delivery files. Every initially observed file must remain present with identical
+bytes; extra files do not replace required sources, frames, manifests or movies.
+The same bounded inventory and path checks apply to both arms. Ordinary
 returned engine errors can be repaired; control, containment and judge failures
 still fail. Preparation starts no engines. Consumer accounting currently requires
 Windows, so this external adapter explicitly refuses other platforms.

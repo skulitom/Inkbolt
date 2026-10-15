@@ -81,6 +81,19 @@ def check_decoded(value,frames):
 def check_movie(consumer,name,movie,frames):check_decoded(decode_movie(consumer,name,movie),frames)
 
 
+def check_delivery_preservation(case,observed,required,count):
+    """Preserve every observed file, including optional delivery diagnostics."""
+    from benchmark_diagram import delivered
+    require(len(required)==count and isinstance(observed,dict) and count<=len(observed)<=32 and
+        all(observed.get(name)==digest for name,digest in required.items()),
+        'Required delivery files differ from their observed compilation')
+    for name,digest in observed.items():
+        parts=name.split('/')
+        require(len(parts)==2 and parts[0] in ('delivery-0','delivery-1'), 'Invalid observed delivery path')
+        safe_name(parts[1])
+        require(sha(delivered(case,name))==digest, 'An initially observed delivery file changed: '+name)
+
+
 def write_bundle(bundle, root):
     files={}
     for file in bundle['files']:

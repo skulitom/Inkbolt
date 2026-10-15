@@ -5,12 +5,14 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from benchmark_handoff import HandoffTrial,fixture,solve,judge,PROMPT,original_frames,consumer_rgba,check_decoded
-from benchmark_handoff_judge import durable_inputs,judge_retained
+from benchmark_handoff import (HandoffTrial,fixture,solve,judge,PROMPT,original_frames,consumer_rgba,check_decoded,
+    check_delivery_preservation)
+from benchmark_handoff_judge import durable_inputs,judge_retained,consumer_roles
 from benchmark_runtime import Trial,TaskFailure
 from benchmark_tasks import CHECKS
 from workload_cases import sha
@@ -18,6 +20,62 @@ from test_images_cli import png
 
 
 class HandoffOracleTests(unittest.TestCase):
+    def test_current_head_observation_requires_revision_two_before_undo(self):
+        events=[('session.apply',dict(request_id='initial'),0),('session.get',{},1),
+            ('scene.render',dict(output='delivery-1/compiled.mkv'),0),('session.get',{},1),
+            ('session.preview',dict(expected_revision=1),0),('session.get',{},1),
+            ('session.apply',dict(request_id='relink'),0),('session.get',{},2),
+            ('session.apply',dict(request_id='stale'),0),('session.get',dict(revision=1),1),
+            ('session.undo',dict(request_id='undo'),0),('session.get',{},3),
+            ('session.apply',dict(request_id='relink'),0),('session.get',{},3)]
+        rows=[dict(step=str(i),command=command) for i,(command,_,_) in enumerate(events)]
+        original={str(i):dict(request=request,response=dict(ok=i!=8,result=dict(revision=revision)))
+            for i,(_,request,revision) in enumerate(events)}
+        for variant in ('head','explicit','wrapped','wrong-head','wrong-selector','missing-revision','boolean',
+                'failed-read','after-undo','wrong-historical'):
+            with self.subTest(variant=variant):
+                records=copy.deepcopy(original);calls=copy.deepcopy(rows);value=records['7']
+                if variant=='explicit':value['request']['revision']=2
+                elif variant=='wrapped':value['response']['result']=dict(project=dict(revision=2))
+                elif variant=='wrong-head':value['response']['result']['revision']=3
+                elif variant=='wrong-selector':value['request']['revision']=3
+                elif variant=='missing-revision':value['response']['result']={}
+                elif variant=='boolean':value['response']['result']['revision']=True
+                elif variant=='failed-read':value['response']['ok']=False
+                elif variant=='after-undo':calls.append(calls.pop(7))
+                elif variant=='wrong-historical':records['9']['response']['result']['revision']=3
+                if variant in ('head','explicit','wrapped'):
+                    self.assertEqual(consumer_roles(dict(calls=calls),records)['timeline-after'],'7')
+                else:
+                    with self.assertRaisesRegex(TaskFailure,'Missing observed consumer workflow role'):
+                        consumer_roles(dict(calls=calls),records)
+
+    def test_optional_delivery_files_are_permitted_but_still_immutable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);case=SimpleNamespace(root=root);original={}
+            for index in range(2):
+                folder=root/f'delivery-{index}';folder.mkdir()
+                for name in ('source.json','scene.json','frame-0.png','frame-1.png','compiled.mkv'):
+                    path=folder/name;path.write_bytes(name.encode());original[path.relative_to(root).as_posix()]=sha(path.read_bytes())
+            extra=root/'delivery-0/inspection.json';extra.write_bytes(b'original diagnostic')
+            observed=dict(original);observed['delivery-0/inspection.json']=sha(extra.read_bytes())
+            for fault in ('none','changed-extra','missing-extra','changed-required','missing-observation',
+                    'missing-required','outside','nested','too-many'):
+                with self.subTest(fault=fault):
+                    proof=dict(observed);required=dict(original);extra.write_bytes(b'original diagnostic')
+                    source=root/'delivery-0/source.json';source.write_bytes(b'source.json')
+                    if fault=='changed-extra':extra.write_bytes(b'changed diagnostic')
+                    elif fault=='missing-extra':extra.unlink()
+                    elif fault=='changed-required':source.write_bytes(b'changed source')
+                    elif fault=='missing-observation':del proof['delivery-0/source.json']
+                    elif fault=='missing-required':del required['delivery-0/source.json']
+                    elif fault=='outside':proof['../outside.json']='0'*64
+                    elif fault=='nested':proof['delivery-0/nested/file.json']='0'*64
+                    elif fault=='too-many':proof.update({f'delivery-0/extra-{i}':'0'*64 for i in range(32)})
+                    if fault=='none':check_delivery_preservation(case,proof,required,10)
+                    else:
+                        with self.assertRaises(TaskFailure):check_delivery_preservation(case,proof,required,10)
+
     def test_fixture_is_original_and_stable_without_starting_a_consumer(self):
         with tempfile.TemporaryDirectory() as directory:
             case=Trial(EXE,Path(directory)/'fixture','B20',1,'cli',CHECKS['B20']);fixture(case)

@@ -4,7 +4,7 @@ import subprocess
 from benchmark_baseline_mixed import same_controls
 from benchmark_diagram import delivered
 from benchmark_handoff import (WIDTH,HEIGHT,RATE,DURATION,SCHEDULE,original_frames,shifted,
-    consumer_rgba,over_black,decode_movie,check_decoded)
+    consumer_rgba,over_black,decode_movie,check_decoded,check_delivery_preservation)
 from benchmark_graphics import png_check
 from benchmark_runtime import require,strict_json,safe_name
 from benchmark_tasks import ENGINE_CHECKS
@@ -70,7 +70,6 @@ def judge_handoff(case,tools):
     for name,frames in (('original',old_frames*2),('revised',new_frames+old_frames)):
         case.check(name+'-timeline',lambda n=name,f=frames:check_decoded(decode_movie(case.consumer,'judge-'+n,case.root/(n+'.mkv')),
             [over_black(v) for v in f]))
-    case.check('immutable-deliveries',lambda:require(len(inventory)==10 and proof['delivery_files']==inventory,
-        'A baseline delivery changed after its observed compilation'))
+    case.check('immutable-deliveries',lambda:check_delivery_preservation(case,proof['delivery_files'],inventory,10))
     for name in ENGINE_CHECKS['B20']:
         case.not_applicable(name,'The baseline supplies independently authored files and video artifacts; Inkbolt handoff/session and managed consumer-history guarantees are outside its arm.')

@@ -20,6 +20,11 @@ stopped at prerequisites, leaving its quality unjudged. B19 accepted-trial
 coverage, B20 native success, further smaller-model trials and the separate
 sister-project comparison remain open. These batches are not full-suite acceptance.
 
+The later [B19/B20 guidance pilots](#b19b20-at-1d5b960-guidance-pilots-and-observation-corrections)
+pass the protocol gates. B19 still fails exact retained-record checks; B20 passes
+both arms after tested judge corrections. These single attempts stay separate
+from the earlier five-trial batches.
+
 The later B03/B16 discovery follow-up passes 5/5 per task in both arms, while
 Inkbolt still uses 4.62x/5.20x baseline median tokens. Its before/after signal is
 mixed; see the [follow-up](#b03b16-at-d34851e-nested-discovery-follow-up).
@@ -1342,3 +1347,65 @@ remain false. No checkpoint credit changes.
 | Baseline report | `f3172498f91405b221d34422f101db2412826e499cc628e3cd25cb635c8cf8d7` |
 | Comparison report | `4caa8a2bef19610db1b9d287164c00ee91333e2d4236c799c229e4ad13951cae` |
 | Raw evidence inventory | `2306d4b69eef8c6814d8b0a6fcb48a8335382a8984513daafed2fe23a5fbc842` |
+
+## B19/B20 at 1d5b960: guidance pilots and observation corrections
+
+One native B19 and one B20 attempt per arm used prompt versions 4 and 3,
+respectively, with the same external Codex CLI 0.160.0 / gpt-6.1-sol medium
+configuration as the preceding trials. Model selection remains external
+evaluation metadata. Source and executable identities stayed unchanged.
+All three runs have accepted model evidence and no driver failure; B19's
+baseline remains not applicable.
+
+B19 passed five checks, including all four artifact/source checks, and failed
+four engine checks. The agent manually wrote `attempts.json`; fifteen fields
+across seven retained objects differ from actual bridge replies, all process
+creation integers. For example, `134364244084953616` became
+`134364244084953620`. The raw command outputs retain the exact integer.
+The evidence locates the mismatch at the saved objects but does not establish
+which hidden client/model step introduced rounding. Keep the failure; exact
+process identities cannot be relaxed. Next measure programmatic preservation of
+returned objects without manual reconstruction. The run used 1,586,239 total
+tokens, 31 engine commands and 237.93 seconds, with a verified preview at 97.52s.
+
+B20 originally failed both arms because of judge defects. The native agent read
+the current consumer head immediately after relinking; its actual response was
+revision 2, but role lookup demanded an explicit revision argument. The baseline
+retained unchanged `inspection.json` files inside both deliveries; the judge
+mistook the extra files for changed required files. The corrected judge binds
+head reads to the observed revision and pre-undo order. Both arms still require
+every mandatory file, and now check every additional observed file for unchanged
+bytes as well. Wrong revisions, late reads, missing or altered files still fail.
+
+Rejudging copied, unchanged captures passes all sixteen native checks and eight
+baseline artifact/source checks; eight baseline engine checks remain not
+applicable. No agent reran, no output was repaired, and original failures remain
+retained. Solve metrics and controller captures match the originals exactly:
+
+| B20 arm | Total tokens | Agent seconds | Combined engine commands | Verified preview time |
+| --- | ---: | ---: | ---: | --- |
+| Inkbolt | 978,624 | 184.50 | 57 | Unknown |
+| Baseline | 287,125 | 131.43 | 19 | Unknown |
+
+This one-pair artifact tie at 3.41x tokens is a pilot, not repeated acceptance or
+evidence of a reliability advantage. It does not replace or pool with the older
+five-pair prompt. All 98 completed trace items and fourteen retained Python
+helpers were reviewed. No prohibited repository/judge reads or additional engine
+or model access was observed; numeric image checks do not establish visual review.
+
+The original 957 files are retained under `w2-bridge-guidance-`; the 329 rejudge
+files are under `w2-handoff-observation-rejudge-`. Both source inventories were
+checked unchanged. Focused regression/lifecycle/verifier checks passed on Windows
+in 66.1s (40 Python tests) and WSL in 18.3s (30 executed, ten explicit Windows
+process skips), with seven fresh stages each and no failures or pending checks.
+This does not establish full W2, current full-suite acceptance or checkpoint credit.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Original source candidate | `d8f5ce14e0a3c7d81a2d6f1d9db7e7f37314ffa8cd4ea8f4d33329a61068f3c9` |
+| Release executable | `c4e06dff137c3c710b9837f0d02900b0b5243f732092ca4d0706cb7791b9f281` |
+| Original complete review | `7f15837ce015378732f2313a09e699d7e6aeb8ea35996f7795c2c2be48b9731c` |
+| Rejudge review and inventory | `1c9fa7a6ae595b7bebb52faa511cfb802627cde3337dbbcf7d5657ce0cc67753` |
+| Native rejudge report | `c458908a0be842bf22f6dad19e848796287e7f68185d05297e39c0aa4d68ba85` |
+| Baseline rejudge report | `9c80c63efc3f145df69cefead42210f6d8ada8fd6af74b07d68f86e0526f757b` |
+| Focused verification inputs | `e35f8374bc7040c22a69e77b14ecc0753413a94f2d29622b223b0d8e6223fa92` |

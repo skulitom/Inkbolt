@@ -345,8 +345,12 @@ each passed all 243 fresh stages: 181 Rust tests, 2,482 Python tests and 50 expl
 skips, in 1317.3/2910.0 seconds respectively. Retained report/log inventories are under
 `w1-public-ci-d34851e`, fingerprint
 `6d11ebd28b4136acec415096fa37b220092cfe6a2092484ed3f9d9bee6447bf7`.
-That predates the development-profile change. The current full matrix and the
-Windows timeout repair remain unverified on hosted runners; Unix jobs remain open.
+That predates the development-profile change. The later complete hosted matrix
+at `1d5b960` passes all 243 fresh stages on all three platforms, including the
+Windows job tests after the polling/profile changes. Its 732 retained files,
+exact counts, skips and identities are recorded in [platform evidence](PLATFORMS.md).
+One successful run does not prove intermittent timing failures eliminated;
+Unix jobs remain open.
 
 ## W2 and the next behavior increments
 
@@ -1587,16 +1591,16 @@ commands and retained helpers were reviewed, and all 3,019 evidence files are
 hashed. See [the B20 results](BENCHMARK_RESULTS.md#b20-at-fe7786d-linked-graphic-delivery-prerequisite-failures)
 for exact identities, accepted metric scope and retained failures.
 
-The next versioned pilots use B19 prompt 4 and B20 prompt 3. B19 now states the
+The versioned pilots at `1d5b960` use B19 prompt 4 and B20 prompt 3. B19 now states the
 existing message/control grammar, shows a valid saved-revision cancellation
 request and explains where resource bindings live. B20 publishes the existing
 consumer-command allowlist and distinguishes document ID, session ID, folder,
 item ID and default display name; it also clarifies the required error object.
 These address observed protocol/prerequisite failures without changing any
-controller, judge, acceptance criterion or previous score. Run one genuine B19
-native pilot and one B20 pilot per arm with the same external client settings
-before a larger batch. Preserve failures and recheck their causes; a successful
-pilot alone does not establish five-trial or full-suite acceptance.
+controller, judge, acceptance criterion or previous score. One genuine B19
+native pilot and one B20 pilot per arm completed with the same external settings.
+Their protocol gates passed; a successful pilot alone does not establish
+five-trial or full-suite acceptance.
 
 The prompt update passed 22 Windows lifecycle/bridge/driver tests in 67.4 seconds,
 with real consumer/baseline tool configurations enabled, fresh Cargo checks and
@@ -1605,10 +1609,22 @@ six Windows-process tests were explicitly skipped and three unchanged Cargo
 passes were reused. Both reports retain unchanged inputs and fingerprint
 `4967b90df1520a504e5b38683129960b55ce79e691a696e6d240ab60d21caf93`,
 under `w2-bridge-guidance-`. Only status documentation changes after those checks;
-the tested prompt hashes are retained separately. Genuine pilot outcomes remain
-to be measured.
+the tested prompt hashes are retained separately.
 
-Accepted B19 recovery trials, B20 native workflow success, further smaller-model
+The B19 pilot fails four exact-record checks after manually rounded process
+creation identifiers in `attempts.json`; actual bridge output retains exact
+integers. Its artifact/source checks pass. B20 passes both arms after correcting
+two judge assumptions: current-head reads must bind to observed revision 2 before
+undo, and additional delivery diagnostics are allowed only with unchanged bytes.
+All required files, history, receipts, pixels and timing checks remain enforced.
+Imports preserve the original captures and solve metrics; no client reran.
+Regression/lifecycle/verifier checks passed in 66.1s on Windows (40 Python tests)
+and 18.3s on WSL (30 executed, ten explicit Windows-process skips), with fresh
+Cargo checks and no failed/pending checks or reused passes. Candidate fingerprint:
+`e35f8374bc7040c22a69e77b14ecc0753413a94f2d29622b223b0d8e6223fa92`.
+See [the pilot evidence](BENCHMARK_RESULTS.md#b19b20-at-1d5b960-guidance-pilots-and-observation-corrections).
+
+Successful B19 recovery trials, repeated B20 native workflow success, further smaller-model
 trials, arbitrary legacy transcript adapters, B10 Linux commit-memory evidence
 and full W2 acceptance remain open. W2 evidence continues to sequence substantial
 work using the plan's decision rule; no engine checkpoint receives credit.

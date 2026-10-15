@@ -5,7 +5,7 @@ import json
 
 from benchmark_diagram import delivered
 from benchmark_handoff import (WIDTH,HEIGHT,RATE,DURATION,SCHEDULE,original_frames,shifted,
-    consumer_rgba,over_black,decode_movie,check_decoded)
+    consumer_rgba,over_black,decode_movie,check_decoded,check_delivery_preservation)
 from benchmark_graphics import png_check
 from benchmark_large_layout import retained_session_store
 from benchmark_resources import reported_review
@@ -32,10 +32,14 @@ def consumer_roles(report,records):
     """Locate workflow observations by requests/order, never client step names."""
     from pathlib import Path
     rows=report['calls'];roles={}
-    def pick(role,command,predicate=lambda request:True,after=-1,before=None,error=False):
+    def pick(role,command,predicate=lambda request:True,after=-1,before=None,error=False,revision=None):
+        def returned_revision(record):
+            value=record['response'].get('result',{})
+            project=value.get('project',value) if isinstance(value,dict) else {}
+            return isinstance(project,dict) and type(project.get('revision')) is int and project['revision']==revision
         matches=[i for i,row in enumerate(rows) if after<i<(len(rows) if before is None else before) and
             row['command']==command and row['step'] in records and records[row['step']]['response'].get('ok') is (not error) and
-            predicate(records[row['step']]['request'])]
+            predicate(records[row['step']]['request']) and (revision is None or returned_revision(records[row['step']]))]
         require(matches,'Missing observed consumer workflow role: '+role)
         index=matches[0];roles[role]=rows[index]['step'];return index
     initial=pick('initial','session.apply',lambda r:r.get('request_id')=='initial')
@@ -48,8 +52,11 @@ def consumer_roles(report,records):
     for role,after,before in (('timeline-before',initial,compiled),('before-relink',compiled,reviewed),
         ('after-review',reviewed,relink),('restored',undo,retry),('after-retry',retry,None)):
         pick(role,'session.get',after=after,before=before)
-    pick('timeline-after','session.get',lambda r:r.get('revision')==2,after=relink)
-    pick('historical','session.get',lambda r:r.get('revision')==1,after=relink)
+    # Reading the current head between relink and undo is equivalent to an
+    # explicit revision-2 read. Bind either form to the actual returned revision.
+    pick('timeline-after','session.get',lambda r:'revision' not in r or r['revision']==2,
+        after=relink,before=undo,revision=2)
+    pick('historical','session.get',lambda r:r.get('revision')==1,after=relink,revision=1)
     return roles
 
 
@@ -191,8 +198,7 @@ def judge_retained(case,original,receipts,current,history,final,before,historica
         revision('historical-source.json',0)
         require(receipts['create']['document']==original==historical,'Original Inkbolt revision changed')
     case.check('old-source-history',old_source)
-    case.check('immutable-deliveries',lambda:require(len(required_files)==12 and observed['delivery_files']==required_files,
-        'An initially observed delivery, compiled movie or file inventory changed'))
+    case.check('immutable-deliveries',lambda:check_delivery_preservation(case,observed['delivery_files'],required_files,12))
     case.check('history-valid',lambda:require(history['valid'] and history['revision']==current['revision']==current['current_revision']==1 and
         receipts['create']['receipt']['revision']==0 and receipts['move']['receipt']['from_revision']==0 and
         current['state_sha256']==receipts['move']['receipt']['state_sha256'] and
