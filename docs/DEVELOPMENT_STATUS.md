@@ -2064,7 +2064,7 @@ W3a.8 opt-in omission reports are next. Unix jobs, macOS verification of this
 increment, distribution, actual-model/scale evidence and the overall goal remain
 separate. No engine checkpoint is awarded; the registry remains 163/167.
 
-## W3a.8: omission policy implemented; milestone open
+## W3a.8: complete within the explicit omission contract
 
 The explicit `unsupported:"omit_and_report"` policy now shares import and atomic
 insertion. Fresh private strict attempts discard reported source subtrees and
@@ -2129,10 +2129,66 @@ encodings and their SQLite checksums. They reproduce rejected retries/proposals
 before the fix. Compatibility now accepts only those historical formats with
 default newly introduced fields; current identities, saved rows, changed-action
 rejection and proposal content checks remain intact. The first corrected
-Windows selection passed all nine stages fresh in 79.7 seconds. Final docs and
-capability assertions follow that selection. Fresh full Windows/Linux
-acceptance on the final candidate remains required before closing W3a.8. The
-original checkpoint registry and broader goal remain unchanged.
+Windows selection passed all nine stages fresh in 79.7 seconds. After the
+capability/documentation follow-up, matching focused Windows/Linux runs passed
+all eight stages fresh in 84.6/120.1 seconds: 35 Python and 21 Rust tests per
+platform, without skips. Routine feedback stayed within 180 seconds.
+
+Fresh full acceptance then passed all 254 stages per platform on matching,
+unchanged inputs, with no failures, pending checks or reused passes:
+
+| Platform | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 217 | 2,680 | 13 | 943.9 |
+| Linux / WSL2 | 183 | 2,642 | 51 | 591.7 |
+
+All 26 omission tests, five historical-identity tests, sixteen span tests and
+ten insertion tests ran on both platforms. Both full Rust runs exercised the
+cumulative-source-work boundary. Windows skips cover four unavailable symlink
+fixtures, eight separately configured consumer/baseline checks and one Unix-only
+path case. Linux skips retain explicit Windows-job/process/measurement and
+external-consumer boundaries. They do not establish Unix job support or waive
+the separate configured handoff/model gates.
+
+The 895-file candidate is
+`ebcbe526696cbcac0fff2007ce3b3eb73de0c932ec026a83ebb46305151487f2`,
+implementation commit `dace8dd`. The frozen source archive/inventory, requirement
+review, historical declarations, failed reproduction logs, two final focused
+reports, two full reports and all 524 stage logs are retained in
+`w3a-omissions-acceptance-02`. Its 535-file evidence index has audit SHA-256
+`d8fc1f58f746122e492f063d48c50ddc78dad627efac619cef785eac967c9d16`.
+Every source archive entry and indexed evidence hash was independently reread.
+Only final status Markdown follows this capture; implementation and test bytes
+remain identical.
+
+This completes W3a task 8 and D3 within the explicit omission contract. Root/global
+failures remain fatal; degraded import can change appearance and is never silent.
+No new macOS, complete SVG, engine-checkpoint or overall-goal claim is made. The
+registry remains 163/167.
+
+### Next W5.7 increment: missing-field guidance from observed requests
+
+The retained 95-attempt error inventory includes 17 visible generic request-error
+occurrences across B10, B17, B18 and B19. These are output occurrences, not
+authenticated call counts, and include repeated observations. Three minimal
+read-only reproductions on the accepted candidate retain the same generic error:
+B10's empty native storage object, B17's receipt lookup without a session root,
+and B19's history lookup without a limit. Current working schema queries and
+their source trace identities are retained in
+`w5-request-guidance-reproductions-01.json`.
+
+The next bounded implementation will name the missing field and supply a working
+focused lookup for these cases, while preserving execution validation, workspace
+defaults and retry identity. It must keep diagnostics bounded and avoid echoing
+unbounded request values. This targets fewer repair/discovery interactions;
+broader catalogs, wrappers and unrelated format/storage work are not part of
+this increment. Reproduce each failure before changing behavior, then remeasure
+the affected tasks with the same externally configured client/model/settings
+and at least five retained attempts per applicable arm. B17/B19 remain engine-only.
+If request repair does not improve without correctness loss, stop expanding this
+approach. Unknown usage/call metrics stay unknown and cannot establish an
+efficiency gain. This records the W2 prioritization decision; implementation and
+new model trials have not started.
 
 ## W3b: complete within the insertion contract
 

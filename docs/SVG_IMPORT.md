@@ -65,10 +65,12 @@ At most 256 private attempts and 128 MiB of cumulative filtered source bytes are
 allowed, separately from the existing source, XML, scene and per-attempt work
 limits. Insertion keeps ordinary atomic batch, proposal, retry and history
 semantics. The original file is never rewritten and these passes publish no
-resource files. [Focused Windows/Linux verification](DEVELOPMENT_STATUS.md#w3a8-omission-policy-implemented-milestone-open)
-passed for the initial increment. Subsequent focused checks cover late resource
-owners and both sides of the attempt/cumulative-byte boundaries, including the
-final successful attempt. Fresh full W3a.8 milestone acceptance remains open.
+resource files. [Fresh full Windows/Linux acceptance](DEVELOPMENT_STATUS.md#w3a8-complete-within-the-explicit-omission-contract)
+passed all 254 stages per platform on matching inputs. The evidence covers late
+resource owners, both sides of the attempt/cumulative-byte boundaries (including
+the final successful attempt), and historical strict SVG request/proposal
+identities. This completes the declared omission contract, with no complete-SVG
+or new platform claim.
 
 ## Insert into an existing document
 

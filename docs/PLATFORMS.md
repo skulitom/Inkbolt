@@ -88,6 +88,14 @@ both platforms. The linked record retains all 504 logs, the source archive and
 requirement review. This establishes the documented text-range contract on
 Windows/Linux, with no new macOS or Unix background-job claim.
 
+The [explicit SVG omission milestone](DEVELOPMENT_STATUS.md#w3a8-complete-within-the-explicit-omission-contract)
+passed all 254 fresh local stages per platform on matching unchanged inputs at
+`dace8dd`. Windows executed 217 Rust and 2,680 Python tests with 13 explicit skips
+in 943.9 seconds; Linux executed 183 Rust and 2,642 Python tests with 51 skips in
+591.7 seconds. All 26 omission and five historical SVG request-identity tests ran
+on both platforms. The linked record retains source, full logs, requirements and
+skip boundaries. No additional macOS or Unix background-job support is claimed.
+
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
 to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked
 `moxcms` dependency requires it, as does the standard file-locking API. Separate
