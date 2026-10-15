@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub(super) struct Occurrence {
     pub host: String,
     pub target: usize,
-    pub symbol: bool,
+    pub viewport: bool,
     pub original: bool,
 }
 
@@ -149,7 +149,7 @@ impl Candidate {
                 .iter()
                 .find(|item| item.parent.as_deref() == Some(parent))
         };
-        let instance = if occurrence.symbol {
+        let instance = if occurrence.viewport {
             let Some(viewport) = child(&occurrence.host) else {
                 return Ok(None);
             };
@@ -210,7 +210,7 @@ impl Importer<'_> {
             .map(|o| Occurrence {
                 host: o.host.clone(),
                 target: o.target,
-                symbol: o.symbol,
+                viewport: o.viewport,
                 original: false,
             })
             .collect();
@@ -254,7 +254,7 @@ impl Importer<'_> {
             occurrences.push(Occurrence {
                 host,
                 target: offset as usize,
-                symbol: false,
+                viewport: false,
                 original: row.get("instance_path").is_none(),
             });
         }

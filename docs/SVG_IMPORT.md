@@ -29,7 +29,7 @@ Only `svg` is required. It accepts a complete SVG document or a fragment with
 one or more elements. Fragments inherit a synthetic SVG root whose viewport is
 the destination's logical canvas size; the root adds no clip. Complete documents
 retain their own viewport and viewBox; an outer group preserves viewport clipping
-independently of any original root clip. Nested SVG viewports remain unsupported.
+independently of any original root clip. Nested SVG viewports have the mapping and clipping contract below.
 Coordinates are local to the optional destination `parent`; its transform applies
 after imported SVG transforms. Insertion appends artwork to that container.
 Nonprinting mask sources remain top-level resource containers.
@@ -72,7 +72,41 @@ undo and redo use the ordinary atomic edit/session contracts.
 
 ## Supported interpretation
 
-The root must be `svg`, with the SVG namespace or no namespace consistently throughout. Explicit width and height must resolve within 0.000001..32768 logical pixels at 96 pixels/inch. Fractional dimensions retain a [logical vector canvas](VECTOR_CANVAS.md) with a ceiling-sized preview grid. User units, px, in, cm, mm, pt and pc are supported. Percentage and font-relative canvas sizes fail. Geometry remains fractional f64. A positive `viewBox` becomes the root group's affine transform, with the nine min/mid/max alignments, meet/slice or none; default is xMidYMid meet. PNG rendering clips at the canvas viewport. Root transforms compose outside the viewBox mapping. Nested SVG viewports remain unsupported.
+The root must be `svg`, with the SVG namespace or no namespace consistently throughout. Explicit width and height must resolve within 0.000001..32768 logical pixels at 96 pixels/inch. Fractional dimensions retain a [logical vector canvas](VECTOR_CANVAS.md) with a ceiling-sized preview grid. User units, px, in, cm, mm, pt and pc are supported. Percentage and font-relative canvas sizes fail. Geometry remains fractional f64. A positive `viewBox` becomes the root group's affine transform, with the nine min/mid/max alignments, meet/slice or none; default is xMidYMid meet. PNG rendering clips at the canvas viewport. Root transforms compose outside the viewBox mapping. Nested SVG viewports have the mapping and clipping contract below.
+
+Nested `svg` establishes an outer viewport group and an inner content group.
+`x`/`y` default to zero; `width`/`height` default to `100%`, including `auto`.
+Absolute units and percentages resolve against the enclosing user viewport;
+a parent's `viewBox` supplies that percentage basis when present. The element's
+transform applies outside its position. The inner `viewBox` uses the same nine
+alignments and `meet`/`slice`/`none` rules as the root. A valid
+`preserveAspectRatio` without `viewBox` has no geometric effect; an optional
+`meet` or `slice` after `none` is accepted and ignored.
+
+The viewport clips by default. Presentation attributes, embedded styles and
+inline styles can choose `overflow:hidden` or `overflow:visible`; other overflow
+values fail. Opacity, explicit clips and masks apply once to the mapped content.
+Descendants resolve percentage text positions, references, gradients and masks
+in the new user coordinates; following siblings recover the enclosing viewport.
+Nested viewports also work inside symbols, reusable groups and mask artwork.
+A local `use` can reference an `svg` and override its dimensions, retaining the
+existing compatible component sharing and declared context-variant rules.
+
+Zero width or height produces a nonpainting empty group with a declared loss of
+unexpanded content; its descendants and references still undergo template
+validation. It does not hide siblings. Negative dimensions and nonpositive
+`viewBox` dimensions fail. Generated groups count against the existing item and
+hierarchy budgets. Mappings retain original source locations, `viewport_size`
+and `viewport_item_id`, or `empty_viewport:true` for empty groups. Insertions
+remap these item IDs along with component placements.
+
+An omitted nested `version` uses the root's text/mask interpretation. Explicit
+`1.0`, `1.1` or `2.0` is accepted only within that same legacy-versus-2.0
+interpretation; changing it inside a document fails explicitly. Root canvas,
+shape percentage lengths, CSS geometry properties, nested metadata and other
+unsupported semantics retain their existing boundaries. These rules follow the
+public [SVG coordinate model](https://www.w3.org/TR/SVG/coords.html) and
+[viewport overflow rules](https://www.w3.org/TR/SVG/render.html).
 
 Supported elements are groups, positive-size rectangles with optional rounded corners, ellipses, circles, lines, polygons, polylines and paths. Path commands M/L/H/V/C/S/Q/T/A/Z support absolute/relative coordinates, repeated parameter groups, implicit lines after moveto, smooth-handle reflection and finite exponent notation. Quadratics convert to cubics mathematically exactly up to f64 roundoff. A drawing command after close starts a new contour at the closed contour's start. Empty/non-drawable contours and repeated close commands fail under the current path model. Transform lists support matrix, translate, scale, rotate with an optional center, and skewX/skewY. Singular/out-of-range transforms fail under the shared document limits.
 
@@ -178,7 +212,7 @@ The root is an editable group. Each imported drawable/container receives a deter
 ## Local reusable shapes (W3a.4 in progress)
 
 `use` accepts a literal local `href="#id"` or `xlink:href="#id"` targeting a
-supported shape, group, text element, symbol or another `use`. Forward references and
+supported shape, group, text element, symbol, nested `svg` or another `use`. Forward references and
 graphics stored inside `defs` are admitted. The placement and style rules follow
 the public [SVG reuse specification](https://www.w3.org/TR/SVG2/struct.html#UseElement).
 Source declarations and the embedded stylesheet are evaluated
@@ -287,8 +321,8 @@ on symbols. These rules follow the public
 Mappings include `viewport_item_id` and `viewport_size`; atomic insertion remaps
 the extra item identity. A zero dimension becomes a nonpainting empty group with
 an `empty_viewport` receipt and explicit loss of unexpanded content. Invalid and
-unsupported source syntax still fails. CSS geometry properties, nested `svg`
-viewports and additional overflow modes remain unsupported.
+unsupported source syntax still fails. CSS geometry properties and additional
+overflow modes remain unsupported; nested `svg` follows the viewport contract above.
 
 Percentage coordinates in admitted text, placements, paints and masks use the
 current symbol's viewBox dimensions, or its viewport dimensions without a viewBox.

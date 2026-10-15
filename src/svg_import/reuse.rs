@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 pub(super) const ATTRIBUTES: &[&str] = &["href", "x", "y", "width", "height"];
 
-fn located(mut error: Error, node: Node<'_, '_>) -> Error {
+pub(super) fn located(mut error: Error, node: Node<'_, '_>) -> Error {
     let position = node.document().text_pos_at(node.range().start);
     let details = error.details.get_or_insert_with(|| Box::new(json!({})));
     if details.get("byte_offset").is_none() {
@@ -71,10 +71,10 @@ impl References {
                     .copied()
                     .ok_or_else(|| invalid("Missing SVG use target"))?;
                 let tag = target.tag_name().name();
-                if !["g", "text", "use", "symbol"].contains(&tag) && shape_attributes(tag).is_err()
+                if !["g", "text", "use", "symbol", "svg"].contains(&tag) && shape_attributes(tag).is_err()
                 {
                     return Err(unsupported(
-                        "SVG use currently references shapes, groups, text, symbols or another use",
+                        "SVG use currently references shapes, groups, text, SVG viewports, symbols or another use",
                     ));
                 }
                 if scoped.contains(&target.id()) {
@@ -202,13 +202,18 @@ impl Importer<'_> {
         Ok(())
     }
 
-    fn validate_template(&mut self, node: Node<'_, '_>, inherited: &Style) -> Result<(), Error> {
+    pub(super) fn validate_template(
+        &mut self,
+        node: Node<'_, '_>,
+        inherited: &Style,
+    ) -> Result<(), Error> {
         self.control.check()?;
         let tag = node.tag_name().name();
         let extra = match tag {
             "g" => &[][..],
             "use" => ATTRIBUTES,
             "symbol" => viewports::SYMBOL_ATTRIBUTES,
+            "svg" => viewports::NESTED_ATTRIBUTES,
             "text" => &["x", "y", "dx", "dy"],
             _ => shape_attributes(tag)?,
         };
@@ -226,9 +231,9 @@ impl Importer<'_> {
         // potentially long font-family strings) for every nonpainting template.
         self.template_refs.record(&style, clip.as_deref())?;
         match tag {
-            "g" | "symbol" => {
-                if tag == "symbol" {
-                    viewports::validate_symbol(node)?;
+            "g" | "symbol" | "svg" => {
+                if tag != "g" {
+                    viewports::validate(node)?;
                 }
                 for child in template_children(node)? {
                     self.collect_definition(child, &style)?;
@@ -272,8 +277,9 @@ impl Importer<'_> {
         let host = parent.clone();
         self.use_path.push(json!({"source_id":node.attribute("id"), "byte_offset":node.range().start, "item_id":parent}));
         self.scopes.push(target);
-        let result = if target.has_tag_name("symbol") {
-            self.expand_symbol(target, node, parent, inherited)
+        let viewport = target.has_tag_name("symbol") || target.has_tag_name("svg");
+        let result = if viewport {
+            self.expand_viewport(target, Some(node), parent, inherited)
         } else {
             self.visit(target, Some(parent), inherited, None)
         };
@@ -283,7 +289,7 @@ impl Importer<'_> {
             self.occurrences.push(sharing::Occurrence {
                 host,
                 target: target.range().start,
-                symbol: target.has_tag_name("symbol"),
+                viewport,
                 original: false,
             });
         }

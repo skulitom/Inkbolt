@@ -508,8 +508,11 @@ its captured scope and occurrence context. Original and cloned resources share t
 existing definition limit, and receipts retain original IDs/offsets with local
 scope numbers. Mask contexts remain independent editable sources.
 
-`svg_import::viewports` separates a symbol's outer placement and viewport clip
-from its inner viewBox and appearance. A placement-scoped user viewport binds
+`svg_import::viewports` separates a symbol or nested SVG's outer placement and
+viewport clip from its inner viewBox and appearance. Referenced SVGs accept use
+dimension overrides and share compatible content while retaining each clip.
+Zero-size viewports retain nonpainting occurrence metadata and validate source
+templates without hiding their parent or siblings. A placement-scoped user viewport binds
 percentage text, paints, nested placements and mask coordinates, then restores
 the enclosing basis. Shared mask templates prepare one editable source per user
 viewport, reporting the loss of sharing between variants. Original-node and scope resource

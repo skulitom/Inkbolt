@@ -1885,6 +1885,37 @@ W3a.5-8 remain open: nested SVG viewports, images, richer text spans and opt-in
 omission reports. This milestone adds no engine checkpoint or whole-goal credit;
 the unchanged registry remains 163/167.
 
+## W3a.5: nested SVG implementation; full acceptance pending
+
+Nested SVG viewports now retain separate outer placement/clipping and inner
+viewBox/appearance coordinates. Absolute, percentage and automatic dimensions,
+all nine aspect alignments, meet/slice/none and declared overflow choices use the
+[SVG import contract](SVG_IMPORT.md). Nested text, gradients, masks and reuse
+resolve against the nearest user viewport; siblings recover the enclosing basis.
+Referenced SVGs retain compatible shared geometry and independent viewport clips.
+Empty viewports preserve occurrence metadata, validate source templates and do
+not hide siblings. Limits and unsupported semantic boundaries remain explicit.
+
+Sixteen new original tests check independent rectangles at two scales, pinned
+font coverage, source-file identity, reusable geometry edits, masks, hierarchy
+limits, version conflicts and atomic insertion through MCP proposals/retry/undo.
+Windows focused feedback took **41.2 seconds**: 11 fresh stages and six matching
+passes reused, with 142 Python tests executed and 40 reused. Linux took **51.3
+seconds**, all 17 selected stages fresh, 179 Python tests executed and three
+explicit Windows-only verifier skips. Neither run failed or left a selected
+check pending. The initial Windows run retained two fixture failures, corrected
+without engine changes; it is not counted as a successful run.
+
+The reports bind input fingerprint
+`cf3d9fc7eef6977c113d78da8d75c778bf69d606e8b10282c260e950191de8d8`.
+The external `w3a-viewports-focused-01` bundle retains both reports, all 34 stage
+logs (including the reused checks' original logs), an 884-file inventory and a
+frozen candidate archive. Audit SHA-256:
+`dc41dce99c47b0b91e2a196ac9f89159d42621d21595a0596cadb0618f81cd41`.
+Status/architecture updates followed the frozen candidate. Full milestone
+acceptance, later SVG admission tasks and the overall goal remain open; the
+engine registry remains 163/167.
+
 ## W3b: complete within the insertion contract
 
 `add_svg` is an atomic edit accepting fragments and complete SVG documents. It

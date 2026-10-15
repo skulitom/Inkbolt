@@ -12,6 +12,16 @@ pub(super) const SYMBOL_ATTRIBUTES: &[&str] = &[
     "refY",
 ];
 
+pub(super) const NESTED_ATTRIBUTES: &[&str] = &[
+    "x",
+    "y",
+    "width",
+    "height",
+    "viewBox",
+    "preserveAspectRatio",
+    "version",
+];
+
 fn view_box(node: Node<'_, '_>) -> Result<Option<[f64; 4]>, Error> {
     node.attribute("viewBox")
         .map(|value| {
@@ -27,36 +37,35 @@ fn view_box(node: Node<'_, '_>) -> Result<Option<[f64; 4]>, Error> {
 }
 
 pub(super) fn mapping(node: Node<'_, '_>, [width, height]: [f64; 2]) -> Result<Matrix, Error> {
-    let Some(view) = view_box(node)? else {
-        if node.has_attribute("preserveAspectRatio") {
-            return Err(unsupported(
-                "preserveAspectRatio requires viewBox in this importer",
-            ));
-        }
-        return Ok(identity());
-    };
-    let (mut sx, mut sy) = (width / view[2], height / view[3]);
+    let view = view_box(node)?;
     let tokens: Vec<_> = node
         .attribute("preserveAspectRatio")
         .unwrap_or("xMidYMid meet")
         .split_whitespace()
         .collect();
+    if !(1..=2).contains(&tokens.len())
+        || ![
+            "none", "xMinYMin", "xMidYMin", "xMaxYMin", "xMinYMid", "xMidYMid", "xMaxYMid",
+            "xMinYMax", "xMidYMax", "xMaxYMax",
+        ]
+        .contains(&tokens[0])
+    {
+        return Err(unsupported("Unsupported preserveAspectRatio syntax"));
+    }
+    let slice = match tokens.get(1).copied().unwrap_or("meet") {
+        "meet" => false,
+        "slice" => true,
+        _ => return Err(invalid("Expected meet or slice")),
+    };
+    // The attribute is syntactically checked even when it has no geometric
+    // effect. With no viewBox, the viewport retains one-to-one user units.
+    let Some(view) = view else {
+        return Ok(identity());
+    };
+    let (mut sx, mut sy) = (width / view[2], height / view[3]);
     let (mut dx, mut dy) = (0.0, 0.0);
-    if tokens.as_slice() != ["none"] {
-        if !(1..=2).contains(&tokens.len())
-            || ![
-                "xMinYMin", "xMidYMin", "xMaxYMin", "xMinYMid", "xMidYMid", "xMaxYMid", "xMinYMax",
-                "xMidYMax", "xMaxYMax",
-            ]
-            .contains(&tokens[0])
-        {
-            return Err(unsupported("Unsupported preserveAspectRatio syntax"));
-        }
-        let scale = match tokens.get(1).copied().unwrap_or("meet") {
-            "meet" => sx.min(sy),
-            "slice" => sx.max(sy),
-            _ => return Err(invalid("Expected meet or slice")),
-        };
+    if tokens[0] != "none" {
+        let scale = if slice { sx.max(sy) } else { sx.min(sy) };
         (sx, sy) = (scale, scale);
         let factor = |value| match value {
             "Min" => 0.0,
@@ -84,43 +93,45 @@ fn reference(value: &str, axis: usize, basis: f64) -> Result<f64, Error> {
         _ => coordinate(value, basis)?,
     })
 }
-pub(super) fn validate_symbol(node: Node<'_, '_>) -> Result<(), Error> {
+pub(super) fn validate(node: Node<'_, '_>) -> Result<(), Error> {
     mapping(node, [1.0, 1.0])?;
     for name in ["width", "height"] {
         if let Some(value) = node.attribute(name).filter(|v| v.trim() != "auto")
             && coordinate(value, 1.0)? < 0.0
         {
-            return Err(invalid("Symbol dimensions cannot be negative"));
+            return Err(invalid("SVG viewport dimensions cannot be negative"));
         }
     }
     for (axis, (position, anchor)) in [("x", "refX"), ("y", "refY")].into_iter().enumerate() {
         if let Some(value) = node.attribute(position) {
             coordinate(value, 1.0)?;
         }
-        if let Some(value) = node.attribute(anchor) {
+        if node.has_tag_name("symbol")
+            && let Some(value) = node.attribute(anchor)
+        {
             reference(value, axis, 1.0)?;
         }
     }
     Ok(())
 }
 
-struct Symbol {
+struct Viewport {
     size: [f64; 2],
     user_viewport: [f64; 2],
     placement: Matrix,
     content: Matrix,
 }
-impl Symbol {
+impl Viewport {
     fn resolve(
         node: Node<'_, '_>,
-        host: Node<'_, '_>,
+        host: Option<Node<'_, '_>>,
         parent_viewport: [f64; 2],
     ) -> Result<Self, Error> {
-        validate_symbol(node)?;
+        validate(node)?;
         let mut size = [0.0; 2];
         for (axis, name) in ["width", "height"].into_iter().enumerate() {
             let value = host
-                .attribute(name)
+                .and_then(|host| host.attribute(name))
                 .filter(|v| v.trim() != "auto")
                 .or_else(|| node.attribute(name).filter(|v| v.trim() != "auto"));
             size[axis] = value
@@ -128,7 +139,7 @@ impl Symbol {
                 .transpose()?
                 .unwrap_or(parent_viewport[axis]);
             if size[axis] < 0.0 {
-                return Err(invalid("Symbol dimensions cannot be negative"));
+                return Err(invalid("SVG viewport dimensions cannot be negative"));
             }
         }
         let user_viewport = view_box(node)?.map(|v| [v[2], v[3]]).unwrap_or(size);
@@ -145,7 +156,10 @@ impl Symbol {
                 .map(|v| coordinate(v, parent_viewport[axis]))
                 .transpose()?
                 .unwrap_or(0.0);
-            if !empty && let Some(value) = node.attribute(anchor) {
+            if !empty
+                && node.has_tag_name("symbol")
+                && let Some(value) = node.attribute(anchor)
+            {
                 // An omitted anchor leaves the viewport edge in place. Explicit
                 // zero anchors the mapped user-space origin, which can differ.
                 let value = reference(value, axis, user_viewport[axis])?;
@@ -231,15 +245,20 @@ impl Importer<'_> {
         });
         Ok(index)
     }
-    pub(super) fn expand_symbol(
+    pub(super) fn expand_viewport(
         &mut self,
         node: Node<'_, '_>,
-        host: Node<'_, '_>,
+        host: Option<Node<'_, '_>>,
         parent: String,
         inherited: &Style,
     ) -> Result<(), Error> {
-        let layout = Symbol::resolve(node, host, self.viewport)?;
-        let props = properties(node, SYMBOL_ATTRIBUTES, self.styles)?;
+        let layout = Viewport::resolve(node, host, self.viewport)?;
+        let attributes = if node.has_tag_name("symbol") {
+            SYMBOL_ATTRIBUTES
+        } else {
+            NESTED_ATTRIBUTES
+        };
+        let props = properties(node, attributes, self.styles)?;
         let empty = layout.size.contains(&0.0);
         let clipped = props.get("overflow") != Some(&"visible");
         let clip = (!empty && clipped).then(|| Clip {
@@ -258,21 +277,26 @@ impl Importer<'_> {
         if empty {
             // A zero-size viewport has no rendered contents. Keep its occurrence
             // and dimensions without introducing a singular native transform.
-            let host_index = crate::scene::index(&self.document, &parent)?;
-            let binding = &mut self.bindings[host_index];
-            self.template_refs
-                .record(&binding.style, binding.clip.as_deref())?;
-            binding.clip = None;
-            binding.style.mask = None;
-            binding.displayed = false;
-            self.document.items[host_index].visible = false;
+            self.validate_template(node, inherited)?;
+            if host.is_some() {
+                let host_index = crate::scene::index(&self.document, &parent)?;
+                let binding = &mut self.bindings[host_index];
+                self.template_refs
+                    .record(&binding.style, binding.clip.as_deref())?;
+                binding.clip = None;
+                binding.style.mask = None;
+                binding.displayed = false;
+                self.document.items[host_index].visible = false;
+            }
             self.document.items[wrapper].name = node.attribute("id").unwrap_or("").to_owned();
             self.mappings.push(
                 json!({"item_id":wrapper_id,"source_id":node.attribute("id"),
-                "element":"symbol","byte_offset":node.range().start,"instance_path":self.use_path,
+                "element":node.tag_name().name(),"byte_offset":node.range().start,
                 "viewport_size":layout.size,"empty_viewport":true}),
             );
-            self.losses.push("Zero-size symbol viewports become nonpainting empty groups; retain the SVG for their unexpanded contents.".into());
+            self.scopes
+                .annotate(self.mappings.last_mut().unwrap(), &self.use_path);
+            self.losses.push(format!("Zero-size {} viewports become nonpainting empty groups; retain the SVG for their unexpanded contents.", if node.has_tag_name("symbol") { "symbol" } else { "SVG" }));
             return Ok(());
         }
         let previous = self.viewport;

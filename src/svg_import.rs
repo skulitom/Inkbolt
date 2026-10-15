@@ -263,9 +263,11 @@ fn properties<'a>(
         props.insert("mask-mode", "inherit");
     }
     styles.apply(node, &mut props)?;
-    if node.tag_name().name() != "symbol" && props.contains_key("overflow") {
+    let inner_viewport = node.has_tag_name("symbol")
+        || (node.has_tag_name("svg") && node.parent_element().is_some());
+    if !inner_viewport && props.contains_key("overflow") {
         return Err(unsupported(
-            "Overflow is currently supported on symbol viewports only",
+            "Overflow is supported on symbol and nested SVG viewports only",
         ));
     }
     Ok(props)
@@ -654,9 +656,17 @@ impl Importer<'_> {
         let container = is_root || tag == "g" || tag == "use";
         let is_text = tag == "text";
         if tag == "svg" && !is_root {
-            return Err(unsupported("Nested SVG viewports are not yet supported"));
+            return self
+                .expand_viewport(
+                    node,
+                    None,
+                    parent.ok_or_else(|| invalid("Nested SVG requires a parent"))?,
+                    inherited,
+                )
+                .map_err(|error| reuse::located(error, node));
         }
         let extra: &[&str] = match tag {
+            "svg" if node.parent_element().is_some() => viewports::NESTED_ATTRIBUTES,
             "svg" => &[
                 "width",
                 "height",
@@ -688,7 +698,8 @@ impl Importer<'_> {
                 "linearRGB color-interpolation is supported on gradient definitions only; ordinary compositing remains sRGB",
             ));
         }
-        let mut transform = if tag == "symbol" {
+        let inner_viewport = tag == "symbol" || (tag == "svg" && node.parent_element().is_some());
+        let mut transform = if inner_viewport {
             identity()
         } else {
             node.attribute("transform")
@@ -990,6 +1001,25 @@ fn import_with_budget(
             return Err(unsupported(
                 "Mixed or foreign element namespaces are not supported",
             ));
+        }
+        if n != root
+            && n.has_tag_name("svg")
+            && let Some(version) = n.attribute("version")
+        {
+            if !["1.0", "1.1", "2.0"].contains(&version) {
+                return Err(reuse::located(
+                    unsupported("Unsupported nested SVG version"),
+                    n,
+                ));
+            }
+            if (version == "2.0") != (root.attribute("version") == Some("2.0")) {
+                return Err(reuse::located(
+                    unsupported(
+                        "Nested SVG cannot switch the root text/mask compatibility interpretation",
+                    ),
+                    n,
+                ));
+            }
         }
         if n.ancestors().take(crate::scene::MAX_DEPTH + 4).count() > crate::scene::MAX_DEPTH + 2 {
             return Err(Error::new(
