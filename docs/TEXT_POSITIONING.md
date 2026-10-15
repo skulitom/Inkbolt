@@ -3,7 +3,8 @@
 `text.frame.positioning` retains absolute and cumulative relative placements in
 one editable frame, alongside ordinary font and style ranges. This is the shared
 layout for [SVG span ranges and coordinate lists](SVG_IMPORT.md#editable-span-ranges).
-Span-specific compositing and full importer acceptance remain open.
+The declared span-range contract has full Windows/Linux acceptance; span-specific
+compositing remains unsupported.
 Omitting the field preserves the existing paragraph layout.
 
 ```json
@@ -62,5 +63,6 @@ licenses retain the existing explicit resource contract.
 
 `tests/test_text_positioning_cli.py` uses original geometric and shaping fixtures
 with independently calculated origins, rectangles and character-index edits.
-Focused implementation checks do not close the SVG-span milestone; full
-Windows/Linux acceptance and importer coverage remain required.
+The [span milestone](DEVELOPMENT_STATUS.md#w3a7-complete-within-the-span-range-contract)
+records matching fresh full Windows/Linux acceptance, importer coverage and the
+remaining representation boundaries.

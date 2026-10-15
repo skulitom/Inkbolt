@@ -2000,92 +2000,69 @@ executed and one/zero skips. Earlier focused implementation checks took
 31.3/81.0 seconds; their reports and source archive remain in
 `w3a-images-focused-01`, audit
 `f05f4cd86f6f14eaa99b88d052706595c592e4ef73e09311610e5263c532a7c3`.
-Routine feedback retains the 180-second budget. W3a.7 text spans and W3a.8
-opt-in omission reports are next. No engine checkpoint is added; the registry
+Routine feedback retains the 180-second budget. Span acceptance follows below;
+W3a.8 opt-in omission reports are next. No engine checkpoint is added; the registry
 remains 163/167 and the overall goal remains open.
 
-## W3a.7: span ranges and positioning; acceptance open
+## W3a.7: complete within the span-range contract
 
-The shared text frame now retains Unicode-scalar absolute and cumulative relative
-positions alongside editable style ranges. Absolute positions start independently
-shaped and anchored chunks. Relative entries inside ligatures or combining
-clusters defer to the next cluster; range replacement shifts retained indices.
-The [positioning contract](TEXT_POSITIONING.md) records continuation, bounds,
-overflow and edit rules. Existing ordinary frames omit the new field and retain
-their previous layout. Editable layered delivery explicitly refuses these
-controls until a verified native mapping exists.
+**Complete within the declared native-range contract.** Nested `tspan` retains
+editable font/fill ranges and Unicode-scalar absolute/relative positions. The
+shared text layout handles anchored chunks, omitted-axis continuation and
+relative shifts inside glyph clusters. The importer resolves descendant cascade,
+whitespace, coordinate lists, visibility, resource scopes and whole-text gradient
+bounds. Source mappings identify the owning item, normalized scalar range and
+original byte offset. Atomic insertion remaps those identities and retains
+proposal/retry/undo behavior. See the [span contract](SVG_IMPORT.md#editable-span-ranges)
+and [native positioning](TEXT_POSITIONING.md).
 
-Twelve original tests independently check rectangular pixels, exact origins,
-partial-axis resets, anchors, mixed styles, shaping clusters, supplementary
-characters, edits and invalid coordinates. Snapshot/outline/SVG comparisons and
-component placement preserve output; PDF is export smoke only. MCP checks verify
-proposals against the committed state and receipt, unchanged sources, retries,
-undo/redo and rollback of a failed batch. Existing text, Unicode, font-control,
-SVG text, layered text, discovery and verifier checks also ran.
+This implements the primary plan's explicit requirement to use text ranges where
+the engine model can represent the source. Span-specific transforms, group
+opacity, clipping, masks and isolation need separate compositing owners and
+remain located refusals. Rotation, textLength, textPath, unsupported writing
+modes, and differing styles or absolute positions inside a grapheme also remain
+unsupported. These effects are not silently flattened into fill alpha or outlines.
+Identically styled markup within a grapheme shares one range. Source XML nesting
+and descriptions are not retained, import-time mappings do not track edits, and
+later range edits may merge initial DOM shaping boundaries; the import contract
+and loss receipts state those limits. This does not claim all SVG typography.
 
-| Platform | Fresh stages | Python executed | Explicit skips | Seconds |
-| --- | ---: | ---: | ---: | ---: |
-| Windows | 12 | 125 | 0 | 73.2 |
-| Linux / WSL | 12 | 121 | 4 | 81.2 |
+Sixteen original span tests use synthetic fonts and independent glyph origins,
+rectangular pixels at multiple scales, overlap-alpha calculations, source offsets
+and scalar ranges. They cover nested styles and sizes, coordinates, anchors,
+whitespace, supplementary characters, visibility, gradients, reuse, mask sources,
+grapheme boundaries, located failures, resource limits and session insertion.
+Twelve positioning tests additionally check edits, snapshots, outlined delivery,
+components, failed-batch rollback and history. Related SVG, text, publication,
+recovery and all other repository checks ran fresh in both full suites:
 
-All selected stages passed on matching unchanged inputs, including formatting,
-locked builds and all-target Clippy. There were no pending checks or reused
-passes. Linux skipped one Windows background-job workflow and three Windows
-verifier/process-measurement checks. The twelve positioning tests ran on both
-platforms. The first Windows run took 136.5 seconds and failed one fixture's
-expected error name (`ITEM_NOT_FOUND` versus the existing `NOT_FOUND`); that
-expectation was corrected and the workflow assertions strengthened before these
-passes. This remains focused evidence: Rust test execution and 239 other stages
-were outside its scope.
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 252 | 216 | 2,649 | 13 | 760.5 |
+| Linux / WSL | 252 | 182 | 2,611 | 51 | 446.8 |
 
-Both reports bind source fingerprint
-`bd7d79e0e206cf03109e4cb21d030cfd70e9ddae03b9b443fb5a73b74511c85a`.
-The external `w3a-positioning-focused-01` bundle retains both reports, all 24
-stage logs, a requirement review, an 889-file inventory and a frozen source
-archive. Audit SHA-256:
-`e34eabe2add199dc980f5891e597e350c3a02984b221a925e223bd15c8ee79e9`.
-The following status/documentation updates leave engine and test inputs unchanged.
+There were no failures, pending checks, reused passes or stages outside scope.
+All sixteen span tests and twelve positioning tests ran on both platforms.
+Windows skipped four unavailable symlink fixtures, one Unix directory-alias
+fixture and eight separately configured handoff/consumer checks. Linux's 51 skips
+retain Windows jobs/process accounting and separately configured handoff gates;
+they are not Linux feature passes. The final focused span check took 13.7 seconds,
+reusing only unchanged formatting/build/Clippy results; routine feedback retains
+the 180-second budget.
 
-The importer now connects nested `tspan` to that foundation. The shared cascade
-resolves descendant styles; character lists address retained text after whitespace
-normalization. Parent/child coordinates, anchors, visibility, gradient scopes and
-whole-text paint bounds retain their declared semantics. Source mappings include
-the owning item and normalized Unicode-scalar range. Atomic insertion remaps item
-IDs and offsets and retains proposal/retry/undo behavior. See the
-[span contract](SVG_IMPORT.md#editable-span-ranges).
+Both full reports bind matching, unchanged source fingerprint
+`d14a5e1d8eba2c1da09f5204a125a3115fe1cb806256f050ffa55ab5de28f9f9`.
+The external `w3a-spans-acceptance-01` bundle retains all 504 stage logs, both
+reports, the focused follow-up, a requirement review and an 891-file source
+inventory/archive. Its 512-file audit has SHA-256
+`cbc0ab207e902f6e39af05ea70aa160cd69968444b7797b8a07ac1e2900cd89f`.
+These status updates leave tested engine and fixture inputs unchanged. Earlier
+focused evidence and corrected failures remain in `w3a-positioning-focused-01`
+and `w3a-spans-focused-01` rather than being replaced by the milestone record.
 
-Fourteen original span tests check independently calculated positions, rectangular
-pixels at two scales, outlined roundtrips, coordinate inheritance, whitespace,
-mixed sizes, visibility, gradients, reuse, mask sources, grapheme boundaries,
-located failures, range limits and insertion/history. Related SVG, positioning,
-discovery, limit and verifier checks also ran on matching unchanged inputs:
-
-| Platform | Fresh stages | Python executed | Explicit skips | Seconds |
-| --- | ---: | ---: | ---: | ---: |
-| Windows | 16 | 162 | 0 | 57.4 |
-| Linux / WSL | 16 | 159 | 3 | 64.2 |
-
-All selected stages passed without reuse or pending checks. All fourteen span
-tests ran on both platforms; Linux skipped only three Windows verifier/process
-checks. Rust test execution and 235 other stages were outside this focused scope.
-Earlier runs exposed a Clippy argument-count issue and three fixture mistakes:
-half-pixel placement, an obsolete refusal assertion and a wrong capability key.
-Those failures and their corrections are retained with the final evidence.
-
-The external `w3a-spans-focused-01` bundle retains both reports, all 32 final
-stage logs, earlier failure reports/logs, requirement review and an 891-file
-source inventory/archive. Its 45-file audit has SHA-256
-`2d0fd64edeb92b52d830b587b0b0eaf5642438e39463906421f1eabe0b665956`.
-Both reports bind input fingerprint
-`84f103a93c5f4cb54a99dac925d993da50f3ae013445059fde08aec193bb6da3`.
-These status updates leave engine and test inputs unchanged.
-
-Span-specific transforms, opacity, clipping, masks and isolation still fail
-explicitly. Rotation, textLength, textPath and differing styles or absolute
-positions inside a grapheme also remain unsupported. Their representation review
-and fresh full Windows/Linux acceptance remain required before closing W3a.7.
-No new macOS, model-trial, engine-checkpoint or whole-goal claim is made; the
-registry remains 163/167.
+W3a.8 opt-in omission reports are next. Unix jobs, macOS verification of this
+increment, distribution, actual-model/scale evidence and the overall goal remain
+separate. No engine checkpoint is awarded; the registry remains 163/167.
 
 ## W3b: complete within the insertion contract
 

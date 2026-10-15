@@ -79,6 +79,15 @@ symlink fixture because host privilege was unavailable. The linked record
 retains the source archive, full logs, requirement review and skip boundaries.
 This does not establish macOS image verification or Unix background-job support.
 
+The [SVG span-range milestone](DEVELOPMENT_STATUS.md#w3a7-complete-within-the-span-range-contract)
+subsequently passed all 252 fresh local stages per platform on matching unchanged
+inputs. Windows executed 216 Rust and 2,649 Python tests with 13 explicit skips
+in 760.5 seconds; Linux executed 182 Rust and 2,611 Python tests with 51 skips in
+446.8 seconds. All sixteen span tests and twelve native positioning tests ran on
+both platforms. The linked record retains all 504 logs, the source archive and
+requirement review. This establishes the documented text-range contract on
+Windows/Linux, with no new macOS or Unix background-job claim.
+
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
 to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked
 `moxcms` dependency requires it, as does the standard file-locking API. Separate

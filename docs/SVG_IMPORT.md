@@ -73,7 +73,8 @@ undo and redo use the ordinary atomic edit/session contracts.
 ## Placed images
 
 W3a.6 has [fresh full Windows/Linux acceptance](DEVELOPMENT_STATUS.md#w3a6-complete-within-the-image-contract)
-within this image contract. Text spans and opt-in omission reports remain open.
+within this image contract. [Text spans](#editable-span-ranges) have separate
+acceptance below; opt-in omission reports remain open.
 
 `image` admits PNG and JPEG as editable placed images, using the shared
 [image decoder and color rules](IMAGE_IO.md). Supply a `data:image/png` or
@@ -472,11 +473,13 @@ SVG export remains outlined, with its existing editability loss receipt.
 
 Span transforms, nontrivial span opacity, span clips/masks and isolation still
 fail explicitly because they require separate compositing owners. Rotation,
-textLength, textPath, unsupported writing modes and differing styles or absolute positions inside a
-grapheme also fail. Identically styled text split inside a grapheme shares one
-native range to preserve combining behavior. These boundaries are not silently converted to per-glyph
-opacity or outlines. W3a.7 acceptance remains open while this integration receives
-its requirement review and fresh full Windows/Linux checks.
+textLength, textPath, unsupported writing modes and differing styles or absolute
+positions inside a grapheme also fail. Identically styled text split inside a
+grapheme shares one native range to preserve combining behavior. These boundaries
+are not silently converted to per-glyph opacity or outlines. W3a.7 has
+[fresh full Windows/Linux acceptance](DEVELOPMENT_STATUS.md#w3a7-complete-within-the-span-range-contract)
+within this contract, following the plan's requirement for spans representable
+by native text ranges.
 
 ## Editable mask definitions
 

@@ -100,6 +100,29 @@ class SvgSpanTests(unittest.TestCase):
         r=self.imported(clip+self.label('clip-path="url(#c)"',text='A<tspan>A</tspan>'))
         self.rectangles(r,[(4,5,8,12,[0,0,0,255])])
 
+    def test_run_fill_alpha_and_parent_opacity_have_distinct_overlap_pixels(self):
+        source='A<tspan dx="-4">A</tspan>'
+        parent=self.imported(self.label('fill="red" opacity=".5"',text=source))
+        self.rectangles(parent,[(4,5,10,12,[255,0,0,128])])
+        ranges=self.imported(self.label('fill="red" fill-opacity=".5"',text=source))
+        self.rectangles(ranges,[(4,5,10,12,[255,0,0,128]),(6,5,8,12,[255,0,0,192])])
+        overridden=self.imported(self.label('fill="red"',text='A<tspan dx="-4" fill-opacity=".5">A</tspan>'))
+        self.rectangles(overridden,[(4,5,8,12,[255,0,0,255]),(8,5,10,12,[255,0,0,128])])
+        self.roundtrip(ranges['document'])
+
+    def test_collapsed_spaces_and_supplementary_characters_address_positions(self):
+        r=self.imported(self.label(text='A <tspan id="s" x="20">  A</tspan>'))
+        self.assertEqual(self.frame(r)['text'],'A A')
+        self.assertEqual(self.origins(r),[[3.5,12],[9.5,12],[20,12]])
+        self.assertEqual(next(m['text_range'] for m in r['mapping'] if m['source_id']=='s'),[2,3])
+        r=self.imported(self.label(text='A<tspan id="s" x="20"> A</tspan>'))
+        self.assertEqual(self.origins(r),[[3.5,12],[20,12],[23,12]])
+        self.assertEqual(next(m['text_range'] for m in r['mapping'] if m['source_id']=='s'),[1,3])
+        r=self.imported('<text id="label" font-family="Geometry" font-size="10" x="3.5 15.5 27.5" y="12">A<tspan id="s">😀A</tspan></text>',attrs='width="40" height="24"')
+        self.assertEqual(self.origins(r),[[3.5,12],[15.5,12],[27.5,12]])
+        self.assertEqual(next(m['text_range'] for m in r['mapping'] if m['source_id']=='s'),[1,3])
+        self.rectangles(r,[(4,5,8,12,[0,0,0,255]),(16,5,20,12,[0,0,0,255]),(28,5,32,12,[0,0,0,255])])
+
     def test_reused_text_clones_style_context_and_span_mappings(self):
         r=self.imported('<defs><text id="label" x="3.5" y="12"><tspan id="s" fill="currentColor">A</tspan>A</text></defs><use href="#label" font-family="Geometry" font-size="10" color="red"/><use href="#label" x="16" font-family="Geometry" font-size="10" color="blue"/>',attrs='width="48" height="24"')
         spans=[m for m in r['mapping'] if m['source_id']=='s']

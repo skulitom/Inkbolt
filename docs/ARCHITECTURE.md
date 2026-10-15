@@ -5,7 +5,8 @@ rendering. Absolute coordinates create independently shaped chunks; relative
 shifts follow Unicode-scalar indices without splitting ligatures or combining
 marks. Position controls survive range edits, snapshots and sessions. This is
 the shared layout for SVG span style ranges and coordinate lists. Span-specific
-compositing and full importer acceptance remain open. See
+compositing remains unsupported; the range contract has full Windows/Linux
+acceptance. See
 [editable positioning](TEXT_POSITIONING.md) and [SVG spans](SVG_IMPORT.md#editable-span-ranges).
 
 SVG PNG/JPEG resources use self-contained encoded image descriptors, retaining
