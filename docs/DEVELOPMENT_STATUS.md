@@ -1847,7 +1847,7 @@ detach, dependency locks, retry/undo, destination and import budget fallback, de
 references and preservation of nonpainting zero-size groups. Cooperative control
 checks also cover the new preparation and receipt loops.
 
-The final focused Windows/Linux runs each passed nine fresh stages and 58 Python
+Before scoped resource support, focused Windows/Linux runs each passed nine fresh stages and 58 Python
 tests, with no skips, failures, pending checks, reuse or changed inputs, in
 43.0/28.0 seconds. Shared input identity:
 `7e68b695165a0f277bd412e327d71f574cc6024ad698cc2add37c36a125169f6`.
@@ -1866,10 +1866,31 @@ already recorded broader fingerprints. Audit SHA-256:
 Earlier symbol and local-reference evidence remains retained in
 `w3a-symbol-focused-01` and `w3a-reuse-focused-01`.
 
-These are focused checks for intermediate increments. W3a.4 remains open:
-cloned resource scopes still need implementation and independent checks, followed
-by fresh full Windows/Linux acceptance. Unsupported source scopes still fail;
-sharing normalization is explicit. The engine registry remains 163/167.
+Cloned gradient, clip and mask definitions now receive per-use resource identities.
+Local references search enclosing reuse trees before the original document;
+inherited URLs keep their declaration context. Delayed masks restore their scope,
+occurrence path and style, including pinned fonts and viewport coordinates. Original
+IDs/offsets remain in receipts, and the unchanged definition ceiling includes clones.
+Mask contexts remain independently editable; native sharing reports context variants.
+
+Fourteen additional independent fixtures cover declaration versus inherited URLs,
+nested scopes and external local definitions, forward/template/CSS references,
+clip visibility, mask luminance and clips, resized symbol opacity ramps, mask-source
+uses and live edits, pinned text with exact fractional coverage, original-ID
+collisions, resource ceilings, invalid/recursive definitions and insertion retry/undo.
+The final Windows selection passed 19 fresh stages, 195 Python tests and one Rust
+publication-lock regression in 47.4 seconds. Linux passed 18 fresh stages and
+192 Python tests in 57.6 seconds, with three explicit Windows-only verifier skips.
+Neither run had failures, pending checks, reuse or changed inputs. Shared input:
+`e200b2437d137f776d52f49db3d46d0952252049df8586906b687c029ccb3467`.
+The `w3a-scopes-focused-01` audit retains both reports, all 37 stage logs, the
+883-file inventory and frozen source archive. Audit SHA-256:
+`31e9ab1881d4cbbca3b8becdef48ad8e1954bd26711a030c4dd247d051de2cdb`.
+
+These are focused checks for intermediate increments. W3a.4 remains open until
+fresh full Windows/Linux acceptance covers the combined reusable-shape work.
+Unsupported source semantics still fail and sharing normalization is explicit.
+The engine registry remains 163/167.
 
 ## W3b: complete within the insertion contract
 

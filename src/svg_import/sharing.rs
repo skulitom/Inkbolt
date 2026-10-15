@@ -421,6 +421,27 @@ impl Importer<'_> {
                 &aliases,
             );
         }
+        // Resource receipts retain the source tree context even when sharing
+        // removes a copied host from the stored document.
+        for row in &mut self.definitions.records {
+            self.control.check()?;
+            if let Some(path) = row.get_mut("instance_path").and_then(Value::as_array_mut) {
+                for entry in path {
+                    if let Some((instance, source)) =
+                        entry["item_id"].as_str().and_then(|id| placements.get(id))
+                    {
+                        entry["instance_item_id"] = json!(instance);
+                        entry["component_source_id"] = json!(source);
+                    }
+                    remap(
+                        entry,
+                        &["item_id", "instance_item_id", "component_source_id"],
+                        &aliases,
+                    );
+                }
+            }
+            remap(row, &["item_id"], &aliases);
+        }
         for row in &mut receipts {
             remap(
                 row,

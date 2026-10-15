@@ -8,6 +8,7 @@ pub(crate) use insertion::insert;
 mod labels;
 mod masking;
 mod reuse;
+mod scopes;
 mod sharing;
 mod styles;
 mod viewports;
@@ -620,7 +621,8 @@ struct Importer<'css> {
     references: reuse::References,
     use_path: Vec<Value>,
     template_refs: definitions::TemplateReferences,
-    collected_resources: HashSet<roxmltree::NodeId>,
+    collected_resources: HashSet<String>,
+    scopes: scopes::Scopes,
     occurrences: Vec<sharing::Occurrence>,
 }
 impl Importer<'_> {
@@ -675,7 +677,7 @@ impl Importer<'_> {
             props.insert("display", "inline");
             props.entry("overflow").or_insert("hidden");
         }
-        let style = styled(inherited, &props)?;
+        let style = self.scopes.styled(inherited, &props, false)?;
         if self.in_mask && style.mask.is_some() {
             return Err(unsupported(
                 "Opacity masks inside mask artwork are not yet supported",
@@ -798,18 +800,16 @@ impl Importer<'_> {
             }
         };
         self.mappings.push(json!({"item_id":id,"source_id":node.attribute("id"),"element":tag,"byte_offset":node.range().start}));
-        if !self.use_path.is_empty() {
-            self.mappings.last_mut().unwrap()["instance_path"] = json!(self.use_path);
-        }
+        self.scopes
+            .annotate(self.mappings.last_mut().unwrap(), &self.use_path);
         self.bindings.push(definitions::Binding {
             index: self.document.items.len(),
             style: style.clone(),
             clip: props
                 .get("clip-path")
-                .map(|v| definitions::reference(v))
+                .map(|v| self.scopes.reference(v))
                 .transpose()?
-                .flatten()
-                .map(str::to_owned),
+                .flatten(),
             displayed: props.get("display") != Some(&"none"),
             text_bounds,
             text_placement,
@@ -1045,7 +1045,7 @@ fn import_with_budget(
         [width, height]
     };
     let mut importer=Importer{styles:&styles,control:control.clone(),document,mappings:vec![],approximations:vec![],definitions:Default::default(),bindings:vec![],
-        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), references, use_path:vec![],template_refs:Default::default(),collected_resources:HashSet::new(),occurrences:vec![],losses:vec![
+        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), references, use_path:vec![],template_refs:Default::default(),collected_resources:HashSet::new(),scopes:scopes::Scopes::new(root),occurrences:vec![],losses:vec![
         "Source IDs are mapped to deterministic item IDs; the root is an editable group. Retain the source for XML formatting, comments and original IDs.".into(),
         "Presentation inheritance, embedded stylesheets and inline style are resolved into editable properties. Classes, selectors and stylesheet syntax are not retained. Quadratic curves and shorthand become explicit cubic/line commands; units/viewBox become affine transforms. Original syntax is not retained.".into(),
         "Paint colors and fill/stroke opacity are quantized to RGBA8; object and group opacity retain f64 precision. Geometry is f64; display coverage uses the existing f32 renderer.".into(),

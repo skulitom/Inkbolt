@@ -15,6 +15,8 @@ pub(super) fn mode(value: &str, allow_source: bool) -> Result<Option<Mode>, Erro
 #[derive(Clone)]
 pub(super) struct Template {
     offset: usize,
+    scopes: Vec<scopes::Scope>,
+    use_path: Vec<Value>,
     style: Style,
     clip: Option<String>,
     region_box: bool,
@@ -46,13 +48,15 @@ impl Template {
         node: Node<'_, '_>,
         inherited: &Style,
         styles: &styles::Sheet,
+        scopes: &scopes::Scopes,
+        use_path: &[Value],
     ) -> Result<Self, Error> {
         let p = properties(
             node,
             &["maskUnits", "maskContentUnits", "x", "y", "width", "height"],
             styles,
         )?;
-        let style = styled(inherited, &p)?;
+        let style = scopes.styled(inherited, &p, false)?;
         if node.has_attribute("transform") || style.mask.is_some() {
             return Err(unsupported(
                 "Transforms or recursive mask effects on mask definitions are not yet supported",
@@ -89,13 +93,14 @@ impl Template {
         }
         Ok(Self {
             offset: node.range().start,
+            scopes: scopes.stack.clone(),
+            use_path: use_path.to_vec(),
             style,
             clip: p
                 .get("clip-path")
-                .map(|v| definitions::reference(v))
+                .map(|v| scopes.reference(v))
                 .transpose()?
-                .flatten()
-                .map(str::to_owned),
+                .flatten(),
             region_box,
             content_box,
             region,
@@ -149,6 +154,9 @@ impl Importer<'_> {
             // viewport contexts receive separate editable source variants.
             self.viewport = source_viewport;
             self.in_mask = true;
+            self.scopes.stack = template.scopes.clone();
+            self.use_path = template.use_path.clone();
+            let source_id = scopes::source_id(&name);
             let mut title = None;
             for child in node.children() {
                 if child.is_text() && !child.text().unwrap_or("").trim().is_empty() {
@@ -182,7 +190,7 @@ impl Importer<'_> {
                 pixel_warp: None,
                 metadata: None,
                 id: id.clone(),
-                name: title.unwrap_or_else(|| name.clone()),
+                name: title.unwrap_or_else(|| source_id.to_owned()),
                 content: Content::MaskSource {},
                 parent: None,
                 transform: identity(),
@@ -211,19 +219,18 @@ impl Importer<'_> {
                 viewport: self.viewport,
             });
             let mapping_start = self.mappings.len();
-            self.mappings.push(json!({"item_id":id,"source_id":name,"element":"mask","byte_offset":template.offset}));
-            if let Some(record) = self
-                .definitions
-                .records
-                .iter_mut()
-                .find(|r| r["source_id"] == name && r["item_id"].is_null())
-            {
+            let mut mapping = json!({"item_id":id,"source_id":source_id,"element":"mask","byte_offset":template.offset});
+            self.scopes.annotate(&mut mapping, &self.use_path);
+            self.mappings.push(mapping.clone());
+            if let Some(record) = self.definitions.records.iter_mut().find(|r| {
+                r["source_id"] == source_id
+                    && r["resource_scope"] == mapping["resource_scope"]
+                    && r["item_id"].is_null()
+            }) {
                 record["item_id"] = json!(id);
             } else {
-                self.definitions
-                    .records
-                    .push(json!({"source_id":name,"element":"mask",
-                    "byte_offset":template.offset,"item_id":id,"viewport":source_viewport}));
+                mapping["viewport"] = json!(source_viewport);
+                self.definitions.records.push(mapping);
             }
             for child in node
                 .children()
@@ -240,6 +247,8 @@ impl Importer<'_> {
             }
             self.viewport = viewport;
             self.in_mask = false;
+            self.scopes.stack.clear();
+            self.use_path.clear();
         }
         Ok(())
     }
@@ -255,9 +264,12 @@ pub(super) fn apply(
         let Some(id) = &b.style.mask else {
             continue;
         };
-        let template = masks
-            .get(id)
-            .ok_or_else(|| invalid(format!("Missing or wrong-type mask reference: {id}")))?;
+        let template = masks.get(id).ok_or_else(|| {
+            invalid(format!(
+                "Missing or wrong-type mask reference: {}",
+                scopes::source_id(id)
+            ))
+        })?;
         let clip_region = !modern || template.explicit_region;
         let bounds = local_bounds(document, b.index, identity(), bindings);
         let user = geometry::inverse(b.text_placement)?;

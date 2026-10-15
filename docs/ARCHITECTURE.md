@@ -500,13 +500,19 @@ bottom-up conversion and ID aliases retain shared nested edits. Receipt paths us
 stored instance/source identities. Expanded input is validated first, and native
 resource limits can retain groups with a stated reason. Insertion remaps every
 component identity and can retry once from the untouched destination using groups.
-Cloned resource scopes remain open in W3a.4.
+`svg_import::scopes` assigns bounded use-tree identities while retaining the source
+nodes. Private resource keys distinguish cloned definitions without rewriting XML
+IDs. New local URL declarations search the current tree and enclosing trees;
+inherited values retain their declaration identity. Delayed mask traversal restores
+its captured scope and occurrence context. Original and cloned resources share the
+existing definition limit, and receipts retain original IDs/offsets with local
+scope numbers. Mask contexts remain independent editable sources.
 
 `svg_import::viewports` separates a symbol's outer placement and viewport clip
 from its inner viewBox and appearance. A placement-scoped user viewport binds
 percentage text, paints, nested placements and mask coordinates, then restores
 the enclosing basis. Shared mask templates prepare one editable source per user
-viewport, reporting the loss of sharing between variants. Original-node resource
+viewport, reporting the loss of sharing between variants. Original-node and scope resource
 collection prevents repeated preparation from replacing nested definitions.
 Synthetic viewport/resource IDs join the ordinary insertion remap; original
 source locations and occurrence paths remain available.

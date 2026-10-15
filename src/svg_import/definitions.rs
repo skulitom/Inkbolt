@@ -175,21 +175,24 @@ impl Definitions {
         for id in &references.gradients {
             if !self.gradients.contains_key(id) {
                 return Err(invalid(format!(
-                    "Missing or wrong-type gradient reference: {id}"
+                    "Missing or wrong-type gradient reference: {}",
+                    scopes::source_id(id)
                 )));
             }
         }
         for id in &references.clips {
             if !self.clips.contains_key(id) {
                 return Err(invalid(format!(
-                    "Missing or wrong-type clip reference: {id}"
+                    "Missing or wrong-type clip reference: {}",
+                    scopes::source_id(id)
                 )));
             }
         }
         for id in &references.masks {
             if !self.masks.contains_key(id) {
                 return Err(invalid(format!(
-                    "Missing or wrong-type mask reference: {id}"
+                    "Missing or wrong-type mask reference: {}",
+                    scopes::source_id(id)
                 )));
             }
         }
@@ -200,44 +203,32 @@ impl Definitions {
         node: Node<'_, '_>,
         inherited: &Style,
         styles: &styles::Sheet,
+        scopes: &scopes::Scopes,
+        use_path: &[Value],
     ) -> Result<(), Error> {
-        if node.tag_name().name() == "defs" {
-            let props = properties(node, &[], styles)?;
-            if node.has_attribute("transform")
-                || props.contains_key("clip-path")
-                || props.get("mask").is_some_and(|v| *v != "none")
-            {
-                return Err(unsupported(
-                    "Transforms/effects on defs containers are not supported",
-                ));
-            }
-            let style = styled(inherited, &props)?;
-            for child in elements(node)? {
-                self.collect(child, &style, styles)?;
-            }
-            return Ok(());
-        }
         if self.gradients.len() + self.clips.len() + self.masks.len() >= MAX_DEFINITIONS {
             return Err(Error::new(
                 "RESOURCE_LIMIT",
                 format!("SVG exceeds {MAX_DEFINITIONS} gradient/clip/mask definitions"),
             ));
         }
-        let name = id(node)?;
+        let name = scopes.key(&id(node)?);
         match node.tag_name().name() {
             "linearGradient" | "radialGradient" => {
-                self.gradient(node, inherited, name.clone(), styles)?
+                self.gradient(node, inherited, name.clone(), styles, scopes)?
             }
             "clipPath" => self.clip(node, inherited, name.clone(), styles)?,
             "mask" => {
                 self.masks.insert(
                     name.clone(),
-                    masking::Template::parse(node, inherited, styles)?,
+                    masking::Template::parse(node, inherited, styles, scopes, use_path)?,
                 );
             }
             tag => return Err(unsupported(format!("Definition <{tag}> is not supported"))),
         }
-        self.records.push(json!({"source_id":name,"element":node.tag_name().name(),"byte_offset":node.range().start}));
+        let mut record = json!({"source_id":id(node)?,"element":node.tag_name().name(),"byte_offset":node.range().start});
+        scopes.annotate(&mut record, use_path);
+        self.records.push(record);
         Ok(())
     }
     fn gradient(
@@ -246,6 +237,7 @@ impl Definitions {
         inherited: &Style,
         id: String,
         styles: &styles::Sheet,
+        scopes: &scopes::Scopes,
     ) -> Result<(), Error> {
         let radial = node.tag_name().name() == "radialGradient";
         let extras: &[&str] = if radial {
@@ -297,7 +289,7 @@ impl Definitions {
                                 c.is_whitespace() || matches!(c, '\'' | '"' | '(' | ')' | '%' | '#')
                             })
                     })
-                    .map(str::to_owned)
+                    .map(|id| scopes.key(id))
                     .ok_or_else(|| unsupported("Gradient templates require local #id references"))
             })
             .transpose()?;
@@ -454,7 +446,12 @@ impl Definitions {
         let mut g = self
             .gradients
             .get(id)
-            .ok_or_else(|| invalid(format!("Missing or wrong-type gradient reference: {id}")))?
+            .ok_or_else(|| {
+                invalid(format!(
+                    "Missing or wrong-type gradient reference: {}",
+                    scopes::source_id(id)
+                ))
+            })?
             .clone();
         if let Some(parent) = g.template.clone() {
             stack.push(id.to_owned());
@@ -560,7 +557,8 @@ impl Definitions {
                     && !resolved.contains_key(id)
                 {
                     return Err(invalid(format!(
-                        "Missing or wrong-type gradient reference: {id}"
+                        "Missing or wrong-type gradient reference: {}",
+                        scopes::source_id(id)
                     )));
                 }
             }
@@ -617,7 +615,10 @@ impl Definitions {
             }
             if let Some(id) = &b.clip {
                 let clip = self.clips.get(id).ok_or_else(|| {
-                    invalid(format!("Missing or wrong-type clip reference: {id}"))
+                    invalid(format!(
+                        "Missing or wrong-type clip reference: {}",
+                        scopes::source_id(id)
+                    ))
                 })?;
                 let transform = if clip.bounding_box && !clip.empty {
                     geometry::relative_transform(
@@ -705,7 +706,7 @@ fn resolve_paint(
     };
     let g = definitions
         .get(id)
-        .ok_or_else(|| invalid(format!("Missing gradient: {id}")))?;
+        .ok_or_else(|| invalid(format!("Missing gradient: {}", scopes::source_id(id))))?;
     if g.stops.is_empty() {
         return Ok(None);
     }

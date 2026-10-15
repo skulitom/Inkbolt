@@ -59,7 +59,7 @@ class SvgReuseTests(unittest.TestCase):
         self.assert_pixels(self.imported(text), lambda x, y: [255, 0, 0, 255]
                            if 5 <= x < 7 and y < 4 else [0, 0, 0, 0])
 
-    def test_cycles_external_missing_wrong_kind_and_unimplemented_scopes_refuse(self):
+    def test_cycles_external_missing_wrong_kind_and_metadata_scopes_refuse(self):
         cases = [
             '<use href="elsewhere.svg#tile"/>', '<use href="#missing"/>',
             '<use href="#encoded%20id"/>',
@@ -68,7 +68,7 @@ class SvgReuseTests(unittest.TestCase):
             '<defs><g id="a"><use href="#b"/></g><g id="b"><use href="#a"/></g></defs>',
             '<g id="a"><use href="#a"/></g>',
             '<defs><linearGradient id="g"><stop offset="0"/></linearGradient></defs><use href="#g"/>',
-            '<defs><g id="g"><defs/><rect width="1" height="1"/></g></defs><use href="#g"/>',
+            '<defs><g id="g"><metadata/><rect width="1" height="1"/></g></defs><use href="#g"/>',
             '<defs><svg id="s"><rect width="1" height="1"/></svg></defs><use href="#s"/>',
         ]
         for body in cases:

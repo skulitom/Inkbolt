@@ -34,15 +34,7 @@ impl References {
         let mut scoped = HashSet::new();
         for node in nodes.iter().rev() {
             control.check()?;
-            if [
-                "defs",
-                "linearGradient",
-                "radialGradient",
-                "clipPath",
-                "mask",
-                "metadata",
-            ]
-            .contains(&node.tag_name().name())
+            if node.has_tag_name("metadata")
                 || node.children().any(|child| scoped.contains(&child.id()))
             {
                 scoped.insert(node.id());
@@ -85,11 +77,9 @@ impl References {
                         "SVG use currently references shapes, groups, text, symbols or another use",
                     ));
                 }
-                // Cloned resource scopes need their own identities and inherited
-                // styles. Refuse that boundary until the scope mapping is present.
                 if scoped.contains(&target.id()) {
                     return Err(unsupported(
-                        "SVG use targets containing definitions or metadata are not yet supported",
+                        "SVG use targets containing metadata are not supported",
                     ));
                 }
                 Ok(target.id())
@@ -183,8 +173,10 @@ impl Importer<'_> {
         self.control.check()?;
         let tag = node.tag_name().name();
         if ["linearGradient", "radialGradient", "clipPath", "mask"].contains(&tag) {
-            return if self.collected_resources.insert(node.id()) {
-                self.definitions.collect(node, inherited, self.styles)
+            let key = self.scopes.key(required(node, "id")?);
+            return if self.collected_resources.insert(key) {
+                self.definitions
+                    .collect(node, inherited, self.styles, &self.scopes, &self.use_path)
             } else {
                 Ok(())
             };
@@ -203,7 +195,7 @@ impl Importer<'_> {
                 "Transforms/effects on defs containers are not supported",
             ));
         }
-        let style = styled_template(inherited, &props)?;
+        let style = self.scopes.styled(inherited, &props, true)?;
         for child in template_children(node)? {
             self.collect_definition(child, &style)?;
         }
@@ -221,16 +213,15 @@ impl Importer<'_> {
             _ => shape_attributes(tag)?,
         };
         let props = properties(node, extra, self.styles)?;
-        let style = styled_template(inherited, &props)?;
+        let style = self.scopes.styled(inherited, &props, true)?;
         if let Some(transform) = node.attribute("transform") {
             geometry::validate_matrix(numbers::transform(transform)?)?;
         }
         let clip = props
             .get("clip-path")
-            .map(|value| definitions::reference(value))
+            .map(|value| self.scopes.reference(value))
             .transpose()?
-            .flatten()
-            .map(str::to_owned);
+            .flatten();
         // Keep only distinct references, not one full inherited style (including
         // potentially long font-family strings) for every nonpainting template.
         self.template_refs.record(&style, clip.as_deref())?;
@@ -280,11 +271,13 @@ impl Importer<'_> {
             .ok_or_else(|| invalid("SVG use target was not indexed"))?;
         let host = parent.clone();
         self.use_path.push(json!({"source_id":node.attribute("id"), "byte_offset":node.range().start, "item_id":parent}));
+        self.scopes.push(target);
         let result = if target.has_tag_name("symbol") {
             self.expand_symbol(target, node, parent, inherited)
         } else {
             self.visit(target, Some(parent), inherited, None)
         };
+        self.scopes.stack.pop();
         self.use_path.pop();
         if result.is_ok() {
             self.occurrences.push(sharing::Occurrence {

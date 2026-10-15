@@ -95,8 +95,8 @@ For clip definitions, all resolved clip/object-box transforms also apply.
 Expanded commands consume the existing per-path and aggregate geometry budgets;
 the importer never drops a segment to fit a budget.
 
-Each source element using arcs has one receipt entry, including clip-definition
-and mask-source elements. Entries carry `source_id`, `element`, XML `byte_offset`,
+Each imported occurrence using arcs has a receipt entry, including clip-definition
+and mask-source elements. Reused occurrences can repeat the original source location. Entries carry `source_id`, `element`, XML `byte_offset`,
 `method`, `coordinate_space`, `binary64_roundoff_included:false`, and `arcs` with
 `arc_commands`, `cubic_segments`, `zero_radius_lines`, `coincident_endpoints`, and
 `max_radial_error_local`. The last field is the maximum bound for that element,
@@ -200,10 +200,32 @@ Text templates bind fonts when painted. Relative font-size range checks use the
 actual placement context; definition-time validation checks their syntax without
 substituting an unrelated parent size.
 
-Cloned resource scopes remain open in W3a.4. Targets containing definitions or metadata currently fail explicitly;
+Targets may contain local gradients, clips and masks, including nested definitions.
+Each reuse tree resolves local resource IDs before searching enclosing reuse trees
+and then the original document. A fill, stroke or explicit inherited mask URL
+keeps the tree where its value was declared; it is not rebound at each descendant.
+Resource styles inherit through the cloned definition's ancestors and placement.
+Gradient template stops still inherit from the final derived gradient. Delayed
+mask preparation restores that same scope, occurrence path and inherited style,
+including explicitly bound fonts; viewport-specific sources retain their existing
+coordinate contract. These rules follow the public [fragment URL scope rules](https://drafts.csswg.org/css-values-4/#local-urls)
+and [SVG reuse inheritance](https://www.w3.org/TR/SVG2/struct.html#UseStyleInheritance).
+
+Original source IDs and byte offsets remain unchanged. Definition and mapping
+rows in a cloned tree add a numeric `resource_scope` and `instance_path`; scope
+numbers are local to this import receipt, with absent scope denoting the original
+document. Mask definitions also identify their editable source item. Native
+sharing and insertion remap occurrence item IDs without changing source locations.
+Each original and cloned gradient, clip or mask consumes the existing 64-definition
+budget. Duplicate preparation of a resource in the same scope does not reset it.
+Masks in different reuse scopes retain independent editable sources, even when
+their initial pixels agree. Component variants report that boundary explicitly.
+Resource inheritance is resolved at import and is not a live CSS relationship.
+
+Targets containing metadata still fail explicitly;
 placements can refer to existing gradient, clip and mask definitions outside the
-copied subtree. The reusable-shape milestone remains incomplete until those scopes and fresh
-full platform acceptance are finished. Ordinary `use` inside clip-path geometry remains
+copied subtree. Fresh full platform acceptance is still required to complete the
+reusable-shape milestone. Ordinary `use` inside clip-path geometry remains
 unsupported by that narrower definition parser.
 
 ### Shared editing and placement identity
@@ -327,7 +349,7 @@ Opacity masks inside a mask source, mask-definition transforms, images, filters 
 
 ## Explicit boundaries
 
-Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Linked/embedded images, cloned reference-resource scopes, filters, animations, scripts, nested svg viewports and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
+Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Linked/embedded images, filters, animations, scripts, nested svg viewports and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
 
 Standard input is at most 256 KiB and 4096 XML nodes. Explicit `resource_profile: "large_vector"` admits 8 MiB, 65536 XML nodes, 8192 items and 131072 aggregate commands within an 8 MiB snapshot; see [LARGE_VECTOR.md](LARGE_VECTOR.md). XML DTD declarations/markers and processing instructions are rejected; no entity resolver is installed. UTF-8 is required (an optional UTF-8 BOM is retained in the source hash). Local files are opened read-only, checked for regular-file semantics and read with a hard byte cap. Each numeric sequence is bounded to 32768 tokens, each transform list to 64 functions, definitions to 64 and gradient reference chains to 16, and all imported geometry participates in profile-specific limits (standard: 256 items including the root, 16 ancestor levels, 4096 aggregate path commands, coordinate/transform bounds and a 768 KiB snapshot). Rendering retains its separate work/pixel budgets. Cancellation is checked during node traversal and document validation; blocking filesystem reads are not forcefully interrupted.
 
