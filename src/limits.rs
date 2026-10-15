@@ -1517,6 +1517,12 @@ pub mod retouch {
 
 /// Limits for `src/sample_import.rs`.
 pub mod sample_import {
+    /// Aggregate logical private staging bytes reserved by one native import.
+    pub const MAX_PRIVATE_STAGING_BYTES: u64 = 96 * 1024 * 1024;
+    /// Reusable encoded-input copy and framing/CRC scan buffer.
+    pub const INPUT_BUFFER_BYTES: usize = 64 * 1024;
+    /// Exclusive scratch-name reservation attempts; existing files are preserved.
+    pub const MAX_SCRATCH_ATTEMPTS: usize = 64;
     /// Scratch allocation ceiling for decoders producing inline samples.
     pub const MAX_INLINE_DECODER_BYTES: usize = 16 * 1024 * 1024;
     /// Aggregate decoded padded TIFF tile work, separate from native storage.

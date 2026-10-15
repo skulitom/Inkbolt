@@ -84,7 +84,13 @@ or missing pixel coverage and observe cancellation during actual codec input.
 
 Opt in with `sample.import` and `"storage":{"store_root":"C:/absolute/native-store"}`. Under `--workspace`, `"storage":{}` selects `.inkbolt/assets`. Omitting `storage` retains the existing inline import. The source limit stays 32 MiB; native import also caps decoded native channels at 64 MiB and uses 64 MiB decoder allocation limits. These are separate bounds, not a whole-process peak-memory guarantee.
 
-Noninterlaced PNG uses `Candidate::from_rows`, normalizing byte order, expanded channels and opaque missing alpha one row at a time. Its `normalization.decode_storage` receipt is `rows_to_native_blocks`. It avoids complete decoded and normalized frame copies, but retains the encoded source, codec buffers, an unfinished block band and all completed unique pending blocks. Inline imports remain buffered, reporting `complete_decoded_frame`. Decoder completion, document validation and metadata recovery must all succeed before publication. PNG chunk CRC and zlib Adler-32 checks are required for both native and inline sample imports. Invalid document IDs, metadata or unsupported interpretations reject without creating blocks. A failed multi-block publication may retain valid immutable cache entries under the recovery contract above.
+Native PNG/TIFF imports capture the encoded source into a private seekable file
+using 64 KiB buffers. Decode, metadata and source hashes use that same snapshot.
+Scratch payloads live outside document resources and are released on handle close
+or process exit. The operation's private staging budget is 96 MiB; existing source,
+codec and pixel limits are unchanged. See [bounded import](STREAMING_SAMPLE_IMPORT.md).
+
+Noninterlaced PNG uses `Candidate::from_rows`, normalizing byte order, expanded channels and opaque missing alpha one row at a time. Its `normalization.decode_storage` receipt is `rows_to_native_blocks`. It avoids complete decoded and normalized frame copies, but retains codec buffers, an unfinished block band and all completed unique pending blocks. Inline imports retain encoded bytes in memory and report `complete_decoded_frame`. Decoder completion, document validation and metadata recovery must all succeed before publication. PNG chunk CRC and zlib Adler-32 checks are required for both native and inline sample imports. Invalid document IDs, metadata or unsupported interpretations reject without creating blocks. A failed multi-block publication may retain valid immutable cache entries under the recovery contract above.
 
 Interlaced PNG reports `adam7_passes_to_native_blocks`. Its original pass schedule
 follows [PNG section 8.1](https://www.w3.org/TR/png-3/#8InterlaceMethods); each

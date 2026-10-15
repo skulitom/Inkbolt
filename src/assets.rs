@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions},
-    io::{Cursor, Read, Write},
+    io::{Cursor, Read, Seek, Write},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -221,7 +221,7 @@ pub(crate) fn absolute(path: &Path) -> Result<(), Error> {
     }
     Ok(())
 }
-fn io_error() -> Error {
+pub(crate) fn io_error() -> Error {
     Error::new(
         "IO_ERROR",
         "Unable to access the explicitly supplied asset path",
@@ -422,13 +422,6 @@ fn png_error() -> Error {
 fn preflight(bytes: &[u8], policy: ColorPolicy, declared: bool) -> Result<Interpretation, Error> {
     preflight_depth(bytes, policy, declared, None, false)
 }
-pub(crate) fn preflight_samples(
-    bytes: &[u8],
-    policy: ColorPolicy,
-    max_pixels: usize,
-) -> Result<Interpretation, Error> {
-    preflight_depth(bytes, policy, false, Some(max_pixels), false)
-}
 pub(crate) fn preflight_sequence(
     bytes: &[u8],
     policy: ColorPolicy,
@@ -448,43 +441,103 @@ fn preflight_depth(
     samples: Option<usize>,
     animation: bool,
 ) -> Result<Interpretation, Error> {
-    if bytes.get(..8) != Some(b"\x89PNG\r\n\x1a\n") {
+    preflight_reader(
+        &mut Cursor::new(bytes),
+        bytes.len() as u64,
+        policy,
+        declared,
+        samples,
+        animation,
+        &crate::control::Control::default(),
+    )
+}
+
+pub(crate) fn preflight_samples_reader<R: Read + Seek>(
+    reader: &mut R,
+    length: u64,
+    policy: ColorPolicy,
+    max_pixels: usize,
+    control: &crate::control::Control,
+) -> Result<Interpretation, Error> {
+    preflight_reader(
+        reader,
+        length,
+        policy,
+        false,
+        Some(max_pixels),
+        false,
+        control,
+    )
+}
+
+fn preflight_reader<R: Read + Seek>(
+    reader: &mut R,
+    length: u64,
+    policy: ColorPolicy,
+    declared: bool,
+    samples: Option<usize>,
+    animation: bool,
+    control: &crate::control::Control,
+) -> Result<Interpretation, Error> {
+    reader.rewind().map_err(|_| png_error())?;
+    let mut signature = [0; 8];
+    if reader.read_exact(&mut signature).is_err() || &signature != b"\x89PNG\r\n\x1a\n" {
         return Err(Error::new(
             "UNSUPPORTED",
             "Image import currently requires PNG input",
         ));
     }
-    let mut offset = 8usize;
+    let mut offset = 8u64;
     let mut srgb = false;
     let mut icc = false;
     let mut other_color = false;
     let mut ended = false;
-    while offset < bytes.len() {
-        let framing = bytes.get(offset..offset + 8).ok_or_else(png_error)?;
-        let size = u32::from_be_bytes(framing[..4].try_into().unwrap()) as usize;
+    let mut buffer = vec![0; crate::limits::sample_import::INPUT_BUFFER_BYTES];
+    while offset < length {
+        control.check()?;
+        let mut framing = [0; 8];
+        reader.read_exact(&mut framing).map_err(|_| png_error())?;
+        let size = u32::from_be_bytes(framing[..4].try_into().unwrap()) as u64;
         let kind = &framing[4..];
         let end = offset
             .checked_add(size)
             .and_then(|v| v.checked_add(12))
-            .filter(|v| *v <= bytes.len())
+            .filter(|v| *v <= length)
             .ok_or_else(png_error)?;
-        let expected = u32::from_be_bytes(bytes[end - 4..end].try_into().unwrap());
-        if crc32fast::hash(&bytes[offset + 4..end - 4]) != expected {
+        let mut crc = crc32fast::Hasher::new();
+        crc.update(kind);
+        let mut header = [0; 13];
+        let mut remaining = size;
+        while remaining != 0 {
+            control.check()?;
+            let count = remaining.min(buffer.len() as u64) as usize;
+            reader
+                .read_exact(&mut buffer[..count])
+                .map_err(|_| png_error())?;
+            crc.update(&buffer[..count]);
+            if offset == 8 && size == 13 {
+                header.copy_from_slice(&buffer[..13]);
+            }
+            remaining -= count as u64;
+        }
+        let mut checksum = [0; 4];
+        reader.read_exact(&mut checksum).map_err(|_| png_error())?;
+        if crc.finalize() != u32::from_be_bytes(checksum) {
             return Err(png_error());
         }
         if offset == 8 {
             if kind != b"IHDR" || size != 13 {
                 return Err(png_error());
             }
-            let w = u32::from_be_bytes(bytes[offset + 8..offset + 12].try_into().unwrap());
-            let h = u32::from_be_bytes(bytes[offset + 12..offset + 16].try_into().unwrap());
+            let w = u32::from_be_bytes(header[..4].try_into().unwrap());
+            let h = u32::from_be_bytes(header[4..8].try_into().unwrap());
             dimensions(w, h)?;
             if samples.is_some_and(|max| w as u64 * h as u64 > max as u64) {
                 return Err(limit(
                     "Sample import exceeds the selected storage pixel budget",
                 ));
             }
-            if bytes[offset + 16] == 16 && samples.is_none() {
+            if header[8] == 16 && samples.is_none() {
                 return Err(Error::new(
                     "UNSUPPORTED",
                     "Use sample.import to retain 16-bit image samples",
@@ -519,7 +572,7 @@ fn preflight_depth(
             b"sRGB" => srgb = true,
             b"gAMA" | b"cHRM" => other_color = true,
             b"IEND" => {
-                if size != 0 || end != bytes.len() {
+                if size != 0 || end != length {
                     return Err(png_error());
                 }
                 ended = true;

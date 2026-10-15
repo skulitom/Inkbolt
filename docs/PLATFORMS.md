@@ -9,7 +9,8 @@ return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
 The latest retained successful hosted Windows/Linux/macOS matrix is `d4692ea`,
 through SVG images, spans, omissions and request guidance. This predates native
-block migration and store admission, whose later evidence is Windows/WSL.
+block migration, store admission and [private source snapshots](STREAMING_SAMPLE_IMPORT.md),
+whose later evidence is Windows/WSL.
 Earlier failures and their focused follow-up remain recorded.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 

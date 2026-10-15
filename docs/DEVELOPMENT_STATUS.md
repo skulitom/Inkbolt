@@ -2382,19 +2382,65 @@ Its 1,104 evidence files and 906 archived source entries were reread against the
 hashes, including the earlier failed candidate and public CLI evidence bound to
 the full-suite executables. Subsequent edits update status documentation only.
 
-Next, implement bounded streaming import under W4.2, preserving old snapshots,
-exact history/retries, pure review proposals and immutable base blocks.
-Streaming must bound encoded input, decoded bands and pending block retention.
-Keep the verified history/retry and exact-sample contracts while adding those
-bounds. Use targeted feedback within 180 seconds and full acceptance at the
-storage milestone. Do not lift
-unrelated pixel/work budgets as a substitute for measured storage behavior.
+The W4.2 follow-up below removes retained encoded input. Decoded codec bands and
+pending block retention still need bounded staging. Preserve old snapshots,
+exact history/retries, pure review proposals and immutable base blocks. Use
+targeted feedback within 180 seconds and full acceptance at storage milestones;
+do not lift unrelated pixel/work budgets as a substitute for measured behavior.
 
 Stop and revise the storage design if exact history or create-only publication
 cannot survive failures, or measured memory/state growth violates the declared
 budget. This first storage increment does not satisfy the complete 50 MP gate:
 streaming import/export, native operations and the new independent `scale-v2`
 cases remain required under W4. No accepted workstream or checkpoint is removed.
+
+### W4.2: private encoded source snapshots; pixel staging open
+
+The first [bounded import delivery unit](STREAMING_SAMPLE_IMPORT.md) is complete.
+Native PNG/TIFF imports copy and hash source bytes in 64 KiB chunks into private
+seekable files. Pixel decoding and metadata recovery share that captured view.
+Windows uses exclusive deletion on handle close; Unix unlinks owner-only files
+before writing payload. Source replacement, bounded reads, shared staging
+capacity, cancellation, read failure, input growth, filename collisions and
+actual process termination have direct fixtures. Late malformed input still
+leaves the workspace/store untouched; exact samples and reimport preservation
+remain covered for every previously admitted PNG/TIFF layout.
+
+Full acceptance passed all 256 stages fresh on both platforms, with matching
+unchanged inputs and no failures, pending checks, reuse or excluded stages:
+
+| Platform | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 245 | 2,698 | 13 | 1417.469 |
+| Linux / WSL | 211 | 2,660 | 51 | 920.665 |
+
+The existing platform/configuration skip categories remain; every applicable
+new source-staging fixture ran. Rust 1.89 passed the Windows locked all-target
+compiler check. Full suites used two workers each and overlapped; timings are
+correctness evidence, not a performance comparison with earlier runs.
+
+Focused feedback took 159.1 seconds on Windows, finding two process timeouts;
+the failed checks passed in 19.6 seconds on retry. An earlier compile failure is
+also retained. Linux's 73.2-second focused tests passed, but the wrapper rejected
+concurrent Windows documentation changes. That focused report is not candidate
+acceptance; the subsequent full run verified an unchanged candidate.
+
+A separate Windows development-build diagnostic held the pixels at 1x1 and
+varied unrelated source text from 1 KiB to 30 MiB. Across three repetitions,
+native import's median process peak committed memory stayed at 1.242 MiB;
+inline import rose from 1.223 to 50.184 MiB. All source identities and native
+bytes matched independent calculations. This demonstrates bounded encoded-input
+retention, not a release-performance or large-image workflow gate.
+
+Both full reports and that diagnostic bind source fingerprint
+`e2d3f98d7f82de79f44e312c739597aaff0c89a0e036efe4416895d7fcc811ac`.
+External `w4-source-staging-acceptance-01/audit.json` has SHA-256
+`dfc80ee5c8cf1942d4655feb2297d74740a13330c616bee6baeb3f7c655c4b5f`.
+Its 581 evidence files and 909 archived source entries were reread and verified.
+Only status documentation changes after acceptance. Completed native blocks
+still remain resident and TIFF chunk height is source-defined. Pixel staging,
+full streaming/storage acceptance, larger workloads and `scale-v2` stay open;
+no checkpoint or whole-goal completion is awarded.
 
 ## W3b: complete within the insertion contract
 

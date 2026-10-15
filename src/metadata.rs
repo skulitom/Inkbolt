@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, HashSet};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 pub use crate::limits::metadata::MAX_DOCUMENT_BYTES;
 pub use crate::limits::metadata::MAX_PACKET_BYTES;
@@ -369,36 +370,16 @@ fn jpeg_segments(bytes: &[u8]) -> Result<Vec<Segment<'_>>, Error> {
     Ok(result)
 }
 pub fn recover(bytes: &[u8], format: &str) -> Result<Option<Value>, Error> {
-    let mut packets = Vec::new();
+    if matches!(format, "png" | "tiff") {
+        return recover_reader(
+            &mut Cursor::new(bytes),
+            bytes.len() as u64,
+            format,
+            &crate::control::Control::default(),
+        );
+    }
+    let mut packets: Vec<Vec<u8>> = Vec::new();
     match format {
-        "png" => {
-            let mut at = 8;
-            while at + 12 <= bytes.len() {
-                let n = u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
-                let body = bytes
-                    .get(at + 8..at + 8 + n)
-                    .ok_or_else(|| invalid("Truncated metadata chunk"))?;
-                if &bytes[at + 4..at + 8] == b"iTXt"
-                    && body.starts_with(PNG_KEY)
-                    && body.get(PNG_KEY.len()) == Some(&0)
-                {
-                    let rest = &body[PNG_KEY.len() + 1..];
-                    if !rest.starts_with(&[0; 4]) {
-                        return Err(invalid(
-                            "Inkbolt metadata requires uncompressed text with empty language fields",
-                        ));
-                    }
-                    if rest.len() - 4 > MAX_PACKET_BYTES {
-                        return Err(limit(&format!(
-                            "Metadata envelope exceeds {} KiB",
-                            MAX_PACKET_BYTES / 1024
-                        )));
-                    }
-                    packets.push(rest[4..].to_vec());
-                }
-                at += n + 12;
-            }
-        }
         "jpeg" => {
             let mut parts = BTreeMap::new();
             let mut count = None;
@@ -438,12 +419,95 @@ pub fn recover(bytes: &[u8], format: &str) -> Result<Option<Value>, Error> {
                 packets.push(parts.into_values().flatten().collect());
             }
         }
+        _ => return Ok(None),
+    }
+    if packets.len() > 1 {
+        return Err(invalid("Duplicate Inkbolt metadata envelope"));
+    }
+    packets.pop().map(|packet| read_packet(&packet)).transpose()
+}
+
+/// Recover bounded metadata from the same captured bytes used by the decoder.
+/// PNG framing/CRC validation is the admission reader's responsibility.
+pub(crate) fn recover_reader<R: Read + Seek>(
+    input: &mut R,
+    length: u64,
+    format: &str,
+    control: &crate::control::Control,
+) -> Result<Option<Value>, Error> {
+    control.check()?;
+    let mut packet = None;
+    match format {
+        "png" => {
+            let mut at = 8u64;
+            while at.checked_add(12).is_some_and(|end| end <= length) {
+                control.check()?;
+                input
+                    .seek(SeekFrom::Start(at))
+                    .map_err(|_| invalid("Truncated metadata chunk"))?;
+                let mut header = [0; 8];
+                input
+                    .read_exact(&mut header)
+                    .map_err(|_| invalid("Truncated metadata chunk"))?;
+                let size = u64::from(u32::from_be_bytes(header[..4].try_into().unwrap()));
+                let end = at
+                    .checked_add(8)
+                    .and_then(|v| v.checked_add(size))
+                    .filter(|end| *end <= length)
+                    .ok_or_else(|| invalid("Truncated metadata chunk"))?;
+                let key_len = PNG_KEY.len() + 1;
+                if &header[4..] == b"iTXt" && size >= key_len as u64 {
+                    let mut key = vec![0; key_len];
+                    input
+                        .read_exact(&mut key)
+                        .map_err(|_| invalid("Truncated metadata chunk"))?;
+                    if key.starts_with(PNG_KEY) && key[PNG_KEY.len()] == 0 {
+                        let mut fields = [0; 4];
+                        if size < (key_len + fields.len()) as u64
+                            || input.read_exact(&mut fields).is_err()
+                            || fields != [0; 4]
+                        {
+                            return Err(invalid(
+                                "Inkbolt metadata requires uncompressed text with empty language fields",
+                            ));
+                        }
+                        let packet_len = size - key_len as u64 - fields.len() as u64;
+                        if packet_len > MAX_PACKET_BYTES as u64 {
+                            return Err(limit(&format!(
+                                "Metadata envelope exceeds {} KiB",
+                                MAX_PACKET_BYTES / 1024
+                            )));
+                        }
+                        if packet.is_some() {
+                            return Err(invalid("Duplicate Inkbolt metadata envelope"));
+                        }
+                        let mut bytes = vec![0; packet_len as usize];
+                        for chunk in
+                            bytes.chunks_mut(crate::limits::sample_import::INPUT_BUFFER_BYTES)
+                        {
+                            control.check()?;
+                            input
+                                .read_exact(chunk)
+                                .map_err(|_| invalid("Truncated metadata chunk"))?;
+                        }
+                        packet = Some(bytes);
+                    }
+                }
+                at = end + 4;
+            }
+        }
         "tiff" => {
+            input
+                .rewind()
+                .map_err(|_| invalid("Invalid TIFF metadata"))?;
             let mut limits = tiff::decoder::Limits::default();
             limits.ifd_value_size = MAX_PACKET_BYTES + TEXT_PREFIX.len() + 1;
-            let mut reader = tiff::decoder::Decoder::new(std::io::Cursor::new(bytes))
-                .map_err(|_| invalid("Invalid TIFF metadata"))?
-                .with_limits(limits);
+            let mut reader = tiff::decoder::Decoder::new(std::io::BufReader::with_capacity(
+                crate::limits::sample_import::INPUT_BUFFER_BYTES,
+                input,
+            ))
+            .map_err(|_| invalid("Invalid TIFF metadata"))?
+            .with_limits(limits);
             if let Some(value) = reader
                 .find_tag(tiff::tags::Tag::ImageDescription)
                 .map_err(|_| invalid("Invalid TIFF description"))?
@@ -452,16 +516,14 @@ pub fn recover(bytes: &[u8], format: &str) -> Result<Option<Value>, Error> {
                     .into_string()
                     .map_err(|_| invalid("TIFF description must be ASCII"))?;
                 if let Some(raw) = value.strip_prefix(TEXT_PREFIX) {
-                    packets.push(raw.as_bytes().to_vec());
+                    packet = Some(raw.as_bytes().to_vec());
                 }
             }
         }
         _ => return Ok(None),
     }
-    if packets.len() > 1 {
-        return Err(invalid("Duplicate Inkbolt metadata envelope"));
-    }
-    packets.pop().map(|packet| read_packet(&packet)).transpose()
+    control.check()?;
+    packet.map(|packet| read_packet(&packet)).transpose()
 }
 pub fn read_packet(packet: &[u8]) -> Result<Value, Error> {
     if packet.len() > MAX_PACKET_BYTES {

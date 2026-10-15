@@ -15,7 +15,10 @@ lock while admitting growth against native bytes and root-entry budgets. Counts
 include orphan stages and one possible temporary hard-link alias; cleanup failure
 stops additional growth. Fully deduplicated publication verifies blocks without
 waiting for capacity. Fresh admission acceptance passed on Windows and Linux;
-streaming import and the full storage/scale milestones remain pending.
+full streaming import and the storage/scale milestones remain pending. Native
+PNG/TIFF input now uses private seekable source snapshots with bounded copy/CRC
+buffers and shared source/metadata identities. Completed candidate pixels still
+remain resident. See [bounded import](STREAMING_SAMPLE_IMPORT.md).
 
 Typed JSON rejection now adds bounded, advisory missing-field guidance using the
 same generated schemas as discovery. The fast inline path retains only the

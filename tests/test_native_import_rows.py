@@ -1,6 +1,7 @@
 """Independent native-block bytes for row/pass-decoded PNG and native TIFF."""
 from contextlib import closing
 import hashlib
+import json
 import struct
 import unittest
 import zlib
@@ -30,10 +31,26 @@ class NativeImportRowTests(unittest.TestCase):
         self.assertEqual(source.read_bytes(), data)
         if 'document' in result:
             self.assertEqual(result['source_sha256'], hashlib.sha256(data).hexdigest())
+            self.assertEqual(result['source_bytes'], len(data))
             self.assertFalse(result['source_changed'])
             self.assertEqual(result['storage']['storage_version'], 2)
             self.assertEqual(result['document']['items'][0]['content']['grid']['storage_version'], 2)
         return result
+
+    def test_large_unrelated_text_preserves_source_metadata_and_exact_pixels(self):
+        packet = json.dumps(dict(schema='inkbolt.metadata.v1', document=dict(title='Original fixture'), items={}),
+                            separators=(',', ':')).encode()
+        data = packed_png(1, 1, 8, 6, bytes([0, 12, 34, 56, 78]), extras=[
+            (b'iTXt', b'Unrelated' + bytes(5) + b'x' * (2 * 1024 * 1024 + 13)),
+            (b'iTXt', b'Inkbolt Metadata' + bytes(5) + packet),
+        ])
+        result = self.imported(data)
+        self.check_blocks(result, 1, 1, 8, 4, [12, 34, 56, 78])
+        self.assertEqual(result['metadata']['envelope_sha256'], hashlib.sha256(packet).hexdigest())
+        inline = self.cli('sample.import', source_path='source.png', id='inline')
+        self.assertEqual(inline['metadata'], result['metadata'])
+        self.assertEqual(inline['source_sha256'], result['source_sha256'])
+        self.assertEqual(inline['document']['items'][0]['content']['grid']['data_hex'], '0c22384e')
 
     def check_blocks(self, result, width, height, depth, n, expected, encoding='encoded_srgb'):
         manifest = result['document']['items'][0]['content']['grid']['base']

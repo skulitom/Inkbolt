@@ -9,11 +9,12 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
-    io::Cursor,
+    io::{BufReader, Read, Seek},
     path::{Path, PathBuf},
 };
 use tiff::tags::Tag;
 mod png_passes;
+mod source;
 mod tiff_rows;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -81,16 +82,21 @@ fn size(w: u32, h: u32, max_pixels: usize) -> Result<(), Error> {
     }
     Ok(())
 }
-fn png(
-    bytes: &[u8],
+fn png<R: Read + Seek>(
+    input: R,
+    length: u64,
     policy: ColorPolicy,
     max_pixels: usize,
     native_store: bool,
     control: &crate::control::Control,
 ) -> Result<(DecodedSource, Interpretation, Value), Error> {
-    let interpretation = assets::preflight_samples(bytes, policy, max_pixels)?;
+    let mut input =
+        BufReader::with_capacity(crate::limits::sample_import::INPUT_BUFFER_BYTES, input);
+    let interpretation =
+        assets::preflight_samples_reader(&mut input, length, policy, max_pixels, control)?;
+    input.rewind().map_err(|_| malformed())?;
     let mut decoder = png::Decoder::new_with_limits(
-        Cursor::new(bytes),
+        input,
         png::Limits {
             bytes: decoder_limit(max_pixels),
         },
@@ -209,8 +215,8 @@ fn normalize_png(
     }
     Ok(())
 }
-fn tiff(
-    bytes: &[u8],
+fn tiff<R: Read + Seek>(
+    input: R,
     policy: ColorPolicy,
     max_pixels: usize,
     native_encoding: Option<crate::hdr::Encoding>,
@@ -219,9 +225,12 @@ fn tiff(
     let mut limits = tiff::decoder::Limits::default();
     limits.decoding_buffer_size = decoder_limit(max_pixels);
     limits.intermediate_buffer_size = decoder_limit(max_pixels);
-    let mut decoder = tiff::decoder::Decoder::new(Cursor::new(bytes))
-        .map_err(tiff_error)?
-        .with_limits(limits);
+    let mut decoder = tiff::decoder::Decoder::new(BufReader::with_capacity(
+        crate::limits::sample_import::INPUT_BUFFER_BYTES,
+        input,
+    ))
+    .map_err(tiff_error)?
+    .with_limits(limits);
     let (w, h) = decoder.dimensions().map_err(tiff_error)?;
     size(w, h, max_pixels)?;
     if decoder.more_images() {
@@ -502,19 +511,35 @@ pub fn import_with_storage(
             "High-depth profile conversion is not implemented; sample import cannot use an RGB8 conversion",
         ));
     }
-    let bytes = assets::read_bounded(source, assets::MAX_IMPORT_BYTES)?;
+    let mut captured = source::Source::open(source, storage.is_some(), control)?;
+    let mut signature = [0; 8];
+    let signature_len = captured.bytes.min(signature.len());
+    captured
+        .reader
+        .read_exact(&mut signature[..signature_len])
+        .map_err(|_| malformed())?;
+    captured.reader.rewind().map_err(|_| malformed())?;
     let (decoded, interpretation, normalization, format) =
-        if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        if signature_len == 8 && &signature == b"\x89PNG\r\n\x1a\n" {
             if linear {
                 return Err(unsupported(
                     "Linear HDR sample import requires an explicit binary32 TIFF source",
                 ));
             }
-            let (g, i, n) = png(&bytes, policy, max_pixels, storage.is_some(), control)?;
+            let (g, i, n) = png(
+                &mut captured.reader,
+                captured.bytes as u64,
+                policy,
+                max_pixels,
+                storage.is_some(),
+                control,
+            )?;
             (g, i, n, "png")
-        } else if bytes.starts_with(b"II") || bytes.starts_with(b"MM") {
+        } else if signature[..signature_len].starts_with(b"II")
+            || signature[..signature_len].starts_with(b"MM")
+        {
             let (g, i, n) = tiff(
-                &bytes,
+                &mut captured.reader,
                 policy,
                 max_pixels,
                 storage.map(|_| encoding),
@@ -578,9 +603,15 @@ pub fn import_with_storage(
     };
     let document:Document=serde_json::from_value(json!({"schema_version":2,"id":id,"kind":"raster","width":spec.width,"height":spec.height,"resolution_ppi":resolution_ppi,"color_space":if linear {"linear_srgb"}else{"srgb"},"items":[{"id":"pixels","content":content}]})).map_err(|_|malformed())?;
     crate::validate(&document)?;
-    let metadata = crate::metadata::recover(&bytes, format)?;
+    let metadata = crate::metadata::recover_reader(
+        &mut captured.reader,
+        captured.bytes as u64,
+        format,
+        control,
+    )?;
+    drop(captured.reader);
     control.check()?;
-    let mut result = json!({"document":document,"source_sha256":assets::sha256(&bytes),"source_bytes":bytes.len(),"source_format":format,"interpretation":interpretation,"normalization":normalization,"metadata":metadata,"source_changed":false,"losses":["Returns a new inline sample document without changing the source file. Palette/low-bit PNG samples expand to explicit channels, missing alpha becomes opaque, TIFF planes interleave and white-is-zero normalizes. Source descriptions remain separate untrusted metadata; source density does not override explicit document resolution. Explicit assume_linear_srgb imports finite signed binary32 TIFF radiance. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported."]});
+    let mut result = json!({"document":document,"source_sha256":captured.sha256,"source_bytes":captured.bytes,"source_format":format,"interpretation":interpretation,"normalization":normalization,"metadata":metadata,"source_changed":false,"losses":["Returns a new inline sample document without changing the source file. Palette/low-bit PNG samples expand to explicit channels, missing alpha becomes opaque, TIFF planes interleave and white-is-zero normalizes. Source descriptions remain separate untrusted metadata; source density does not override explicit document resolution. Explicit assume_linear_srgb imports finite signed binary32 TIFF radiance. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported."]});
     if let (Some(storage), Some(candidate)) = (storage, candidate) {
         let publication = candidate.publish(&storage.store_root, control)?;
         result["storage"] = json!({"kind":"native_tiles","store_root":storage.store_root,"manifest_sha256":publication.manifest.sha256,
