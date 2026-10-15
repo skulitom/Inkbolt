@@ -13,6 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use tiff::tags::Tag;
+mod pixels;
 mod png_passes;
 mod source;
 mod tiff_rows;
@@ -54,7 +55,7 @@ struct DecodedSource {
 }
 enum DecodedPixels {
     Bytes(Vec<u8>),
-    Tiles(crate::sample_store::Candidate),
+    Tiles(pixels::Prepared),
 }
 
 fn malformed() -> Error {
@@ -87,9 +88,10 @@ fn png<R: Read + Seek>(
     length: u64,
     policy: ColorPolicy,
     max_pixels: usize,
-    native_store: bool,
+    staging: Option<&source::Budget>,
     control: &crate::control::Control,
 ) -> Result<(DecodedSource, Interpretation, Value), Error> {
+    let native_store = staging.is_some();
     let mut input =
         BufReader::with_capacity(crate::limits::sample_import::INPUT_BUFFER_BYTES, input);
     let interpretation =
@@ -149,9 +151,9 @@ fn png<R: Read + Seek>(
             encoding: crate::hdr::Encoding::EncodedSrgb,
         };
         let candidate = if interlaced {
-            png_passes::decode(&mut reader, spec, n, control)?
+            png_passes::decode(&mut reader, spec, n, staging.unwrap(), control)?
         } else {
-            crate::sample_store::Candidate::from_rows(spec, control, |_, destination| {
+            pixels::Builder::from_rows(spec, staging.unwrap(), control, |_, destination| {
                 let row = reader
                     .next_row()
                     .map_err(|_| malformed())?
@@ -219,7 +221,7 @@ fn tiff<R: Read + Seek>(
     input: R,
     policy: ColorPolicy,
     max_pixels: usize,
-    native_encoding: Option<crate::hdr::Encoding>,
+    native_encoding: Option<(crate::hdr::Encoding, &source::Budget)>,
     control: &crate::control::Control,
 ) -> Result<(DecodedSource, Interpretation, Value), Error> {
     let mut limits = tiff::decoder::Limits::default();
@@ -341,7 +343,7 @@ fn tiff<R: Read + Seek>(
             MAX_NATIVE_DECODED_BYTES / (1024 * 1024)
         )));
     }
-    if let Some(encoding) = native_encoding {
+    if let Some((encoding, budget)) = native_encoding {
         let spec = crate::sample_store::Spec {
             width: w,
             height: h,
@@ -349,7 +351,7 @@ fn tiff<R: Read + Seek>(
             channels,
             encoding,
         };
-        let pixels = tiff_rows::decode(&mut decoder, spec, n, planar == 2, control)?;
+        let pixels = tiff_rows::decode(&mut decoder, spec, n, planar == 2, budget, control)?;
         return Ok((
             DecodedSource {
                 width: w,
@@ -531,7 +533,7 @@ pub fn import_with_storage(
                 captured.bytes as u64,
                 policy,
                 max_pixels,
-                storage.is_some(),
+                captured.staging.as_ref(),
                 control,
             )?;
             (g, i, n, "png")
@@ -542,7 +544,7 @@ pub fn import_with_storage(
                 &mut captured.reader,
                 policy,
                 max_pixels,
-                storage.map(|_| encoding),
+                captured.staging.as_ref().map(|budget| (encoding, budget)),
                 control,
             )?;
             (g, i, n, "tiff")
@@ -562,9 +564,16 @@ pub fn import_with_storage(
     let content = if let Some(storage) = storage {
         candidate = Some(match decoded.pixels {
             DecodedPixels::Tiles(candidate) => candidate,
-            DecodedPixels::Bytes(bytes) => {
-                crate::sample_store::Candidate::from_bytes(spec, &bytes, control)?
-            }
+            DecodedPixels::Bytes(bytes) => pixels::Builder::from_rows(
+                spec,
+                captured.staging.as_ref().ok_or_else(malformed)?,
+                control,
+                |y, row| {
+                    let start = y as usize * row.len();
+                    row.copy_from_slice(&bytes[start..start + row.len()]);
+                    Ok(())
+                },
+            )?,
         });
         Content::StoredSamples {
             grid: Box::new(crate::stored_samples::Grid {

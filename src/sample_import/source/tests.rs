@@ -57,6 +57,31 @@ fn shared_capacity_is_reserved_before_writes_and_released_after_close() {
 }
 
 #[test]
+fn reserved_extent_bounds_random_io_and_preserves_zero_filled_gaps() {
+    let dir = Directory::new();
+    let control = Control::default();
+    let budget = Budget::new(16);
+    let mut file = Scratch::create(&dir.0, budget.clone(), &control).unwrap();
+    file.allocate(16, &control).unwrap();
+    file.write_at(12, b"tail", &control).unwrap();
+    file.write_at(2, b"head", &control).unwrap();
+    assert_eq!(
+        file.write_at(15, b"no", &control).unwrap_err().code,
+        "RESOURCE_LIMIT"
+    );
+    assert!(file.read_at(16, &mut [0], &control).is_err());
+    assert!(file.write_at(u64::MAX, b"no", &control).is_err());
+    let mut bytes = [0; 16];
+    file.read_at(0, &mut bytes, &control).unwrap();
+    assert_eq!(&bytes, b"\0\0head\0\0\0\0\0\0tail");
+    assert_eq!(*budget.used.lock().unwrap(), 16);
+    assert_eq!(file.file.as_ref().unwrap().metadata().unwrap().len(), 16);
+    drop(file);
+    assert_eq!(*budget.used.lock().unwrap(), 0);
+    assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
+}
+
+#[test]
 fn captured_identity_and_seekable_bytes_survive_source_replacement() {
     let dir = Directory::new();
     let path = dir.0.join("input");
@@ -211,10 +236,14 @@ fn scratch_worker() {
     let root = PathBuf::from(root);
     let foreign = root.join(format!("inkbolt-import-{}-0.tmp", std::process::id()));
     fs::write(&foreign, b"foreign data").unwrap();
-    let mut scratch = Scratch::create(&root, Budget::new(64), &Control::default()).unwrap();
+    let budget = Budget::new(64);
+    let mut scratch = Scratch::create(&root, budget.clone(), &Control::default()).unwrap();
     scratch
         .append(b"private payload", &Control::default())
         .unwrap();
+    let mut pixels = Scratch::create(&root, budget, &Control::default()).unwrap();
+    pixels.allocate(32, &Control::default()).unwrap();
+    pixels.write_at(28, b"tail", &Control::default()).unwrap();
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

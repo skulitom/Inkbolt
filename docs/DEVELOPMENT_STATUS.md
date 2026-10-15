@@ -2382,8 +2382,8 @@ Its 1,104 evidence files and 906 archived source entries were reread against the
 hashes, including the earlier failed candidate and public CLI evidence bound to
 the full-suite executables. Subsequent edits update status documentation only.
 
-The W4.2 follow-up below removes retained encoded input. Decoded codec bands and
-pending block retention still need bounded staging. Preserve old snapshots,
+The W4.2 follow-up below stages encoded input and prepared pixels privately,
+retaining only one source TIFF chunk at a time. Preserve old snapshots,
 exact history/retries, pure review proposals and immutable base blocks. Use
 targeted feedback within 180 seconds and full acceptance at storage milestones;
 do not lift unrelated pixel/work budgets as a substitute for measured behavior.
@@ -2394,53 +2394,70 @@ budget. This first storage increment does not satisfy the complete 50 MP gate:
 streaming import/export, native operations and the new independent `scale-v2`
 cases remain required under W4. No accepted workstream or checkpoint is removed.
 
-### W4.2: private encoded source snapshots; pixel staging open
+### W4.2: private source and pixel staging; scale admission open
 
-The first [bounded import delivery unit](STREAMING_SAMPLE_IMPORT.md) is complete.
-Native PNG/TIFF imports copy and hash source bytes in 64 KiB chunks into private
-seekable files. Pixel decoding and metadata recovery share that captured view.
+The [bounded import implementation](STREAMING_SAMPLE_IMPORT.md) now stages both
+encoded input and native pixels privately. Ordinary PNG writes rows; Adam7 uses
+one native assembly row and a coverage bitmap; TIFF retains one source-defined
+chunk and merges separate planes into the pixel file. Canonical blocks load one
+at a time for final validation and shared store publication. The public pure
+`Candidate` API keeps its existing in-memory behavior.
+
 Windows uses exclusive deletion on handle close; Unix unlinks owner-only files
-before writing payload. Source replacement, bounded reads, shared staging
-capacity, cancellation, read failure, input growth, filename collisions and
-actual process termination have direct fixtures. Late malformed input still
-leaves the workspace/store untouched; exact samples and reimport preservation
-remain covered for every previously admitted PNG/TIFF layout.
+before payload writes. Source and pixel extents share a 96 MiB logical budget.
+Exact typed edges, integer/float bits, overlap/coverage checks, partial planes,
+random-access bounds, cancellation, late failure and process-death cleanup are
+covered. Publication retains the existing store lock, admission, deduplication,
+no-overwrite and history contracts. Old/default import receipt labels are unchanged.
 
-Full acceptance passed all 256 stages fresh on both platforms, with matching
-unchanged inputs and no failures, pending checks, reuse or excluded stages:
+Full acceptance passed all 256 stages fresh on both platforms, on matching
+unchanged inputs, with no failures, pending checks, reuse or excluded stages:
 
 | Platform | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: |
-| Windows | 245 | 2,698 | 13 | 1417.469 |
-| Linux / WSL | 211 | 2,660 | 51 | 920.665 |
+| Windows | 251 | 2,698 | 13 | 926.750 |
+| Linux / WSL | 217 | 2,660 | 51 | 630.942 |
 
-The existing platform/configuration skip categories remain; every applicable
-new source-staging fixture ran. Rust 1.89 passed the Windows locked all-target
-compiler check. Full suites used two workers each and overlapped; timings are
-correctness evidence, not a performance comparison with earlier runs.
+Existing platform/configuration skips remain explicit. Both suites used four
+workers and overlapped; these durations are correctness evidence, not performance
+comparisons. Focused Windows checks passed in 99.3 and 87.4 seconds; Linux focused
+checks passed in 67.6 seconds. No selected check failed or remained pending.
 
-Focused feedback took 159.1 seconds on Windows, finding two process timeouts;
-the failed checks passed in 19.6 seconds on retry. An earlier compile failure is
-also retained. Linux's 73.2-second focused tests passed, but the wrapper rejected
-concurrent Windows documentation changes. That focused report is not candidate
-acceptance; the subsequent full run verified an unchanged candidate.
+A separate Windows development-build diagnostic compared the previous source-
+staging binary with this implementation: original 1024x1024 and 2048x2048 RGBA16
+images, ordinary/Adam7 PNG, planar tiled TIFF and full-height-strip TIFF, with
+three repetitions per build/case. All 48 imports matched independently calculated
+native block bytes, manifest identities and source hashes/counts. Every block was
+unique, so deduplication could not hide retained-pixel memory.
 
-A separate Windows development-build diagnostic held the pixels at 1x1 and
-varied unrelated source text from 1 KiB to 30 MiB. Across three repetitions,
-native import's median process peak committed memory stayed at 1.242 MiB;
-inline import rose from 1.223 to 50.184 MiB. All source identities and native
-bytes matched independent calculations. This demonstrates bounded encoded-input
-retention, not a release-performance or large-image workflow gate.
+| 2048x2048 input | Prior peak commit MiB | Staged peak commit MiB | Prior seconds | Staged seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Ordinary PNG | 36.395 | 1.875 | 2.342 | 2.700 |
+| Adam7 PNG | 34.965 | 2.371 | 2.685 | 3.035 |
+| Planar tiled TIFF | 37.113 | 1.758 | 3.901 | 4.856 |
+| Full-height-strip TIFF | 68.117 | 33.613 | 3.188 | 3.363 |
 
-Both full reports and that diagnostic bind source fingerprint
-`e2d3f98d7f82de79f44e312c739597aaff0c89a0e036efe4416895d7fcc811ac`.
-External `w4-source-staging-acceptance-01/audit.json` has SHA-256
-`dfc80ee5c8cf1942d4655feb2297d74740a13330c616bee6baeb3f7c655c4b5f`.
-Its 581 evidence files and 909 archived source entries were reread and verified.
-Only status documentation changes after acceptance. Completed native blocks
-still remain resident and TIFF chunk height is source-defined. Pixel staging,
-full streaming/storage acceptance, larger workloads and `scale-v2` stay open;
-no checkpoint or whole-goal completion is awarded.
+These are medians of Windows lifetime process counters and elapsed times. The
+runtime tradeoff is retained; a source-defined TIFF chunk can still span the whole
+image. This diagnostic is not release-build performance or a 50 MP scale pass.
+
+Both full reports and the diagnostic bind source fingerprint
+`68585115b760b7fe6bf7d398c5b121b55822fa02c469608a45114cb49a19b4fd`.
+External `w4-pixel-staging-acceptance-01/audit.json` has SHA-256
+`76f46808a0a35528afd2ef231cb623fb198bb753abc8ae9f49082fc99ec05d7d`.
+Its 607 retained evidence files and 912 archived source entries were reread and
+verified; an additional hash index binds the original measurement stores.
+Subsequent changes update documentation/release notes only.
+
+The earlier encoded-source acceptance remains retained under
+`w4-source-staging-acceptance-01`, audit identity
+`dfc80ee5c8cf1942d4655feb2297d74740a13330c616bee6baeb3f7c655c4b5f`,
+including its failed focused attempts and later full passes. Its separate 1x1
+source-text diagnostic established bounded encoded-input retention.
+
+Legacy whole-image work ceilings, coordinated codec/staging admission, native
+JPEG, streaming output, the complete 50 MP workflow and independent `scale-v2`
+acceptance remain open. No pixel ceiling or checkpoint credit increases here.
 
 ## W3b: complete within the insertion contract
 

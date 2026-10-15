@@ -1,10 +1,10 @@
-//! Chunk-band TIFF decoding into the pure native block candidate.
+//! One TIFF chunk at a time, assembled into private native pixel staging.
 use super::{malformed, tiff_error};
 use crate::{
     Error,
     control::Control,
     model::limit,
-    sample_store::{Candidate, Spec},
+    sample_store::{Region, Spec},
     samples::Depth,
 };
 use std::io::{Read, Seek};
@@ -15,8 +15,9 @@ pub(super) fn decode<R: Read + Seek>(
     spec: Spec,
     channels: usize,
     planar: bool,
+    budget: &super::source::Budget,
     control: &Control,
-) -> Result<Candidate, Error> {
+) -> Result<super::pixels::Prepared, Error> {
     spec.validate()?;
     let tiled = decoder.get_chunk_type() == ChunkType::Tile;
     let (width, height) = decoder.chunk_dimensions();
@@ -54,68 +55,61 @@ pub(super) fn decode<R: Read + Seek>(
         .map_err(|_| limit("Sample TIFF chunk stride exceeds platform bounds"))?;
     let unit = spec.depth.bytes();
     let output_channels = spec.channels.count();
-    let mut band = Vec::new();
-    Candidate::from_rows(spec, control, |y, output| {
-        if y % height == 0 {
-            // Drop the previous band before allocating the next. Chunk height is
-            // source-defined: a single full-height strip can still be large.
-            band.clear();
-            for plane in 0..planes {
-                for column in 0..across {
-                    control.check()?;
-                    let index = plane * per_plane + (y / height) as usize * across + column;
-                    let mut chunk = DecodingResult::U8(Vec::new());
-                    // Keep padded row stride for the locked codec's LZW edge
-                    // behavior; copy only actual image samples below.
-                    decoder
-                        .read_chunk_to_buffer(&mut chunk, index as u32, stride)
-                        .map_err(tiff_error)?;
-                    control.check()?;
-                    band.push(chunk);
-                }
-            }
-        }
-        if channels != output_channels {
-            for pixel in output.chunks_exact_mut(output_channels * unit) {
-                let alpha = &mut pixel[channels * unit..];
-                match spec.depth {
-                    Depth::U8 => alpha.fill(255),
-                    Depth::U16 => alpha.copy_from_slice(&u16::MAX.to_le_bytes()),
-                    Depth::F32 => alpha.copy_from_slice(&1.0_f32.to_le_bytes()),
-                }
-            }
-        }
-        let row_start = (y % height) as usize * stride;
-        for (index, chunk) in band.iter_mut().enumerate() {
-            let plane = index / across;
-            let x = index % across * width as usize;
-            let actual_width = (spec.width as usize - x).min(width as usize);
+    let mut target = super::pixels::Builder::new(spec, budget, false, control)?;
+    for index in 0..chunks {
+        control.check()?;
+        let plane = index / per_plane;
+        let region = index % per_plane;
+        let x = region % across * width as usize;
+        let y = region / across * height as usize;
+        let actual_width = (spec.width as usize - x).min(width as usize);
+        let actual_height = (spec.height as usize - y).min(height as usize);
+        // A source chunk may span the whole image, but completed chunks and
+        // other planes never remain resident. The decoder's allocation budget
+        // and padded-work admission above retain their existing limits.
+        let mut chunk = DecodingResult::U8(Vec::new());
+        // Preserve padded row stride for the locked codec's LZW edge behavior.
+        decoder
+            .read_chunk_to_buffer(&mut chunk, index as u32, stride)
+            .map_err(tiff_error)?;
+        control.check()?;
+        let mut buffer = chunk.as_buffer(0);
+        for row_index in 0..actual_height {
+            control.check()?;
+            let row_start = row_index * stride;
             let used = actual_width * chunk_channels * unit;
-            let mut buffer = chunk.as_buffer(0);
             let row = buffer
                 .as_bytes_mut()
                 .get(row_start..row_start + used)
                 .ok_or_else(malformed)?;
-            for (offset, pixel) in row.chunks_exact(chunk_channels * unit).enumerate() {
-                let start = ((x + offset) * output_channels + plane) * unit;
-                let target = &mut output[start..start + chunk_channels * unit];
-                for (value, destination) in
-                    pixel.chunks_exact(unit).zip(target.chunks_exact_mut(unit))
-                {
-                    match spec.depth {
-                        Depth::U8 => destination[0] = value[0],
-                        Depth::U16 => destination.copy_from_slice(
-                            &u16::from_ne_bytes(value.try_into().unwrap()).to_le_bytes(),
-                        ),
-                        Depth::F32 => destination.copy_from_slice(
-                            &u32::from_ne_bytes(value.try_into().unwrap()).to_le_bytes(),
-                        ),
-                    }
+            let mut native = Vec::with_capacity(used);
+            for value in row.chunks_exact(unit) {
+                match spec.depth {
+                    Depth::U8 => native.push(value[0]),
+                    Depth::U16 => native.extend_from_slice(
+                        &u16::from_ne_bytes(value.try_into().unwrap()).to_le_bytes(),
+                    ),
+                    Depth::F32 => native.extend_from_slice(
+                        &u32::from_ne_bytes(value.try_into().unwrap()).to_le_bytes(),
+                    ),
                 }
             }
+            target.components(
+                Region {
+                    x: x as u32,
+                    y: (y + row_index) as u32,
+                    width: actual_width as u32,
+                    height: 1,
+                },
+                if planar { plane } else { 0 },
+                chunk_channels,
+                &native,
+                channels != output_channels,
+                control,
+            )?;
         }
-        Ok(())
-    })
+    }
+    target.finish(control)
 }
 
 #[cfg(test)]
@@ -182,7 +176,10 @@ mod tests {
             channels: Channels::Rgba,
             encoding: Encoding::EncodedSrgb,
         };
-        let error = decode(&mut decoder, spec, 4, false, &control)
+        let budget = super::super::source::Budget::new(
+            crate::limits::sample_import::MAX_PRIVATE_STAGING_BYTES,
+        );
+        let error = decode(&mut decoder, spec, 4, false, &budget, &control)
             .err()
             .unwrap();
         assert!(reached.load(Ordering::SeqCst));

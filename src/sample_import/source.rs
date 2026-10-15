@@ -24,12 +24,12 @@ fn scratch_error() -> Error {
 mod tests;
 
 #[derive(Clone)]
-struct Budget {
+pub(super) struct Budget {
     maximum: u64,
     used: Arc<Mutex<u64>>,
 }
 impl Budget {
-    fn new(maximum: u64) -> Self {
+    pub(super) fn new(maximum: u64) -> Self {
         assert!(maximum <= limits::MAX_PRIVATE_STAGING_BYTES);
         Self {
             maximum,
@@ -46,13 +46,13 @@ impl Budget {
     }
 }
 
-struct Scratch {
+pub(super) struct Scratch {
     file: Option<File>,
     budget: Budget,
     reserved: u64,
 }
 impl Scratch {
-    fn create(parent: &Path, budget: Budget, control: &Control) -> Result<Self, Error> {
+    pub(super) fn create(parent: &Path, budget: Budget, control: &Control) -> Result<Self, Error> {
         control.check()?;
         let mut options = OpenOptions::new();
         options.read(true).write(true).create_new(true);
@@ -110,6 +110,59 @@ impl Scratch {
             .write_all(bytes)
             .map_err(|_| scratch_error())
     }
+
+    pub(super) fn allocate(&mut self, bytes: u64, control: &Control) -> Result<(), Error> {
+        control.check()?;
+        if self.reserved != 0 {
+            return Err(scratch_error());
+        }
+        self.budget.reserve(bytes)?;
+        self.reserved = bytes;
+        // Reservation survives a partial/failed allocation until the handle closes.
+        self.file
+            .as_ref()
+            .unwrap()
+            .set_len(bytes)
+            .map_err(|_| scratch_error())
+    }
+
+    pub(super) fn write_at(
+        &mut self,
+        offset: u64,
+        bytes: &[u8],
+        control: &Control,
+    ) -> Result<(), Error> {
+        control.check()?;
+        if offset
+            .checked_add(bytes.len() as u64)
+            .is_none_or(|end| end > self.reserved)
+        {
+            return Err(limit("Private pixel write exceeds reserved staging extent"));
+        }
+        let file = self.file.as_mut().unwrap();
+        file.seek(SeekFrom::Start(offset))
+            .and_then(|_| file.write_all(bytes))
+            .map_err(|_| scratch_error())
+    }
+
+    pub(super) fn read_at(
+        &mut self,
+        offset: u64,
+        bytes: &mut [u8],
+        control: &Control,
+    ) -> Result<(), Error> {
+        control.check()?;
+        if offset
+            .checked_add(bytes.len() as u64)
+            .is_none_or(|end| end > self.reserved)
+        {
+            return Err(scratch_error());
+        }
+        let file = self.file.as_mut().unwrap();
+        file.seek(SeekFrom::Start(offset))
+            .and_then(|_| file.read_exact(bytes))
+            .map_err(|_| scratch_error())
+    }
 }
 impl Drop for Scratch {
     fn drop(&mut self) {
@@ -136,6 +189,7 @@ pub(super) struct Source {
     pub reader: Box<dyn ReadSeek>,
     pub sha256: String,
     pub bytes: usize,
+    pub staging: Option<Budget>,
 }
 impl Source {
     pub fn open(path: &Path, private_file: bool, control: &Control) -> Result<Self, Error> {
@@ -147,6 +201,7 @@ impl Source {
                 sha256: assets::sha256(&bytes),
                 bytes: bytes.len(),
                 reader: Box::new(Cursor::new(bytes)),
+                staging: None,
             });
         }
         let mut input = File::open(path).map_err(|_| assets::io_error())?;
@@ -186,6 +241,7 @@ impl Source {
         control.check()?;
         scratch.rewind().map_err(|_| scratch_error())?;
         Ok(Self {
+            staging: Some(scratch.budget.clone()),
             reader: Box::new(scratch),
             sha256: format!("{:x}", hash.finalize()),
             bytes,

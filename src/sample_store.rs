@@ -31,7 +31,9 @@ const HEADER_BYTES: usize = 20;
 const MAGIC: &[u8; 8] = b"INKTILE1";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 pub(crate) mod admission;
-pub(crate) mod scatter;
+pub(crate) mod publication;
+#[cfg(test)]
+mod scatter;
 mod transfer;
 pub use transfer::{PendingBlock, Transfer};
 
@@ -76,16 +78,16 @@ impl Spec {
         }
         validate_samples(bytes, *self)
     }
-    fn stride(&self) -> usize {
+    pub(crate) fn stride(&self) -> usize {
         self.depth.bytes() * self.channels.count()
     }
     fn columns(&self) -> u32 {
         self.width.div_ceil(TILE_EDGE)
     }
-    fn tile_count(&self) -> usize {
+    pub(crate) fn tile_count(&self) -> usize {
         self.columns() as usize * self.height.div_ceil(TILE_EDGE) as usize
     }
-    fn tile(&self, index: usize) -> Region {
+    pub(crate) fn tile(&self, index: usize) -> Region {
         let x = index as u32 % self.columns() * TILE_EDGE;
         let y = index as u32 / self.columns() * TILE_EDGE;
         Region {
@@ -95,7 +97,7 @@ impl Spec {
             height: TILE_EDGE.min(self.height - y),
         }
     }
-    fn header(&self, width: u32, height: u32) -> [u8; HEADER_BYTES] {
+    pub(crate) fn header(&self, width: u32, height: u32) -> [u8; HEADER_BYTES] {
         let mut result = [0; HEADER_BYTES];
         result[..8].copy_from_slice(MAGIC);
         result[8..12].copy_from_slice(&width.to_le_bytes());
@@ -154,7 +156,7 @@ pub struct Manifest {
     pub sha256: String,
 }
 impl Manifest {
-    fn identity(&self) -> String {
+    pub(crate) fn identity(&self) -> String {
         let mut hash = Sha256::new();
         hash.update(b"INKGRID1");
         hash.update(self.spec.header(self.spec.width, self.spec.height));
@@ -434,81 +436,7 @@ impl Candidate {
     /// A failed/cancelled multi-block publication may retain complete cache files;
     /// retry verifies/deduplicates them. There is no historical request receipt.
     pub fn publish(&self, root: &Path, control: &Control) -> Result<Publication, Error> {
-        control.check()?;
-        assets::absolute(root)?;
-        self.verify(Some(root), control)?;
-        control.check()?;
-        let existing = self.manifest.tiles.iter().collect::<BTreeSet<_>>().len();
-        if self.unpublished(root, control)?.is_empty() {
-            return Ok(Publication {
-                manifest: self.manifest.clone(),
-                created_tiles: 0,
-                existing_tiles: existing,
-            });
-        }
-        #[cfg(all(test, windows))]
-        tests::checkpoint(root, "before_admission");
-        fs::create_dir_all(root).map_err(|_| io_error())?;
-        let root = root.canonicalize().map_err(|_| io_error())?;
-        let admission = admission::Admission::acquire(&root, control)?;
-        // A prior writer may have published these same identities while we waited.
-        let missing = self.unpublished(&root, control)?;
-        admission.check(&root, &missing, admission::budget(), control)?;
-        let mut created = 0;
-        let mut seen = BTreeSet::new();
-        for (index, id) in self.manifest.tiles.iter().enumerate() {
-            if !seen.insert(id) {
-                continue;
-            }
-            control.check()?;
-            if let Some(blob) = self.pending.get(id)
-                && publish_blob(
-                    &root,
-                    id,
-                    blob,
-                    self.manifest.spec,
-                    self.manifest.spec.tile(index),
-                    control,
-                )?
-            {
-                created += 1;
-            }
-            #[cfg(test)]
-            crate::sessions::fault_point("native_block_published");
-        }
-        // Once every unique descriptor has completed, later cancellation cannot
-        // relabel this cache publication. The document commit is separate.
-        Ok(Publication {
-            manifest: self.manifest.clone(),
-            created_tiles: created,
-            existing_tiles: seen.len() - created,
-        })
-    }
-
-    fn unpublished(&self, root: &Path, control: &Control) -> Result<Vec<usize>, Error> {
-        let mut seen = BTreeSet::new();
-        let mut missing = Vec::new();
-        for (index, id) in self.manifest.tiles.iter().enumerate() {
-            if !seen.insert(id) {
-                continue;
-            }
-            control.check()?;
-            if let Some(blob) = self.pending.get(id) {
-                match fs::symlink_metadata(root.join(format!("{id}.native-tile"))) {
-                    Ok(_) => {
-                        read_blob(
-                            Some(root),
-                            id,
-                            self.manifest.spec,
-                            self.manifest.spec.tile(index),
-                        )?;
-                    }
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => missing.push(blob.len()),
-                    Err(_) => return Err(io_error()),
-                }
-            }
-        }
-        Ok(missing)
+        publication::publish(&self.manifest, &mut &self.pending, root, control)
     }
 }
 

@@ -13,6 +13,8 @@ particular AI model is required.
 ## What you can do
 
 - **Build compositions** from vector shapes, text and images.
+- **Import SVG artwork** into editable compositions, with optional reports for
+  content that cannot be preserved.
 - **Revise artwork** with targeted edits, layers, masks and image adjustments.
 - **Review and continue** using previews, saved sessions, undo/redo and revision
   comparisons.
@@ -25,8 +27,9 @@ reported.
 
 ## Get started
 
-Follow the [installation guide](docs/INSTALLATION.md) to use a release or build
-from source, then connect your agent through MCP or use the command line.
+Download a [release](https://github.com/skulitom/Inkbolt/releases/latest) or follow
+the [installation guide](docs/INSTALLATION.md) to build from source, then connect
+your agent through MCP or use the command line.
 The guide includes Windows, Linux and macOS setup and client configuration.
 
 Try the [runnable examples](examples/README.md) for creating artwork, revising

@@ -11,6 +11,15 @@ The latest retained successful hosted Windows/Linux/macOS matrix is `d4692ea`,
 through SVG images, spans, omissions and request guidance. This predates native
 block migration, store admission and [private source snapshots](STREAMING_SAMPLE_IMPORT.md),
 whose later evidence is Windows/WSL.
+The subsequent [private source/pixel staging acceptance](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open)
+passed all 256 stages fresh on Windows/WSL with matching unchanged inputs.
+Windows ran 251 Rust and 2,698 Python tests, with 13 explicit skips, in 926.750
+seconds; Linux ran 217 Rust and 2,660 Python tests, with 51 skips, in 630.942
+seconds. No check failed, remained pending or reused results. Its source identity
+is `68585115b760b7fe6bf7d398c5b121b55822fa02c469608a45114cb49a19b4fd`;
+the retained audit is `76f46808a0a35528afd2ef231cb623fb198bb753abc8ae9f49082fc99ec05d7d`.
+This does not extend hosted macOS evidence beyond the run recorded below.
+
 Earlier failures and their focused follow-up remain recorded.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 

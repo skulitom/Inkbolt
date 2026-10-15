@@ -1,14 +1,15 @@
 # Bounded native image import
 
 This is the W4.2 implementation contract under [FIX_PLAN.md](../FIX_PLAN.md).
-The first implementation captures encoded input in private seekable storage and
-uses bounded PNG framing/metadata reads. Completed candidate blocks still remain
-in memory. This document does not claim that the full streaming milestone or
-larger-workload target has passed.
+Native imports capture encoded input and assemble native pixels in private
+seekable storage, with bounded PNG framing/metadata reads. Source/pixel staging
+passed full Windows/Linux acceptance within existing ceilings; the complete
+streaming milestone and larger-workload target remain open.
 
-The encoded-source slice passed fresh full Windows/Linux acceptance, including
-process termination and exact native import checks. See the
-[evidence and memory diagnostic](DEVELOPMENT_STATUS.md#w42-private-encoded-source-snapshots-pixel-staging-open).
+Fresh full Windows/Linux acceptance includes process termination, shared capacity,
+exact native imports, publication and history checks. The retained memory
+diagnostic compares the prior and staged implementations on original images.
+See the [evidence and measured tradeoffs](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open).
 
 ## Required behavior
 
@@ -62,12 +63,26 @@ is an operation budget, distinct from resident memory, filesystem free space
 and the persistent native-store budget. Concurrent live operations have separate
 budgets; terminated operations must not retain private payload files.
 
-Completed native pixels must eventually spill to private staging instead of
-accumulating resident blocks. Ordinary rows need only the current block band;
-Adam7 and planar TIFF need bounded random-access assembly and coverage checks.
-Use exact typed headers and samples when deriving final block identities. Codec
-chunks that cannot be read incrementally need an explicit allocation budget;
-silently dropping previously admitted inputs is not an implementation shortcut.
+Native pixels assemble in a row-major private file whose complete logical extent
+is reserved before decoding. Ordinary PNG uses one reusable native row. Adam7
+updates one native row at a time and retains one coverage bit per pixel, rejecting
+overlap and incomplete coverage. TIFF decodes one source chunk at a time, then
+merges each actual row segment into the file; separate planes preserve previously
+written components. Padded codec strides remain unchanged. Typed native samples
+are validated after complete assembly, including planar floating-point alpha.
+
+Finalization reads one canonical block at a time to validate samples and derive
+the existing typed identities. Publication verifies those identities again and
+shares store admission with public in-memory candidates. The public `Candidate`
+API remains pure and continues to retain its pending blocks in memory; private
+files belong only to the importer. Existing decode-storage receipt labels remain
+unchanged, including `chunk_bands_to_native_blocks` for TIFF.
+
+The source, native extent and total staging limits remain 32, 64 and 96 MiB.
+Codec output/intermediate allocations retain their separate 64 MiB bounds, and
+TIFF padded work retains its 64 MiB bound. A single source-defined TIFF chunk can
+still cover a complete image. These limits do not establish a whole-process
+memory ceiling; no previously admitted layout is silently removed.
 
 Validate the complete decoded content, metadata and document before publishing
 any persistent block or returning a document. Publish through the existing
@@ -96,3 +111,6 @@ No manifest, native block, document, session or receipt format changes are neede
 The first delivery unit is not complete streaming import. The 50 MP RGBA16 /
 512 MiB edit/export workflow, larger ceilings, JPEG, streaming output and
 independent `scale-v2` acceptance remain required under W4.
+Private pixel staging and one-chunk TIFF retention are now accepted within the
+existing limits. Replacing the legacy whole-image ceiling with coordinated
+codec/staging admission remains part of the larger-workload milestone.

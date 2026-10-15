@@ -90,22 +90,40 @@ Scratch payloads live outside document resources and are released on handle clos
 or process exit. The operation's private staging budget is 96 MiB; existing source,
 codec and pixel limits are unchanged. See [bounded import](STREAMING_SAMPLE_IMPORT.md).
 
-Noninterlaced PNG uses `Candidate::from_rows`, normalizing byte order, expanded channels and opaque missing alpha one row at a time. Its `normalization.decode_storage` receipt is `rows_to_native_blocks`. It avoids complete decoded and normalized frame copies, but retains codec buffers, an unfinished block band and all completed unique pending blocks. Inline imports retain encoded bytes in memory and report `complete_decoded_frame`. Decoder completion, document validation and metadata recovery must all succeed before publication. PNG chunk CRC and zlib Adler-32 checks are required for both native and inline sample imports. Invalid document IDs, metadata or unsupported interpretations reject without creating blocks. A failed multi-block publication may retain valid immutable cache entries under the recovery contract above.
+Noninterlaced PNG normalizes byte order, expanded channels and opaque missing
+alpha one row at a time into private pixel storage. Its
+`normalization.decode_storage` receipt remains `rows_to_native_blocks`.
+Completed pixels remain in the private file, and finalization/publication reads
+one canonical block at a time. Inline imports retain encoded bytes in memory and
+report `complete_decoded_frame`. Decoder completion, document validation and
+metadata recovery must all succeed before publication. PNG chunk CRC and zlib
+Adler-32 checks are required for both paths. Invalid document IDs, metadata or
+unsupported interpretations create no blocks. Failed multi-block publication may
+retain valid immutable cache entries under the recovery contract above.
 
 Interlaced PNG reports `adam7_passes_to_native_blocks`. Its original pass schedule
 follows [PNG section 8.1](https://www.w3.org/TR/png-3/#8InterlaceMethods); each
 decoded row must match the expected pass, line and length. Native samples scatter
-directly into their final block positions. One coverage bit per pixel (at most
+into the private native pixel extent, reading and updating one row at a time.
+One coverage bit per pixel (at most
 2 MiB) rejects overlaps and proves complete coverage before a candidate can be
 returned. Byte order, transparency and missing alpha share ordinary row
 normalization. Cancellation is checked before and after each codec row and during
-block allocation/finalization. All unfinished block buffers stay resident until
-all passes finish; deduplication happens afterward, one consumed block at a time.
-The encoded source, codec buffers and one normalized row also remain resident.
-This removes separate complete decoded and normalized frame copies, but is not
-constant-memory decoding and does not lower or waive any existing byte limit.
+block finalization. Encoded input and completed pixels remain in private files;
+codec buffers, a normalized row, an assembly row and the coverage bitmap remain
+resident during decoding. This is not constant-memory decoding and does not
+lower or waive any existing byte limit.
 
-Native TIFF reports `normalization.decode_storage:chunk_bands_to_native_blocks`. It retains one horizontal band of source strips or tiles across every separate plane, interleaves channels into the native row, and releases that decoded band before loading the next. Full padded row strides preserve compressed edge decoding; padding is excluded from native samples. Integer values and binary32 bit patterns retain their native precision, and missing alpha becomes opaque. Cancellation is checked around chunk reads and each produced row. A codec operation itself remains bounded and synchronous. Chunk-band height is source-defined: a single full-height strip can still require a complete decoded frame. The existing 64 MiB padded-tile work limit is unchanged. This path avoids a separate complete normalized frame, but is not a constant-memory import.
+Native TIFF retains its `normalization.decode_storage:chunk_bands_to_native_blocks`
+receipt for compatibility. Preparation now retains one decoded source chunk at a
+time, merging row segments and separate planes into private pixel storage before
+releasing that chunk. Full padded row strides preserve compressed edge decoding;
+padding is excluded from native samples. Integer and binary32 bits retain their
+precision, and missing alpha becomes opaque. Cancellation is checked around each
+chunk read and row segment. A codec operation remains bounded and synchronous.
+A source-defined chunk can cover the complete image; the 64 MiB codec allocation
+and padded-work limits remain. This is not a constant-memory import. See
+[bounded import](STREAMING_SAMPLE_IMPORT.md) for private staging and acceptance.
 
 Raster content `{"type":"stored_samples","grid":{...}}` holds a storage version, `base` (the manifest), optional `profile`, and `sampling`. New stored imports use version 2 with the [block-edit contract](NATIVE_COPY_ON_WRITE.md). Missing `storage_version` means legacy version 1, which also admits `patches`. Each legacy patch contains a native `region` and exact little-endian `data_hex`. Patches apply in order. Legacy `sample_replace` verifies every base dependency, preserves all outside samples, and appends a patch only when native values change. It records before/after native manifest identities and `files_written:false`. At most 256 patches and 65,536 aggregate patch pixels are retained in version 1; cumulative touched-block work is capped at 16,777,216 pixels. Version 2 retains only the current manifest after committing, with separate pending-block budgets. Session history remains bounded in either mode; explicit continuation preserves earlier history.
 

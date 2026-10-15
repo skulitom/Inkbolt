@@ -1,19 +1,16 @@
-//! Adam7 pass rows go straight to native block buffers, without a full frame.
+//! Adam7 pass rows assemble private native pixels without a resident full frame.
 use super::{malformed, normalize_png};
-use crate::{
-    Error,
-    control::Control,
-    sample_store::{Candidate, Spec, scatter::Scatter},
-};
+use crate::{Error, control::Control, sample_store::Spec};
 use std::io::{BufRead, Seek};
 
 pub(super) fn decode<R: BufRead + Seek>(
     reader: &mut png::Reader<R>,
     spec: Spec,
     channels: usize,
+    budget: &super::source::Budget,
     control: &Control,
-) -> Result<Candidate, Error> {
-    let mut target = Scatter::new(spec, control)?;
+) -> Result<super::pixels::Prepared, Error> {
+    let mut target = super::pixels::Builder::new(spec, budget, true, control)?;
     let stride = spec.depth.bytes() * spec.channels.count();
     let mut normalized = vec![0; spec.width as usize * stride];
     // Original coordinate schedule derived from PNG section 8.1's seven pass
@@ -154,7 +151,12 @@ mod tests {
             channels: Channels::Rgba,
             encoding: Encoding::EncodedSrgb,
         };
-        let error = decode(&mut reader, spec, 4, &control).err().unwrap();
+        let budget = super::super::source::Budget::new(
+            crate::limits::sample_import::MAX_PRIVATE_STAGING_BYTES,
+        );
+        let error = decode(&mut reader, spec, 4, &budget, &control)
+            .err()
+            .unwrap();
         assert!(reached.load(Ordering::SeqCst));
         assert_eq!(error.code, "CANCELLED");
     }
