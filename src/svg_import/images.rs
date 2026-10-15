@@ -114,7 +114,13 @@ fn data_parts(value: &str) -> Result<(&str, bool, &str), Error> {
 fn coordinate(node: Node<'_, '_>, name: &str, basis: f64) -> Result<Option<f64>, Error> {
     node.attribute(name)
         .filter(|v| !matches!(name, "width" | "height") || v.trim() != "auto")
-        .map(|v| definitions::Coordinate::parse(v).map(|v| v.value(basis)))
+        .map(|v| {
+            let resolved = definitions::Coordinate::parse(v)?.value(basis);
+            if !resolved.is_finite() {
+                return Err(invalid("Nonfinite SVG image coordinate"));
+            }
+            Ok(resolved)
+        })
         .transpose()
 }
 pub(super) fn validate(node: Node<'_, '_>) -> Result<(), Error> {

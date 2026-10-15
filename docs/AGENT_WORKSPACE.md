@@ -20,6 +20,10 @@ The directory must already exist and be absolute. Starting a process, inspecting
 
 Explicit runtime paths can be relative to that workspace or absolute inside it. This includes request files, source images, fonts, licenses, profile sources, sequence-frame sources, linked-object roots, recipes and cancellation markers. Output names retain their existing validation and create-only publication rules. Output directories must still exist when required by the publication command; store commands create their own directories. Explicit `null` retains optional-root semantics, rather than selecting a default. Required non-null roots still reject `null`.
 
+For SVG images, `images.source_root` may also be workspace-relative, but must be
+supplied explicitly for local sources. It is never inferred from the SVG source
+path or the default asset store. See [SVG placed images](SVG_IMPORT.md#placed-images).
+
 Path checks reject parent traversal, alternate streams, drive-relative paths and outside absolute paths. On Windows only local disk paths are accepted. Existing links and junctions resolve before the containment check; missing leaves are checked through their nearest existing ancestor. Metadata, document contents and arbitrary descriptive strings are not interpreted as paths. This is a checked argument convention, not an OS sandbox or protection against hostile concurrent filesystem replacement. The process retains the launching user's permissions.
 
 ## Saved document input

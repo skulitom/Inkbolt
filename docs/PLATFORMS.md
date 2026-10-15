@@ -7,12 +7,30 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful hosted Windows/Linux/macOS matrix is `10c3505`.
-It includes the bounded Windows polling fix and optimized development hashing;
-earlier failures and their focused follow-up are recorded below.
+The latest retained successful hosted Windows/Linux/macOS matrix is `c9a5532`,
+through nested SVG. Earlier failures and their focused follow-up remain recorded.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
-The [complete run](https://github.com/skulitom/Inkbolt/actions/runs/38704401571)
+The [latest complete run](https://github.com/skulitom/Inkbolt/actions/runs/38738326742)
+passed 249 fresh stages on every platform, with matching unchanged inputs and
+no failed, pending or reused checks. The minimum-compiler checks also passed.
+
+| Hosted platform | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows 2025 | 216 | 2,609 | 9 | 4209.1 |
+| Ubuntu 24.04 | 182 | 2,567 | 51 | 1437.8 |
+| macOS 15 ARM64 | 182 | 2,567 | 51 | 2781.8 |
+
+Reports, all 747 stage logs and run metadata are retained under
+`w1-public-ci-c9a5532`, source fingerprint
+`9c483a0e27deafb324ae14c68401dd8ea4e67f506774292e706a470d16d600db`.
+The 751-file audit is
+`d7ca02bbcc239e07bf954a467e2ee2d3b1dadb676dc15f9a029c9d6a78bee3f0`.
+Hosted checks use the public structural guard and report private policy as
+unevaluated; mandatory local candidate/staged guards remain separate. This
+run extends macOS evidence through nested SVG and predates image admission.
+
+The [earlier `10c3505` run](https://github.com/skulitom/Inkbolt/actions/runs/38704401571)
 passed 243 fresh stages on every platform, with unchanged inputs and no failed,
 pending or reused checks. Windows ran 215 Rust and 2526 Python tests, with eight
 explicit skips, in 3702.5 seconds. Linux/macOS each ran 181 Rust and 2484 Python
@@ -32,23 +50,34 @@ The later embedded-style milestone passed fresh local Windows/WSL acceptance:
 2,496 Python tests with 51 explicit skips. Both runs verified unchanged, matching
 inputs. See [the CSS acceptance record](DEVELOPMENT_STATUS.md#w3a3-complete-within-the-embedded-style-contract)
 for the candidate identity, skip boundaries, timings and retained evidence. This
-does not extend Linux background-job support or establish macOS CSS acceptance.
+does not extend Linux background-job support. The later hosted run above
+establishes macOS evidence through nested SVG.
 
 The subsequent [reusable-SVG milestone](DEVELOPMENT_STATUS.md#w3a4-complete-within-the-reusable-svg-contract)
 passed all 248 fresh local stages on each platform at `3eaf500`, with matching
 unchanged source inputs. Windows executed 216 Rust and 2,590 Python tests with
 12 explicit skips; Linux executed 182 Rust and 2,551 Python tests with 51 skips.
 No reusable-SVG test was skipped. The linked acceptance record retains exact
-inputs, logs and skip boundaries; this does not extend macOS evidence, Unix jobs
-or the separate configured handoff/model gates.
+inputs, logs and skip boundaries; Unix jobs and the separate configured
+handoff/model gates remain open. Later hosted macOS evidence is recorded above.
 
 The [nested-SVG milestone](DEVELOPMENT_STATUS.md#w3a5-complete-within-the-nested-viewport-contract)
 subsequently passed all 249 fresh stages per platform at `c9a5532`, again on
 matching unchanged inputs. Windows executed 216 Rust and 2,606 Python tests with
 12 explicit skips; Linux executed 182 Rust and 2,567 Python tests with 51 skips.
 No nested-SVG test was skipped. The linked record retains the source archive,
-all 498 logs and requirement review; the existing macOS, Unix-job and separately
-configured handoff/model boundaries remain unchanged.
+all 498 logs and requirement review. The hosted matrix above subsequently
+passed this revision on all three platforms; Unix jobs and separately configured
+handoff/model gates remain open.
+
+The [SVG image milestone](DEVELOPMENT_STATUS.md#w3a6-complete-within-the-image-contract)
+passed all 250 fresh local stages per platform on matching unchanged inputs.
+Windows executed 216 Rust and 2,621 Python tests with 13 explicit skips in 730.4
+seconds; Linux executed 182 Rust and 2,583 Python tests with 51 skips in 467.2
+seconds. All sixteen image tests ran on Linux; Windows skipped the image
+symlink fixture because host privilege was unavailable. The linked record
+retains the source archive, full logs, requirement review and skip boundaries.
+This does not establish macOS image verification or Unix background-job support.
 
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
 to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked

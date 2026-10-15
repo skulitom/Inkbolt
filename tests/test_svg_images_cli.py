@@ -248,6 +248,14 @@ class SvgImageTests(unittest.TestCase):
             self.imported(support.svg(picture(href=href)),1)
         for attrs in ['width="-1"','height="-1%"','preserveAspectRatio="bad"','style="object-fit:contain"','image-rendering="unknown"']:
             self.imported(support.svg(picture(attrs)),1)
+        # Finite percentage tokens can overflow only after viewport resolution.
+        # Nonpainting images must not bypass this and return null size receipts.
+        for attrs in ['width="0" height="1e308%"', 'width="2" height="1e308%" display="none"',
+                      'height="0" width="1e308%"', 'width="0" y="1e308%"']:
+            with self.subTest(attrs=attrs):
+                error=self.imported(support.svg(picture(attrs),'width="32768" height="32768"'),1)
+                self.assertEqual(error['code'],'SVG_INVALID')
+                self.assertIn('Nonfinite',error['message'])
         self.assertEqual(self.imported(support.svg('<mask id="m">'+picture()+'</mask>'),1)['code'],'SVG_UNSUPPORTED')
         too_big=fixtures.png(4097,4096,b'',raw=b'')
         self.assertEqual(self.imported(support.svg(picture(data=too_big)),1)['code'],'RESOURCE_LIMIT')

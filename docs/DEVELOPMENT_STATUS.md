@@ -34,6 +34,13 @@ W1, any additional engine checkpoint, the scale targets or the overall goal.
 
 ## W1: core platform tier and hosted matrix verified; Unix jobs open
 
+The latest retained [hosted matrix at `c9a5532`](https://github.com/skulitom/Inkbolt/actions/runs/38738326742)
+passed all 249 fresh stages on Windows, Ubuntu and macOS, including nested SVG.
+All three minimum-compiler checks also passed. Reports and logs are retained in
+`w1-public-ci-c9a5532`; see [platform evidence](PLATFORMS.md) for exact counts,
+timings and the audit identity. This hosted run predates image admission and
+does not replace the mandatory local private publication guard.
+
 Linux tier 1 covers core/library/CLI/MCP, sessions and durable publication/history
 receipts on Ubuntu 22.04 under WSL2, using native Linux storage. Background jobs
 remain Windows-only. The private WSL mirror retains the required local guard.
@@ -1936,7 +1943,7 @@ feedback keeps the 180-second budget; fresh full acceptance is a milestone gate.
 W3a.6-8 and the overall goal remain open. No additional engine checkpoint is
 awarded; the unchanged registry remains 163/167.
 
-## W3a.6: image admission implemented; full acceptance open
+## W3a.6: complete within the image contract
 
 PNG/JPEG data URIs and relative local files under an explicit image source root
 become editable placed images. The [contract](SVG_IMPORT.md#placed-images) covers
@@ -1953,30 +1960,49 @@ dry runs, changed-source proposal rejection, source-free retries and undo/redo.
 A failed batch leaves session state and workspace files unchanged. Existing
 image, color, SVG, discovery, workspace and verifier regressions also ran.
 
-Focused feedback passed on matching, unchanged candidate
-`045bc115323cd611f0e7b9ddf506a0a94f33cc9d9f47b1d86c5fdc8fd62e1c6d`:
+The six-part requirement review caught a percentage that was finite when parsed
+but overflowed against the actual viewport. A zero-size image could then return
+a null size receipt. Coordinates now fail with `SVG_INVALID` after nonfinite
+resolution, including hidden and nonpainting content. Four regression subcases
+cover width, height and position overflow. The first Windows full run was
+deliberately stopped before this correction; its retained logs are not acceptance.
 
-| Platform | Fresh stages | Reused stages | Python executed | Explicit skips | Seconds |
+Fresh full acceptance then ran consecutively on Windows and Linux. Every stage
+ran fresh on matching unchanged inputs, with no failures, pending checks, reuse
+or outside-scope checks:
+
+| Platform | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows | 3 | 15 | 41 | 1 | 31.3 |
-| Linux / WSL | 18 | 0 | 182 | 3 | 81.0 |
+| Windows | 250 | 216 | 2,621 | 13 | 730.4 |
+| Linux / WSL | 250 | 182 | 2,583 | 51 | 467.2 |
 
-Windows additionally reused 143 Python passes with identical relevant inputs.
-Its one new image symlink fixture lacked host privilege; that fixture ran and
-passed on Linux. Linux's three skips are Windows-specific verifier tests.
-No selected check failed or remained pending. There were 232 stages outside
-this focused scope, including the Rust test stage; build and all-target Clippy
-passed. Earlier fixture/schema mistakes and their successful corrections remain
-in the external reports. Routine feedback retained the 180-second budget.
+Windows skips comprise eight separately configured real-tool handoff checks,
+four unavailable symlink fixtures and one Unix-only path fixture. Linux retains
+the Windows job, process-accounting, host-measurement and configured handoff
+boundaries. All sixteen image tests ran on Linux; Windows skipped only the image
+symlink fixture. No new macOS image verification, Unix-job support, scale or
+real-model claim follows from these runs.
 
-The external `w3a-images-focused-01` bundle contains both reports, all 36 selected
-stage logs, a six-part requirement review, an 886-file source inventory and a
-frozen candidate archive. Audit SHA-256:
+Both full reports bind source fingerprint
+`eeda061b0204db7ab949fc2becfea66456a3cc60aa2db600762a9a8336100c20`:
+engine base `502b64c` plus the coordinate fix and its regression cases. The
+external `w3a-images-acceptance-01` bundle retains the full and focused reports,
+all 500 full-stage and 14 repair-stage logs, the completed six-part review,
+an 886-file inventory, a frozen source archive and the interruption record.
+Audit SHA-256:
+`b00fd042ea9c1d0ef96017d11d36f565962234f3b6252a6a5bce1c4b7a514c05`.
+Final documentation updates follow this frozen candidate; engine and test
+inputs remain unchanged.
+
+The repair's selected image, viewport and insertion checks took **44.1/29.1
+seconds** on Windows/Linux: seven fresh stages each, with 41/42 Python tests
+executed and one/zero skips. Earlier focused implementation checks took
+31.3/81.0 seconds; their reports and source archive remain in
+`w3a-images-focused-01`, audit
 `f05f4cd86f6f14eaa99b88d052706595c592e4ef73e09311610e5263c532a7c3`.
-These status/documentation updates follow that frozen candidate; implementation
-and tests are unchanged. Fresh full Windows/Linux runs and the milestone review
-remain required before closing W3a.6. No new macOS, Unix-job, model-trial or
-engine-checkpoint claim is made; the registry remains 163/167 and the goal remains open.
+Routine feedback retains the 180-second budget. W3a.7 text spans and W3a.8
+opt-in omission reports are next. No engine checkpoint is added; the registry
+remains 163/167 and the overall goal remains open.
 
 ## W3b: complete within the insertion contract
 

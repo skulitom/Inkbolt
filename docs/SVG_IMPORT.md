@@ -72,8 +72,8 @@ undo and redo use the ordinary atomic edit/session contracts.
 
 ## Placed images
 
-W3a.6 has focused Windows/Linux verification. Fresh full acceptance remains open;
-see the [implementation checkpoint](DEVELOPMENT_STATUS.md#w3a6-image-admission-implemented-full-acceptance-open).
+W3a.6 has [fresh full Windows/Linux acceptance](DEVELOPMENT_STATUS.md#w3a6-complete-within-the-image-contract)
+within this image contract. Text spans and opt-in omission reports remain open.
 
 `image` admits PNG and JPEG as editable placed images, using the shared
 [image decoder and color rules](IMAGE_IO.md). Supply a `data:image/png` or
@@ -116,7 +116,8 @@ rectangle. Transforms, opacity, visibility, geometric clips and supported masks
 apply through an outer editable group. Object-bounding-box effects use the whole
 positioning rectangle, including letterboxing. Zero-size images retain a hidden
 intrinsic-sized child under a nonpainting group. Hidden and unused image sources
-are still validated. Images may be local `use` targets and share compatible
+are still validated, including finite coordinates after percentage resolution.
+Images may be local `use` targets and share compatible
 native components.
 
 Sampling defaults to bilinear; `images.sampling` accepts the existing native
