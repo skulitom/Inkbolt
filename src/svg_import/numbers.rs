@@ -161,6 +161,21 @@ pub(super) fn length(s: &str) -> Result<f64, Error> {
         }
     }
     if s.ends_with('%') || s.chars().any(|c| c.is_alphabetic() && c != 'e' && c != 'E') {
+        // Unknown units can be omitted explicitly, but a malformed literal
+        // must not acquire an unsupported-content escape hatch.
+        if (s.ends_with('%') || s.ends_with(|c: char| c.is_ascii_alphabetic()))
+            && ![
+                "auto",
+                "inherit",
+                "initial",
+                "unset",
+                "revert",
+                "revert-layer",
+            ]
+            .contains(&s)
+        {
+            number(s.trim_end_matches(|c: char| c.is_ascii_alphabetic() || c == '%'))?;
+        }
         return Err(unsupported(
             "Only user units, px, in, cm, mm, pt and pc lengths are supported",
         ));

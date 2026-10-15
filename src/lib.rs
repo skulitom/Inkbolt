@@ -397,6 +397,8 @@ pub enum Request {
         #[serde(default)]
         images: svg_import::ImageOptions,
         #[serde(default)]
+        unsupported: svg_import::UnsupportedPolicy,
+        #[serde(default)]
         font_bindings: Vec<svg_import::FontBinding>,
         #[serde(default)]
         font_root: Option<PathBuf>,
@@ -1155,6 +1157,13 @@ fn capability_report() -> Value {
     let mut svg_import_contract = json!({"source_bytes":svg_import::MAX_BYTES,"xml_nodes":svg_import::MAX_NODES,"elements":["svg","g","rect","ellipse","circle","line","polygon","polyline","path","title","desc","style","defs","linearGradient","radialGradient","stop","clipPath","text","mask","metadata"],"path_commands":"MmLlHhVvCcSsQqTtAaZz","paints":["solid_srgb_rgba8","linear","centered_radial"],"gradient_units":["userSpaceOnUse","objectBoundingBox"],"gradient_templates":"local_href_with_cycle_checks","template_stop_styles":"cloned_in_derived_gradient_context","clip_geometry":"single_shape_or_compound_path","definition_limit":svg_import::MAX_DEFINITIONS,"reference_depth":svg_import::MAX_REFERENCE_DEPTH,"resources":"local_definitions_and_explicit_pinned_fonts","text":{"kind":"editable_single_line_ltr","font_bindings":fonts::MAX_FONTS,"font_selection":"first_explicit_family_weight_style_match_no_glyph_fallback","anchors":["start","middle","end"],"baseline":"alphabetic","whitespace":"legacy_xml_space_or_explicit_css_normal_pre","object_box":"full_font_cells","span_children":false},"source_preserved":true,"unsupported_policy":"error_no_partial_document","viewport":"integral_pixels_at_96ppi_with_viewBox_meet_slice_none"});
     svg_import_contract["arcs"] = json!({"method":"adaptive_tangent_cubics_at_most_quarter_turns","max_radial_error_local":limits::svg_import::ARC_RADIAL_TOLERANCE,"max_normalized_radius":model::MAX_COORDINATE,"coordinate_space":"source_element_local_before_transforms","binary64_roundoff_included":false,"receipt":"approximations"});
     svg_import_contract["rounded_rectangles"] = json!(true);
+    svg_import_contract["unsupported"] = json!({"field":"unsupported","default":"error",
+        "options":["error","omit_and_report"],"receipt":"omissions",
+        "scope":"located_unsupported_element_subtrees_and_known_omitted_dependencies",
+        "source_locations":"original_utf8_byte_ranges_and_one_based_line_column",
+        "root_omission":false,"invalid_xml_duplicate_ids_and_resource_failures":"error",
+        "max_attempts":limits::svg_import::MAX_OMISSION_ATTEMPTS,
+        "max_source_processing_bytes":limits::svg_import::MAX_OMISSION_SOURCE_BYTES});
     svg_import_contract["text"]["span_children"] = json!(true);
     svg_import_contract["text"]["kind"] =
         json!("editable_horizontal_ltr_ranges_and_character_positions");
@@ -1238,6 +1247,7 @@ fn capability_report() -> Value {
         "fonts":"existing_destination_bindings","images":"same_images_options_and_atomic_encoded_asset_transfer","compositing":"destination_working_space",
         "full_document_viewport":"retained_as_outer_clip","fragment_viewport":"destination_logical_size_without_extra_clip",
         "ids":"deterministic_collision_checked_prefix","unsupported_policy":"error_atomic_batch"});
+    svg_import_contract["insertion"]["unsupported"] = svg_import_contract["unsupported"].clone();
     let mut capabilities = json!({
         "name":"inkbolt","version":env!("CARGO_PKG_VERSION"),"stage":"editing_core",
         "document_schema_version":2,"readable_document_schema_versions":[1,2],
@@ -2308,13 +2318,17 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             font_bindings,
             font_root,
             images,
-        } => svg_import::import_with_images_controlled(
+            unsupported,
+        } => svg_import::import_with_options_controlled(
             id,
             source,
             font_bindings,
             font_root,
             resource_profile,
-            images,
+            svg_import::Options {
+                images,
+                unsupported,
+            },
             &context.scoped(&control)?,
         ),
         Request::VectorImport {

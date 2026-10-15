@@ -16,6 +16,56 @@ Negative and fractional coordinate fidelity, normalization tolerance and consume
 
 For inline input, use `source: {"kind":"text","text":"<svg ...>...</svg>"}`. The [original example](../examples/import-svg.json) creates an editable diagram from text. Persist the returned `document` with `session.create`; use the returned `mapping[].item_id` with ordinary query, edit, diff, export and undo operations. Imports create revision zero. They do not merge into an existing document or create a session automatically.
 
+## Explicit omission reports
+
+Strict failure remains the default (`unsupported:"error"`). An explicit
+`unsupported:"omit_and_report"` on `svg.import` or `add_svg` enables a bounded
+recovery pass. The Rust library exposes the same option through
+`svg_import::Options` and `import_with_options_controlled`; existing import
+functions keep their strict behavior.
+
+```json
+{"command":"svg.import","id":"partial","unsupported":"omit_and_report","source":{"kind":"text","text":"<svg width=\"32\" height=\"24\"><foreignObject/><rect width=\"8\" height=\"8\"/></svg>"}}
+```
+
+Only `SVG_UNSUPPORTED` errors located at removable source elements are eligible.
+The importer removes the whole element and its descendants, then retries on a
+private candidate. An unsupported attribute removes its owning element; an
+unsupported embedded stylesheet removes the entire `style` element. Inline
+styles belong to their element. A failure specific to a `use` placement removes
+that placement. References to IDs removed by these omissions cause their owning
+elements to be omitted with a dependency reason. Truly missing references still
+fail. Removed text or styles can change the remaining layout and appearance;
+this is explicitly degraded import, not a fidelity guarantee.
+
+The result includes `unsupported:"omit_and_report"` and `omissions`, even if the
+array is empty. Each row records `source_id`, `element`, `reason`, `code`, original
+UTF-8 `byte_offset` and exclusive `byte_end`, one-based `line` and `column`, and
+the number of descendant elements covered by the removal. `cause` retains the
+located diagnostic and any omitted dependency ID. If a later removal covers
+earlier removals, their reports move into its `covered_omissions` array. Top-level
+rows are in source order and do not overlap. Byte locations in ordinary mappings,
+definition receipts, approximations, reuse paths and subsequent errors also refer
+to the original source. Insertion reports use the caller's fragment coordinates,
+excluding its generated root. Source hashes always identify the original bytes.
+
+Malformed XML, empty/duplicate IDs and excessive nesting are checked on the
+complete source before omission. DTDs, processing instructions, root-level or
+unlocated unsupported semantics, invalid-value errors, missing fonts/resources,
+resource budgets and cancellation still fail without returning a partial document.
+Nesting is checked before XML parsing, including the insertion probe. Discarded
+subtrees do not otherwise receive an independent validation of every semantic
+value. Unsupported CSS syntax classified as `SVG_UNSUPPORTED` is eligible for
+whole-owner omission; XML well-formedness is always required.
+
+At most 256 private attempts and 128 MiB of cumulative filtered source bytes are
+allowed, separately from the existing source, XML, scene and per-attempt work
+limits. Insertion keeps ordinary atomic batch, proposal, retry and history
+semantics. The original file is never rewritten and these passes publish no
+resource files. [Focused Windows/Linux verification](DEVELOPMENT_STATUS.md#w3a8-omission-policy-implemented-milestone-open)
+passed for this increment. The remaining unsupported-owner audit, cumulative-work
+boundary evidence and fresh full W3a.8 milestone acceptance remain open.
+
 ## Insert into an existing document
 
 Use the atomic `add_svg` operation in `document.edit`, session edit actions or

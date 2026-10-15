@@ -2064,6 +2064,47 @@ W3a.8 opt-in omission reports are next. Unix jobs, macOS verification of this
 increment, distribution, actual-model/scale evidence and the overall goal remain
 separate. No engine checkpoint is awarded; the registry remains 163/167.
 
+## W3a.8: omission policy implemented; milestone open
+
+The explicit `unsupported:"omit_and_report"` policy now shares import and atomic
+insertion. Fresh private strict attempts discard reported source subtrees and
+dependents of their removed IDs. Original byte ranges, line/column positions,
+source hashes and nested receipts survive filtering and fragment wrapping.
+Strict import remains the default. See the [omission contract](SVG_IMPORT.md#explicit-omission-reports).
+
+The first focused run exposed a deep-XML process stack overflow before the
+post-parse nesting guard, ambiguous malformed-length classification and missing
+capability-limit bindings. These are corrected. Original XML depth is checked
+lexically before parsing (including the insertion probe), and literal numbers
+are validated before unknown length units become eligible for omission.
+Imported Python test classes were also replaced with module aliases to avoid
+unintentionally repeating unrelated suites.
+
+Matching unchanged inputs passed all eleven selected stages fresh on Windows
+and Linux: formatting, locked build, all-target Clippy with warnings denied,
+the typed insertion byte-ceiling test, six Python modules and the private guard.
+Windows executed 85 Python tests with no skips in 80.8 seconds; Linux executed
+82 with three explicit Windows verifier/process-accounting skips in 121.9
+seconds. All 18 omission fixtures ran on both platforms, including exact pixels,
+Unicode locations, source immutability, dependency removal, strict/fatal failures,
+MCP parity, proposal/retry receipts, undo/redo and failed-batch rollback.
+
+The 894-file candidate is
+`c4a9af521061ae92e604625e37a3c37cd1e5410484950869e2ec1879d5923ac0`.
+The frozen source archive/inventory, three reports (including the failed first
+run) and all 33 stage logs are retained in `w3a-omissions-focused-01`; its
+38-file evidence index has audit SHA-256
+`2f019070708826157a756ad115858c3fc3fa88d6df8bf5555b499a9444f64922`.
+Source archive entries and every indexed hash were independently reread.
+Only status Markdown and one fixture's trailing whitespace changed after that
+capture; engine bytes and fixture syntax trees remain identical.
+
+This is focused development evidence, not complete milestone acceptance.
+Late paint/mask resolution still has unlocated unsupported errors, which remain
+fatal. Finish their ownership audit and the cumulative source-processing budget
+boundary check, then run fresh full Windows/Linux acceptance before closing
+W3a.8. The original checkpoint registry and broader goal remain unchanged.
+
 ## W3b: complete within the insertion contract
 
 `add_svg` is an atomic edit accepting fragments and complete SVG documents. It

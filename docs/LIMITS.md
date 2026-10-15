@@ -691,6 +691,8 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `svg_import.MAX_LARGE_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `svg_import.MAX_LARGE_NODES` | `u32` | 65536 | `65536` |
 | `svg_import.MAX_NODES` | `u32` | 4096 | `4096` |
+| `svg_import.MAX_OMISSION_ATTEMPTS` | `usize` | 256 | `256` |
+| `svg_import.MAX_OMISSION_SOURCE_BYTES` | `usize` | 134217728 | `128 * 1024 * 1024` |
 | `svg_import.MAX_TRANSFORMS` | `usize` | 64 | `64` |
 | `svg_import_definitions.MAX_DEFINITIONS` | `usize` | 64 | `64` |
 | `svg_import_definitions.MAX_REFERENCE_DEPTH` | `usize` | 16 | `16` |

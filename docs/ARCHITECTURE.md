@@ -1,5 +1,12 @@
 # Architecture
 
+Opt-in SVG omission uses fresh private strict imports of filtered source text.
+Original XML structure and depth are checked before any subtree is removed.
+Removed source ranges map receipts back to the original bytes; known omitted IDs
+propagate through style and reuse dependencies. No document or resources are
+published by a failed attempt. Import and atomic insertion share this policy;
+strict failure remains the default. See [omission reports](SVG_IMPORT.md#explicit-omission-reports).
+
 Character-addressed text placement shares native shaping, glyph outlines and
 rendering. Absolute coordinates create independently shaped chunks; relative
 shifts follow Unicode-scalar indices without splitting ligatures or combining

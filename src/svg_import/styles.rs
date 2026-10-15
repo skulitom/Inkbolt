@@ -56,6 +56,7 @@ struct Rule {
     declarations: Vec<Declaration>,
 }
 pub(super) struct Sheet {
+    pub(super) omitted_ids: HashSet<String>,
     rules: Vec<Rule>,
     inline: BTreeMap<usize, Vec<Declaration>>,
     declaration_count: usize,
@@ -122,6 +123,7 @@ fn next<'a>(parser: &mut Parser<'a>) -> Result<Option<(Token<'a>, &'a str)>, Err
 impl Sheet {
     pub fn parse(root: Node<'_, '_>, control: &crate::control::Control) -> Result<Self, Error> {
         let mut sheet = Self {
+            omitted_ids: HashSet::new(),
             rules: vec![],
             inline: BTreeMap::new(),
             declaration_count: 0,

@@ -9,6 +9,7 @@ pub use insertion::InsertFontBinding;
 pub(crate) use insertion::insert;
 mod labels;
 mod masking;
+mod omissions;
 mod reuse;
 mod scopes;
 mod sharing;
@@ -69,6 +70,24 @@ const PROPERTIES: &[&str] = &[
 pub enum Source {
     Text { text: String },
     File { source_path: PathBuf },
+}
+
+/// Unsupported source content is rejected unless omission is explicitly requested.
+#[derive(Clone, Copy, Debug, Default, Deserialize, serde::Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum UnsupportedPolicy {
+    #[default]
+    Error,
+    OmitAndReport,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Options {
+    #[serde(default)]
+    pub images: ImageOptions,
+    #[serde(default)]
+    pub unsupported: UnsupportedPolicy,
 }
 
 #[derive(Clone)]
@@ -268,6 +287,7 @@ fn properties<'a>(
         props.insert("mask-mode", "inherit");
     }
     styles.apply(node, &mut props)?;
+    omissions::check_references(node, &props, extra, &styles.omitted_ids)?;
     let inner_viewport = node.has_tag_name("image")
         || node.has_tag_name("symbol")
         || (node.has_tag_name("svg") && node.parent_element().is_some());
@@ -649,6 +669,16 @@ impl Importer<'_> {
         inherited: &Style,
         root_matrix: Option<Matrix>,
     ) -> Result<(), Error> {
+        self.visit_node(node, parent, inherited, root_matrix)
+            .map_err(|error| reuse::located(error, node))
+    }
+    fn visit_node(
+        &mut self,
+        node: Node<'_, '_>,
+        parent: Option<String>,
+        inherited: &Style,
+        root_matrix: Option<Matrix>,
+    ) -> Result<(), Error> {
         self.control.check()?;
         let tag = node.tag_name().name();
         if tag == "style" {
@@ -961,6 +991,28 @@ pub fn import_with_images_controlled(
     images: ImageOptions,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
+    import_with_options_controlled(
+        id,
+        source,
+        font_bindings,
+        font_root,
+        resource_profile,
+        Options {
+            images,
+            unsupported: UnsupportedPolicy::Error,
+        },
+        control,
+    )
+}
+pub fn import_with_options_controlled(
+    id: String,
+    source: Source,
+    font_bindings: Vec<FontBinding>,
+    font_root: Option<PathBuf>,
+    resource_profile: ResourceProfile,
+    options: Options,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
     import_with_budget(
         id,
         source,
@@ -971,14 +1023,17 @@ pub fn import_with_images_controlled(
         ImportOptions {
             byte_budget: None,
             components: true,
-            images,
+            images: options.images,
+            unsupported: options.unsupported,
         },
     )
 }
+#[derive(Clone)]
 struct ImportOptions {
     byte_budget: Option<usize>,
     components: bool,
     images: ImageOptions,
+    unsupported: UnsupportedPolicy,
 }
 fn import_with_budget(
     id: String,
@@ -1026,20 +1081,46 @@ fn import_with_budget(
             "SVG source exceeds its resource-profile byte budget",
         ));
     }
-    let hash = format!("{:x}", Sha256::digest(&bytes));
     let text = std::str::from_utf8(&bytes).map_err(|_| invalid("SVG source must be UTF-8"))?;
-    if text.contains("<!DOCTYPE") {
-        return Err(unsupported("DTD declarations are not supported"));
+    if options.unsupported == UnsupportedPolicy::OmitAndReport {
+        return omissions::import(text, max_nodes, control, |filtered, omitted_ids| {
+            import_text(
+                (filtered, omitted_ids),
+                id.clone(),
+                font_bindings.clone(),
+                font_root.clone(),
+                resource_profile,
+                control,
+                options.clone(),
+            )
+        });
     }
-    let xml = roxmltree::Document::parse_with_options(
-        text,
-        roxmltree::ParsingOptions {
-            allow_dtd: false,
-            nodes_limit: max_nodes,
-            entity_resolver: None,
-        },
+    import_text(
+        (text, &HashSet::new()),
+        id,
+        font_bindings,
+        font_root,
+        resource_profile,
+        control,
+        options,
     )
-    .map_err(|e| invalid(format!("XML parse failed: {e}")))?;
+}
+fn import_text(
+    source: (&str, &HashSet<String>),
+    id: String,
+    font_bindings: Vec<FontBinding>,
+    font_root: Option<PathBuf>,
+    resource_profile: ResourceProfile,
+    control: &crate::control::Control,
+    options: ImportOptions,
+) -> Result<Value, Error> {
+    let (text, omitted_ids) = source;
+    let max_nodes = if resource_profile.is_standard() {
+        MAX_NODES
+    } else {
+        MAX_LARGE_NODES
+    };
+    let xml = omissions::parse(text, max_nodes, control)?;
     let root = xml.root_element();
     if root.tag_name().name() != "svg" || !matches!(root.tag_name().namespace(), None | Some(NS)) {
         return Err(unsupported("Expected an SVG root element"));
@@ -1049,7 +1130,6 @@ fn import_with_budget(
     {
         return Err(unsupported("Unsupported SVG version"));
     }
-    let mut source_ids = HashSet::new();
     for n in xml.descendants() {
         control.check()?;
         if n.is_pi() {
@@ -1066,8 +1146,9 @@ fn import_with_budget(
                 && n.parent()
                     .is_some_and(|p| p.tag_name().name() == "metadata" && p.parent() == Some(root)))
         {
-            return Err(unsupported(
-                "Mixed or foreign element namespaces are not supported",
+            return Err(reuse::located(
+                unsupported("Mixed or foreign element namespaces are not supported"),
+                n,
             ));
         }
         if n != root
@@ -1089,20 +1170,10 @@ fn import_with_budget(
                 ));
             }
         }
-        if n.ancestors().take(crate::scene::MAX_DEPTH + 4).count() > crate::scene::MAX_DEPTH + 2 {
-            return Err(Error::new(
-                "RESOURCE_LIMIT",
-                "SVG nesting exceeds the document limit",
-            ));
-        }
-        if let Some(id) = n.attribute("id")
-            && (id.is_empty() || !source_ids.insert(id))
-        {
-            return Err(invalid("Empty or duplicate SVG source ID"));
-        }
     }
-    let styles = styles::Sheet::parse(root, control)?;
-    let references = reuse::References::collect(root, control)?;
+    let mut styles = styles::Sheet::parse(root, control)?;
+    styles.omitted_ids.clone_from(omitted_ids);
+    let references = reuse::References::collect(root, control, omitted_ids)?;
     let (width, height, matrix) = viewport(root)?;
     let document = Document {
         resource_profile,
@@ -1170,8 +1241,9 @@ fn import_with_budget(
             || children[0].attributes().len() != 0
             || children[0].children().any(|n| n.is_element())
         {
-            return Err(unsupported(
-                "Only the Inkbolt root metadata envelope is supported",
+            return Err(reuse::located(
+                unsupported("Only the Inkbolt root metadata envelope is supported"),
+                *node,
             ));
         }
         let text = children[0]
@@ -1241,6 +1313,6 @@ fn import_with_budget(
     importer.losses.sort();
     importer.losses.dedup();
     Ok(
-        json!({"document":importer.document,"source":{"sha256":hash,"bytes":bytes.len(),"media_type":"image/svg+xml"},"mapping":importer.mappings,"definitions":importer.definitions.records,"losses":importer.losses,"approximations":importer.approximations,"reuse":reuse}),
+        json!({"document":importer.document,"source":{"sha256":format!("{:x}", Sha256::digest(text.as_bytes())),"bytes":text.len(),"media_type":"image/svg+xml"},"mapping":importer.mappings,"definitions":importer.definitions.records,"losses":importer.losses,"approximations":importer.approximations,"reuse":reuse}),
     )
 }

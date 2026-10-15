@@ -1829,6 +1829,10 @@ pub mod svg_import_definitions {
 
 /// Limits for `src/svg_import.rs`.
 pub mod svg_import {
+    /// Maximum private import attempts for explicit unsupported-content omission.
+    pub const MAX_OMISSION_ATTEMPTS: usize = 256;
+    /// Sum of filtered source bytes across omission attempts (independent of XML/node limits).
+    pub const MAX_OMISSION_SOURCE_BYTES: usize = 128 * 1024 * 1024;
     /// Embedded CSS rules across all style elements in one SVG source.
     pub const MAX_CSS_RULES: usize = 4096;
     /// Type, universal, class and ID components in one compound selector.

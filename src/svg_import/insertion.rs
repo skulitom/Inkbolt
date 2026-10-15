@@ -56,7 +56,7 @@ pub(crate) fn insert(
     svg: &str,
     parent: Option<&str>,
     requested_prefix: Option<&str>,
-    bindings: (&[InsertFontBinding], &ImageOptions),
+    bindings: (&[InsertFontBinding], &ImageOptions, UnsupportedPolicy),
     font_root: Option<&Path>,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
@@ -75,12 +75,12 @@ fn insert_attempt(
     source: (&str, bool),
     parent: Option<&str>,
     requested_prefix: Option<&str>,
-    bindings: (&[InsertFontBinding], &ImageOptions),
+    bindings: (&[InsertFontBinding], &ImageOptions, UnsupportedPolicy),
     font_root: Option<&Path>,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
     let (svg, components) = source;
-    let (font_bindings, images) = bindings;
+    let (font_bindings, images, unsupported) = bindings;
     control.check()?;
     if svg.len() > crate::MAX_REQUEST_BYTES as usize {
         return Err(Error::new(
@@ -136,15 +136,8 @@ fn insert_attempt(
     };
     // Parse only within the existing node/DTD bounds. A fragment with several
     // roots fails this probe, then goes through the ordinary wrapped importer.
-    let full_svg = roxmltree::Document::parse_with_options(
-        svg,
-        roxmltree::ParsingOptions {
-            allow_dtd: false,
-            nodes_limit: max_nodes,
-            entity_resolver: None,
-        },
-    )
-    .is_ok_and(|xml| xml.root_element().tag_name().name() == "svg");
+    let full_svg = omissions::parse(svg, max_nodes, control)
+        .is_ok_and(|xml| xml.root_element().tag_name().name() == "svg");
     let [width, height] = crate::vector_canvas::logical_size(document);
     let (text, offset) = if full_svg {
         (svg.to_owned(), 0)
@@ -166,6 +159,7 @@ fn insert_attempt(
             byte_budget: Some(byte_budget),
             components: components && document.kind == DocumentKind::Vector,
             images: images.clone(),
+            unsupported,
         },
     )
     .map_err(|mut error| {
@@ -255,7 +249,7 @@ fn insert_attempt(
                 (svg, false),
                 parent,
                 requested_prefix,
-                (font_bindings, images),
+                (font_bindings, images, unsupported),
                 font_root,
                 control,
             )?;
@@ -311,12 +305,45 @@ fn insert_attempt(
             }
         }
     }
-    Ok(json!({"root_id":ids[&root],"prefix":prefix,"item_ids":ids,
+    let mut receipt = json!({"root_id":ids[&root],"prefix":prefix,"item_ids":ids,
         "font_ids":transferred["font_ids"],"asset_ids":transferred["asset_ids"],"mapping":imported["mapping"],
         "definitions":imported["definitions"],"approximations":imported["approximations"],"reuse":imported["reuse"],
         "losses":imported["losses"],"placement":"parent_local",
         "source":{"sha256":crate::assets::sha256(svg.as_bytes()),"bytes":svg.len(),
             "kind":if full_svg { "svg_document" } else { "svg_fragment" }},
         "viewport_clipped":full_svg,"fonts":"existing_destination_bindings",
-        "compositing":"destination_working_space"}))
+        "compositing":"destination_working_space"});
+    if unsupported == UnsupportedPolicy::OmitAndReport {
+        receipt["unsupported"] = json!("omit_and_report");
+        receipt["omissions"] = imported["omissions"].take();
+        remap_omissions(&mut receipt["omissions"], offset);
+    }
+    Ok(receipt)
+}
+
+fn remap_omissions(value: &mut Value, offset: usize) {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                remap_omissions(value, offset);
+            }
+        }
+        Value::Object(fields) => {
+            if fields.get("line").and_then(Value::as_u64) == Some(1)
+                && let Some(column) = fields.get("column").and_then(Value::as_u64)
+            {
+                fields.insert("column".into(), json!(column.checked_sub(offset as u64)));
+            }
+            for (key, value) in fields {
+                if ["byte_offset", "byte_end", "use_byte_offset"].contains(&key.as_str()) {
+                    if let Some(position) = value.as_u64() {
+                        *value = json!(position.checked_sub(offset as u64));
+                    }
+                } else {
+                    remap_omissions(value, offset);
+                }
+            }
+        }
+        _ => {}
+    }
 }

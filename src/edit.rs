@@ -190,6 +190,8 @@ pub enum Operation {
         #[serde(default)]
         images: crate::svg_import::ImageOptions,
         #[serde(default)]
+        unsupported: crate::svg_import::UnsupportedPolicy,
+        #[serde(default)]
         parent: Option<String>,
         #[serde(default)]
         prefix: Option<String>,
@@ -996,6 +998,7 @@ fn apply_one(
         Operation::AddSvg {
             svg,
             images,
+            unsupported,
             parent,
             prefix,
             font_bindings,
@@ -1005,7 +1008,7 @@ fn apply_one(
                 svg,
                 parent.as_deref(),
                 prefix.as_deref(),
-                (font_bindings, images),
+                (font_bindings, images, *unsupported),
                 font_root,
                 control,
             )?;

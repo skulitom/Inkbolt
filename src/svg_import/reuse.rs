@@ -22,7 +22,11 @@ pub(super) struct References {
     targets: HashMap<NodeId, NodeId>,
 }
 impl References {
-    pub fn collect(root: Node<'_, '_>, control: &crate::control::Control) -> Result<Self, Error> {
+    pub fn collect(
+        root: Node<'_, '_>,
+        control: &crate::control::Control,
+        omitted_ids: &HashSet<String>,
+    ) -> Result<Self, Error> {
         let uses: Vec<_> = root
             .descendants()
             .filter(|n| n.has_tag_name("use"))
@@ -69,7 +73,9 @@ impl References {
                 let target = ids
                     .get(id)
                     .copied()
-                    .ok_or_else(|| invalid("Missing SVG use target"))?;
+                    .ok_or_else(|| if omitted_ids.contains(id) {
+                        omissions::dependency(id)
+                    } else { invalid("Missing SVG use target") })?;
                 let tag = target.tag_name().name();
                 if !["g", "text", "use", "symbol", "svg", "image"].contains(&tag) && shape_attributes(tag).is_err()
                 {
@@ -166,6 +172,14 @@ pub(super) fn translation(node: Node<'_, '_>, viewport: [f64; 2]) -> Result<Matr
 
 impl Importer<'_> {
     pub(super) fn collect_definition(
+        &mut self,
+        node: Node<'_, '_>,
+        inherited: &Style,
+    ) -> Result<(), Error> {
+        self.collect_definition_node(node, inherited)
+            .map_err(|error| located(error, node))
+    }
+    fn collect_definition_node(
         &mut self,
         node: Node<'_, '_>,
         inherited: &Style,

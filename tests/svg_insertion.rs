@@ -24,6 +24,7 @@ fn svg_insertion_request_ceiling_covers_fragments_and_documents_in_typed_api() {
         let operation = |svg| edit::Operation::AddSvg {
             svg,
             images: Default::default(),
+            unsupported: Default::default(),
             parent: None,
             prefix: None,
             font_bindings: vec![],

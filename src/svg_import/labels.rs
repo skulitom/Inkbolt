@@ -29,7 +29,7 @@ pub enum FaceStyle {
 fn normal_weight() -> u16 {
     400
 }
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FontBinding {
     pub family: String,
