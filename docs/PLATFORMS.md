@@ -34,6 +34,14 @@ inputs. See [the CSS acceptance record](DEVELOPMENT_STATUS.md#w3a3-complete-with
 for the candidate identity, skip boundaries, timings and retained evidence. This
 does not extend Linux background-job support or establish macOS CSS acceptance.
 
+The subsequent [reusable-SVG milestone](DEVELOPMENT_STATUS.md#w3a4-complete-within-the-reusable-svg-contract)
+passed all 248 fresh local stages on each platform at `3eaf500`, with matching
+unchanged source inputs. Windows executed 216 Rust and 2,590 Python tests with
+12 explicit skips; Linux executed 182 Rust and 2,551 Python tests with 51 skips.
+No reusable-SVG test was skipped. The linked acceptance record retains exact
+inputs, logs and skip boundaries; this does not extend macOS evidence, Unix jobs
+or the separate configured handoff/model gates.
+
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
 to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked
 `moxcms` dependency requires it, as does the standard file-locking API. Separate

@@ -224,8 +224,8 @@ Resource inheritance is resolved at import and is not a live CSS relationship.
 
 Targets containing metadata still fail explicitly;
 placements can refer to existing gradient, clip and mask definitions outside the
-copied subtree. Fresh full platform acceptance is still required to complete the
-reusable-shape milestone. Ordinary `use` inside clip-path geometry remains
+copied subtree. The reusable-shape milestone has [fresh Windows/Linux acceptance](DEVELOPMENT_STATUS.md#w3a4-complete-within-the-reusable-svg-contract).
+Other SVG admission items remain open. Ordinary `use` inside clip-path geometry remains
 unsupported by that narrower definition parser.
 
 ### Shared editing and placement identity

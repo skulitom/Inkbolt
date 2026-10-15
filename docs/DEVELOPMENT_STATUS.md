@@ -1822,75 +1822,68 @@ changed. A separate bundle containing the current development executable passed
 standalone discovery of all 22 core tools and document creation. This confirms
 integration, not release-build or complete distribution acceptance.
 
-## W3a.4: reusable shapes in progress
+## W3a.4: complete within the reusable SVG contract
 
-Local `use` admits supported shapes, groups, text, symbols and local references.
-Original source declarations use placement inheritance. A memoized graph checks
-cycles/reference depth without expanding unused copies; item/hierarchy limits
-bound materialization. Text fonts and relative sizes bind in the painted context.
-Symbols separate viewport clipping from viewBox/appearance and bind percentage
-paints, masks, placements and text in their own user viewport. Different mask
-viewport contexts retain independently editable sources with a sharing-loss receipt.
+**Complete, 15 October 2026, at `3eaf500`.** Local `use` admits supported shapes,
+groups, text, symbols and local references within [the declared contract](SVG_IMPORT.md).
+Source declarations use placement inheritance. A memoized graph rejects cycles
+and excessive reference depth without expanding unused copies; existing item,
+hierarchy, geometry and resource limits bound materialization. Symbols keep
+viewport placement/clipping separate from viewBox and appearance. Percentage
+paints, masks, placements and text use the correct local viewport.
 
-Compatible resolved occurrences now become native components. Scalar, transform,
-vector-style and nested same-source instance overrides preserve shared geometry
-while retaining local appearance. Visible originals and overlapping group/child
-targets share editable sources too. Other resolved contexts form declared component
-variants; native budgets and raster destinations retain groups with explicit
-reasons. Insertion can retry once from the untouched candidate when components
-exceed the destination budget. Original source validation still runs first.
-Stored instance/source paths and all related receipt IDs survive insertion.
+Compatible resolved occurrences become native components with geometry-preserving
+placement overrides. Visible originals and overlapping group/child targets share
+editable sources too. Other contexts form declared variants; native budgets and
+raster destinations retain groups with explicit reasons. Insertion can retry once
+from the untouched candidate when components exceed the destination budget.
+Source validation runs first. Stored editing identities and original offsets
+survive receipt remapping, insertion, retry and history operations.
 
-Independent fixtures check source geometry edits, inherited colour overrides,
-resized symbol clipping, nested and overlapping references, separate text contexts,
-detach, dependency locks, retry/undo, destination and import budget fallback, deep
-references and preservation of nonpainting zero-size groups. Cooperative control
-checks also cover the new preparation and receipt loops.
-
-Before scoped resource support, focused Windows/Linux runs each passed nine fresh stages and 58 Python
-tests, with no skips, failures, pending checks, reuse or changed inputs, in
-43.0/28.0 seconds. Shared input identity:
-`7e68b695165a0f277bd412e327d71f574cc6024ad698cc2add37c36a125169f6`.
-Before the final five cancellation checks, a broader selection passed 17 fresh
-stages per platform: 181 Python tests on Windows with no skips in 53.4 seconds;
-178 on Linux with three explicit Windows-only verification skips in 35.0 seconds.
-Those runs include the original SVG, native component, transfer, discovery and
-verification-dependency modules. Their separate input identity is
-`287a279e6f5a6ecfe2c4b163b44e153658182d61fd1e5d913ad42ee16fdeafa6`.
-
-The `w3a-components-focused-01` audit retains all 52 stage logs, both matching
-platform inventories and source archives (881 files). The earlier inventory was
-reconstructed by removing only the five final checks and verified against both
-already recorded broader fingerprints. Audit SHA-256:
-`f77ea013faf248b5ccd73a8088d7ca075b5f661d2f252d8e9836164fcd414e3e`.
-Earlier symbol and local-reference evidence remains retained in
-`w3a-symbol-focused-01` and `w3a-reuse-focused-01`.
-
-Cloned gradient, clip and mask definitions now receive per-use resource identities.
+Cloned gradient, clip and mask definitions receive per-use resource identities.
 Local references search enclosing reuse trees before the original document;
 inherited URLs keep their declaration context. Delayed masks restore their scope,
-occurrence path and style, including pinned fonts and viewport coordinates. Original
-IDs/offsets remain in receipts, and the unchanged definition ceiling includes clones.
-Mask contexts remain independently editable; native sharing reports context variants.
+occurrence path, pinned font styles and viewport coordinates. The unchanged
+64-definition ceiling includes clones. Mask contexts remain independently editable,
+and loss of editing linkage across native variants is explicitly reported.
 
-Fourteen additional independent fixtures cover declaration versus inherited URLs,
-nested scopes and external local definitions, forward/template/CSS references,
-clip visibility, mask luminance and clips, resized symbol opacity ramps, mask-source
-uses and live edits, pinned text with exact fractional coverage, original-ID
-collisions, resource ceilings, invalid/recursive definitions and insertion retry/undo.
-The final Windows selection passed 19 fresh stages, 195 Python tests and one Rust
-publication-lock regression in 47.4 seconds. Linux passed 18 fresh stages and
-192 Python tests in 57.6 seconds, with three explicit Windows-only verifier skips.
-Neither run had failures, pending checks, reuse or changed inputs. Shared input:
-`e200b2437d137f776d52f49db3d46d0952252049df8586906b687c029ccb3467`.
-The `w3a-scopes-focused-01` audit retains both reports, all 37 stage logs, the
-883-file inventory and frozen source archive. Audit SHA-256:
-`31e9ab1881d4cbbca3b8becdef48ad8e1954bd26711a030c4dd247d051de2cdb`.
+The requirement review maps implementation and independent fixtures to local
+reference admission, placement/style correctness, shared editing and fallback,
+explicit refusal/limits, resource scopes, atomic insertion/history, capability
+reporting and full platform verification. The four dedicated fixture modules
+check exact geometry/pixels, fractional text/mask coverage, resized symbols,
+overlapping and nested references, source preservation, dependency locks,
+resource-budget fallback, malformed/cyclic input, insertion receipts and undo/retry.
+Existing SVG, native component, transfer and interface regressions also ran.
 
-These are focused checks for intermediate increments. W3a.4 remains open until
-fresh full Windows/Linux acceptance covers the combined reusable-shape work.
-Unsupported source semantics still fail and sharing normalization is explicit.
-The engine registry remains 163/167.
+Fresh full acceptance ran consecutively on the shared host, with every stage
+fresh, no failures, pending/outside-scope checks, reuse or source changes:
+
+| Platform | Stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 248 | 216 | 2,590 | 12 | 708.7 |
+| Linux / WSL | 248 | 182 | 2,551 | 51 | 470.4 |
+
+Windows skips comprise eight separately configured real-tool handoff checks,
+three unavailable symlink fixtures and one Unix-only path fixture. Linux skips
+retain Windows-only jobs/process accounting and host-measurement exclusions.
+No dedicated reusable-SVG test was skipped on either platform. These runs do not
+establish new macOS verification, Unix job support or the separate handoff/model gates.
+
+Both reports confirm source fingerprint
+`a1d6a3c568ebdac3baabdecc07b3867ad2d750e61d2a8ef82f9f7c03fbcf1374`.
+The external `w3a-reuse-acceptance-01` bundle retains both reports, all 496 stage
+logs, the eight-part requirement review, an 883-file inventory and frozen source
+archive. Audit SHA-256:
+`12378ecf48cebe7bbac73bef6081a64fb0641b1f204e4ad1437675b53286236d`.
+The preceding focused scope runs took 47.4/57.6 seconds on Windows/Linux; their
+separate evidence remains in `w3a-scopes-focused-01`. Earlier component, symbol
+and local-reference audits remain retained as well. Full acceptance is a
+milestone gate; routine changes keep the 180-second feedback budget.
+
+W3a.5-8 remain open: nested SVG viewports, images, richer text spans and opt-in
+omission reports. This milestone adds no engine checkpoint or whole-goal credit;
+the unchanged registry remains 163/167.
 
 ## W3b: complete within the insertion contract
 
