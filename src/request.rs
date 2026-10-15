@@ -11,6 +11,8 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 
+mod diagnostics;
+
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SavedDocument {
@@ -181,9 +183,9 @@ pub fn execute(
             .any(|field| field.get("session_id").is_some() || field.get("file_path").is_some())
     });
     if workspace.is_none() && !has_reference {
-        let request = serde_json::from_value(value).map_err(|_| {
-            invalid("Arguments must match the command schema; inspect schema.lookup")
-        })?;
+        let command = diagnostics::command(&value);
+        let request = serde_json::from_value(value)
+            .map_err(|cause| diagnostics::invalid_arguments(command.as_deref(), cause))?;
         return crate::responses::execute(request, context, response_mode);
     }
     let command = value
@@ -295,7 +297,7 @@ pub fn execute(
         ));
     }
     let request: Request = serde_json::from_value(value)
-        .map_err(|_| invalid("Arguments must match the command schema; inspect schema.lookup"))?;
+        .map_err(|cause| diagnostics::invalid_arguments(Some(&command), cause))?;
     let mut result = crate::responses::execute(request, &context, response_mode)?;
     if let Some(w) = workspace
         && command == "capabilities"

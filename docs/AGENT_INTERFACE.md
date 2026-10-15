@@ -15,6 +15,11 @@ nested edits. For example, `name:"session.apply", select:"Action/edit"` selects
 the edit action. Unknown names/selectors return a working discovery request in
 `error.details.schema_lookup`, with a separate suggestion when unambiguous.
 
+Typed request failures also return a working `details.schema_lookup`. Recognized
+missing fields are named with optional compact type information; fix the field
+inside the declared object before retrying. See
+[request diagnostics](REQUEST_DIAGNOSTICS.md) for scope, defaults and bounds.
+
 Use an explicit [workspace](AGENT_WORKSPACE.md) for default resource/session roots and relative runtime paths. Top-level snapshot inputs also accept exact saved revision references; the same JSON preparation and typed execution serve CLI and MCP.
 
 Snapshot file references require a path and exact byte hash from create-only publication. Durable session commands accept optional [compact responses](AGENT_RESPONSES.md), retaining pinned recovery references while omitting repeated snapshot bodies. Full responses remain the default.

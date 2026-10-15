@@ -14,6 +14,7 @@ import update_limits
 # These paths cover document, raster, delivery, jobs, parsers and geometry budgets.
 # Format and mathematical semantics are checked separately from resource policies below.
 BINDINGS = {
+    'request_diagnostics/maximum_error_bytes': 'request.MAX_DIAGNOSTIC_BYTES',
     'pixel_warps/maximum_absolute_joint_angle_degrees': 'pixel_warps.MAX_JOINT_ANGLE_DEGREES',
     'repeats/maximum_absolute_radial_angle_degrees': 'repeats.MAX_RADIAL_ANGLE_DEGREES',
     'layered_interchange/maximum_import_channels_per_layer': 'layered.MAX_IMPORT_LAYER_CHANNELS',

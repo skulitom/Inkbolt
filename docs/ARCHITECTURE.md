@@ -1,5 +1,13 @@
 # Architecture
 
+Typed JSON rejection now adds bounded, advisory missing-field guidance using the
+same generated schemas as discovery. The fast inline path retains only the
+bounded command name before consuming its JSON value; schemas are consulted
+only after rejection. Required names must be confirmed by the typed command's
+reachable definitions, ambiguous owners fall back to the command, and caller
+values are not reflected. Execution/defaults/retry identity remain unchanged.
+See [request diagnostics](REQUEST_DIAGNOSTICS.md).
+
 Opt-in SVG omission uses fresh private strict imports of filtered source text.
 Original XML structure and depth are checked before any subtree is removed.
 Removed source ranges map receipts back to the original bytes; known omitted IDs

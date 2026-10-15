@@ -2166,7 +2166,7 @@ failures remain fatal; degraded import can change appearance and is never silent
 No new macOS, complete SVG, engine-checkpoint or overall-goal claim is made. The
 registry remains 163/167.
 
-### Next W5.7 increment: missing-field guidance from observed requests
+### W5.7 missing-field guidance: focused checks; milestone open
 
 The retained 95-attempt error inventory includes 17 visible generic request-error
 occurrences across B10, B17, B18 and B19. These are output occurrences, not
@@ -2177,18 +2177,52 @@ and B19's history lookup without a limit. Current working schema queries and
 their source trace identities are retained in
 `w5-request-guidance-reproductions-01.json`.
 
-The next bounded implementation will name the missing field and supply a working
+The bounded implementation names the missing field and supplies a working
 focused lookup for these cases, while preserving execution validation, workspace
-defaults and retry identity. It must keep diagnostics bounded and avoid echoing
-unbounded request values. This targets fewer repair/discovery interactions;
+defaults and retry identity. Diagnostics are bounded and do not echo caller
+values. This targets fewer repair/discovery interactions;
 broader catalogs, wrappers and unrelated format/storage work are not part of
 this increment. Reproduce each failure before changing behavior, then remeasure
 the affected tasks with the same externally configured client/model/settings
 and at least five retained attempts per applicable arm. B17/B19 remain engine-only.
 If request repair does not improve without correctness loss, stop expanding this
 approach. Unknown usage/call metrics stay unknown and cannot establish an
-efficiency gain. This records the W2 prioritization decision; implementation and
-new model trials have not started.
+efficiency gain. This records the W2 prioritization decision; new model trials
+have not started.
+
+The [request guidance contract](REQUEST_DIAGNOSTICS.md) confirms missing names
+against generated typed schemas and supplies an executable lookup. It does not
+guess an instance path; ambiguous owners retain command-level guidance. The
+successful inline path does not clone the request or generate a discovery schema.
+The first focused run exposed missing hints for schemas without definitions and
+a limit-catalog import mismatch; both failures and their repairs are retained.
+
+Retry verification also exposed a historical no-match Rust selector that remained
+in the failed-check queue after fresh complete Rust passes. The verifier now
+records such older failures as `superseded` only after a fresh unchanged full
+Rust pass. Original failures/logs remain available, and supersession never counts
+as a passing filtered test. Explicit current filters still require their own
+passing test evidence. See the [verification contract](DEVELOPMENT_LOOP.md).
+
+Focused Windows and WSL/Linux runs passed all ten selected stages fresh in 44.0
+and 72.4 seconds respectively. Windows ran 217 Rust and 57 Python tests without
+skips; Linux ran 183 Rust and 54 Python tests with three explicit Windows-only
+verifier skips. All five request-guidance tests ran on both platforms, covering
+CLI/MCP agreement, executable queries, repairs, workspace defaults, retry
+preservation, ambiguous names and bounded output. Three retained read-only
+probes now return working guidance in 322, 305 and 308 stdout bytes. These are
+response measurements, not model-efficiency results.
+
+Both passing runs bind the same 898-file source fingerprint
+`57735de41b681322b80f0b6bba43e70bbbec9e207c3ec382358da26e70dbbd70`.
+The private `w5-request-diagnostics-focused-01` bundle retains all four reports,
+36 stage logs, before-implementation evidence, repair probes and a source
+archive. Its 44 evidence-file hashes and every archived source entry were reread;
+the audit SHA-256 is
+`99743d797e796455a219a59f91ef0a4d3067a729d798555a21f6db90aaa7bf90`.
+Only plan/status Markdown changed after that capture. Fresh complete Windows/Linux
+acceptance and matched affected-task trials remain required before closing this
+increment; broader W5 acceptance and the original checkpoint registry are unchanged.
 
 ## W3b: complete within the insertion contract
 

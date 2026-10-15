@@ -558,6 +558,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `repeats.MAX_RADIAL_ANGLE_DEGREES` | `u32` | 360 | `360` |
 | `repeats.MIN_RADIUS` | `f64` | 0.001 | `0.001` |
 | `repeats.MIN_STEP` | `f64` | 0.001 | `0.001` |
+| `request.MAX_DIAGNOSTIC_BYTES` | `usize` | 2048 | `2 * 1024` |
 | `request.MAX_REQUEST_BYTES` | `u64` | 16777216 | `16 * 1024 * 1024` |
 | `resample.AXIS_TAP_WORK` | `u64` | 4 | `4` |
 | `resample.MAX_AXIS_TAPS` | `u64` | 65536 | `65_536` |

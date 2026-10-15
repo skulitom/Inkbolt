@@ -825,6 +825,8 @@ pub mod layered {
 pub mod request {
     /// Max request bytes (request).
     pub const MAX_REQUEST_BYTES: u64 = 16 * 1024 * 1024;
+    /// Maximum serialized advisory request error and inspected decoder message bytes.
+    pub const MAX_DIAGNOSTIC_BYTES: usize = 2 * 1024;
 }
 
 /// Limits for `src/masks.rs`.
