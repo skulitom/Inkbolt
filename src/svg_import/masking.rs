@@ -24,10 +24,15 @@ pub(super) struct Template {
     source: Option<String>,
 }
 impl Template {
-    pub fn parse(node: Node<'_, '_>, inherited: &Style) -> Result<Self, Error> {
+    pub fn parse(
+        node: Node<'_, '_>,
+        inherited: &Style,
+        styles: &styles::Sheet,
+    ) -> Result<Self, Error> {
         let p = properties(
             node,
             &["maskUnits", "maskContentUnits", "x", "y", "width", "height"],
+            styles,
         )?;
         let style = styled(inherited, &p)?;
         if node.has_attribute("transform") || style.mask.is_some() {
@@ -84,7 +89,7 @@ impl Template {
     }
 }
 
-impl Importer {
+impl Importer<'_> {
     pub(super) fn prepare_masks(&mut self, root: Node<'_, '_>) -> Result<(), Error> {
         let viewport = self.viewport;
         // Definitions discovered inside a source join this bounded queue. They

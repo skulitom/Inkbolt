@@ -1755,6 +1755,60 @@ their durations are not isolated performance measurements. Focused feedback
 remains bounded by the ordinary 180-second quick mode. Subsequent changes in this
 milestone are documentation of these results only.
 
+## W3a.3: complete within the embedded-style contract
+
+The shared SVG importer now resolves embedded type/class/ID compounds, universal
+selectors and selector lists with specificity, source order and inline precedence.
+All style blocks are collected before artwork. Definitions, text, masks and
+`add_svg` use the same cascade, preserving mask shorthand resets and actual-parent
+relative font sizes. Unsupported selectors, declarations and CSS-wide keywords
+fail with source locations. Numeric lexemes retain binary64 precision. New rule,
+declaration and matching budgets are enforced and exposed; external stylesheets,
+at-rules, escapes and `!important` remain unsupported.
+
+This is the next input-admission slice under W2's baseline-cost decision rule;
+CSS is not claimed as the cause of the recorded model failures. The acceptance
+target is fewer refused ordinary class-styled graphics without changing geometry,
+pixels, history or unsupported-semantics policy. Stop at the declared selector
+subset; broader CSS, `use`/`symbol` and nested viewports remain separate work.
+
+Focused Windows/WSL checks passed in 101.6/104.1 seconds: 110/107 Python tests,
+zero/three explicit skips, and one Rust cancellation test, with 13 fresh stages
+each. Font/token edge cases subsequently passed on both platforms. The first
+full acceptance run was stopped after a probe found that fragment error offsets
+included the generated SVG wrapper. It is not accepted evidence. Located insertion
+errors now refer to the original fragment, including Unicode and newline cases;
+errors on the generated root have explicit synthetic origin and null positions.
+
+The correction passed 19 Python tests plus the Rust cancellation check on Windows
+in 70.9s, with seven fresh stages. The final generated-root budget test passed with
+the full ten-test CSS module in 13.4s, reusing three unchanged Cargo stages. Linux
+passed 20 Python tests plus the Rust check in 43.2s, with seven fresh stages.
+These final checks have no skips, failures or pending checks. Final focused inputs:
+`badc87be9130ab39dde5592d478a94cde80b7ef5ebd6559749e39845464599fc`.
+Separate locked, offline, all-target checks also passed on the corrected sources
+with Rust 1.89.0 on Windows and Linux in 8.5/6.9s, including the pinned CSS parser.
+Fresh full acceptance then passed consecutively on Windows and Linux with the
+same frozen candidate. Every stage ran fresh, with no failures, pending checks
+or outside-scope checks, and both reports confirm unchanged inputs.
+
+| Platform | Fresh stages | Rust tests | Python tests executed | Explicit skips | Duration |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 244 | 216 | 2,543 | 4 | 760.0 s |
+| Linux / WSL | 244 | 182 | 2,496 | 51 | 435.6 s |
+
+Windows skips were three unavailable symlink fixtures and one Unix-only path
+case. Linux skips were 35 job-dependent cases, eight Windows memory/handle/host
+cases and eight consumer-tree checks requiring Windows accounting. No CSS test
+was skipped. These are correctness runs, not isolated latency or memory results.
+The shared input fingerprint is
+`91828215f8c411c43c53b7a1b10dc1812bd5a0e6f1efe44988a58db563c2b9a9`.
+Evidence lives under `w3a-css-`; acceptance audit 02 retains all 488 stage logs
+and verifies the 863-file frozen source inventory. Its SHA-256 is
+`3105906c75f81bb18a6e2e97da15c0b539cce35c3da9eeced7f3cdf7cd85b233`.
+This completes W3a.3 only. The engine registry remains 163/167; reusable shapes,
+nested viewports and the other SVG admission items remain open.
+
 ## W3b: complete within the insertion contract
 
 `add_svg` is an atomic edit accepting fragments and complete SVG documents. It

@@ -7,6 +7,7 @@ pub use insertion::InsertFontBinding;
 pub(crate) use insertion::insert;
 mod labels;
 mod masking;
+mod styles;
 pub use labels::{FaceStyle, FontBinding};
 mod numbers;
 use crate::{Error, geometry, model::*};
@@ -215,12 +216,16 @@ fn paint(s: &str, opacity: f64, current: Color) -> Result<Option<Paint>, Error> 
     c[3] = (f64::from(c[3]) * opacity).round() as u8;
     Ok(Some(Paint::Solid(c)))
 }
-fn properties<'a>(node: Node<'a, 'a>, extra: &[&str]) -> Result<BTreeMap<&'a str, &'a str>, Error> {
+fn properties<'a>(
+    node: Node<'a, 'a>,
+    extra: &[&str],
+    styles: &'a styles::Sheet,
+) -> Result<BTreeMap<&'a str, &'a str>, Error> {
     let mut props = BTreeMap::new();
     for a in node.attributes() {
         if a.name() == "mask-mode" {
             return Err(unsupported(
-                "mask-mode is supported as an inline CSS property, not an SVG attribute",
+                "mask-mode is supported as a CSS property, not an SVG attribute",
             ));
         }
         if a.namespace() == Some("http://www.w3.org/XML/1998/namespace") && a.name() == "space" {
@@ -239,7 +244,9 @@ fn properties<'a>(node: Node<'a, 'a>, extra: &[&str]) -> Result<BTreeMap<&'a str
         }
         if PROPERTIES.contains(&a.name()) || labels::PROPERTIES.contains(&a.name()) {
             props.insert(a.name(), a.value().trim());
-        } else if !["id", "style", "transform"].contains(&a.name()) && !extra.contains(&a.name()) {
+        } else if !["id", "class", "style", "transform"].contains(&a.name())
+            && !extra.contains(&a.name())
+        {
             return Err(unsupported(format!(
                 "Attribute {} on <{}> is not supported",
                 a.name(),
@@ -250,34 +257,7 @@ fn properties<'a>(node: Node<'a, 'a>, extra: &[&str]) -> Result<BTreeMap<&'a str
     if props.get("mask") == Some(&"inherit") {
         props.insert("mask-mode", "inherit");
     }
-    if let Some(style) = node.attribute("style") {
-        for decl in style.split(';').map(str::trim).filter(|s| !s.is_empty()) {
-            let (key, value) = decl
-                .split_once(':')
-                .ok_or_else(|| invalid("Malformed inline style"))?;
-            let (key, value) = (key.trim(), value.trim());
-            if !(PROPERTIES.contains(&key) || labels::PROPERTIES.contains(&key))
-                || value.contains('!')
-                || value.contains("/*")
-            {
-                return Err(unsupported(format!(
-                    "Inline style property or syntax is not supported: {key}"
-                )));
-            }
-            props.insert(key, value);
-            if key == "mask" {
-                // The shorthand resets the mode, respecting declaration order.
-                props.insert(
-                    "mask-mode",
-                    if value == "inherit" {
-                        "inherit"
-                    } else {
-                        "match-source"
-                    },
-                );
-            }
-        }
-    }
+    styles.apply(node, &mut props)?;
     Ok(props)
 }
 fn styled(parent: &Style, p: &BTreeMap<&str, &str>) -> Result<Style, Error> {
@@ -646,7 +626,8 @@ fn viewport(node: Node<'_, '_>) -> Result<(f64, f64, Matrix), Error> {
     }
     Ok((w, h, matrix))
 }
-struct Importer {
+struct Importer<'css> {
+    styles: &'css styles::Sheet,
     control: crate::control::Control,
     document: Document,
     mappings: Vec<Value>,
@@ -659,7 +640,7 @@ struct Importer {
     in_mask: bool,
     modern_masks: bool,
 }
-impl Importer {
+impl Importer<'_> {
     fn visit(
         &mut self,
         node: Node<'_, '_>,
@@ -669,6 +650,9 @@ impl Importer {
     ) -> Result<(), Error> {
         self.control.check()?;
         let tag = node.tag_name().name();
+        if tag == "style" {
+            return Ok(());
+        }
         if [
             "defs",
             "linearGradient",
@@ -678,7 +662,7 @@ impl Importer {
         ]
         .contains(&tag)
         {
-            return self.definitions.collect(node, inherited);
+            return self.definitions.collect(node, inherited, self.styles);
         }
         let is_root = root_matrix.is_some();
         let container = is_root || tag == "g";
@@ -698,7 +682,7 @@ impl Importer {
             "text" => &["x", "y", "dx", "dy"],
             _ => shape_attributes(tag)?,
         };
-        let props = properties(node, extra)?;
+        let props = properties(node, extra, self.styles)?;
         let style = styled(inherited, &props)?;
         if self.in_mask && style.mask.is_some() {
             return Err(unsupported(
@@ -850,7 +834,7 @@ impl Importer {
                 }
                 continue;
             }
-            if ["title", "desc"].contains(&child.tag_name().name()) {
+            if ["title", "desc", "style"].contains(&child.tag_name().name()) {
                 continue;
             }
             if !container {
@@ -999,6 +983,7 @@ fn import_with_budget(
             return Err(invalid("Empty or duplicate SVG source ID"));
         }
     }
+    let styles = styles::Sheet::parse(root, control)?;
     let (width, height, matrix) = viewport(root)?;
     let document = Document {
         resource_profile,
@@ -1038,10 +1023,10 @@ fn import_with_budget(
     } else {
         [width, height]
     };
-    let mut importer=Importer{control:control.clone(),document,mappings:vec![],approximations:vec![],definitions:Default::default(),bindings:vec![],
+    let mut importer=Importer{styles:&styles,control:control.clone(),document,mappings:vec![],approximations:vec![],definitions:Default::default(),bindings:vec![],
         fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), losses:vec![
         "Source IDs are mapped to deterministic item IDs; the root is an editable group. Retain the source for XML formatting, comments and original IDs.".into(),
-        "Presentation inheritance and inline style are resolved. Quadratic curves and shorthand become explicit cubic/line commands; units/viewBox become affine transforms. Original syntax is not retained.".into(),
+        "Presentation inheritance, embedded stylesheets and inline style are resolved into editable properties. Classes, selectors and stylesheet syntax are not retained. Quadratic curves and shorthand become explicit cubic/line commands; units/viewBox become affine transforms. Original syntax is not retained.".into(),
         "Paint colors and fill/stroke opacity are quantized to RGBA8; object and group opacity retain f64 precision. Geometry is f64; display coverage uses the existing f32 renderer.".into(),
     ]};
     let mut initial_style = Style::default();

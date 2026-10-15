@@ -26,6 +26,7 @@ rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled
 num-rational = "=0.4.2"
 num-traits = "=0.2.19"
 roxmltree = "=0.21.1"
+cssparser = { version = "=0.38.0", default-features = false }
 jpeg-encoder = { version = "=0.7.1", default-features = false, features = ["std"] }
 jpeg-decoder = { version = "=0.3.2", default-features = false, features = ["platform_independent"] }
 tiff = { version = "=0.11.3", default-features = false, features = ["deflate", "lzw"] }

@@ -54,6 +54,23 @@ class SvgTextTests(unittest.TestCase):
         self.assertEqual(p,expected);self.assertEqual(len(self.roundtrip(r['document']).findall('.//{*}path')),2)
         self.assertTrue(any('editable frame' in s for s in r['losses']))
 
+    def test_embedded_styles_resolve_bound_fonts_and_exact_text_pixels(self):
+        r=self.imported('<text id="label" class="label" x="3.5" y="12">AA</text>'
+            '<style>.label{font-family:Geometry;font-size:10px;fill:#205080}</style>')
+        item=self.item(r);self.assertEqual(item['content']['frame']['text'],'AA')
+        self.assertEqual(item['transform'],[1,0,0,1,3.5,4])
+        w,h,p=self.pixels(r['document'])
+        expected=bytes(v for y in range(h) for x in range(w) for v in ([32,80,128,255] if 5<=y<12 and (4<=x<8 or 10<=x<14) else [0]*4))
+        self.assertEqual(p,expected);self.assertEqual(r['document']['fonts'],{'geometric':self.font})
+        # Resolve relative sizes against their actual parent, never a synthetic
+        # default used while checking an unmatched/overridden declaration.
+        r=self.imported('<g font-size="1000"><text id="label" class="tiny" font-family="Geometry" x="0" y="1">A</text></g>'
+            '<style>.tiny{font-size:.0001em}</style>')
+        self.assertEqual(self.item(r)['content']['frame']['height'],.1)
+        r=self.imported('<g font-family="Geometry"><text id="label" class="label" font-family="unbound" x="3.5" y="12">AA</text></g>'
+            '<style>.label{font-family:INHERIT;font-size:10;fill:#205080}</style>')
+        self.assertEqual(self.pixels(r['document'])[2],expected)
+
     def test_anchor_alignment_uses_advance_not_ink_and_survives_text_edits(self):
         for anchor,shift,align in [('start',0,'left'),('middle',6,'center'),('end',12,'right')]:
             r=self.imported(f'<text id="label" x="20" y="12" font-family="Geometry" font-size="10" text-anchor="{anchor}">AA</text>');i=self.item(r)

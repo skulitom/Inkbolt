@@ -55,6 +55,7 @@ Cargo.lock records exact versions and checksums. Packages remain in Cargo's exte
 | unicode-script 0.5.8 | Unicode script and script-extension itemization | MIT OR Apache-2.0 |
 | unicode-bidi 0.3.18 | Unicode 16 paragraph levels and line reordering | MIT OR Apache-2.0 |
 | roxmltree 0.21.1 | Bounded read-only XML parsing for original SVG import mapping | MIT OR Apache-2.0 |
+| cssparser 0.38.0 | CSS token boundaries for embedded SVG styles; default features disabled | MPL-2.0 |
 | ruzstd 0.9.0 | Bounded single-frame Zstandard decoding for native vector data; std and hash features only | MIT |
 | rusqlite 0.40.2 | Local transactional sessions; bundled SQLite through libsqlite3-sys 0.38.2 | MIT (SQLite public domain) |
 
@@ -93,6 +94,16 @@ Semantic comparisons, create-only export publication and MCP stdio add no Rust d
 Curve simplification uses [num-rational 0.4.2](https://docs.rs/num-rational/0.4.2/num_rational/type.BigRational.html) and num-traits 0.2.19, resolved with num-bigint 0.4.8, num-integer 0.1.47 and build helper autocfg 1.5.1. All use MIT/Apache-2.0 licensing, remain in the external Cargo cache and are locked with checksums. Only arithmetic is supplied by these libraries; fitting, exact certificate construction, topology policy and fixtures are original Inkbolt code. The curve-simplification milestone had 69 external packages; editable SVG import adds roxmltree 0.21.1, bringing the complete graph to 70 external packages. Their distributed licenses are retained in THIRD_PARTY_NOTICES.md.
 
 SVG import uses the public [roxmltree parser API](https://docs.rs/roxmltree/0.21.1/roxmltree/) with DTDs disabled, no entity resolver and an explicit node limit. Original number/path parsing, style resolution, geometry mapping and generated fixtures follow the public SVG specifications linked in SVG_IMPORT.md. This dependency remains in the external cache; both supplied licenses are retained in THIRD_PARTY_NOTICES.md. No XML/parser implementation is copied.
+
+Embedded SVG styling uses the public [cssparser 0.38.0 API](https://docs.rs/cssparser/0.38.0/cssparser/).
+Only tokenization is supplied by the dependency; selector matching, strict
+admission, cascade and conversion remain original Inkbolt code. Numeric values
+retain their original lexemes rather than the tokenizer's binary32 values.
+The exact locked additions are cssparser 0.38.0, dtoa 1.0.11 and dtoa-short 0.3.5;
+all prior packages stay pinned. Their license texts remain in the notices file,
+and their unmodified source remains available through the pinned registry
+packages and [upstream CSS parser](https://github.com/servo/rust-cssparser/tree/v0.38.0).
+Default parser features are disabled; no color tables or matching macros are added.
 
 Stroke evaluation now uses original f64 subdivision, dash/profile cuts, cap/join ribbons, endpoint shapes and expansion. The existing tiny-skia 0.12.0 backend fills their shared nonzero outline; it no longer supplies stroke or dash geometry. Independent synthetic fixtures use periodic arithmetic, analytic curve lengths, rational polygon areas, segment-distance and corner-region predicates. No package, version, license or bundled asset was added.
 

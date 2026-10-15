@@ -1829,6 +1829,14 @@ pub mod svg_import_definitions {
 
 /// Limits for `src/svg_import.rs`.
 pub mod svg_import {
+    /// Embedded CSS rules across all style elements in one SVG source.
+    pub const MAX_CSS_RULES: usize = 4096;
+    /// Type, universal, class and ID components in one compound selector.
+    pub const MAX_CSS_SELECTOR_COMPONENTS: usize = 64;
+    /// CSS declarations across embedded rules and inline styles.
+    pub const MAX_CSS_DECLARATIONS: usize = 65536;
+    /// Selector component/name work and declaration applications per import.
+    pub const MAX_CSS_MATCH_WORK: usize = 4 * 1024 * 1024;
     /// Maximum tangent-cubic radial error in source-element local units, excluding binary64 roundoff.
     pub const ARC_RADIAL_TOLERANCE: f64 = 0.001;
     /// Maximum transform functions on one SVG element.

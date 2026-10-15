@@ -112,6 +112,9 @@ fn elements<'a, 'input>(node: Node<'a, 'input>) -> Result<Vec<Node<'a, 'input>>,
             return Err(unsupported("Text inside an SVG definition is unsupported"));
         }
         if child.is_element() {
+            if child.tag_name().name() == "style" {
+                continue;
+            }
             if ["title", "desc"].contains(&child.tag_name().name()) {
                 if child.attributes().len() != 0 || child.children().any(|c| c.is_element()) {
                     return Err(unsupported("Definition descriptions require plain text"));
@@ -141,9 +144,14 @@ fn id(node: Node<'_, '_>) -> Result<String, Error> {
 }
 
 impl Definitions {
-    pub fn collect(&mut self, node: Node<'_, '_>, inherited: &Style) -> Result<(), Error> {
+    pub fn collect(
+        &mut self,
+        node: Node<'_, '_>,
+        inherited: &Style,
+        styles: &styles::Sheet,
+    ) -> Result<(), Error> {
         if node.tag_name().name() == "defs" {
-            let props = properties(node, &[])?;
+            let props = properties(node, &[], styles)?;
             if node.has_attribute("transform")
                 || props.contains_key("clip-path")
                 || props.get("mask").is_some_and(|v| *v != "none")
@@ -154,7 +162,7 @@ impl Definitions {
             }
             let style = styled(inherited, &props)?;
             for child in elements(node)? {
-                self.collect(child, &style)?;
+                self.collect(child, &style, styles)?;
             }
             return Ok(());
         }
@@ -166,18 +174,28 @@ impl Definitions {
         }
         let name = id(node)?;
         match node.tag_name().name() {
-            "linearGradient" | "radialGradient" => self.gradient(node, inherited, name.clone())?,
-            "clipPath" => self.clip(node, inherited, name.clone())?,
+            "linearGradient" | "radialGradient" => {
+                self.gradient(node, inherited, name.clone(), styles)?
+            }
+            "clipPath" => self.clip(node, inherited, name.clone(), styles)?,
             "mask" => {
-                self.masks
-                    .insert(name.clone(), masking::Template::parse(node, inherited)?);
+                self.masks.insert(
+                    name.clone(),
+                    masking::Template::parse(node, inherited, styles)?,
+                );
             }
             tag => return Err(unsupported(format!("Definition <{tag}> is not supported"))),
         }
         self.records.push(json!({"source_id":name,"element":node.tag_name().name(),"byte_offset":node.range().start}));
         Ok(())
     }
-    fn gradient(&mut self, node: Node<'_, '_>, inherited: &Style, id: String) -> Result<(), Error> {
+    fn gradient(
+        &mut self,
+        node: Node<'_, '_>,
+        inherited: &Style,
+        id: String,
+        styles: &styles::Sheet,
+    ) -> Result<(), Error> {
         let radial = node.tag_name().name() == "radialGradient";
         let extras: &[&str] = if radial {
             &[
@@ -203,7 +221,7 @@ impl Definitions {
                 "href",
             ]
         };
-        let props = properties(node, extras)?;
+        let props = properties(node, extras, styles)?;
         if node.has_attribute("transform")
             || props.contains_key("clip-path")
             || props.get("mask").is_some_and(|v| *v != "none")
@@ -259,7 +277,7 @@ impl Definitions {
             if child.tag_name().name() != "stop" {
                 return Err(unsupported("Gradients accept stop elements only"));
             }
-            let props = properties(child, &["offset"])?;
+            let props = properties(child, &["offset"], styles)?;
             if child.has_attribute("transform")
                 || props.contains_key("clip-path")
                 || props.get("mask").is_some_and(|v| *v != "none")
@@ -305,8 +323,14 @@ impl Definitions {
         );
         Ok(())
     }
-    fn clip(&mut self, node: Node<'_, '_>, inherited: &Style, id: String) -> Result<(), Error> {
-        let props = properties(node, &["clipPathUnits"])?;
+    fn clip(
+        &mut self,
+        node: Node<'_, '_>,
+        inherited: &Style,
+        id: String,
+        styles: &styles::Sheet,
+    ) -> Result<(), Error> {
+        let props = properties(node, &["clipPathUnits"], styles)?;
         if props.get("clip-path").is_some_and(|v| *v != "none")
             || props.get("mask").is_some_and(|v| *v != "none")
         {
@@ -331,7 +355,7 @@ impl Definitions {
         };
         let (geometry, rule, transform, empty) = if let Some(child) = children.first() {
             let tag = child.tag_name().name();
-            let props = properties(*child, super::shape_attributes(tag)?)?;
+            let props = properties(*child, super::shape_attributes(tag)?, styles)?;
             if props.get("clip-path").is_some_and(|v| *v != "none")
                 || props.get("mask").is_some_and(|v| *v != "none")
                 || !elements(*child)?.is_empty()

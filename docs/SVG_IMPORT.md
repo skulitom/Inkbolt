@@ -123,7 +123,53 @@ editable paths using the same arc contract and receipt. Original corner
 parameters are not retained. Snapshots retain the emitted cubics exactly; SVG
 export emits cubics and reimport does not approximate them a second time.
 
-Presentation attributes and a bounded inline `style` subset resolve before document validation. Inline declarations override attributes; the last repeated inline declaration wins. Fill/stroke, their opacity, fill rule, color, width, cap, join, miter limit and visibility inherit. `currentColor` follows the descendant's computed color. Explicit `inherit` is accepted on these inherited properties. Fill defaults to black, stroke to none. Colors support three/six-digit hex, comma-separated integer or percentage rgb(), the sixteen basic color names and transparent. Unsupported paint servers, CSS classes/selectors, stylesheets, CSS variables, comments inside style declarations, `!important`, other color syntaxes and out-of-range component values fail. Gradient definitions accept sRGB or linearRGB interpolation; ordinary artwork/group compositing remains sRGB.
+Presentation attributes, embedded CSS and inline `style` resolve before document
+validation. Fill/stroke, their opacity, fill rule, color, width, cap, join, miter
+limit and visibility inherit. `currentColor` follows the descendant's computed
+color. Explicit `inherit` is accepted on these inherited properties. Fill defaults
+to black, stroke to none. Colors support three/six-digit hex, comma-separated
+integer or percentage rgb(), the sixteen basic color names and transparent.
+Unsupported paint servers, CSS variables, `!important`, other color syntaxes and
+out-of-range component values fail. Gradient definitions accept sRGB or linearRGB
+interpolation; ordinary artwork/group compositing remains sRGB.
+
+Embedded `<style>` text/CDATA is collected before artwork, so later blocks apply
+to earlier elements. Supported selectors are case-sensitive type, universal `*`,
+class, ID, simple compounds such as `rect.icon#mark`, and comma-separated lists.
+Repeated selector components contribute to specificity; repeated tokens in an
+element's `class` attribute do not. ID/class/type specificity is compared in that
+order, then later rules/declarations win. Presentation attributes precede every
+stylesheet rule, including `*`; inline declarations take precedence over all
+rules, with the last repeated declaration winning. Inheritance happens after
+each element's cascade. The same path serves `svg.import` and atomic `add_svg`.
+
+Styles apply to admitted artwork, groups, text, gradients, stops, clips and masks.
+They resolve to editable properties; classes and stylesheet syntax are reported
+as losses. Comments between CSS tokens are supported without inventing descendant
+selectors or joining distinct identifiers. Numeric lexemes retain binary64 parsing.
+Mask shorthand resets participate in declaration order and specificity.
+
+At-rules, media/alternate stylesheets, external CSS, escapes, combinators,
+attribute/pseudo selectors and unimplemented properties fail explicitly, including
+unmatched rules and overwritten declarations. Errors identify the source element's
+byte offset and line/column; CSS parse failures also give an offset into its decoded
+CSS text. Style elements accept optional `id` and `type="text/css"` only.
+Insertion locations refer to the caller's original fragment or complete SVG;
+errors on a generated root are explicitly synthetic with no source position.
+CSS-wide keywords other than `inherit` remain unsupported; `inherit` is recognized
+without regard to ASCII case. Quoted font-family names retain their literal meaning.
+The strict importer does not silently discard invalid declarations as a browser
+may. Existing value/property restrictions still apply; relative font-size range
+checks use the actual inherited size when the declaration applies.
+
+CSS shares the source byte/node limits and has separate ceilings of 4,096 rules
+(and 4,096 alternatives per rule),
+64 components per selector, 65,536 declarations and 4,194,304 matching work units
+(selector components/name bytes and applied declarations). Cancellation is checked
+during collection, parsing and matching. These bounds appear in `capabilities.svg_import.css`.
+This implements the [SVG style model](https://www.w3.org/TR/SVG2/styling.html)
+and [selector specificity](https://www.w3.org/TR/selectors-3/#specificity) within
+the stated subset using the external [CSS tokenizer](https://docs.rs/cssparser/0.38.0/cssparser/).
 
 Groups retain ordered children and apply their own opacity once after compositing the children. Display none suppresses a subtree. Visibility hidden/collapse inherits to artwork but can be overridden by a visible descendant. Fill/stroke opacity is distinct from object/group opacity. Solid color components, gradient stops and paint alpha quantize to RGBA8; object/group opacity retains f64 precision. A zero stroke width removes the stroke. Other stroke limits match the engine. There is no automatic color-profile conversion.
 
@@ -163,7 +209,7 @@ The [text import example](../examples/svg_text_workflow.py) creates an original 
 
 `mask` definitions now become top-level nonprinting `mask_source` resources containing ordinary editable shapes, groups and explicitly font-bound single-line text. Source gradients, geometric clips, nested transforms, visibility and opacity retain their established contracts. Forward references and definitions inside mask content are supported. Each definition requires a source ID, and its receipt includes the generated source item ID. Referencing items share that source; editing one source shape changes all owners. Both used and unused source content is validated, including fonts and unsupported elements.
 
-The `mask` presentation attribute or inline property accepts one literal local `url(#id)` or `none`. Missing, external and wrong-type references fail the complete import. A mask defaults to luminance; `mask-type:alpha` selects alpha interpretation, and the inline `mask-mode` property supports alpha, luminance and match-source overrides on owners. These properties do not inherit automatically; explicit inherit is supported. Inline mask shorthand resets mask-mode in declaration order. Mask-mode is a CSS property here, not a recognized XML presentation attribute. Multiple mask layers and other shorthand components fail explicitly.
+The `mask` presentation attribute or CSS property accepts one literal local `url(#id)` or `none`. Missing, external and wrong-type references fail the complete import. A mask defaults to luminance; `mask-type:alpha` selects alpha interpretation, and the CSS `mask-mode` property supports alpha, luminance and match-source overrides on owners. These properties do not inherit automatically; explicit inherit is supported. CSS mask shorthand resets mask-mode in declaration order and participates in specificity. Mask-mode is a CSS property here, not a recognized XML presentation attribute. Multiple mask layers and other shorthand components fail explicitly.
 
 Style inherits into mask content from its XML ancestors, independently of the referencing artwork. Ancestor transforms, clips, opacity and display are not part of the detached source. The mask element's own opacity and display have no effect; visibility still inherits to painted children and can be overridden there. Mask-type does not inherit unless requested. Source compositing and luminance use encoded sRGB, with the [native f64 mask contract](ARTWORK_MASKS.md) and no grayscale8 intermediate. Explicit linearRGB mask compositing is rejected; declared gradient color interpolation still works.
 

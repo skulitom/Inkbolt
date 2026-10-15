@@ -142,7 +142,28 @@ pub(crate) fn insert(
         profile,
         control,
         Some(byte_budget),
-    )?;
+    )
+    .map_err(|mut error| {
+        if offset != 0
+            && let Some(details) = error.details.as_mut()
+            && let Some(position) = details["byte_offset"].as_u64()
+        {
+            // Located import diagnostics must refer to the caller's fragment,
+            // just like the successful mapping/approximation receipts below.
+            details["byte_offset"] = json!(position.checked_sub(offset as u64));
+            if position < offset as u64 {
+                details["synthetic"] = json!(true);
+                details["line"] = Value::Null;
+                details["column"] = Value::Null;
+            } else if details["line"].as_u64() == Some(1)
+                && let Some(column) = details["column"].as_u64()
+            {
+                // The generated opening tag is ASCII and has no line breaks.
+                details["column"] = json!(column.checked_sub(offset as u64));
+            }
+        }
+        error
+    })?;
     let mut source: Document = serde_json::from_value(imported["document"].take())
         .map_err(|e| Error::new("SERIALIZATION", e.to_string()))?;
     // The import remains a valid sRGB vector document. Insertion carries its

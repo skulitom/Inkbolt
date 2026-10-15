@@ -683,6 +683,10 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `svg.MAX_MESH_COVERAGE_COORDINATE` | `f64` | 1000000000.0 | `1e9` |
 | `svg_import.ARC_RADIAL_TOLERANCE` | `f64` | 0.001 | `0.001` |
 | `svg_import.MAX_BYTES` | `usize` | 262144 | `256 * 1024` |
+| `svg_import.MAX_CSS_DECLARATIONS` | `usize` | 65536 | `65536` |
+| `svg_import.MAX_CSS_MATCH_WORK` | `usize` | 4194304 | `4 * 1024 * 1024` |
+| `svg_import.MAX_CSS_RULES` | `usize` | 4096 | `4096` |
+| `svg_import.MAX_CSS_SELECTOR_COMPONENTS` | `usize` | 64 | `64` |
 | `svg_import.MAX_FONT_FAMILY_BYTES` | `usize` | 256 | `256` |
 | `svg_import.MAX_LARGE_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |
 | `svg_import.MAX_LARGE_NODES` | `u32` | 65536 | `65536` |
