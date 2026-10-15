@@ -4,16 +4,16 @@ See the generated [limit reference](LIMITS.md) for centralized resource ceilings
 
 `sample_store` provides immutable typed pixel blocks and pure edit candidates. `stored_samples` connects them to raster documents, opt-in PNG/TIFF import, exact local patch edits, native clone/heal retouch, paint/erase/smudge/mixer strokes, session proposals/history, resource checks and bounded rendering through the shared Rust/CLI/MCP engine. Existing inline sample grids keep their representation and limits. PNG imports decode ordinary rows or Adam7 pass rows and native TIFF imports decode bands of strips or tiles directly into native blocks. Opt-in [tiled output](RENDER_QUALITY.md) composes full-size images with bounded filters and layer effects for a declared subset; wider filter coverage, streaming decode for remaining formats, broad native operators and the complete practical-scale benchmark remain open. This integration earns no engine checkpoint or A5 completion credit.
 
-The library first constructs a private immutable `Candidate`. Its manifest describes future content and pending blocks remain in memory. `replace` returns another candidate, sharing unchanged blocks; older candidates retain their original bytes. Explicit `publish` creates complete content-addressed files. Document edits retain exact small patch bytes over the original published base manifest. Thus a dry-run or snapshot result contains its complete edit recipe without naming unpublished replacement blocks. Import publishes the immutable base; editing/history never needs a second filesystem commit.
+The library first constructs a private immutable `Candidate`. Its manifest describes future content and pending blocks remain in memory. `replace` returns another candidate, sharing unchanged blocks; older candidates retain their original bytes. Explicit `publish` creates complete content-addressed files. Legacy document edits retain exact small patch bytes over the original published base manifest. Their pure edit and history behavior is unchanged.
 
 W4.1's [migration and commit contract](NATIVE_COPY_ON_WRITE.md) describes the
-planned move from retained document patches to committed block manifests.
-Its first library increment adds `Candidate::transfer` and `Transfer::prepare`
-for pure, bounded transfer of unpublished blocks. Both require an explicit
-pending-byte budget. They validate exact typed bytes without reading or writing
-resource files; external dependencies still require `Candidate::verify`.
-This is not yet a new document mode: current patch limits and session behavior
-remain unchanged.
+explicit move from retained document patches to committed block manifests.
+`sample_storage_migrate` opts a layer into storage version 2. Pure preparation
+keeps pending blocks in shared memory; CLI/MCP document edits and session commits
+publish them before returning or storing the manifest-only state. Review uses
+`Candidate::transfer` and `Transfer::prepare` when an editable document is
+requested. Imports still default to legacy storage. The new mode's full storage
+acceptance and larger-scale gates remain pending.
 
 ## Data contract
 
@@ -21,7 +21,7 @@ remain unchanged.
 
 ICC profile assignment and conversion remain document-level meaning. The store binds the native encoding but does not contain or resolve an ICC profile. A future decoded/rendered cache must also bind the profile identity, sampling, placement and other interpretation inputs; the block digest alone is not a complete color/render key.
 
-The v1 grid uses fixed 128×128 blocks, with smaller final row/column blocks and row-major ordering. A manifest contains `version:1`, its `spec`, ordered lowercase SHA-256 tile identities, and a root `sha256`. It contains no machine-local paths. Descriptors are validated before arithmetic, allocation or path construction. Current bounds are 32,768 per dimension, 16,777,216 pixels, at most 2,048 block references, and 65,536 pixels per read/replacement region. Raster documents admit up to 16,777,216 aggregate stored source pixels independently of the unchanged inline and output budgets.
+The version-1 block manifest uses fixed 128×128 blocks, with smaller final row/column blocks and row-major ordering. A manifest contains `version:1`, its `spec`, ordered lowercase SHA-256 tile identities, and a root `sha256`. This block format is separate from the layer's `storage_version`. It contains no machine-local paths. Descriptors are validated before arithmetic, allocation or path construction. Current bounds are 32,768 per dimension, 16,777,216 pixels, at most 2,048 block references, and 65,536 pixels per read/replacement region. Raster documents admit up to 16,777,216 aggregate stored source pixels independently of the unchanged inline and output budgets.
 
 Each file is `<sha256>.native-tile`. Its original canonical byte layout is:
 

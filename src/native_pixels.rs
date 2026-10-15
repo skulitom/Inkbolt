@@ -245,14 +245,17 @@ impl<'a> Pixels<'a> {
                 let rows = (region.y + region.height).div_ceil(TILE_EDGE) - region.y / TILE_EDGE;
                 work.charge((columns * rows * TILE_EDGE * TILE_EDGE) as usize)?;
                 let after = before.replace(self.root, region, bytes, work.control())?;
+                let identity = after.manifest().sha256.clone();
                 if before.manifest().sha256 != after.manifest().sha256 {
-                    grid.patches.push(crate::stored_samples::Patch {
-                        region,
-                        data_hex: render::hex(bytes),
-                    });
-                    grid.validate()?;
+                    grid.retain_replacement(
+                        after,
+                        crate::stored_samples::Patch {
+                            region,
+                            data_hex: render::hex(bytes),
+                        },
+                    )?;
                 }
-                after.manifest().sha256.clone()
+                identity
             }
         };
         Ok((content, identity))

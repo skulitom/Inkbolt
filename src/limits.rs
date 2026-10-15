@@ -1721,6 +1721,8 @@ pub mod booleans_topology_quadratic {
 
 /// Limits for `src/stored_samples.rs`.
 pub mod stored_samples {
+    /// Aggregate private native block bytes in one prepared document, including headers.
+    pub const MAX_PENDING_BYTES: usize = 64 * 1024 * 1024;
     /// Aggregate decoded source pixels may cover each native image twice.
     pub const MAX_SOURCE_DECODING_PASSES: u64 = 2;
     /// Max patches (stored samples).

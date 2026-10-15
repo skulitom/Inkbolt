@@ -137,6 +137,14 @@ pub fn compare(
     }
     crate::model::validate_controlled(before, control)?;
     crate::model::validate_controlled(after, control)?;
+    // Transport payloads are not authored differences. Compare/hash exactly
+    // the durable projections, but retain private bytes for pixel evaluation.
+    let render_before = before;
+    let render_after = after;
+    let before_projection = crate::stored_samples::durable_document(before);
+    let after_projection = crate::stored_samples::durable_document(after);
+    let before = before_projection.as_ref();
+    let after = after_projection.as_ref();
     if before.id != after.id || before.kind != after.kind {
         return Err(Error::new(
             "INVALID_REQUEST",
@@ -251,7 +259,7 @@ pub fn compare(
             ));
         }
         let a = crate::render::rasterize_controlled(
-            before,
+            render_before,
             1,
             before_resources.asset_root.as_deref(),
             before_resources.font_root.as_deref(),
@@ -260,7 +268,7 @@ pub fn compare(
         )?;
         control.check()?;
         let b = crate::render::rasterize_controlled(
-            after,
+            render_after,
             1,
             after_resources.asset_root.as_deref(),
             after_resources.font_root.as_deref(),

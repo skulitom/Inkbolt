@@ -103,6 +103,10 @@ pub enum Operation {
         region: PixelRect,
         data_hex: String,
     },
+    /// Explicitly migrate one legacy native sample layer to block storage v2.
+    SampleStorageMigrate {
+        id: String,
+    },
     Swatch {
         id: String,
         swatch: Option<crate::swatches::Swatch>,
@@ -669,6 +673,20 @@ pub fn apply_with_resources(
         )
         .map_err(|e| e.at_operation(operation_index))?;
         validate_controlled(&candidate, control).map_err(|e| e.at_operation(operation_index))?;
+        if candidate.items.iter().any(|item| {
+            item.id == id
+                && matches!(&item.content,
+            Content::StoredSamples { grid } if grid.storage_version == 2)
+        }) && let Some(details) = details.as_mut().and_then(serde_json::Value::as_object_mut)
+        {
+            if details.remove("files_written").is_some() {
+                details.insert("preparation_writes_files".into(), false.into());
+                details.insert("block_publication".into(), "before_document_commit".into());
+            }
+            if details.contains_key("storage") {
+                details.insert("storage".into(), "immutable_native_block_manifest".into());
+            }
+        }
         changes.push(Change {
             operation_index,
             id,
@@ -684,6 +702,30 @@ pub fn apply_with_resources(
         from_revision: document.revision,
         changes,
     })
+}
+
+/// Apply a complete batch privately, publish its native blocks, then return the
+/// durable snapshot. Legacy edits remain pure; the pure library API above is
+/// unchanged and retains unpublished blocks in its returned document.
+pub fn commit_with_resources(
+    document: &Document,
+    expected_revision: u64,
+    operations: &[Operation],
+    asset_root: Option<&std::path::Path>,
+    font_root: Option<&std::path::Path>,
+    control: &crate::control::Control,
+) -> Result<EditResult, Error> {
+    let mut result = apply_with_resources(
+        document,
+        expected_revision,
+        operations,
+        asset_root,
+        font_root,
+        control,
+    )?;
+    crate::stored_samples::publish_document(&result.document, asset_root, control)?;
+    crate::stored_samples::clear_staged(&mut result.document);
+    Ok(result)
 }
 fn apply_one(
     document: &mut Document,
@@ -862,6 +904,12 @@ fn apply_one(
                 document, id, region, data_hex, asset_root, control,
             )?);
             Ok((id.clone(), "samples_replaced"))
+        }
+        Operation::SampleStorageMigrate { id } => {
+            *details = Some(crate::stored_samples::migrate(
+                document, id, asset_root, control,
+            )?);
+            Ok((id.clone(), "sample_storage_migrated"))
         }
         Operation::SwatchConvert { id, kind, color } => {
             *details = Some(crate::swatches::convert(

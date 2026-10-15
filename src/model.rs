@@ -1089,7 +1089,8 @@ pub fn validate_controlled(
     crate::repeats::validate(document, control)?;
     crate::interpolation::validate(document, control)?;
     crate::variants::validate(document, control)?;
-    if serde_json::to_vec(document)
+    crate::stored_samples::check_pending_budget(document)?;
+    if serde_json::to_vec(crate::stored_samples::durable_document(document).as_ref())
         .map_err(|_| invalid("Document cannot be serialized"))?
         .len()
         > budget.bytes()

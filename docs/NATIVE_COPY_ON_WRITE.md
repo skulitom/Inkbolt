@@ -1,10 +1,43 @@
 # Native block editing and migration
 
 This is the W4.1 implementation contract under [FIX_PLAN.md](../FIX_PLAN.md).
-The migration and document commit path are **not implemented yet**. Current
-documents still use [retained patches](NATIVE_SAMPLE_STORAGE.md) and retain their
-256-patch and 65,536 aggregate patched-pixel limits. The first increment supplies
-a pure candidate transfer primitive; it does not remove those document limits.
+The explicit versioned layer and document/session commit path are implemented
+and passed fresh full Windows/Linux suites. **Default-import adoption and full
+storage acceptance remain pending**. Imports still default to
+[retained patches](NATIVE_SAMPLE_STORAGE.md), with their existing 256-patch and
+65,536 aggregate patched-pixel limits. Explicit `sample_storage_migrate` converts
+one stored layer to `storage_version:2`; this mode retains current block manifests
+and has no lifetime patch count or aggregate edited-pixel cap.
+
+```json
+{"op":"sample_storage_migrate","id":"pixels"}
+```
+
+Use this operation in a normal `document.edit` batch or session edit action.
+Migration of an already-version-2 layer returns `MIGRATION_NOT_NEEDED`.
+Versions 1 and 2 are explicit; missing `storage_version` means version 1 and
+serializes without the field. `patches` are permitted only in version 1.
+Version 2 may carry a `staged` version-1 candidate transfer during pure review;
+its manifest must equal `base`. Committed states omit `staged` entirely.
+
+Prepared documents admit at most 64 MiB of aggregate pending block bytes,
+including headers. This bounds current private work, not lifetime edits or the
+resource store. Unchanged blocks share immutable buffers. Durable manifest
+snapshots retain the existing resource-profile byte budgets; pending bytes have
+their separate budget. An explicitly requested review document must also fit a
+conservative 16 MiB round-trip bound before its hexadecimal transport is built.
+The same bound applies to snapshot export of a prepared document. Oversized
+reviews can use the proposal and preview without `include_document`; committing
+first produces a small manifest-only snapshot.
+Existing region, input, source-pixel, history and rendering bounds still apply.
+
+`edit::apply_with_resources` remains pure. Its returned document carries any
+unpublished blocks and can render or round-trip them. The explicit Rust
+`edit::commit_with_resources` boundary and CLI/MCP `document.edit` publish blocks
+before returning a manifest-only document. Session preparation hashes the
+manifest-only projection; dry runs retain staged blocks for rendering, while
+commit publishes them before writing the state and original receipt. Session
+creation also publishes incoming staged blocks before publishing its database.
 
 ## Required result
 
@@ -96,13 +129,14 @@ two bytes per native byte, plus JSON framing; the caller must separately bound
 input parsing, serialization and overall live memory. This format is a transport
 for pure candidates, not the durable session representation. Normal in-process
 preparation should retain shared immutable buffers instead of serializing them.
-Neither transfer nor its budget grants admission to a CLI/document operation.
+Transfer validation alone does not grant document admission; version, aggregate
+pending-byte and document resource-profile checks apply separately.
 
-The transfer primitive does not change existing manifests, patch recipes,
-publication receipts, resource-root handling, import limits or history behavior.
-Document integration remains a separate acceptance step.
+The transfer primitive does not change existing manifests, legacy patch recipes,
+publication receipts, resource-root handling or import limits. The remaining
+storage-milestone acceptance follows the checks below.
 
-## Acceptance before enabling the new layer mode
+## Storage-milestone acceptance
 
 - Independent exact-byte oracles for every depth/channel/encoding combination,
   shortened edge blocks, repeated blocks, signed zero and subnormal float bits.
@@ -117,6 +151,15 @@ Document integration remains a separate acceptance step.
 - Fresh Windows and Linux acceptance for the integrated boundary, including
   explicit platform skip accounting. Focused implementation checks remain within
   the normal 180-second feedback budget.
+
+The explicit migration/commit increment passed all 256 fresh full-suite stages
+on each platform; see [retained evidence](DEVELOPMENT_STATUS.md#next-w41-increment-remove-cumulative-native-edit-exhaustion).
+Its document tests cover all six encoded-sRGB depth/channel layouts, exact
+260-edit histories, continuation, backup recovery, pure review and publication
+failures. Candidate-transfer tests separately cover every admitted encoding.
+Complete the profile/HDR document-migration cases and default-import adoption
+before claiming the full storage milestone. These suites do not establish the
+larger-workload memory target.
 
 Revise the design if those checks cannot preserve exact history or if measured
 memory/state growth violates the declared budgets. W4.1 does not by itself meet

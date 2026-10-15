@@ -186,7 +186,7 @@ impl Manifest {
 /// Pending blobs are private immutable memory, shared by cheap candidate clones.
 /// Only referenced blobs survive a replacement; retained older candidates remain
 /// unchanged. Construction, reads and edits never create directories or files.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Candidate {
     manifest: Manifest,
     pending: BTreeMap<String, Arc<[u8]>>,
@@ -458,6 +458,8 @@ impl Candidate {
             {
                 created += 1;
             }
+            #[cfg(test)]
+            crate::sessions::fault_point("native_block_published");
         }
         // Once every unique descriptor has completed, later cancellation cannot
         // relabel this cache publication. The document commit is separate.

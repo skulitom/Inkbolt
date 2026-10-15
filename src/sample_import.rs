@@ -531,10 +531,12 @@ pub fn import_with_storage(
         });
         Content::StoredSamples {
             grid: Box::new(crate::stored_samples::Grid {
+                storage_version: 1,
                 base: candidate.as_ref().unwrap().manifest().clone(),
                 patches: Vec::new(),
                 profile: None,
                 sampling: Default::default(),
+                staged: None,
             }),
         }
     } else {

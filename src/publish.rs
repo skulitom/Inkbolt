@@ -186,6 +186,10 @@ pub fn export_with_render_options(
         layered_options,
         render_options,
     } = options;
+    if matches!(format, ExportFormat::Snapshot) && crate::stored_samples::has_staged(document) {
+        crate::model::validate_controlled(document, control.unwrap_or(&Control::default()))?;
+        crate::stored_samples::check_review_document(document)?;
+    }
     if layered_options.is_some()
         && !matches!(format, ExportFormat::Layered | ExportFormat::LayeredLarge)
     {

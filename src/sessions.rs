@@ -433,6 +433,11 @@ fn load_state(db: &Connection, state_id: u32) -> Result<(State, String), Error> 
     }
     let state: State = serde_json::from_slice(&bytes)
         .map_err(|_| corrupt("Saved content state cannot be decoded"))?;
+    if crate::stored_samples::has_staged(&state.document) {
+        return Err(corrupt(
+            "Saved states must not contain unpublished native block payloads",
+        ));
+    }
     if state.document.revision != 0 || state.document.schema_version != 2 {
         return Err(corrupt(
             "Saved content state has an invalid canonical revision",
@@ -456,7 +461,13 @@ fn put_state(db: &Connection, state_id: u32, state: &State) -> Result<String, Er
     Ok(hash)
 }
 fn prepare_state(db: &Connection, state: &State) -> Result<(Vec<u8>, String), Error> {
-    let bytes = encode(state)?;
+    let bytes = match crate::stored_samples::durable_document(&state.document) {
+        std::borrow::Cow::Borrowed(_) => encode(state)?,
+        std::borrow::Cow::Owned(document) => encode(&State {
+            document,
+            resources: state.resources.clone(),
+        })?,
+    };
     if bytes.len() > MAX_STATE_BYTES {
         return Err(limit("Session state exceeds storage limit"));
     }
@@ -708,6 +719,11 @@ fn create_prepared(
     };
     save_request(&tx, fingerprint, &receipt)?;
     let result = response(&tx, &meta, receipt, false)?;
+    crate::stored_samples::publish_document(
+        &state.document,
+        state.resources.asset_root.as_deref(),
+        control,
+    )?;
     control.check()?;
     tx.commit().map_err(sql)?;
     db.close().map_err(|(_, e)| sql(e))?;
@@ -1291,15 +1307,24 @@ fn mutate_checked(
             "Re-evaluating the action changed the proposed content; create a new dry run",
         ));
     }
+    crate::stored_samples::publish_document(
+        &prepared.state.document,
+        prepared.state.resources.asset_root.as_deref(),
+        control,
+    )?;
     persist_action(&tx, &prepared)?;
     let receipt = prepared.receipt;
     save_request(&tx, &fingerprint, &receipt)?;
     #[cfg(test)]
     fault_point("before_commit");
+    #[cfg(test)]
+    fault_point("native_before_commit");
     control.check()?;
     tx.commit().map_err(sql)?;
     #[cfg(test)]
     fault_point("after_commit");
+    #[cfg(test)]
+    fault_point("native_after_commit");
     // Do not reinterpret a cancellation arriving after commit as an uncommitted failure.
     let tx = db.transaction().map_err(sql)?;
     let current = read_meta(&tx, session_id)?;
@@ -1418,6 +1443,7 @@ pub fn dry_run(
         )?;
     }
     if options.include_document {
+        crate::stored_samples::check_review_document(&prepared.state.document)?;
         result["proposed_document"] = json!(prepared.state.document);
     }
     control.check()?;
@@ -1557,7 +1583,7 @@ fn verify_connection(tx: &Connection, session_id: &str, control: &Control) -> Re
     )
 }
 #[cfg(test)]
-fn fault_point(point: &str) {
+pub(crate) fn fault_point(point: &str) {
     if std::env::var("INKBOLT_SESSION_FAULT").ok().as_deref() != Some(point) {
         return;
     }
@@ -1569,6 +1595,9 @@ fn fault_point(point: &str) {
 }
 
 #[cfg(test)]
+mod native_block_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::{
@@ -1576,9 +1605,9 @@ mod tests {
         time::Instant,
     };
 
-    struct TestRoot(PathBuf);
+    pub(super) struct TestRoot(pub(super) PathBuf);
     impl TestRoot {
-        fn new() -> Self {
+        pub(super) fn new() -> Self {
             let base = std::env::temp_dir().canonicalize().unwrap();
             let path = base.join(format!(
                 "inkbolt-session-test-{}-{}",
@@ -1604,7 +1633,7 @@ mod tests {
             fs::remove_dir_all(target).unwrap();
         }
     }
-    struct Worker(Child);
+    pub(super) struct Worker(pub(super) Child);
     impl Drop for Worker {
         fn drop(&mut self) {
             let _ = self.0.kill();
@@ -1627,12 +1656,14 @@ mod tests {
         // 512 KiB of original data forces dirty-page spill beyond the test cache.
         serde_json::from_value(json!({"type":"edit","operations":[{"op":"add","item":{"id":"pixels","content":{"type":"raster","width":256,"height":256,"rgba_hex":"134faaff".repeat(65536)}}}]})).unwrap()
     }
-    fn spawn(root: &Path, point: &str, cancel: bool) -> Worker {
+    pub(super) fn spawn(root: &Path, point: &str, cancel: bool) -> Worker {
         let mut cmd = Command::new(std::env::current_exe().unwrap());
         let worker = if point.starts_with("backup_") || point.starts_with("recovery_") {
             "sessions::tests::history_worker"
         } else if point.starts_with("migration_") || point.starts_with("continuation_") {
             "sessions::tests::lineage_worker"
+        } else if point.starts_with("native_") {
+            "sessions::native_block_tests::worker"
         } else {
             "sessions::tests::crash_worker"
         };

@@ -1,4 +1,4 @@
-//! Retained native patches over immutable external sample blocks.
+//! Versioned native layers: legacy patches and block copy-on-write candidates.
 //!
 //! The descriptor is a complete snapshot resource recipe: pure edits never
 //! return references to unpublished blocks. Profiles and sampling remain part
@@ -15,9 +15,22 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::{cell::RefCell, collections::BTreeMap, path::PathBuf};
+mod block_mode;
+pub use block_mode::{Staged, durable_document, publish_document};
+pub(crate) use block_mode::{
+    check_pending_budget, check_review_document, clear_staged, has_staged, migrate,
+};
 
 pub use crate::limits::stored_samples::MAX_PATCH_PIXELS;
 pub use crate::limits::stored_samples::MAX_PATCHES;
+pub use crate::limits::stored_samples::MAX_PENDING_BYTES;
+
+fn legacy_version() -> u32 {
+    1
+}
+fn is_legacy(version: &u32) -> bool {
+    *version == 1
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -30,6 +43,8 @@ pub struct Patch {
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Grid {
+    #[serde(default = "legacy_version", skip_serializing_if = "is_legacy")]
+    pub storage_version: u32,
     pub base: Manifest,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub patches: Vec<Patch>,
@@ -37,11 +52,21 @@ pub struct Grid {
     pub profile: Option<Profile>,
     #[serde(default)]
     pub sampling: Sampling,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<crate::sample_store::Transfer>")]
+    pub staged: Option<Staged>,
 }
 
 impl Grid {
     pub(crate) fn recipe_sha256(&self) -> String {
-        crate::assets::sha256(&serde_json::to_vec(self).expect("native grid serialization"))
+        if self.staged.is_none() {
+            return crate::assets::sha256(
+                &serde_json::to_vec(self).expect("native grid serialization"),
+            );
+        }
+        let mut durable = self.clone();
+        durable.staged = None;
+        crate::assets::sha256(&serde_json::to_vec(&durable).expect("native grid serialization"))
     }
     /// Upper bounds for verification, decoded-cache churn, retained candidate
     /// blocks and temporary native/color buffers, before any resource reads.
@@ -67,7 +92,11 @@ impl Grid {
             .map(|(_, _, count)| {
                 count * spec.depth.bytes() as u64 * spec.channels.count() as u64 + 20
             })
-            .sum::<u64>();
+            .sum::<u64>()
+            + self
+                .staged
+                .as_ref()
+                .map_or(0, |s| s.0.pending_bytes() as u64);
         let scratch_pixels = pixels.min((edge * edge) as u64);
         (
             pixels * 3 + patch_work,
@@ -76,6 +105,23 @@ impl Grid {
     }
     pub fn validate(&self) -> Result<(), Error> {
         self.base.validate()?;
+        if !matches!(self.storage_version, 1 | 2)
+            || (self.storage_version == 1 && self.staged.is_some())
+            || (self.storage_version == 2 && !self.patches.is_empty())
+        {
+            return Err(invalid(
+                "Native storage version and representation disagree",
+            ));
+        }
+        if let Some(staged) = &self.staged
+            && (staged.0.manifest() != &self.base
+                || staged.0.pending_bytes() > MAX_PENDING_BYTES
+                || staged.0.pending_tiles() == 0)
+        {
+            return Err(invalid(
+                "Staged native blocks must match the current bounded manifest",
+            ));
+        }
         if self.profile.is_some() != (self.base.spec.encoding == Encoding::ProfiledRgb) {
             return Err(invalid(
                 "Profiled native samples require exactly one RGB source profile",
@@ -135,7 +181,11 @@ impl Grid {
     pub fn prepare(&self, root: Option<&Path>, control: &Control) -> Result<Candidate, Error> {
         control.check()?;
         self.validate()?;
-        let mut candidate = Candidate::from_manifest(self.base.clone())?;
+        let mut candidate = if let Some(staged) = &self.staged {
+            staged.0.clone()
+        } else {
+            Candidate::from_manifest(self.base.clone())?
+        };
         candidate.verify(root, control)?;
         for patch in &self.patches {
             control.check()?;
@@ -145,7 +195,8 @@ impl Grid {
         Ok(candidate)
     }
 
-    /// A changed snapshot embeds its exact delta, not a dangling new file name.
+    /// A changed snapshot carries its legacy delta or private complete blocks,
+    /// never an unexplained reference to an unpublished resource.
     pub fn replace(
         &self,
         root: Option<&Path>,
@@ -157,8 +208,7 @@ impl Grid {
         let after = before.replace(root, patch.region, &bytes, control)?;
         let mut next = self.clone();
         if before.manifest().sha256 != after.manifest().sha256 {
-            next.patches.push(patch);
-            next.validate()?;
+            next.retain_replacement(after.clone(), patch)?;
         }
         control.check()?;
         Ok((
@@ -166,6 +216,30 @@ impl Grid {
             before.manifest().sha256.clone(),
             after.manifest().sha256.clone(),
         ))
+    }
+
+    pub(crate) fn retain_replacement(
+        &mut self,
+        after: Candidate,
+        patch: Patch,
+    ) -> Result<(), Error> {
+        if self.storage_version == 2 {
+            self.set_candidate(after)?;
+        } else {
+            self.patches.push(patch);
+        }
+        self.validate()
+    }
+
+    fn set_candidate(&mut self, candidate: Candidate) -> Result<(), Error> {
+        if candidate.pending_bytes() > MAX_PENDING_BYTES {
+            return Err(crate::model::limit(
+                "Prepared native blocks exceed the document pending-byte budget",
+            ));
+        }
+        self.base = candidate.manifest().clone();
+        self.staged = (candidate.pending_tiles() != 0).then_some(Staged(candidate));
+        Ok(())
     }
 
     pub fn geometry(&self) -> crate::model::Geometry {

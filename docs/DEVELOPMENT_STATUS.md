@@ -2248,7 +2248,7 @@ gates and original checkpoint criteria remain unchanged.
 ### Next W4.1 increment: remove cumulative native-edit exhaustion
 
 The separate accepted D7 target requires a 50 MP RGBA16 edit/history workflow
-within 512 MiB. Current stored layers retain at most 256 overlays and 65,536
+within 512 MiB. Legacy stored layers retain at most 256 overlays and 65,536
 aggregate patched pixels over their lifetime, so continuing normal edits can
 exhaust the document even when each edit is small. B10 remains a 2.07 MP workflow
 failure and does not establish a capacity failure or justify raising ceilings.
@@ -2279,7 +2279,43 @@ claim to capture the earlier failed source. This is implementation feedback,
 not full W4.1 or scale acceptance. The 260-edit transport test exercises only
 pure library candidates; it does not establish committed document/history edits.
 
-Next implement versioned native layers and their block commit path, preserving old
+The integrated increment implements explicit `sample_storage_migrate`, version-2
+native layers, pure shared pending buffers and manifest-only document/session
+commits. Focused checks cover 260 snapshot edits, all six native depth/channel
+layouts, brush/retouch routing, pure proposals, exact receipts, interrupted block
+publication and transaction commits, cancellation, concurrent writers and
+independent pending/transport budgets. A full-history test continues beyond the
+unchanged session capacity, checks every retained native state, restores a backup
+and replays the original receipt. All eight new Python tests ran on both
+platforms, including every encoded-sRGB depth/channel layout. Candidate-transfer
+tests separately cover all admitted encodings; profile/HDR document-migration
+cases and default-import adoption remain required. Imports remain legacy by
+default. These checks do not establish the larger workload memory target or
+complete W4.1.
+
+Fresh full Windows and Linux suites passed all 256 stages per platform with no
+reuse, failures, pending checks or outside-scope stages. Windows ran 229 Rust and
+2,695 Python tests in 940.562 seconds; Linux ran 195 Rust and 2,657 Python tests in
+532.308 seconds. Windows explicitly skipped 13 Python tests (eight external-tool
+handoff cases, four unavailable symlink fixtures and one Unix-only path case).
+Linux explicitly skipped 51 Python tests for unsupported jobs, Windows process
+accounting/handle checks and external-tool handoff configurations. None of the new
+block-edit tests were skipped. The runs overlapped on the same host and are
+correctness evidence, not comparable performance measurements. Focused feedback
+for the final history test took 25.235 seconds, including 15.062 seconds for all
+eight Python tests; earlier focused platform runs completed within 180 seconds.
+
+Both full reports have unchanged input fingerprint
+`ebe22f4abcac7d3ef9e539c954ffd6e671f1df973c5916723f0b929a890b47ce`.
+External evidence `w4-block-mode-acceptance-01/audit.json` has SHA-256
+`638b9d34f8e111fa023df7c5ad397f8355f35c497a68c1afe31c23c20b42f3ef`.
+Its 591 evidence files and 904 archived source entries were reread against their
+hashes. Earlier implementation failures and corrected focused reports are
+retained; the source archive identifies the final full-suite candidate, not the
+earlier failed candidates. Subsequent status-document edits do not alter the
+tested engine or fixtures.
+
+Finish storage acceptance and default-import adoption, preserving old
 snapshots, exact history/retries, pure review proposals and immutable base blocks.
 The expected improvement is continued bounded editing after the current lifetime
 caps, with retained native samples and small history states. Independently verify

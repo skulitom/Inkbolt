@@ -646,6 +646,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `stored_samples.CACHE_TILES` | `usize` | 16 | `(CACHE_PIXELS / (super::sample_store::TILE_EDGE as u64 * super::sample_store::TILE_EDGE as u64)) as usize` |
 | `stored_samples.MAX_PATCHES` | `usize` | 256 | `256` |
 | `stored_samples.MAX_PATCH_PIXELS` | `u64` | 65536 | `65_536` |
+| `stored_samples.MAX_PENDING_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
 | `stored_samples.MAX_SOURCE_DECODING_PASSES` | `u64` | 2 | `2` |
 | `strokes.DEFAULT_CURVE_TOLERANCE` | `f64` | 0.015625 | `1.0 / 64.0` |
 | `strokes.DEFAULT_MITER_LIMIT` | `u32` | 4 | `4` |

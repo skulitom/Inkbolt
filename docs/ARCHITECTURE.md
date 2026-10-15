@@ -1,12 +1,16 @@
 # Architecture
 
-Native candidates now have a versioned, bounded pure transfer representation for
-unpublished blocks. It carries exact typed block bytes separately from inherited
-manifest dependencies; preparation validates the complete framing and byte
-budget before decoding. No resource root or publication is implicit. The
-[W4.1 migration contract](NATIVE_COPY_ON_WRITE.md) keeps this library transport
-separate from durable state and the future document commit path. Legacy document
-patch limits and session fingerprints remain unchanged in this increment.
+Explicit native-layer migration prepares block-mode snapshots with shared
+immutable pending buffers. Pure review retains those buffers; durable state
+contains only the current manifests. CLI/MCP edit and session commit publish
+complete blocks before returning or committing that state. Proposals and
+structural comparisons bind the durable projection, while previews resolve
+private buffers. Serialized review documents carry validated transfers within a
+separate transport bound. See the [W4.1 contract](NATIVE_COPY_ON_WRITE.md).
+Legacy imports, patch limits and history identities retain their existing
+representation. The explicit migration/commit boundary passed fresh full suites
+on Windows and Linux; default-import adoption, full storage and scale acceptance
+remain pending.
 
 Typed JSON rejection now adds bounded, advisory missing-field guidance using the
 same generated schemas as discovery. The fast inline path retains only the
