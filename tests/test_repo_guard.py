@@ -89,6 +89,22 @@ class RepositoryGuardTests(unittest.TestCase):
         self.write("BlockedVendorToken.md", b"Original text")
         self.assertTrue(any("restriction in path" in issue for issue in guard.check_repository(self.root)[0]))
 
+    def test_release_automation_is_admitted_only_by_exact_path(self):
+        reviewed = [".github/workflows/release.yml", ".github/workflows/publish-registry.yml",
+                    *(f"mcpb/{name}.mjs" for name in ("archive", "build", "mcp-client", "mcpb.test", "verify", "zip"))]
+        for name in reviewed:
+            self.write(name, b"export {};\n")
+        self.assertEqual(guard.check_repository(self.root)[0], [])
+        stray = ["notes.yml", "src/tool.mjs", ".github/workflows/extra.yml", ".github/workflows/nested/release.yml",
+                 "mcpb/extra.mjs", "mcpb/nested/build.mjs", "mcpb/build.yml"]
+        for name in stray:
+            self.write(name, b"x\n")
+        issues = guard.check_repository(self.root)[0]
+        for name in stray:
+            self.assertIn(f"Unreviewed file type: {name}", issues)
+        self.write("mcpb/build.mjs", b"BlockedVendorToken\n")
+        self.assertIn("Private content restriction: mcpb/build.mjs:1", guard.check_repository(self.root)[0])
+
     def test_batch_reads_empty_repeated_unicode_and_newline_named_index_blobs(self):
         names = ['empty.md', 'repeated.md', 'space name.md', 'unicode_\u03bb.md']
         if __import__('os').name != 'nt':

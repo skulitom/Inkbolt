@@ -1,0 +1,205 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag to release, in the form vX.Y.Z'
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - '.github/workflows/publish-registry.yml'
+      - 'mcpb/**'
+      - 'server.json'
+      - 'rust-toolchain.toml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build / ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The same images as ci.yml, so a runner update can't silently raise the Linux glibc floor.
+          - { os: windows-2025, target: x86_64-pc-windows-msvc, binary: inkbolt.exe }
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-gnu, binary: inkbolt }
+          - { os: macos-15, target: aarch64-apple-darwin, binary: inkbolt }
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+      BUILD_TARGET: ${{ matrix.target }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.sha || format('refs/tags/{0}', inputs.tag || github.ref_name) }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Validate release version (PRs use Cargo version)
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          import { cargoVersion, VERSION } from './mcpb/build.mjs';
+          const version = await cargoVersion();
+          const tag = process.env.DRY_RUN === 'true' ? `v${version}` : process.env.RELEASE_TAG;
+          if (!tag.startsWith('v') || !VERSION.test(tag.slice(1)) || tag !== `v${version}`) throw new Error('Tag must be vX.Y.Z and match Cargo.toml.');
+          const server = JSON.parse(readFileSync('server.json'));
+          if (Object.hasOwn(server, 'packages')) throw new Error('server.json must remain metadata-only.');
+          appendFileSync(process.env.GITHUB_ENV, `RELEASE_TAG=${tag}\n`);
+          NODE
+          if [[ "$DRY_RUN" != true ]]; then
+            git show-ref --verify "refs/tags/$RELEASE_TAG"
+            test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+          fi
+      - name: Install Rust and confirm native target
+        run: |
+          set -euo pipefail
+          # The toolchain CI verifies with, read from rust-toolchain.toml.
+          toolchain=$(sed -n 's/^channel *= *"\([^"]*\)".*/\1/p' rust-toolchain.toml | tr -d '\r')
+          test -n "$toolchain"
+          rustup toolchain install "$toolchain" --profile minimal
+          host=$(rustc "+$toolchain" -vV | sed -n 's/^host: //p' | tr -d '\r')
+          test "$host" = "$BUILD_TARGET"
+          echo "RUST_TOOLCHAIN=$toolchain" >> "$GITHUB_ENV"
+      - name: Build locked release binary
+        env:
+          # Link the C runtime statically on Windows, so the download runs without the Visual C++ Redistributable.
+          RUSTFLAGS: ${{ runner.os == 'Windows' && '-C target-feature=+crt-static' || '' }}
+        run: |
+          set -euo pipefail
+          cargo "+$RUST_TOOLCHAIN" build --release --locked
+          if [[ "$RUNNER_OS" == Windows ]] && grep -qai 'vcruntime140' target/release/inkbolt.exe; then
+            echo "::error::inkbolt.exe still imports the Visual C++ runtime"; exit 1
+          fi
+      - name: Smoke-test CLI and package native archive
+        run: node mcpb/archive.mjs --target "$BUILD_TARGET" --binary target/release/${{ matrix.binary }}
+      - name: Build and verify Windows bundle
+        if: runner.os == 'Windows'
+        run: |
+          set -euo pipefail
+          node mcpb/build.mjs --binary target/release/inkbolt.exe
+          node mcpb/verify.mjs target/dist/mcpb/inkbolt-windows-x64.mcpb
+          node --test mcpb/mcpb.test.mjs
+          node --input-type=module <<'NODE'
+          import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+          import path from 'node:path';
+          import { readZip } from './mcpb/zip.mjs';
+          for (const [name, entry] of readZip(readFileSync('target/dist/mcpb/inkbolt-windows-x64.mcpb'))) {
+            const file = path.join('target/mcpb-validation', name);
+            mkdirSync(path.dirname(file), { recursive: true });
+            writeFileSync(file, entry.read(), { flag: 'wx' });
+          }
+          NODE
+          npx --yes @anthropic-ai/mcpb@2.1.2 validate target/mcpb-validation/manifest.json
+          node mcpb/build.mjs --registry-entry --tag "$RELEASE_TAG" --bundle target/dist/mcpb/inkbolt-windows-x64.mcpb
+          cp target/dist/mcpb/inkbolt-windows-x64.mcpb target/dist/mcpb/inkbolt-windows-x64.mcpb.sha256 target/dist/mcpb/server.registry.json target/dist/release/
+      - name: Upload build artifacts (including PR dry runs)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: inkbolt-build-${{ matrix.target }}
+          path: target/dist/release/*
+          if-no-files-found: error
+          overwrite: true # Workflow artifacts may be refreshed; release assets never are.
+
+  release:
+    if: github.repository == 'skulitom/Inkbolt' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: inkbolt-build-*
+          path: target/dist/release
+          merge-multiple: true
+      - name: Write checksums for every release asset (except SHA256SUMS itself)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target/dist/release
+          sha256sum -- *.zip *.tar.gz *.mcpb *.sha256 | LC_ALL=C sort -k2 > SHA256SUMS
+      - name: Attest archives and bundle
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            target/dist/release/*.zip
+            target/dist/release/*.tar.gz
+            target/dist/release/*.mcpb
+      - name: Upload MCPB and registry entry for review
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: inkbolt-mcpb
+          path: |
+            target/dist/release/inkbolt-windows-x64.mcpb
+            target/dist/release/inkbolt-windows-x64.mcpb.sha256
+            target/dist/release/server.registry.json
+          if-no-files-found: error
+          overwrite: true
+      - name: Publish GitHub release without replacing assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          highest=$(git tag --list 'v*' | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | sort -V | tail -n 1)
+          latest=false
+          if [[ "$RELEASE_TAG" == "$highest" ]]; then latest=true; fi
+          assets=(target/dist/release/*.zip target/dist/release/*.tar.gz target/dist/release/*.mcpb target/dist/release/*.sha256 target/dist/release/SHA256SUMS)
+          if gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --json assets,isDraft > target-release.json; then
+            mkdir -p target/existing-release
+            missing=()
+            # Compare every existing asset before uploading any missing ones. Never use --clobber.
+            for file in "${assets[@]}"; do
+              asset=$(basename "$file")
+              if jq -e --arg name "$asset" '.assets | any(.name == $name)' target-release.json > /dev/null; then
+                gh release download "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" -p "$asset" -D target/existing-release
+                if ! cmp --silent "$file" "target/existing-release/$asset"; then
+                  echo "::error::Release asset $asset has different bytes; refusing to replace it."
+                  exit 1
+                fi
+                echo "Identical release asset $asset; skipped."
+              else
+                missing+=("$file")
+              fi
+            done
+            if (( ${#missing[@]} )); then gh release upload "$RELEASE_TAG" "${missing[@]}" -R "$GITHUB_REPOSITORY"; fi
+            # A draft (left by an interrupted run, or made by hand) isn't public: publish it once every asset matches.
+            if jq -e '.isDraft' target-release.json > /dev/null; then
+              gh release edit "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --draft=false "--latest=$latest"
+            fi
+          else
+            gh release create "$RELEASE_TAG" "${assets[@]}" -R "$GITHUB_REPOSITORY" \
+              --verify-tag --title "Inkbolt $RELEASE_TAG" --notes-file mcpb/RELEASE_NOTES.md --generate-notes "--latest=$latest"
+          fi
+          printf 'Release %s: archives, checksums and Windows MCPB attached. Test the downloaded bundle before dispatching Publish to MCP Registry.\n' "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"

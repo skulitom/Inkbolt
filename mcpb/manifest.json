@@ -1,0 +1,56 @@
+{
+  "manifest_version": "0.3",
+  "name": "inkbolt",
+  "display_name": "Inkbolt",
+  "description": "Local vector and raster editing engine for agents: layered documents, saved sessions and exports.",
+  "long_description": "Edit vector paths, pixels, text, artboards and layered documents with local saved sessions and bounded image and SVG exports. This bundle contains the Windows x64 binary and its compact MCP tool catalog. The engine needs no network, listener or account at runtime. Choose an existing local workspace for documents, resources and exports. Unsupported editing and interchange semantics fail explicitly.",
+  "author": { "name": "skulitom", "url": "https://github.com/skulitom" },
+  "repository": { "type": "git", "url": "https://github.com/skulitom/Inkbolt" },
+  "homepage": "https://github.com/skulitom/Inkbolt#readme",
+  "documentation": "https://github.com/skulitom/Inkbolt/blob/main/docs/AGENT_DISCOVERY.md",
+  "support": "https://github.com/skulitom/Inkbolt/issues",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/inkbolt.exe",
+    "mcp_config": {
+      "command": "${__dirname}/server/inkbolt.exe",
+      "args": ["--workspace", "${user_config.workspace}", "mcp", "--tools", "core"]
+    }
+  },
+  "tools": [
+    { "name": "inkbolt_asset_import", "description": "Import a supported local image into an immutable store with explicit color policies, preserving the source." },
+    { "name": "inkbolt_document_check", "description": "Check document structure, pinned resources and text overflow with bounded diagnostics and repair guidance." },
+    { "name": "inkbolt_document_create", "description": "Create an empty editable vector or raster sRGB snapshot without saving a file." },
+    { "name": "inkbolt_document_edit", "description": "Apply a checked atomic batch of operations to a snapshot, leaving files unchanged." },
+    { "name": "inkbolt_document_inspect", "description": "Inspect item IDs, hierarchy, visibility, locks, transforms, geometry bounds and resources." },
+    { "name": "inkbolt_document_inspect_page", "description": "Read bounded pages of item fields, resource inventories or path anchors tied to exact document content." },
+    { "name": "inkbolt_document_preview", "description": "Preview a canvas, region, objects or artboard as PNG with document identity and coordinate maps." },
+    { "name": "inkbolt_document_query", "description": "Find editable item IDs by type, shape and geometry bounds, with optional path-anchor inspection." },
+    { "name": "inkbolt_document_render", "description": "Render a bounded snapshot into straight RGBA8 hex pixels using its declared resource stores." },
+    { "name": "inkbolt_font_import", "description": "Import a permitted local outline font and its UTF-8 license into immutable storage." },
+    { "name": "inkbolt_run", "description": "Run any engine command through the shared validated executor with unchanged revision and publication checks." },
+    { "name": "inkbolt_schema_lookup", "description": "Discover command arguments and graphics types through focused schemas, outlines and selected definitions." },
+    { "name": "inkbolt_session_apply", "description": "Commit an atomic session action with expected-revision checks and durable request-ID retries." },
+    { "name": "inkbolt_session_apply_proposal", "description": "Commit a reviewed dry-run proposal only while its revision, action and content still match." },
+    { "name": "inkbolt_session_create", "description": "Create a durable local editing session without overwriting another session." },
+    { "name": "inkbolt_session_diff", "description": "Compare two committed session revisions with their saved resource bindings." },
+    { "name": "inkbolt_session_diff_preview", "description": "Compare immutable revisions with aligned PNG previews, a change mask, pixel deltas and coordinate maps." },
+    { "name": "inkbolt_session_dry_run", "description": "Evaluate a session action without changing its database and return a content-bound proposal." },
+    { "name": "inkbolt_session_history", "description": "Page committed history receipts in revision order." },
+    { "name": "inkbolt_session_publish", "description": "Publish the expected session revision to new output files, optionally retaining a durable recovery receipt." },
+    { "name": "inkbolt_session_read", "description": "Read the current session or a named snapshot with resources, revision and history depths." },
+    { "name": "inkbolt_session_receipt", "description": "Recover the original committed document and receipt by request ID after a lost response." }
+  ],
+  "compatibility": { "platforms": ["win32"] },
+  "user_config": {
+    "workspace": {
+      "type": "directory",
+      "title": "Workspace",
+      "description": "Existing local folder inside which Inkbolt reads and writes your files. Commands create .inkbolt/sessions, .inkbolt/assets, .inkbolt/fonts, .inkbolt/publications and .inkbolt/jobs stores as needed; startup and discovery create nothing. Choose a project folder to keep its files together. Workspace checks are not an OS sandbox.",
+      "required": true,
+      "default": "${HOME}"
+    }
+  },
+  "keywords": ["vector", "raster", "image-editing", "svg", "png", "graphics", "mcp"],
+  "license": "MIT"
+}

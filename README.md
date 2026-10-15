@@ -48,6 +48,36 @@ The example returns editable artwork as JSON. The final command starts the MCP
 adapter. See the [client configuration examples](examples/mcp-config.json), or
 run `inkbolt --help` for command-line request examples.
 
+## Use a release with Claude Code, Codex or Claude Desktop
+
+Download the archive for your system from
+[Releases](https://github.com/skulitom/Inkbolt/releases), check it against
+`SHA256SUMS`, and extract it, for example to `C:\Tools\Inkbolt`. Create your
+workspace folder first.
+
+**Claude Code**
+
+```powershell
+claude mcp add inkbolt -- C:\Tools\Inkbolt\inkbolt.exe --workspace C:\Work\Graphics mcp --tools core
+```
+
+**Codex** (`~/.codex/config.toml`)
+
+```toml
+[mcp_servers.inkbolt]
+command = 'C:\Tools\Inkbolt\inkbolt.exe'
+args = ['--workspace', 'C:\Work\Graphics', 'mcp', '--tools', 'core']
+```
+
+**Claude Desktop (Windows):** double-click `inkbolt-windows-x64.mcpb` from the
+release, or use Settings > Extensions > Advanced settings > Install Extension,
+then pick an existing workspace.
+
+On Linux and macOS, run the extracted `inkbolt` binary with the same arguments.
+The macOS binary isn't notarized: after a browser download, run
+`xattr -d com.apple.quarantine inkbolt` once.
+Maintainers: see [Publishing](mcpb/PUBLISHING.md).
+
 ## Documentation
 
 | Start here | Details |

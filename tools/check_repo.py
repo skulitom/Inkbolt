@@ -10,6 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_SUFFIXES = {".rs", ".py", ".md", ".json", ".toml", ".lock"}
 ALLOWED_NAMES = {"LICENSE", ".gitignore", ".gitattributes"}
 ALLOWED_PATHS = {".github/workflows/ci.yml"}
+# Release automation, reviewed by exact path like ci.yml: the release and registry workflows and the MCPB
+# bundle's Node scripts.
+ALLOWED_PATHS |= {".github/workflows/release.yml", ".github/workflows/publish-registry.yml"}
+ALLOWED_PATHS |= {f"mcpb/{name}.mjs" for name in ("archive", "build", "mcp-client", "mcpb.test", "verify", "zip")}
 PRIVATE_PARTS = {
     "vendor", "decompiled", "decompilation", "disassembly", "research-private",
     "private-research", "captures", "ghidra-projects", "audit-private", "research", "audits", "private",
