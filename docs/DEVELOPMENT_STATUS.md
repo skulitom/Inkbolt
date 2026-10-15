@@ -1624,6 +1624,19 @@ Cargo checks and no failed/pending checks or reused passes. Candidate fingerprin
 `e35f8374bc7040c22a69e77b14ecc0753413a94f2d29622b223b0d8e6223fa92`.
 See [the pilot evidence](BENCHMARK_RESULTS.md#b19b20-at-1d5b960-guidance-pilots-and-observation-corrections).
 
+B19 prompt 5 now requires direct, programmatic preservation of the returned
+objects using an integer-aware parser. The job guide explains the same existing
+64-bit process identity contract. This changes guidance only: the bridge, engine,
+record types and exact identity checks stay unchanged. Measure one separate
+pilot before repeating B19; never repair the earlier failed capture into a pass.
+B20 prompt 3 is ready for a separate five-pair batch after its corrected pilot.
+The guidance update passed sixteen Windows recovery/driver tests in 76.7s,
+including fresh format/build/Clippy, with no skips, failures or pending checks.
+Report `w2-recovery-record-guidance-windows-01.json` binds fingerprint
+`e8844af766df07f82572a73dde6e3eed90d8504da61b9064763de4289fad27e5`;
+prompt 5 hashes to `7752a6b12ca4748875418f211a375c42b123b8f222907b1a915712928ef64892`.
+The engine and Linux backend are unchanged from the preceding platform checks.
+
 Successful B19 recovery trials, repeated B20 native workflow success, further smaller-model
 trials, arbitrary legacy transcript adapters, B10 Linux commit-memory evidence
 and full W2 acceptance remain open. W2 evidence continues to sequence substantial

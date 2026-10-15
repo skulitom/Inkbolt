@@ -30,6 +30,13 @@ Inspection and result commands can reconcile SQLite and saved publication state,
 
 `job.status` includes document ID/revision/content identity, progress, output identity, worker/runner identities, and the last available process report. It omits document contents and the full publication receipt. Ordinary tickets target 8 KiB; unusually long paths can exceed that target. States are `queued`, `running`, `completed`, `cancelled`, `failed` and `interrupted`. A queued job whose supervisor is absent or cannot be verified reports that recovery is needed. Inspection does not silently restart it.
 
+Retain returned tickets and receipts directly when keeping an audit record.
+Process identity `created` fields are unsigned 64-bit integers; preserve them
+with an integer-aware JSON parser or retain the raw response bytes. Converting
+through floating-point numbers or manually reconstructing displayed responses
+can change those identities. Python's standard JSON parser preserves these
+integers. The PID and creation value together identify the observed process.
+
 ## Rediscovering work after a lost conversation
 
 Call `{"command":"job.list"}` in the original workspace, or supply the explicit `job_root`. No request ID is needed. Each row identifies the saved document revision, intended destination, format, attempt, progress and error code. Use `job.status` for current ownership and stopped-worker reconciliation, then choose explicit cancellation or resumption; completed rows point to `job.result`. A stored `running` value alone does not prove that a worker is still alive.
