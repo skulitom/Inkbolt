@@ -606,6 +606,14 @@ match the independently reopened saved project. Historical reads still explicitl
 request revision 1 and must return it. Wrong revisions or observations taken
 after undo cannot supply the post-relink snapshot.
 
+The stale mutation may use different operations from the relink. It must use
+request ID `stale`, target revision 1 of the same `linked` project and owned
+store, and contain a nonempty operation list. Its actual recorded response must
+be `REVISION_CONFLICT`. The exact retry still repeats the complete relink request
+and returns its saved receipt; undo, restored snapshots and independently checked
+history must remain unchanged. Matching the stale operation list to the relink
+is not part of the task contract.
+
 The judge locates the unique retained Inkbolt session within the capture. It
 independently reopens all three authored source snapshots, accepting omitted
 optional defaults while requiring their explicit revisions and exact semantics.
@@ -648,7 +656,7 @@ Inkbolt, including during judging. Both arms use the same pinned Cutbolt consume
 solely to compile and render the required video. This is a common video dependency,
 not an Inkbolt handoff or saved-history guarantee for the baseline. Pinned Pillow
 reconstructs the edit, and independent decoding checks every video frame, timestamp
-and silent PCM sample. Both arms retain the same seven artifact checks; all eight
+and silent PCM sample. Both arms retain eight artifact/source checks; all eight
 engine checks stay visible as not applicable in the baseline. Its Inkbolt command
 count is zero and Inkbolt memory is unavailable; consumer costs remain measured.
 

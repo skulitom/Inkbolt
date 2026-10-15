@@ -17,13 +17,19 @@ identities. Five B19 attempts failed the protocol gate; four nevertheless passed
 all nine independent artifact/recovery checks. B20's first five-pair batch passed
 0/5 native workflows versus 5/5 baseline workflows; native artifact judging
 stopped at prerequisites, leaving its quality unjudged. B19 accepted-trial
-coverage, B20 native success, further smaller-model trials and the separate
+coverage, B20 source-preservation failures, further smaller-model trials and the separate
 sister-project comparison remain open. These batches are not full-suite acceptance.
 
 The later [B19/B20 guidance pilots](#b19b20-at-1d5b960-guidance-pilots-and-observation-corrections)
 pass the protocol gates. B19 still fails exact retained-record checks; B20 passes
 both arms after tested judge corrections. These single attempts stay separate
 from the earlier five-trial batches.
+
+The [separate follow-up at f61d952](#b19b20-at-f61d952-recovery-pilot-and-five-pair-handoff-follow-up)
+passes 3/5 complete B20 native workflows versus 5/5 baseline after one further
+judge correction, at 3.79x median tokens. Its B19 pilot passes all independent
+checks but fails the protocol gate. Prior attempts and original scores remain
+retained; no batches or prompt versions are pooled.
 
 The later B03/B16 discovery follow-up passes 5/5 per task in both arms, while
 Inkbolt still uses 4.62x/5.20x baseline median tokens. Its before/after signal is
@@ -1409,3 +1415,123 @@ This does not establish full W2, current full-suite acceptance or checkpoint cre
 | Native rejudge report | `c458908a0be842bf22f6dad19e848796287e7f68185d05297e39c0aa4d68ba85` |
 | Baseline rejudge report | `9c80c63efc3f145df69cefead42210f6d8ada8fd6af74b07d68f86e0526f757b` |
 | Focused verification inputs | `e35f8374bc7040c22a69e77b14ecc0753413a94f2d29622b223b0d8e6223fa92` |
+
+## B19/B20 at f61d952: recovery pilot and five-pair handoff follow-up
+
+B20's prompt-3 follow-up passes **3/5 native workflows versus 5/5 baseline**
+after a tested judge correction. Original full-workflow scores were 1/5 and 5/5;
+artifact success was already 3/5 and 5/5. Repetitions 2 and 3 attempted a different
+stale mutation, as the prompt permits, but the original judge additionally
+required the relink's operation list. The corrected check requires a nonempty
+mutation of revision 1 in the same saved project/store and the actual recorded
+`REVISION_CONFLICT`. Exact retry still repeats the entire relink request and
+returns its saved receipt. Undo, restored snapshots and history checks remain.
+
+All ten captures were imported and rejudged without launching a client or
+repairing artifacts. Original solve metrics and all 4,171 original evidence files
+were checked unchanged. The new reports retain the two remaining native failures:
+attempts 4 and 5 changed `/variants/base/1/value` from `true` to `false` in the
+required source base. This violates exact source/history preservation. Both runs
+retain all twelve observed delivery files unchanged; the reported immutable-file
+failure cascades from an earlier source assertion preventing complete inventory
+collection. It is not evidence that delivered files were overwritten.
+
+### Outcomes and costs
+
+Both arms retain eight artifact/source checks. Eight additional native engine
+checks remain not applicable in the baseline. Every attempt, including failures,
+is included in the following distributions; no earlier pilot or prompt is pooled.
+
+| Measurement | Inkbolt arm | No-Inkbolt baseline |
+| --- | ---: | ---: |
+| Artifact and complete applicable workflow success | 3/5 | 5/5 |
+| 95% Wilson interval for artifact success | 23.1%-88.2% | 56.6%-100% |
+| Median input + output tokens | 1,065,545 | 280,910 |
+| Token range | 768,825-1,664,926 | 237,737-357,983 |
+| Median client execution, seconds | 209.790 | 115.934 |
+| Client execution range, seconds | 185.140-263.562 | 100.889-120.825 |
+| Median combined bridge engine commands | 60 | 19 |
+| Median bridge request / response bytes | 43,922 / 588,125 | 7,426 / 111,580 |
+| Median combined bridge retries | 1 | 0 |
+| Median Inkbolt process peak commit, bytes | 11,239,424 | Not applicable |
+| Median consumer job-tree peak commit, bytes | 110,239,744 | 110,579,712 |
+| First verified preview, median seconds | 140.779 (4/5 observed) | Unknown |
+
+Native median token use is 3.79x baseline; median client time is 1.81x. Cached
+and reasoning tokens are not added again, and token ratios are not billing
+ratios. Time includes client startup and tool work. Native attempts 1, 2 and 5
+also invoked the configured encoder/probe directly for read-only media checks;
+these are included in client time but outside bridge command/traffic accounting.
+Memory scopes are distinct, underlying model-call counts remain unknown, and
+first useful preview remains unknown in every attempt. Five trials establish
+neither statistical equivalence nor a general reliability or efficiency claim.
+
+The separate B19 prompt-5 pilot programmatically preserved returned objects and
+passed all nine independent artifact/recovery checks. It nevertheless failed the
+protocol gate: a schema lookup put `command` inside `arguments`, where that field
+is reserved for the message envelope; the lookup expects `name`. The retained
+error is `Command and step belong at message level, not in arguments`. Later
+successful calls cannot erase it. `model_trials` remains false and accepted solve
+metrics remain unavailable. No larger B19 batch followed; its baseline is not
+applicable.
+
+### Conditions, review and next work
+
+The eleven original attempts used frozen commit
+`f61d952f7733ca80eaf75ca377ce5a96d8e14043`, B19 prompt 5, B20 prompt 3 and the
+same externally configured Codex CLI 0.160.0 / `gpt-6.1-sol` medium settings
+with a 600-second per-trial limit. Model selection remains evaluation metadata,
+with no engine or harness default. The baseline used pinned resvg 0.47.0,
+Pillow 12.3.0 and Python 3.11; both B20 arms shared the pinned video consumer.
+The recovery pilot ran first, then five native and five baseline B20 attempts.
+The shared Windows host had no concurrent engine verification from this chat;
+other host work was uncontrolled, caches could be warm and order was not randomized.
+
+Completed direct commands and available helper bodies were reviewed. Native
+attempt 1 deleted five helpers and baseline attempt 3 deleted `build_delivery.py`;
+their bodies are absent from the capture, so nested behavior cannot be fully
+audited. Native attempt 4 deleted nineteen helpers, but their inline constructions
+were retained and reviewed. No repository/judge reads or additional model use
+were observed in available commands/helpers. No image-view event was observed;
+numeric pixel/hash checks are not visual review. Capture hashes neither
+authenticate hidden behavior nor establish a filesystem security sandbox.
+
+The fixed comparison policy flags B20 as losing on artifact success. Keep its
+source-preservation and overhead findings open, along with B19 protocol usability.
+Proceed to W3a.3 embedded SVG styling under the existing input-admission priority,
+without claiming CSS caused these failures. Further prompt tuning is not the next
+substantial stream. Full-suite, matched-baseline and separate sister-project
+comparison gates remain false; engine checkpoint credit is unchanged.
+
+Focused checks passed in 54.7s on Windows (39 executed, three optional baseline
+skips) and 18.3s on WSL (31 executed, eleven Windows-process skips). A separate
+Windows run with both real tool configurations passed all six external lifecycle
+tests without skips in 53.2s, covering the previously skipped baseline checks.
+All stages were fresh with no failures or pending checks. The real consumer test
+verifies a different stale mutation while retaining undo/history/exact-retry checks.
+These are focused harness checks, not fresh full-engine acceptance.
+
+Original evidence is retained under `w2-recovery-record-pilot-01` and
+`w2-handoff-followup-{model,baseline,comparison}-five-01`; the complete review
+inventory binds all 4,171 files. Rejudging uses separate
+`w2-handoff-stale-rejudge-{model,baseline,comparison}-01` roots, with 1,529 files
+in its review inventory. Both sets remain available externally.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Original source candidate | `185dbec33e8f9de49afe1679023742011bae4e6b31c66028d20f5fee49e87bbc` |
+| Release executable | `c4e06dff137c3c710b9837f0d02900b0b5243f732092ca4d0706cb7791b9f281` |
+| B19 prompt 5 | `7752a6b12ca4748875418f211a375c42b123b8f222907b1a915712928ef64892` |
+| B20 prompt 3 | `debb75263f2202141f93412d3aeb44206cc2af26f6fe82f22f7995fe72b52e9e` |
+| Consumer executable | `3d9aa4644525c84108b9ec276605595e3d115b6d1fc8d4523b7a48a934f5f536` |
+| B19 pilot report | `9c61c42bd96d6926a32263a6760d667b356c7839a2ccbe7e0ce0f64c167d7626` |
+| Original native report | `ab22c222f75f4b559748e4f28ae3bafb64f285e81df1b5ffbda65ff8f7612594` |
+| Original baseline report | `5406a06be71ed622e367204199f94187ba046ef0cd85f61d6b2ba5919a781f08` |
+| Original comparison | `93ea37b5c4022c8fa6b84065319635f842b43fca20591dac4eb6802613c4ee44` |
+| Original complete review | `5c1ff14395744ede1a8493bd4cd10ee90650879b079d7ee939c35b8868e6f792` |
+| Rejudge candidate / focused verification inputs | `f2f7d412de0c52a035f48c6b70dabade35af153d5dd3dfc0240b930733d24014` |
+| Rejudged native report | `088cfed0e9e06b84f051725556631d967253a3324e186b8ad8528bf13cc8fffa` |
+| Rejudged baseline report | `cc5cea6a47832dfdeebe1325cd02855aa19da9eeb91d1b5ab5a042e29eff8e40` |
+| Rejudged comparison | `85b6f4ebf72aa7eed18dbc6a1bac159f6f360b8114f794f1e8911f5f822a0cea` |
+| Rejudge integrity report | `03041604a8a915ebce3136e20247e4371e9af06db2b9efa692a9f05a3c90c8d4` |
+| Rejudge review inventory | `be67b2bd3a303df954c6d8d654b40ee80b65f295dd3e72346ea6e8092ece160e` |

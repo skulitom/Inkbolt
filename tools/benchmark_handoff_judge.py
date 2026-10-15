@@ -28,6 +28,16 @@ def authored():
 def read_json(case,name):return strict_json(delivered(case,name))
 
 
+def check_stale_request(stale,relink):
+    # The task requests a different stale mutation, not necessarily the relink
+    # operations. Its actual refusal must still concern the same saved project.
+    require(stale.get('request_id')=='stale' and type(stale.get('expected_revision')) is int and
+        stale['expected_revision']==1 and stale.get('project_id')==relink.get('project_id')=='linked' and
+        isinstance(stale.get('store_root'),str) and bool(stale['store_root']) and
+        stale['store_root']==relink.get('store_root') and isinstance(stale.get('operations'),list) and
+        bool(stale['operations']),'Stale request must target the linked project at revision 1 with a mutation')
+
+
 def consumer_roles(report,records):
     """Locate workflow observations by requests/order, never client step names."""
     from pathlib import Path
@@ -182,13 +192,12 @@ def judge_retained(case,original,receipts,current,history,final,before,historica
     case.check('explicit-consumer-revision',explicit)
     def undo_retry():
         restored=copy.deepcopy(expected);restored['revision']=3
+        check_stale_request(record('stale')['request'],record('relink')['request'])
         require(projects[3]==head==restored==read_json(case,'restored.json')==read_json(case,'after-retry.json')==
             project_response('restored')==project_response('after-retry'),'Undo or retry changed the restored consumer state')
         require(attempts['undo']==saved['undo']==response('undo') and attempts['retry']==saved['relink']==response('retry') and
             record('retry')['request']==record('relink')['request'] and attempts['stale']==response('stale',True) and
-            attempts['stale']['code']=='REVISION_CONFLICT' and record('stale')['request']['expected_revision']==1 and
-            record('stale')['request']['operations']==record('relink')['request']['operations'] and
-            record('stale')['request']['request_id']=='stale','Undo, stale rejection or exact retry evidence differs')
+            attempts['stale']['code']=='REVISION_CONFLICT','Undo, stale rejection or exact retry evidence differs')
         require(checked==dict(valid=True,migration_required=False,store_schema_version=2,projects=[dict(project_id='linked',revision=3)],
             requests=4,revisions=4),'Consumer history contains extra or invalid revisions')
     case.check('consumer-undo-retry',undo_retry)

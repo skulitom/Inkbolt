@@ -12,7 +12,7 @@ from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from benchmark_handoff import (HandoffTrial,fixture,solve,judge,PROMPT,original_frames,consumer_rgba,check_decoded,
     check_delivery_preservation)
-from benchmark_handoff_judge import durable_inputs,judge_retained,consumer_roles
+from benchmark_handoff_judge import durable_inputs,judge_retained,consumer_roles,check_stale_request
 from benchmark_runtime import Trial,TaskFailure
 from benchmark_tasks import CHECKS
 from workload_cases import sha
@@ -20,6 +20,30 @@ from test_images_cli import png
 
 
 class HandoffOracleTests(unittest.TestCase):
+    def test_stale_mutation_may_differ_but_must_target_the_same_saved_revision(self):
+        relink=dict(store_root='owned/cutbolt-store',project_id='linked',request_id='relink',expected_revision=1,
+            operations=[dict(op='media.add',asset=dict(id='graphic-r1'))])
+        alternative=[dict(op='tracks.edit',edit=dict(op='remove',clip_ids=['unrelated'],links='reject_partial'))]
+        for fault in ('same','different','project','store','missing-store','request-id','revision','boolean',
+                'missing-revision','empty','missing-operations','object'):
+            with self.subTest(fault=fault):
+                stale=copy.deepcopy(relink);stale['request_id']='stale'
+                if fault=='different':stale['operations']=alternative
+                elif fault=='project':stale['project_id']='other'
+                elif fault=='store':stale['store_root']='other/cutbolt-store'
+                elif fault=='missing-store':del stale['store_root']
+                elif fault=='request-id':stale['request_id']='relink'
+                elif fault=='revision':stale['expected_revision']=2
+                elif fault=='boolean':stale['expected_revision']=True
+                elif fault=='missing-revision':del stale['expected_revision']
+                elif fault=='empty':stale['operations']=[]
+                elif fault=='missing-operations':del stale['operations']
+                elif fault=='object':stale['operations']={}
+                if fault in ('same','different'):check_stale_request(stale,relink)
+                else:
+                    with self.assertRaisesRegex(TaskFailure,'Stale request must target'):
+                        check_stale_request(stale,relink)
+
     def test_current_head_observation_requires_revision_two_before_undo(self):
         events=[('session.apply',dict(request_id='initial'),0),('session.get',{},1),
             ('scene.render',dict(output='delivery-1/compiled.mkv'),0),('session.get',{},1),
@@ -102,12 +126,33 @@ class HandoffOracleTests(unittest.TestCase):
 @unittest.skipUnless(os.name=='nt' and os.environ.get('INKBOLT_B20_TEST_TOOLS'),
     'Requires explicit INKBOLT_B20_TEST_TOOLS and Windows consumer-tree accounting; run the documented real-tool gate')
 class HandoffDurableTests(unittest.TestCase):
-    def prepare(self,root):
+    def prepare(self,root,alternate_stale=False):
         tools=json.loads(Path(os.environ['INKBOLT_B20_TEST_TOOLS']).read_text(encoding='utf-8'))
         case=HandoffTrial(EXE,root,'B20',1,'cli',CHECKS['B20'],consumer_tools=tools);self.addCleanup(case.close)
-        fixture(case);case.begin(PROMPT.read_text(encoding='utf-8'));solve(case);case.begin_judging()
+        fixture(case);case.begin(PROMPT.read_text(encoding='utf-8'))
+        original_call=case.consumer.call
+        if alternate_stale:
+            def call(step,command,**arguments):
+                if step=='stale':
+                    arguments['operations']=[dict(op='tracks.edit',edit=dict(op='remove',
+                        clip_ids=['unrelated'],links='reject_partial'))]
+                return original_call(step,command,**arguments)
+            case.consumer.call=call
+        try:solve(case)
+        finally:case.consumer.call=original_call
+        case.begin_judging()
         self.assertEqual(case.checks,[]);case.results.clear();case.consumer.records.clear()
         return case
+
+    def test_real_different_stale_mutation_preserves_history_and_exact_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=self.prepare(Path(directory)/'different-stale',alternate_stale=True)
+            proof=json.loads((case.root/'handoff-observations.json').read_bytes())
+            self.assertNotEqual(proof['records']['stale']['request']['operations'],
+                proof['records']['relink']['request']['operations'])
+            judge(case)
+            self.assertEqual(case.finish()['status'],'passed',case.checks)
+            case.close()
 
     def files(self,case):
         # Enumerate only produced artifact types, so documentation edits do not

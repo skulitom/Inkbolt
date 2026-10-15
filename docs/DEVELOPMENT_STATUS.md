@@ -1627,9 +1627,11 @@ See [the pilot evidence](BENCHMARK_RESULTS.md#b19b20-at-1d5b960-guidance-pilots-
 B19 prompt 5 now requires direct, programmatic preservation of the returned
 objects using an integer-aware parser. The job guide explains the same existing
 64-bit process identity contract. This changes guidance only: the bridge, engine,
-record types and exact identity checks stay unchanged. Measure one separate
-pilot before repeating B19; never repair the earlier failed capture into a pass.
-B20 prompt 3 is ready for a separate five-pair batch after its corrected pilot.
+record types and exact identity checks stay unchanged. Its separate pilot at
+`f61d952` passes all nine independent checks with programmatically retained
+responses, but fails the protocol gate after a schema request puts `command`
+inside `arguments`. Later repair does not erase that failure; no larger recovery
+batch followed. Earlier captures remain unchanged.
 The guidance update passed sixteen Windows recovery/driver tests in 76.7s,
 including fresh format/build/Clippy, with no skips, failures or pending checks.
 Report `w2-recovery-record-guidance-windows-01.json` binds fingerprint
@@ -1637,10 +1639,33 @@ Report `w2-recovery-record-guidance-windows-01.json` binds fingerprint
 prompt 5 hashes to `7752a6b12ca4748875418f211a375c42b123b8f222907b1a915712928ef64892`.
 The engine and Linux backend are unchanged from the preceding platform checks.
 
-Successful B19 recovery trials, repeated B20 native workflow success, further smaller-model
+B20 prompt 3 now has a separate five-pair follow-up at `f61d952`. Original full
+workflow scores were 1/5 native and 5/5 baseline. Rejudging all ten unchanged
+captures after removing an unstated stale-operation equality requirement gives
+3/5 native and 5/5 baseline, with eight shared artifact/source checks and eight
+native-only engine checks. The stale request still must target the same saved
+project at revision 1 and produce an actual conflict; undo, exact retry, receipts
+and history remain enforced. Attempts 4 and 5 still fail exact source-base
+preservation. No observed delivery file changed; their delivery-inventory failure
+cascades from the earlier source assertion. Native median tokens/time were
+1,065,545 / 209.8s versus 280,910 / 115.9s for the baseline. No client reran and
+all 4,171 original evidence files and solve metrics remain unchanged.
+
+Focused regression/lifecycle/verifier checks passed in 54.7s on Windows
+(39 executed, three optional baseline skips) and 18.3s on WSL (31 executed,
+eleven explicit Windows-process skips), seven fresh stages each. A separate
+53.2s Windows run enabled both real tool configurations and passed all six
+external lifecycle tests without skips, including the three baseline checks.
+No failed/pending checks or reused passes; verification inputs:
+`f2f7d412de0c52a035f48c6b70dabade35af153d5dd3dfc0240b930733d24014`.
+See [the follow-up evidence](BENCHMARK_RESULTS.md#b19b20-at-f61d952-recovery-pilot-and-five-pair-handoff-follow-up)
+for original/rejudged identities, metric boundaries and trace-review limitations.
+
+Successful B19 recovery trials, reliable B20 source preservation, further smaller-model
 trials, arbitrary legacy transcript adapters, B10 Linux commit-memory evidence
 and full W2 acceptance remain open. W2 evidence continues to sequence substantial
-work using the plan's decision rule; no engine checkpoint receives credit.
+work using the plan's decision rule; W3a.3 input admission is next, without
+claiming that CSS caused these trial failures. No engine checkpoint receives credit.
 
 ### Executable nested schema discovery: focused checks and mixed model follow-up
 
