@@ -487,6 +487,15 @@ unmatched invalid declarations produce located errors; cancellation and independ
 rule/declaration/matching budgets bound the new work. Classes and stylesheet syntax
 are resolved into editable properties and reported as normalization losses.
 
+`svg_import::reuse` indexes local source nodes and validates child/reference edges
+as a memoized graph before expansion. Each placement resolves the original node's
+styles in its host context and retains original offsets plus an occurrence path;
+insertion remaps both IDs and fragment locations. Unused templates retain only
+distinct resource references for later validation. Text fonts and relative size
+ranges bind in the painted context. The current W3a.4 foundation emits independent
+groups with an explicit loss of sharing; component conversion, symbol viewports
+and cloned resource scopes remain open.
+
 `svg_import` reads capped UTF-8 text or an explicit regular local file without writing to it. roxmltree supplies bounded XML parsing with DTD/entity resolution disabled. Original lexical/path parsing, inherited presentation/inline styles and viewport/transform mapping produce ordinary vector groups and geometry, validated as one complete candidate. Deterministic IDs map back to source IDs and byte offsets; source SHA-256 and normalization losses accompany the new snapshot. Unknown elements, attributes, resources and unsupported semantics fail before a result document is returned. Styles become ordinary item appearance; source XML expressions and formatting are not persistent editing state. Broader SVG elements remain explicitly unsupported. See [SVG_IMPORT.md](SVG_IMPORT.md).
 
 SVG definition resolution now supports bounded local gradient templates and single-geometry clip references. Forward references resolve after validated artwork construction. Gradient coordinates use analytic object bounds or declared viewport dimensions; clipping combines object-box, definition and child transforms. Template/ID cycles and unsupported semantics fail; resolved paints/clips are copied independently into ordinary items. Definition identities and normalization losses remain in the import receipt. Mask definitions now create editable source resources and independent reference coordinate maps. Single-line text now imports into editable frames using explicit font bindings, normalized whitespace, alphabetic baselines and anchor alignment. Text paint/clip coordinates rebase into frame space; object boxes use full font cells, excluding strokes. Unsupported span layout, bidi, text strokes and nonzero letter spacing fail explicitly.

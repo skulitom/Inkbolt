@@ -148,6 +148,9 @@ pub(crate) fn insert(
             && let Some(details) = error.details.as_mut()
             && let Some(position) = details["byte_offset"].as_u64()
         {
+            if let Some(position) = details["use_byte_offset"].as_u64() {
+                details["use_byte_offset"] = json!(position.checked_sub(offset as u64));
+            }
             // Located import diagnostics must refer to the caller's fragment,
             // just like the successful mapping/approximation receipts below.
             details["byte_offset"] = json!(position.checked_sub(offset as u64));
@@ -212,6 +215,16 @@ pub(crate) fn insert(
     for section in ["mapping", "definitions", "approximations"] {
         if let Some(rows) = imported[section].as_array_mut() {
             for row in rows {
+                if let Some(path) = row["instance_path"].as_array_mut() {
+                    for occurrence in path {
+                        if let Some(id) = occurrence["item_id"].as_str() {
+                            occurrence["item_id"] = ids[id].clone();
+                        }
+                        if let Some(position) = occurrence["byte_offset"].as_u64() {
+                            occurrence["byte_offset"] = json!(position.checked_sub(offset as u64));
+                        }
+                    }
+                }
                 if let Some(id) = row["item_id"].as_str() {
                     row["item_id"] = ids[id].clone();
                 }

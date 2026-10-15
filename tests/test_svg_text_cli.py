@@ -71,6 +71,29 @@ class SvgTextTests(unittest.TestCase):
             '<style>.label{font-family:INHERIT;font-size:10;fill:#205080}</style>')
         self.assertEqual(self.pixels(r['document'])[2],expected)
 
+    def test_reused_text_gets_bound_font_and_color_from_each_placement(self):
+        result = self.imported('<defs><text id="label" x="3.5" y="12" fill="currentColor">A</text></defs>'
+            '<use href="#label" font-family="Geometry" font-size="10" color="red"/>'
+            '<use href="#label" x="16" font-family="Geometry" font-size="10" color="blue"/>')
+        w, h, pixels = self.pixels(result['document'])
+        expected = b''.join(bytes([255,0,0,255]) if 4<=x<8 and 5<=y<12 else
+                            bytes([0,0,255,255]) if 20<=x<24 and 5<=y<12 else bytes(4)
+                            for y in range(h) for x in range(w))
+        self.assertEqual(pixels, expected)
+        self.assertEqual(result['document']['fonts'], {'geometric': self.font})
+
+    def test_reused_relative_font_size_checks_the_actual_placement_context(self):
+        result = self.imported('<defs><text id="label" font-size=".0001em" y="1">A</text></defs>'
+            '<use href="#label" font-family="Geometry" font-size="1000"/>')
+        self.assertEqual(self.item(result)['content']['frame']['style']['size'], .1)
+        body = '<defs><text id="label" font-size=".1em" y="1">A</text></defs>'
+        body += '<use href="#label" font-family="Geometry" font-size=".01"/>'
+        error = self.imported(body, expected=1)
+        self.assertEqual(error['code'], 'SVG_UNSUPPORTED')
+        source = svg(body)
+        self.assertEqual(error['details']['byte_offset'], source.index('<text'))
+        self.assertEqual(error['details']['use_byte_offset'], source.index('<use'))
+
     def test_anchor_alignment_uses_advance_not_ink_and_survives_text_edits(self):
         for anchor,shift,align in [('start',0,'left'),('middle',6,'center'),('end',12,'right')]:
             r=self.imported(f'<text id="label" x="20" y="12" font-family="Geometry" font-size="10" text-anchor="{anchor}">AA</text>');i=self.item(r)

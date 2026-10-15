@@ -1822,6 +1822,37 @@ changed. A separate bundle containing the current development executable passed
 standalone discovery of all 22 core tools and document creation. This confirms
 integration, not release-build or complete distribution acceptance.
 
+## W3a.4: local reference foundation in progress
+
+Local `use` now expands supported shapes, groups, text and other local references
+into independent editable groups. Original source declarations use each placement's
+inherited style; x/y translation composes inside its explicit transform. A memoized
+source graph detects cycles and excessive reference depth without expanding unused
+copies. Existing item/hierarchy limits bound materialization. Receipts distinguish
+repeated source nodes through occurrence paths, including through atomic insertion.
+Unused templates retain distinct resource references instead of per-node style copies.
+
+Original fixtures check exact pixels and transform order, CSS/currentColor,
+visibility, external clips, pinned fonts, forward/nested references, unused shared
+graphs, limits, located refusals and MCP retry/failed edit/undo/redo. A retained
+probe caught relative text sizes being checked against a definition's parent;
+template validation now defers that range check until the actual placement.
+
+Final focused Windows/Linux runs each passed 76 Python tests and ten fresh stages,
+with no skips, failures, pending checks or changed inputs, in 76.0/51.7 seconds.
+Earlier broader selections also covered the original import and verification
+dependency tests. Shared final inputs:
+`67b70eb57ed9c2e5232ebfaca3d8e594ccd848d411b9c59889dab53bad03192a`.
+The `w3a-reuse-focused-01` audit retains all 20 final stage logs and the 877-file
+source inventory; its SHA-256 is
+`17c41b1e6195bc0015b436b205f46caf26021edd3f89ba4f257ac1c36d9a776f`.
+
+This is development feedback for an intermediate increment. W3a.4 remains open:
+compatible native component sharing, symbol viewports and cloned resource scopes
+still need implementation and independent checks, followed by fresh full platform
+acceptance. Current imports explicitly report the loss of reference sharing and
+refuse the unfinished semantics. The engine registry remains 163/167.
+
 ## W3b: complete within the insertion contract
 
 `add_svg` is an atomic edit accepting fragments and complete SVG documents. It

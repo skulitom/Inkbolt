@@ -208,6 +208,19 @@ fn relative_length(value: &str, em: f64, percent: f64) -> Result<f64, Error> {
     }
 }
 pub(super) fn styled(parent: &LabelStyle, p: &BTreeMap<&str, &str>) -> Result<LabelStyle, Error> {
+    styled_impl(parent, p, false)
+}
+pub(super) fn styled_template(
+    parent: &LabelStyle,
+    p: &BTreeMap<&str, &str>,
+) -> Result<LabelStyle, Error> {
+    styled_impl(parent, p, true)
+}
+fn styled_impl(
+    parent: &LabelStyle,
+    p: &BTreeMap<&str, &str>,
+    defer_relative_range: bool,
+) -> Result<LabelStyle, Error> {
     let mut s = parent.clone();
     for (&k, &v) in p {
         if v == "inherit" && k != "xml:space" {
@@ -217,9 +230,13 @@ pub(super) fn styled(parent: &LabelStyle, p: &BTreeMap<&str, &str>) -> Result<La
             "font-family" => s.families = families(v)?,
             "font-size" => {
                 s.size = relative_length(v, parent.size, parent.size)?;
-                if !(crate::limits::text::MIN_FONT_SIZE
-                    ..=f64::from(crate::limits::text::MAX_FONT_SIZE))
-                    .contains(&s.size)
+                let deferred = defer_relative_range && (v.ends_with("em") || v.ends_with('%'));
+                if !s.size.is_finite()
+                    || s.size <= 0.0
+                    || (!deferred
+                        && !(crate::limits::text::MIN_FONT_SIZE
+                            ..=f64::from(crate::limits::text::MAX_FONT_SIZE))
+                            .contains(&s.size))
                 {
                     return Err(unsupported(format!(
                         "Font size must resolve to {}..{} user units",
@@ -299,6 +316,35 @@ pub(super) struct Imported {
     pub placement: Matrix,
     pub bounds: Option<geometry::Bounds>,
 }
+pub(super) fn template_source(node: Node<'_, '_>) -> Result<String, Error> {
+    let mut title = false;
+    for child in node.children().filter(|c| c.is_element()) {
+        if !["title", "desc"].contains(&child.tag_name().name()) {
+            return Err(unsupported(
+                "SVG text children, including tspan and textPath, are not yet supported",
+            ));
+        }
+        if child.attributes().len() != 0 || child.children().any(|c| c.is_element()) {
+            return Err(unsupported("Text descriptions require plain text"));
+        }
+        if child.has_tag_name("title") {
+            if title {
+                return Err(unsupported("At most one title per element is supported"));
+            }
+            title = true;
+        }
+    }
+    for name in ["x", "y", "dx", "dy"] {
+        if let Some(value) = node.attribute(name) {
+            relative_length(value.trim(), 1.0, 1.0)?;
+        }
+    }
+    Ok(node
+        .children()
+        .filter(Node::is_text)
+        .filter_map(|n| n.text())
+        .collect())
+}
 pub(super) fn content(
     node: Node<'_, '_>,
     style: &Style,
@@ -312,18 +358,7 @@ pub(super) fn content(
     if style.rule != FillRule::Nonzero {
         return Err(unsupported("SVG text currently requires nonzero fill-rule"));
     }
-    for child in node.children().filter(|c| c.is_element()) {
-        if !["title", "desc"].contains(&child.tag_name().name()) {
-            return Err(unsupported(
-                "SVG text children, including tspan and textPath, are not yet supported",
-            ));
-        }
-    }
-    let raw = node
-        .children()
-        .filter(|n| n.is_text())
-        .filter_map(|n| n.text())
-        .collect::<String>();
+    let raw = template_source(node)?;
     let s = &style.text;
     let mut normalized = String::new();
     for c in raw.chars() {

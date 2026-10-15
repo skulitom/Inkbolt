@@ -1153,6 +1153,19 @@ fn capability_report() -> Value {
     let mut svg_import_contract = json!({"source_bytes":svg_import::MAX_BYTES,"xml_nodes":svg_import::MAX_NODES,"elements":["svg","g","rect","ellipse","circle","line","polygon","polyline","path","title","desc","style","defs","linearGradient","radialGradient","stop","clipPath","text","mask","metadata"],"path_commands":"MmLlHhVvCcSsQqTtAaZz","paints":["solid_srgb_rgba8","linear","centered_radial"],"gradient_units":["userSpaceOnUse","objectBoundingBox"],"gradient_templates":"local_href_with_cycle_checks","template_stop_styles":"cloned_in_derived_gradient_context","clip_geometry":"single_shape_or_compound_path","definition_limit":svg_import::MAX_DEFINITIONS,"reference_depth":svg_import::MAX_REFERENCE_DEPTH,"resources":"local_definitions_and_explicit_pinned_fonts","text":{"kind":"editable_single_line_ltr","font_bindings":fonts::MAX_FONTS,"font_selection":"first_explicit_family_weight_style_match_no_glyph_fallback","anchors":["start","middle","end"],"baseline":"alphabetic","whitespace":"legacy_xml_space_or_explicit_css_normal_pre","object_box":"full_font_cells","span_children":false},"source_preserved":true,"unsupported_policy":"error_no_partial_document","viewport":"integral_pixels_at_96ppi_with_viewBox_meet_slice_none"});
     svg_import_contract["arcs"] = json!({"method":"adaptive_tangent_cubics_at_most_quarter_turns","max_radial_error_local":limits::svg_import::ARC_RADIAL_TOLERANCE,"max_normalized_radius":model::MAX_COORDINATE,"coordinate_space":"source_element_local_before_transforms","binary64_roundoff_included":false,"receipt":"approximations"});
     svg_import_contract["rounded_rectangles"] = json!(true);
+    svg_import_contract["elements"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("use"));
+    svg_import_contract["reuse"] = json!({"references":"literal_local_href_or_xlink_href",
+        "targets":["shapes","g","text","use"],"output":"independent_editable_groups",
+        "styles":"source_declarations_with_placement_inheritance",
+        "position":"transform_then_xy_translation_with_current_viewport_percentages",
+        "nonviewport_dimensions":"validated_but_do_not_scale_shapes",
+        "mapping":"original_source_locations_and_instance_path",
+        "limits":"existing_reference_depth_expanded_items_and_hierarchy",
+        "cycles":false,"external_references":false,"symbol":false,
+        "cloned_resource_scopes":false,"component_sharing":false});
     svg_import_contract["css"] = json!({"embedded_style":true,"inline_style":true,
         "selectors":["type","universal","class","id","compound","list"],
         "cascade":"presentation_attributes_then_specificity_source_order_then_inline",

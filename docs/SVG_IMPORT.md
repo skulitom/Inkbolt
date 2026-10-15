@@ -175,6 +175,38 @@ Groups retain ordered children and apply their own opacity once after compositin
 
 The root is an editable group. Each imported drawable/container receives a deterministic `svg-N` ID in page preorder. Mask source subtrees follow page items, in definition byte-offset order; definitions discovered inside sources join that bounded queue. The receipt maps original IDs (including IDs outside the engine's syntax) and original byte offsets to these new IDs; duplicate or empty source IDs fail. A plain `title` becomes the item name, including decoded XML character references; without a title the source ID supplies the name. Plain `desc` text is omitted with a loss entry. Source formatting, comments, style inheritance expressions, original units, shorthand and semantic source IDs are not persisted in the snapshot. Retain the original source and receipt when those are needed.
 
+## Local reusable shapes (W3a.4 in progress)
+
+`use` accepts a literal local `href="#id"` or `xlink:href="#id"` targeting a
+supported shape, group, text element or another `use`. Forward references and
+graphics stored inside `defs` are admitted. The placement and style rules follow
+the public [SVG reuse specification](https://www.w3.org/TR/SVG2/struct.html#UseElement).
+A placement becomes an independent
+editable group; its source declarations and the embedded stylesheet are evaluated
+with styles inherited from that placement. The original source's ancestors do
+not supply the copy's inherited color or other styles. Source transforms remain
+inside the placement's transform and x/y translation. Percentage x/y values use
+the current viewport. Width/height are validated but do not scale ordinary shapes.
+
+Each copied mapping retains its original source offset and an `instance_path`
+of enclosing placements, including their item IDs and source offsets. `add_svg`
+remaps both the ordinary mapping and these paths to destination IDs and original
+fragment coordinates. Imported item metadata applies to every matching copy.
+Cycles, missing targets, conflicting href forms, external/encoded references,
+expanded item/hierarchy overflow and unsupported child content fail the import.
+The existing reference-depth limit also applies to unused definitions. Unused
+artwork templates are checked for supported syntax, geometry, styles and resources.
+Text templates bind fonts when painted. Relative font-size range checks use the
+actual placement context; definition-time validation checks their syntax without
+substituting an unrelated parent size.
+
+Shared component conversion, symbol viewports and cloned resource scopes remain
+open in W3a.4. Targets containing definitions or metadata currently fail explicitly;
+placements can refer to existing gradient, clip and mask definitions outside the
+copied subtree. This increment reports loss of source sharing and does not complete
+the reusable-shape milestone. Ordinary `use` inside clip-path geometry remains
+unsupported by that narrower definition parser.
+
 ## Gradients and clipping definitions
 
 `defs`, `linearGradient`, `radialGradient`, `stop` and `clipPath` are now supported. Definitions can occur before or after artwork, directly in a drawing container or inside defs; each definition requires a unique source ID. Literal local `url(#id)` references may use quotes around the fragment. External URLs, fallback paint syntax, encoded/escaped fragments, missing/wrong-type references and cycles fail the whole import. A separate `definitions` receipt records definition IDs/types and byte offsets. Gradient and clip definitions do not become document items. Mask definitions become nonprinting editable source containers, described below.
@@ -225,7 +257,7 @@ Opacity masks inside a mask source, mask-definition transforms, images, filters 
 
 ## Explicit boundaries
 
-Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Linked/embedded images, use/symbol references, filters, animations, scripts, nested viewports and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
+Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Linked/embedded images, symbol viewports, cloned reference-resource scopes, filters, animations, scripts, nested viewports and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
 
 Standard input is at most 256 KiB and 4096 XML nodes. Explicit `resource_profile: "large_vector"` admits 8 MiB, 65536 XML nodes, 8192 items and 131072 aggregate commands within an 8 MiB snapshot; see [LARGE_VECTOR.md](LARGE_VECTOR.md). XML DTD declarations/markers and processing instructions are rejected; no entity resolver is installed. UTF-8 is required (an optional UTF-8 BOM is retained in the source hash). Local files are opened read-only, checked for regular-file semantics and read with a hard byte cap. Each numeric sequence is bounded to 32768 tokens, each transform list to 64 functions, definitions to 64 and gradient reference chains to 16, and all imported geometry participates in profile-specific limits (standard: 256 items including the root, 16 ancestor levels, 4096 aggregate path commands, coordinate/transform bounds and a 768 KiB snapshot). Rendering retains its separate work/pixel budgets. Cancellation is checked during node traversal and document validation; blocking filesystem reads are not forcefully interrupted.
 

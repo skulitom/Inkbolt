@@ -7,6 +7,7 @@ pub use insertion::InsertFontBinding;
 pub(crate) use insertion::insert;
 mod labels;
 mod masking;
+mod reuse;
 mod styles;
 pub use labels::{FaceStyle, FontBinding};
 mod numbers;
@@ -261,8 +262,18 @@ fn properties<'a>(
     Ok(props)
 }
 fn styled(parent: &Style, p: &BTreeMap<&str, &str>) -> Result<Style, Error> {
+    styled_with_text(parent, p, labels::styled(&parent.text, p)?)
+}
+fn styled_template(parent: &Style, p: &BTreeMap<&str, &str>) -> Result<Style, Error> {
+    styled_with_text(parent, p, labels::styled_template(&parent.text, p)?)
+}
+fn styled_with_text(
+    parent: &Style,
+    p: &BTreeMap<&str, &str>,
+    text: labels::LabelStyle,
+) -> Result<Style, Error> {
     let mut s = parent.clone();
-    s.text = labels::styled(&parent.text, p)?;
+    s.text = text;
     // These stop properties do not inherit unless explicitly requested.
     s.stop_color = "black".into();
     s.stop_opacity = 1.0;
@@ -639,6 +650,9 @@ struct Importer<'css> {
     viewport: [f64; 2],
     in_mask: bool,
     modern_masks: bool,
+    references: reuse::References,
+    use_path: Vec<Value>,
+    template_refs: definitions::TemplateReferences,
 }
 impl Importer<'_> {
     fn visit(
@@ -662,10 +676,10 @@ impl Importer<'_> {
         ]
         .contains(&tag)
         {
-            return self.definitions.collect(node, inherited, self.styles);
+            return self.collect_definition(node, inherited);
         }
         let is_root = root_matrix.is_some();
-        let container = is_root || tag == "g";
+        let container = is_root || tag == "g" || tag == "use";
         let is_text = tag == "text";
         if tag == "svg" && !is_root {
             return Err(unsupported("Nested SVG viewports are not yet supported"));
@@ -679,6 +693,7 @@ impl Importer<'_> {
                 "version",
             ],
             "g" => &[],
+            "use" => reuse::ATTRIBUTES,
             "text" => &["x", "y", "dx", "dy"],
             _ => shape_attributes(tag)?,
         };
@@ -701,6 +716,9 @@ impl Importer<'_> {
             .unwrap_or(identity());
         if let Some(view) = root_matrix {
             transform = geometry::multiply(transform, view);
+        }
+        if tag == "use" {
+            transform = geometry::multiply(transform, reuse::translation(node, self.viewport)?);
         }
         let opacity = props
             .get("opacity")
@@ -738,6 +756,15 @@ impl Importer<'_> {
         let id = format!("svg-{}", self.document.items.len());
         if self.document.items.len() >= self.document.resource_profile.items() {
             return Err(Error::new("RESOURCE_LIMIT", "SVG item limit exceeded"));
+        }
+        if let Some(parent) = &parent {
+            let parent = crate::scene::index(&self.document, parent)?;
+            if crate::scene::ancestors(&self.document, parent)?.len() >= crate::scene::MAX_DEPTH {
+                return Err(Error::new(
+                    "RESOURCE_LIMIT",
+                    "Expanded SVG exceeds the document hierarchy limit",
+                ));
+            }
         }
         let mut text_bounds = None;
         let mut text_placement = identity();
@@ -791,6 +818,9 @@ impl Importer<'_> {
             }
         };
         self.mappings.push(json!({"item_id":id,"source_id":node.attribute("id"),"element":tag,"byte_offset":node.range().start}));
+        if !self.use_path.is_empty() {
+            self.mappings.last_mut().unwrap()["instance_path"] = json!(self.use_path);
+        }
         self.bindings.push(definitions::Binding {
             index: self.document.items.len(),
             style: style.clone(),
@@ -837,12 +867,15 @@ impl Importer<'_> {
             if ["title", "desc", "style"].contains(&child.tag_name().name()) {
                 continue;
             }
-            if !container {
+            if !container || tag == "use" {
                 return Err(unsupported(format!(
                     "Child elements in <{tag}> are not supported"
                 )));
             }
             self.visit(child, Some(id.clone()), &style, None)?;
+        }
+        if tag == "use" {
+            self.expand_use(node, id, &style)?;
         }
         Ok(())
     }
@@ -984,6 +1017,7 @@ fn import_with_budget(
         }
     }
     let styles = styles::Sheet::parse(root, control)?;
+    let references = reuse::References::collect(root, control)?;
     let (width, height, matrix) = viewport(root)?;
     let document = Document {
         resource_profile,
@@ -1024,7 +1058,7 @@ fn import_with_budget(
         [width, height]
     };
     let mut importer=Importer{styles:&styles,control:control.clone(),document,mappings:vec![],approximations:vec![],definitions:Default::default(),bindings:vec![],
-        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), losses:vec![
+        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), references, use_path:vec![],template_refs:Default::default(),losses:vec![
         "Source IDs are mapped to deterministic item IDs; the root is an editable group. Retain the source for XML formatting, comments and original IDs.".into(),
         "Presentation inheritance, embedded stylesheets and inline style are resolved into editable properties. Classes, selectors and stylesheet syntax are not retained. Quadratic curves and shorthand become explicit cubic/line commands; units/viewBox become affine transforms. Original syntax is not retained.".into(),
         "Paint colors and fill/stroke opacity are quantized to RGBA8; object and group opacity retain f64 precision. Geometry is f64; display coverage uses the existing f32 renderer.".into(),
@@ -1064,18 +1098,21 @@ fn import_with_budget(
         importer.document.metadata = serde_json::from_value(envelope["document"].clone())
             .map_err(|_| invalid("Invalid document metadata"))?;
         for (source, record) in envelope["items"].as_object().unwrap() {
-            if let Some(mapping) = importer
+            let mut matched = false;
+            for mapping in importer
                 .mappings
                 .iter()
-                .find(|m| m["source_id"] == source.as_str())
+                .filter(|m| m["source_id"] == source.as_str())
             {
+                matched = true;
                 let id = mapping["item_id"].as_str().unwrap();
                 let i = crate::scene::index(&importer.document, id)?;
                 importer.document.items[i].metadata = Some(
                     serde_json::from_value(record.clone())
                         .map_err(|_| invalid("Invalid item metadata"))?,
                 );
-            } else {
+            }
+            if !matched {
                 importer.losses.push(format!(
                     "Metadata for source item {source} has no exported editable counterpart."
                 ));
@@ -1085,8 +1122,14 @@ fn import_with_budget(
     }
 
     importer.prepare_masks(root)?;
+    importer
+        .definitions
+        .validate_template_references(&importer.template_refs)?;
     // Validate geometry/hierarchy before deriving local bounding boxes or paints.
     validate_controlled(&importer.document, control)?;
+    if importer.mappings.iter().any(|m| m["element"] == "use") {
+        importer.losses.push("Local SVG use references become independent editable groups, with inherited styles resolved for each placement. Source reference sharing is not yet retained; keep the original SVG for shared-source authoring. Mapping instance_path records the enclosing placements.".into());
+    }
     importer
         .approximations
         .append(&mut importer.definitions.approximations);

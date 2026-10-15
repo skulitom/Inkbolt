@@ -1,6 +1,7 @@
 //! Original reference resolution and SVG coordinate mapping. No resource fetching.
 use super::*;
 use crate::paint::{Field, Interpolation, Spread, Stop};
+use std::collections::BTreeSet;
 
 pub use crate::limits::svg_import_definitions::MAX_DEFINITIONS;
 pub use crate::limits::svg_import_definitions::MAX_REFERENCE_DEPTH;
@@ -105,6 +106,29 @@ pub(super) struct Binding {
     pub viewport: [f64; 2],
 }
 
+#[derive(Default)]
+pub(super) struct TemplateReferences {
+    gradients: BTreeSet<String>,
+    clips: BTreeSet<String>,
+    masks: BTreeSet<String>,
+}
+impl TemplateReferences {
+    pub fn record(&mut self, style: &Style, clip: Option<&str>) -> Result<(), Error> {
+        for value in [&style.fill, &style.stroke] {
+            if let Some(id) = reference(value)? {
+                self.gradients.insert(id.to_owned());
+            }
+        }
+        if let Some(id) = clip {
+            self.clips.insert(id.to_owned());
+        }
+        if let Some(id) = &style.mask {
+            self.masks.insert(id.clone());
+        }
+        Ok(())
+    }
+}
+
 fn elements<'a, 'input>(node: Node<'a, 'input>) -> Result<Vec<Node<'a, 'input>>, Error> {
     let mut out = Vec::new();
     for child in node.children() {
@@ -144,6 +168,33 @@ fn id(node: Node<'_, '_>) -> Result<String, Error> {
 }
 
 impl Definitions {
+    pub(super) fn validate_template_references(
+        &self,
+        references: &TemplateReferences,
+    ) -> Result<(), Error> {
+        for id in &references.gradients {
+            if !self.gradients.contains_key(id) {
+                return Err(invalid(format!(
+                    "Missing or wrong-type gradient reference: {id}"
+                )));
+            }
+        }
+        for id in &references.clips {
+            if !self.clips.contains_key(id) {
+                return Err(invalid(format!(
+                    "Missing or wrong-type clip reference: {id}"
+                )));
+            }
+        }
+        for id in &references.masks {
+            if !self.masks.contains_key(id) {
+                return Err(invalid(format!(
+                    "Missing or wrong-type mask reference: {id}"
+                )));
+            }
+        }
+        Ok(())
+    }
     pub fn collect(
         &mut self,
         node: Node<'_, '_>,

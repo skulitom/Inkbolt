@@ -4,7 +4,7 @@ See the generated [limit reference](LIMITS.md) for centralized resource ceilings
 
 Vector documents can store one editable definition and place it repeatedly. A top-level item with `content: {"type":"component_source"}` owns ordinary child items and never prints directly. Each copy uses `content: {"type":"instance","instance":{"source":"definition-id","overrides":{}}}`. Its normal parent, affine transform, opacity, clips, masks, effects and blending apply to an isolated copy of the source hierarchy. The source root is also an isolated boundary, retaining its own appearance and transform. Changing the original child geometry updates all copies that have not replaced that content.
 
-Definitions use global stable item IDs. Instances own no stored children; their evaluated children are private to rendering. Source definitions may contain nested instances, ordinary frames, geometry, text, images and any content permitted by the existing vector document contract. Artboards cannot belong to a definition or be introduced through an override. Raster documents and imported SVG `use` elements remain unsupported by this component API.
+Definitions use global stable item IDs. Instances own no stored children; their evaluated children are private to rendering. Source definitions may contain nested instances, ordinary frames, geometry, text, images and any content permitted by the existing vector document contract. Artboards cannot belong to a definition or be introduced through an override. Raster documents remain unsupported by this component API. SVG `use` currently imports as independent groups; conversion to shared components remains open in W3a.4.
 
 ## Local variants and replacement
 
