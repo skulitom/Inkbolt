@@ -15,6 +15,7 @@ on:
       - '.github/workflows/publish-registry.yml'
       - 'mcpb/**'
       - 'server.json'
+      - 'rust-toolchain.toml'
 
 permissions:
   contents: read
@@ -32,9 +33,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, binary: inkbolt.exe }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, binary: inkbolt }
-          - { os: macos-latest, target: aarch64-apple-darwin, binary: inkbolt }
+          # The same images as ci.yml, so a runner update can't silently raise the Linux glibc floor.
+          - { os: windows-2025, target: x86_64-pc-windows-msvc, binary: inkbolt.exe }
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-gnu, binary: inkbolt }
+          - { os: macos-15, target: aarch64-apple-darwin, binary: inkbolt }
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
       DRY_RUN: ${{ github.event_name == 'pull_request' }}
@@ -72,16 +74,20 @@ jobs:
       - name: Install Rust and confirm native target
         run: |
           set -euo pipefail
-          rustup toolchain install 1.98.1 --profile minimal
-          host=$(rustc +1.98.1 -vV | sed -n 's/^host: //p' | tr -d '\r')
+          # The toolchain CI verifies with, read from rust-toolchain.toml.
+          toolchain=$(sed -n 's/^channel *= *"\([^"]*\)".*/\1/p' rust-toolchain.toml | tr -d '\r')
+          test -n "$toolchain"
+          rustup toolchain install "$toolchain" --profile minimal
+          host=$(rustc "+$toolchain" -vV | sed -n 's/^host: //p' | tr -d '\r')
           test "$host" = "$BUILD_TARGET"
+          echo "RUST_TOOLCHAIN=$toolchain" >> "$GITHUB_ENV"
       - name: Build locked release binary
         env:
           # Link the C runtime statically on Windows, so the download runs without the Visual C++ Redistributable.
           RUSTFLAGS: ${{ runner.os == 'Windows' && '-C target-feature=+crt-static' || '' }}
         run: |
           set -euo pipefail
-          cargo +1.98.1 build --release --locked
+          cargo "+$RUST_TOOLCHAIN" build --release --locked
           if [[ "$RUNNER_OS" == Windows ]] && grep -qai 'vcruntime140' target/release/inkbolt.exe; then
             echo "::error::inkbolt.exe still imports the Visual C++ runtime"; exit 1
           fi

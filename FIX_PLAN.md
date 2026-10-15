@@ -790,7 +790,7 @@ Tasks:
    - Contents: archives with `LICENSE` and `THIRD_PARTY_NOTICES.md`, SHA-256
      checksums and an SBOM.
    - Tests: run the CI matrix tests against the built artifacts.
-   - Starting point: #3 adds release and MCP Registry workflows, `server.json`, a
+   - Starting point: PR #3 adds release and MCP Registry workflows, `server.json`, a
      Windows MCPB bundle step and the exact `tools/check_repo.py` paths, with a test,
      that admit them; it lacks an SBOM, macOS x64 and the CI matrix tests against
      the built archives.

@@ -69,10 +69,13 @@ command = 'C:\Tools\Inkbolt\inkbolt.exe'
 args = ['--workspace', 'C:\Work\Graphics', 'mcp', '--tools', 'core']
 ```
 
-**Claude Desktop:** install `inkbolt-windows-x64.mcpb` from the release through
-Settings > Extensions > Install from file, then pick an existing workspace.
+**Claude Desktop (Windows):** double-click `inkbolt-windows-x64.mcpb` from the
+release, or use Settings > Extensions > Advanced settings > Install Extension,
+then pick an existing workspace.
 
 On Linux and macOS, run the extracted `inkbolt` binary with the same arguments.
+The macOS binary isn't notarized: after a browser download, run
+`xattr -d com.apple.quarantine inkbolt` once.
 Maintainers: see [Publishing](mcpb/PUBLISHING.md).
 
 ## Documentation
