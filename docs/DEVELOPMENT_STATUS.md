@@ -1822,47 +1822,54 @@ changed. A separate bundle containing the current development executable passed
 standalone discovery of all 22 core tools and document creation. This confirms
 integration, not release-build or complete distribution acceptance.
 
-## W3a.4: reusable shapes and symbol viewports in progress
+## W3a.4: reusable shapes in progress
 
-Local `use` expands supported shapes, groups, text, symbols and other local
-references into independent editable groups. Original source declarations use
-placement inheritance. A memoized graph checks cycles and reference depth without
-expanding unused copies; existing item/hierarchy limits bound materialization.
-Original offsets and occurrence paths survive atomic insertion. Unused templates
-retain distinct resource references; text fonts and relative size ranges bind in
-the painted context.
+Local `use` admits supported shapes, groups, text, symbols and local references.
+Original source declarations use placement inheritance. A memoized graph checks
+cycles/reference depth without expanding unused copies; item/hierarchy limits
+bound materialization. Text fonts and relative sizes bind in the painted context.
+Symbols separate viewport clipping from viewBox/appearance and bind percentage
+paints, masks, placements and text in their own user viewport. Different mask
+viewport contexts retain independently editable sources with a sharing-loss receipt.
 
-Symbols separate the viewport clip/placement from the content's viewBox and
-appearance. Focused fixtures check default/auto/percentage dimensions, overrides,
-all nine alignments, meet/slice/none, anchors, transform order, overflow,
-nonpainting definitions, zero-size losses and nested viewport restoration.
-Percentage paints, masks and pinned text use each placement's user viewport.
-Masks prepare one editable source per viewport, with explicit loss of sharing
-between those variants and no duplicate nested definition collection. Exact
-rectangle/gradient/glyph pixel oracles, insertion identities and SVG round trips
-cover these boundaries. The first focused run caught insertion receipts adding
-null occurrence fields; the corrected remap preserves absent fields.
+Compatible resolved occurrences now become native components. Scalar, transform,
+vector-style and nested same-source instance overrides preserve shared geometry
+while retaining local appearance. Visible originals and overlapping group/child
+targets share editable sources too. Other resolved contexts form declared component
+variants; native budgets and raster destinations retain groups with explicit
+reasons. Insertion can retry once from the untouched candidate when components
+exceed the destination budget. Original source validation still runs first.
+Stored instance/source paths and all related receipt IDs survive insertion.
 
-Final symbol-focused runs passed 13 fresh stages per platform, including formatting,
-locked build, all-target Clippy and nine selected Python modules. Windows executed
-133 Python tests with no skips in 58.1 seconds; Linux executed 130 with three
-explicit Windows-only verification skips in 53.5 seconds. Neither run failed,
-reused checks, left checks pending or changed inputs. Shared input identity:
-`7e59f246ca94a006646ecc800d352c5553f4ccb59d94b1e47c58d46dbe395142`.
-The `w3a-symbol-focused-01` audit retains all 26 stage logs, the 879-file inventory
-and a frozen source archive; its SHA-256 is
-`d666e4b511bbcdb3ebcd4639fc48231a39ee65ec4e23cc3b45bf9a55a72ea1af`.
+Independent fixtures check source geometry edits, inherited colour overrides,
+resized symbol clipping, nested and overlapping references, separate text contexts,
+detach, dependency locks, retry/undo, destination and import budget fallback, deep
+references and preservation of nonpainting zero-size groups. Cooperative control
+checks also cover the new preparation and receipt loops.
 
-The preceding local-reference foundation retains its separate focused evidence:
-76 Python tests and ten fresh stages per platform in 76.0/51.7 seconds, with no
-skips, failures or pending checks. Its `w3a-reuse-focused-01` audit is
-`17c41b1e6195bc0015b436b205f46caf26021edd3f89ba4f257ac1c36d9a776f`.
+The final focused Windows/Linux runs each passed nine fresh stages and 58 Python
+tests, with no skips, failures, pending checks, reuse or changed inputs, in
+43.0/28.0 seconds. Shared input identity:
+`7e68b695165a0f277bd412e327d71f574cc6024ad698cc2add37c36a125169f6`.
+Before the final five cancellation checks, a broader selection passed 17 fresh
+stages per platform: 181 Python tests on Windows with no skips in 53.4 seconds;
+178 on Linux with three explicit Windows-only verification skips in 35.0 seconds.
+Those runs include the original SVG, native component, transfer, discovery and
+verification-dependency modules. Their separate input identity is
+`287a279e6f5a6ecfe2c4b163b44e153658182d61fd1e5d913ad42ee16fdeafa6`.
 
-This is development feedback for intermediate increments. W3a.4 remains open:
-compatible native component sharing and cloned resource scopes still need
-implementation and independent checks, followed by fresh full platform acceptance.
-Current imports explicitly report sharing losses and refuse unfinished semantics.
-The engine registry remains 163/167.
+The `w3a-components-focused-01` audit retains all 52 stage logs, both matching
+platform inventories and source archives (881 files). The earlier inventory was
+reconstructed by removing only the five final checks and verified against both
+already recorded broader fingerprints. Audit SHA-256:
+`f77ea013faf248b5ccd73a8088d7ca075b5f661d2f252d8e9836164fcd414e3e`.
+Earlier symbol and local-reference evidence remains retained in
+`w3a-symbol-focused-01` and `w3a-reuse-focused-01`.
+
+These are focused checks for intermediate increments. W3a.4 remains open:
+cloned resource scopes still need implementation and independent checks, followed
+by fresh full Windows/Linux acceptance. Unsupported source scopes still fail;
+sharing normalization is explicit. The engine registry remains 163/167.
 
 ## W3b: complete within the insertion contract
 

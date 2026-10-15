@@ -60,6 +60,26 @@ pub(crate) fn insert(
     font_root: Option<&Path>,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
+    insert_attempt(
+        document,
+        (svg, true),
+        parent,
+        requested_prefix,
+        font_bindings,
+        font_root,
+        control,
+    )
+}
+fn insert_attempt(
+    document: &mut Document,
+    source: (&str, bool),
+    parent: Option<&str>,
+    requested_prefix: Option<&str>,
+    font_bindings: &[InsertFontBinding],
+    font_root: Option<&Path>,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
+    let (svg, components) = source;
     control.check()?;
     if svg.len() > crate::MAX_REQUEST_BYTES as usize {
         return Err(Error::new(
@@ -141,7 +161,10 @@ pub(crate) fn insert(
         font_root.map(Path::to_owned),
         profile,
         control,
-        Some(byte_budget),
+        ImportOptions {
+            byte_budget: Some(byte_budget),
+            components: components && document.kind == DocumentKind::Vector,
+        },
     )
     .map_err(|mut error| {
         if offset != 0
@@ -199,6 +222,11 @@ pub(crate) fn insert(
         .filter(|item| item.parent.is_none())
         .map(|item| item.id.clone())
         .collect();
+    let has_components = source
+        .items
+        .iter()
+        .any(|item| matches!(item.content, Content::Instance { .. }));
+    let before = has_components.then(|| document.clone());
     let transferred = crate::transfer::insert_svg(
         document,
         &crate::transfer::Transfer {
@@ -210,22 +238,60 @@ pub(crate) fn insert(
         },
         font_root,
         control,
-    )?;
+    )
+    .and_then(|receipt| {
+        if has_components {
+            validate_controlled(document, control)?;
+        }
+        Ok(receipt)
+    });
+    let transferred = match transferred {
+        Err(error) if has_components && error.code == "RESOURCE_LIMIT" => {
+            *document = before.unwrap();
+            let mut receipt = insert_attempt(
+                document,
+                (svg, false),
+                parent,
+                requested_prefix,
+                font_bindings,
+                font_root,
+                control,
+            )?;
+            for row in receipt["reuse"].as_array_mut().unwrap() {
+                row["reason"] = json!("destination_component_budget");
+            }
+            receipt["losses"].as_array_mut().unwrap().push(json!("SVG references remain expanded because shared components exceed the destination's resource budget."));
+            return Ok(receipt);
+        }
+        result => result?,
+    };
     let ids = &transferred["item_ids"];
-    for section in ["mapping", "definitions", "approximations"] {
+    for section in ["mapping", "definitions", "approximations", "reuse"] {
         if let Some(rows) = imported[section].as_array_mut() {
             for row in rows {
-                if let Some(path) = row.get_mut("instance_path").and_then(Value::as_array_mut) {
-                    for occurrence in path {
-                        if let Some(id) = occurrence["item_id"].as_str() {
-                            occurrence["item_id"] = ids[id].clone();
-                        }
-                        if let Some(position) = occurrence["byte_offset"].as_u64() {
-                            occurrence["byte_offset"] = json!(position.checked_sub(offset as u64));
+                for path_field in ["instance_path", "component_path"] {
+                    if let Some(path) = row.get_mut(path_field).and_then(Value::as_array_mut) {
+                        for occurrence in path {
+                            for field in ["item_id", "instance_item_id", "component_source_id"] {
+                                if let Some(id) = occurrence[field].as_str() {
+                                    occurrence[field] = ids[id].clone();
+                                }
+                            }
+                            if let Some(position) = occurrence["byte_offset"].as_u64() {
+                                occurrence["byte_offset"] =
+                                    json!(position.checked_sub(offset as u64));
+                            }
                         }
                     }
                 }
-                for field in ["item_id", "viewport_item_id", "resource_item_id"] {
+                for field in [
+                    "item_id",
+                    "viewport_item_id",
+                    "resource_item_id",
+                    "host_item_id",
+                    "instance_item_id",
+                    "component_source_id",
+                ] {
                     if let Some(id) = row[field].as_str() {
                         row[field] = ids[id].clone();
                     }
@@ -241,7 +307,7 @@ pub(crate) fn insert(
     }
     Ok(json!({"root_id":ids[&root],"prefix":prefix,"item_ids":ids,
         "font_ids":transferred["font_ids"],"mapping":imported["mapping"],
-        "definitions":imported["definitions"],"approximations":imported["approximations"],
+        "definitions":imported["definitions"],"approximations":imported["approximations"],"reuse":imported["reuse"],
         "losses":imported["losses"],"placement":"parent_local",
         "source":{"sha256":crate::assets::sha256(svg.as_bytes()),"bytes":svg.len(),
             "kind":if full_svg { "svg_document" } else { "svg_fragment" }},

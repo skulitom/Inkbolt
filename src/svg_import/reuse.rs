@@ -278,6 +278,7 @@ impl Importer<'_> {
             .references
             .target(node)
             .ok_or_else(|| invalid("SVG use target was not indexed"))?;
+        let host = parent.clone();
         self.use_path.push(json!({"source_id":node.attribute("id"), "byte_offset":node.range().start, "item_id":parent}));
         let result = if target.has_tag_name("symbol") {
             self.expand_symbol(target, node, parent, inherited)
@@ -285,6 +286,14 @@ impl Importer<'_> {
             self.visit(target, Some(parent), inherited, None)
         };
         self.use_path.pop();
+        if result.is_ok() {
+            self.occurrences.push(sharing::Occurrence {
+                host,
+                target: target.range().start,
+                symbol: target.has_tag_name("symbol"),
+                original: false,
+            });
+        }
         result.map_err(|error| {
             let mut error = located(error, target);
             error.details.as_mut().unwrap()["use_byte_offset"] = json!(node.range().start);

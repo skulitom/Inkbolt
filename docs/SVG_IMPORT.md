@@ -51,7 +51,7 @@ the importer; insertion reuses their IDs and does not duplicate font descriptors
 Missing families, unavailable/corrupt resources and unsupported text fail explicitly.
 
 `changes[].id` is the inserted root; `changes[].details` returns `root_id`, `prefix`,
-`item_ids`, `font_ids`, the source `mapping`, `definitions`, `approximations` and
+`item_ids`, `font_ids`, the source `mapping`, `definitions`, `approximations`, `reuse` and
 `losses`. The source receipt hashes the exact supplied UTF-8 bytes and records its
 kind. Source offsets refer to those bytes; a synthetic fragment root has
 `byte_offset:null` and `synthetic:true`. The default prefix is the first available
@@ -181,9 +181,9 @@ The root is an editable group. Each imported drawable/container receives a deter
 supported shape, group, text element, symbol or another `use`. Forward references and
 graphics stored inside `defs` are admitted. The placement and style rules follow
 the public [SVG reuse specification](https://www.w3.org/TR/SVG2/struct.html#UseElement).
-A placement becomes an independent
-editable group; its source declarations and the embedded stylesheet are evaluated
-with styles inherited from that placement. The original source's ancestors do
+Source declarations and the embedded stylesheet are evaluated
+with styles inherited from each placement. Compatible resolved occurrences become
+native components with placement overrides. The original source's ancestors do
 not supply the copy's inherited color or other styles. Source transforms remain
 inside the placement's transform and x/y translation. Percentage x/y values use
 the current viewport. Width/height are validated but do not scale ordinary shapes.
@@ -200,12 +200,48 @@ Text templates bind fonts when painted. Relative font-size range checks use the
 actual placement context; definition-time validation checks their syntax without
 substituting an unrelated parent size.
 
-Shared component conversion and cloned resource scopes remain
-open in W3a.4. Targets containing definitions or metadata currently fail explicitly;
+Cloned resource scopes remain open in W3a.4. Targets containing definitions or metadata currently fail explicitly;
 placements can refer to existing gradient, clip and mask definitions outside the
-copied subtree. This increment reports loss of source sharing and does not complete
-the reusable-shape milestone. Ordinary `use` inside clip-path geometry remains
+copied subtree. The reusable-shape milestone remains incomplete until those scopes and fresh
+full platform acceptance are finished. Ordinary `use` inside clip-path geometry remains
 unsupported by that narrower definition parser.
+
+### Shared editing and placement identity
+
+After validating the expanded source and binding its paints, clips and masks,
+import groups compatible occurrences into [native components](COMPONENTS.md).
+Geometry remains in one editable source. Different resolved vector paint/stroke,
+visibility, opacity, blend and transform values use native overrides. Nested
+instances can retain local override maps while continuing to share their geometry.
+Visible originals and referenced children inside other copied groups participate
+in sharing, including overlapping group/child targets.
+
+Text/content, clip, mask or other context differences that cannot be expressed by
+these overrides produce separate component variants. This partition and its loss
+of editing linkage are reported. Imported styles are resolved values: changing
+an original CSS expression or an ancestor colour is not live CSS recomputation.
+Edit mapped source geometry/text for shared changes; use native instance overrides
+or `instance_unlink` for a local change. Existing locks and history apply to
+shared dependencies. SVG export expands native components and reports its own
+loss of source sharing; snapshots retain them.
+
+Repeated mapping rows may now share an `item_id`. Their original offsets and XML
+`instance_path` remain distinct. `component_path` lists the native instance/source
+pairs from outermost to innermost; the row's `instance_item_id` and
+`component_source_id` identify the innermost pair. These are stored editing IDs,
+not temporary render IDs. An original direct placement can have a component path
+without an XML use path. The `reuse` receipt lists each placement's host, source
+location, component identities or explicit expansion reason. Insertion remaps
+all these IDs and offsets into the destination.
+
+The original expanded input must fit the importer limits before conversion.
+Component definitions, nested references, stored/evaluated items and hierarchy
+retain their existing native budgets. When sharing cannot fit, the valid expanded
+groups are retained with a reason; no limit is raised and no failed source
+validation is waived. Raster insertion also retains groups because native
+components are vector-only. If components exceed the existing destination's
+budget, insertion retries once with expanded groups on the untouched candidate.
+Ordinary destination validation still decides whether that result fits.
 
 ### Symbol viewports
 

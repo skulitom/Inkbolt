@@ -24,10 +24,12 @@ class SvgReuseTests(unittest.TestCase):
                            [0, 0, 255, 255] if 6 <= x < 10 and y < 3 else [0, 0, 0, 0])
         rows = [r for r in result['mapping'] if r['source_id'] == 'tile']
         self.assertEqual(len(rows), 2)
-        self.assertNotEqual(rows[0]['item_id'], rows[1]['item_id'])
+        self.assertEqual(rows[0]['item_id'], rows[1]['item_id'])
+        self.assertEqual(rows[0]['component_source_id'], rows[1]['component_source_id'])
+        self.assertNotEqual(rows[0]['instance_item_id'], rows[1]['instance_item_id'])
         self.assertEqual([r['instance_path'][0]['source_id'] for r in rows], ['red', 'blue'])
         self.assertEqual([r['byte_offset'] for r in rows], [text.index('<rect')] * 2)
-        self.assertTrue(any('independent editable groups' in loss for loss in result['losses']))
+        self.assertTrue(any('native components' in loss for loss in result['losses']))
 
     def test_css_current_color_transform_order_and_ignored_shape_dimensions(self):
         text = svg_support.svg('<style>.shape{fill:currentColor}use{color:#123456}</style>'

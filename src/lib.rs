@@ -1158,14 +1158,18 @@ fn capability_report() -> Value {
         .unwrap()
         .extend([json!("use"), json!("symbol")]);
     svg_import_contract["reuse"] = json!({"references":"literal_local_href_or_xlink_href",
-        "targets":["shapes","g","text","use","symbol"],"output":"independent_editable_groups",
+        "targets":["shapes","g","text","use","symbol"],"output":"compatible_native_components;declared_context_variants_and_group_fallback",
         "styles":"source_declarations_with_placement_inheritance",
         "position":"transform_then_xy_translation_with_current_viewport_percentages",
         "nonviewport_dimensions":"validated_but_do_not_scale_shapes",
-        "mapping":"original_source_locations_and_instance_path",
+        "mapping":"original_locations;instance_path;component_path;reuse_receipts",
         "limits":"existing_reference_depth_expanded_items_and_hierarchy",
         "cycles":false,"external_references":false,"symbol":true,
-        "cloned_resource_scopes":false,"component_sharing":false});
+        "cloned_resource_scopes":false,"component_sharing":true,
+        "component_overrides":["name","visible","opacity","fill_opacity","blend","transform","vector_style","nested_same_source_instance"],
+        "component_variants":"other_resolved_context_differences_remain_separate_and_reported",
+        "component_fallback":"expanded_groups_for_native_limits_or_raster_destinations",
+        "shared_originals":"visible_originals_and_overlapping_reference_targets"});
     svg_import_contract["symbol_viewports"] = json!({
         "dimensions":"use_overrides_symbol_then_enclosing_user_viewport;absolute_percentage_auto",
         "viewBox":"positive_dimensions;meet_slice_none",

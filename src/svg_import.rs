@@ -8,6 +8,7 @@ pub(crate) use insertion::insert;
 mod labels;
 mod masking;
 mod reuse;
+mod sharing;
 mod styles;
 mod viewports;
 pub use labels::{FaceStyle, FontBinding};
@@ -620,6 +621,7 @@ struct Importer<'css> {
     use_path: Vec<Value>,
     template_refs: definitions::TemplateReferences,
     collected_resources: HashSet<roxmltree::NodeId>,
+    occurrences: Vec<sharing::Occurrence>,
 }
 impl Importer<'_> {
     fn visit(
@@ -889,8 +891,15 @@ pub fn import_controlled(
         font_root,
         resource_profile,
         control,
-        None,
+        ImportOptions {
+            byte_budget: None,
+            components: true,
+        },
     )
+}
+struct ImportOptions {
+    byte_budget: Option<usize>,
+    components: bool,
 }
 fn import_with_budget(
     id: String,
@@ -899,7 +908,7 @@ fn import_with_budget(
     font_root: Option<PathBuf>,
     resource_profile: ResourceProfile,
     control: &crate::control::Control,
-    byte_budget: Option<usize>,
+    options: ImportOptions,
 ) -> Result<Value, Error> {
     control.check()?;
     if resource_profile == ResourceProfile::LargeRaster {
@@ -912,7 +921,7 @@ fn import_with_budget(
     } else {
         (MAX_LARGE_BYTES, MAX_LARGE_NODES)
     };
-    let max_bytes = byte_budget.unwrap_or(max_bytes);
+    let max_bytes = options.byte_budget.unwrap_or(max_bytes);
     let bytes = match source {
         Source::Text { text } => text.into_bytes(),
         Source::File { source_path } => {
@@ -1036,7 +1045,7 @@ fn import_with_budget(
         [width, height]
     };
     let mut importer=Importer{styles:&styles,control:control.clone(),document,mappings:vec![],approximations:vec![],definitions:Default::default(),bindings:vec![],
-        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), references, use_path:vec![],template_refs:Default::default(),collected_resources:HashSet::new(),losses:vec![
+        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), references, use_path:vec![],template_refs:Default::default(),collected_resources:HashSet::new(),occurrences:vec![],losses:vec![
         "Source IDs are mapped to deterministic item IDs; the root is an editable group. Retain the source for XML formatting, comments and original IDs.".into(),
         "Presentation inheritance, embedded stylesheets and inline style are resolved into editable properties. Classes, selectors and stylesheet syntax are not retained. Quadratic curves and shorthand become explicit cubic/line commands; units/viewBox become affine transforms. Original syntax is not retained.".into(),
         "Paint colors and fill/stroke opacity are quantized to RGBA8; object and group opacity retain f64 precision. Geometry is f64; display coverage uses the existing f32 renderer.".into(),
@@ -1105,9 +1114,6 @@ fn import_with_budget(
         .validate_template_references(&importer.template_refs)?;
     // Validate geometry/hierarchy before deriving local bounding boxes or paints.
     validate_controlled(&importer.document, control)?;
-    if importer.mappings.iter().any(|m| m["element"] == "use") {
-        importer.losses.push("Local SVG use references become independent editable groups, with inherited styles resolved for each placement. Source reference sharing is not yet retained; keep the original SVG for shared-source authoring. Mapping instance_path records the enclosing placements.".into());
-    }
     importer
         .approximations
         .append(&mut importer.definitions.approximations);
@@ -1133,9 +1139,10 @@ fn import_with_budget(
         importer.losses.push("SVG gradient and clip definitions are copied into each referencing item. Shared references, templates and definition metadata are not retained; object-bounding-box coordinates are resolved at import.".into());
     }
     validate_controlled(&importer.document, control)?;
+    let reuse = importer.share_components(options.components)?;
     importer.losses.sort();
     importer.losses.dedup();
     Ok(
-        json!({"document":importer.document,"source":{"sha256":hash,"bytes":bytes.len(),"media_type":"image/svg+xml"},"mapping":importer.mappings,"definitions":importer.definitions.records,"losses":importer.losses,"approximations":importer.approximations}),
+        json!({"document":importer.document,"source":{"sha256":hash,"bytes":bytes.len(),"media_type":"image/svg+xml"},"mapping":importer.mappings,"definitions":importer.definitions.records,"losses":importer.losses,"approximations":importer.approximations,"reuse":reuse}),
     )
 }

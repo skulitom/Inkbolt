@@ -492,9 +492,15 @@ as a memoized graph before expansion. Each placement resolves the original node'
 styles in its host context and retains original offsets plus an occurrence path;
 insertion remaps both IDs and fragment locations. Unused templates retain only
 distinct resource references for later validation. Text fonts and relative size
-ranges bind in the painted context. The current W3a.4 foundation emits independent
-groups with an explicit loss of sharing; component conversion and cloned resource
-scopes remain open.
+ranges bind in the painted context. `svg_import::sharing` then compares resolved
+subtrees, preserving common geometry through native scalar/vector-style overrides
+and nested same-source instance overrides. Other contexts become declared variants.
+Original and overlapping source-node occurrences receive explicit placements;
+bottom-up conversion and ID aliases retain shared nested edits. Receipt paths use
+stored instance/source identities. Expanded input is validated first, and native
+resource limits can retain groups with a stated reason. Insertion remaps every
+component identity and can retry once from the untouched destination using groups.
+Cloned resource scopes remain open in W3a.4.
 
 `svg_import::viewports` separates a symbol's outer placement and viewport clip
 from its inner viewBox and appearance. A placement-scoped user viewport binds

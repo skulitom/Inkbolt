@@ -121,6 +121,8 @@ class SvgSymbolTests(unittest.TestCase):
                 f'<use href="#s" {dimension} mask="url(#m)"/>', [])
             row = next(row for row in result['mapping'] if row['source_id'] == 's')
             self.assertTrue(row['empty_viewport'])
+            self.assertFalse(any(item['content']['type'] in ('instance', 'component_source')
+                                 for item in result['document']['items']))
             self.assertTrue(any('Zero-size symbol' in loss for loss in result['losses']))
         self.imported(support.svg('<symbol id="s"/><use href="#s" width="0" mask="url(#missing)"/>'), 1)
 
