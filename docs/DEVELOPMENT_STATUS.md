@@ -2253,8 +2253,33 @@ aggregate patched pixels over their lifetime, so continuing normal edits can
 exhaust the document even when each edit is small. B10 remains a 2.07 MP workflow
 failure and does not establish a capacity failure or justify raising ceilings.
 
-Begin W4.1 with the migration contract required by [session lineage](SESSION_LINEAGE.md),
-then implement block-granular copy-on-write manifests while preserving old
+The [W4.1 migration contract](NATIVE_COPY_ON_WRITE.md) now specifies explicit
+layer migration, old-history preservation, pure review, durable manifest
+projection and block publication before the document transaction. The first
+library increment adds versioned candidate transfer with caller-required byte
+budgets, exact typed-block validation and explicit external dependencies.
+It does not change document storage modes or remove either lifetime cap.
+
+Focused checks used `--rust sample_store::tests` plus
+`test_resource_limits,test_stored_samples`. Windows passed 21 Rust and 17 Python
+tests in 80.531 seconds, reusing unchanged formatting/build/Clippy passes from
+the immediately preceding 34.860-second fix check. Linux passed 18 Rust and 15
+Python tests in 104.556 seconds, with all seven selected stages fresh and two
+explicit Python skips for unsupported jobs. All seven new transfer tests ran on
+both platforms. Both final reports have unchanged inputs and fingerprint
+`ac14050aeafa6333200460658fc9e699842c40e79707a65fe2ef59f03ce04b2f`.
+Neither run had failed or pending selected checks; 249 stages were outside scope.
+The initial constant-assertion Clippy failure and its corrected rerun are retained.
+
+External evidence `w4-candidate-transfer-focused-01/audit.json` has SHA-256
+`72a7000fa8af72c6be3d3d491ca35a17daa4795f7ee117a5027316b507e85b44`.
+Its 28 evidence files and 901 archived source entries were reread against their
+hashes. The archive identifies the final focused-check candidate; it does not
+claim to capture the earlier failed source. This is implementation feedback,
+not full W4.1 or scale acceptance. The 260-edit transport test exercises only
+pure library candidates; it does not establish committed document/history edits.
+
+Next implement versioned native layers and their block commit path, preserving old
 snapshots, exact history/retries, pure review proposals and immutable base blocks.
 The expected improvement is continued bounded editing after the current lifetime
 caps, with retained native samples and small history states. Independently verify

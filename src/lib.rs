@@ -1880,6 +1880,7 @@ fn capability_report() -> Value {
         "max_tiles":sample_store::MAX_TILES, "max_region_pixels":sample_store::MAX_REGION_PIXELS,
         "depths":["u8","u16","f32"], "channels":["rgba","gray_alpha"],
         "candidate_edits":"pure_copy_on_write;unchanged_blocks_shared",
+        "candidate_transfer":{"version":1,"scope":"rust_library_only;document_integration_pending","pending":"sorted_unique_exact_typed_blocks_as_lowercase_hex","budget":"caller_required_unique_decoded_block_bytes_including_headers;separate_parse_and_live_memory_limits_required","preparation":"pure;external_dependencies_require_explicit_verification"},
         "publication":"explicit_create_only_verified_immutable_blocks;complete_orphans_retained",
         "interpretation":"native_type_and_encoding_bound;ICC_profile_is_separate_document_metadata",
         "cli_storage_limits_changed":true, "streaming_import":true,

@@ -6,6 +6,15 @@ See the generated [limit reference](LIMITS.md) for centralized resource ceilings
 
 The library first constructs a private immutable `Candidate`. Its manifest describes future content and pending blocks remain in memory. `replace` returns another candidate, sharing unchanged blocks; older candidates retain their original bytes. Explicit `publish` creates complete content-addressed files. Document edits retain exact small patch bytes over the original published base manifest. Thus a dry-run or snapshot result contains its complete edit recipe without naming unpublished replacement blocks. Import publishes the immutable base; editing/history never needs a second filesystem commit.
 
+W4.1's [migration and commit contract](NATIVE_COPY_ON_WRITE.md) describes the
+planned move from retained document patches to committed block manifests.
+Its first library increment adds `Candidate::transfer` and `Transfer::prepare`
+for pure, bounded transfer of unpublished blocks. Both require an explicit
+pending-byte budget. They validate exact typed bytes without reading or writing
+resource files; external dependencies still require `Candidate::verify`.
+This is not yet a new document mode: current patch limits and session behavior
+remain unchanged.
+
 ## Data contract
 
 `Spec` declares width, height, depth (`u8`, `u16`, `f32`), channels (`rgba`, `gray_alpha`) and encoding (`encoded_srgb`, `linear_srgb`, `profiled_rgb`). Native bytes are little-endian straight channels. Integer values are retained exactly. Binary32 validation rejects nonfinite values, requires normalized alpha and encoded values, and permits signed finite HDR color only under explicit linear encoding. Linear storage requires binary32 depth. Signed zero and subnormal bit patterns are preserved; validation does not quantize or normalize their bytes.

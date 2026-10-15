@@ -1,4 +1,6 @@
 use super::*;
+#[path = "transfer_tests.rs"]
+mod transfer;
 #[cfg(windows)]
 use std::{
     thread,

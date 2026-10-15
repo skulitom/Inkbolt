@@ -1,5 +1,13 @@
 # Architecture
 
+Native candidates now have a versioned, bounded pure transfer representation for
+unpublished blocks. It carries exact typed block bytes separately from inherited
+manifest dependencies; preparation validates the complete framing and byte
+budget before decoding. No resource root or publication is implicit. The
+[W4.1 migration contract](NATIVE_COPY_ON_WRITE.md) keeps this library transport
+separate from durable state and the future document commit path. Legacy document
+patch limits and session fingerprints remain unchanged in this increment.
+
 Typed JSON rejection now adds bounded, advisory missing-field guidance using the
 same generated schemas as discovery. The fast inline path retains only the
 bounded command name before consuming its JSON value; schemas are consulted

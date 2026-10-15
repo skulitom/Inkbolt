@@ -767,6 +767,7 @@ class ResourceLimitTests(unittest.TestCase):
                  'image_tracing/background_connectivity':8,
                  'meshes/axis_range/0':2, 'meshes/svg_samples_per_cell/0':1,
                  'native_sample_store_library/manifest_version':1,
+                 'native_sample_store_library/candidate_transfer/version':1,
                  'objects/surface_scale/0':1, 'pdf/scale':1,
                  'render_quality/padding_document_units/0':0,
                  'render_quality/supersample_factors/0':2,
