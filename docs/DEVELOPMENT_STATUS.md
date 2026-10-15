@@ -2166,7 +2166,7 @@ failures remain fatal; degraded import can change appearance and is never silent
 No new macOS, complete SVG, engine-checkpoint or overall-goal claim is made. The
 registry remains 163/167.
 
-### W5.7 missing-field guidance: focused checks; milestone open
+### W5.7 missing-field guidance: implementation verified; efficiency unproven
 
 The retained 95-attempt error inventory includes 17 visible generic request-error
 occurrences across B10, B17, B18 and B19. These are output occurrences, not
@@ -2187,8 +2187,7 @@ the affected tasks with the same externally configured client/model/settings
 and at least five retained attempts per applicable arm. B17/B19 remain engine-only.
 If request repair does not improve without correctness loss, stop expanding this
 approach. Unknown usage/call metrics stay unknown and cannot establish an
-efficiency gain. This records the W2 prioritization decision; new model trials
-have not started.
+efficiency gain. The completed follow-up below applies that recorded decision.
 
 The [request guidance contract](REQUEST_DIAGNOSTICS.md) confirms missing names
 against generated typed schemas and supplies an executable lookup. It does not
@@ -2220,9 +2219,55 @@ The private `w5-request-diagnostics-focused-01` bundle retains all four reports,
 archive. Its 44 evidence-file hashes and every archived source entry were reread;
 the audit SHA-256 is
 `99743d797e796455a219a59f91ef0a4d3067a729d798555a21f6db90aaa7bf90`.
-Only plan/status Markdown changed after that capture. Fresh complete Windows/Linux
-acceptance and matched affected-task trials remain required before closing this
-increment; broader W5 acceptance and the original checkpoint registry are unchanged.
+Only plan/status Markdown changed after that focused capture.
+
+Fresh full Windows/Linux acceptance at `447bbc2` passed all 255 stages on each
+platform with matching unchanged inputs and no failures, pending checks or reuse.
+Windows ran 217 Rust and 2,687 Python tests, with 13 explicit skips, in 759.0
+seconds. Linux ran 183 Rust and 2,649 Python tests, with 51 skips, in 444.5 seconds.
+All five request-guidance tests ran on both. Windows skips cover unavailable
+symlink privileges, one Unix-only path check and separately configured handoff
+tools; Linux retains its declared Windows-process/job and optional-tool skips.
+The 898-file candidate is
+`29c47929d8119c4d984e58664644374390f6ad95d916c83d2981d8fb4800b0af`.
+The private `w5-request-diagnostics-acceptance-01` bundle retains source, all 510
+stage logs, both reports and the requirement review. All 516 evidence-file hashes
+and every archived source entry were reread; the audit is
+`a9935f43fa7275af45c539081a34af28b04714ecd7963de2fc3b67db3ab17e71`.
+Its implementation acceptance is true; full W5 completion remains false.
+
+The [fixed follow-up trials](BENCHMARK_RESULTS.md#b10b17b19-at-447bbc2-request-guidance-follow-up)
+then ran five attempts each for B10/B17/B19 and five B10 baseline attempts on that
+same source. B10 passes 3/5 workflows versus 5/5 baseline; B17 passes 4/5 and B19
+passes 4/5. Missing-field repairs are observed, but storage-context and receipt
+format failures remain. No general efficiency gain is established. Retain this
+bounded implementation and stop expanding the diagnostic approach on current
+evidence. The broader W5 acceptance, full twenty-task evaluation, other readiness
+gates and original checkpoint criteria remain unchanged.
+
+### Next W4.1 increment: remove cumulative native-edit exhaustion
+
+The separate accepted D7 target requires a 50 MP RGBA16 edit/history workflow
+within 512 MiB. Current stored layers retain at most 256 overlays and 65,536
+aggregate patched pixels over their lifetime, so continuing normal edits can
+exhaust the document even when each edit is small. B10 remains a 2.07 MP workflow
+failure and does not establish a capacity failure or justify raising ceilings.
+
+Begin W4.1 with the migration contract required by [session lineage](SESSION_LINEAGE.md),
+then implement block-granular copy-on-write manifests while preserving old
+snapshots, exact history/retries, pure review proposals and immutable base blocks.
+The expected improvement is continued bounded editing after the current lifetime
+caps, with retained native samples and small history states. Independently verify
+edits beyond both caps, unchanged outside samples, old-state reopening, interrupted
+publication, proposals/retries and Windows/Linux behavior. Use targeted feedback
+within 180 seconds and full acceptance at the storage milestone. Do not lift
+unrelated pixel/work budgets as a substitute for measured storage behavior.
+
+Stop and revise the storage design if exact history or create-only publication
+cannot survive failures, or measured memory/state growth violates the declared
+budget. This first storage increment does not satisfy the complete 50 MP gate:
+streaming import/export, native operations and the new independent `scale-v2`
+cases remain required under W4. No accepted workstream or checkpoint is removed.
 
 ## W3b: complete within the insertion contract
 

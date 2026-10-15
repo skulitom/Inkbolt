@@ -44,7 +44,10 @@ messages are not reflected into the hint. Advisory error objects are bounded to
 2 KiB; MCP framing is separate. Discover the limit and scope under
 `capabilities.request_diagnostics`.
 
-Focused regression coverage exercises the observed storage/session/history
+Regression coverage exercises the observed storage/session/history
 cases, CLI/MCP parity, executable queries, ambiguous names, bounded responses,
-workspace defaults, successful repairs and retry preservation. Full W5
-acceptance and measured model-efficiency improvement remain separate gates.
+workspace defaults, successful repairs and retry preservation. Fresh complete
+Windows/Linux checks passed for this implementation. The
+[model follow-up](BENCHMARK_RESULTS.md#b10b17b19-at-447bbc2-request-guidance-follow-up)
+observed individual repairs alongside persistent workflow failures; it does not
+establish the broader W5 efficiency requirement.

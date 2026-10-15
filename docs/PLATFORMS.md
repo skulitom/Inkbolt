@@ -96,6 +96,13 @@ in 943.9 seconds; Linux executed 183 Rust and 2,642 Python tests with 51 skips i
 on both platforms. The linked record retains source, full logs, requirements and
 skip boundaries. No additional macOS or Unix background-job support is claimed.
 
+The [missing-field guidance implementation](DEVELOPMENT_STATUS.md#w57-missing-field-guidance-implementation-verified-efficiency-unproven)
+at `447bbc2` passed all 255 fresh local stages per platform on matching unchanged
+inputs. Windows executed 217 Rust and 2,687 Python tests with 13 explicit skips;
+Linux executed 183 Rust and 2,649 Python tests with 51 skips. All five new
+request-guidance tests ran on both. The linked record retains all 510 logs,
+source and skip boundaries. Model-efficiency acceptance and Unix jobs remain open.
+
 `rust-toolchain.toml` pins the verified development compiler, rustfmt and Clippy
 to Rust 1.98.1. `Cargo.toml` declares Rust 1.89 as the minimum: the locked
 `moxcms` dependency requires it, as does the standard file-locking API. Separate

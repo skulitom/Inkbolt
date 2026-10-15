@@ -1,5 +1,11 @@
 # Recorded agent evaluation results
 
+The latest [request-guidance follow-up](#b10b17b19-at-447bbc2-request-guidance-follow-up)
+passes 3/5 photograph workflows versus 5/5 baseline, 4/5 lost-response workflows,
+and 4/5 interrupted-job workflows. It retains every failure and establishes no
+general efficiency gain from the new diagnostics. Earlier batches below remain
+separate; no prompt versions or attempts are pooled.
+
 Five-pair evaluations now cover B01-B16, with separate smaller-model pilots.
 Five additional native attempts each cover B17/B18; those recovery tasks have no
 applicable baseline. Both pass 5/5 artifact checks, but two B17 receipt-format
@@ -1535,3 +1541,101 @@ in its review inventory. Both sets remain available externally.
 | Rejudged comparison | `85b6f4ebf72aa7eed18dbc6a1bac159f6f360b8114f794f1e8911f5f822a0cea` |
 | Rejudge integrity report | `03041604a8a915ebce3136e20247e4371e9af06db2b9efa692a9f05a3c90c8d4` |
 | Rejudge review inventory | `be67b2bd3a303df954c6d8d654b40ee80b65f295dd3e72346ea6e8092ece160e` |
+
+## B10/B17/B19 at 447bbc2: request-guidance follow-up
+
+Five native attempts per task and five B10 baseline attempts used unchanged
+prompts (B10/B17 version 1, B19 version 5) and the same external Codex CLI 0.160.0
+configuration, `gpt-6.1-sol` with medium reasoning. These are evaluation settings,
+with no engine or harness model default. The native task order rotated over five
+repetitions, followed by the baseline batch. The shared Windows host had no
+concurrent local engine checks from this chat; other work was uncontrolled and
+caches could be warm. Both arms report unchanged source and tool identities.
+
+| Task | Accepted artifact passes | Complete workflow passes | Median input + output tokens | Median client seconds |
+| --- | ---: | ---: | ---: | ---: |
+| B10 native photograph repair | 3/5 | 3/5 | 580,184 | 128.3 |
+| B10 no-engine baseline | 5/5 | 5/5 | 75,230 | 63.7 |
+| B17 lost response | 5/5 | 4/5 | 194,428 | 76.4 |
+| B19 interrupted output | 4/5 | 4/5 | 569,666.5 (4 observed) | 119.7 (4 observed) |
+
+B17/B19 have no applicable baseline. They were omitted from the baseline
+selection, so the comparison preserves that selection issue and does not form
+pairs for them. B10 has five matched pairs and no identity issues. Its fixed
+comparison policy flags lower artifact success; only three pairs succeeded in
+both arms, so no token/call cost ratio is awarded. All-attempt medians include
+failures where usage is observed. The 95% Wilson intervals are 23.1%-88.2% for
+3/5, 37.6%-96.4% for 4/5 and 56.6%-100% for 5/5; these small samples do not prove
+equivalence or general reliability.
+
+### Failures and observed repairs
+
+B10 attempts 2 and 4 received the new missing-`store_root` guidance, then chose
+a custom `tiles` store instead of restoring workspace defaults. The required
+immutable-base/root contract fails; the independent renderer cannot find pinned
+tiles at the required root. Downstream sample, preview, history and memory
+checks remain missing. Model-written sample checks do not supply that credit.
+Attempt 5 also encountered missing-field guidance and restored the workspace
+option successfully. B10 remains 3/5, the same count as its earlier five-attempt
+batch. This 2.07 MP task does not establish the larger W4 workload target.
+
+All five B17 attempts encountered missing-`session_root` guidance and subsequently
+restored the workspace option. Every independent artifact check passes. Attempt
+4 saves CLI envelopes where the prompt requires compact result objects; two
+receipt/retry checks therefore fail. The earlier workflow count was 3/5 and its
+median tokens/time were 269,176/94.6 seconds. Current counts and medians are
+descriptive: intervening engine changes and five attempts do not isolate the
+effect of diagnostics.
+
+B19 attempt 1 passes all nine independent checks but violates the controller's
+required operation order before the corrected recovery sequence. It remains a
+failed protocol/model trial, receives no accepted artifact credit and has unknown
+accepted usage. Attempts 2-5 pass the complete workflow. Attempt 5 repairs a
+missing `name` in `schema.lookup` with a subsequent `name:"session.create"`
+query. The earlier prompt-5 run was one failed pilot, so it cannot serve as a
+five-attempt before/after control.
+
+The four accepted B19 attempts have median 30 observed engine commands, 2.5
+invalid calls, three retries, 3,636.5 request bytes, 342,539 response bytes and
+61.6 seconds to a verified preview. These measurements exclude judge work.
+Their median maximum individual engine-process commit is 84,566,016 bytes;
+it is not a concurrent sum or client-tree total. B10/B17 engine calls, traffic,
+retries, preview timing and engine-only memory remain unknown. All ten B10
+client/tool trees have captured process peaks below 256 MiB; the two failed
+native workflows still receive no completed memory-check credit. Underlying
+model-call counts remain unknown for every attempt.
+
+### Evidence and decision
+
+The comparison reader validated retained requests, client results and transcript
+identities without changing a judge or rerunning a model. Manual review covered
+reported failures and missing-field repair sequences; a separate inventory
+records all completed event types and retained helper hashes. This is not a
+complete audit of every helper version or authenticated hidden behavior.
+No image-view event appears in the native event inventory; numerical checks do
+not establish visual review. Source preservation and independent artifact
+checks retain their original criteria.
+
+Retain the bounded missing-field contract and stop expanding this diagnostic
+approach on the present evidence. It repairs individual requests, but the batch
+does not establish the W5 acceptance requirement of fewer tokens and calls per
+successful task without correctness loss. Storage-context and receipt-format
+workflow failures, missing metrics, the full twenty-task run and the separate
+sister-project comparison remain open. No original engine checkpoint gains credit.
+
+The complete external inventory binds 2,897 files across both arms, their
+comparison, the recorded evaluation plan, process exits and review. Every listed
+file hash was reread. Source commit `447bbc2e632936f23567552375ec922856e84314`
+also passed fresh complete Windows/Linux implementation acceptance before these
+trials; that acceptance is separate from model usability.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Source candidate | `29c47929d8119c4d984e58664644374390f6ad95d916c83d2981d8fb4800b0af` |
+| Release executable | `2b5a6275cb502d4fd31797d990a5b05e409dd3a5f33736356223fe615bac9ad2` |
+| Native report | `cc35b8ae41d13128e9967d483dff758f22cd2c90b420c539e6474d0f9c1f6d3d` |
+| Baseline report | `5286cf6527ccfb7d4311c23ef19a4000942e9dff39d99df41a7b5c217f402e83` |
+| Comparison | `477c6ab2d5113ee6187db773a18b58ab1409a2d1f9e48404b57a5e8ff87fb0a6` |
+| Review of failures/repairs | `f7d2155bd39665c8fb3c5ae023dd2c7161cceb00afee0db8300f3df169118470` |
+| Complete file inventory | `8cd4ca7dfda26d227f02944d7f847b1df2e5aea005dfc69ad19087966e17e7ce` |
+| Windows/Linux implementation audit | `a9935f43fa7275af45c539081a34af28b04714ecd7963de2fc3b67db3ab17e71` |
