@@ -778,7 +778,10 @@ impl Importer<'_> {
             }
             if child.is_element() && ["title", "desc"].contains(&child.tag_name().name()) {
                 if child.attributes().len() != 0 || child.children().any(|c| c.is_element()) {
-                    return Err(unsupported("Only plain title/desc text is supported"));
+                    return Err(reuse::located(
+                        unsupported("Only plain title/desc text is supported"),
+                        child,
+                    ));
                 }
                 let value = child
                     .children()
@@ -786,7 +789,10 @@ impl Importer<'_> {
                     .collect::<String>();
                 if child.tag_name().name() == "title" {
                     if title {
-                        return Err(unsupported("At most one title per element is supported"));
+                        return Err(reuse::located(
+                            unsupported("At most one title per element is supported"),
+                            child,
+                        ));
                     }
                     title = true;
                     name = value;
@@ -887,6 +893,7 @@ impl Importer<'_> {
             self.mappings.push(mapping);
         }
         self.bindings.push(definitions::Binding {
+            location: Some(reuse::Location::new(node, &self.use_path)),
             index: self.document.items.len(),
             style: style.clone(),
             clip: props
@@ -925,7 +932,10 @@ impl Importer<'_> {
         for child in node.children().filter(|c| c.is_element()) {
             if child.tag_name().name() == "metadata" {
                 if node.parent_element().is_some() {
-                    return Err(unsupported("Metadata is supported only at the SVG root"));
+                    return Err(reuse::located(
+                        unsupported("Metadata is supported only at the SVG root"),
+                        child,
+                    ));
                 }
                 continue;
             }
@@ -936,9 +946,10 @@ impl Importer<'_> {
                 continue;
             }
             if !container || tag == "use" {
-                return Err(unsupported(format!(
-                    "Child elements in <{tag}> are not supported"
-                )));
+                return Err(reuse::located(
+                    unsupported(format!("Child elements in <{tag}> are not supported")),
+                    child,
+                ));
             }
             self.visit(child, Some(id.clone()), &style, None)?;
         }
@@ -1293,14 +1304,18 @@ fn import_text(
     if !importer.approximations.is_empty() {
         importer.losses.push("Elliptical arcs and rounded rectangle corners become editable tangent cubics (degenerate arcs become lines or no segment). The approximations receipt bounds radial error in source-element local units, before transforms and excluding binary64 roundoff. Original arc/corner parameters are not retained.".into());
     }
-    importer
-        .definitions
-        .apply(&mut importer.document, &importer.bindings, user_viewport)?;
+    importer.definitions.apply(
+        &mut importer.document,
+        &importer.bindings,
+        user_viewport,
+        &xml,
+    )?;
     masking::apply(
         &mut importer.document,
         &importer.bindings,
         &importer.definitions.masks,
         importer.modern_masks,
+        &xml,
     )?;
     if !importer.definitions.masks.is_empty() {
         importer.losses.push("SVG mask definitions become shared editable nonprinting artwork sources. Region/content units and text baseline coordinates resolve into reference transforms at import; later geometry edits do not automatically resize object-box masks. Definition display/opacity do not affect mask content. Snapshots preserve shared references; SVG export copies each reference and outlines text.".into());

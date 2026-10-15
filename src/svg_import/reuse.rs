@@ -5,6 +5,40 @@ use std::collections::HashMap;
 
 pub(super) const ATTRIBUTES: &[&str] = &["href", "x", "y", "width", "height"];
 
+/// Source identity retained through late resource resolution. Positions are
+/// calculated only on failure, avoiding repeated scans of long source strings.
+#[derive(Clone, Copy)]
+pub(super) struct Location {
+    node: NodeId,
+    use_offset: Option<u64>,
+}
+impl Location {
+    pub fn new(node: Node<'_, '_>, use_path: &[Value]) -> Self {
+        Self {
+            node: node.id(),
+            use_offset: use_path.first().and_then(|row| row["byte_offset"].as_u64()),
+        }
+    }
+    pub fn locate(self, error: Error, xml: &roxmltree::Document<'_>) -> Error {
+        let mut error = located(
+            error,
+            xml.get_node(self.node)
+                .expect("location belongs to this import"),
+        );
+        if let Some(offset) = self.use_offset {
+            error
+                .details
+                .as_mut()
+                .unwrap()
+                .as_object_mut()
+                .unwrap()
+                .entry("use_byte_offset")
+                .or_insert_with(|| json!(offset));
+        }
+        error
+    }
+}
+
 pub(super) fn located(mut error: Error, node: Node<'_, '_>) -> Error {
     let position = node.document().text_pos_at(node.range().start);
     let details = error.details.get_or_insert_with(|| Box::new(json!({})));
@@ -346,11 +380,17 @@ fn template_children<'a, 'input>(node: Node<'a, 'input>) -> Result<Vec<Node<'a, 
         }
         if ["title", "desc"].contains(&child.tag_name().name()) {
             if child.attributes().len() != 0 || child.children().any(|n| n.is_element()) {
-                return Err(unsupported("Template descriptions require plain text"));
+                return Err(located(
+                    unsupported("Template descriptions require plain text"),
+                    child,
+                ));
             }
             if child.has_tag_name("title") {
                 if title {
-                    return Err(unsupported("At most one title per element is supported"));
+                    return Err(located(
+                        unsupported("At most one title per element is supported"),
+                        child,
+                    ));
                 }
                 title = true;
             }

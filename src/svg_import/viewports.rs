@@ -241,6 +241,7 @@ impl Importer<'_> {
             filters: vec![],
         });
         self.bindings.push(definitions::Binding {
+            location: None,
             index,
             style: Style::default(),
             clip: None,

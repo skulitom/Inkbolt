@@ -1165,6 +1165,55 @@ fn action_fingerprint(expected_revision: u64, action: &Action) -> Result<String,
         &json!({"expected_revision":expected_revision,"action":action}),
     )?))
 }
+fn matches_action_fingerprint(
+    expected_revision: u64,
+    action: &Action,
+    current: &str,
+    saved: &str,
+) -> Result<bool, Error> {
+    if current == saved {
+        return Ok(true);
+    }
+    let Action::Edit { operations, .. } = action else {
+        return Ok(false);
+    };
+    let mut has_svg = false;
+    for operation in operations {
+        if let edit::Operation::AddSvg { unsupported, .. } = operation {
+            has_svg = true;
+            if *unsupported != crate::svg_import::UnsupportedPolicy::Error {
+                return Ok(false);
+            }
+        }
+    }
+    if !has_svg {
+        return Ok(false);
+    }
+    // These are the two historical AddSvg serializers, not arbitrary missing-field
+    // combinations. The caller already checked finite values in the current hash.
+    // New receipts always retain that current identity; old rows are never rewritten.
+    let mut historical = json!({"expected_revision":expected_revision,"action":action});
+    let default_images = json!(crate::svg_import::ImageOptions::default());
+    let mut all_images_default = true;
+    for operation in historical["action"]["operations"].as_array_mut().unwrap() {
+        if operation["op"] == "add_svg" {
+            operation.as_object_mut().unwrap().remove("unsupported");
+            all_images_default &= operation["images"] == default_images;
+        }
+    }
+    if assets::sha256(&encode(&historical)?) == saved {
+        return Ok(true);
+    }
+    if !all_images_default {
+        return Ok(false);
+    }
+    for operation in historical["action"]["operations"].as_array_mut().unwrap() {
+        if operation["op"] == "add_svg" {
+            operation.as_object_mut().unwrap().remove("images");
+        }
+    }
+    Ok(assets::sha256(&encode(&historical)?) == saved)
+}
 pub fn mutate(
     root: &Path,
     session_id: &str,
@@ -1200,7 +1249,7 @@ fn mutate_checked(
         .map_err(sql)?;
     let meta = read_meta(&tx, session_id)?;
     if let Some((old, receipt)) = request(&tx, request_id)? {
-        if old != fingerprint {
+        if !matches_action_fingerprint(expected_revision, action, &fingerprint, &old)? {
             return Err(Error::new(
                 "REQUEST_ID_REUSED",
                 "Request ID was already used for different content",
@@ -1278,7 +1327,13 @@ pub fn apply_proposal(
             "Proposal version and content hashes must match the version-one dry-run contract",
         ));
     }
-    if action_fingerprint(proposal.expected_revision, action)? != proposal.request_fingerprint {
+    let fingerprint = action_fingerprint(proposal.expected_revision, action)?;
+    if !matches_action_fingerprint(
+        proposal.expected_revision,
+        action,
+        &fingerprint,
+        &proposal.request_fingerprint,
+    )? {
         return Err(Error::new(
             "PROPOSAL_MISMATCH",
             "Action or expected revision differs from the reviewed proposal",
@@ -1310,17 +1365,19 @@ pub fn dry_run(
     let tx = db.transaction().map_err(sql)?;
     let meta = read_meta(&tx, session_id)?;
     if let Some((old, _)) = request(&tx, request_id)? {
-        return Err(if old == fingerprint {
-            Error::new(
-                "REQUEST_ALREADY_COMMITTED",
-                "This request was already committed; recover it with session.receipt",
-            )
-        } else {
-            Error::new(
-                "REQUEST_ID_REUSED",
-                "Request ID was already used for different content",
-            )
-        });
+        return Err(
+            if matches_action_fingerprint(expected_revision, action, &fingerprint, &old)? {
+                Error::new(
+                    "REQUEST_ALREADY_COMMITTED",
+                    "This request was already committed; recover it with session.receipt",
+                )
+            } else {
+                Error::new(
+                    "REQUEST_ID_REUSED",
+                    "Request ID was already used for different content",
+                )
+            },
+        );
     }
     let (mut before, base_hash) = load_state(&tx, meta.current_state)?;
     before.document.revision = u64::from(meta.revision);

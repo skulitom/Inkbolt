@@ -33,7 +33,10 @@ The importer removes the whole element and its descendants, then retries on a
 private candidate. An unsupported attribute removes its owning element; an
 unsupported embedded stylesheet removes the entire `style` element. Inline
 styles belong to their element. A failure specific to a `use` placement removes
-that placement. References to IDs removed by these omissions cause their owning
+that placement. Late paint and mask resolution retain their source element and
+placement, including unsupported gradient focus and empty effect bounds.
+Unsupported child descriptions, gradient stops and image children retain their
+own locations so supported container artwork survives. References to IDs removed by these omissions cause their owning
 elements to be omitted with a dependency reason. Truly missing references still
 fail. Removed text or styles can change the remaining layout and appearance;
 this is explicitly degraded import, not a fidelity guarantee.
@@ -63,8 +66,9 @@ allowed, separately from the existing source, XML, scene and per-attempt work
 limits. Insertion keeps ordinary atomic batch, proposal, retry and history
 semantics. The original file is never rewritten and these passes publish no
 resource files. [Focused Windows/Linux verification](DEVELOPMENT_STATUS.md#w3a8-omission-policy-implemented-milestone-open)
-passed for this increment. The remaining unsupported-owner audit, cumulative-work
-boundary evidence and fresh full W3a.8 milestone acceptance remain open.
+passed for the initial increment. Subsequent focused checks cover late resource
+owners and both sides of the attempt/cumulative-byte boundaries, including the
+final successful attempt. Fresh full W3a.8 milestone acceptance remains open.
 
 ## Insert into an existing document
 
@@ -551,7 +555,7 @@ Opacity masks inside a mask source, mask-definition transforms, images, filters 
 
 ## Explicit boundaries
 
-Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Image sources beyond the PNG/JPEG contract above, filters, animations, scripts and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
+With the default strict policy, unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. The explicit [omission policy](#explicit-omission-reports) can discard eligible source elements and report the loss; it never enables silent skipping or adds support for their semantics. Image sources beyond the PNG/JPEG contract above, filters, animations, scripts and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on strict import. Support is bounded by the declared element/property contracts.
 
 Standard input is at most 256 KiB and 4096 XML nodes. Explicit `resource_profile: "large_vector"` admits 8 MiB, 65536 XML nodes, 8192 items and 131072 aggregate commands within an 8 MiB snapshot; see [LARGE_VECTOR.md](LARGE_VECTOR.md). XML DTD declarations/markers and processing instructions are rejected; no entity resolver is installed. UTF-8 is required (an optional UTF-8 BOM is retained in the source hash). Local files are opened read-only, checked for regular-file semantics and read with a hard byte cap. Each numeric sequence is bounded to 32768 tokens, each transform list to 64 functions, definitions to 64 and gradient reference chains to 16, and all imported geometry participates in profile-specific limits (standard: 256 items including the root, 16 ancestor levels, 4096 aggregate path commands, coordinate/transform bounds and a 768 KiB snapshot). Rendering retains its separate work/pixel budgets. Cancellation is checked during node traversal and document validation; blocking filesystem reads are not forcefully interrupted.
 

@@ -2099,11 +2099,40 @@ Source archive entries and every indexed hash were independently reread.
 Only status Markdown and one fixture's trailing whitespace changed after that
 capture; engine bytes and fixture syntax trees remain identical.
 
-This is focused development evidence, not complete milestone acceptance.
-Late paint/mask resolution still has unlocated unsupported errors, which remain
-fatal. Finish their ownership audit and the cumulative source-processing budget
-boundary check, then run fresh full Windows/Linux acceptance before closing
-W3a.8. The original checkpoint registry and broader goal remain unchanged.
+Subsequent late-resource work retains the source node and outermost placement
+through gradient resolution, paints, clips and masks. Positions are calculated
+only on error. Unsupported child descriptions, stops and image children retain
+their own owners; malformed mask literals and conflicting gradient references
+remain fatal. A retained-source review covers structural/global validation,
+styles, ordinary artwork, text, definitions, reuse and late resource application.
+Root/global failures still refuse a document, and errors outside
+`SVG_UNSUPPORTED` never become omissions.
+
+The follow-up Windows selection passed all eleven stages fresh in 76.5 seconds:
+88 Python tests executed, one explicit unavailable-symlink skip, and the new
+Rust cumulative-work boundary test. All 26 omission fixtures ran. The boundary
+test checks inputs immediately below/above the total byte ceiling, counts the
+successful attempt and proves an excess attempt never reaches the strict
+importer. The preceding failed run exposed a test search that matched
+`linearGradient` while looking for `line`; its corrected source-location
+assertion passes. Reports are retained as `w3a-omissions-windows-03/04`.
+
+The subsequent full Windows run passed all 253 stages fresh on unchanged inputs
+in 926.9 seconds, with 217 Rust tests, 2675 Python tests executed and 13 explicit
+skips. During its requirement review, an additional upgrade check exposed an
+older strict SVG action fingerprint mismatch. That suite pass therefore does
+not close the milestone. The pre-fix report/source are retained separately in
+`w3a-omissions-acceptance-01`.
+
+Historical action fixtures independently reconstruct both original SVG request
+encodings and their SQLite checksums. They reproduce rejected retries/proposals
+before the fix. Compatibility now accepts only those historical formats with
+default newly introduced fields; current identities, saved rows, changed-action
+rejection and proposal content checks remain intact. The first corrected
+Windows selection passed all nine stages fresh in 79.7 seconds. Final docs and
+capability assertions follow that selection. Fresh full Windows/Linux
+acceptance on the final candidate remains required before closing W3a.8. The
+original checkpoint registry and broader goal remain unchanged.
 
 ## W3b: complete within the insertion contract
 

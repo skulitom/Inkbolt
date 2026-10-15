@@ -84,9 +84,17 @@ impl Template {
         {
             let value = node.attribute(key).unwrap_or(default).trim();
             region[i] = if region_box && !value.ends_with('%') {
-                Coordinate::User(number(value).map_err(|_| {
-                    unsupported("Object-box mask regions require unitless numbers or percentages")
-                })?)
+                match number(value) {
+                    Ok(number) => Coordinate::User(number),
+                    Err(_) => {
+                        // Preserve invalid literal failures; only valid lengths
+                        // in unsupported units are eligible for omission.
+                        length(value)?;
+                        return Err(unsupported(
+                            "Object-box mask regions require unitless numbers or percentages",
+                        ));
+                    }
+                }
             } else {
                 Coordinate::parse(value)?
             };
@@ -160,17 +168,24 @@ impl Importer<'_> {
             let mut title = None;
             for child in node.children() {
                 if child.is_text() && !child.text().unwrap_or("").trim().is_empty() {
-                    return Err(unsupported(
-                        "Mask containers require artwork elements, not raw text",
+                    return Err(reuse::Location::new(node, &self.use_path).locate(
+                        unsupported("Mask containers require artwork elements, not raw text"),
+                        node.document(),
                     ));
                 }
                 if child.is_element() && ["title", "desc"].contains(&child.tag_name().name()) {
                     if child.attributes().len() != 0 || child.children().any(|c| c.is_element()) {
-                        return Err(unsupported("Mask descriptions require plain text"));
+                        return Err(reuse::Location::new(child, &self.use_path).locate(
+                            unsupported("Mask descriptions require plain text"),
+                            node.document(),
+                        ));
                     }
                     if child.tag_name().name() == "title" {
                         if title.is_some() {
-                            return Err(unsupported("At most one title per mask is supported"));
+                            return Err(reuse::Location::new(child, &self.use_path).locate(
+                                unsupported("At most one title per mask is supported"),
+                                node.document(),
+                            ));
                         }
                         title = Some(
                             child
@@ -210,6 +225,7 @@ impl Importer<'_> {
                 filters: vec![],
             });
             self.bindings.push(Binding {
+                location: Some(reuse::Location::new(node, &self.use_path)),
                 index,
                 style: template.style.clone(),
                 clip: template.clip.clone(),
@@ -260,51 +276,56 @@ pub(super) fn apply(
     bindings: &[Binding],
     masks: &BTreeMap<String, Template>,
     modern: bool,
+    xml: &roxmltree::Document<'_>,
 ) -> Result<(), Error> {
     for b in bindings {
         let Some(id) = &b.style.mask else {
             continue;
         };
-        let template = masks.get(id).ok_or_else(|| {
-            invalid(format!(
-                "Missing or wrong-type mask reference: {}",
-                scopes::source_id(id)
-            ))
-        })?;
-        let clip_region = !modern || template.explicit_region;
-        let bounds = local_bounds(document, b.index, identity(), bindings);
-        let user = geometry::inverse(b.text_placement)?;
-        let bbox = if template.content_box || (clip_region && template.region_box) {
-            bbox_matrix(bounds)?
-        } else {
-            identity()
-        };
-        let content = if template.content_box { bbox } else { user };
-        let region_to_owner = if template.region_box { bbox } else { user };
-        let basis = if template.region_box {
-            [1.0, 1.0]
-        } else {
-            b.viewport
-        };
-        let mut region = std::array::from_fn(|i| template.region[i].value(basis[i % 2]));
-        // CSS Masking disables a nonpositive region; SVG 1.x negatives were
-        // rejected even on unused definitions during collection.
-        region[2] = region[2].max(0.0);
-        region[3] = region[3].max(0.0);
-        document.items[b.index].artwork_mask = Some(Box::new(Mask {
-            source: template
-                .sources
-                .get(&viewport_key(b.viewport))
-                .cloned()
-                .ok_or_else(|| invalid("Mask viewport context was not prepared"))?,
-            region,
-            clip_region,
-            mode: b.style.mask_mode.unwrap_or(template.style.mask_type),
-            transform: content,
-            region_transform: geometry::relative_transform(content, &[region_to_owner])?,
-            linked: true,
-            enabled: true,
-        }));
+        let result = (|| {
+            let template = masks.get(id).ok_or_else(|| {
+                invalid(format!(
+                    "Missing or wrong-type mask reference: {}",
+                    scopes::source_id(id)
+                ))
+            })?;
+            let clip_region = !modern || template.explicit_region;
+            let bounds = local_bounds(document, b.index, identity(), bindings);
+            let user = geometry::inverse(b.text_placement)?;
+            let bbox = if template.content_box || (clip_region && template.region_box) {
+                bbox_matrix(bounds)?
+            } else {
+                identity()
+            };
+            let content = if template.content_box { bbox } else { user };
+            let region_to_owner = if template.region_box { bbox } else { user };
+            let basis = if template.region_box {
+                [1.0, 1.0]
+            } else {
+                b.viewport
+            };
+            let mut region = std::array::from_fn(|i| template.region[i].value(basis[i % 2]));
+            // CSS Masking disables a nonpositive region; SVG 1.x negatives were
+            // rejected even on unused definitions during collection.
+            region[2] = region[2].max(0.0);
+            region[3] = region[3].max(0.0);
+            document.items[b.index].artwork_mask = Some(Box::new(Mask {
+                source: template
+                    .sources
+                    .get(&viewport_key(b.viewport))
+                    .cloned()
+                    .ok_or_else(|| invalid("Mask viewport context was not prepared"))?,
+                region,
+                clip_region,
+                mode: b.style.mask_mode.unwrap_or(template.style.mask_type),
+                transform: content,
+                region_transform: geometry::relative_transform(content, &[region_to_owner])?,
+                linked: true,
+                enabled: true,
+            }));
+            Ok(())
+        })();
+        result.map_err(|error| b.locate(error, xml))?;
     }
     Ok(())
 }

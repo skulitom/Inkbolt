@@ -319,3 +319,61 @@ pub(super) fn import(
         "SVG omission attempt limit exceeded",
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn omission_source_work_budget_counts_success_and_stops_before_excess_work() {
+        let bytes_per_source = crate::limits::svg_import::MAX_LARGE_BYTES;
+        let attempts_that_fit = MAX_OMISSION_SOURCE_BYTES / bytes_per_source;
+        let marker = "<foreignObject/>";
+        // Equal-size original inputs straddle the aggregate byte boundary.
+        // Each removed marker shortens the next input by its exact byte length.
+        for removed in [attempts_that_fit - 1, attempts_that_fit] {
+            let tail = format!("-->{}</svg>", marker.repeat(removed));
+            let opening = "<svg><!--";
+            let source = format!(
+                "{opening}{}{tail}",
+                "x".repeat(bytes_per_source - opening.len() - tail.len())
+            );
+            let required =
+                (removed + 1) * bytes_per_source - marker.len() * removed * (removed + 1) / 2;
+            let mut calls = 0usize;
+            let mut charged = 0usize;
+            let result = import(
+                &source,
+                MAX_LARGE_NODES,
+                &crate::control::Control::default(),
+                |filtered, _| {
+                    calls += 1;
+                    charged += filtered.len();
+                    assert!(charged <= MAX_OMISSION_SOURCE_BYTES);
+                    if let Some(offset) = filtered.find(marker) {
+                        let mut error = unsupported("Original unsupported fixture element");
+                        error.details = Some(Box::new(json!({"byte_offset":offset})));
+                        Err(error)
+                    } else {
+                        Ok(
+                            json!({"source":{},"mapping":[],"definitions":[],"approximations":[],"reuse":[],"losses":[]}),
+                        )
+                    }
+                },
+            );
+            if required <= MAX_OMISSION_SOURCE_BYTES {
+                assert_eq!(
+                    result.unwrap()["omissions"].as_array().unwrap().len(),
+                    removed
+                );
+                assert_eq!(charged, required);
+                assert_eq!(calls, removed + 1);
+            } else {
+                let error = result.unwrap_err();
+                assert_eq!(error.code, "RESOURCE_LIMIT");
+                assert!(error.message.contains("source-processing"));
+                assert_eq!(calls, attempts_that_fit);
+            }
+        }
+    }
+}

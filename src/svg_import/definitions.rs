@@ -59,6 +59,7 @@ impl Coordinate {
 }
 #[derive(Clone)]
 struct Gradient {
+    location: reuse::Location,
     radial: bool,
     template: Option<String>,
     attributes: BTreeMap<String, String>,
@@ -97,6 +98,7 @@ pub(super) struct Definitions {
     pub masks: BTreeMap<String, masking::Template>,
 }
 pub(super) struct Binding {
+    pub location: Option<reuse::Location>,
     pub index: usize,
     pub style: Style,
     pub clip: Option<String>,
@@ -105,6 +107,14 @@ pub(super) struct Binding {
     pub text_placement: Matrix,
     pub viewport: [f64; 2],
     pub text_ranges: Vec<Style>,
+}
+impl Binding {
+    pub fn locate(&self, error: Error, xml: &roxmltree::Document<'_>) -> Error {
+        match self.location {
+            Some(location) => location.locate(error, xml),
+            None => error,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -142,7 +152,10 @@ fn elements<'a, 'input>(node: Node<'a, 'input>) -> Result<Vec<Node<'a, 'input>>,
             }
             if ["title", "desc"].contains(&child.tag_name().name()) {
                 if child.attributes().len() != 0 || child.children().any(|c| c.is_element()) {
-                    return Err(unsupported("Definition descriptions require plain text"));
+                    return Err(reuse::located(
+                        unsupported("Definition descriptions require plain text"),
+                        child,
+                    ));
                 }
             } else {
                 out.push(child);
@@ -216,7 +229,7 @@ impl Definitions {
         let name = scopes.key(&id(node)?);
         match node.tag_name().name() {
             "linearGradient" | "radialGradient" => {
-                self.gradient(node, inherited, name.clone(), styles, scopes)?
+                self.gradient(node, inherited, name.clone(), styles, scopes, use_path)?
             }
             "clipPath" => self.clip(node, inherited, name.clone(), styles)?,
             "mask" => {
@@ -239,6 +252,7 @@ impl Definitions {
         id: String,
         styles: &styles::Sheet,
         scopes: &scopes::Scopes,
+        use_path: &[Value],
     ) -> Result<(), Error> {
         let radial = node.tag_name().name() == "radialGradient";
         let extras: &[&str] = if radial {
@@ -278,7 +292,7 @@ impl Definitions {
         let href = node.attribute("href");
         let xlink = node.attribute(("http://www.w3.org/1999/xlink", "href"));
         if href.is_some() && xlink.is_some() && href != xlink {
-            return Err(unsupported("Conflicting href and xlink:href references"));
+            return Err(invalid("Conflicting href and xlink:href references"));
         }
         let template = href
             .or(xlink)
@@ -318,45 +332,50 @@ impl Definitions {
         let mut stops = Vec::new();
         let mut previous = 0.0f64;
         for child in elements(node)? {
-            if child.tag_name().name() != "stop" {
-                return Err(unsupported("Gradients accept stop elements only"));
-            }
-            let props = properties(child, &["offset"], styles)?;
-            if child.has_attribute("transform")
-                || props.contains_key("clip-path")
-                || props.get("mask").is_some_and(|v| *v != "none")
-                || !elements(child)?.is_empty()
-            {
-                return Err(unsupported(
-                    "Transformed, clipped or nested gradient stops are unsupported",
-                ));
-            }
-            styled(&style, &props)?;
-            let raw_offset = required(child, "offset")?.trim();
-            let offset = if let Some(value) = raw_offset.strip_suffix('%') {
-                number(value)? / 100.0
-            } else {
-                number(raw_offset)?
-            };
-            let offset = offset.clamp(0.0, 1.0).max(previous);
-            previous = offset;
-            stops.push(StopTemplate {
-                offset,
-                properties: props
-                    .into_iter()
-                    .map(|(k, v)| (k.to_owned(), v.to_owned()))
-                    .collect(),
-            });
-            if stops.len() > crate::paint::MAX_STOPS {
-                return Err(Error::new(
-                    "RESOURCE_LIMIT",
-                    format!("SVG gradient exceeds {} stops", crate::paint::MAX_STOPS),
-                ));
-            }
+            let result = (|| {
+                if child.tag_name().name() != "stop" {
+                    return Err(unsupported("Gradients accept stop elements only"));
+                }
+                let props = properties(child, &["offset"], styles)?;
+                if child.has_attribute("transform")
+                    || props.contains_key("clip-path")
+                    || props.get("mask").is_some_and(|v| *v != "none")
+                    || !elements(child)?.is_empty()
+                {
+                    return Err(unsupported(
+                        "Transformed, clipped or nested gradient stops are unsupported",
+                    ));
+                }
+                styled(&style, &props)?;
+                let raw_offset = required(child, "offset")?.trim();
+                let offset = if let Some(value) = raw_offset.strip_suffix('%') {
+                    number(value)? / 100.0
+                } else {
+                    number(raw_offset)?
+                };
+                let offset = offset.clamp(0.0, 1.0).max(previous);
+                previous = offset;
+                stops.push(StopTemplate {
+                    offset,
+                    properties: props
+                        .into_iter()
+                        .map(|(k, v)| (k.to_owned(), v.to_owned()))
+                        .collect(),
+                });
+                if stops.len() > crate::paint::MAX_STOPS {
+                    return Err(Error::new(
+                        "RESOURCE_LIMIT",
+                        format!("SVG gradient exceeds {} stops", crate::paint::MAX_STOPS),
+                    ));
+                }
+                Ok(())
+            })();
+            result.map_err(|error| reuse::located(error, child))?;
         }
         self.gradients.insert(
             id,
             Gradient {
+                location: reuse::Location::new(node, use_path),
                 radial,
                 template,
                 attributes,
@@ -467,69 +486,73 @@ impl Definitions {
         }
         Ok(g)
     }
-    fn resolved(&self) -> Result<BTreeMap<String, Resolved>, Error> {
+    fn resolved(&self, xml: &roxmltree::Document<'_>) -> Result<BTreeMap<String, Resolved>, Error> {
         let mut out = BTreeMap::new();
         for id in self.gradients.keys() {
-            let g = self.inherited_gradient(id, &mut vec![])?;
-            let get = |key: &str, default: &str| {
-                g.attributes
-                    .get(key)
-                    .map(String::as_str)
-                    .unwrap_or(default)
-                    .to_owned()
-            };
-            let mut coordinates = BTreeMap::new();
-            for (k, d) in if g.radial {
-                vec![("cx", "50%"), ("cy", "50%"), ("r", "50%")]
-            } else {
-                vec![("x1", "0%"), ("y1", "0%"), ("x2", "100%"), ("y2", "0%")]
-            } {
-                coordinates.insert(k.to_owned(), Coordinate::parse(&get(k, d))?);
-            }
-            // Focal points are checked against the resolved center at use time.
-            if g.radial {
-                for k in ["fx", "fy"] {
-                    if let Some(v) = g.attributes.get(k) {
-                        coordinates.insert(k.to_owned(), Coordinate::parse(v)?);
+            let result = (|| {
+                let g = self.inherited_gradient(id, &mut vec![])?;
+                let get = |key: &str, default: &str| {
+                    g.attributes
+                        .get(key)
+                        .map(String::as_str)
+                        .unwrap_or(default)
+                        .to_owned()
+                };
+                let mut coordinates = BTreeMap::new();
+                for (k, d) in if g.radial {
+                    vec![("cx", "50%"), ("cy", "50%"), ("r", "50%")]
+                } else {
+                    vec![("x1", "0%"), ("y1", "0%"), ("x2", "100%"), ("y2", "0%")]
+                } {
+                    coordinates.insert(k.to_owned(), Coordinate::parse(&get(k, d))?);
+                }
+                // Focal points are checked against the resolved center at use time.
+                if g.radial {
+                    for k in ["fx", "fy"] {
+                        if let Some(v) = g.attributes.get(k) {
+                            coordinates.insert(k.to_owned(), Coordinate::parse(v)?);
+                        }
                     }
                 }
-            }
-            // SVG template children behave like a cloned subtree. Recompute
-            // inherited presentation in the final gradient's XML context.
-            let stops = g
-                .stops
-                .iter()
-                .map(|stop| -> Result<Stop, Error> {
-                    let props = stop
-                        .properties
-                        .iter()
-                        .map(|(k, v)| (k.as_str(), v.as_str()))
-                        .collect();
-                    let style = styled(&g.style, &props)?;
-                    let mut rgba = if style.stop_color == "currentColor" {
-                        style.color
-                    } else {
-                        color(&style.stop_color)?
-                    };
-                    rgba[3] = (rgba[3] as f64 * style.stop_opacity).round() as u8;
-                    Ok(Stop {
-                        offset: stop.offset,
-                        color: rgba,
+                // SVG template children behave like a cloned subtree. Recompute
+                // inherited presentation in the final gradient's XML context.
+                let stops = g
+                    .stops
+                    .iter()
+                    .map(|stop| -> Result<Stop, Error> {
+                        let props = stop
+                            .properties
+                            .iter()
+                            .map(|(k, v)| (k.as_str(), v.as_str()))
+                            .collect();
+                        let style = styled(&g.style, &props)?;
+                        let mut rgba = if style.stop_color == "currentColor" {
+                            style.color
+                        } else {
+                            color(&style.stop_color)?
+                        };
+                        rgba[3] = (rgba[3] as f64 * style.stop_opacity).round() as u8;
+                        Ok(Stop {
+                            offset: stop.offset,
+                            color: rgba,
+                        })
                     })
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            out.insert(
-                id.clone(),
-                Resolved {
-                    radial: g.radial,
-                    bounding_box: bbox_unit(&get("gradientUnits", "objectBoundingBox"))?,
-                    transform: numbers::transform(&get("gradientTransform", ""))?,
-                    coordinates,
-                    stops,
-                    spread: spread(&get("spreadMethod", "pad"))?,
-                    space: g.space,
-                },
-            );
+                    .collect::<Result<Vec<_>, _>>()?;
+                out.insert(
+                    id.clone(),
+                    Resolved {
+                        radial: g.radial,
+                        bounding_box: bbox_unit(&get("gradientUnits", "objectBoundingBox"))?,
+                        transform: numbers::transform(&get("gradientTransform", ""))?,
+                        coordinates,
+                        stops,
+                        spread: spread(&get("spreadMethod", "pad"))?,
+                        space: g.space,
+                    },
+                );
+                Ok(())
+            })();
+            result.map_err(|error| self.gradients[id].location.locate(error, xml))?;
         }
         Ok(out)
     }
@@ -538,8 +561,9 @@ impl Definitions {
         document: &mut Document,
         bindings: &[Binding],
         viewport: [f64; 2],
+        xml: &roxmltree::Document<'_>,
     ) -> Result<(), Error> {
-        let resolved = self.resolved()?;
+        let resolved = self.resolved(xml)?;
         // Diagnose unsupported or out-of-range definitions even when unused.
         for id in resolved.keys() {
             resolve_paint(
@@ -549,56 +573,39 @@ impl Definitions {
                 &resolved,
                 Some([0.0, 0.0, 1.0, 1.0]),
                 viewport,
-            )?;
+            )
+            .map_err(|error| self.gradients[id].location.locate(error, xml))?;
         }
         for b in bindings {
-            let viewport = b.viewport;
-            for value in std::iter::once(&b.style)
-                .chain(&b.text_ranges)
-                .flat_map(|s| [&s.fill, &s.stroke])
-            {
-                if let Some(id) = reference(value)?
-                    && !resolved.contains_key(id)
+            let result = (|| {
+                let viewport = b.viewport;
+                for value in std::iter::once(&b.style)
+                    .chain(&b.text_ranges)
+                    .flat_map(|s| [&s.fill, &s.stroke])
                 {
-                    return Err(invalid(format!(
-                        "Missing or wrong-type gradient reference: {}",
-                        scopes::source_id(id)
-                    )));
+                    if let Some(id) = reference(value)?
+                        && !resolved.contains_key(id)
+                    {
+                        return Err(invalid(format!(
+                            "Missing or wrong-type gradient reference: {}",
+                            scopes::source_id(id)
+                        )));
+                    }
                 }
-            }
-            let bounds = local_bounds(document, b.index, identity(), bindings);
-            if let Content::Text { frame } = &mut document.items[b.index].content {
-                let paint_bounds = bounds.map(|v| {
-                    [
-                        v[0] + b.text_placement[4],
-                        v[1] + b.text_placement[5],
-                        v[2] + b.text_placement[4],
-                        v[3] + b.text_placement[5],
-                    ]
-                });
-                frame.style.fill = resolve_paint(
-                    &b.style.fill,
-                    b.style.fill_opacity,
-                    b.style.color,
-                    &resolved,
-                    paint_bounds,
-                    viewport,
-                )?
-                .unwrap_or(Paint::Solid([0; 4]));
-                if let Paint::Field(
-                    Field::Linear { transform, .. } | Field::Radial { transform, .. },
-                ) = &mut frame.style.fill
-                {
-                    *transform = geometry::relative_transform(b.text_placement, &[*transform])?;
-                }
-                if !b.style.visible {
-                    frame.style.fill = Paint::Solid([0; 4]);
-                }
-                for (range, style) in frame.ranges.iter_mut().zip(&b.text_ranges) {
-                    range.style.fill = resolve_paint(
-                        &style.fill,
-                        style.fill_opacity,
-                        style.color,
+                let bounds = local_bounds(document, b.index, identity(), bindings);
+                if let Content::Text { frame } = &mut document.items[b.index].content {
+                    let paint_bounds = bounds.map(|v| {
+                        [
+                            v[0] + b.text_placement[4],
+                            v[1] + b.text_placement[5],
+                            v[2] + b.text_placement[4],
+                            v[3] + b.text_placement[5],
+                        ]
+                    });
+                    frame.style.fill = resolve_paint(
+                        &b.style.fill,
+                        b.style.fill_opacity,
+                        b.style.color,
                         &resolved,
                         paint_bounds,
                         viewport,
@@ -606,62 +613,85 @@ impl Definitions {
                     .unwrap_or(Paint::Solid([0; 4]));
                     if let Paint::Field(
                         Field::Linear { transform, .. } | Field::Radial { transform, .. },
-                    ) = &mut range.style.fill
+                    ) = &mut frame.style.fill
                     {
                         *transform = geometry::relative_transform(b.text_placement, &[*transform])?;
                     }
-                    if !style.visible {
-                        range.style.fill = Paint::Solid([0; 4]);
+                    if !b.style.visible {
+                        frame.style.fill = Paint::Solid([0; 4]);
+                    }
+                    for (range, style) in frame.ranges.iter_mut().zip(&b.text_ranges) {
+                        range.style.fill = resolve_paint(
+                            &style.fill,
+                            style.fill_opacity,
+                            style.color,
+                            &resolved,
+                            paint_bounds,
+                            viewport,
+                        )?
+                        .unwrap_or(Paint::Solid([0; 4]));
+                        if let Paint::Field(
+                            Field::Linear { transform, .. } | Field::Radial { transform, .. },
+                        ) = &mut range.style.fill
+                        {
+                            *transform =
+                                geometry::relative_transform(b.text_placement, &[*transform])?;
+                        }
+                        if !style.visible {
+                            range.style.fill = Paint::Solid([0; 4]);
+                        }
                     }
                 }
-            }
-            if let Content::Vector { fill, stroke, .. } = &mut document.items[b.index].content {
-                *fill = resolve_paint(
-                    &b.style.fill,
-                    b.style.fill_opacity,
-                    b.style.color,
-                    &resolved,
-                    bounds,
-                    viewport,
-                )?;
-                if stroke.is_some() {
-                    let paint = resolve_paint(
-                        &b.style.stroke,
-                        b.style.stroke_opacity,
+                if let Content::Vector { fill, stroke, .. } = &mut document.items[b.index].content {
+                    *fill = resolve_paint(
+                        &b.style.fill,
+                        b.style.fill_opacity,
                         b.style.color,
                         &resolved,
                         bounds,
                         viewport,
                     )?;
-                    if let Some(paint) = paint {
-                        stroke.as_mut().unwrap().color = paint;
-                    } else {
-                        *stroke = None;
+                    if stroke.is_some() {
+                        let paint = resolve_paint(
+                            &b.style.stroke,
+                            b.style.stroke_opacity,
+                            b.style.color,
+                            &resolved,
+                            bounds,
+                            viewport,
+                        )?;
+                        if let Some(paint) = paint {
+                            stroke.as_mut().unwrap().color = paint;
+                        } else {
+                            *stroke = None;
+                        }
                     }
                 }
-            }
-            if let Some(id) = &b.clip {
-                let clip = self.clips.get(id).ok_or_else(|| {
-                    invalid(format!(
-                        "Missing or wrong-type clip reference: {}",
-                        scopes::source_id(id)
-                    ))
-                })?;
-                let transform = if clip.bounding_box && !clip.empty {
-                    geometry::relative_transform(
-                        identity(),
-                        &[bbox_matrix(bounds)?, clip.transform],
-                    )?
-                } else {
-                    geometry::relative_transform(b.text_placement, &[clip.transform])?
-                };
-                document.items[b.index].clip = Some(Clip {
-                    geometry: clip.geometry.clone(),
-                    fill_rule: clip.rule,
-                    transform,
-                    enabled: true,
-                });
-            }
+                if let Some(id) = &b.clip {
+                    let clip = self.clips.get(id).ok_or_else(|| {
+                        invalid(format!(
+                            "Missing or wrong-type clip reference: {}",
+                            scopes::source_id(id)
+                        ))
+                    })?;
+                    let transform = if clip.bounding_box && !clip.empty {
+                        geometry::relative_transform(
+                            identity(),
+                            &[bbox_matrix(bounds)?, clip.transform],
+                        )?
+                    } else {
+                        geometry::relative_transform(b.text_placement, &[clip.transform])?
+                    };
+                    document.items[b.index].clip = Some(Clip {
+                        geometry: clip.geometry.clone(),
+                        fill_rule: clip.rule,
+                        transform,
+                        enabled: true,
+                    });
+                }
+                Ok(())
+            })();
+            result.map_err(|error| b.locate(error, xml))?;
         }
         Ok(())
     }

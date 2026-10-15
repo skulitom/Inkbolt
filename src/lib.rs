@@ -1162,6 +1162,7 @@ fn capability_report() -> Value {
         "scope":"located_unsupported_element_subtrees_and_known_omitted_dependencies",
         "source_locations":"original_utf8_byte_ranges_and_one_based_line_column",
         "root_omission":false,"invalid_xml_duplicate_ids_and_resource_failures":"error",
+        "late_paint_and_mask_locations":true,
         "max_attempts":limits::svg_import::MAX_OMISSION_ATTEMPTS,
         "max_source_processing_bytes":limits::svg_import::MAX_OMISSION_SOURCE_BYTES});
     svg_import_contract["text"]["span_children"] = json!(true);
@@ -1941,6 +1942,7 @@ fn capability_report() -> Value {
         "mcp_compact_first_tools":mcp::CORE_ENTRY_POINTS,
         "mcp_dispatcher":"inkbolt_run", "execution_validation":"complete_typed_request"
     });
+    capabilities["session_contract"]["svg_retry_fingerprints"] = json!({"accepted":["current","before_unsupported_policy","before_image_options"],"introduced_fields_must_equal_defaults":true,"stored_rows_rewritten":false});
     capabilities["session_proposals"] = json!({"dry_run":"session.dry_run","apply":"session.apply_proposal","version":1,"actions":"all_session_actions","database_dry_run_access":"read_only","history_changed_by_dry_run":false,"bound_inputs":["session_id","request_id","expected_revision","request_fingerprint","base_state_sha256","result_state_sha256"],"comparison":"structural_with_optional_pixels","preview":"optional_full_canvas_PNG_at_scale_one","persistent_proposal_store":false,"proposal_is_authorization":false,"history_storage_and_receipt_limits":"shared_with_real_apply;filesystem_commit_can_still_fail"});
     capabilities["paged_inspection"] = json!({"command":"document.inspect.page","collections":["items","assets","fonts","anchors"],"maximum_records":inspection::MAX_PAGE_ITEMS,"maximum_result_bytes":inspection::MAX_PAGE_BYTES,"cursor":"document_content_and_view_and_limit_bound","order":"document_storage_for_items;id_for_resources;component_then_command_for_anchors","field_selection":true,"legacy_inspection":"unchanged","external_resources_verified":false});
     capabilities["document_checks"] = json!({"command":"document.check","report_version":1,"checks":["structure","pinned_resource_registries","authored_text_and_story_layout","retained_nested_snapshots","instance_replacement_content"],"maximum_issues":checks::MAX_ISSUES,"maximum_report_bytes":checks::MAX_REPORT_BYTES,"default_issues":limits::checks::DEFAULT_ISSUES,"font_axes":"validated_even_for_empty_text","incomplete":"explicit_for_skipped_layouts_or_stopped_work","errors":"located_original_codes_and_repair_guidance","external_object_links":"not_read_or_refreshed","delivery_certificate":false,"source_changed":false});

@@ -285,7 +285,10 @@ impl Importer<'_> {
         }
         for child in node.children().filter(Node::is_element) {
             if !["title", "desc", "style"].contains(&child.tag_name().name()) {
-                return Err(unsupported("SVG image artwork children are not supported"));
+                return Err(reuse::located(
+                    unsupported("SVG image artwork children are not supported"),
+                    child,
+                ));
             }
         }
         self.control.check()?;

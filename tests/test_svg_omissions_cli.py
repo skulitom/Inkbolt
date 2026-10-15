@@ -91,6 +91,88 @@ class SvgOmissionTests(unittest.TestCase):
                               '<rect id="m" mask="url(#p)" width="2" height="2"/>'+BOX)
         self.assertEqual([r['source_id'] for r in result['omissions']], ['p','g','r','m'])
 
+    def test_late_gradient_focus_failure_locates_definition_and_dependents(self):
+        gradient = ('<radialGradient id="focus" cx="50%" fx="20%">'
+                    '<stop offset="0" stop-color="red"/><stop offset="1" stop-color="blue"/></radialGradient>')
+        source = svg('<foreignObject/>'+gradient+'<rect id="dependent" width="4" height="4" fill="url(#focus)"/>'+BOX)
+        result = self.imported(source, unsupported='omit_and_report')
+        self.assertEqual([row['source_id'] for row in result['omissions']], [None,'focus','dependent'])
+        self.check_location(source,result['omissions'][1],gradient)
+        self.assertIn('Off-center',result['omissions'][1]['reason'])
+        strict = self.imported(svg(gradient),expected=1)
+        self.assertEqual(strict['details']['element'],'radialGradient')
+        self.assertEqual(self.pixels(result['document']),self.pixels(self.imported(svg(BOX))['document']))
+
+    def test_late_paint_clip_and_mask_box_failures_omit_each_geometry_owner(self):
+        defs = ('<defs><linearGradient id="paint"><stop offset="0" stop-color="red"/>'
+                '<stop offset="1" stop-color="blue"/></linearGradient>'
+                '<clipPath id="clip" clipPathUnits="objectBoundingBox"><rect width="1" height="1"/></clipPath>'
+                '<mask id="mask"><rect width="32" height="24" fill="white"/></mask></defs>')
+        for attr in ('stroke="url(#paint)"','stroke="red" clip-path="url(#clip)"','stroke="red" mask="url(#mask)"'):
+            with self.subTest(attr=attr):
+                line = f'<line id="zero-box" x1="0" y1="0" x2="4" y2="0" {attr}/>'
+                source = svg(defs+line+BOX)
+                result = self.imported(source,unsupported='omit_and_report')
+                self.assertEqual([row['source_id'] for row in result['omissions']],['zero-box'])
+                self.check_location(source,result['omissions'][0],line)
+                self.assertEqual(self.pixels(result['document']),self.pixels(self.imported(svg(BOX))['document']))
+
+    def test_late_use_failure_omits_placement_and_keeps_shared_template(self):
+        defs = ('<defs><linearGradient id="paint"><stop offset="0" stop-color="red"/>'
+                '<stop offset="1" stop-color="blue"/></linearGradient>'
+                '<g id="template"><line id="line" x1="1" y1="1" x2="8" y2="1"/></g></defs>')
+        bad = '<use id="bad" href="#template" stroke="url(#paint)"/>'
+        good = '<use id="good" href="#template" stroke="blue"/>'
+        source = svg(defs+bad+good)
+        result = self.imported(source,unsupported='omit_and_report')
+        self.assertEqual([row['source_id'] for row in result['omissions']],['bad'])
+        self.check_location(source,result['omissions'][0],bad)
+        self.assertEqual(result['omissions'][0]['cause']['byte_offset'],source.encode().index(b'<line id='))
+        self.assertEqual(result['omissions'][0]['cause']['use_byte_offset'],source.encode().index(b'<use'))
+        self.assertIn('good',[row['source_id'] for row in result['mapping']])
+        self.assertEqual(self.pixels(result['document']),self.pixels(self.imported(svg(defs+good))['document']))
+
+    def test_unsupported_child_descriptions_and_stops_leave_supported_owners(self):
+        source = svg('<title id="bad-title"><g/></title><title>Retained title</title>'+
+                     '<defs><linearGradient id="paint"><stop id="bad-stop" offset="0" transform="scale(2)"/>'+
+                     '<stop offset="1" stop-color="red"/></linearGradient></defs>'+
+                     '<rect id="r" width="4" height="4" fill="url(#paint)"><animate id="animation"/></rect>')
+        result = self.imported(source,unsupported='omit_and_report')
+        self.assertEqual([row['source_id'] for row in result['omissions']],['bad-title','bad-stop','animation'])
+        self.assertEqual(result['document']['items'][0]['name'],'Retained title')
+        w,h,p = self.pixels(result['document'])
+        self.assertEqual(p,bytes(v for y in range(h) for x in range(w) for v in ([255,0,0,255] if x<4 and y<4 else [0]*4)))
+
+    def test_mask_raw_text_and_description_failures_report_correct_source_owner(self):
+        result = self.omitted('<mask id="raw">unsupported text</mask><rect id="dependent" width="4" height="4" mask="url(#raw)"/>'+BOX)
+        self.assertEqual([row['source_id'] for row in result['omissions']],['raw','dependent'])
+        source = svg('<mask id="mask"><desc id="description"><g/></desc><rect width="32" height="24" fill="white"/></mask>'+BOX.replace('/>',' mask="url(#mask)"/>'))
+        result = self.imported(source,unsupported='omit_and_report')
+        self.assertEqual([row['source_id'] for row in result['omissions']],['description'])
+        self.assertEqual(self.pixels(result['document']),self.pixels(self.imported(svg(BOX))['document']))
+
+    def test_invalid_mask_literal_and_conflicting_gradient_references_still_fail(self):
+        for body in ('<mask id="m" width="oops"/>',
+                     '<linearGradient xmlns:xlink="http://www.w3.org/1999/xlink" id="g" href="#a" xlink:href="#b"/>'):
+            with self.subTest(body=body):
+                self.assertEqual(self.omitted(body,expected=1)['code'],'SVG_INVALID')
+
+    def test_template_description_omission_retains_reusable_artwork(self):
+        result = self.omitted('<defs><g id="template"><title id="description"><g/></title>'+BOX+
+                              '</g></defs><use id="placement" href="#template"/>')
+        self.assertEqual([row['source_id'] for row in result['omissions']],['description'])
+        self.assertIn('placement',[row['source_id'] for row in result['mapping']])
+        self.assertEqual(self.pixels(result['document']),self.pixels(self.imported(svg(BOX))['document']))
+
+    def test_image_child_omission_retains_encoded_resource_and_placement(self):
+        original = self.imported(svg(BOX))['document']
+        encoded = self.invoke(dict(command='document.export',document=original,format='png'))['data']
+        source = f'<image id="image" href="data:image/png;base64,{encoded}" width="32" height="24"><animate id="animation"/></image>'
+        result = self.omitted(source)
+        self.assertEqual([row['source_id'] for row in result['omissions']],['animation'])
+        self.assertEqual(len(result['document']['assets']),1)
+        self.assertEqual(self.pixels(result['document']),self.pixels(original))
+
     def test_missing_references_invalid_numbers_and_roots_still_fail(self):
         for body, code in [('<use href="#missing"/>','SVG_INVALID'),
                            ('<rect width="oops" height="2"/>','SVG_INVALID')]:
@@ -147,6 +229,8 @@ class SvgOmissionTests(unittest.TestCase):
         self.assertEqual(cap['insertion']['unsupported'], cap['unsupported'])
         self.assertEqual(self.omitted(' '*cap['source_bytes'], expected=1)['code'], 'RESOURCE_LIMIT')
         self.assertEqual(self.omitted('<foreignObject/>'*cap['unsupported']['max_attempts'], expected=1)['code'], 'RESOURCE_LIMIT')
+        fits = self.omitted('<foreignObject/>'*(cap['unsupported']['max_attempts']-1))
+        self.assertEqual(len(fits['omissions']),cap['unsupported']['max_attempts']-1)
         error = self.omitted('<foreignObject/>'+BOX, control=dict(timeout_ms=0), expected=1)
         self.assertIn(error['code'], ('TIMEOUT','CANCELLED','DEADLINE_EXCEEDED'))
 

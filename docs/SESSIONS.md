@@ -55,6 +55,15 @@ Each receipt contains request_id, revision, from_revision, action, label, from_s
 
 Provide a new request ID for each intended action. Retrying the same ID with the same normalized typed action and expected revision returns the original receipt and original document with `replayed:true`. `current_revision` and `current_state_id` describe the newer head, if any. A replay does not move history or reapply edits. A reused ID with different input fails with `REQUEST_ID_REUSED`.
 
+Strict `add_svg` requests saved before image options or the unsupported-content
+policy were introduced also replay. The two historical action encodings match
+only when the newly introduced fields have their original defaults. Every
+existing field, operation order and expected revision must still match. The
+same compatibility check applies to dry runs and reviewed proposals; proposals
+also retain their before/after content checks. New requests use the current
+encoding, and saved fingerprints and receipt bytes are never rewritten.
+Capabilities report these formats under `session_contract.svg_retry_fingerprints`.
+
 The retry lookup occurs before revision/cancellation checks: a committed creation or edit remains committed even if the retry has an expired deadline. Existing creation inputs still receive bounded validation without the newly expired control; invalid typed numbers cannot masquerade as missing JSON values in the fingerprint. New creation uses full controlled validation before reserving storage. Otherwise, a stale expected revision fails with `REVISION_CONFLICT`; inspect the current document before issuing a new action. Transactions serialize writers. `SESSION_BUSY` means the bounded 250 ms lock wait expired; retry the same request ID. A lost response or I/O error can leave commit outcome uncertain: inspect `session.receipt` or retry the original request rather than generating a new ID.
 
 `response_mode:"compact"` is optional on creation, continuation, read, apply, apply_proposal and receipt commands. It returns pinned document/receipt references and summaries; full responses remain the default. This presentation field is excluded from durable identity, so it may change on retry. See [compact responses](AGENT_RESPONSES.md). [Dry runs and checked proposals](SESSION_PROPOSALS.md) add read-only review before applying the same validated action; typed actions reject nonfinite numbers before retry fingerprinting.
