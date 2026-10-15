@@ -34,11 +34,12 @@ W1, any additional engine checkpoint, the scale targets or the overall goal.
 
 ## W1: core platform tier and hosted matrix verified; Unix jobs open
 
-The latest retained [hosted matrix at `c9a5532`](https://github.com/skulitom/Inkbolt/actions/runs/38738326742)
-passed all 249 fresh stages on Windows, Ubuntu and macOS, including nested SVG.
+The latest retained [hosted matrix at `d4692ea`](https://github.com/skulitom/Inkbolt/actions/runs/38791299542)
+passed all 255 fresh stages on Windows, Ubuntu and macOS, including SVG images,
+span ranges, omissions and request guidance.
 All three minimum-compiler checks also passed. Reports and logs are retained in
-`w1-public-ci-c9a5532`; see [platform evidence](PLATFORMS.md) for exact counts,
-timings and the audit identity. This hosted run predates image admission and
+`w1-public-ci-d4692ea`; see [platform evidence](PLATFORMS.md) for exact counts,
+timings and the audit identity. This hosted run predates native block migration and
 does not replace the mandatory local private publication guard.
 
 Linux tier 1 covers core/library/CLI/MCP, sessions and durable publication/history
@@ -2245,7 +2246,7 @@ bounded implementation and stop expanding the diagnostic approach on current
 evidence. The broader W5 acceptance, full twenty-task evaluation, other readiness
 gates and original checkpoint criteria remain unchanged.
 
-### Next W4.1 increment: remove cumulative native-edit exhaustion
+### W4.1: native block editing and store admission
 
 The separate accepted D7 target requires a 50 MP RGBA16 edit/history workflow
 within 512 MiB. Legacy stored layers retain at most 256 overlays and 65,536
@@ -2345,11 +2346,44 @@ Its 555 evidence files and 904 archived source entries were reread against their
 hashes. The initial failed fixture report is retained; the source archive binds
 the final candidate. Only status documentation changes after full acceptance.
 
-Next, implement aggregate native-store capacity admission across concurrent
-publishers, then bounded streaming import under W4.2, preserving old
-snapshots, exact history/retries, pure review proposals and immutable base blocks.
-Capacity admission must account for deduplicated new bytes and concurrent
-publishers, including interrupted work, without deleting historical blocks.
+Aggregate store admission is now verified within its
+[declared contract](NATIVE_COPY_ON_WRITE.md#aggregate-store-admission). An OS lock
+serializes growth against 16 GiB of native bytes and 65,536 root entries. Exact
+boundary tests charge unique missing blocks, interrupted stages and the temporary
+hard-link alias, preserving old blocks. Fully deduplicated publication bypasses
+capacity and lock waits. Cancellation, killed owners, cleanup failure and a
+rejected session edit preserve the applicable publication/history boundaries.
+Original receipts replay even after resources disappear.
+
+Final full suites passed all 256 stages fresh per platform with no failures,
+pending checks, reuse or outside-scope stages. Windows ran 238 Rust and 2,697
+Python tests in 765.562 seconds; Linux ran 204 Rust and 2,659 Python tests in
+469.958 seconds. The 13 Windows and 51 Linux Python skips retain the categories
+above; every applicable new storage test ran. The Unix symlink and Windows
+file-sharing cleanup fixtures run on their respective platforms.
+Concurrent runs are correctness evidence, not a platform performance comparison.
+
+Focused feedback took 82.0 seconds on Windows and 59.3 seconds on Linux after
+correcting two Windows assertions that read an exclusively locked file. The
+first Windows full run found two existing job-fixture commits failing on SQLite
+contention. Those fixtures now retry their original transaction within the same
+fixture wait bound; job deadlines and cancellation/output/attempt assertions are
+unchanged. The targeted correction passed in 53.2 seconds, then both complete
+suites passed. Earlier failures remain retained. Rust 1.89 also passed the
+Windows locked all-target check. Separate public CLI checks observed the actual
+busy error at 30.016 seconds on Windows and 30.006 on Linux, followed by exact
+successful publication after releasing the lock, with unchanged source bytes.
+
+The final full reports share unchanged input fingerprint
+`f0f1e817db34bcb3c743cc5b0e55f1f58f49adb1c6c45a3e8a9721ffb7d1beb5`.
+External `w4-store-admission-acceptance-02/audit.json` has SHA-256
+`5f126f7406cf1da5b9e4633cc60759394c9ffcf88f93c78b600ca2a3a37b408e`.
+Its 1,104 evidence files and 906 archived source entries were reread against their
+hashes, including the earlier failed candidate and public CLI evidence bound to
+the full-suite executables. Subsequent edits update status documentation only.
+
+Next, implement bounded streaming import under W4.2, preserving old snapshots,
+exact history/retries, pure review proposals and immutable base blocks.
 Streaming must bound encoded input, decoded bands and pending block retention.
 Keep the verified history/retry and exact-sample contracts while adding those
 bounds. Use targeted feedback within 180 seconds and full acceptance at the

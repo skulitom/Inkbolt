@@ -129,6 +129,56 @@ fn worker() {
 }
 
 #[test]
+fn capacity_failure_preserves_history_and_retry_replays_without_capacity_or_blocks() {
+    use crate::sample_store::admission::{Budget, with_test_budget};
+    let root = tests::TestRoot::new();
+    let original = initial(&root.0);
+    let before = read(&root.0, "native", None).unwrap();
+    let original_blocks = blocks(&root.0);
+    let empty = Budget {
+        bytes: 0,
+        entries: 0,
+    };
+    let error = with_test_budget(empty, || {
+        mutate(&root.0, "native", "edit", 0, &action(), &Control::default())
+    })
+    .unwrap_err();
+    assert_eq!(error.code, "RESOURCE_LIMIT");
+    assert_eq!(read(&root.0, "native", None).unwrap(), before);
+    assert_eq!(capture(&root.0, "native", 0).unwrap().document, original);
+    assert_eq!(blocks(&root.0), original_blocks);
+    assert_eq!(
+        receipt(&root.0, "native", "edit").unwrap_err().code,
+        "REQUEST_NOT_FOUND"
+    );
+    assert_eq!(
+        verify(&root.0, "native", &Control::default()).unwrap()["requests"],
+        1
+    );
+
+    let committed = mutate(&root.0, "native", "edit", 0, &action(), &Control::default()).unwrap();
+    check_result(&root.0, &committed);
+    assert_eq!(capture(&root.0, "native", 0).unwrap().document, original);
+    for (path, bytes) in original_blocks {
+        assert_eq!(fs::read(path).unwrap(), bytes);
+    }
+    // Missing dependencies cannot cause a previously committed request to run again.
+    for path in blocks(&root.0).keys() {
+        if path.extension().is_some_and(|ext| ext == "native-tile") {
+            fs::remove_file(path).unwrap();
+        }
+    }
+    let remaining = blocks(&root.0);
+    let replay = with_test_budget(empty, || {
+        mutate(&root.0, "native", "edit", 0, &action(), &Control::default())
+    })
+    .unwrap();
+    assert_eq!(replay["receipt"], committed["receipt"]);
+    assert_eq!(replay["replayed"], true);
+    assert_eq!(blocks(&root.0), remaining);
+}
+
+#[test]
 fn interrupted_native_publication_and_commit_preserve_exact_history_and_retry() {
     for point in [
         "native_block_published",

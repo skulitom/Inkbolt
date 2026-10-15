@@ -14,8 +14,12 @@ publish them before returning or storing the manifest-only state. Review uses
 `Candidate::transfer` and `Transfer::prepare` when an editable document is
 requested. New stored imports default to version 2; `storage.storage_version:1`
 explicitly retains the legacy format. Fresh Windows/Linux full suites passed
-default adoption and profile/HDR migration. Aggregate native-store capacity
-admission and larger-scale gates remain pending.
+default adoption and profile/HDR migration. Growth now uses serialized
+[store admission](NATIVE_COPY_ON_WRITE.md#aggregate-store-admission), counting
+native bytes, interrupted stages and root entries without deleting old blocks.
+Entirely deduplicated publication needs no spare capacity. Fresh full-suite
+acceptance of admission passed on Windows and Linux; the larger-scale gates
+remain pending.
 
 ## Data contract
 

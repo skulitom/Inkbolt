@@ -1533,6 +1533,14 @@ pub mod sample_profiles {
 
 /// Limits for `src/sample_store.rs`.
 pub mod sample_store {
+    /// Aggregate native block and interrupted-stage bytes in one store root.
+    pub const MAX_STORE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
+    /// Directory entries admitted/inspected, including shared assets and staging.
+    pub const MAX_STORE_ENTRIES: usize = 65536;
+    /// Maximum wait for a cooperating native publisher's exclusive root lock.
+    pub const MAX_ADMISSION_WAIT_MS: u64 = 30000;
+    /// Cancellation/deadline polling interval while waiting for the root lock.
+    pub const ADMISSION_POLL_MS: u64 = 5;
     /// Maximum create-only temporary-file reservation attempts for one native tile.
     pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Tile edge (sample store).

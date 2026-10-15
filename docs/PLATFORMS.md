@@ -7,11 +7,34 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful hosted Windows/Linux/macOS matrix is `c9a5532`,
-through nested SVG. Earlier failures and their focused follow-up remain recorded.
+The latest retained successful hosted Windows/Linux/macOS matrix is `d4692ea`,
+through SVG images, spans, omissions and request guidance. This predates native
+block migration and store admission, whose later evidence is Windows/WSL.
+Earlier failures and their focused follow-up remain recorded.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
-The [latest complete run](https://github.com/skulitom/Inkbolt/actions/runs/38738326742)
+The [latest complete run](https://github.com/skulitom/Inkbolt/actions/runs/38791299542)
+passed 255 fresh stages on each platform with matching unchanged inputs, no
+failed, pending or reused checks, and successful minimum-compiler checks.
+
+| Hosted platform | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows 2025 | 217 | 2,691 | 9 | 4312.810 |
+| Ubuntu 24.04 | 183 | 2,649 | 51 | 1441.953 |
+| macOS 15 ARM64 | 183 | 2,649 | 51 | 2808.881 |
+
+Reports, all 765 stage logs, run metadata and the 898-entry source archive are
+retained under `w1-public-ci-d4692ea`. The archive matches every report's source
+fingerprint `70bc66827b5ca35a8b6a79aff9f4287ced7f148033af53297bd608d32f641e45`.
+The 770-file audit has SHA-256
+`d6f70d11bb38970a204a06da83100f57ed1ce52a3480588a936ec2808977d1e2`.
+Explicit platform/configuration skips remain recorded. This extends the hosted
+core/receipt tier through request guidance; it does not verify the later native
+block storage work on macOS or eliminate intermittent timing failures. Hosted
+public structural checks leave the private policy unevaluated; mandatory local
+candidate/staged checks and the commit hook remain separate.
+
+The [earlier nested-SVG run](https://github.com/skulitom/Inkbolt/actions/runs/38738326742)
 passed 249 fresh stages on every platform, with matching unchanged inputs and
 no failed, pending or reused checks. The minimum-compiler checks also passed.
 

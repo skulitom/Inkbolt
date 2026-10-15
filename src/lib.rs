@@ -1882,6 +1882,7 @@ fn capability_report() -> Value {
         "candidate_edits":"pure_copy_on_write;unchanged_blocks_shared",
         "candidate_transfer":{"version":1,"scope":"rust_library_and_explicit_block_mode_review_documents","pending":"sorted_unique_exact_typed_blocks_as_lowercase_hex","budget":"caller_required_unique_decoded_block_bytes_including_headers;separate_parse_and_live_memory_limits_required","preparation":"pure;external_dependencies_require_explicit_verification"},
         "publication":"explicit_create_only_verified_immutable_blocks;complete_orphans_retained",
+        "store_admission":{"maximum_native_bytes":limits::sample_store::MAX_STORE_BYTES,"maximum_root_entries":limits::sample_store::MAX_STORE_ENTRIES,"maximum_lock_wait_ms":limits::sample_store::MAX_ADMISSION_WAIT_MS,"lock_poll_ms":limits::sample_store::ADMISSION_POLL_MS,"scope":"cooperating_native_publishers_in_one_canonical_root","accounting":"native_tiles_and_interrupted_stages_by_directory_entry;deduplicated_new_blocks_plus_one_temporary_alias","coordination":"persistent_empty_dot_inkbolt_native_lock;exclusive_OS_lock_released_on_exit","growth":"checked_before_block_writes;existing_identical_blocks_require_no_spare_capacity","history":"no_block_deletion_or_receipt_rewrite"},
         "interpretation":"native_type_and_encoding_bound;ICC_profile_is_separate_document_metadata",
         "cli_storage_limits_changed":true, "streaming_import":true,
         "streaming_import_formats":["noninterlaced_png_to_native_blocks","adam7_png_passes_to_native_blocks","tiff_chunk_bands_to_native_blocks"],

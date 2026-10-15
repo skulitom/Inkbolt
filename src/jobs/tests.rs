@@ -82,6 +82,25 @@ impl Owned {
     fn release(&self) {
         fs::write(self.root.join("release"), b"release").unwrap();
     }
+    fn commit_contending_writer(&self, tx: rusqlite::Transaction<'_>) {
+        // A supervisor reader can outlast one SQLite busy wait. Preserve this
+        // fixture's deliberate writer and its cancellation update while retrying
+        // COMMIT; Transaction::commit consumes and rolls it back on a busy error.
+        self.until(|| match tx.execute_batch("COMMIT") {
+            Ok(()) => true,
+            Err(error)
+                if matches!(
+                    error.sqlite_error_code(),
+                    Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)
+                ) =>
+            {
+                assert!(!tx.is_autocommit());
+                false
+            }
+            Err(error) => panic!("Unable to commit fixture writer: {error}"),
+        });
+        assert!(tx.is_autocommit());
+    }
     fn state(&self) -> State {
         store::state(&store::required(&self.jobs()).unwrap(), "one").unwrap()
     }
@@ -504,7 +523,7 @@ fn publication_lock_retry_completes_after_transient_writer() {
     std::thread::sleep(Duration::from_millis(
         crate::limits::sqlite::BUSY_TIMEOUT_MS + 500,
     ));
-    tx.commit().unwrap();
+    owned.commit_contending_writer(tx);
     let terminal = owned.terminal();
     assert_eq!(terminal["state"], "completed", "{terminal:#}");
     assert_eq!(terminal["attempt"], 1);
@@ -541,7 +560,7 @@ fn publication_lock_retry_preserves_cancellation_and_deadline() {
                     == job_process::ProcessState::NotRunning
             });
         }
-        tx.commit().unwrap();
+        owned.commit_contending_writer(tx);
         let terminal = owned.terminal();
         assert_eq!(
             terminal["state"],

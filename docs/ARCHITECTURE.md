@@ -10,8 +10,12 @@ separate transport bound. See the [W4.1 contract](NATIVE_COPY_ON_WRITE.md).
 New stored imports default to version 2; explicit `storage.storage_version:1`
 retains legacy patches. Old documents and history identities keep their existing
 representation. Explicit migration and default adoption passed fresh full suites
-on Windows and Linux. Aggregate native-store capacity admission, streaming import
-and the full storage/scale milestones remain pending.
+on Windows and Linux. Cooperating native publishers now hold a persistent OS file
+lock while admitting growth against native bytes and root-entry budgets. Counts
+include orphan stages and one possible temporary hard-link alias; cleanup failure
+stops additional growth. Fully deduplicated publication verifies blocks without
+waiting for capacity. Fresh admission acceptance passed on Windows and Linux;
+streaming import and the full storage/scale milestones remain pending.
 
 Typed JSON rejection now adds bounded, advisory missing-field guidance using the
 same generated schemas as discovery. The fast inline path retains only the

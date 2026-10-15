@@ -30,6 +30,7 @@ pub use crate::limits::sample_store::TILE_EDGE;
 const HEADER_BYTES: usize = 20;
 const MAGIC: &[u8; 8] = b"INKTILE1";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+pub(crate) mod admission;
 pub(crate) mod scatter;
 mod transfer;
 pub use transfer::{PendingBlock, Transfer};
@@ -437,8 +438,22 @@ impl Candidate {
         assets::absolute(root)?;
         self.verify(Some(root), control)?;
         control.check()?;
+        let existing = self.manifest.tiles.iter().collect::<BTreeSet<_>>().len();
+        if self.unpublished(root, control)?.is_empty() {
+            return Ok(Publication {
+                manifest: self.manifest.clone(),
+                created_tiles: 0,
+                existing_tiles: existing,
+            });
+        }
+        #[cfg(all(test, windows))]
+        tests::checkpoint(root, "before_admission");
         fs::create_dir_all(root).map_err(|_| io_error())?;
         let root = root.canonicalize().map_err(|_| io_error())?;
+        let admission = admission::Admission::acquire(&root, control)?;
+        // A prior writer may have published these same identities while we waited.
+        let missing = self.unpublished(&root, control)?;
+        admission.check(&root, &missing, admission::budget(), control)?;
         let mut created = 0;
         let mut seen = BTreeSet::new();
         for (index, id) in self.manifest.tiles.iter().enumerate() {
@@ -468,6 +483,32 @@ impl Candidate {
             created_tiles: created,
             existing_tiles: seen.len() - created,
         })
+    }
+
+    fn unpublished(&self, root: &Path, control: &Control) -> Result<Vec<usize>, Error> {
+        let mut seen = BTreeSet::new();
+        let mut missing = Vec::new();
+        for (index, id) in self.manifest.tiles.iter().enumerate() {
+            if !seen.insert(id) {
+                continue;
+            }
+            control.check()?;
+            if let Some(blob) = self.pending.get(id) {
+                match fs::symlink_metadata(root.join(format!("{id}.native-tile"))) {
+                    Ok(_) => {
+                        read_blob(
+                            Some(root),
+                            id,
+                            self.manifest.spec,
+                            self.manifest.spec.tile(index),
+                        )?;
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => missing.push(blob.len()),
+                    Err(_) => return Err(io_error()),
+                }
+            }
+        }
+        Ok(missing)
     }
 }
 
@@ -566,10 +607,15 @@ fn read_blob(root: Option<&Path>, id: &str, spec: Spec, tile: Region) -> Result<
     Ok(bytes.into())
 }
 
-struct Temporary(PathBuf);
+struct Temporary {
+    path: PathBuf,
+    armed: bool,
+}
 impl Drop for Temporary {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.0);
+        if self.armed {
+            let _ = fs::remove_file(&self.path);
+        }
     }
 }
 fn publish_blob(
@@ -585,7 +631,7 @@ fn publish_blob(
         read_blob(Some(root), id, spec, tile)?;
         return Ok(false);
     }
-    let (mut file, owned) = (0..crate::limits::sample_store::MAX_STAGE_ATTEMPTS)
+    let (mut file, mut owned) = (0..crate::limits::sample_store::MAX_STAGE_ATTEMPTS)
         .find_map(|_| {
             let path = root.join(format!(
                 ".inkbolt-native-{}-{}.tmp",
@@ -593,7 +639,7 @@ fn publish_blob(
                 NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
             ));
             match OpenOptions::new().create_new(true).write(true).open(&path) {
-                Ok(file) => Some(Ok((file, Temporary(path)))),
+                Ok(file) => Some(Ok((file, Temporary { path, armed: true }))),
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => None,
                 Err(_) => Some(Err(io_error())),
             }
@@ -609,7 +655,7 @@ fn publish_blob(
     #[cfg(all(test, windows))]
     tests::checkpoint(root, "before_publish");
     control.check()?;
-    let created = match fs::hard_link(&owned.0, &target) {
+    let created = match fs::hard_link(&owned.path, &target) {
         Ok(()) => true,
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
             read_blob(Some(root), id, spec, tile)?;
@@ -624,6 +670,10 @@ fn publish_blob(
     };
     #[cfg(all(test, windows))]
     tests::checkpoint(root, "after_publish");
+    // Admission reserves one possible temporary alias, not one per new block.
+    // Stop on failed cleanup before another block can consume that reservation.
+    fs::remove_file(&owned.path).map_err(|_| io_error())?;
+    owned.armed = false;
     Ok(created)
 }
 

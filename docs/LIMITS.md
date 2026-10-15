@@ -580,9 +580,13 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `sample_import.MAX_NATIVE_DECODED_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
 | `sample_import.MAX_TIFF_PADDED_BYTES` | `u64` | 67108864 | `64 * 1024 * 1024` |
 | `sample_profiles.MAX_ENCODED_PROFILE_BYTES` | `usize` | 524288 | `512 * 1024` |
+| `sample_store.ADMISSION_POLL_MS` | `u64` | 5 | `5` |
+| `sample_store.MAX_ADMISSION_WAIT_MS` | `u64` | 30000 | `30000` |
 | `sample_store.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
 | `sample_store.MAX_REGION_PIXELS` | `u64` | 65536 | `65_536` |
 | `sample_store.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
+| `sample_store.MAX_STORE_BYTES` | `u64` | 17179869184 | `16 * 1024 * 1024 * 1024` |
+| `sample_store.MAX_STORE_ENTRIES` | `usize` | 65536 | `65536` |
 | `sample_store.MAX_TILES` | `usize` | 2048 | `2048` |
 | `sample_store.TILE_EDGE` | `u32` | 128 | `super::raster::TILE_EDGE` |
 | `sample_tiff_tiled.MAX_STRIP_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |

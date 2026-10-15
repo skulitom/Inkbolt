@@ -1,4 +1,6 @@
 use super::*;
+#[path = "admission_tests.rs"]
+mod admission_checks;
 #[path = "transfer_tests.rs"]
 mod transfer;
 #[cfg(windows)]
@@ -917,6 +919,53 @@ fn actual_process_death_retains_only_complete_tiles_and_retry_preserves_orphans(
 
 #[cfg(windows)]
 #[test]
+fn failed_stage_cleanup_stops_before_publishing_another_block() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let mut workers = Workers::new();
+    let label = workers.spawn("after_publish", 1);
+    workers.ready(label);
+    let stage = fs::read_dir(workers.dir.store())
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .find(|p| p.extension().is_some_and(|ext| ext == "tmp"))
+        .unwrap();
+    // An ordinary reader can temporarily deny deletion on Windows.
+    let held = OpenOptions::new()
+        .read(true)
+        .share_mode(1 | 2)
+        .open(&stage)
+        .unwrap();
+    workers.release(label);
+    let result = workers.finish(label);
+    assert_eq!(result["ok"], false);
+    assert_eq!(result["code"], "SAMPLE_STORE_IO");
+    let before = files(&workers.dir.store());
+    assert_eq!(
+        before
+            .keys()
+            .filter(|p| p.ends_with(".native-tile"))
+            .count(),
+        1
+    );
+    assert_eq!(before.keys().filter(|p| p.ends_with(".tmp")).count(), 1);
+    drop(held);
+    let source = fs::read(workers.dir.0.join("source.bin")).unwrap();
+    let candidate = Candidate::from_bytes(spec(129, 1), &source, &Control::default()).unwrap();
+    let result = candidate
+        .publish(&workers.dir.store(), &Control::default())
+        .unwrap();
+    assert_eq!(result.created_tiles, 1);
+    for (name, bytes) in before {
+        assert_eq!(fs::read(workers.dir.store().join(name)).unwrap(), bytes);
+    }
+    Candidate::from_manifest(result.manifest)
+        .unwrap()
+        .verify(Some(&workers.dir.store()), &Control::default())
+        .unwrap();
+}
+
+#[cfg(windows)]
+#[test]
 fn cancellation_on_each_side_of_publication_and_competing_writers_preserve_outcomes() {
     for (point, occurrence, ok, complete) in [
         ("before_publish", 1, false, 0),
@@ -949,7 +998,7 @@ fn cancellation_on_each_side_of_publication_and_competing_writers_preserve_outco
     let mut workers = Workers::new();
     let first = workers.spawn("before_publish", 1);
     workers.ready(first);
-    let second = workers.spawn("before_publish", 1);
+    let second = workers.spawn("before_admission", 1);
     workers.ready(second);
     workers.release(first);
     workers.release(second);
@@ -963,7 +1012,8 @@ fn cancellation_on_each_side_of_publication_and_competing_writers_preserve_outco
             + b["result"]["created_tiles"].as_u64().unwrap(),
         2
     );
-    assert_eq!(files(&workers.dir.store()).len(), 2);
+    assert_eq!(files(&workers.dir.store()).len(), 3);
+    assert!(files(&workers.dir.store())[admission::LOCK_NAME].is_empty());
 
     let mut conflict = Workers::new();
     let label = conflict.spawn("before_publish", 1);

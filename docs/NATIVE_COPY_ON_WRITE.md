@@ -2,9 +2,9 @@
 
 This is the W4.1 implementation contract under [FIX_PLAN.md](../FIX_PLAN.md).
 The explicit versioned layer and document/session commit path are implemented
-and passed fresh full Windows/Linux suites, including default-import adoption.
-**Aggregate native-store capacity admission and larger-workload acceptance remain
-pending**. New stored imports default to version 2. Explicit
+and passed fresh full Windows/Linux suites, including default-import adoption
+and aggregate native-store capacity admission. Larger-workload acceptance remains
+pending. New stored imports default to version 2. Explicit
 `storage:{"storage_version":1}` selects [retained patches](NATIVE_SAMPLE_STORAGE.md),
 with their existing 256-patch and 65,536 aggregate patched-pixel limits.
 Explicit `sample_storage_migrate` converts
@@ -111,6 +111,57 @@ may also leave owned temporary files. Retries verify existing complete blocks
 and preserve corrupt or foreign files. No orphan sweep, cross-filesystem atomic
 transaction, power-loss guarantee or hostile-filesystem guarantee is claimed.
 
+## Aggregate store admission
+
+Publication serializes cooperating native writers through a persistent,
+empty `.inkbolt-native.lock` file in the canonical store root. The operating
+system releases its exclusive lock when the handle closes or the process dies;
+the file itself is never removed or rewritten. When coordination is needed,
+existing nonempty, non-file or symlink entries at that name fail without
+replacement. Old stores acquire this
+coordination file only when new native blocks need publication. Read, preview,
+history replay and pure preparation do not acquire it.
+
+The initial store budget is 16 GiB of native-file bytes and 65,536 root directory
+entries. Byte accounting covers `*.native-tile` and `.inkbolt-native-*.tmp`,
+including complete or partial orphan files. Other shared-root entries count
+toward enumeration and entry admission, but their bytes are outside this native
+publisher's budget. No directory links are traversed. Accounting is conservative
+per directory entry, including hard-link aliases; it is not a filesystem free-space
+or physical allocation measurement.
+
+Under the lock, publication rechecks destinations, charges each missing identity
+once, and reserves room for all missing blocks plus the largest current temporary
+alias and one extra staging entry. This covers termination between linking the
+final name and unlinking the owned temporary. If removing that temporary fails,
+publication stops before another block is written; retry counts the retained
+alias without deleting it. Existing identical blocks cost no
+additional bytes. Entirely deduplicated publication verifies its dependencies and
+returns without acquiring a lock or requiring spare capacity, even in an older
+store already above the new limits. Growth in such a store fails explicitly.
+
+The wait loop checks cancellation and deadlines between 5 ms sleeps, with a
+30-second contention budget before returning `SAMPLE_STORE_BUSY`. Capacity failure returns
+`RESOURCE_LIMIT` before new block writes. A failed first admission may leave the
+empty coordination file or newly created root; existing files remain unchanged.
+No orphan cleanup, historical-block deletion or automatic quota increase occurs.
+The bound covers cooperating publishers from this implementation on trusted local
+filesystems. Older binaries or unrelated writers do not participate in its lock.
+
+The capacity checks change neither block bytes nor manifest, document, session
+or receipt versions. Exact small-budget fixtures cover byte/entry boundaries,
+deduplication, orphan stages, hard-link aliases and competing processes. Waiting
+publishers are cancelled after observed lock contention; a terminated owner
+releases the lock. A Windows reader that denies temporary-file deletion stops
+further growth. Directory and Unix symlink fixtures preserve foreign entries.
+Session tests check rejected edits leave history unchanged, successful retry,
+and original receipt replay after blocks disappear. Fresh full-suite acceptance
+passed on Windows and Linux. A separate public CLI check on both platforms
+returned `SAMPLE_STORE_BUSY` after about 30 seconds, preserved the store/source,
+then published the exact expected block after the lock was released. See the
+[acceptance record](DEVELOPMENT_STATUS.md#w41-native-block-editing-and-store-admission).
+The larger storage/scale milestone remains open.
+
 ## Candidate transfer primitive
 
 `Candidate::transfer(max_pending_bytes, control)` returns a version-1 `Transfer`
@@ -161,7 +212,7 @@ storage-milestone acceptance follows the checks below.
   the normal 180-second feedback budget.
 
 The explicit migration/commit increment passed all 256 fresh full-suite stages
-on each platform; see [retained evidence](DEVELOPMENT_STATUS.md#next-w41-increment-remove-cumulative-native-edit-exhaustion).
+on each platform; see [retained evidence](DEVELOPMENT_STATUS.md#w41-native-block-editing-and-store-admission).
 Its document tests cover all six encoded-sRGB depth/channel layouts, exact
 260-edit histories, continuation, backup recovery, pure review and publication
 failures. Candidate-transfer tests separately cover every admitted encoding.
@@ -171,8 +222,8 @@ profiled depth/channel layouts, built-in/embedded profiles, signed zero,
 subnormal and signed HDR values through review, commit and history. Default
 imports survive 260 edits without the legacy cumulative caps. The B10 judge
 checks both representations against the same independent samples and history.
-The store still needs aggregate capacity admission across concurrent publishers;
-current per-document pending and transport budgets do not establish that bound.
+Aggregate capacity admission across concurrent publishers also passed fresh full
+platform suites, independently of per-document pending and transport budgets.
 The full storage milestone and larger-workload memory target remain open.
 
 Revise the design if those checks cannot preserve exact history or if measured
