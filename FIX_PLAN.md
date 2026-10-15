@@ -31,7 +31,7 @@ standing authorization.
 | W3a.1-3 | Arcs, rounded rectangles and embedded styles complete within their declared import contracts. Fresh Windows/Linux acceptance passed all 244 stages for the CSS milestone, including cascade, pixel, insertion and refusal checks | Implement W3a.4 reusable shapes with correct inherited styles and viewport placement. Other SVG admission items remain open |
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |
 | W3c / W4 / W5.2+ / W6 | Open; substantial work. Nested selectors have focused Windows/Linux checks within 180 seconds and a mixed model follow-up: B03 median tokens/time fell 14%/14%; B16 tokens fell 2% but time rose 43% | Retain executable selectors; stop broad discovery expansion under the recorded stop condition. Prioritize demonstrated request-field, path and snapshot/reference friction separately. Full milestone acceptance remains open |
-| W7 / W8 | Distribution and published usability evidence remain open; README checkpoint headline moved | Ship only verified platform tiers; publish comparable results after trials |
+| W7 / W8 | Release/registry workflows and the Windows bundle are present. Full distribution acceptance and published usability evidence remain open; README now leads with a product overview | Finish the SBOM, macOS x64 and checks against built archives. Ship only verified platform tiers; publish comparable results after trials |
 | W9 | Deferred, outside active scope | No learned-model plugin work |
 
 Keep this table current in place. Detailed milestone evidence belongs in

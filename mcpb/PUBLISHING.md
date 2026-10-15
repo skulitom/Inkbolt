@@ -41,6 +41,11 @@ Publication requires the release, verifies the bundle's attestation from the Rel
 
 ## Local distribution checks
 
+Run these checks on their own, without builds, verification runs or edits in the
+same checkout. The bundle verifier inventories repository files, including build
+outputs and Git metadata, to detect unexpected writes. Concurrent work can change
+that inventory or exhaust the smoke test's existing deadline.
+
 ```sh
 node mcpb/build.mjs --binary target/release/inkbolt.exe
 node --test mcpb/mcpb.test.mjs

@@ -1809,6 +1809,19 @@ and verifies the 863-file frozen source inventory. Its SHA-256 is
 This completes W3a.3 only. The engine registry remains 163/167; reusable shapes,
 nested viewports and the other SVG admission items remain open.
 
+Integration with the incoming packaging commit `9ea83ab` preserved the tested
+engine code; Git normalized line endings in seven files. The exact frozen source
+archive and comparison are retained with the evidence. Subsequent focused checks
+passed 11 fresh stages on each platform: 81 Python tests plus one Rust test on
+Windows in 63.6s, and 78 Python tests plus one Rust test with three Windows-only
+skips on Linux in 35.5s. These cover the updated guard and SVG integration, not a
+new full-suite claim for the combined distribution changes. The packaging suite
+passed 18 tests with one non-Windows-only skip when run alone; its earlier run
+alongside compilation timed out and remains retained as a failure. No deadline
+changed. A separate bundle containing the current development executable passed
+standalone discovery of all 22 core tools and document creation. This confirms
+integration, not release-build or complete distribution acceptance.
+
 ## W3b: complete within the insertion contract
 
 `add_svg` is an atomic edit accepting fragments and complete SVG documents. It
