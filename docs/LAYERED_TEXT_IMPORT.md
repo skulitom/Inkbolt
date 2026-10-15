@@ -141,7 +141,8 @@ claimed. Existing file, item, run, pixel and nested-source budgets remain in for
 
 The fixed-zero point form can be delivered again with explicit native text
 delivery options. Other explicit first-baseline controls remain unsupported by
-that writer. Session edits, retries, undo and normal image delivery operate on
+that writer. Native editable delivery also refuses [character positioning](TEXT_POSITIONING.md)
+until it has a verified mapping. Session edits, retries, undo and normal image delivery operate on
 the retained text and chosen fonts. Original independent byte fixtures and a
 geometric test font verify analytic pixels, rotations, stale global/local data,
 Unicode ranges, masks, groups, nested sources and durable text edits. They do not

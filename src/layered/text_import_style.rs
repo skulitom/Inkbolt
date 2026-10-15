@@ -274,6 +274,7 @@ pub(super) fn frame(
             leading,
             overflow: text::Overflow::Visible,
             path: None,
+            positioning: None,
             first_baseline: Some(text::FirstBaseline {
                 metric: text::FirstBaselineMetric::Fixed,
                 minimum: 0.0,

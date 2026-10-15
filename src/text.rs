@@ -10,7 +10,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use unicode_segmentation::UnicodeSegmentation;
 pub mod bidi;
 mod first_baseline;
+mod positioning;
 pub use first_baseline::{FirstBaseline, FirstBaselineMetric};
+pub use positioning::{Anchor, CharacterPosition, Positioning};
 pub mod flow;
 mod shaping;
 use crate::limits::text as limits;
@@ -169,6 +171,8 @@ pub struct Frame {
     pub overflow: Overflow,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<crate::path_text::Baseline>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub positioning: Option<Positioning>,
 }
 pub fn styles(frame: &Frame) -> impl Iterator<Item = &Style> {
     std::iter::once(&frame.style).chain(frame.ranges.iter().map(|r| &r.style))
@@ -187,6 +191,9 @@ pub fn validate(
     document: &Document,
     world: Matrix,
 ) -> Result<(usize, usize, usize), Error> {
+    if let Some(positioning) = &frame.positioning {
+        positioning.validate(frame)?;
+    }
     if let Some(path) = &frame.path {
         crate::path_text::validate(path)?;
         if frame.wrap
@@ -370,6 +377,9 @@ pub fn revise(
         .map(|(i, c)| (*c, style(frame, style_index(frame, i)).clone()))
         .collect();
     if let Some(replacement) = replacement {
+        if let Some(positioning) = &mut frame.positioning {
+            positioning.revise(start, end, replacement.chars().count());
+        }
         let inherited = new_style
             .unwrap_or_else(|| {
                 if start < chars.len() {
@@ -541,6 +551,9 @@ impl rustybuzz::ttf_parser::OutlineBuilder for Builder {
 }
 pub fn layout(frame: &Frame, document: &Document, cache: &fonts::Cache) -> Result<Layout, Error> {
     let analysis = Analysis::new(frame)?;
+    if let Some(positioning) = &frame.positioning {
+        return positioning.layout(frame, &analysis, document, cache);
+    }
     if let Some(path) = &frame.path {
         return path_layout(frame, &analysis, path, document, cache);
     }

@@ -177,13 +177,14 @@ pub(super) fn prepare(
         return Err(unsupported("Explicit first-baseline controls require a native authoring mapping before layered delivery").at_item(&item.id));
     }
     if frame.path.is_some()
+        || frame.positioning.is_some()
         || frame.direction != text::Direction::Ltr
         || frame.bidi != text::Bidi::SingleRun
         || frame.align != text::Align::Left
         || (frame.wrap && frame.overflow == text::Overflow::Visible)
         || (!frame.wrap && frame.overflow == text::Overflow::Clip)
     {
-        return Err(unsupported("Native text currently needs left-aligned horizontal LTR frames without paths; point text cannot carry clipping and paragraph text cannot carry visible overflow").at_item(&item.id));
+        return Err(unsupported("Native text currently needs left-aligned horizontal LTR frames without paths or character positioning; point text cannot carry clipping and paragraph text cannot carry visible overflow").at_item(&item.id));
     }
     let styles = text::styles(frame).collect::<Vec<_>>();
     let mut native_fonts = Vec::new();

@@ -70,6 +70,7 @@ impl Paragraph {
             first_baseline: None,
             overflow: Overflow::Visible,
             path: None,
+            positioning: None,
         }
     }
 }

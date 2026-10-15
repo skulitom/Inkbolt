@@ -12,6 +12,10 @@ fonts. The source text stays in logical Unicode order. Scripts, glyph substituti
 mark placement, kerning and the selected language feed shaping before layout,
 transforms, masks or path placement.
 
+For absolute and cumulative relative character placement within an editable
+unwrapped frame, see [character positioning](TEXT_POSITIONING.md). Ordinary
+paragraphs retain their existing layout when that optional field is omitted.
+
 An ordinary text style can declare:
 
 ```json

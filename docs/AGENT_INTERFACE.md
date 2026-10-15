@@ -361,6 +361,11 @@ Mesh paints and `mesh_knot` support editable shared color fields and transparenc
 
 An optional text-frame `path` retains a single editable baseline with offsets, flip and tolerance. Use `wrap:false` and no paragraph leading/line breaks. Existing `text` and `text_range` operations edit the source; `text.inspect` exposes baseline intervals and glyph poses. SVG/publication `text_paths` report measured layout while snapshots preserve editability. See [PATH_TEXT.md](PATH_TEXT.md).
 
+For absolute and cumulative relative character placement in an editable frame,
+use `text.frame.positioning`. Style ranges, edits, snapshots and session history
+retain these controls. See [character positioning](TEXT_POSITIONING.md) for
+Unicode indices, anchor chunks, layout restrictions and range-edit behavior.
+
 ## Image tracing
 
 `image.trace` returns a new editable vector snapshot and provenance from explicit RGBA8 pixels or a verified image descriptor with an explicit asset root. Binary, exact, quantized and palette classification, area-based noise removal, uniform-surround hole filling and cooperative cancellation use the same CLI/library/MCP contract. All output is ordinary editable path geometry; source bytes stay unchanged. See [TRACING.md](TRACING.md) for formulas, topology, fidelity and limits.

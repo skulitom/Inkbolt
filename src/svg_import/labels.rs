@@ -408,6 +408,7 @@ pub(super) fn content(
         first_baseline: None,
         overflow: text::Overflow::Visible,
         path: None,
+        positioning: None,
     };
     text::validate(&frame, document, identity())?;
     let layout = text::layout(&frame, document, &fonts.cache)?;

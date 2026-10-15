@@ -2004,6 +2004,54 @@ Routine feedback retains the 180-second budget. W3a.7 text spans and W3a.8
 opt-in omission reports are next. No engine checkpoint is added; the registry
 remains 163/167 and the overall goal remains open.
 
+## W3a.7: character-positioning foundation; SVG spans open
+
+The shared text frame now retains Unicode-scalar absolute and cumulative relative
+positions alongside editable style ranges. Absolute positions start independently
+shaped and anchored chunks. Relative entries inside ligatures or combining
+clusters defer to the next cluster; range replacement shifts retained indices.
+The [positioning contract](TEXT_POSITIONING.md) records continuation, bounds,
+overflow and edit rules. Existing ordinary frames omit the new field and retain
+their previous layout. Editable layered delivery explicitly refuses these
+controls until a verified native mapping exists.
+
+Twelve original tests independently check rectangular pixels, exact origins,
+partial-axis resets, anchors, mixed styles, shaping clusters, supplementary
+characters, edits and invalid coordinates. Snapshot/outline/SVG comparisons and
+component placement preserve output; PDF is export smoke only. MCP checks verify
+proposals against the committed state and receipt, unchanged sources, retries,
+undo/redo and rollback of a failed batch. Existing text, Unicode, font-control,
+SVG text, layered text, discovery and verifier checks also ran.
+
+| Platform | Fresh stages | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 12 | 125 | 0 | 73.2 |
+| Linux / WSL | 12 | 121 | 4 | 81.2 |
+
+All selected stages passed on matching unchanged inputs, including formatting,
+locked builds and all-target Clippy. There were no pending checks or reused
+passes. Linux skipped one Windows background-job workflow and three Windows
+verifier/process-measurement checks. The twelve positioning tests ran on both
+platforms. The first Windows run took 136.5 seconds and failed one fixture's
+expected error name (`ITEM_NOT_FOUND` versus the existing `NOT_FOUND`); that
+expectation was corrected and the workflow assertions strengthened before these
+passes. This remains focused evidence: Rust test execution and 239 other stages
+were outside its scope.
+
+Both reports bind source fingerprint
+`bd7d79e0e206cf03109e4cb21d030cfd70e9ddae03b9b443fb5a73b74511c85a`.
+The external `w3a-positioning-focused-01` bundle retains both reports, all 24
+stage logs, a requirement review, an 889-file inventory and a frozen source
+archive. Audit SHA-256:
+`e34eabe2add199dc980f5891e597e350c3a02984b221a925e223bd15c8ee79e9`.
+The following status/documentation updates leave engine and test inputs unchanged.
+
+SVG `tspan` still fails explicitly. Descendant whitespace, cascade, coordinate
+lists, resource resolution, source mappings and insertion coverage must be
+connected to this native foundation. Fresh full Windows/Linux acceptance remains
+required before closing W3a.7. No new macOS, model-trial, engine-checkpoint or
+whole-goal claim is made; the registry remains 163/167.
+
 ## W3b: complete within the insertion contract
 
 `add_svg` is an atomic edit accepting fragments and complete SVG documents. It
