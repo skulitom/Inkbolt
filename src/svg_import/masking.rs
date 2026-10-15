@@ -21,9 +21,27 @@ pub(super) struct Template {
     content_box: bool,
     region: [Coordinate; 4],
     explicit_region: bool,
-    source: Option<String>,
+    sources: BTreeMap<[u64; 2], String>,
+}
+fn viewport_key(viewport: [f64; 2]) -> [u64; 2] {
+    viewport.map(f64::to_bits)
 }
 impl Template {
+    fn pending_viewport(
+        &self,
+        name: &str,
+        root: [f64; 2],
+        bindings: &[Binding],
+    ) -> Option<[f64; 2]> {
+        if !self.sources.contains_key(&viewport_key(root)) {
+            return Some(root);
+        }
+        bindings
+            .iter()
+            .filter(|binding| binding.style.mask.as_deref() == Some(name))
+            .map(|binding| binding.viewport)
+            .find(|viewport| !self.sources.contains_key(&viewport_key(*viewport)))
+    }
     pub fn parse(
         node: Node<'_, '_>,
         inherited: &Style,
@@ -84,7 +102,7 @@ impl Template {
             explicit_region: ["x", "y", "width", "height"]
                 .iter()
                 .any(|k| node.has_attribute(*k)),
-            source: None,
+            sources: BTreeMap::new(),
         })
     }
 }
@@ -94,13 +112,16 @@ impl Importer<'_> {
         let viewport = self.viewport;
         // Definitions discovered inside a source join this bounded queue. They
         // are resources, not nested scene children or an execution dependency.
-        while let Some((name, template)) = self
+        while let Some((name, template, source_viewport)) = self
             .definitions
             .masks
             .iter()
-            .filter(|(_, t)| t.source.is_none())
-            .min_by_key(|(_, t)| t.offset)
-            .map(|(id, t)| (id.clone(), t.clone()))
+            .filter_map(|(id, t)| {
+                t.pending_viewport(id, viewport, &self.bindings)
+                    .map(|v| (id, t, v))
+            })
+            .min_by_key(|(_, t, _)| t.offset)
+            .map(|(id, t, v)| (id.clone(), t.clone(), v))
         {
             let node = root
                 .descendants()
@@ -117,10 +138,16 @@ impl Importer<'_> {
                 ));
             }
             let id = format!("svg-{index}");
-            self.definitions.masks.get_mut(&name).unwrap().source = Some(id.clone());
+            self.definitions
+                .masks
+                .get_mut(&name)
+                .unwrap()
+                .sources
+                .insert(viewport_key(source_viewport), id.clone());
             // Content units add a transform; they do not establish a viewport.
-            // Percentages in content retain the root user-viewport basis.
-            self.viewport = viewport;
+            // Percentages retain the referencing user viewport. Different
+            // viewport contexts receive separate editable source variants.
+            self.viewport = source_viewport;
             self.in_mask = true;
             let mut title = None;
             for child in node.children() {
@@ -183,20 +210,33 @@ impl Importer<'_> {
                 text_placement: identity(),
                 viewport: self.viewport,
             });
+            let mapping_start = self.mappings.len();
             self.mappings.push(json!({"item_id":id,"source_id":name,"element":"mask","byte_offset":template.offset}));
             if let Some(record) = self
                 .definitions
                 .records
                 .iter_mut()
-                .find(|r| r["source_id"] == name)
+                .find(|r| r["source_id"] == name && r["item_id"].is_null())
             {
                 record["item_id"] = json!(id);
+            } else {
+                self.definitions
+                    .records
+                    .push(json!({"source_id":name,"element":"mask",
+                    "byte_offset":template.offset,"item_id":id,"viewport":source_viewport}));
             }
             for child in node
                 .children()
                 .filter(|c| c.is_element() && !["title", "desc"].contains(&c.tag_name().name()))
             {
                 self.visit(child, Some(id.clone()), &template.style, None)?;
+            }
+            if source_viewport != viewport {
+                self.losses.push("Masks used from different user viewports become independent editable sources, one per viewport. Shared edits do not cross these viewport-specific copies.".into());
+                for row in &mut self.mappings[mapping_start..] {
+                    row["resource_item_id"] = json!(id);
+                    row["resource_viewport"] = json!(source_viewport);
+                }
             }
             self.viewport = viewport;
             self.in_mask = false;
@@ -239,7 +279,11 @@ pub(super) fn apply(
         region[2] = region[2].max(0.0);
         region[3] = region[3].max(0.0);
         document.items[b.index].artwork_mask = Some(Box::new(Mask {
-            source: template.source.clone().unwrap(),
+            source: template
+                .sources
+                .get(&viewport_key(b.viewport))
+                .cloned()
+                .ok_or_else(|| invalid("Mask viewport context was not prepared"))?,
             region,
             clip_region,
             mode: b.style.mask_mode.unwrap_or(template.style.mask_type),

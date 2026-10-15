@@ -215,7 +215,7 @@ pub(crate) fn insert(
     for section in ["mapping", "definitions", "approximations"] {
         if let Some(rows) = imported[section].as_array_mut() {
             for row in rows {
-                if let Some(path) = row["instance_path"].as_array_mut() {
+                if let Some(path) = row.get_mut("instance_path").and_then(Value::as_array_mut) {
                     for occurrence in path {
                         if let Some(id) = occurrence["item_id"].as_str() {
                             occurrence["item_id"] = ids[id].clone();
@@ -225,8 +225,10 @@ pub(crate) fn insert(
                         }
                     }
                 }
-                if let Some(id) = row["item_id"].as_str() {
-                    row["item_id"] = ids[id].clone();
+                for field in ["item_id", "viewport_item_id", "resource_item_id"] {
+                    if let Some(id) = row[field].as_str() {
+                        row[field] = ids[id].clone();
+                    }
                 }
                 if let Some(position) = row["byte_offset"].as_u64() {
                     row["byte_offset"] = json!(position.checked_sub(offset as u64));

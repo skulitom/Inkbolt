@@ -1822,36 +1822,47 @@ changed. A separate bundle containing the current development executable passed
 standalone discovery of all 22 core tools and document creation. This confirms
 integration, not release-build or complete distribution acceptance.
 
-## W3a.4: local reference foundation in progress
+## W3a.4: reusable shapes and symbol viewports in progress
 
-Local `use` now expands supported shapes, groups, text and other local references
-into independent editable groups. Original source declarations use each placement's
-inherited style; x/y translation composes inside its explicit transform. A memoized
-source graph detects cycles and excessive reference depth without expanding unused
-copies. Existing item/hierarchy limits bound materialization. Receipts distinguish
-repeated source nodes through occurrence paths, including through atomic insertion.
-Unused templates retain distinct resource references instead of per-node style copies.
+Local `use` expands supported shapes, groups, text, symbols and other local
+references into independent editable groups. Original source declarations use
+placement inheritance. A memoized graph checks cycles and reference depth without
+expanding unused copies; existing item/hierarchy limits bound materialization.
+Original offsets and occurrence paths survive atomic insertion. Unused templates
+retain distinct resource references; text fonts and relative size ranges bind in
+the painted context.
 
-Original fixtures check exact pixels and transform order, CSS/currentColor,
-visibility, external clips, pinned fonts, forward/nested references, unused shared
-graphs, limits, located refusals and MCP retry/failed edit/undo/redo. A retained
-probe caught relative text sizes being checked against a definition's parent;
-template validation now defers that range check until the actual placement.
+Symbols separate the viewport clip/placement from the content's viewBox and
+appearance. Focused fixtures check default/auto/percentage dimensions, overrides,
+all nine alignments, meet/slice/none, anchors, transform order, overflow,
+nonpainting definitions, zero-size losses and nested viewport restoration.
+Percentage paints, masks and pinned text use each placement's user viewport.
+Masks prepare one editable source per viewport, with explicit loss of sharing
+between those variants and no duplicate nested definition collection. Exact
+rectangle/gradient/glyph pixel oracles, insertion identities and SVG round trips
+cover these boundaries. The first focused run caught insertion receipts adding
+null occurrence fields; the corrected remap preserves absent fields.
 
-Final focused Windows/Linux runs each passed 76 Python tests and ten fresh stages,
-with no skips, failures, pending checks or changed inputs, in 76.0/51.7 seconds.
-Earlier broader selections also covered the original import and verification
-dependency tests. Shared final inputs:
-`67b70eb57ed9c2e5232ebfaca3d8e594ccd848d411b9c59889dab53bad03192a`.
-The `w3a-reuse-focused-01` audit retains all 20 final stage logs and the 877-file
-source inventory; its SHA-256 is
+Final symbol-focused runs passed 13 fresh stages per platform, including formatting,
+locked build, all-target Clippy and nine selected Python modules. Windows executed
+133 Python tests with no skips in 58.1 seconds; Linux executed 130 with three
+explicit Windows-only verification skips in 53.5 seconds. Neither run failed,
+reused checks, left checks pending or changed inputs. Shared input identity:
+`7e59f246ca94a006646ecc800d352c5553f4ccb59d94b1e47c58d46dbe395142`.
+The `w3a-symbol-focused-01` audit retains all 26 stage logs, the 879-file inventory
+and a frozen source archive; its SHA-256 is
+`d666e4b511bbcdb3ebcd4639fc48231a39ee65ec4e23cc3b45bf9a55a72ea1af`.
+
+The preceding local-reference foundation retains its separate focused evidence:
+76 Python tests and ten fresh stages per platform in 76.0/51.7 seconds, with no
+skips, failures or pending checks. Its `w3a-reuse-focused-01` audit is
 `17c41b1e6195bc0015b436b205f46caf26021edd3f89ba4f257ac1c36d9a776f`.
 
-This is development feedback for an intermediate increment. W3a.4 remains open:
-compatible native component sharing, symbol viewports and cloned resource scopes
-still need implementation and independent checks, followed by fresh full platform
-acceptance. Current imports explicitly report the loss of reference sharing and
-refuse the unfinished semantics. The engine registry remains 163/167.
+This is development feedback for intermediate increments. W3a.4 remains open:
+compatible native component sharing and cloned resource scopes still need
+implementation and independent checks, followed by fresh full platform acceptance.
+Current imports explicitly report sharing losses and refuse unfinished semantics.
+The engine registry remains 163/167.
 
 ## W3b: complete within the insertion contract
 

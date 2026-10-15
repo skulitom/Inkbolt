@@ -493,8 +493,17 @@ styles in its host context and retains original offsets plus an occurrence path;
 insertion remaps both IDs and fragment locations. Unused templates retain only
 distinct resource references for later validation. Text fonts and relative size
 ranges bind in the painted context. The current W3a.4 foundation emits independent
-groups with an explicit loss of sharing; component conversion, symbol viewports
-and cloned resource scopes remain open.
+groups with an explicit loss of sharing; component conversion and cloned resource
+scopes remain open.
+
+`svg_import::viewports` separates a symbol's outer placement and viewport clip
+from its inner viewBox and appearance. A placement-scoped user viewport binds
+percentage text, paints, nested placements and mask coordinates, then restores
+the enclosing basis. Shared mask templates prepare one editable source per user
+viewport, reporting the loss of sharing between variants. Original-node resource
+collection prevents repeated preparation from replacing nested definitions.
+Synthetic viewport/resource IDs join the ordinary insertion remap; original
+source locations and occurrence paths remain available.
 
 `svg_import` reads capped UTF-8 text or an explicit regular local file without writing to it. roxmltree supplies bounded XML parsing with DTD/entity resolution disabled. Original lexical/path parsing, inherited presentation/inline styles and viewport/transform mapping produce ordinary vector groups and geometry, validated as one complete candidate. Deterministic IDs map back to source IDs and byte offsets; source SHA-256 and normalization losses accompany the new snapshot. Unknown elements, attributes, resources and unsupported semantics fail before a result document is returned. Styles become ordinary item appearance; source XML expressions and formatting are not persistent editing state. Broader SVG elements remain explicitly unsupported. See [SVG_IMPORT.md](SVG_IMPORT.md).
 

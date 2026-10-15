@@ -1156,16 +1156,25 @@ fn capability_report() -> Value {
     svg_import_contract["elements"]
         .as_array_mut()
         .unwrap()
-        .push(json!("use"));
+        .extend([json!("use"), json!("symbol")]);
     svg_import_contract["reuse"] = json!({"references":"literal_local_href_or_xlink_href",
-        "targets":["shapes","g","text","use"],"output":"independent_editable_groups",
+        "targets":["shapes","g","text","use","symbol"],"output":"independent_editable_groups",
         "styles":"source_declarations_with_placement_inheritance",
         "position":"transform_then_xy_translation_with_current_viewport_percentages",
         "nonviewport_dimensions":"validated_but_do_not_scale_shapes",
         "mapping":"original_source_locations_and_instance_path",
         "limits":"existing_reference_depth_expanded_items_and_hierarchy",
-        "cycles":false,"external_references":false,"symbol":false,
+        "cycles":false,"external_references":false,"symbol":true,
         "cloned_resource_scopes":false,"component_sharing":false});
+    svg_import_contract["symbol_viewports"] = json!({
+        "dimensions":"use_overrides_symbol_then_enclosing_user_viewport;absolute_percentage_auto",
+        "viewBox":"positive_dimensions;meet_slice_none",
+        "anchors":"refX_refY_numeric_percentage_and_axis_keywords;omission_distinct_from_zero",
+        "overflow":["hidden","visible"],"overflow_scope":"symbol_only",
+        "coordinates":"separate_viewport_clip_and_content_transform",
+        "mapping":["viewport_item_id","viewport_size","instance_path"],
+        "zero_size":"nonpainting_empty_group_with_declared_content_loss",
+        "nested_svg":false});
     svg_import_contract["css"] = json!({"embedded_style":true,"inline_style":true,
         "selectors":["type","universal","class","id","compound","list"],
         "cascade":"presentation_attributes_then_specificity_source_order_then_inline",
@@ -1322,6 +1331,8 @@ fn capability_report() -> Value {
     capabilities["resource_profiles"]["large_raster"] = json!({"items":model::MAX_LARGE_RASTER_ITEMS,"geometry_commands":model::MAX_LARGE_RASTER_COMMANDS,"snapshot_bytes":model::MAX_LARGE_RASTER_BYTES,"kind":"raster","overlays":"ordinary_vector_geometry_with_fills_and_strokes","native_storage":"existing_immutable_blocks_and_pure_patches","rendering":"existing_whole_limits;opt_in_tiled_evaluation;conservative_spatial_membership;neighboring_source_reuse","raises_processing_limits":false});
     capabilities["components"]["max_evaluated_items_by_profile"] = json!({"standard":model::MAX_ITEMS,"large_vector":model::MAX_LARGE_VECTOR_ITEMS,"large_raster":model::MAX_LARGE_RASTER_ITEMS});
     capabilities["svg_import"]["masks"] = json!({"content":["shapes","groups","gradients","geometric_clips","bound_text"],"modes":["alpha","luminance"],"units":["userSpaceOnUse","objectBoundingBox"],"sharing":"editable_source_with_import_time_coordinate_binding","legacy_region":"minus_10_percent_to_120_percent","svg2_region":"unclipped_when_all_region_attributes_absent","mode_override":"css_mask_mode","compositing":"srgb","recursive_masks":false});
+    capabilities["svg_import"]["masks"]["viewport_binding"] =
+        json!("one_source_per_referencing_user_viewport;cross_viewport_sharing_loss_reported");
     capabilities["objects"] = json!({"commands":["object.import","object.open","object.status"],"operations":["object_replace","object_refresh","object_detach"],"parent_kind":"raster","source_kinds":["vector","raster"],"source_format":"exact_utf8_engine_snapshot","native_document_interchange":false,"link":"flat_key_explicit_root_pinned_source_hash_refresh","external_sources_unchanged":true,"implicit_link_io":false,"source_store":"inline_retained_bytes_with_sha256","max_nesting":objects::MAX_NESTING,"max_rendered_objects":objects::MAX_RENDERED_OBJECTS,"surface_scale":[1,limits::render_quality::MAX_SCALE],"surface_precision":"f64_before_parent_reconstruction","render_budgets":"aggregate_work_and_buffer_pixels_across_evaluations","duplicate":"independent_retained_value","resources":"explicit_shared_asset_and_font_roots_pinned_within_source","missing_link":"reported_explicitly_retained_source_stays_renderable","hdr":"native_linear_parent_or_explicit_object_view","privacy":"recursive_snapshot_sanitization_detaches_links","page_delivery":"explicit_unsupported_use_image_or_snapshot"});
     capabilities["backgrounds"] = json!({"operation":"background","document_kind":"raster","actions":["promote","restore_source","to_layer"],"role":"single_bottom_printable_root","source":"retained_pixels_alpha_geometry_and_appearance","matte":"explicit_rgb8_current_canvas_after_source_controls_before_clipped_siblings","visibility":"suppresses_complete_background","implicit_lock":false,"ordinary_conversion":"isolated_layer_with_explicit_source_and_matte_ids","duplicate_and_transfer":"ordinary_retained_source_without_document_role","bounds":"source_geometry_with_separate_inspected_canvas_bounds"});
     capabilities["supported"]["raster"]

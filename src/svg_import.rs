@@ -9,6 +9,7 @@ mod labels;
 mod masking;
 mod reuse;
 mod styles;
+mod viewports;
 pub use labels::{FaceStyle, FontBinding};
 mod numbers;
 use crate::{Error, geometry, model::*};
@@ -44,6 +45,7 @@ const PROPERTIES: &[&str] = &[
     "stroke-dashoffset",
     "color",
     "opacity",
+    "overflow",
     "display",
     "visibility",
     "isolation",
@@ -259,6 +261,11 @@ fn properties<'a>(
         props.insert("mask-mode", "inherit");
     }
     styles.apply(node, &mut props)?;
+    if node.tag_name().name() != "symbol" && props.contains_key("overflow") {
+        return Err(unsupported(
+            "Overflow is currently supported on symbol viewports only",
+        ));
+    }
     Ok(props)
 }
 fn styled(parent: &Style, p: &BTreeMap<&str, &str>) -> Result<Style, Error> {
@@ -285,7 +292,7 @@ fn styled_with_text(
             continue;
         }
         if v == "inherit" {
-            if ["opacity", "display", "isolation", "clip-path"].contains(&k) {
+            if ["opacity", "display", "isolation", "clip-path", "overflow"].contains(&k) {
                 return Err(unsupported(format!(
                     "Explicit inherit is not supported for {k}"
                 )));
@@ -392,6 +399,13 @@ fn styled_with_text(
             }
             "opacity" => {
                 unit_interval(v)?;
+            }
+            "overflow" => {
+                if !["hidden", "visible"].contains(&v) {
+                    return Err(unsupported(
+                        "SVG viewport overflow requires hidden or visible",
+                    ));
+                }
             }
             "display" => {
                 if !["inline", "none"].contains(&v) {
@@ -587,55 +601,7 @@ fn viewport(node: Node<'_, '_>) -> Result<(f64, f64, Matrix), Error> {
         Ok(n)
     };
     let (w, h) = (dimension("width")?, dimension("height")?);
-    let mut matrix = identity();
-    if let Some(v) = node.attribute("viewBox") {
-        let v = numbers::list(v)?;
-        if v.len() != 4 || v[2] <= 0.0 || v[3] <= 0.0 {
-            return Err(invalid(
-                "viewBox requires x y positive-width positive-height",
-            ));
-        }
-        let mut sx = w / v[2];
-        let mut sy = h / v[3];
-        let p = node
-            .attribute("preserveAspectRatio")
-            .unwrap_or("xMidYMid meet")
-            .split_whitespace()
-            .collect::<Vec<_>>();
-        let mut dx = 0.0;
-        let mut dy = 0.0;
-        if p.as_slice() != ["none"] {
-            if !(1..=2).contains(&p.len())
-                || ![
-                    "xMinYMin", "xMidYMin", "xMaxYMin", "xMinYMid", "xMidYMid", "xMaxYMid",
-                    "xMinYMax", "xMidYMax", "xMaxYMax",
-                ]
-                .contains(&p[0])
-            {
-                return Err(unsupported("Unsupported preserveAspectRatio syntax"));
-            }
-            let scale = match p.get(1).copied().unwrap_or("meet") {
-                "meet" => sx.min(sy),
-                "slice" => sx.max(sy),
-                _ => return Err(invalid("Expected meet or slice")),
-            };
-            sx = scale;
-            sy = scale;
-            let factor = |s| match s {
-                "Min" => 0.0,
-                "Mid" => 0.5,
-                _ => 1.0,
-            };
-            dx = (w - v[2] * scale) * factor(&p[0][1..4]);
-            dy = (h - v[3] * scale) * factor(&p[0][5..8]);
-        }
-        matrix = [sx, 0.0, 0.0, sy, dx - v[0] * sx, dy - v[1] * sy];
-    } else if node.has_attribute("preserveAspectRatio") {
-        return Err(unsupported(
-            "preserveAspectRatio requires viewBox in this importer",
-        ));
-    }
-    Ok((w, h, matrix))
+    Ok((w, h, viewports::mapping(node, [w, h])?))
 }
 struct Importer<'css> {
     styles: &'css styles::Sheet,
@@ -653,6 +619,7 @@ struct Importer<'css> {
     references: reuse::References,
     use_path: Vec<Value>,
     template_refs: definitions::TemplateReferences,
+    collected_resources: HashSet<roxmltree::NodeId>,
 }
 impl Importer<'_> {
     fn visit(
@@ -667,14 +634,15 @@ impl Importer<'_> {
         if tag == "style" {
             return Ok(());
         }
-        if [
-            "defs",
-            "linearGradient",
-            "radialGradient",
-            "clipPath",
-            "mask",
-        ]
-        .contains(&tag)
+        if (tag == "symbol" && root_matrix.is_none())
+            || [
+                "defs",
+                "linearGradient",
+                "radialGradient",
+                "clipPath",
+                "mask",
+            ]
+            .contains(&tag)
         {
             return self.collect_definition(node, inherited);
         }
@@ -694,10 +662,17 @@ impl Importer<'_> {
             ],
             "g" => &[],
             "use" => reuse::ATTRIBUTES,
+            "symbol" => viewports::SYMBOL_ATTRIBUTES,
             "text" => &["x", "y", "dx", "dy"],
             _ => shape_attributes(tag)?,
         };
-        let props = properties(node, extra, self.styles)?;
+        let mut props = properties(node, extra, self.styles)?;
+        if tag == "symbol" {
+            // A directly instantiated symbol is rendered regardless of its own
+            // display declaration; ordinary symbol definitions never paint.
+            props.insert("display", "inline");
+            props.entry("overflow").or_insert("hidden");
+        }
         let style = styled(inherited, &props)?;
         if self.in_mask && style.mask.is_some() {
             return Err(unsupported(
@@ -709,11 +684,14 @@ impl Importer<'_> {
                 "linearRGB color-interpolation is supported on gradient definitions only; ordinary compositing remains sRGB",
             ));
         }
-        let mut transform = node
-            .attribute("transform")
-            .map(numbers::transform)
-            .transpose()?
-            .unwrap_or(identity());
+        let mut transform = if tag == "symbol" {
+            identity()
+        } else {
+            node.attribute("transform")
+                .map(numbers::transform)
+                .transpose()?
+                .unwrap_or(identity())
+        };
         if let Some(view) = root_matrix {
             transform = geometry::multiply(transform, view);
         }
@@ -1058,7 +1036,7 @@ fn import_with_budget(
         [width, height]
     };
     let mut importer=Importer{styles:&styles,control:control.clone(),document,mappings:vec![],approximations:vec![],definitions:Default::default(),bindings:vec![],
-        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), references, use_path:vec![],template_refs:Default::default(),losses:vec![
+        fonts: labels::Fonts::new(font_bindings, font_root.as_deref())?, viewport: user_viewport, in_mask:false, modern_masks: root.attribute("version") == Some("2.0"), references, use_path:vec![],template_refs:Default::default(),collected_resources:HashSet::new(),losses:vec![
         "Source IDs are mapped to deterministic item IDs; the root is an editable group. Retain the source for XML formatting, comments and original IDs.".into(),
         "Presentation inheritance, embedded stylesheets and inline style are resolved into editable properties. Classes, selectors and stylesheet syntax are not retained. Quadratic curves and shorthand become explicit cubic/line commands; units/viewBox become affine transforms. Original syntax is not retained.".into(),
         "Paint colors and fill/stroke opacity are quantized to RGBA8; object and group opacity retain f64 precision. Geometry is f64; display coverage uses the existing f32 renderer.".into(),

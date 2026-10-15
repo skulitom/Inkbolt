@@ -178,7 +178,7 @@ The root is an editable group. Each imported drawable/container receives a deter
 ## Local reusable shapes (W3a.4 in progress)
 
 `use` accepts a literal local `href="#id"` or `xlink:href="#id"` targeting a
-supported shape, group, text element or another `use`. Forward references and
+supported shape, group, text element, symbol or another `use`. Forward references and
 graphics stored inside `defs` are admitted. The placement and style rules follow
 the public [SVG reuse specification](https://www.w3.org/TR/SVG2/struct.html#UseElement).
 A placement becomes an independent
@@ -200,18 +200,52 @@ Text templates bind fonts when painted. Relative font-size range checks use the
 actual placement context; definition-time validation checks their syntax without
 substituting an unrelated parent size.
 
-Shared component conversion, symbol viewports and cloned resource scopes remain
+Shared component conversion and cloned resource scopes remain
 open in W3a.4. Targets containing definitions or metadata currently fail explicitly;
 placements can refer to existing gradient, clip and mask definitions outside the
 copied subtree. This increment reports loss of source sharing and does not complete
 the reusable-shape milestone. Ordinary `use` inside clip-path geometry remains
 unsupported by that narrower definition parser.
 
+### Symbol viewports
+
+`symbol` definitions do not paint directly. An instantiated symbol has a separate
+editable viewport group for its rectangular clip and placement, and an inner group
+for its viewBox transform and appearance. Its own display declaration does not
+suppress the direct instance; the host `use` still controls display. Unreferenced
+nested symbols remain definitions.
+
+Dimensions accept absolute units, percentages and `auto`. Explicit non-auto
+width/height on `use` override the corresponding symbol dimensions; remaining
+auto dimensions use the enclosing user viewport. The symbol's x/y and transform
+apply inside the host placement. Positive-size viewBox mapping supports the nine
+alignments, meet, slice and none. Numeric/percentage `refX`/`refY` and their axis
+keywords anchor a point in the mapped content; omitted anchors retain viewport-edge
+placement. Overflow defaults to hidden, with explicit hidden/visible supported
+on symbols. These rules follow the public
+[symbol contract](https://www.w3.org/TR/SVG2/struct.html#SymbolElement) and
+[coordinate rules](https://www.w3.org/TR/SVG2/coords.html#Units).
+
+Mappings include `viewport_item_id` and `viewport_size`; atomic insertion remaps
+the extra item identity. A zero dimension becomes a nonpainting empty group with
+an `empty_viewport` receipt and explicit loss of unexpanded content. Invalid and
+unsupported source syntax still fails. CSS geometry properties, nested `svg`
+viewports and additional overflow modes remain unsupported.
+
+Percentage coordinates in admitted text, placements, paints and masks use the
+current symbol's viewBox dimensions, or its viewport dimensions without a viewBox.
+Returning from the symbol restores the enclosing coordinate basis. Mask sources
+used in different viewport contexts have independent editable variants, with an
+explicit sharing-loss receipt; placements in the same context share one source.
+Variant mappings include `resource_item_id` and `resource_viewport`. Original
+definition offsets remain unchanged, and repeated preparation does not collect
+nested source definitions again.
+
 ## Gradients and clipping definitions
 
 `defs`, `linearGradient`, `radialGradient`, `stop` and `clipPath` are now supported. Definitions can occur before or after artwork, directly in a drawing container or inside defs; each definition requires a unique source ID. Literal local `url(#id)` references may use quotes around the fragment. External URLs, fallback paint syntax, encoded/escaped fragments, missing/wrong-type references and cycles fail the whole import. A separate `definitions` receipt records definition IDs/types and byte offsets. Gradient and clip definitions do not become document items. Mask definitions become nonprinting editable source containers, described below.
 
-Linear and centered radial gradients support fill and stroke, pad/repeat/reflect, gradientTransform, stop alpha and sRGB/linearRGB color interpolation. Default units are objectBoundingBox; userSpaceOnUse is explicit. Object coordinates use the unclipped geometric bounding box, excluding stroke width. The box transform composes outside gradientTransform. Gradient percentages use unit-box dimensions for objectBoundingBox; user-space percentages use root viewBox dimensions, or canvas dimensions when viewBox is absent. Radial percentage radius uses the normalized diagonal. Gradient geometry coordinates accept the existing absolute units at 96 ppi. Degenerate object boxes fail explicitly instead of losing a paint.
+Linear and centered radial gradients support fill and stroke, pad/repeat/reflect, gradientTransform, stop alpha and sRGB/linearRGB color interpolation. Default units are objectBoundingBox; userSpaceOnUse is explicit. Object coordinates use the unclipped geometric bounding box, excluding stroke width. The box transform composes outside gradientTransform. Gradient percentages use unit-box dimensions for objectBoundingBox; user-space percentages use the referencing user viewport (viewBox dimensions, or viewport dimensions when viewBox is absent). Radial percentage radius uses the normalized diagonal. Gradient geometry coordinates accept the existing absolute units at 96 ppi. Degenerate object boxes fail explicitly instead of losing a paint.
 
 Local href or xlink:href templates inherit unspecified gradient attributes and stops when the derived gradient has no stops. Derived stops replace the inherited list. Gradient presentation properties, including interpolation and color, inherit from the XML ancestors rather than the href target or the referencing artwork. Reused stop elements retain their declarations and recompute inherited properties in the final gradient's context, following the SVG 2 template-child model; explicit stop properties override that context. This also defines deterministic behavior where SVG 1.1 left template-child styling unspecified. Stop color and opacity default to black and one; they inherit only with explicit inherit. Offsets accept numbers/percentages, clamp to 0..1, then rise to at least the previous offset; repeated offsets retain their discontinuity. Empty gradients paint nothing, single-stop gradients become solid, and coincident linear endpoints or zero radial radius use the final stop. Stop alpha and fill/stroke opacity normalize to RGBA8 with disclosed quantization. Focus coordinates must resolve to the radial center for nonconstant paints.
 
@@ -225,7 +259,7 @@ Plain `text` elements now become editable single-line text frames. Supply `font_
 
 `font-family` accepts an ordered list of unescaped quoted names or simple unquoted names. Selection uses the first explicitly bound family with an exact weight/style match, with ASCII case-insensitive family matching. A selected face missing a character fails instead of searching further. At most eight bindings are allowed; duplicate family/weight/style selectors and conflicting descriptors for one font ID fail. Multiple aliases may share one font ID and identical descriptor. An absent matching binding reports `SVG_FONT_NOT_BOUND`; store failures use the existing font diagnostics. Font paths and XML family expressions are not stored in snapshots.
 
-Family, size, weight, style and text-anchor inherit from ancestors and accept explicit inherit. Initial values are serif, 16 user units, normal weight/style and start alignment. Font size supports the existing absolute units, em and percentages relative to the parent's computed size. The text element accepts one x/y/dx/dy coordinate each; absolute units, em relative to its size, and percentages relative to the root user viewport are supported. Coordinate lists, character rotations and textLength remain unsupported. Position is the alphabetic baseline, then the element and ancestor transforms apply. Start/middle/end use shaped advance, independently of glyph ink bounds. The initial frame width is that advance (minimum 0.001); alignment remains editable inside that frame, so subsequent text edits keep the selected anchor. Off-frame glyph ink remains visible. Source baseline attributes normalize into the item transform; later font/size edits follow the engine's ordinary frame contract.
+Family, size, weight, style and text-anchor inherit from ancestors and accept explicit inherit. Initial values are serif, 16 user units, normal weight/style and start alignment. Font size supports the existing absolute units, em and percentages relative to the parent's computed size. The text element accepts one x/y/dx/dy coordinate each; absolute units, em relative to its size, and percentages relative to the current user viewport are supported. Coordinate lists, character rotations and textLength remain unsupported. Position is the alphabetic baseline, then the element and ancestor transforms apply. Start/middle/end use shaped advance, independently of glyph ink bounds. The initial frame width is that advance (minimum 0.001); alignment remains editable inside that frame, so subsequent text edits keep the selected anchor. Off-frame glyph ink remains visible. Source baseline attributes normalize into the item transform; later font/size edits follow the engine's ordinary frame contract.
 
 The text remains Unicode with the existing Latin/Common/Inherited script and missing-glyph rules. This importer currently requires horizontal left-to-right layout, nonzero fill rule, an alphabetic baseline, no visible stroke and normal/zero letter spacing. `tspan`, textPath and other text child elements, bidi, text decorations and broader typography fail explicitly. Plain title/desc retain their existing metadata behavior.
 
@@ -247,7 +281,7 @@ Style inherits into mask content from its XML ancestors, independently of the re
 
 `maskUnits` controls the rectangular region and defaults to objectBoundingBox. `maskContentUnits` separately controls source artwork and defaults to userSpaceOnUse. Both also accept the other unit mode. Object coordinates use the same unclipped geometry or text font-cell box as other effects, excluding stroke and display-none descendants. A required degenerate box fails explicitly. User coordinates use the referencing element's coordinate system before its transform. Text user coordinates rebase into the editable frame exactly once. Region/content coordinate maps persist independently in the reference; the source keeps its editable coordinates.
 
-Region x/y/width/height accept unitless values and percentages; user-space regions additionally accept the existing absolute units at 96 ppi. Object-box percentages equal their fractional values. User-space region percentages use the root user viewport. Changing content units adds a transform and does not establish a new viewport: percentages inside source content, including user-space gradients and text positions, retain the root user-viewport basis under the public coordinate rules. Geometry percentage attributes remain unsupported, as for ordinary shapes.
+Region x/y/width/height accept unitless values and percentages; user-space regions additionally accept the existing absolute units at 96 ppi. Object-box percentages equal their fractional values. User-space region percentages use the referencing user viewport. Changing content units adds a transform and does not establish a new viewport: percentages inside source content, including user-space gradients and text positions, retain the referencing user-viewport basis under the public coordinate rules. Geometry percentage attributes remain unsupported, as for ordinary shapes.
 
 For omitted version and SVG 1.x, absent region coordinates default to -10%/-10%/120%/120%; negative dimensions fail, including on unused masks, and zero dimensions hide the owner. For explicit version 2.0, CSS Masking's region rules apply: when every region attribute is absent, `clip_region:false` retains an unbounded mask field. If any is present, missing attributes use the defaults; zero or negative dimensions hide the owner. This choice is explicit in the document contract, not inferred from a renderer. An unbounded reference exports with version 2.0 and no region attributes. Ordinary finite regions export explicit coordinates and a transformed clip.
 
@@ -257,7 +291,7 @@ Opacity masks inside a mask source, mask-definition transforms, images, filters 
 
 ## Explicit boundaries
 
-Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Linked/embedded images, symbol viewports, cloned reference-resource scopes, filters, animations, scripts, nested viewports and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
+Unknown elements/attributes and unsupported content fail the entire import, including content inside hidden groups. There is no partial success or silent element skipping. Linked/embedded images, cloned reference-resource scopes, filters, animations, scripts, nested svg viewports and external stylesheets are not yet supported. Multi-child clip unions, nested clip references and off-center radial focus also remain unsupported. Export currently supports more SVG semantics than import; an exported file containing such features fails on import. Support is bounded by the declared element/property contracts; unsupported semantics return an error.
 
 Standard input is at most 256 KiB and 4096 XML nodes. Explicit `resource_profile: "large_vector"` admits 8 MiB, 65536 XML nodes, 8192 items and 131072 aggregate commands within an 8 MiB snapshot; see [LARGE_VECTOR.md](LARGE_VECTOR.md). XML DTD declarations/markers and processing instructions are rejected; no entity resolver is installed. UTF-8 is required (an optional UTF-8 BOM is retained in the source hash). Local files are opened read-only, checked for regular-file semantics and read with a hard byte cap. Each numeric sequence is bounded to 32768 tokens, each transform list to 64 functions, definitions to 64 and gradient reference chains to 16, and all imported geometry participates in profile-specific limits (standard: 256 items including the root, 16 ancestor levels, 4096 aggregate path commands, coordinate/transform bounds and a 768 KiB snapshot). Rendering retains its separate work/pixel budgets. Cancellation is checked during node traversal and document validation; blocking filesystem reads are not forcefully interrupted.
 

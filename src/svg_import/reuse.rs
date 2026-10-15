@@ -79,9 +79,10 @@ impl References {
                     .copied()
                     .ok_or_else(|| invalid("Missing SVG use target"))?;
                 let tag = target.tag_name().name();
-                if !["g", "text", "use"].contains(&tag) && shape_attributes(tag).is_err() {
+                if !["g", "text", "use", "symbol"].contains(&tag) && shape_attributes(tag).is_err()
+                {
                     return Err(unsupported(
-                        "SVG use currently references shapes, groups, text or another use",
+                        "SVG use currently references shapes, groups, text, symbols or another use",
                     ));
                 }
                 // Cloned resource scopes need their own identities and inherited
@@ -182,7 +183,11 @@ impl Importer<'_> {
         self.control.check()?;
         let tag = node.tag_name().name();
         if ["linearGradient", "radialGradient", "clipPath", "mask"].contains(&tag) {
-            return self.definitions.collect(node, inherited, self.styles);
+            return if self.collected_resources.insert(node.id()) {
+                self.definitions.collect(node, inherited, self.styles)
+            } else {
+                Ok(())
+            };
         }
         if tag != "defs" {
             return self
@@ -211,6 +216,7 @@ impl Importer<'_> {
         let extra = match tag {
             "g" => &[][..],
             "use" => ATTRIBUTES,
+            "symbol" => viewports::SYMBOL_ATTRIBUTES,
             "text" => &["x", "y", "dx", "dy"],
             _ => shape_attributes(tag)?,
         };
@@ -229,7 +235,10 @@ impl Importer<'_> {
         // potentially long font-family strings) for every nonpainting template.
         self.template_refs.record(&style, clip.as_deref())?;
         match tag {
-            "g" => {
+            "g" | "symbol" => {
+                if tag == "symbol" {
+                    viewports::validate_symbol(node)?;
+                }
                 for child in template_children(node)? {
                     self.collect_definition(child, &style)?;
                 }
@@ -270,7 +279,11 @@ impl Importer<'_> {
             .target(node)
             .ok_or_else(|| invalid("SVG use target was not indexed"))?;
         self.use_path.push(json!({"source_id":node.attribute("id"), "byte_offset":node.range().start, "item_id":parent}));
-        let result = self.visit(target, Some(parent), inherited, None);
+        let result = if target.has_tag_name("symbol") {
+            self.expand_symbol(target, node, parent, inherited)
+        } else {
+            self.visit(target, Some(parent), inherited, None)
+        };
         self.use_path.pop();
         result.map_err(|error| {
             let mut error = located(error, target);

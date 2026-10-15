@@ -67,7 +67,7 @@ class SvgReuseTests(unittest.TestCase):
             '<g id="a"><use href="#a"/></g>',
             '<defs><linearGradient id="g"><stop offset="0"/></linearGradient></defs><use href="#g"/>',
             '<defs><g id="g"><defs/><rect width="1" height="1"/></g></defs><use href="#g"/>',
-            '<defs><symbol id="s"><rect width="1" height="1"/></symbol></defs><use href="#s"/>',
+            '<defs><svg id="s"><rect width="1" height="1"/></svg></defs><use href="#s"/>',
         ]
         for body in cases:
             with self.subTest(body=body):
