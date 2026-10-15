@@ -216,6 +216,7 @@ impl Importer<'_> {
                 displayed: true,
                 object_bounds: None,
                 text_placement: identity(),
+                text_ranges: vec![],
                 viewport: self.viewport,
             });
             let mapping_start = self.mappings.len();

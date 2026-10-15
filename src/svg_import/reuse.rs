@@ -258,7 +258,16 @@ impl Importer<'_> {
             "text" => {
                 // Fonts and metrics bind when painted, after use inheritance.
                 // A template may receive its only bound family from its host.
-                labels::template_source(node)?;
+                labels::validate_template(
+                    node,
+                    &style,
+                    &labels::Context {
+                        styles: self.styles,
+                        scopes: &self.scopes,
+                        control: &self.control,
+                    },
+                    &mut self.template_refs,
+                )?;
             }
             _ => {
                 geometry::validate_geometry(&shape(node, &mut Vec::new())?)?;

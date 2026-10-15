@@ -781,6 +781,9 @@ impl Importer<'_> {
         }
         let mut object_bounds = None;
         let mut text_placement = identity();
+        let mut text_ranges = Vec::new();
+        let mut text_mappings = Vec::new();
+        let mut text_visible = style.visible;
         let content = if is_text {
             let imported = labels::content(
                 node,
@@ -788,11 +791,26 @@ impl Importer<'_> {
                 &mut self.document,
                 &mut self.fonts,
                 self.viewport,
+                &labels::Context {
+                    styles: self.styles,
+                    scopes: &self.scopes,
+                    control: &self.control,
+                },
             )?;
+            text_ranges = imported.range_styles;
+            text_mappings = imported.mappings;
+            for style in imported.template_styles {
+                self.template_refs.record(&style, None)?;
+            }
+            if imported.frame.positioning.is_some() {
+                text_visible = true; // Visibility is retained in each resolved range paint.
+                self.losses.push("SVG spans become Unicode-scalar ranges and retained character positions in one editable frame. XML nesting and DOM text-node shaping boundaries are not retained by later range replacement; source mappings describe the imported revision. Span titles/descriptions are not retained.".into());
+            } else {
+                self.losses.push("SVG text becomes a single editable frame using explicitly bound fonts. Whitespace and baseline placement are normalized; anchor alignment persists within the initial advance-width frame. Font-family expressions and XML text structure are not retained. SVG export uses glyph outlines and reports loss of text editability.".into());
+            }
             object_bounds = imported.bounds;
             text_placement = imported.placement;
             transform = geometry::multiply(transform, text_placement);
-            self.losses.push("SVG text becomes a single editable frame using explicitly bound fonts. Whitespace and baseline placement are normalized; anchor alignment persists within the initial advance-width frame. Font-family expressions and XML text structure are not retained. SVG export uses glyph outlines and reports loss of text editability.".into());
             Content::Text {
                 frame: Box::new(imported.frame),
             }
@@ -833,6 +851,11 @@ impl Importer<'_> {
         self.mappings.push(json!({"item_id":id,"source_id":node.attribute("id"),"element":tag,"byte_offset":node.range().start}));
         self.scopes
             .annotate(self.mappings.last_mut().unwrap(), &self.use_path);
+        for mut mapping in text_mappings {
+            mapping["item_id"] = json!(id);
+            self.scopes.annotate(&mut mapping, &self.use_path);
+            self.mappings.push(mapping);
+        }
         self.bindings.push(definitions::Binding {
             index: self.document.items.len(),
             style: style.clone(),
@@ -845,6 +868,7 @@ impl Importer<'_> {
             object_bounds,
             text_placement,
             viewport: self.viewport,
+            text_ranges,
         });
         self.document.items.push(Item {
             hdr_grade: None,
@@ -852,7 +876,7 @@ impl Importer<'_> {
             metadata: None,
             id: id.clone(),
             name,
-            visible: props.get("display") != Some(&"none") && (container || style.visible),
+            visible: props.get("display") != Some(&"none") && (container || text_visible),
             locked: false,
             opacity,
             fill_opacity: 1.0,
@@ -876,6 +900,9 @@ impl Importer<'_> {
                 continue;
             }
             if ["title", "desc", "style"].contains(&child.tag_name().name()) {
+                continue;
+            }
+            if is_text && child.has_tag_name("tspan") {
                 continue;
             }
             if !container || tag == "use" {

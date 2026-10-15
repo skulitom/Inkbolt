@@ -104,6 +104,7 @@ pub(super) struct Binding {
     pub object_bounds: Option<geometry::Bounds>,
     pub text_placement: Matrix,
     pub viewport: [f64; 2],
+    pub text_ranges: Vec<Style>,
 }
 
 #[derive(Default)]
@@ -552,7 +553,10 @@ impl Definitions {
         }
         for b in bindings {
             let viewport = b.viewport;
-            for value in [&b.style.fill, &b.style.stroke] {
+            for value in std::iter::once(&b.style)
+                .chain(&b.text_ranges)
+                .flat_map(|s| [&s.fill, &s.stroke])
+            {
                 if let Some(id) = reference(value)?
                     && !resolved.contains_key(id)
                 {
@@ -586,6 +590,29 @@ impl Definitions {
                 ) = &mut frame.style.fill
                 {
                     *transform = geometry::relative_transform(b.text_placement, &[*transform])?;
+                }
+                if !b.style.visible {
+                    frame.style.fill = Paint::Solid([0; 4]);
+                }
+                for (range, style) in frame.ranges.iter_mut().zip(&b.text_ranges) {
+                    range.style.fill = resolve_paint(
+                        &style.fill,
+                        style.fill_opacity,
+                        style.color,
+                        &resolved,
+                        paint_bounds,
+                        viewport,
+                    )?
+                    .unwrap_or(Paint::Solid([0; 4]));
+                    if let Paint::Field(
+                        Field::Linear { transform, .. } | Field::Radial { transform, .. },
+                    ) = &mut range.style.fill
+                    {
+                        *transform = geometry::relative_transform(b.text_placement, &[*transform])?;
+                    }
+                    if !style.visible {
+                        range.style.fill = Paint::Solid([0; 4]);
+                    }
                 }
             }
             if let Content::Vector { fill, stroke, .. } = &mut document.items[b.index].content {

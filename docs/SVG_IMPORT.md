@@ -419,13 +419,13 @@ Group object boxes include visible and visibility-hidden geometry, excluding dis
 
 ## Editable text and font bindings
 
-Plain `text` elements now become editable single-line text frames. Supply `font_bindings` on `svg.import`: an array of `{family, font_id, font, weight?, style?}`, where `font` is the complete descriptor returned by `font.import`. Supply the same explicit `font_root` used for that font store. The family is a caller-declared alias for the pinned face; it is not an assertion about a name table. Weight defaults to 400 and accepts 100..900 in steps of 100; style defaults to normal and also accepts italic or oblique. There is no synthetic weight/slant, installed-font lookup or automatic glyph fallback. Only referenced fonts are loaded and retained in the returned document; their bytes and licenses verify before import succeeds. Missing or corrupt resources fail even on hidden text.
+Plain `text` elements become editable text frames; nested `tspan` adds retained style ranges and character positions. Supply `font_bindings` on `svg.import`: an array of `{family, font_id, font, weight?, style?}`, where `font` is the complete descriptor returned by `font.import`. Supply the same explicit `font_root` used for that font store. The family is a caller-declared alias for the pinned face; it is not an assertion about a name table. Weight defaults to 400 and accepts 100..900 in steps of 100; style defaults to normal and also accepts italic or oblique. There is no synthetic weight/slant, installed-font lookup or automatic glyph fallback. Only referenced fonts are loaded and retained in the returned document; their bytes and licenses verify before import succeeds. Missing or corrupt resources fail on visibility-hidden text because it still participates in layout. Display-none spans contribute no characters and need no layout font; their declarations and paint references still validate.
 
 `font-family` accepts an ordered list of unescaped quoted names or simple unquoted names. Selection uses the first explicitly bound family with an exact weight/style match, with ASCII case-insensitive family matching. A selected face missing a character fails instead of searching further. At most eight bindings are allowed; duplicate family/weight/style selectors and conflicting descriptors for one font ID fail. Multiple aliases may share one font ID and identical descriptor. An absent matching binding reports `SVG_FONT_NOT_BOUND`; store failures use the existing font diagnostics. Font paths and XML family expressions are not stored in snapshots.
 
-Family, size, weight, style and text-anchor inherit from ancestors and accept explicit inherit. Initial values are serif, 16 user units, normal weight/style and start alignment. Font size supports the existing absolute units, em and percentages relative to the parent's computed size. The text element accepts one x/y/dx/dy coordinate each; absolute units, em relative to its size, and percentages relative to the current user viewport are supported. Coordinate lists, character rotations and textLength remain unsupported. Position is the alphabetic baseline, then the element and ancestor transforms apply. Start/middle/end use shaped advance, independently of glyph ink bounds. The initial frame width is that advance (minimum 0.001); alignment remains editable inside that frame, so subsequent text edits keep the selected anchor. Off-frame glyph ink remains visible. Source baseline attributes normalize into the item transform; later font/size edits follow the engine's ordinary frame contract.
+Family, size, weight, style and text-anchor inherit from ancestors and accept explicit inherit. Initial values are serif, 16 user units, normal weight/style and start alignment. Font size supports the existing absolute units, em and percentages relative to the parent's computed size. Plain text without coordinate lists accepts one x/y/dx/dy coordinate each; absolute units, em relative to its size, and percentages relative to the current user viewport are supported. Coordinate lists use the span layout described below. Character rotations and textLength remain unsupported. Position is the alphabetic baseline, then the element and ancestor transforms apply. Start/middle/end use shaped advance, independently of glyph ink bounds. The initial frame width is that advance (minimum 0.001); alignment remains editable inside that frame, so subsequent text edits keep the selected anchor. Off-frame glyph ink remains visible. Source baseline attributes normalize into the item transform; later font/size edits follow the engine's ordinary frame contract.
 
-The text remains Unicode with the existing Latin/Common/Inherited script and missing-glyph rules. This importer currently requires horizontal left-to-right layout, nonzero fill rule, an alphabetic baseline, no visible stroke and normal/zero letter spacing. `tspan`, textPath and other text child elements, bidi, text decorations and broader typography fail explicitly. Plain title/desc retain their existing metadata behavior.
+The text remains Unicode with the existing native shaping and missing-glyph rules. This importer currently requires horizontal left-to-right layout, nonzero fill rule, an alphabetic baseline, no visible stroke and normal/zero letter spacing. textPath and other unsupported text child elements, bidi, text decorations and broader typography fail explicitly. Plain title/desc retain their existing metadata behavior.
 
 SVG 1.x and an omitted version use legacy xml:space handling: default removes line breaks, replaces tabs with spaces, trims and collapses spaces; preserve converts line breaks/tabs to spaces while retaining all spaces. Explicit version 2.0 defaults to replacing line breaks with spaces before collapse. Inherited `white-space:normal` uses that latter behavior; `white-space:pre` preserves spaces but rejects line breaks and tabs because multiline layout and tab stops are not represented. Explicit CSS white-space takes precedence over xml:space. Comments and character references resolve before normalization. These rules are recorded as normalization losses; original XML bytes remain unchanged.
 
@@ -434,6 +434,49 @@ Solid and gradient fills, fill/object/group opacity and geometric clips work on 
 Glyphs paint in order as separate paths, including translucent overlaps; item opacity applies once to the assembled text. PNG and snapshots retain text in their source document. SVG export and text_outline produce one path per visible glyph with explicit loss of text editability. This can reach the normal expanded item, geometry or rendering-work limits sooner than merged contours; unsupported expansion fails without partial output. Retain the editable snapshot and pinned font store.
 
 The [text import example](../examples/svg_text_workflow.py) creates an original labeled SVG, imports it, edits its label in a persistent session, exports snapshots/PNG/outlined SVG, compares pixels and verifies exact undo. It requires explicit source font/license paths and a new output directory.
+
+## Editable span ranges
+
+Nested `tspan` and coordinate lists on `text` use one editable frame with
+[native character positioning](TEXT_POSITIONING.md). Each DOM text node retains
+an initial style range, so ligatures do not cross markup boundaries. Font family,
+size, weight/style binding, solid/gradient fill, fill opacity, anchor, visibility
+and whitespace use the ordinary embedded CSS cascade and inherited values.
+Unbound or missing fonts still fail; descendant spans may supply the only used
+font binding without requiring an unused parent family to be bound.
+
+`x`, `y`, `dx` and `dy` accept comma/whitespace-separated length lists bounded by
+the existing character ceiling. Absolute units, `em` and percentages resolve in
+the declaring element's font and current user viewport. Lists address retained
+Unicode scalars across descendants after whitespace normalization and removal of
+`display:none` content. Descendant entries override the corresponding ancestor
+entry; a shorter child list leaves remaining ancestor entries in effect. Absolute
+x/y starts an anchored chunk; relative shifts accumulate and affect following
+tail text. Native glyph clusters, coordinate bounds and range-edit rules apply.
+
+Whitespace is normalized across text-node boundaries, preserving the existing
+legacy-versus-2.0 rules. Hidden text retains its advances; visibility may be
+restored by a descendant. Display-none content is removed from the text and list
+addressing, but its syntax and references are still validated. Every span maps
+to the owning `item_id` and a half-open `text_range` in Unicode scalars, with its
+original byte offset and reuse context. Those ranges describe the imported
+revision and do not track later edits. Span XML names, nesting and descriptions
+are not retained as document items.
+
+The frame is rebased around its font-cell bounds. All span object-box gradients
+use the entire text's font-cell box, per the public
+[SVG text paint rules](https://www.w3.org/TR/SVG2/text.html#ObjectBoundingBoxUnitsTextObjects).
+Parent text opacity, clips and masks apply to the assembled text. Local reuse,
+cloned gradient scopes, mask-source text and atomic SVG insertion share this path.
+SVG export remains outlined, with its existing editability loss receipt.
+
+Span transforms, nontrivial span opacity, span clips/masks and isolation still
+fail explicitly because they require separate compositing owners. Rotation,
+textLength, textPath, unsupported writing modes and differing styles or absolute positions inside a
+grapheme also fail. Identically styled text split inside a grapheme shares one
+native range to preserve combining behavior. These boundaries are not silently converted to per-glyph
+opacity or outlines. W3a.7 acceptance remains open while this integration receives
+its requirement review and fresh full Windows/Linux checks.
 
 ## Editable mask definitions
 

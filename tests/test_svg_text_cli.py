@@ -194,11 +194,11 @@ class SvgTextTests(unittest.TestCase):
     def test_unsupported_text_semantics_fail_even_hidden_without_partial_document(self):
         for attrs in ['stroke="red"','fill-rule="evenodd"','letter-spacing="1"','direction="rtl"','writing-mode="vertical-rl"','dominant-baseline="middle"','rotate="10"','textLength="12"','font-variant="small-caps"','font-size-adjust=".5"','font-stretch="condensed"']:
             r=self.imported('<rect width="1" height="1"/>'+self.label(attrs),expected=1);self.assertEqual(r['code'],'SVG_UNSUPPORTED',attrs)
-        for text in ['<tspan>A</tspan>','<textPath href="#path">A</textPath>']:
+        for text in ['<tspan rotate="1">A</tspan>','<textPath href="#path">A</textPath>']:
             self.assertEqual(self.imported('<g display="none">'+self.label(text=text)+'</g>',expected=1)['code'],'SVG_UNSUPPORTED')
         for text in ['A\nA','A\tA']:
             self.assertEqual(self.imported(self.label('style="white-space:pre"',text),expected=1)['code'],'SVG_UNSUPPORTED')
-        for attrs in ['x="1 2"','font-size="0"','font-size="1e300em"']:
+        for attrs in ['x="1,,2"','font-size="0"','font-size="1e300em"']:
             body='<text font-family="Geometry" '+attrs+'>A</text>'
             self.assertIn(self.imported(body,expected=1)['code'],['SVG_INVALID','SVG_UNSUPPORTED'])
 
@@ -221,7 +221,8 @@ class SvgTextTests(unittest.TestCase):
         self.assertEqual(self.item(r)['name'],'Editable label');self.assertEqual(self.item(r)['content']['frame']['text'],'AA')
         caps=self.invoke(dict(command='capabilities'));self.assertIn('text',caps['svg_import']['elements'])
         self.assertEqual(caps['svg_import']['text']['object_box'],'full_font_cells')
-        self.assertFalse(caps['svg_import']['text']['span_children'])
+        self.assertTrue(caps['svg_import']['text']['span_children'])
+        self.assertIn('tspan',caps['svg_import']['elements'])
         self.assertEqual(caps['svg_import']['text']['font_bindings'],8)
 
 

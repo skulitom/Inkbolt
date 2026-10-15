@@ -4,8 +4,9 @@ Character-addressed text placement shares native shaping, glyph outlines and
 rendering. Absolute coordinates create independently shaped chunks; relative
 shifts follow Unicode-scalar indices without splitting ligatures or combining
 marks. Position controls survive range edits, snapshots and sessions. This is
-the foundation for SVG spans; importer integration remains open. See
-[editable positioning](TEXT_POSITIONING.md).
+the shared layout for SVG span style ranges and coordinate lists. Span-specific
+compositing and full importer acceptance remain open. See
+[editable positioning](TEXT_POSITIONING.md) and [SVG spans](SVG_IMPORT.md#editable-span-ranges).
 
 SVG PNG/JPEG resources use self-contained encoded image descriptors, retaining
 source bytes and the shared decoder's normalized identity. Import and atomic

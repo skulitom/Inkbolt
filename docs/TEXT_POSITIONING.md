@@ -2,7 +2,8 @@
 
 `text.frame.positioning` retains absolute and cumulative relative placements in
 one editable frame, alongside ordinary font and style ranges. This is the shared
-layout foundation for SVG spans; SVG span import is still a separate open task.
+layout for [SVG span ranges and coordinate lists](SVG_IMPORT.md#editable-span-ranges).
+Span-specific compositing and full importer acceptance remain open.
 Omitting the field preserves the existing paragraph layout.
 
 ```json

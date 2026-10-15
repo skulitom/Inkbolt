@@ -247,6 +247,7 @@ impl Importer<'_> {
             displayed: visible,
             object_bounds: None,
             text_placement: identity(),
+            text_ranges: vec![],
             viewport: self.viewport,
         });
         Ok(index)

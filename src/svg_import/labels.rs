@@ -2,6 +2,8 @@
 use super::*;
 use crate::{fonts, text};
 use std::path::Path;
+mod spans;
+pub(super) use spans::{Context, validate_template};
 
 pub(super) const PROPERTIES: &[&str] = &[
     "font-family",
@@ -315,6 +317,9 @@ pub(super) struct Imported {
     pub frame: text::Frame,
     pub placement: Matrix,
     pub bounds: Option<geometry::Bounds>,
+    pub range_styles: Vec<Style>,
+    pub mappings: Vec<Value>,
+    pub template_styles: Vec<Style>,
 }
 pub(super) fn template_source(node: Node<'_, '_>) -> Result<String, Error> {
     let mut title = false;
@@ -345,13 +350,17 @@ pub(super) fn template_source(node: Node<'_, '_>) -> Result<String, Error> {
         .filter_map(|n| n.text())
         .collect())
 }
-pub(super) fn content(
-    node: Node<'_, '_>,
+pub(super) fn content<'a>(
+    node: Node<'a, 'a>,
     style: &Style,
     document: &mut Document,
     fonts: &mut Fonts,
     viewport: [f64; 2],
+    context: &Context<'a>,
 ) -> Result<Imported, Error> {
+    if spans::needed(node)? {
+        return spans::content(node, style, document, fonts, viewport, context);
+    }
     if style.stroke != "none" && style.width != 0.0 {
         return Err(unsupported("Stroked SVG text is not yet supported"));
     }
@@ -458,5 +467,8 @@ pub(super) fn content(
         frame,
         placement,
         bounds,
+        range_styles: vec![],
+        mappings: vec![],
+        template_styles: vec![],
     })
 }
