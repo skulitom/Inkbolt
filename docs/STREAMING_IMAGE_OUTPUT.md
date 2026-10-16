@@ -4,8 +4,31 @@ This implements W4.5 under [FIX_PLAN.md](../FIX_PLAN.md), ahead of coordinated
 scale admission. The first implementation connects PNG output to bounded codec
 bands and private encoded storage. The PNG phase passed fresh full Windows/Linux
 acceptance, followed by the TIFF publication phase below. Current image and
-encoded-output limits remain unchanged. JPEG output budgeting and complete
-scale acceptance remain open.
+encoded-output limits remain unchanged. JPEG output now also has fresh full Windows/Linux acceptance below. Coordinated
+scale admission and complete scale acceptance remain open.
+
+## JPEG output contract
+
+Feed the locked JPEG encoder from bounded RGBA8 bands in tiled evaluation,
+preserving neighboring-tile traversal and the existing native-reader cache.
+Keep bands within 32 MiB, and buffer encoded writes within 64 KiB. The codec
+retains at most one MCU row of three padded component planes (8 rows for full
+chroma, 16 for half); profiles and renderer working storage are additional.
+Whole evaluation keeps its existing bounded composition and RGBA8 frame.
+
+Apply the existing explicit matte before output-profile conversion. Preserve
+quality, sampling, density, quantization, metadata placement before the first
+scan and exact historical encoded bytes. A failed or cancelled row callback
+must poison subsequent encoded writes and return the original failure; filler
+rows required by the codec's infallible callback cannot produce an artifact.
+Check cancellation on each requested row and at most 64 KiB of encoded writes,
+as well as completion; checking a filesystem marker for every entropy byte
+would add avoidable work. Row errors still poison the very next write.
+Check final writes and flushing before publication. Use the shared private
+encoded file for delivery and count/hash-only storage for file-free preflight;
+inline output necessarily retains encoded bytes and base64. No image or output
+ceiling changes are part of this step. Require independent decoded-image,
+compatibility, memory and fresh Windows/Linux evidence before acceptance.
 
 Tiled PNG publication assembles only the current bounded output band; it does not
 allocate a separate complete RGBA8 frame, encoded byte vector or base64 response.
@@ -179,9 +202,79 @@ timeout or production client logging policy changed. The fresh full Windows
 rerun recorded here is acceptance, not proof of a timing fix. Prior unrelated
 recovery timing intermittency also remains open.
 
-JPEG output budgeting, coordinated scale admission and complete independent
+At that TIFF milestone, JPEG budgeting was still pending; its subsequent
+acceptance follows below. Coordinated scale admission and complete independent
 scale acceptance remain required. This change is outside v0.82.0 and adds no
 original engine-checkpoint credit.
 
 The locked PNG [stream writer](https://docs.rs/png/0.18.1/png/struct.Writer.html#method.stream_writer_with_size)
 provides bounded chunk encoding; no new dependency is introduced.
+
+## Verified JPEG phase
+
+Fresh full suites passed on matching unchanged inputs. Every stage ran fresh;
+none failed, remained pending or reused a result:
+
+| Platform | Stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 261 | 269 | 2,734 | 13 | 1003.969 |
+| Linux / WSL | 261 | 235 | 2,696 | 51 | 566.980 |
+
+Five new integration tests cover independent matte/profile input equations,
+stored images across bands, MCU padding, metadata/density, byte agreement across
+inline/preflight/publication, saved-revision MCP receipts, no-overwrite behavior,
+file-free preflight, late alpha refusal, cancellation, private cleanup, HDR views
+and artboards. Six Rust checks cover the infallible-row error bridge, cancelled
+rows, bounded encoded-write cancellation, final-marker and flush failures, split multipart metadata and incomplete
+headers. Existing renderer, PNG/TIFF, private-storage and recovery suites ran too.
+The initial focused Windows/Linux checks passed in 91.3/128.2 seconds;
+after bounded cancellation-marker polling, focused Windows checks passed in
+66.9 seconds.
+
+All 50 retained complete inline artifacts match the accepted pre-change
+`8232222` build byte for byte. They cover quality 1/90/100, both chroma settings,
+whole/tiled evaluation, profiles, explicit matte, supersampling, metadata and
+band boundaries. A receipt created by the old build replays under the new build
+without changing its file bytes or timestamp.
+
+Pillow 10.3.0 independently decoded twelve original 97x271 smooth colour cases
+with and without an output profile. Every channel passed the predeclared maximum
+error bounds of 9/6/4 byte values at quality 75/90/100, respectively. A separate
+8192x65 native image enlarged to 32768x260 also retained exact old/new artifacts;
+its independently decoded maximum error was 1 within the declared bound of 3.
+These are fixture-specific error bounds, not guarantees for arbitrary artwork.
+
+Three isolated Windows debug publications per arm and fixture retained OS
+lifetime peak commit and wall time. Pillow checked every decoded channel against
+the original generator. All twelve publications retained identical old/new
+encoded bytes and immutable native inputs:
+
+| Original fixture | Prior memory | New memory | Prior time | New time |
+| --- | ---: | ---: | ---: | ---: |
+| Empty 4096x4096 canvas with explicit white matte | 168.199 MiB | 13.082 MiB | 10.848 s | 9.125 s |
+| Stored 2048x1536 row-hashed grayscale | 48.883 MiB | 19.742 MiB | 5.921 s | 5.493 s |
+
+The constant matte decoded exactly; the stored fixture's largest error was one
+byte value at quality 100. The generator and oracle are outside the measured
+engine process. Single new-build preflight observations used 13.102/19.758 MiB
+for the same fixtures. Timings remain diagnostic: these runs do not establish
+release latency, photographic performance, the 50 MP workflow or scale-v2.
+
+Source fingerprint: `1ae1cefc5de6fde022ad419b402cebd016afa9dab5f312c8bd640abbf4d0cbbe`. Retained audit
+`w4-jpeg-output-acceptance-02/audit.json` SHA-256:
+`848f8ec54f74a55831577d07f20137b1cc06d80bbc7744fc2735938e32a2ba11`. The audit rereads all frozen source and logs, binds the measured
+binary to full Windows acceptance, and checks compatibility/fidelity outputs
+and original native inputs. Earlier focused failures remain retained: unused
+code after extraction and an incorrect segment-length test expectation were
+corrected without relaxing engine behavior. A separate timing diagnostic then
+found filesystem cancellation probes on tiny codec writes. Bounded polling
+removed that overhead while preserving row-error poisoning and completion
+checks; the earlier full suites and measurements remain retained separately.
+Earlier unrelated benchmark and
+recovery intermittency is not claimed fixed.
+
+JPEG publication and file-free preflight now avoid complete encoded buffers;
+tiled evaluation avoids complete RGBA8/RGB frames. Whole evaluation and inline
+responses retain their declared storage. Coordinated larger-scale admission,
+bounded large TIFF preflight and independent scale acceptance remain open.
+This change is outside v0.82.0 and adds no original engine-checkpoint credit.

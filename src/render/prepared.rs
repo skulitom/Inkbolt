@@ -536,7 +536,17 @@ impl Prepared {
             let result = self.samples()?;
             return consume([0; 2], [result.width, result.height], &result.rgba);
         }
-        let factor = self.sampling.options.antialias.factor();
+        let mut bands = self.bands(max_rows)?;
+        while bands.next(&mut consume)?.is_some() {}
+        Ok(())
+    }
+    pub(crate) fn bands(&self, max_rows: u32) -> Result<Bands<'_>, Error> {
+        if self.sampling.options.evaluation != crate::render_quality::Evaluation::Tiled {
+            return Err(Error::new(
+                "UNSUPPORTED_TILED_RENDER",
+                "Band evaluation requires tiled rendering",
+            ));
+        }
         let traversal = self.traversal(max_rows);
         if let Some(neighborhood) = &self.neighborhood
             && traversal.rows != self.traversal(u32::MAX).rows
@@ -561,68 +571,15 @@ impl Prepared {
                 ));
             }
         }
-        let empty_masks = BTreeMap::new();
-        let total = traversal.total;
-        let mut completed = 0;
         self.resources
             .control
-            .progress("render_tiles", completed, Some(total));
-        for ([x, y], output_size) in traversal.tiles() {
-            self.resources.control.check()?;
-            let mut size = [
-                output_size[0] * factor,
-                output_size[1] * factor,
-                self.sampling.internal_scale,
-            ];
-            let mut origin = [
-                self.sampling.offset + x * factor,
-                self.sampling.offset + y * factor,
-            ];
-            if let Some(neighborhood) = &self.neighborhood {
-                let (start, extent) = neighborhood.region(
-                    origin,
-                    [size[0], size[1]],
-                    self.sampling
-                        .evaluation
-                        .map(|v| v * self.sampling.internal_scale),
-                    &self.resources.control,
-                )?;
-                origin = start;
-                [size[0], size[1]] = extent;
-            }
-            let tile = self
-                .resources
-                .spatial
-                .as_ref()
-                .map(|p| p.tile(origin, [size[0], size[1]]));
-            let resources = ResourcesView {
-                tile: tile.as_ref(),
-                base: &self.resources,
-                artwork_masks: &empty_masks,
-                control: &self.resources.control,
-                origin,
-            };
-            let mut accum = vec![0.0; size[0] as usize * size[1] as usize * 4];
-            draw_items(&self.document, None, &mut accum, None, size, &resources)?;
-            if accum.iter().any(|v| !v.is_finite()) {
-                return Err(Error::new(
-                    "NONFINITE_RENDER",
-                    "Compositing exceeded finite working precision",
-                ));
-            }
-            let mut samples =
-                Vec::with_capacity(output_size[0] as usize * output_size[1] as usize * 4);
-            self.sampling
-                .visit_region(&accum, size[0], origin, [x, y], output_size, |p| {
-                    samples.extend_from_slice(&p)
-                });
-            consume([x, y], output_size, &samples)?;
-            completed += 1;
-            self.resources
-                .control
-                .progress("render_tiles", completed, Some(total));
-        }
-        self.resources.control.check()
+            .progress("render_tiles", 0, Some(traversal.total));
+        Ok(Bands {
+            prepared: self,
+            traversal,
+            next_y: 0,
+            completed: 0,
+        })
     }
     pub fn samples(&self) -> Result<SampleRaster, Error> {
         let values = self.render()?;
@@ -657,5 +614,94 @@ impl Prepared {
             image.rgba,
             linear,
         ))
+    }
+}
+
+/// Pull one complete output band while retaining prepared resources and cache locality.
+pub(crate) struct Bands<'a> {
+    prepared: &'a Prepared,
+    traversal: super::traversal::Plan,
+    next_y: u32,
+    completed: u64,
+}
+impl Bands<'_> {
+    pub(crate) fn next(
+        &mut self,
+        mut consume: impl FnMut([u32; 2], [u32; 2], &[f64]) -> Result<(), Error>,
+    ) -> Result<Option<(u32, u32)>, Error> {
+        let prepared = self.prepared;
+        prepared.resources.control.check()?;
+        let band_y = self.next_y;
+        if band_y == prepared.sampling.output[1] {
+            return Ok(None);
+        }
+        let rows = self
+            .traversal
+            .rows
+            .min(prepared.sampling.output[1] - band_y);
+        let factor = prepared.sampling.options.antialias.factor();
+        let empty_masks = BTreeMap::new();
+        for ([x, y], output_size) in self.traversal.band_tiles(band_y) {
+            prepared.resources.control.check()?;
+            let mut size = [
+                output_size[0] * factor,
+                output_size[1] * factor,
+                prepared.sampling.internal_scale,
+            ];
+            let mut origin = [
+                prepared.sampling.offset + x * factor,
+                prepared.sampling.offset + y * factor,
+            ];
+            if let Some(neighborhood) = &prepared.neighborhood {
+                let (start, extent) = neighborhood.region(
+                    origin,
+                    [size[0], size[1]],
+                    prepared
+                        .sampling
+                        .evaluation
+                        .map(|v| v * prepared.sampling.internal_scale),
+                    &prepared.resources.control,
+                )?;
+                origin = start;
+                [size[0], size[1]] = extent;
+            }
+            let tile = prepared
+                .resources
+                .spatial
+                .as_ref()
+                .map(|p| p.tile(origin, [size[0], size[1]]));
+            let resources = ResourcesView {
+                tile: tile.as_ref(),
+                base: &prepared.resources,
+                artwork_masks: &empty_masks,
+                control: &prepared.resources.control,
+                origin,
+            };
+            let mut accum = vec![0.0; size[0] as usize * size[1] as usize * 4];
+            draw_items(&prepared.document, None, &mut accum, None, size, &resources)?;
+            if accum.iter().any(|v| !v.is_finite()) {
+                return Err(Error::new(
+                    "NONFINITE_RENDER",
+                    "Compositing exceeded finite working precision",
+                ));
+            }
+            let mut samples =
+                Vec::with_capacity(output_size[0] as usize * output_size[1] as usize * 4);
+            prepared
+                .sampling
+                .visit_region(&accum, size[0], origin, [x, y], output_size, |p| {
+                    samples.extend_from_slice(&p)
+                });
+            consume([x, y], output_size, &samples)?;
+            self.completed += 1;
+            prepared.resources.control.progress(
+                "render_tiles",
+                self.completed,
+                Some(self.traversal.total),
+            );
+        }
+        prepared.resources.control.check()?;
+        self.next_y += rows;
+        Ok(Some((band_y, rows)))
     }
 }

@@ -40,7 +40,12 @@ TIFF publication uses a bounded private seekable file and hashes the finalized
 bytes after codec backpatches. File-free TIFF preflight keeps one encoded memory
 buffer without a base64 round trip. Existing native strips and ordinary/whole
 pixel buffers retain their layout and bounds. Fresh full Windows/Linux TIFF
-acceptance passed; JPEG output budgeting remains open in that contract.
+acceptance passed. JPEG now feeds the locked encoder from pull-based tiled
+bands while sharing prepared resources and native-reader traversal. Its row
+callback bridges errors to a poisoned writer; bounded metadata insertion keeps
+historical before-scan bytes. JPEG uses private encoded storage for publication
+and count/hash-only preflight, with fresh full Windows/Linux acceptance. Whole
+evaluation retains its existing frame; coordinated scale admission remains open.
 
 Typed JSON rejection now adds bounded, advisory missing-field guidance using the
 same generated schemas as discovery. The fast inline path retains only the

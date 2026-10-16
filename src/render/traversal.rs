@@ -30,25 +30,26 @@ impl Plan {
         }
     }
     pub fn tiles(&self) -> impl Iterator<Item = ([u32; 2], [u32; 2])> {
-        let [width, height] = self.size;
-        (0..height)
+        (0..self.size[1])
             .step_by(self.rows as usize)
-            .flat_map(move |band| {
-                let bottom = (band + self.rows).min(height);
-                (0..width)
-                    .step_by(self.neighborhood as usize)
-                    .flat_map(move |block| {
-                        let right = (block + self.neighborhood).min(width);
-                        (band..bottom)
-                            .step_by(self.tile_rows as usize)
-                            .flat_map(move |y| {
-                                (block..right).step_by(self.edge as usize).map(move |x| {
-                                    (
-                                        [x, y],
-                                        [self.edge.min(right - x), self.tile_rows.min(bottom - y)],
-                                    )
-                                })
-                            })
+            .flat_map(move |band| self.band_tiles(band))
+    }
+    pub fn band_tiles(&self, band: u32) -> impl Iterator<Item = ([u32; 2], [u32; 2])> {
+        let [width, height] = self.size;
+        let bottom = (band + self.rows).min(height);
+        (0..width)
+            .step_by(self.neighborhood as usize)
+            .flat_map(move |block| {
+                let right = (block + self.neighborhood).min(width);
+                (band..bottom)
+                    .step_by(self.tile_rows as usize)
+                    .flat_map(move |y| {
+                        (block..right).step_by(self.edge as usize).map(move |x| {
+                            (
+                                [x, y],
+                                [self.edge.min(right - x), self.tile_rows.min(bottom - y)],
+                            )
+                        })
                     })
             })
     }

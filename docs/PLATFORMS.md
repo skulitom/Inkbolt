@@ -7,22 +7,21 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/38836056633)
-is `1c3ffe9`, through native block migration, private PNG/TIFF import staging,
-import capacity and native JPEG. Every stage ran fresh, all three minimum-Rust
-checks passed, and the source remained unchanged:
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/38843005426)
+is `6a674d2`, through bounded PNG output. All stages ran fresh, all three
+minimum-compiler checks passed and source inputs remained unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 258 | 252 | 2,720 | 9 | 2545.660 |
-| Ubuntu 24.04 | 258 | 218 | 2,678 | 51 | 1500.112 |
-| macOS 15 ARM64 | 258 | 218 | 2,678 | 51 | 2878.215 |
+| Windows 2025 | 259 | 258 | 2,727 | 9 | 4415.975 |
+| Ubuntu 24.04 | 259 | 224 | 2,685 | 51 | 1515.850 |
+| macOS 15 ARM64 | 259 | 224 | 2,685 | 51 | 2750.806 |
 
-Reports and all stage logs are retained in `w4-native-jpeg-ci-1c3ffe9`.
-Its audit SHA-256 is `baaf83a02bbad4eddbf831953f4879819995cc19e39b4e7344426ca17a6a7769`;
-the shared hosted source fingerprint is `6fac3e279b1d3ac69420a4f01a04a6423d4890d4ed18c2a8664e003b755d27fc`.
-This matrix predates the bounded PNG output change, which has separate local
-Windows/WSL acceptance below. Unix background jobs remain unsupported.
+Reports and all stage logs are retained in `w4-png-output-ci-6a674d2`.
+Audit SHA-256: `b5275dedafea0bf69ba90819d2f7b75d55685289ede02587a808999b6e2d6d52`;
+shared hosted source fingerprint: `069e32e6080f988a3407d52d534dcdf976f58d2d38b2e8b7f5e2679d58af4f03`.
+This matrix predates TIFF/JPEG output, which has separate local acceptance
+below. Unix background jobs remain unsupported.
 
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See
@@ -47,7 +46,7 @@ passed all 259 stages fresh on both platforms: Windows executed
 The owned-child private-payload process-death check passed on both systems.
 Inputs remained unchanged, with no failed, pending or reused checks in these
 full runs. Source fingerprint is `2df00b88dab8796c134466463580bd169bdde60a6609863d54dfe8e16cd975e3`;
-audit is `0fbefa78af9480c8d8dbebc3a181f19d064b49ee5aa8138b5db1d9184092b4b4`. macOS and Unix background-job evidence are unchanged.
+audit is `0fbefa78af9480c8d8dbebc3a181f19d064b49ee5aa8138b5db1d9184092b4b4`. Hosted macOS PNG evidence is recorded above; Unix background jobs remain unsupported.
 
 The subsequent [private TIFF publication acceptance](DEVELOPMENT_STATUS.md#w45-private-tiff-publication-jpeg-and-scale-open)
 passed 260 fresh stages per platform on matching unchanged inputs:
@@ -58,6 +57,14 @@ Windows ran 263 Rust and 2,729 Python tests
 remained pending or reused results. Fingerprint is `c32922061ede418fe97d2925125e00464310c4e4d114280b03eeb8ead8fab2f6`;
 retained audit is `951ae7dd8641a1e3fc158b928a2533ac45d0123a44baff3ac715cb8a6ae7c58d`. This is separate from
 hosted macOS evidence and does not change Unix job support.
+
+The subsequent [bounded JPEG output acceptance](DEVELOPMENT_STATUS.md#w45-bounded-jpeg-output-coordinated-scale-admission-open)
+passed all 261 stages fresh on matching unchanged inputs. Windows ran
+269 Rust and 2,734 Python tests (13 explicit skips) in 1003.969 seconds;
+Linux ran 235 Rust and 2,696 Python tests (51 skips) in 566.980 seconds.
+No stage failed, remained pending or reused a result. Source fingerprint:
+`1ae1cefc5de6fde022ad419b402cebd016afa9dab5f312c8bd640abbf4d0cbbe`; audit: `848f8ec54f74a55831577d07f20137b1cc06d80bbc7744fc2735938e32a2ba11`.
+Hosted macOS JPEG evidence and Unix background jobs remain separate.
 
 The earlier [native import admission acceptance](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open)
 passed all 257 stages fresh on matching unchanged inputs. Windows ran

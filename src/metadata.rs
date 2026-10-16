@@ -261,7 +261,7 @@ pub fn annotate(
 pub fn embed(artifact: &mut Value, format: ExportFormat, packet: &str) -> Result<(), Error> {
     if matches!(
         format,
-        ExportFormat::Snapshot | ExportFormat::Tiff | ExportFormat::Gif
+        ExportFormat::Snapshot | ExportFormat::Tiff | ExportFormat::Gif | ExportFormat::Jpeg
     ) {
         return Ok(());
     }
@@ -300,30 +300,6 @@ pub fn embed(artifact: &mut Value, format: ExportFormat, packet: &str) -> Result
             chunk.extend_from_slice(&crc32fast::hash(&chunk[4..]).to_be_bytes());
             bytes.splice(bytes.len() - 12..bytes.len() - 12, chunk);
         }
-        ExportFormat::Jpeg => {
-            let segments = jpeg_segments(&bytes)?;
-            let at = segments
-                .iter()
-                .find(|s| s.0 == 0xda)
-                .map(|s| s.1)
-                .ok_or_else(|| invalid("Missing JPEG scan"))?;
-            let count = packet.len().div_ceil(bounds::JPEG_PART_BYTES);
-            let mut comments = Vec::new();
-            for (i, part) in packet
-                .as_bytes()
-                .chunks(bounds::JPEG_PART_BYTES)
-                .enumerate()
-            {
-                let len = 2 + JPEG_PREFIX.len() + 4 + part.len();
-                comments.extend_from_slice(&[255, 254]);
-                comments.extend_from_slice(&(len as u16).to_be_bytes());
-                comments.extend_from_slice(JPEG_PREFIX);
-                comments.extend_from_slice(&((i + 1) as u16).to_be_bytes());
-                comments.extend_from_slice(&(count as u16).to_be_bytes());
-                comments.extend_from_slice(part);
-            }
-            bytes.splice(at..at, comments);
-        }
         _ => unreachable!(),
     }
     if bytes.len() > crate::publish::MAX_OUTPUT_BYTES {
@@ -331,43 +307,6 @@ pub fn embed(artifact: &mut Value, format: ExportFormat, packet: &str) -> Result
     }
     artifact["data"] = json!(STANDARD.encode(bytes));
     Ok(())
-}
-type Segment<'a> = (u8, usize, &'a [u8]);
-fn jpeg_segments(bytes: &[u8]) -> Result<Vec<Segment<'_>>, Error> {
-    let mut at = 2;
-    let mut result = Vec::new();
-    while at < bytes.len() {
-        let start = at;
-        if bytes[at] != 255 {
-            return Err(invalid("Invalid metadata marker framing"));
-        }
-        while bytes.get(at) == Some(&255) {
-            at += 1;
-        }
-        let marker = *bytes
-            .get(at)
-            .ok_or_else(|| invalid("Truncated metadata marker"))?;
-        at += 1;
-        if marker == 0xd9 {
-            break;
-        }
-        let n = bytes
-            .get(at..at + 2)
-            .ok_or_else(|| invalid("Truncated metadata size"))?;
-        let n = u16::from_be_bytes(n.try_into().unwrap()) as usize;
-        if n < 2 {
-            return Err(invalid("Invalid metadata size"));
-        }
-        let payload = bytes
-            .get(at + 2..at + n)
-            .ok_or_else(|| invalid("Truncated metadata payload"))?;
-        result.push((marker, start, payload));
-        at += n;
-        if marker == 0xda {
-            break;
-        }
-    }
-    Ok(result)
 }
 #[derive(Default)]
 struct JpegParts {

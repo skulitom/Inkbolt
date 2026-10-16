@@ -519,6 +519,27 @@ fn prepare_output(
         );
         let bytes = sink.finish()?;
         (artifact?, bytes)
+    } else if matches!(options.format, ExportFormat::Jpeg) {
+        let mut sink = payload::Sink::publication(retain, control)?;
+        let artifact = image_to_writer(
+            board.as_ref().unwrap_or(document),
+            options.format,
+            options.scale,
+            format_options,
+            |packet, control| {
+                crate::image_io::jpeg_to_writer(
+                    board.as_ref().unwrap_or(document),
+                    options.scale,
+                    resources,
+                    options.image_options.as_ref(),
+                    packet,
+                    (options.render_options.as_ref(), control),
+                    &mut sink,
+                )
+            },
+        );
+        let bytes = sink.finish()?;
+        (artifact?, bytes)
     } else if matches!(options.format, ExportFormat::Tiff) {
         let mut sink = payload::SeekSink::publication(retain, control)?;
         let artifact = image_to_writer(

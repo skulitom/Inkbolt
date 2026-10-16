@@ -1321,6 +1321,14 @@ pub mod png_output {
     pub const STREAM_CHUNK_BYTES: usize = 65536;
 }
 
+/// Bounds for JPEG output, separate from renderer and codec MCU-row storage.
+pub mod jpeg_output {
+    /// Maximum RGBA8 band; retain native-reader neighborhood locality where it fits.
+    pub const MAX_BAND_BYTES: usize = 32 * 1024 * 1024;
+    /// Maximum buffered encoded bytes before the checked output sink.
+    pub const STREAM_BUFFER_BYTES: usize = 65536;
+}
+
 /// Limits for `src/publish.rs`.
 pub mod publish {
     /// Maximum temporary-file reservation attempts for direct output publication.

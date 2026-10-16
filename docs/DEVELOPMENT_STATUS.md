@@ -5,6 +5,36 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W4.5: bounded JPEG output; coordinated scale admission open
+
+The [JPEG output contract](STREAMING_IMAGE_OUTPUT.md#verified-jpeg-phase) passed
+fresh full acceptance on matching unchanged source inputs:
+
+| Platform | Stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 261 | 269 | 2,734 | 13 | 1003.969 |
+| Linux / WSL | 261 | 235 | 2,696 | 51 | 566.980 |
+
+Tiled JPEG uses at most a 32 MiB RGBA8 band, a 64 KiB encoded buffer and bounded
+codec rows, plus separately admitted renderer/profile storage. File publication
+uses private encoded storage; preflight creates no file and retains no encoded
+frame. Whole evaluation and inline results keep their declared buffers.
+
+Fifty complete old/new artifacts and a real historical durable receipt remain
+compatible. Independent Pillow decoding checks profiles, matte, quality and a
+32768-pixel-wide native delivery. Three isolated repetitions per arm reduced
+median peak commit from 168.199 to 13.082 MiB for the original 16 MP canvas,
+and from 48.883 to 19.742 MiB for the original stored 3 MP grayscale image.
+The contract records exact fixture bounds, timing limitations and preflight data.
+
+Fingerprint: `1ae1cefc5de6fde022ad419b402cebd016afa9dab5f312c8bd640abbf4d0cbbe`. Retained
+`w4-jpeg-output-acceptance-02/audit.json`: `848f8ec54f74a55831577d07f20137b1cc06d80bbc7744fc2735938e32a2ba11`.
+All source, full logs, earlier focused failures and measurement/compatibility
+outputs are retained. Previous benchmark/recovery intermittency remains open;
+this acceptance does not prove its cause fixed. Coordinated ceilings, large TIFF
+preflight, the 50 MP workflow and complete scale-v2 acceptance remain required.
+No additional original checkpoint is awarded and v0.82.0 is unchanged.
+
 ## W7/W8: v0.82.0 published and downloaded packages verified
 
 [v0.82.0](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) was published

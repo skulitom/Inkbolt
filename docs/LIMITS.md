@@ -276,6 +276,8 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `jobs_store.MAX_SCHEMA_RECORDS` | `usize` | 4 | `4` |
 | `jobs_store.MAX_SQL_ROW_BYTES` | `usize` | 17907712 | `super::jobs::MAX_INPUT_BYTES + super::jobs::MAX_STATE_BYTES + 16384` |
 | `jobs_store.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
+| `jpeg_output.MAX_BAND_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
+| `jpeg_output.STREAM_BUFFER_BYTES` | `usize` | 65536 | `65536` |
 | `layered.AFFINE_CLOSURE_TOLERANCE` | `f64` | 1e-09 | `1e-9` |
 | `layered.MAX_CANVAS_PIXELS` | `usize` | 1048576 | `1_048_576` |
 | `layered.MAX_DECODED_BYTES` | `usize` | 8388608 | `8 * 1024 * 1024` |

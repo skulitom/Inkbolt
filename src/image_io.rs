@@ -9,8 +9,10 @@ use serde_json::{Value, json};
 use std::io::Cursor;
 use tiff::tags::Tag;
 pub(crate) mod gif;
+mod jpeg_output;
 mod legacy;
 mod tiff_output;
+pub(crate) use jpeg_output::write as jpeg_to_writer;
 pub(crate) use tiff_output::write as tiff_to_writer;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
@@ -484,6 +486,16 @@ pub(crate) fn export_with_metadata(
     ),
 ) -> Result<Value, Error> {
     validate_options(format, options)?;
+    if matches!(format, ExportFormat::Jpeg) {
+        return jpeg_output::export(
+            document,
+            scale,
+            resources,
+            options,
+            metadata,
+            (render_options, control),
+        );
+    }
     if matches!(format, ExportFormat::Tiff) {
         return tiff_output::export(
             document,
@@ -516,7 +528,7 @@ pub(crate) fn export_with_metadata(
             ));
         }
     }
-    if matches!(format, ExportFormat::Jpeg | ExportFormat::Bmp) {
+    if matches!(format, ExportFormat::Bmp) {
         if options.matte.is_none() && p.rgba.as_chunks::<4>().0.iter().any(|v| v[3] != 255) {
             return Err(Error::new(
                 "ALPHA_POLICY_REQUIRED",
@@ -548,59 +560,6 @@ pub(crate) fn export_with_metadata(
                     "TGA32 retains rendered straight RGBA8 exactly with useful alpha declared in its version-2 extension. It cannot retain ICC profiles, descriptions or physical density in this contract. Editable layers require snapshots."
                 }],
                 json!({"alpha":if bmp {"opaque"} else {"unassociated"},"matte":options.matte,"resolution_ppi":if bmp {Some((ppi/0.0254).round()*0.0254)} else {None}}),
-            )
-        }
-        ExportFormat::Jpeg => {
-            if p.width > u16::MAX as u32
-                || p.height > u16::MAX as u32
-                || ppi.round() > u16::MAX as f64
-            {
-                return Err(limit(&format!(
-                    "JPEG dimensions or rounded density exceed {}",
-                    u16::MAX
-                )));
-            }
-            let quality = options.quality.unwrap_or(limits::DEFAULT_JPEG_QUALITY);
-            let chroma = options.chroma.unwrap_or(Chroma::Full);
-            let rgb: Vec<u8> = p
-                .rgba
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .flat_map(|v| v[..3].iter().copied())
-                .collect();
-            let mut bytes = Vec::new();
-            let mut encoder = jpeg_encoder::Encoder::new(&mut bytes, quality);
-            if let Some((bytes, _)) = &profile {
-                encoder
-                    .add_icc_profile(bytes)
-                    .map_err(|_| Error::new("EXPORT_ERROR", "Unable to embed JPEG profile"))?;
-            }
-            encoder.set_sampling_factor(match chroma {
-                Chroma::Full => jpeg_encoder::SamplingFactor::F_1_1,
-                Chroma::Half => jpeg_encoder::SamplingFactor::F_2_2,
-            });
-            encoder.set_density(jpeg_encoder::PixelDensity::dpi(ppi.round() as u16));
-            encoder
-                .encode(
-                    &rgb,
-                    p.width as u16,
-                    p.height as u16,
-                    jpeg_encoder::ColorType::Rgb,
-                )
-                .map_err(|_| Error::new("EXPORT_ERROR", "Unable to encode JPEG samples"))?;
-            (
-                bytes,
-                "image/jpeg",
-                vec![
-                    "JPEG is lossy and cannot preserve alpha or editable layers. An explicit matte composites alpha in encoded sRGB before compression. Quality is an encoder setting, not a universal pixel-error guarantee.",
-                    if profile.is_some() {
-                        "Output uses the embedded RGB profile with relative colorimetric conversion and no black-point compensation. Gamut clipping and RGB8 quantization are not reversible. Density is rounded to whole pixels per inch."
-                    } else {
-                        "Output uses untagged sRGB sample interpretation; no ICC profile is embedded. Density is rounded to whole pixels per inch."
-                    },
-                ],
-                json!({"quality":quality,"chroma":chroma,"matte":options.matte,"resolution_ppi":ppi.round()}),
             )
         }
         _ => return Err(unsupported("JPEG/TIFF encoder requires a matching format")),
