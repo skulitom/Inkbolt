@@ -274,6 +274,9 @@ pub enum Request {
         color_policy: sample_import::Policy,
         #[serde(default)]
         storage: Option<sample_import::NativeStore>,
+        /// Required for JPEG; unsupported on other sample-import formats.
+        #[serde(default)]
+        orientation: Option<sample_import::Orientation>,
     },
     #[serde(rename = "raw.develop")]
     RawDevelop {
@@ -1886,13 +1889,13 @@ fn capability_report() -> Value {
         "interpretation":"native_type_and_encoding_bound;ICC_profile_is_separate_document_metadata",
         "cli_storage_limits_changed":true, "streaming_import":true,
         "streaming_import_formats":["noninterlaced_png_to_native_blocks","adam7_png_passes_to_native_blocks","tiff_chunk_bands_to_native_blocks"],
-        "buffered_import_formats":[],
-        "import_memory":"encoded_source_and_native_pixels_in_private_seekable_files;ordinary_PNG_one_native_row;Adam7_one_native_row_and_one_coverage_bit_per_pixel;TIFF_one_source_defined_chunk_and_row_segments;canonical_blocks_loaded_individually_for_validation_and_publication;codec_allocation_limits_remain_separate",
+        "buffered_import_formats":["jpeg_bounded_whole_codec_frame_to_native_rows"],
+        "import_memory":"encoded_source_and_native_pixels_in_private_seekable_files;ordinary_PNG_one_native_row;Adam7_one_native_row_and_one_coverage_bit_per_pixel;TIFF_one_source_defined_chunk_and_row_segments;JPEG_bounded_whole_codec_frame;canonical_blocks_loaded_individually_for_validation_and_publication;codec_allocation_limits_remain_separate",
         "private_import_staging":{"max_bytes":limits::sample_import::MAX_PRIVATE_STAGING_BYTES,"input_buffer_bytes":limits::sample_import::INPUT_BUFFER_BYTES,"maximum_name_attempts":limits::sample_import::MAX_SCRATCH_ATTEMPTS,"scope":"one_native_import;encoded_source_and_reserved_row_major_native_pixels_share_budget","location":"process_temporary_directory_outside_document_resources","lifetime":"Windows_exclusive_delete_on_close;Unix_owner_only_unlinked_before_payload;released_on_process_exit","source_identity":"hash_and_count_of_captured_bytes;decode_and_metadata_share_snapshot","full_streaming_milestone_verified":false},
         "png_import_checksums":"chunk_CRC_and_zlib_Adler32_required_before_publication",
         "document_history_integration":true, "render_integration":true,
         "content":"stored_samples", "resource_binding":"asset_root",
-        "import":{"command":"sample.import","opt_in":"storage.store_root","workspace_opt_in":"storage:{}","max_decoded_bytes":sample_import::MAX_NATIVE_DECODED_BYTES,"decoded_bytes_scope":"private_native_pixel_extent;not_resident_memory","max_codec_allocation_bytes":limits::sample_import::MAX_NATIVE_CODEC_BYTES,"max_tiff_padded_tile_bytes":limits::sample_import::MAX_NATIVE_TIFF_PADDED_BYTES},
+        "import":{"command":"sample.import","opt_in":"storage.store_root","workspace_opt_in":"storage:{}","max_decoded_bytes":sample_import::MAX_NATIVE_DECODED_BYTES,"decoded_bytes_scope":"private_native_pixel_extent;not_resident_memory","max_codec_allocation_bytes":limits::sample_import::MAX_NATIVE_CODEC_BYTES,"codec_allocation_scope":"PNG_and_TIFF;JPEG_has_separate_whole_frame_admission","max_tiff_padded_tile_bytes":limits::sample_import::MAX_NATIVE_TIFF_PADDED_BYTES},
         "retained_edits":{"operation":"sample_replace","operations":["sample_replace","retouch","brush_stroke"],"max_patches":stored_samples::MAX_PATCHES,"max_aggregate_patch_pixels":stored_samples::MAX_PATCH_PIXELS,"writes_files":false,"snapshot":"immutable_base_manifest_plus_exact_native_patch_bytes"},
         "block_edits":{"storage_version":2,"migration_operation":"sample_storage_migrate","default_import_storage_version":2,"legacy_import":"storage.storage_version:1","operations":["sample_replace","retouch","brush_stroke"],"maximum_pending_document_bytes":stored_samples::MAX_PENDING_BYTES,"lifetime_patch_limit":false,"pure_library_preparation":true,"commit":"CLI_and_MCP_document_edit_and_session_commit_publish_immutable_blocks_before_durable_state","review":"staged_blocks_in_memory;included_document_has_bounded_explicit_transfer","history":"current_manifest_only;old_states_and_receipts_preserved","full_storage_milestone_verified":false},
         "render_cache":{"scope":"one_prepared_source","max_decoded_pixels":limits::stored_samples::CACHE_PIXELS,"maximum_source_decoding_passes":limits::stored_samples::MAX_SOURCE_DECODING_PASSES},
@@ -1901,6 +1904,29 @@ fn capability_report() -> Value {
         "full_dependency_verification":["sample_replace","retouch","brush_stroke","visible_render_sources","document.check_resources","verified_transfer","job_admission_and_execution"]
     });
     capabilities["sample_precision"]["contents"] = json!(["samples", "stored_samples"]);
+    capabilities["sample_precision"]["import"]["formats"] = json!(["png", "tiff", "jpeg"]);
+    capabilities["sample_precision"]["import"]["orientation_transforms"] = json!(true);
+    capabilities["sample_precision"]["import"]["orientation_formats"] = json!(["jpeg"]);
+    capabilities["sample_precision"]["import"]["jpeg"] = json!({
+        "depth":"u8","coding":["baseline","progressive"],"channels":["rgba","gray_alpha"],
+        "orientation_required":true,"orientation_policies":["apply","ignore"],
+        "orientation_metadata":"bounded_primary_EXIF;all_eight_mappings;thumbnail_orientation_not_applied",
+        "color":"EXIF_sRGB_declaration_or_explicit_assume_srgb;other_profiles_and_transforms_refused",
+        "decoder":"jpeg-decoder_0.3.2;whole_frame_output;preflight_allocation_and_scan_work_admission",
+        "entropy_validation":"strict_huffman_scans;progression_and_restart_boundaries",
+        "entropy_validation_storage":"one_occupancy_bit_per_padded_coefficient;released_before_decode",
+        "max_output_bytes":limits::sample_import::MAX_JPEG_OUTPUT_BYTES,
+        "max_estimated_working_bytes":limits::sample_import::MAX_JPEG_WORKING_BYTES,
+        "auxiliary_bytes":limits::sample_import::JPEG_AUXILIARY_BYTES,
+        "max_scans":limits::sample_import::MAX_JPEG_SCANS,
+        "max_scan_work":limits::sample_import::MAX_JPEG_SCAN_WORK,
+        "max_exif_directories":limits::sample_import::MAX_JPEG_EXIF_DIRECTORIES,
+        "max_exif_entries":limits::sample_import::MAX_JPEG_EXIF_ENTRIES,
+        "whole_process_memory_guarantee":false,"full_scale_acceptance":false
+    });
+    capabilities["metadata"]["orientation"] = json!(
+        "JPEG_sample_import_requires_apply_or_ignore;other_image_import_orientation_remains_top_left_only"
+    );
     capabilities["sample_precision"]["import"]["native_storage"] = json!({
         "opt_in":"storage.store_root", "max_source_pixels":sample_store::MAX_PIXELS,
         "max_native_bytes":sample_import::MAX_NATIVE_DECODED_BYTES,
@@ -2205,12 +2231,14 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             resolution_ppi,
             color_policy,
             storage,
-        } => sample_import::import_with_storage(
+            orientation,
+        } => sample_import::import_with_orientation(
             &source_path,
             id,
             resolution_ppi,
             color_policy,
             storage.as_ref(),
+            orientation,
             context,
         ),
         Request::RawDevelop {

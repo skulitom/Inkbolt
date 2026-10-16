@@ -13,6 +13,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use tiff::tags::Tag;
+mod jpeg;
+pub use jpeg::Orientation;
 mod pixels;
 mod png_passes;
 mod source;
@@ -479,6 +481,19 @@ pub fn import_with_storage(
     storage: Option<&NativeStore>,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
+    import_with_orientation(source, id, resolution_ppi, selected, storage, None, control)
+}
+
+/// JPEG requires an explicit orientation choice; older PNG/TIFF entry points retain their defaults.
+pub fn import_with_orientation(
+    source: &Path,
+    id: String,
+    resolution_ppi: f64,
+    selected: Policy,
+    storage: Option<&NativeStore>,
+    orientation: Option<Orientation>,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
     control.check()?;
     control.check_path(source)?;
     if let Some(storage) = storage {
@@ -521,36 +536,63 @@ pub fn import_with_storage(
         .read_exact(&mut signature[..signature_len])
         .map_err(|_| malformed())?;
     captured.reader.rewind().map_err(|_| malformed())?;
-    let (decoded, interpretation, normalization, format) =
-        if signature_len == 8 && &signature == b"\x89PNG\r\n\x1a\n" {
-            if linear {
-                return Err(unsupported(
-                    "Linear HDR sample import requires an explicit binary32 TIFF source",
-                ));
-            }
-            let (g, i, n) = png(
-                &mut captured.reader,
-                captured.bytes as u64,
-                policy,
-                max_pixels,
-                captured.staging.as_ref(),
-                control,
-            )?;
-            (g, i, n, "png")
-        } else if signature[..signature_len].starts_with(b"II")
-            || signature[..signature_len].starts_with(b"MM")
-        {
-            let (g, i, n) = tiff(
-                &mut captured.reader,
-                policy,
-                max_pixels,
-                captured.staging.as_ref().map(|budget| (encoding, budget)),
-                control,
-            )?;
-            (g, i, n, "tiff")
-        } else {
-            return Err(unsupported("Sample import requires PNG or TIFF"));
-        };
+    let is_jpeg = signature[..signature_len].starts_with(b"\xff\xd8");
+    if orientation.is_some() && !is_jpeg {
+        return Err(unsupported(
+            "The orientation option is only supported for JPEG sample import",
+        ));
+    }
+    let (decoded, interpretation, normalization, format) = if is_jpeg {
+        if linear {
+            return Err(unsupported(
+                "Linear HDR sample import requires an explicit binary32 TIFF source",
+            ));
+        }
+        let orientation = orientation.ok_or_else(|| {
+            Error::new(
+                "INVALID_REQUEST",
+                "JPEG sample import requires orientation: apply or ignore",
+            )
+        })?;
+        let (g, i, n) = jpeg::decode(
+            &mut captured.reader,
+            captured.bytes as u64,
+            policy,
+            orientation,
+            max_pixels,
+            captured.staging.as_ref(),
+            control,
+        )?;
+        (g, i, n, "jpeg")
+    } else if signature_len == 8 && &signature == b"\x89PNG\r\n\x1a\n" {
+        if linear {
+            return Err(unsupported(
+                "Linear HDR sample import requires an explicit binary32 TIFF source",
+            ));
+        }
+        let (g, i, n) = png(
+            &mut captured.reader,
+            captured.bytes as u64,
+            policy,
+            max_pixels,
+            captured.staging.as_ref(),
+            control,
+        )?;
+        (g, i, n, "png")
+    } else if signature[..signature_len].starts_with(b"II")
+        || signature[..signature_len].starts_with(b"MM")
+    {
+        let (g, i, n) = tiff(
+            &mut captured.reader,
+            policy,
+            max_pixels,
+            captured.staging.as_ref().map(|budget| (encoding, budget)),
+            control,
+        )?;
+        (g, i, n, "tiff")
+    } else {
+        return Err(unsupported("Sample import requires PNG, TIFF or JPEG"));
+    };
     control.check()?;
     let spec = crate::sample_store::Spec {
         width: decoded.width,
@@ -635,6 +677,11 @@ pub fn import_with_storage(
                 "Returns a new native block-manifest document (storage version 2). Edits publish complete immutable replacement blocks before committing the current manifest; old blocks and source bytes remain unchanged. Profiles, orientation transforms, associated alpha and multi-image TIFF remain unsupported. Metadata remains separate; explicit resolution governs document size."
             );
         }
+    }
+    if format == "jpeg" {
+        result["losses"] = json!([
+            "Returns a new 8-bit JPEG sample document with opaque alpha. Encoded source bytes remain unchanged. Orientation follows the explicit policy; source density does not override document resolution. The Inkbolt description envelope remains separate untrusted metadata. Other EXIF fields, thumbnails and descriptive comments are not retained. Profiles, unsupported color transforms and multi-image semantics are refused."
+        ]);
     }
     Ok(result)
 }

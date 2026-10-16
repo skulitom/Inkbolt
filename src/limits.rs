@@ -1533,6 +1533,20 @@ pub mod sample_import {
     pub const MAX_NATIVE_TIFF_PADDED_BYTES: u64 = 256 * 1024 * 1024;
     /// Native pixel extent in private storage; never a resident-frame allowance.
     pub const MAX_NATIVE_DECODED_BYTES: usize = 256 * 1024 * 1024;
+    /// Complete decoded JPEG output, separate from intermediate codec storage.
+    pub const MAX_JPEG_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
+    /// Conservative pre-decode JPEG coefficient/plane/row/output admission.
+    pub const MAX_JPEG_WORKING_BYTES: u64 = 384 * 1024 * 1024;
+    /// Additional allowance in the JPEG working-set estimate for bounded tables/metadata.
+    pub const JPEG_AUXILIARY_BYTES: u64 = 4 * 1024 * 1024;
+    /// Maximum JPEG entropy scans admitted before decoding.
+    pub const MAX_JPEG_SCANS: usize = 128;
+    /// Cumulative padded component samples charged over JPEG scans.
+    pub const MAX_JPEG_SCAN_WORK: u64 = 2 * 1024 * 1024 * 1024;
+    /// Maximum referenced classic-TIFF directories in one JPEG EXIF segment.
+    pub const MAX_JPEG_EXIF_DIRECTORIES: usize = 8;
+    /// Aggregate classic-TIFF directory entries in one JPEG EXIF segment.
+    pub const MAX_JPEG_EXIF_ENTRIES: usize = 1024;
 }
 
 /// Limits for `src/sample_profiles.rs`.

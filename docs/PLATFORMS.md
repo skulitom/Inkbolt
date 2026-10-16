@@ -13,7 +13,18 @@ through native block migration, store admission and
 Windows/Linux packages also passed their separate checks; see
 [release acceptance](DEVELOPMENT_STATUS.md#w7w8-v0820-published-and-downloaded-packages-verified).
 This predates the later native import-capacity change and native JPEG work.
-The subsequent [native import admission acceptance](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open)
+The later [native JPEG acceptance](DEVELOPMENT_STATUS.md#w43-native-jpeg-import-scale-admission-open)
+passed all 258 stages fresh on matching unchanged inputs. Windows ran
+252 Rust and 2,716 Python tests, with 13 explicit skips,
+in 843.781 seconds; Linux ran 218 Rust and 2,678 Python
+tests, with 51 skips, in 611.774 seconds. The successful runs had
+no failures, pending checks or reuse. Source identity is
+`17742cd32f8d1eebe8988fa28e3f92cb7483bcbb1aea57635a9bfd637bae23ee`;
+retained audit is `d44d257e64bf714176805b2121b1b0c23914a43d683eb2d42260f00ff1cc8d74`.
+The earlier Windows recovery timing failure and focused follow-up are retained;
+this does not prove the intermittent issue fixed or extend macOS evidence.
+
+The earlier [native import admission acceptance](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open)
 passed all 257 stages fresh on matching unchanged inputs. Windows ran
 251 Rust and 2,701 Python tests, with 13 explicit skips,
 in 974.579 seconds; Linux ran 217 Rust and 2,663 Python

@@ -577,7 +577,14 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `retouch.SAMPLE_CHECK_INTERVAL` | `usize` | 1024 | `1024` |
 | `retouch.WORKING_BYTES_PER_PIXEL` | `u64` | 256 | `256` |
 | `sample_import.INPUT_BUFFER_BYTES` | `usize` | 65536 | `64 * 1024` |
+| `sample_import.JPEG_AUXILIARY_BYTES` | `u64` | 4194304 | `4 * 1024 * 1024` |
 | `sample_import.MAX_INLINE_DECODER_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
+| `sample_import.MAX_JPEG_EXIF_DIRECTORIES` | `usize` | 8 | `8` |
+| `sample_import.MAX_JPEG_EXIF_ENTRIES` | `usize` | 1024 | `1024` |
+| `sample_import.MAX_JPEG_OUTPUT_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
+| `sample_import.MAX_JPEG_SCANS` | `usize` | 128 | `128` |
+| `sample_import.MAX_JPEG_SCAN_WORK` | `u64` | 2147483648 | `2 * 1024 * 1024 * 1024` |
+| `sample_import.MAX_JPEG_WORKING_BYTES` | `u64` | 402653184 | `384 * 1024 * 1024` |
 | `sample_import.MAX_NATIVE_CODEC_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
 | `sample_import.MAX_NATIVE_DECODED_BYTES` | `usize` | 268435456 | `256 * 1024 * 1024` |
 | `sample_import.MAX_NATIVE_TIFF_PADDED_BYTES` | `u64` | 268435456 | `256 * 1024 * 1024` |

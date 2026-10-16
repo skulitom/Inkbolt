@@ -16,12 +16,13 @@ particular AI model is required.
 - **Bring in SVG artwork** with styles, reusable symbols, placed images and
   positioned text. Keep supported content editable and request omission reports
   when an input uses unsupported features.
-- **Work with images** using PNG/TIFF import, high-precision samples and local
-  image storage that preserves earlier revisions while reusing unchanged data.
+- **Work with images** using PNG, JPEG and TIFF import, high-precision samples
+  and local image storage that preserves earlier revisions while reusing
+  unchanged data.
 - **Revise artwork** with targeted edits, layers, masks and image adjustments.
 - **Review and continue** using previews, saved sessions, undo/redo and revision
   comparisons.
-- **Deliver assets** as PNG, TIFF, SVG or PDF within the supported workflows,
+- **Deliver assets** as PNG, JPEG, TIFF, SVG or PDF within the supported workflows,
   preserving source files and refusing to overwrite existing outputs.
 
 Agents can discover tools and request individual operation schemas as they work.
@@ -30,7 +31,7 @@ reported.
 
 ## Get started
 
-Download a [release](https://github.com/skulitom/Inkbolt/releases/latest) or follow
+Download [v0.82.0](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) or follow
 the [installation guide](docs/INSTALLATION.md) to build from source, then connect
 your agent through MCP or use the command line.
 Prebuilt archives are available for Windows x64, Linux x64 and macOS Apple
@@ -57,7 +58,7 @@ images and exporting assets.
 | [Examples](examples/README.md) | Runnable graphics and image workflows |
 | [Agent interface](docs/AGENT_INTERFACE.md) and [tool discovery](docs/AGENT_DISCOVERY.md) | Commands, MCP tools and schemas |
 | [Workspaces and sessions](docs/AGENT_WORKSPACE.md) | Local resources and saved revision references |
-| [SVG import](docs/SVG_IMPORT.md) and [image import](docs/STREAMING_SAMPLE_IMPORT.md) | Supported inputs, preservation and conversion limits |
+| [SVG import](docs/SVG_IMPORT.md) and [image import](docs/SAMPLES.md#import-without-reducing-depth) | Supported inputs, preservation and conversion limits |
 | [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
 

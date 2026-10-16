@@ -21,9 +21,13 @@ buffers and shared source/metadata identities. Native import pixels assemble in
 a separately reserved private file; TIFF retains one source chunk at a time.
 The public in-memory candidate API remains pure. Native pixel extents now use a
 256 MiB disk budget while codec allocations remain separately bounded at 64 MiB;
-canvas, encoded-source and output ceilings are unchanged. Full Windows/Linux
-acceptance and larger-input measurements cover this admission change. See
-[bounded import](STREAMING_SAMPLE_IMPORT.md) for acceptance status.
+canvas, encoded-source and output ceilings are unchanged.
+JPEG import separately preflights frame geometry, scan work and bounded EXIF,
+then retains one admitted decoded frame and orients rows into private storage.
+Its explicit orientation policies, strict entropy admission and fresh full
+Windows/Linux acceptance are described in [native JPEG import](NATIVE_JPEG_IMPORT.md).
+See [bounded import](STREAMING_SAMPLE_IMPORT.md) for the separate PNG/TIFF
+codec and private staging measurements.
 
 Typed JSON rejection now adds bounded, advisory missing-field guidance using the
 same generated schemas as discovery. The fast inline path retains only the

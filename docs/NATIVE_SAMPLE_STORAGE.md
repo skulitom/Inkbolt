@@ -82,7 +82,7 @@ or missing pixel coverage and observe cancellation during actual codec input.
 
 ## Document and agent contract
 
-Opt in with `sample.import` and `"storage":{"store_root":"C:/absolute/native-store"}`. Under `--workspace`, `"storage":{}` selects `.inkbolt/assets`. Omitting `storage` retains the existing inline import. The source limit stays 32 MiB; native import stages up to 256 MiB of native channels on disk while retaining separate 64 MiB decoder allocation limits. The existing 16,777,216-pixel ceiling is unchanged. See [import admission and acceptance](STREAMING_SAMPLE_IMPORT.md) for the separate staging/work budgets. These bounds are not a whole-process peak-memory guarantee.
+Opt in with `sample.import` and `"storage":{"store_root":"C:/absolute/native-store"}`. Under `--workspace`, `"storage":{}` selects `.inkbolt/assets`. Omitting `storage` retains the existing inline import. The source limit stays 32 MiB; native import stages up to 256 MiB of native channels on disk while retaining separate 64 MiB PNG/TIFF decoder allocation limits. [JPEG import](NATIVE_JPEG_IMPORT.md) has its own whole-frame codec admission and requires explicit orientation. The existing 16,777,216-pixel ceiling is unchanged. See [import admission and acceptance](STREAMING_SAMPLE_IMPORT.md) for the separate staging/work budgets. These bounds are not a whole-process peak-memory guarantee.
 
 Native PNG/TIFF imports capture the encoded source into a private seekable file
 using 64 KiB buffers. Decode, metadata and source hashes use that same snapshot.

@@ -63,7 +63,7 @@ migration, store admission and private PNG/TIFF staging. All three
 minimum-compiler checks passed. Reports and all stage logs are retained in
 `release-v0.82.0-ci-133ebee`; see [platform evidence](PLATFORMS.md) for counts,
 timings and audit identity. Later native import-capacity changes retain separate
-Windows/WSL evidence; native JPEG remains unpublished work. Hosted checks do not
+Windows/WSL evidence; native JPEG has separate local acceptance below. Hosted checks do not
 replace the mandatory local private publication guard.
 
 Linux tier 1 covers core/library/CLI/MCP, sessions and durable publication/history
@@ -2478,9 +2478,66 @@ acceptance remains retained under `w4-source-staging-acceptance-01` and
 `w4-pixel-staging-acceptance-01`, including the paired 48-import diagnostic and
 their original failed attempts. Subsequent changes update acceptance docs only.
 
-Native JPEG, coordinated 8192-square canvases and encoded-input/output limits,
-streaming output, the complete 50 MP workflow and independent `scale-v2`
-acceptance remain open. No original checkpoint receives additional credit.
+Native JPEG has separate acceptance below. Coordinated 8192-square canvases and
+encoded-input/output limits, streaming output, the complete 50 MP workflow and
+independent `scale-v2` acceptance remain open. No original checkpoint receives
+additional credit.
+
+### W4.3: native JPEG import; scale admission open
+
+[Native JPEG import](NATIVE_JPEG_IMPORT.md) now admits 8-bit baseline/progressive
+gray and RGB samples, including supported chroma subsampling, into inline or
+immutable native storage. Callers explicitly choose EXIF orientation `apply` or
+`ignore`; all eight primary mappings and both byte orders are covered. Metadata,
+source hashes and decoding share the same private input snapshot.
+
+Original strict Huffman admission rejects truncated entropy, invalid scan
+progression, coefficient runs, stuffing, padding and restart boundaries before
+decoding or publishing blocks. This closes a reproduced corruption case accepted
+by the locked decoder. JPEG retains one admitted decoded frame and normalizes
+native rows privately; it is not a row decoder. Existing 32 MiB encoded-input
+and 16,777,216-pixel limits remain, with separate 64 MiB codec output and 384 MiB
+estimated codec working budgets. The estimate is not a whole-process guarantee.
+
+Fresh full acceptance passed all 258 stages on matching unchanged inputs, with
+no failed, pending, reused or excluded checks in the successful runs:
+
+| Platform | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 252 | 2,716 | 13 | 843.781 |
+| Linux / WSL | 218 | 2,678 | 51 | 611.774 |
+
+Final focused Windows/Linux checks ran 54 Python tests and the Rust entropy
+cancellation test in 101.2/103.3 seconds. The 15 new integration tests cover
+orientation, exact samples/blocks, CLI/MCP parity, deduplication, metadata,
+refusals and no publication on preparation failure. Existing format/history,
+retry, recovery and source-preservation suites ran in the full checks.
+
+Six separately encoded original gradient JPEGs matched the independent decoder
+within three channel values; original DC-only and AC-refinement fixtures have
+separate exact/tolerance oracles. An isolated Windows development-build diagnostic
+verified every expected native sample for three 4096-square RGB imports per coding
+mode. Median peak commit was 97.656 MiB for baseline and 193.820 MiB for progressive;
+median import time was 3.133 and 3.445 seconds. These highly compressible fixtures
+reuse 13 distinct blocks. They are not photographic, release-performance, 24 MP,
+50 MP or complete `scale-v2` evidence.
+
+The first full Windows run retained one recovery-harness failure: output reached
+a terminal state before the required fault injection. A separate retained live
+diagnostic and the focused module subsequently passed (70.5 seconds for focused
+feedback), followed by the fresh full Windows run above. No fixture, deadline or
+criterion was relaxed. The intermittent timing issue is not established fixed;
+the original failure and all earlier implementation/fixture failures are retained.
+
+Both full reports and the final diagnostic bind source fingerprint
+`17742cd32f8d1eebe8988fa28e3f92cb7483bcbb1aea57635a9bfd637bae23ee`. Retained
+`w4-native-jpeg-acceptance-01/audit.json` has SHA-256
+`d44d257e64bf714176805b2121b1b0c23914a43d683eb2d42260f00ff1cc8d74`. The audit rereads the frozen
+source archive, reports, stage logs and independent pixel evidence; it indexes the
+retained native measurement stores and recovery diagnostic. Subsequent changes
+update overview/acceptance documentation only. Larger canvases, coordinated input
+and output limits, streaming export and independent scale acceptance remain open;
+no engine checkpoint receives additional credit.
 
 ## W3b: complete within the insertion contract
 

@@ -369,62 +369,60 @@ fn jpeg_segments(bytes: &[u8]) -> Result<Vec<Segment<'_>>, Error> {
     }
     Ok(result)
 }
-pub fn recover(bytes: &[u8], format: &str) -> Result<Option<Value>, Error> {
-    if matches!(format, "png" | "tiff") {
-        return recover_reader(
-            &mut Cursor::new(bytes),
-            bytes.len() as u64,
-            format,
-            &crate::control::Control::default(),
-        );
-    }
-    let mut packets: Vec<Vec<u8>> = Vec::new();
-    match format {
-        "jpeg" => {
-            let mut parts = BTreeMap::new();
-            let mut count = None;
-            let mut total = 0;
-            for (marker, _, body) in jpeg_segments(bytes)? {
-                if marker != 254 || !body.starts_with(JPEG_PREFIX) {
-                    continue;
-                }
-                let rest = &body[JPEG_PREFIX.len()..];
-                if rest.len() < 4 {
-                    return Err(invalid("Truncated metadata part"));
-                }
-                let index = u16::from_be_bytes(rest[..2].try_into().unwrap());
-                let n = u16::from_be_bytes(rest[2..4].try_into().unwrap());
-                total += rest.len() - 4;
-                if total > MAX_PACKET_BYTES {
-                    return Err(limit(&format!(
-                        "Metadata envelope exceeds {} KiB",
-                        MAX_PACKET_BYTES / 1024
-                    )));
-                }
-                if n == 0
-                    || usize::from(n) > bounds::MAX_JPEG_PARTS
-                    || index == 0
-                    || index > n
-                    || count.is_some_and(|c| c != n)
-                    || parts.insert(index, rest[4..].to_vec()).is_some()
-                {
-                    return Err(invalid("Inconsistent or duplicate metadata parts"));
-                }
-                count = Some(n);
-            }
-            if let Some(n) = count {
-                if parts.len() != n as usize {
-                    return Err(invalid("Missing metadata part"));
-                }
-                packets.push(parts.into_values().flatten().collect());
-            }
+#[derive(Default)]
+struct JpegParts {
+    parts: BTreeMap<u16, Vec<u8>>,
+    count: Option<u16>,
+    total: usize,
+}
+impl JpegParts {
+    fn push(&mut self, marker: u8, body: &[u8]) -> Result<(), Error> {
+        if marker != 254 || !body.starts_with(JPEG_PREFIX) {
+            return Ok(());
         }
-        _ => return Ok(None),
+        let rest = &body[JPEG_PREFIX.len()..];
+        if rest.len() < 4 {
+            return Err(invalid("Truncated metadata part"));
+        }
+        let index = u16::from_be_bytes(rest[..2].try_into().unwrap());
+        let n = u16::from_be_bytes(rest[2..4].try_into().unwrap());
+        self.total += rest.len() - 4;
+        if self.total > MAX_PACKET_BYTES {
+            return Err(limit(&format!(
+                "Metadata envelope exceeds {} KiB",
+                MAX_PACKET_BYTES / 1024
+            )));
+        }
+        if n == 0
+            || usize::from(n) > bounds::MAX_JPEG_PARTS
+            || index == 0
+            || index > n
+            || self.count.is_some_and(|c| c != n)
+            || self.parts.insert(index, rest[4..].to_vec()).is_some()
+        {
+            return Err(invalid("Inconsistent or duplicate metadata parts"));
+        }
+        self.count = Some(n);
+        Ok(())
     }
-    if packets.len() > 1 {
-        return Err(invalid("Duplicate Inkbolt metadata envelope"));
+    fn finish(self) -> Result<Option<Vec<u8>>, Error> {
+        if let Some(n) = self.count {
+            if self.parts.len() != usize::from(n) {
+                return Err(invalid("Missing metadata part"));
+            }
+            Ok(Some(self.parts.into_values().flatten().collect()))
+        } else {
+            Ok(None)
+        }
     }
-    packets.pop().map(|packet| read_packet(&packet)).transpose()
+}
+pub fn recover(bytes: &[u8], format: &str) -> Result<Option<Value>, Error> {
+    recover_reader(
+        &mut Cursor::new(bytes),
+        bytes.len() as u64,
+        format,
+        &crate::control::Control::default(),
+    )
 }
 
 /// Recover bounded metadata from the same captured bytes used by the decoder.
@@ -438,6 +436,66 @@ pub(crate) fn recover_reader<R: Read + Seek>(
     control.check()?;
     let mut packet = None;
     match format {
+        "jpeg" => {
+            let mut at = 2u64;
+            let mut parts = JpegParts::default();
+            while at < length {
+                control.check()?;
+                input
+                    .seek(SeekFrom::Start(at))
+                    .map_err(|_| invalid("Truncated metadata marker"))?;
+                let mut byte = [0];
+                input
+                    .read_exact(&mut byte)
+                    .map_err(|_| invalid("Truncated metadata marker"))?;
+                if byte[0] != 255 {
+                    return Err(invalid("Invalid metadata marker framing"));
+                }
+                while byte[0] == 255 {
+                    at += 1;
+                    control.check()?;
+                    if at >= length {
+                        return Err(invalid("Truncated metadata marker"));
+                    }
+                    input
+                        .read_exact(&mut byte)
+                        .map_err(|_| invalid("Truncated metadata marker"))?;
+                }
+                let marker = byte[0];
+                at += 1;
+                if marker == 0xd9 {
+                    break;
+                }
+                if at + 2 > length {
+                    return Err(invalid("Truncated metadata size"));
+                }
+                let mut size = [0; 2];
+                input
+                    .read_exact(&mut size)
+                    .map_err(|_| invalid("Truncated metadata size"))?;
+                let size = u64::from(u16::from_be_bytes(size));
+                if size < 2 {
+                    return Err(invalid("Invalid metadata size"));
+                }
+                let end = at
+                    .checked_add(size)
+                    .filter(|end| *end <= length)
+                    .ok_or_else(|| invalid("Truncated metadata payload"))?;
+                // JPEG segments are independently bounded by their 16-bit length.
+                if marker == 254 {
+                    let mut body = vec![0; size as usize - 2];
+                    input
+                        .read_exact(&mut body)
+                        .map_err(|_| invalid("Truncated metadata payload"))?;
+                    parts.push(marker, &body)?;
+                }
+                at = end;
+                if marker == 0xda {
+                    break;
+                }
+            }
+            packet = parts.finish()?;
+        }
         "png" => {
             let mut at = 8u64;
             while at.checked_add(12).is_some_and(|end| end <= length) {

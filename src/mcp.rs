@@ -210,7 +210,7 @@ fn description(command: &str) -> String {
             "Inspect full-precision rendered samples and signed/HDR ranges without display projection or source mutation."
         }
         "sample.import" => {
-            "Read a bounded local PNG or TIFF into a new editable raster snapshot, retaining 8/16-bit or binary32 RGB/grayscale samples. Optional storage.store_root publishes immutable native tiles for larger sources; omit storage for legacy inline samples. Returns source hash and normalization diagnostics. Source files stay unchanged. Untagged inputs require assume_srgb, or assume_linear_srgb for signed binary32 TIFF HDR. Profiles, associated alpha and sequences fail explicitly."
+            "Read a bounded local PNG, TIFF or JPEG into a new editable raster snapshot, retaining supported native RGB/grayscale sample depth. JPEG requires explicit orientation: apply or ignore and uses bounded whole-frame decoding. Optional storage.store_root publishes immutable native tiles for larger sources; omit storage for legacy inline samples. Returns source hash and normalization diagnostics. Source files stay unchanged. Untagged inputs require assume_srgb, or assume_linear_srgb for signed binary32 TIFF HDR. Profiles, associated alpha and sequences fail explicitly."
         }
         "raw.develop" => {
             "Develop a bounded explicitly calibrated Bayer sensor buffer into a new editable image. Requires sensor packing, pattern, black/white levels, camera matrix, exposure, white balance and output precision/range/resolution. Returns a pinned recipe and range diagnostics. Preserves source bytes; camera containers and automatic calibration are unsupported."
