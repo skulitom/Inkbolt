@@ -7,6 +7,7 @@ use std::{collections::BTreeMap, path::Path};
 mod coverage_cache;
 mod coverage_path;
 mod filter_regions;
+pub(crate) mod png_output;
 pub(crate) mod prepared;
 mod sparse;
 mod spatial;
@@ -1736,12 +1737,19 @@ pub fn png_controlled(
     options: Option<&crate::render_quality::Options>,
     control: &crate::control::Control,
 ) -> Result<Value, Error> {
-    let p = rasterize_controlled(document, scale, root, font_root, options, control)?;
-    let mut artifact = png_pixels(document, p, scale)?;
-    if options.is_some() {
-        artifact["render_settings"] =
-            crate::render_quality::Plan::for_document(document, scale, options)?.receipt();
-    }
+    let mut sink = crate::publish::payload::Sink::memory(control);
+    let artifact = png_output::write(
+        document,
+        scale,
+        (root, font_root),
+        options,
+        None,
+        control,
+        &mut sink,
+    );
+    let bytes = sink.finish()?;
+    let mut artifact = artifact?;
+    artifact["data"] = json!(STANDARD.encode(bytes.into_memory()));
     Ok(artifact)
 }
 /// Encode a completed working-space view with the ordinary PNG color contract.

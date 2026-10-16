@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{self, OpenOptions},
-    io::{Read, Write},
+    io::Read,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -386,22 +386,12 @@ fn publish_prepared(
         .open(&stage.path)
         .map_err(|_| io("Unable to open publication staging file"))?;
     control.progress("staging", 0, Some(prepared.bytes.len() as u64));
-    for (index, chunk) in prepared
-        .bytes
-        .chunks(crate::limits::publish::IO_CHUNK_BYTES)
-        .enumerate()
-    {
-        control.check()?;
-        file.write_all(chunk)
-            .map_err(|_| io("Unable to write publication staging file"))?;
-        control.progress(
-            "staging",
-            ((index + 1) * crate::limits::publish::IO_CHUNK_BYTES).min(prepared.bytes.len()) as u64,
-            Some(prepared.bytes.len() as u64),
-        );
+    let total = prepared.bytes.len() as u64;
+    prepared.bytes.copy_to(&mut file, control, |completed| {
+        control.progress("staging", completed as u64, Some(total));
         #[cfg(test)]
         fault_point("during_write");
-    }
+    })?;
     file.sync_all()
         .map_err(|_| io("Unable to flush publication staging file"))?;
     prepared.receipt["created"] = json!(true);
@@ -415,7 +405,7 @@ fn publish_prepared(
         staging_path: stage.path.clone(),
         file_identity: file_identity::identify(&file)?,
         bytes: prepared.bytes.len() as u64,
-        sha256: assets::sha256(&prepared.bytes),
+        sha256: prepared.bytes.sha256().into(),
         receipt: prepared.receipt,
     };
     drop(file);

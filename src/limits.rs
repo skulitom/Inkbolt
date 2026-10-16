@@ -1313,6 +1313,14 @@ pub mod publications {
     pub const MAX_RECORDS: usize = 1024;
 }
 
+/// Bounds for streaming PNG delivery, separate from renderer working storage.
+pub mod png_output {
+    /// Maximum RGBA8 output band, retaining native-reader locality where it fits.
+    pub const MAX_BAND_BYTES: usize = 32 * 1024 * 1024;
+    /// Maximum compressed PNG chunk buffer in the locked streaming encoder.
+    pub const STREAM_CHUNK_BYTES: usize = 65536;
+}
+
 /// Limits for `src/publish.rs`.
 pub mod publish {
     /// Maximum temporary-file reservation attempts for direct output publication.

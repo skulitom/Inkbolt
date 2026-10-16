@@ -14,6 +14,12 @@ Use the same request ID and normalized typed inputs to recover the original publ
 
 The ordinary output receipt includes its byte length, SHA-256, format, source revision, selected artboard and actual encoder loss/colour/metadata details. The added `publication` object identifies the receipt root/request, whether this is a replay, and completion state. Preparing durable output shares the exact existing publication encoder and does not change export semantics or force a format conversion.
 
+PNG preparation uses bounded output bands and private encoded storage before
+the existing durable staging step. Preflight counts and hashes that same stream
+without creating a file. A changed encoder may produce different compressed
+bytes for a new request; historical prepared and completed receipts retain their
+original bytes and identities. See [bounded image output](STREAMING_IMAGE_OUTPUT.md).
+
 ## Inspect or recover after a lost response
 
 ```json

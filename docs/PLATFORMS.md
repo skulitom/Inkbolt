@@ -7,13 +7,27 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful hosted Windows/Linux/macOS matrix is `133ebee`,
-through native block migration, store admission and
-[private PNG/TIFF staging](STREAMING_SAMPLE_IMPORT.md). The release and downloaded
-Windows/Linux packages also passed their separate checks; see
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/38836056633)
+is `1c3ffe9`, through native block migration, private PNG/TIFF import staging,
+import capacity and native JPEG. Every stage ran fresh, all three minimum-Rust
+checks passed, and the source remained unchanged:
+
+| Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows 2025 | 258 | 252 | 2,720 | 9 | 2545.660 |
+| Ubuntu 24.04 | 258 | 218 | 2,678 | 51 | 1500.112 |
+| macOS 15 ARM64 | 258 | 218 | 2,678 | 51 | 2878.215 |
+
+Reports and all stage logs are retained in `w4-native-jpeg-ci-1c3ffe9`.
+Its audit SHA-256 is `baaf83a02bbad4eddbf831953f4879819995cc19e39b4e7344426ca17a6a7769`;
+the shared hosted source fingerprint is `6fac3e279b1d3ac69420a4f01a04a6423d4890d4ed18c2a8664e003b755d27fc`.
+This matrix predates the bounded PNG output change, which has separate local
+Windows/WSL acceptance below. Unix background jobs remain unsupported.
+
+The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
+Windows/Linux packages passed their separate checks. See
 [release acceptance](DEVELOPMENT_STATUS.md#w7w8-v0820-published-and-downloaded-packages-verified).
-This predates the later native import-capacity change and native JPEG work.
-The later [native JPEG acceptance](DEVELOPMENT_STATUS.md#w43-native-jpeg-import-scale-admission-open)
+The earlier separate [native JPEG acceptance](DEVELOPMENT_STATUS.md#w43-native-jpeg-import-scale-admission-open)
 passed all 258 stages fresh on matching unchanged inputs. Windows ran
 252 Rust and 2,716 Python tests, with 13 explicit skips,
 in 843.781 seconds; Linux ran 218 Rust and 2,678 Python
@@ -22,7 +36,18 @@ no failures, pending checks or reuse. Source identity is
 `17742cd32f8d1eebe8988fa28e3f92cb7483bcbb1aea57635a9bfd637bae23ee`;
 retained audit is `d44d257e64bf714176805b2121b1b0c23914a43d683eb2d42260f00ff1cc8d74`.
 The earlier Windows recovery timing failure and focused follow-up are retained;
-this does not prove the intermittent issue fixed or extend macOS evidence.
+this does not prove the intermittent issue fixed; macOS evidence comes from
+the hosted matrix above.
+
+The later [bounded PNG output acceptance](DEVELOPMENT_STATUS.md#w45-bounded-png-output-other-formats-and-scale-open)
+passed all 259 stages fresh on both platforms: Windows executed
+258 Rust and 2,723 Python tests (13 explicit skips) in
+959.047 seconds; Linux executed 224 Rust and
+2,685 Python tests (51 skips) in 591.040 seconds.
+The owned-child private-payload process-death check passed on both systems.
+Inputs remained unchanged, with no failed, pending or reused checks in these
+full runs. Source fingerprint is `2df00b88dab8796c134466463580bd169bdde60a6609863d54dfe8e16cd975e3`;
+audit is `0fbefa78af9480c8d8dbebc3a181f19d064b49ee5aa8138b5db1d9184092b4b4`. macOS and Unix background-job evidence are unchanged.
 
 The earlier [native import admission acceptance](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open)
 passed all 257 stages fresh on matching unchanged inputs. Windows ran

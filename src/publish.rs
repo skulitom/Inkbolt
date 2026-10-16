@@ -6,12 +6,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
     fs::{self, OpenOptions},
-    io::Write,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
 
 pub use crate::limits::publish::MAX_OUTPUT_BYTES;
+pub(crate) mod payload;
 static TEMP: AtomicU64 = AtomicU64::new(0);
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -357,9 +357,73 @@ pub fn export_with_render_options(
     }
     Ok(artifact)
 }
+fn png_to_writer(
+    document: &Document,
+    scale: u32,
+    resources: &Resources,
+    options: FormatOptions<'_>,
+    output: impl std::io::Write,
+) -> Result<Value, Error> {
+    if options.layered_options.is_some() {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            "layered_options requires layered or layered_large format",
+        ));
+    }
+    crate::render_quality::validate_format(ExportFormat::Png, options.render_options)?;
+    let default_control = Control::default();
+    let control = options.control.unwrap_or(&default_control);
+    crate::model::validate_controlled(document, control)?;
+    crate::image_io::validate_options(ExportFormat::Png, options.image_options)?;
+    if options.pdf_options.is_some() {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            "pdf_options requires PDF format",
+        ));
+    }
+    let mut packet = crate::metadata::packet(
+        document,
+        ExportFormat::Png,
+        scale,
+        options.metadata_policy.unwrap_or_default(),
+    )?;
+    if let Some(render) = options.render_options {
+        let plan = crate::render_quality::Plan::for_document(document, scale, Some(render))?;
+        if let Some(packet) = &mut packet {
+            let mut value: Value = serde_json::from_str(packet)
+                .map_err(|_| Error::new("EXPORT_ERROR", "Invalid metadata envelope"))?;
+            value["delivery"]["width"] = json!(plan.output[0]);
+            value["delivery"]["height"] = json!(plan.output[1]);
+            value["delivery"]["render_settings"] = plan.receipt();
+            *packet = value.to_string();
+        }
+    }
+    let mut artifact = crate::render::png_output::write(
+        document,
+        scale,
+        (
+            resources.asset_root.as_deref(),
+            resources.font_root.as_deref(),
+        ),
+        options.render_options,
+        packet.as_deref(),
+        control,
+        output,
+    )?;
+    crate::metadata::annotate(
+        &mut artifact,
+        packet.as_deref(),
+        options.metadata_policy,
+        false,
+    );
+    crate::variants::annotate_export(document.variants.as_ref(), &mut artifact, false);
+    control.check()?;
+    Ok(artifact)
+}
+
 pub(crate) struct PreparedOutput {
     pub target: PathBuf,
-    pub bytes: Vec<u8>,
+    pub bytes: payload::Payload,
     pub receipt: Value,
 }
 pub(crate) fn prepare_publication(
@@ -367,6 +431,15 @@ pub(crate) fn prepare_publication(
     resources: &Resources,
     options: &Options,
     control: &Control,
+) -> Result<PreparedOutput, Error> {
+    prepare_output(document, resources, options, control, true)
+}
+fn prepare_output(
+    document: &Document,
+    resources: &Resources,
+    options: &Options,
+    control: &Control,
+    retain: bool,
 ) -> Result<PreparedOutput, Error> {
     resources.validate()?;
     control.check_resource_paths(resources)?;
@@ -421,43 +494,58 @@ pub(crate) fn prepare_publication(
         }
         None
     };
-    let mut artifact = export_with_render_options(
-        board.as_ref().unwrap_or(document),
-        options.format,
-        options.scale,
-        resources,
-        FormatOptions {
-            control: Some(control),
-            image_options: options.image_options.as_ref(),
-            metadata_policy: options.metadata_policy,
-            pdf_options: pdf_options.as_ref(),
-            layered_options: options.layered_options.as_ref(),
-            render_options: options.render_options.as_ref(),
-        },
-    )?;
+    let format_options = FormatOptions {
+        control: Some(control),
+        image_options: options.image_options.as_ref(),
+        metadata_policy: options.metadata_policy,
+        pdf_options: pdf_options.as_ref(),
+        layered_options: options.layered_options.as_ref(),
+        render_options: options.render_options.as_ref(),
+    };
+    let (mut artifact, bytes) = if matches!(options.format, ExportFormat::Png) {
+        let mut sink = payload::Sink::publication(retain, control)?;
+        let artifact = png_to_writer(
+            board.as_ref().unwrap_or(document),
+            options.scale,
+            resources,
+            format_options,
+            &mut sink,
+        );
+        let bytes = sink.finish()?;
+        (artifact?, bytes)
+    } else {
+        let artifact = export_with_render_options(
+            board.as_ref().unwrap_or(document),
+            options.format,
+            options.scale,
+            resources,
+            format_options,
+        )?;
+        control.check()?;
+        let data = artifact["data"]
+            .as_str()
+            .ok_or_else(|| Error::new("EXPORT_ERROR", "Export omitted encoded data"))?;
+        if data.len() > MAX_OUTPUT_BYTES * 4 / 3 + 4 {
+            return Err(crate::model::limit("Export exceeds publication byte limit"));
+        }
+        let bytes = if artifact["encoding"] == "base64" {
+            STANDARD
+                .decode(data)
+                .map_err(|_| Error::new("EXPORT_ERROR", "Export returned invalid encoding"))?
+        } else {
+            data.as_bytes().to_vec()
+        };
+        if bytes.len() > MAX_OUTPUT_BYTES {
+            return Err(crate::model::limit("Export exceeds publication byte limit"));
+        }
+        (artifact, payload::Payload::from_bytes(bytes))
+    };
     crate::variants::annotate_export(
         document.variants.as_ref(),
         &mut artifact,
         matches!(options.format, ExportFormat::Snapshot),
     );
-    control.check()?;
-    let data = artifact["data"]
-        .as_str()
-        .ok_or_else(|| Error::new("EXPORT_ERROR", "Export omitted encoded data"))?;
-    if data.len() > MAX_OUTPUT_BYTES * 4 / 3 + 4 {
-        return Err(crate::model::limit("Export exceeds publication byte limit"));
-    }
-    let bytes = if artifact["encoding"] == "base64" {
-        STANDARD
-            .decode(data)
-            .map_err(|_| Error::new("EXPORT_ERROR", "Export returned invalid encoding"))?
-    } else {
-        data.as_bytes().to_vec()
-    };
-    if bytes.len() > MAX_OUTPUT_BYTES {
-        return Err(crate::model::limit("Export exceeds publication byte limit"));
-    }
-    let checksum = assets::sha256(&bytes);
+    let checksum = bytes.sha256();
     // The root must already exist. Never create a directory in place of a source path.
     if !options.output_root.is_dir() {
         return Err(Error::new(
@@ -508,7 +596,7 @@ pub fn preflight(
     options: &Options,
     control: &Control,
 ) -> Result<Value, Error> {
-    let prepared = prepare_publication(document, resources, options, control)?;
+    let prepared = prepare_output(document, resources, options, control, false)?;
     control.check()?;
     Ok(prepared.receipt)
 }
@@ -521,7 +609,7 @@ pub fn publish(
 ) -> Result<Value, Error> {
     let PreparedOutput {
         target,
-        bytes,
+        mut bytes,
         mut receipt,
     } = prepare_publication(document, resources, options, control)?;
     let mut reserved = None;
@@ -547,11 +635,7 @@ pub fn publish(
     }
     let (temp, mut file) = reserved
         .ok_or_else(|| Error::new("IO_ERROR", "Output temporary-name retry limit exceeded"))?;
-    for chunk in bytes.chunks(crate::limits::publish::IO_CHUNK_BYTES) {
-        control.check()?;
-        file.write_all(chunk)
-            .map_err(|_| Error::new("IO_ERROR", "Unable to write export temporary file"))?;
-    }
+    bytes.copy_to(&mut file, control, |_| {})?;
     file.sync_all()
         .map_err(|_| Error::new("IO_ERROR", "Unable to flush export temporary file"))?;
     drop(file);

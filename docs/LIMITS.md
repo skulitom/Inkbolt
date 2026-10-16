@@ -447,6 +447,8 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `pixel_warps.ORIENTATION_EPSILONS` | `u32` | 16 | `16` |
 | `pixel_warps.VERTEX_BUFFER_VALUES` | `usize` | 32 | `32` |
 | `pixel_warps.WEIGHT_SUM_TOLERANCE` | `f64` | 1e-10 | `1e-10` |
+| `png_output.MAX_BAND_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
+| `png_output.STREAM_CHUNK_BYTES` | `usize` | 65536 | `65536` |
 | `prepress.ADJUSTMENT_CONVERSION_WORK` | `u64` | 256 | `256` |
 | `prepress.BLEND_CHANNEL_WORK` | `usize` | 8 | `8` |
 | `prepress.BLEND_PIXEL_OVERHEAD` | `usize` | 32 | `32` |

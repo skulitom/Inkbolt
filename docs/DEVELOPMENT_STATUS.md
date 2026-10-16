@@ -57,14 +57,15 @@ W1, any additional engine checkpoint, the scale targets or the overall goal.
 
 ## W1: core platform tier and hosted matrix verified; Unix jobs open
 
-The latest retained [hosted matrix at `133ebee`](https://github.com/skulitom/Inkbolt/actions/runs/38822552988)
-passed all 256 fresh stages on Windows, Ubuntu and macOS, through native block
-migration, store admission and private PNG/TIFF staging. All three
-minimum-compiler checks passed. Reports and all stage logs are retained in
-`release-v0.82.0-ci-133ebee`; see [platform evidence](PLATFORMS.md) for counts,
-timings and audit identity. Later native import-capacity changes retain separate
-Windows/WSL evidence; native JPEG has separate local acceptance below. Hosted checks do not
-replace the mandatory local private publication guard.
+The latest retained [hosted matrix at `1c3ffe9`](https://github.com/skulitom/Inkbolt/actions/runs/38836056633)
+passed all 258 fresh stages on Windows, Ubuntu and macOS through native JPEG
+import. All three minimum-compiler checks passed. The source remained unchanged,
+with no failed, pending or reused stages. Reports and all logs are retained in
+`w4-native-jpeg-ci-1c3ffe9`, audit SHA-256
+`baaf83a02bbad4eddbf831953f4879819995cc19e39b4e7344426ca17a6a7769`. See [platform evidence](PLATFORMS.md) for
+counts and timings. This predates bounded PNG output, whose later local
+Windows/WSL acceptance is recorded below. Hosted checks do not replace the
+mandatory local private publication guard.
 
 Linux tier 1 covers core/library/CLI/MCP, sessions and durable publication/history
 receipts on Ubuntu 22.04 under WSL2, using native Linux storage. Background jobs
@@ -2538,6 +2539,58 @@ retained native measurement stores and recovery diagnostic. Subsequent changes
 update overview/acceptance documentation only. Larger canvases, coordinated input
 and output limits, streaming export and independent scale acceptance remain open;
 no engine checkpoint receives additional credit.
+
+### W4.5: bounded PNG output; other formats and scale open
+
+[PNG output](STREAMING_IMAGE_OUTPUT.md) now feeds completed tiles through at
+most a 32 MiB RGBA8 band and bounded codec buffers. File publication retains the
+encoded stream in private temporary storage, then verifies a bounded copy into
+the existing create-only stage. Preflight hashes and counts without creating a
+file. Inline responses retain their encoded/base64 result; whole evaluation
+keeps its existing composition surfaces. Historical receipt replay is unchanged.
+
+All 259 stages passed fresh per platform on matching unchanged inputs:
+
+| Platform | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 258 | 2,723 | 13 | 959.047 |
+| Linux / WSL | 224 | 2,685 | 51 | 591.040 |
+
+No successful full run reused a check or left failures or pending work. Final
+focused Windows/Linux PNG checks passed in 71.5/51.8 seconds,
+including the enlarged wide-source regression. Earlier lifetime and integration
+checks passed in 69.8/42.6 seconds. The seven new integration tests cover
+independent pixels/profile transfer, HDR, artboard bleed, CLI/MCP byte agreement
+and no-file preflight. Rust checks retain final-write failures, output bounds,
+cancellation and real owned-process cleanup; existing crash/recovery suites ran.
+
+Twelve isolated Windows debug publications checked every pixel through an
+independent decoder. Median peak commit fell from 73.086 to
+13.500 MiB for an empty 16 MP canvas and from
+93.137 to 22.336 MiB for a row-hashed
+8 MP native grayscale image. Median times changed from
+7.475/24.184 to
+7.211/24.063 seconds respectively.
+These are bounded synthetic diagnostics, not release latency or scale-v2 gates.
+The complete encoded outputs, native inputs, driver, engines and earlier
+measurement attempts and their failures are retained. Early fixture/probe failures remain recorded;
+the first full runs also found wide-source repeated decoding under the small
+band bound. Both were stopped and retained. Increasing the new band allowance
+to 32 MiB preserves the existing native reader traversal where it fits, without
+raising native cache/work limits. The existing wide-source suite passes. The
+final process-death test requires a complete private-payload readback before
+terminating its owned child, replacing the timing-dependent OS inspection probe.
+
+Source fingerprint is `2df00b88dab8796c134466463580bd169bdde60a6609863d54dfe8e16cd975e3`; retained audit
+`w4-png-output-acceptance-02/audit.json` has SHA-256
+`0fbefa78af9480c8d8dbebc3a181f19d064b49ee5aa8138b5db1d9184092b4b4`. Only acceptance documentation changes after
+the frozen suite. The prior JPEG milestone's intermittent recovery failure remains
+documented above; this passing run does not establish that issue fixed.
+
+No canvas, source or output ceiling increased. TIFF/private encoded output,
+explicit JPEG output budgets, coordinated scale admission, the complete 50 MP
+workflow and independent scale-v2 acceptance remain open. This source change is
+outside v0.82.0 and earns no additional original engine-checkpoint credit.
 
 ## W3b: complete within the insertion contract
 
