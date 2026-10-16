@@ -1,6 +1,6 @@
 # Inkbolt
 
-Local graphics editing for AI agents.
+Local vector and raster editing for AI agents.
 
 Inkbolt lets agents create graphics, preview their work, make precise revisions
 and export the result while keeping an editable source. Use it for diagrams,
@@ -13,8 +13,11 @@ particular AI model is required.
 ## What you can do
 
 - **Build compositions** from vector shapes, text and images.
-- **Import SVG artwork** into editable compositions, with optional reports for
-  content that cannot be preserved.
+- **Bring in SVG artwork** with styles, reusable symbols, placed images and
+  positioned text. Keep supported content editable and request omission reports
+  when an input uses unsupported features.
+- **Work with images** using PNG/TIFF import, high-precision samples and local
+  image storage that preserves earlier revisions while reusing unchanged data.
 - **Revise artwork** with targeted edits, layers, masks and image adjustments.
 - **Review and continue** using previews, saved sessions, undo/redo and revision
   comparisons.
@@ -30,11 +33,22 @@ reported.
 Download a [release](https://github.com/skulitom/Inkbolt/releases/latest) or follow
 the [installation guide](docs/INSTALLATION.md) to build from source, then connect
 your agent through MCP or use the command line.
-The guide includes Windows, Linux and macOS setup and client configuration.
+Prebuilt archives are available for Windows x64, Linux x64 and macOS Apple
+silicon, with a desktop extension bundle for Windows.
+
+For an MCP client, use this launch command with the path to an existing folder
+where you want to work:
+
+```text
+inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools core
+```
+
+The [installation guide](docs/INSTALLATION.md) includes ready-to-adapt client
+configuration. The core catalog keeps initial tool discovery compact; agents can
+request more operations and their schemas when needed.
 
 Try the [runnable examples](examples/README.md) for creating artwork, revising
-images and exporting assets. Agents can start with the compact core tool catalog
-and discover more operations as needed.
+images and exporting assets.
 
 ## Documentation
 
@@ -43,6 +57,7 @@ and discover more operations as needed.
 | [Examples](examples/README.md) | Runnable graphics and image workflows |
 | [Agent interface](docs/AGENT_INTERFACE.md) and [tool discovery](docs/AGENT_DISCOVERY.md) | Commands, MCP tools and schemas |
 | [Workspaces and sessions](docs/AGENT_WORKSPACE.md) | Local resources and saved revision references |
+| [SVG import](docs/SVG_IMPORT.md) and [image import](docs/STREAMING_SAMPLE_IMPORT.md) | Supported inputs, preservation and conversion limits |
 | [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
 
@@ -53,6 +68,10 @@ receipts have Windows, Linux and macOS verification; background export jobs are
 currently Windows-only. Broader format support, larger image workloads and agent
 usability remain active work. See the [resource limits](docs/LIMITS.md) for current
 bounds.
+
+This README describes the development branch. Check the
+[release notes](https://github.com/skulitom/Inkbolt/releases) for the features
+included in a particular download.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.
 [Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their
