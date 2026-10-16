@@ -209,17 +209,23 @@ impl Source {
         if !meta.is_file() {
             return Err(assets::io_error());
         }
-        if meta.len() > assets::MAX_IMPORT_BYTES {
+        if meta.len() > limits::MAX_NATIVE_SOURCE_BYTES {
             return Err(limit("Asset input exceeds byte limit"));
         }
         let budget = Budget::new(limits::MAX_PRIVATE_STAGING_BYTES);
         let scratch = Scratch::create(&std::env::temp_dir(), budget, control)?;
-        Self::capture(&mut input, scratch, control)
+        Self::capture(
+            &mut input,
+            scratch,
+            limits::MAX_NATIVE_SOURCE_BYTES,
+            control,
+        )
     }
 
     fn capture(
         input: &mut impl Read,
         mut scratch: Scratch,
+        maximum: u64,
         control: &Control,
     ) -> Result<Self, Error> {
         let mut buffer = vec![0; limits::INPUT_BUFFER_BYTES];
@@ -232,7 +238,7 @@ impl Source {
                 break;
             }
             bytes += read;
-            if bytes as u64 > assets::MAX_IMPORT_BYTES {
+            if bytes as u64 > maximum {
                 return Err(limit("Asset input exceeds byte limit"));
             }
             scratch.append(&buffer[..read], control)?;

@@ -193,7 +193,7 @@ class NativeJpegImportTests(unittest.TestCase):
                                     + b'R\x11\0G\x11\0B\x11\0')
             scan = fixture.segment(0xda, b'\3R\0G\0B\0\0\0\0') + b'\0'
             return b'\xff\xd8' + frame + scan * scans + b'\xff\xd9'
-        cases = [(oversized(4097, 4096, 1), 'decoded pixel count'),
+        cases = [(oversized(8193, 8192, 1), 'decoded pixel count'),
                  (oversized(1, 1, 129), 'scan count'),
                  (oversized(4096, 4096, 43), 'cumulative work')]
         for data, message in cases:

@@ -94,7 +94,7 @@ inspects and renders all three scenes using that local installation.
 ## Bounds and evidence
 
 Deliveries contain at most 256 ordered frames, 4096 pixels per axis, eight million
-pixels per image, 16,777,216 aggregate frame pixels and 32 MiB of unique files
+pixels per image, 67,108,864 aggregate frame pixels and 32 MiB of unique files
 including source, scene and manifest. Existing render work, precision, source,
 supersampling and resource limits still apply. Cancellation is checked during
 planning, frame processing, file-reading blocks and before returning a complete

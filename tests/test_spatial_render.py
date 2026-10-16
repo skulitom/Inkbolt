@@ -88,7 +88,7 @@ class SpatialRenderTests(unittest.TestCase):
         self.assertEqual(self.pixels(d)[2],self.pixels(d,False)[2])
 
     def test_dense_scene_still_fails_and_failed_export_preserves_source(self):
-        d=self.document([rect(f'p{i}',w=512,h=512) for i in range(140)],512,512)
+        d=self.document([rect(f'p{i}',w=1024,h=1024) for i in range(140)],1024,1024)
         before=copy.deepcopy(d)
         self.cli('document.export',document=d,format='png',render_options=dict(evaluation='tiled'),error='RESOURCE_LIMIT')
         self.assertEqual(d,before)

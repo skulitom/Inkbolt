@@ -78,8 +78,14 @@ class NonlocalFilterTests(unittest.TestCase):
             with self.subTest(options=options):
                 self.assertEqual(self.samples(d,True,**options),self.samples(d,False,**options))
         self.assertEqual(d,original)
-        # Retain the larger supersampled stack as an explicit work-limit case.
-        self.cli('document.export',document=d,format='png',render_options=dict(evaluation='tiled',padding=3,antialias='supersample2'),error='RESOURCE_LIMIT')
+        self.assertEqual(self.samples(d,True,padding=3,antialias='supersample2'),
+                         self.samples(d,False,padding=3,antialias='supersample2'))
+        # Increase actual filter work beyond the larger tiled budget.
+        expensive=copy.deepcopy(d)
+        for item in expensive['items'][:2]:
+            item['filters'][0]['operator']['samples']=129
+        error=self.cli('document.export',document=expensive,format='png',render_options=dict(evaluation='tiled',padding=3,antialias='supersample2'),error='RESOURCE_LIMIT')
+        self.assertIn('work',error['message'])
         d['width']=139
         self.assertEqual(self.samples(d,True,padding=3,antialias='supersample2'),
                          self.samples(d,False,padding=3,antialias='supersample2'))

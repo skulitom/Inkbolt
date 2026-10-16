@@ -31,7 +31,9 @@ impl<'a> SeekSink<'a> {
     }
     pub fn publication(retain: bool, control: &'a Control) -> Result<Self, Error> {
         if retain {
-            Ok(Self::new(Target::Private(private_file(control)?), control))
+            let mut sink = Self::new(Target::Private(private_file(control)?), control);
+            sink.maximum = limits::MAX_FILE_IMAGE_BYTES as u64;
+            Ok(sink)
         } else {
             Ok(Self::memory(control))
         }
@@ -151,6 +153,21 @@ impl Seek for SeekSink<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn file_extent_has_a_separate_bound_and_failed_seek_keeps_payload_private() {
+        let control = Control::default();
+        let position = limits::MAX_OUTPUT_BYTES as u64 + 1;
+        let mut inline = SeekSink::memory(&control);
+        assert!(inline.seek(SeekFrom::Start(position)).is_err());
+        assert_eq!(inline.finish().err().unwrap().code, "RESOURCE_LIMIT");
+        let mut file = SeekSink::publication(true, &control).unwrap();
+        file.seek(SeekFrom::Start(limits::MAX_FILE_IMAGE_BYTES as u64 - 1))
+            .unwrap();
+        file.write_all(b"x").unwrap();
+        assert_eq!(file.len, limits::MAX_FILE_IMAGE_BYTES as u64);
+        assert!(file.write_all(b"y").is_err());
+        assert_eq!(file.finish().err().unwrap().code, "RESOURCE_LIMIT");
+    }
     #[test]
     fn backpatch_holes_and_empty_writes_keep_final_extent_and_exact_hash() {
         let control = Control::default();

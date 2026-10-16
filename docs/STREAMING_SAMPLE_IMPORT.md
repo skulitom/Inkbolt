@@ -6,7 +6,9 @@ seekable storage, with bounded PNG framing/metadata reads. Source/pixel staging
 passed full Windows/Linux acceptance within their original ceilings. Separate
 native extent and codec admission passed fresh full Windows/Linux acceptance,
 including independent larger-image checks and retained memory measurements. The
-complete streaming milestone and larger-workload target remain open.
+complete streaming milestone and larger-workload target remain open. Current
+[scale admission](SCALE_ADMISSION.md) has separate full and target-size acceptance;
+the evidence below records the previously accepted ceilings.
 
 Fresh full Windows/Linux acceptance includes process termination, shared capacity,
 exact native imports, publication and history checks. The retained memory
@@ -56,12 +58,13 @@ and [Rust file options](https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOp
 No claim is made about power loss, hostile filesystem replacement or filesystem
 implementations that do not provide the required semantics.
 
-One import may reserve at most 288 MiB of aggregate logical private staging
-bytes, with 64 KiB copy/scan buffers. Encoded input retains its 32 MiB limit;
-the private native extent admits up to 256 MiB. The 16,777,216-pixel bound is
-unchanged, including its existing tile-count and dimension restrictions. This
-allows all native depths within that pixel bound when source codec chunks fit
-their independent budgets. File growth must be checked before writing; failed
+One native import may reserve at most 1,056 MiB of aggregate logical private staging
+bytes, with 64 KiB copy/scan buffers. Private encoded input is bounded at
+544 MiB; ordinary inline input retains its 32 MiB limit. The private native extent admits up to 512 MiB, with
+67,108,864 pixels, 4,096 block references and the existing dimension bound.
+Each depth must fit the native byte extent as well as its independent codec
+budgets; full-size binary32 RGBA exceeds that byte extent. File growth must be
+checked before writing; failed
 writes must not release accounting for bytes the file may still contain. This
 is an operation budget, distinct from resident memory, filesystem free space
 and the persistent native-store budget. Concurrent live operations have separate
@@ -82,16 +85,17 @@ API remains pure and continues to retain its pending blocks in memory; private
 files belong only to the importer. Existing decode-storage receipt labels remain
 unchanged, including `chunk_bands_to_native_blocks` for TIFF.
 
-Source, native extent and total staging limits are 32, 256 and 288 MiB.
+Native source, decoded extent and total staging limits are 544, 512 and 1,056 MiB.
 Codec output/intermediate allocations retain their separate 64 MiB bounds.
-Aggregate native TIFF padded tile work is separately bounded at 256 MiB; inline
+Aggregate native TIFF padded tile work is separately bounded at 512 MiB; inline
 TIFF retains its 64 MiB padded-work limit and 16 MiB codec allocation limits.
 A single source-defined TIFF chunk can still cover a complete image and is
 rejected if its codec allocation exceeds 64 MiB, even when the complete native
 extent would fit on disk. No whole-frame allocation receives the disk allowance.
 These limits do not establish a whole-process memory ceiling; no previously
-admitted layout is silently removed. Encoded-source, canvas, render, output and
-persistent-store limits are unchanged.
+admitted layout is silently removed. See [coordinated scale admission](SCALE_ADMISSION.md)
+for the related pixel, render-work and output limits and their acceptance status.
+The persistent-store budget remains unchanged.
 
 Validate the complete decoded content, metadata and document before publishing
 any persistent block or returning a document. Publish through the existing

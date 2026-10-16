@@ -213,9 +213,11 @@ class SvgImageTests(unittest.TestCase):
             self.assertEqual(asset['sha256'],hashlib.sha256(fixtures.canonical(400,400,raw)).hexdigest())
             self.invoke(dict(command='asset.verify',asset=asset))
             self.assertEqual(sorted(p.name for p in root.iterdir()),['noise.png'])
-        body = picture(data=fixtures.png(4096,2048,bytes(RED)*(4096*2048))) + \
-            picture(data=fixtures.png(4096,2049,bytes(BLUE)*(4096*2049)))
-        self.assertEqual(self.imported(support.svg(body),1)['code'],'RESOURCE_LIMIT')
+        body = picture(data=fixtures.png(8192,4096,bytes(RED)*(8192*4096))) + \
+            picture(data=fixtures.png(8192,4097,bytes(BLUE)*(8192*4097)))
+        error = self.imported(support.svg(body),1,resource_profile='large_vector')
+        self.assertEqual(error['code'],'RESOURCE_LIMIT')
+        self.assertIn('SVG images exceed the decoded-pixel budget',error['message'])
 
     def test_workspace_root_is_explicit_and_failed_batch_leaves_no_resources(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -257,7 +259,7 @@ class SvgImageTests(unittest.TestCase):
                 self.assertEqual(error['code'],'SVG_INVALID')
                 self.assertIn('Nonfinite',error['message'])
         self.assertEqual(self.imported(support.svg('<mask id="m">'+picture()+'</mask>'),1)['code'],'SVG_UNSUPPORTED')
-        too_big=fixtures.png(4097,4096,b'',raw=b'')
+        too_big=fixtures.png(8193,8192,b'',raw=b'')
         self.assertEqual(self.imported(support.svg(picture(data=too_big)),1)['code'],'RESOURCE_LIMIT')
         result=self.imported(support.svg(picture()))
         asset=next(iter(result['document']['assets'].values()))

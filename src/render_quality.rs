@@ -44,6 +44,12 @@ pub enum Evaluation {
     Tiled,
 }
 impl Evaluation {
+    pub(crate) fn maximum_work(self) -> u64 {
+        match self {
+            Self::Whole => crate::render::MAX_RENDER_WORK,
+            Self::Tiled => crate::limits::render_tiled::MAX_WORK,
+        }
+    }
     fn is_whole(&self) -> bool {
         *self == Self::Whole
     }

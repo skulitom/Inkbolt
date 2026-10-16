@@ -1,11 +1,11 @@
 # Bounded image output
 
-This implements W4.5 under [FIX_PLAN.md](../FIX_PLAN.md), ahead of coordinated
-scale admission. The first implementation connects PNG output to bounded codec
-bands and private encoded storage. The PNG phase passed fresh full Windows/Linux
-acceptance, followed by the TIFF publication phase below. Current image and
-encoded-output limits remain unchanged. JPEG output now also has fresh full Windows/Linux acceptance below. Coordinated
-scale admission and complete scale acceptance remain open.
+This implements W4.5 under [FIX_PLAN.md](../FIX_PLAN.md). PNG, TIFF and JPEG
+output and file-free TIFF preflight passed fresh full Windows/Linux acceptance.
+The historical evidence below records their earlier image/output ceilings.
+Subsequent [larger-image admission](SCALE_ADMISSION.md) has separate full
+Windows/Linux and independent target-size acceptance. Complete W4 and scale-v2
+remain open.
 
 ## File-free TIFF preflight
 

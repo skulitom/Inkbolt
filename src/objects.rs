@@ -327,12 +327,13 @@ struct Budget {
     enabled: bool,
     objects: usize,
     work: u64,
+    maximum_work: u64,
     buffers: u64,
 }
 thread_local! { static BUDGET: std::cell::RefCell<Budget> = std::cell::RefCell::new(Budget::default()); }
 pub(crate) struct RenderGuard;
 impl RenderGuard {
-    pub(crate) fn enter(d: &Document) -> Result<Self, Error> {
+    pub(crate) fn enter(d: &Document, maximum_work: u64) -> Result<Self, Error> {
         BUDGET.with_borrow_mut(|b| {
             if b.depth == 0 {
                 b.enabled = d
@@ -341,6 +342,7 @@ impl RenderGuard {
                     .any(|i| matches!(i.content, Content::Object { .. }));
                 b.objects = 0;
                 b.work = 0;
+                b.maximum_work = maximum_work;
                 b.buffers = 0;
             }
             if b.depth > 0 {
@@ -365,7 +367,7 @@ pub(crate) fn charge(work: u64) -> Result<(), Error> {
     BUDGET.with_borrow_mut(|b| {
         if b.enabled {
             b.work = b.work.saturating_add(work);
-            if b.work > crate::render::MAX_RENDER_WORK {
+            if b.work > b.maximum_work {
                 return Err(limit(
                     "Aggregate retained object evaluation exceeds render work limit",
                 ));

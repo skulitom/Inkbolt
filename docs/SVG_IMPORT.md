@@ -191,7 +191,7 @@ Mapping rows add `asset_id`, `image_item_id`, `image_size`, and either
 `viewport_item_id` or `empty_image`. Insertion remaps resource and item IDs into
 the destination; reuse receipts identify shared editable components.
 The existing SVG source, whole-request, snapshot-byte, asset-count and aggregate
-16,777,216 decoded-pixel limits remain enforced. Encoded sources consume base64
+67,108,864 decoded-pixel limits remain enforced. Encoded sources consume base64
 snapshot bytes, not the raw-inline-pixel allowance. The old 65,536 raw-inline-pixel
 limit is unchanged; this does not establish the larger W4 workload target.
 SVG sources inside `image`, animations, CSS geometry/object-fit and image artwork

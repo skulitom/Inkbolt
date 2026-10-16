@@ -20,8 +20,10 @@ PNG/TIFF input now uses private seekable source snapshots with bounded copy/CRC
 buffers and shared source/metadata identities. Native import pixels assemble in
 a separately reserved private file; TIFF retains one source chunk at a time.
 The public in-memory candidate API remains pure. Native pixel extents now use a
-256 MiB disk budget while codec allocations remain separately bounded at 64 MiB;
-canvas, encoded-source and output ceilings are unchanged.
+512 MiB disk budget while PNG/TIFF codec allocations remain separately bounded
+at 64 MiB. The private encoded source has a separate 544 MiB allowance.
+See [scale admission](SCALE_ADMISSION.md) for the coordinated limits and
+acceptance status.
 JPEG import separately preflights frame geometry, scan work and bounded EXIF,
 then retains one admitted decoded frame and orients rows into private storage.
 Its explicit orientation policies, strict entropy admission and fresh full
@@ -49,7 +51,8 @@ bands while sharing prepared resources and native-reader traversal. Its row
 callback bridges errors to a poisoned writer; bounded metadata insertion keeps
 historical before-scan bytes. JPEG uses private encoded storage for publication
 and count/hash-only preflight, with fresh full Windows/Linux acceptance. Whole
-evaluation retains its existing frame; coordinated scale admission remains open.
+evaluation retains its existing frame. Coordinated image admission has separate
+[Windows/Linux acceptance](SCALE_ADMISSION.md); complete scale-v2 remains open.
 
 Typed JSON rejection now adds bounded, advisory missing-field guidance using the
 same generated schemas as discovery. The fast inline path retains only the

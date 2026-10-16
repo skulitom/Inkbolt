@@ -971,6 +971,8 @@ pub mod objects {
 
 /// Limits for the native pixel editor's independent source cache.
 pub mod native_pixels {
+    /// Cumulative stored-source verification/preparation for one local edit, separate from pixel computation.
+    pub const MAX_PREPARATION_WORK: u64 = 536_870_912;
     /// Maximum decoded source tiles retained by one native pixel edit reader.
     pub const CACHE_TILES: usize = 16;
 }
@@ -1339,8 +1341,10 @@ pub mod publish {
     pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Maximum bytes per checked staging write or receipt-verification read; cancellation is checked between chunks.
     pub const IO_CHUNK_BYTES: usize = 65536;
-    /// Max output bytes (publish).
+    /// Inline and non-streaming encoded output bytes.
     pub const MAX_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
+    /// Streaming PNG/JPEG/TIFF file output: target RGBA16 extent plus codec/metadata headroom.
+    pub const MAX_FILE_IMAGE_BYTES: usize = 544 * 1024 * 1024;
 }
 
 /// Limits for `src/raw/corrections.rs`.
@@ -1429,6 +1433,8 @@ pub mod render_spatial {
 pub mod render_tiled {
     /// Max pixels (render tiled).
     pub const MAX_PIXELS: u64 = super::raster::MAX_PIXELS;
+    /// Aggregate tiled preparation and visits, independent of resident render memory.
+    pub const MAX_WORK: u64 = 536_870_912;
     /// Edge (render tiled).
     pub const EDGE: u32 = super::raster::TILE_EDGE;
 }
@@ -1537,8 +1543,11 @@ pub mod retouch {
 
 /// Limits for `src/sample_import.rs`.
 pub mod sample_import {
+    /// Encoded source captured in private storage; ordinary in-memory input remains separate.
+    pub const MAX_NATIVE_SOURCE_BYTES: u64 = 544 * 1024 * 1024;
     /// Aggregate logical private staging bytes reserved by one native import.
-    pub const MAX_PRIVATE_STAGING_BYTES: u64 = 288 * 1024 * 1024;
+    pub const MAX_PRIVATE_STAGING_BYTES: u64 =
+        MAX_NATIVE_SOURCE_BYTES + MAX_NATIVE_DECODED_BYTES as u64;
     /// Reusable encoded-input copy and framing/CRC scan buffer.
     pub const INPUT_BUFFER_BYTES: usize = 64 * 1024;
     /// Exclusive scratch-name reservation attempts; existing files are preserved.
@@ -1550,11 +1559,11 @@ pub mod sample_import {
     /// Aggregate decoded padded TIFF tile work, separate from native storage.
     pub const MAX_TIFF_PADDED_BYTES: u64 = 64 * 1024 * 1024;
     /// Aggregate native TIFF padded tile work, independent of one codec chunk.
-    pub const MAX_NATIVE_TIFF_PADDED_BYTES: u64 = 256 * 1024 * 1024;
+    pub const MAX_NATIVE_TIFF_PADDED_BYTES: u64 = 512 * 1024 * 1024;
     /// Native pixel extent in private storage; never a resident-frame allowance.
-    pub const MAX_NATIVE_DECODED_BYTES: usize = 256 * 1024 * 1024;
+    pub const MAX_NATIVE_DECODED_BYTES: usize = 512 * 1024 * 1024;
     /// Complete decoded JPEG output, separate from intermediate codec storage.
-    pub const MAX_JPEG_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
+    pub const MAX_JPEG_OUTPUT_BYTES: usize = 192 * 1024 * 1024;
     /// Conservative pre-decode JPEG coefficient/plane/row/output admission.
     pub const MAX_JPEG_WORKING_BYTES: u64 = 384 * 1024 * 1024;
     /// Additional allowance in the JPEG working-set estimate for bounded tables/metadata.
@@ -1592,7 +1601,7 @@ pub mod sample_store {
     /// Max pixels (sample store).
     pub const MAX_PIXELS: u64 = super::raster::MAX_PIXELS;
     /// Max tiles (sample store).
-    pub const MAX_TILES: usize = 2048;
+    pub const MAX_TILES: usize = 4096;
     /// Max region pixels (sample store).
     pub const MAX_REGION_PIXELS: u64 = 65_536;
 }
@@ -2170,7 +2179,7 @@ pub mod work_paths {
 /// Shared native image storage, asset and tiled-output geometry ceilings.
 pub mod raster {
     /// Pixel ceiling shared by native storage, assets, tiled output and sequences.
-    pub const MAX_PIXELS: u64 = 16_777_216;
+    pub const MAX_PIXELS: u64 = 67_108_864;
     /// Maximum native block and unindexed composition tile edge, in pixels.
     pub const TILE_EDGE: u32 = 128;
 }

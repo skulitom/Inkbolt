@@ -18,7 +18,7 @@ def catalog(source):
         if group[1] in groups:
             raise ValueError('Duplicate limit group: ' + group[1])
         groups.add(group[1])
-        for row in re.finditer(r'(?m)^\s*pub const (\w+): (usize|u64|u32|u8|i64|f64) = ([^;]+);', group[2]):
+        for row in re.finditer(r'(?m)^\s*pub const (\w+): (usize|u64|u32|u8|i64|f64) =\s+([^;]+);', group[2]):
             key = group[1] + '.' + row[1]
             if key in definitions:
                 raise ValueError('Duplicate limit: ' + key)
@@ -82,9 +82,10 @@ def report(source):
         'These are current ceilings and bounded-evaluation settings, not promised workload sizes.',
         'A request must satisfy every applicable document, storage, work and memory budget.',
         'Equal values do not imply interchangeable policies. Existing public Rust module paths',
-        're-export the central constants. No limit is raised by this consolidation.', '',
+        're-export the central constants. Admission changes require separate workload evidence.', '',
         'The native store tile-count ceiling remains independent of its pixel ceiling:',
-        'partial edge blocks consume tile entries too. W4 target sizes remain future work.',
+        'partial edge blocks consume tile entries too. See [scale admission](SCALE_ADMISSION.md)',
+        'for current measured scope and the remaining W4 acceptance gates.',
         'Resource policies share this catalog with validation, discovery and diagnostics.',
         'Format cardinalities and mathematical definitions remain with their algorithms.', '',
         '| Constant | Rust type | Value | Definition |',

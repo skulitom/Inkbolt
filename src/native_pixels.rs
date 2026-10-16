@@ -7,6 +7,28 @@ use std::{collections::BTreeMap, path::Path};
 pub(crate) trait Budget {
     fn charge(&mut self, pixels: usize) -> Result<(), Error>;
     fn control(&self) -> &Control;
+    fn preparation(&mut self) -> &mut Preparation;
+    fn prepare(&mut self, work: u64) -> Result<(), Error> {
+        self.control().check()?;
+        self.preparation().charge(work)
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct Preparation {
+    pub work: u64,
+}
+impl Preparation {
+    fn charge(&mut self, work: u64) -> Result<(), Error> {
+        self.work = self
+            .work
+            .checked_add(work)
+            .filter(|&total| total <= crate::limits::native_pixels::MAX_PREPARATION_WORK)
+            .ok_or_else(|| {
+                crate::model::limit("Native edit source preparation exceeds work limit")
+            })?;
+        Ok(())
+    }
 }
 
 pub(crate) fn replacement_memory(content: &Content, region: Region) -> u64 {
@@ -114,7 +136,7 @@ impl<'a> Pixels<'a> {
             let Content::StoredSamples { grid } = content else {
                 unreachable!()
             };
-            work.charge(grid.preparation_costs().0 as usize)?;
+            work.prepare(grid.preparation_costs().0)?;
             let candidate = grid.prepare(root, work.control())?;
             let identity = candidate.manifest().sha256.clone();
             (Data::Stored(candidate), identity)
@@ -310,4 +332,21 @@ pub(crate) fn encode(value: [f64; 4], spec: Spec) -> Result<[u8; 16], Error> {
         }
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod preparation_tests {
+    use super::*;
+    #[test]
+    fn preparation_charges_all_sources_and_rejects_overflow_without_resetting() {
+        let mut preparation = Preparation::default();
+        let full = crate::sample_store::MAX_PIXELS * 3;
+        preparation.charge(full).unwrap();
+        preparation.charge(full).unwrap();
+        assert_eq!(preparation.work, full * 2);
+        assert_eq!(preparation.charge(full).unwrap_err().code, "RESOURCE_LIMIT");
+        assert_eq!(preparation.work, full * 2);
+        assert!(preparation.charge(u64::MAX).is_err());
+        assert_eq!(preparation.work, full * 2);
+    }
 }

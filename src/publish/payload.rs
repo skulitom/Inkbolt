@@ -163,14 +163,16 @@ impl<'a> Sink<'a> {
         Self::new(Storage::Memory(Vec::new()), control)
     }
     pub fn publication(retain: bool, control: &'a Control) -> Result<Self, Error> {
-        Ok(Self::new(
+        let mut sink = Self::new(
             if retain {
                 Storage::Private(private_file(control)?)
             } else {
                 Storage::Discard
             },
             control,
-        ))
+        );
+        sink.maximum = limits::MAX_FILE_IMAGE_BYTES;
+        Ok(sink)
     }
     fn fail(&mut self, error: Error) -> io::Error {
         if self.error.is_none() {
@@ -348,6 +350,29 @@ mod tests {
         control.cancel();
         assert!(sink.write_all(b"payload").is_err());
         assert_eq!(sink.finish().err().unwrap().code, "CANCELLED");
+    }
+    #[test]
+    fn file_streams_cross_the_inline_boundary_without_a_larger_response() {
+        let control = Control::default();
+        let chunk = vec![37; limits::IO_CHUNK_BYTES];
+        let mut inline = Sink::memory(&control);
+        let mut file = Sink::publication(true, &control).unwrap();
+        let mut preflight = Sink::publication(false, &control).unwrap();
+        for _ in 0..limits::MAX_OUTPUT_BYTES / chunk.len() {
+            for sink in [&mut inline, &mut file, &mut preflight] {
+                sink.write_all(&chunk).unwrap();
+            }
+        }
+        assert!(inline.write_all(b"!").is_err());
+        assert_eq!(inline.finish().err().unwrap().code, "RESOURCE_LIMIT");
+        file.write_all(b"!").unwrap();
+        preflight.write_all(b"!").unwrap();
+        let mut file = file.finish().unwrap();
+        let preflight = preflight.finish().unwrap();
+        assert_eq!(file.len(), limits::MAX_OUTPUT_BYTES + 1);
+        assert_eq!(file.len(), preflight.len());
+        assert_eq!(file.sha256(), preflight.sha256());
+        file.copy_to(&mut io::sink(), &control, |_| {}).unwrap();
     }
     #[test]
     fn memory_private_and_discard_streams_agree_without_reopening_paths() {

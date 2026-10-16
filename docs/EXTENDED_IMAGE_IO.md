@@ -34,7 +34,7 @@ The reader expands full variable-width LZW dictionaries, including deferred clea
 
 The selected public/stripped Inkbolt metadata envelope round-trips in a GIF comment and is returned as untrusted data. Other comments are represented only by source identity. Metadata does not automatically become editable document records. GIF output rejects an associated ICC output profile and does not write physical-density fields. Sequence storage, editing, timing inspection, undo/redo, retry and source reopening use the existing [SEQUENCES.md](SEQUENCES.md) contracts.
 
-GIF import is bounded to 32 MiB, 256 frames and 16,777,216 aggregate decoded pixels. Sequence storage additionally requires at most 32 distinct frame states and a renderable canvas. Malformed inputs fail before the prepared GIF frames are published. Export keeps existing aggregate frame, render-work, output-size and cancellation limits.
+GIF import is bounded to 32 MiB, 256 frames and 67,108,864 aggregate decoded pixels. Sequence storage additionally requires at most 32 distinct frame states and a renderable canvas. Malformed inputs fail before the prepared GIF frames are published. Export keeps existing aggregate frame, render-work, output-size and cancellation limits.
 
 ## Associated TIFF alpha
 

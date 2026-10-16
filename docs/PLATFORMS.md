@@ -23,6 +23,11 @@ shared hosted source fingerprint: `20a538bec1b1effffa93a67b7f84e40e10011e2185eb4
 This matrix predates JPEG output and file-free TIFF preflight, which have separate
 local acceptance below. Unix background jobs remain unsupported.
 
+The subsequent [larger-image admission](SCALE_ADMISSION.md) has fresh full local
+Windows/Linux acceptance and complete target-image checks. Its Unix process
+memory metric remains unavailable. This local milestone does not extend the
+hosted macOS evidence or enable Unix background jobs.
+
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See
 [release acceptance](DEVELOPMENT_STATUS.md#w7w8-v0820-published-and-downloaded-packages-verified).

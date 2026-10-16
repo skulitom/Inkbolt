@@ -103,7 +103,7 @@ BINDINGS = {
     'components/max_evaluated_items_by_profile/standard': 'model.MAX_ITEMS',
     'components/max_nesting': 'instances.MAX_NESTING',
     'durable_publication/maximum_ledger_payload_bytes': 'publications.MAX_LEDGER_BYTES',
-    'durable_publication/maximum_output_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'durable_publication/maximum_output_bytes': 'publish.MAX_FILE_IMAGE_BYTES',
     'durable_publication/maximum_receipt_bytes': 'publications.MAX_RECEIPT_BYTES',
     'durable_publication/maximum_receipts': 'publications.MAX_RECORDS',
     'image_io/gif/maximum_delay_centiseconds': 'image_io_gif.MAX_DELAY_TICKS',
@@ -650,15 +650,25 @@ BINDINGS = {
     'render_quality/evaluation/spatial_index/maximum_memberships': 'render_spatial.MAX_REFERENCES',
     'render_quality/evaluation/spatial_index/coverage_cache_pixels': 'render_coverage_cache.MAX_PIXELS',
     'render_quality/evaluation/native_strip_bytes': 'sample_tiff_tiled.MAX_STRIP_BYTES',
+    'publication/image_file_bytes': 'publish.MAX_FILE_IMAGE_BYTES',
+    'durable_publication/maximum_other_output_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'render_quality/evaluation/image_file_output_bytes': 'publish.MAX_FILE_IMAGE_BYTES',
+    'render_quality/evaluation/whole_work': 'render.MAX_RENDER_WORK',
+    'render_quality/evaluation/tiled_work': 'render_tiled.MAX_WORK',
+    'sample_precision/import/native_storage/max_source_bytes': 'sample_import.MAX_NATIVE_SOURCE_BYTES',
+    'native_sample_store_library/import/max_source_bytes': 'sample_import.MAX_NATIVE_SOURCE_BYTES',
+    'image_output/png/inline_encoded_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'image_output/jpeg/inline_encoded_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'image_output/tiff/inline_encoded_bytes': 'publish.MAX_OUTPUT_BYTES',
     'image_output/png/band_bytes': 'png_output.MAX_BAND_BYTES',
     'image_output/png/codec_chunk_bytes': 'png_output.STREAM_CHUNK_BYTES',
-    'image_output/png/private_file_bytes': 'publish.MAX_OUTPUT_BYTES',
-    'image_output/tiff/encoded_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'image_output/png/private_file_bytes': 'publish.MAX_FILE_IMAGE_BYTES',
+    'image_output/tiff/encoded_bytes': 'publish.MAX_FILE_IMAGE_BYTES',
     'image_output/tiff/preflight_patch_bytes': 'publish.MAX_PREFLIGHT_PATCH_BYTES',
     'image_output/tiff/preflight_patch_entries': 'publish.MAX_PREFLIGHT_PATCHES',
     'image_output/jpeg/band_bytes': 'jpeg_output.MAX_BAND_BYTES',
     'image_output/jpeg/encoded_buffer_bytes': 'jpeg_output.STREAM_BUFFER_BYTES',
-    'image_output/jpeg/encoded_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'image_output/jpeg/encoded_bytes': 'publish.MAX_FILE_IMAGE_BYTES',
     'render_quality/evaluation/tiled_filters/mapping_limits/path_references': 'render_filter_regions.MAX_REFERENCES',
     'render_quality/evaluation/tiled_filters/mapping_limits/radial_samples': 'render_filter_regions.MAX_REFERENCES',
     'layered_interchange/dimensions_by_version/standard': 'layered.MAX_STANDARD_DIMENSION',
@@ -674,6 +684,8 @@ BINDINGS = {
     'layered_interchange/text_delivery/limits/characters': 'text.MAX_TEXT_CHARS',
     'layered_interchange/text_delivery/limits/font_faces_across_nested_sources': 'fonts.MAX_FONTS',
     'layered_interchange/text_diagnostics/font_bindings/maximum_faces': 'fonts.MAX_FONTS',
+    'pixel_brushes/maximum_source_preparation_work': 'native_pixels.MAX_PREPARATION_WORK',
+    'retouch/maximum_source_preparation_work': 'native_pixels.MAX_PREPARATION_WORK',
     'pixel_brushes/maximum_window_pixels': 'sample_store.MAX_REGION_PIXELS',
     'pixel_brushes/maximum_processing_memory_bytes': 'pixel_brush.MAX_MEMORY_BYTES',
     'pixel_assistance/maximum_pixels': 'assistance_segment.MAX_PIXELS',
@@ -1067,6 +1079,15 @@ class ResourceLimitTests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertEqual(response['error']['code'], 'INVALID_REQUEST')
             self.assertIn(str(scale), response['error']['message'])
+
+    def test_generator_retains_multiline_derived_budgets_after_formatting(self):
+        source = ('pub mod sample {\n'
+                  '    pub const SOURCE: u64 = 544 * 1024 * 1024;\n'
+                  '    pub const PIXELS: usize = 512 * 1024 * 1024;\n'
+                  '    pub const TOTAL: u64 =\n'
+                  '        SOURCE + PIXELS as u64;\n}\n')
+        values = {key: value for key, _, value, _ in update_limits.catalog(source)}
+        self.assertEqual(values['sample.TOTAL'], 1056 * 1024 * 1024)
 
     def test_generator_preserves_byte_codec_constants_and_casts(self):
         source = 'pub mod codec {\n    pub const MAX_QUALITY: u8 = 100;\n    pub const MAX_COPY: usize = MAX_QUALITY as usize;\n}\n'

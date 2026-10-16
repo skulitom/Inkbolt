@@ -35,7 +35,7 @@ standing authorization.
 | W3a.7 | Complete within the [editable span-range contract](docs/SVG_IMPORT.md#editable-span-ranges): nested styles, absolute/relative positioning, whitespace, scopes, source mappings and atomic insertion/history. [Full Windows/Linux acceptance](docs/DEVELOPMENT_STATUS.md#w3a7-complete-within-the-span-range-contract) passed all 252 stages fresh per platform on matching inputs | Retain this verified contract; broader unsupported semantics remain explicit |
 | W3a.8 | Complete within the [explicit omission contract](docs/SVG_IMPORT.md#explicit-omission-reports): located losses, dependency handling, bounded retries and historical strict SVG session identities. [Fresh full Windows/Linux acceptance](docs/DEVELOPMENT_STATUS.md#w3a8-complete-within-the-explicit-omission-contract) passed all 254 stages on matching inputs | Retain strict failure by default and historical retry compatibility |
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |
-| W3c / W4 / W5.2+ / W6 | Open; substantial work. Native block edits, private PNG/TIFF import and [native JPEG import](docs/NATIVE_JPEG_IMPORT.md) are verified within their contracts. [PNG/TIFF/JPEG output and file-free TIFF preflight](docs/STREAMING_IMAGE_OUTPUT.md) have fresh full Windows/Linux acceptance, exact compatibility and independent memory/fidelity evidence | Next: coordinated image, source, output and processing admission with target-sized evidence. Full storage, larger-workload and independent scale gates remain open |
+| W3c / W4 / W5.2+ / W6 | Open; substantial work. Native block storage/import, streaming file output and file-free TIFF preflight are verified within their contracts. [Coordinated larger-image admission](docs/SCALE_ADMISSION.md) passed fresh full Windows/Linux acceptance and independent 8192-square, 50 MP patch/brush/history, 24 MP JPEG and sparse A2 checks | Next: complete native repair/mask support and the 50 MP workflow, larger layered-file handling, repeated scale-v2 gates and verified Unix memory. Full W4 and original interchange/curve checkpoints remain open |
 | W7 / W8 | [v0.82.0](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) published from `133ebee`. Full candidate CI, release builds, checksums, attestations, downloaded Windows bundle and Windows/Linux runtime checks passed. README describes supported workflows and limits | Continue distribution work: SBOM, macOS x64, full distribution acceptance and comparable published model evidence remain open. Registry publication remains separate |
 | W9 | Deferred, outside active scope | No learned-model plugin work |
 
@@ -490,8 +490,10 @@ verified.
 
 ## W4. Practical raster scale (P1, multiple substantial milestones) [W0, D7] (A5)
 
-**Problem.** Real photos and print pages exceed current ceilings, and several
-operations are confined to tiny inline grids.
+**Problem at the initial review.** Real photos and print pages exceeded the
+then-current ceilings, and several operations were confined to tiny inline grids.
+The list below records that baseline; current admission and remaining scale gates
+are in [the scale contract](docs/SCALE_ADMISSION.md).
 
 - **Inline pixels.** Inline mutable pixels are capped at 65,536 (256x256;
   `model.rs` `MAX_STORED_PIXELS`).

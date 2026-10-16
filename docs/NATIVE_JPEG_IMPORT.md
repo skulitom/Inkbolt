@@ -6,7 +6,8 @@ limits. A corruption probe found that the locked decoder accepts premature
 entropy termination; original strict Huffman admission rejects those inputs
 before decoding or publication. See the retained
 [acceptance and memory evidence](DEVELOPMENT_STATUS.md#w43-native-jpeg-import-scale-admission-open).
-The larger scale gates remain open.
+The complete scale gates remain open. Subsequent [scale admission](SCALE_ADMISSION.md)
+has separate full Windows/Linux acceptance and independent 24 MP decode checks.
 
 ## Request and preserved behavior
 
@@ -57,7 +58,7 @@ Before calling decode, inspect the complete captured framing and derive checked
 memory/work admission from dimensions, component sampling and coding/scans.
 Charge decoded output, padded component planes, progressive coefficients and
 temporary codec rows separately from private pixel storage. The output budget is
-64 MiB; the conservative working estimate is bounded at 384 MiB, including 4 MiB
+192 MiB; the conservative working estimate is bounded at 384 MiB, including 4 MiB
 of auxiliary allowance. Scan count is capped at 128 and cumulative padded-sample
 work at 2,147,483,648. EXIF is bounded to eight directories and 1,024 entries.
 Do not allocate from unvalidated fields.

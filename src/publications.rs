@@ -101,7 +101,10 @@ impl Record {
         let (version, maximum, identity_matches) = match self.history {
             None => (
                 1,
-                publish::MAX_OUTPUT_BYTES as u64,
+                match self.receipt["format"].as_str() {
+                    Some("png" | "jpeg" | "tiff") => crate::limits::publish::MAX_FILE_IMAGE_BYTES,
+                    _ => publish::MAX_OUTPUT_BYTES,
+                } as u64,
                 self.receipt["path"] == json!(self.target)
                     && self.receipt["bytes"] == self.bytes
                     && self.receipt["sha256"] == self.sha256,
@@ -567,5 +570,55 @@ fn fault_point(stage: &str) {
     fs::write(root.join("ready"), b"ready").unwrap();
     while !root.join("release").exists() {
         std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
+#[cfg(test)]
+mod admission_tests {
+    use super::*;
+
+    #[test]
+    fn large_receipts_require_a_streamed_image_format_and_stay_bounded() {
+        let target = std::env::temp_dir().join("original.png");
+        let mut record = Record {
+            version: 1,
+            history: None,
+            request_id: "original".into(),
+            fingerprint: "a".repeat(64),
+            phase: Phase::Complete,
+            target: target.clone(),
+            staging_path: target.with_file_name(".inkbolt-publication-test.tmp"),
+            file_identity: file_identity::Identity {
+                volume: 1,
+                file: [0; 16],
+            },
+            bytes: publish::MAX_OUTPUT_BYTES as u64 + 1,
+            sha256: "b".repeat(64),
+            receipt: Value::Null,
+        };
+        record.receipt =
+            json!({"created":true,"path":target,"bytes":record.bytes,"sha256":record.sha256});
+        for format in ["png", "jpeg", "tiff"] {
+            record.receipt["format"] = json!(format);
+            record.validate("original").unwrap();
+        }
+        for format in ["svg", "pdf", "snapshot", "apng", "gif", "unknown"] {
+            record.receipt["format"] = json!(format);
+            assert_eq!(
+                record.validate("original").unwrap_err().code,
+                "PUBLICATION_CORRUPT"
+            );
+        }
+        record.receipt["format"] = json!("tiff");
+        record.bytes = crate::limits::publish::MAX_FILE_IMAGE_BYTES as u64 + 1;
+        record.receipt["bytes"] = json!(record.bytes);
+        assert_eq!(
+            record.validate("original").unwrap_err().code,
+            "PUBLICATION_CORRUPT"
+        );
+        record.bytes = publish::MAX_OUTPUT_BYTES as u64;
+        record.receipt["bytes"] = json!(record.bytes);
+        record.receipt.as_object_mut().unwrap().remove("format");
+        record.validate("original").unwrap();
     }
 }

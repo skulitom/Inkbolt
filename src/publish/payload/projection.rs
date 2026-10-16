@@ -86,7 +86,7 @@ impl<'a> Projection<'a> {
             patches: Patches::default(),
             position: 0,
             len: 0,
-            maximum: limits::MAX_OUTPUT_BYTES as u64,
+            maximum: limits::MAX_FILE_IMAGE_BYTES as u64,
             transcript: Sha256::new(),
             expected: None,
             hash: Sha256::new(),

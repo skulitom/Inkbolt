@@ -6,10 +6,11 @@ The Rust documentation check compares every row with its compiled constant.
 These are current ceilings and bounded-evaluation settings, not promised workload sizes.
 A request must satisfy every applicable document, storage, work and memory budget.
 Equal values do not imply interchangeable policies. Existing public Rust module paths
-re-export the central constants. No limit is raised by this consolidation.
+re-export the central constants. Admission changes require separate workload evidence.
 
 The native store tile-count ceiling remains independent of its pixel ceiling:
-partial edge blocks consume tile entries too. W4 target sizes remain future work.
+partial edge blocks consume tile entries too. See [scale admission](SCALE_ADMISSION.md)
+for current measured scope and the remaining W4 acceptance gates.
 Resource policies share this catalog with validation, discovery and diagnostics.
 Format cardinalities and mathematical definitions remain with their algorithms.
 
@@ -25,7 +26,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `artwork_masks.MAX_MASKS` | `usize` | 32 | `32` |
 | `artwork_masks.MAX_SVG_ITEMS` | `usize` | 4096 | `4096` |
 | `assets.MAX_ASSETS` | `usize` | 64 | `64` |
-| `assets.MAX_ASSET_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
+| `assets.MAX_ASSET_PIXELS` | `u64` | 67108864 | `super::raster::MAX_PIXELS` |
 | `assets.MAX_IMPORT_BYTES` | `u64` | 33554432 | `32 * 1024 * 1024` |
 | `assets.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `assets.PIXEL_BOUNDARY_EPSILONS` | `u32` | 8 | `8` |
@@ -377,6 +378,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `model.MIN_PLACED_IMAGE_EXTENT` | `f64` | 0.001 | `0.001` |
 | `model.MIN_RESOLUTION_PPI` | `u32` | 1 | `1` |
 | `native_pixels.CACHE_TILES` | `usize` | 16 | `16` |
+| `native_pixels.MAX_PREPARATION_WORK` | `u64` | 536870912 | `536_870_912` |
 | `objects.MAX_NESTING` | `usize` | 4 | `4` |
 | `objects.MAX_RENDERED_OBJECTS` | `usize` | 32 | `32` |
 | `objects.MIN_EXTENT` | `f64` | 0.001 | `0.001` |
@@ -499,13 +501,14 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `publications_store.MAX_SCHEMA_RECORDS` | `usize` | 3 | `3` |
 | `publications_store.MAX_SQL_ROW_BYTES` | `usize` | 1064960 | `super::publications::MAX_RECEIPT_BYTES + 16384` |
 | `publish.IO_CHUNK_BYTES` | `usize` | 65536 | `65536` |
+| `publish.MAX_FILE_IMAGE_BYTES` | `usize` | 570425344 | `544 * 1024 * 1024` |
 | `publish.MAX_OUTPUT_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
 | `publish.MAX_PREFLIGHT_PATCHES` | `usize` | 4096 | `4096` |
 | `publish.MAX_PREFLIGHT_PATCH_BYTES` | `usize` | 1048576 | `1024 * 1024` |
 | `publish.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `query.MAX_SHAPES` | `usize` | 8 | `8` |
 | `query.MAX_TYPES` | `usize` | 12 | `12` |
-| `raster.MAX_PIXELS` | `u64` | 16777216 | `16_777_216` |
+| `raster.MAX_PIXELS` | `u64` | 67108864 | `67_108_864` |
 | `raster.TILE_EDGE` | `u32` | 128 | `128` |
 | `raw.MAX_CAMERA_COEFFICIENT` | `u32` | 16 | `16` |
 | `raw.MAX_EXPOSURE_STOPS` | `u32` | 32 | `32` |
@@ -530,7 +533,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `render.MAX_BUFFER_PIXELS` | `u64` | 4194304 | `4_194_304` |
 | `render.MAX_RENDER_PIXELS` | `u64` | 1048576 | `1_048_576` |
 | `render.MAX_RENDER_WORK` | `u64` | 67108864 | `67_108_864` |
-| `render_coverage_cache.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
+| `render_coverage_cache.MAX_PIXELS` | `u64` | 67108864 | `super::raster::MAX_PIXELS` |
 | `render_coverage_path.ELLIPSE_ARCS` | `u32` | 32 | `32` |
 | `render_filter_regions.ABSOLUTE_MARGIN` | `f64` | 1e-09 | `1e-9` |
 | `render_filter_regions.MAX_REFERENCES` | `usize` | 131072 | `131_072` |
@@ -548,7 +551,8 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `render_spatial.MIN_ITEMS` | `usize` | 128 | `128` |
 | `render_spatial.REFERENCE_VALUES` | `u64` | 8 | `8` |
 | `render_tiled.EDGE` | `u32` | 128 | `super::raster::TILE_EDGE` |
-| `render_tiled.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
+| `render_tiled.MAX_PIXELS` | `u64` | 67108864 | `super::raster::MAX_PIXELS` |
+| `render_tiled.MAX_WORK` | `u64` | 536870912 | `536_870_912` |
 | `render_traversal.NEIGHBORHOOD_UNITS` | `u32` | 256 | `256` |
 | `repair.DEFAULT_SYNTHESIZED_WEIGHT` | `f64` | 0.5 | `0.5` |
 | `repair.MAX_CONTEXT_RADIUS` | `u32` | 4 | `4` |
@@ -587,25 +591,26 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `sample_import.MAX_INLINE_DECODER_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
 | `sample_import.MAX_JPEG_EXIF_DIRECTORIES` | `usize` | 8 | `8` |
 | `sample_import.MAX_JPEG_EXIF_ENTRIES` | `usize` | 1024 | `1024` |
-| `sample_import.MAX_JPEG_OUTPUT_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
+| `sample_import.MAX_JPEG_OUTPUT_BYTES` | `usize` | 201326592 | `192 * 1024 * 1024` |
 | `sample_import.MAX_JPEG_SCANS` | `usize` | 128 | `128` |
 | `sample_import.MAX_JPEG_SCAN_WORK` | `u64` | 2147483648 | `2 * 1024 * 1024 * 1024` |
 | `sample_import.MAX_JPEG_WORKING_BYTES` | `u64` | 402653184 | `384 * 1024 * 1024` |
 | `sample_import.MAX_NATIVE_CODEC_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
-| `sample_import.MAX_NATIVE_DECODED_BYTES` | `usize` | 268435456 | `256 * 1024 * 1024` |
-| `sample_import.MAX_NATIVE_TIFF_PADDED_BYTES` | `u64` | 268435456 | `256 * 1024 * 1024` |
-| `sample_import.MAX_PRIVATE_STAGING_BYTES` | `u64` | 301989888 | `288 * 1024 * 1024` |
+| `sample_import.MAX_NATIVE_DECODED_BYTES` | `usize` | 536870912 | `512 * 1024 * 1024` |
+| `sample_import.MAX_NATIVE_SOURCE_BYTES` | `u64` | 570425344 | `544 * 1024 * 1024` |
+| `sample_import.MAX_NATIVE_TIFF_PADDED_BYTES` | `u64` | 536870912 | `512 * 1024 * 1024` |
+| `sample_import.MAX_PRIVATE_STAGING_BYTES` | `u64` | 1107296256 | `MAX_NATIVE_SOURCE_BYTES + MAX_NATIVE_DECODED_BYTES as u64` |
 | `sample_import.MAX_SCRATCH_ATTEMPTS` | `usize` | 64 | `64` |
 | `sample_import.MAX_TIFF_PADDED_BYTES` | `u64` | 67108864 | `64 * 1024 * 1024` |
 | `sample_profiles.MAX_ENCODED_PROFILE_BYTES` | `usize` | 524288 | `512 * 1024` |
 | `sample_store.ADMISSION_POLL_MS` | `u64` | 5 | `5` |
 | `sample_store.MAX_ADMISSION_WAIT_MS` | `u64` | 30000 | `30000` |
-| `sample_store.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
+| `sample_store.MAX_PIXELS` | `u64` | 67108864 | `super::raster::MAX_PIXELS` |
 | `sample_store.MAX_REGION_PIXELS` | `u64` | 65536 | `65_536` |
 | `sample_store.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `sample_store.MAX_STORE_BYTES` | `u64` | 17179869184 | `16 * 1024 * 1024 * 1024` |
 | `sample_store.MAX_STORE_ENTRIES` | `usize` | 65536 | `65536` |
-| `sample_store.MAX_TILES` | `usize` | 2048 | `2048` |
+| `sample_store.MAX_TILES` | `usize` | 4096 | `4096` |
 | `sample_store.TILE_EDGE` | `u32` | 128 | `super::raster::TILE_EDGE` |
 | `sample_tiff_tiled.MAX_STRIP_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
 | `scene.MAX_CACHED_CHAINS` | `usize` | 128 | `128` |
@@ -621,7 +626,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `selections.MAX_RADIUS` | `u32` | 32 | `32` |
 | `selections.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `sequences.MAX_FRAMES` | `usize` | 256 | `256` |
-| `sequences.MAX_PIXELS` | `u64` | 16777216 | `super::raster::MAX_PIXELS` |
+| `sequences.MAX_PIXELS` | `u64` | 67108864 | `super::raster::MAX_PIXELS` |
 | `sessions.BACKUP_BUFFER_BYTES` | `usize` | 65536 | `65536` |
 | `sessions.BACKUP_RETRY_INTERVAL_MS` | `u64` | 5 | `5` |
 | `sessions.BACKUP_STEP_PAGES` | `usize` | 256 | `256` |

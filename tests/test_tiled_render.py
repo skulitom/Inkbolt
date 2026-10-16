@@ -130,8 +130,9 @@ class TiledRenderTests(unittest.TestCase):
         self.cli('document.export',document=self.document([],10,10),format='png',render_options=dict(evaluation='tiled'),control=dict(timeout_ms=0),error='TIMEOUT')
         commands=[dict(verb='move',to=[0,0])]+[dict(verb='cubic',control1=[.25,.25],control2=[.75,.75],to=[1,1]) for _ in range(512)]+[dict(verb='close')]
         item=rect();item['content']['geometry']=dict(shape='path',commands=commands)
-        d=self.document([item],capabilities()['limits']['dimension_pixels'],1)
-        self.cli('document.export',document=d,format='png',scale=capabilities()['limits']['render_scale'][1],render_options=dict(evaluation='tiled',antialias='supersample4'),error='RESOURCE_LIMIT')
+        d=self.document([item],capabilities()['limits']['dimension_pixels'],8)
+        error=self.cli('document.export',document=d,format='png',scale=capabilities()['limits']['render_scale'][1],render_options=dict(evaluation='tiled',antialias='supersample4'),error='RESOURCE_LIMIT')
+        self.assertIn('work',error['message'])
 
     def test_fractional_canvas_and_dissolve_keep_global_coordinates(self):
         d=self.document([rect(x=-10,y=-10,w=300,h=160)])

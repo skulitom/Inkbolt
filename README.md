@@ -40,8 +40,9 @@ Prebuilt archives are available for Windows x64, Linux x64 and macOS Apple
 silicon, with a desktop extension bundle for Windows.
 
 This README describes the development branch. Build from `main` for newer native
-JPEG import and lower-memory PNG/JPEG/TIFF file exports. These improvements are
-not included in v0.82.0; current image-size and output limits still apply. See the
+JPEG import, larger native image workflows and lower-memory PNG/JPEG/TIFF file
+exports. These improvements are not included in v0.82.0; current image-size and
+output limits still apply. See the
 [release notes](https://github.com/skulitom/Inkbolt/releases) for each download's
 included features.
 

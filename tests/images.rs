@@ -289,8 +289,8 @@ fn invalid_asset_identity_and_total_decoded_storage_are_bounded() {
     assert_eq!(assets::validate(&a).unwrap_err().code, "ASSET_CORRUPT");
     let mut d = create("vector", 1, 1);
     let a = ImageAsset {
-        width: 4096,
-        height: 4096,
+        width: 8192,
+        height: 8192,
         sha256: "0".repeat(64),
         storage: Storage::Stored,
         provenance: None,

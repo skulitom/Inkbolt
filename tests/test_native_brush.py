@@ -65,6 +65,8 @@ class NativeBrushTests(unittest.TestCase):
                     self.assertEqual(r['document']['metadata'],d['metadata'])
                     receipt=r['changes'][0]['details'];self.assertEqual(receipt['working_window'],[0,0,131,3])
                     self.assertEqual(receipt['changed_pixels'],393);self.assertFalse(receipt['files_written'])
+                    self.assertEqual(receipt['source_preparation_work'], 131*3*3 if stored else 0)
+                    self.assertEqual(receipt['work'], receipt['local_work'] + receipt['source_preparation_work'])
                     self.assertEqual(receipt['sample_type']['depth'],depth)
                     self.assertLessEqual(receipt['processing_memory_bound_bytes'],capabilities()['pixel_brushes']['maximum_processing_memory_bytes'])
 

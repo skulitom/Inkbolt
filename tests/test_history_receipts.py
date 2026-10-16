@@ -145,13 +145,14 @@ class HistoryReceiptTests(unittest.TestCase):
         result = self.run_history('backup', args)
         self.assertEqual(path.read_bytes(), data); self.assertTrue(result['publication']['replayed'])
 
-    def test_record_versions_kind_and_bounds_are_checked_without_loosening_exports(self):
+    def test_record_versions_kind_and_separate_output_history_bounds_are_checked(self):
         _, _, record = self.prepared('backup')
         for change in [dict(version=1), dict(history='unknown'), dict(history=None), dict(bytes=128*1024*1024+1)]:
             self.change(**change); before = self.files(); self.finish(error='PUBLICATION_CORRUPT'); self.assertEqual(self.files(), before)
             self.change(**record)
         caps = self.cli('capabilities')['durable_publication']
-        self.assertEqual(caps['maximum_output_bytes'], 32*1024*1024)
+        self.assertEqual(caps['maximum_output_bytes'], 544*1024*1024)
+        self.assertEqual(caps['maximum_other_output_bytes'], 32*1024*1024)
         self.assertEqual(caps['maximum_history_bytes'], 128*1024*1024)
 
     def test_prepared_history_from_relocated_ledger_cannot_escape_workspace(self):

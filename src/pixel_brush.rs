@@ -301,6 +301,7 @@ pub fn inspect(s: &Stroke, include_dabs: bool, control: &Control) -> Result<Valu
 
 struct Work<'a> {
     count: u64,
+    preparation: pixels::Preparation,
     control: &'a Control,
 }
 impl Work<'_> {
@@ -321,6 +322,9 @@ impl Work<'_> {
     }
 }
 impl pixels::Budget for Work<'_> {
+    fn preparation(&mut self) -> &mut pixels::Preparation {
+        &mut self.preparation
+    }
     fn charge(&mut self, pixels: usize) -> Result<(), Error> {
         self.add(pixels as u64)
     }
@@ -604,7 +608,11 @@ pub(crate) fn apply(
             "Brush preparation and replacement blocks exceed the processing memory bound",
         ));
     }
-    let mut work = Work { count: 0, control };
+    let mut work = Work {
+        count: 0,
+        preparation: Default::default(),
+        control,
+    };
     let mut target =
         pixels::Pixels::new(content, asset_root, "UNSUPPORTED_BRUSH_ENCODING", &mut work)?;
     let source_hash = target.identity.clone();
@@ -773,6 +781,6 @@ pub(crate) fn apply(
     control.check()?;
     document.items[index].content = next;
     Ok(
-        json!({"algorithm":ALGORITHM,"stroke_sha256":prepared.hash,"source_sha256":source_hash,"result_sha256":result_hash,"dab_count":prepared.dabs.len(),"path_length":prepared.length,"dab_bounds":prepared.bounds,"changed_pixels":changed,"changed_bounds":if changed>0 {Some(bounds)} else {None},"work":work.count,"coordinates":"native_pixel_grid","selection_sampling":"world_mapped_native_centers","coverage_numeric_tolerance":COVERAGE_TOLERANCE,"source_identity_kind":target.identity_kind,"result_identity_kind":target.identity_kind,"sample_type":spec,"working_window":if count>0 {Some([region.x,region.y,region.width,region.height])} else {None},"processing_memory_bound_bytes":processing_memory_bytes,"files_written":false,"outside_window_preserved":true,"quantization":"one_final_straight_encoding_at_target_native_depth_per_stroke","stroke_opacity":"final_premultiplied_interpolation_with_original"}),
+        json!({"algorithm":ALGORITHM,"stroke_sha256":prepared.hash,"source_sha256":source_hash,"result_sha256":result_hash,"dab_count":prepared.dabs.len(),"path_length":prepared.length,"dab_bounds":prepared.bounds,"changed_pixels":changed,"changed_bounds":if changed>0 {Some(bounds)} else {None},"work":work.count+work.preparation.work,"local_work":work.count,"source_preparation_work":work.preparation.work,"coordinates":"native_pixel_grid","selection_sampling":"world_mapped_native_centers","coverage_numeric_tolerance":COVERAGE_TOLERANCE,"source_identity_kind":target.identity_kind,"result_identity_kind":target.identity_kind,"sample_type":spec,"working_window":if count>0 {Some([region.x,region.y,region.width,region.height])} else {None},"processing_memory_bound_bytes":processing_memory_bytes,"files_written":false,"outside_window_preserved":true,"quantization":"one_final_straight_encoding_at_target_native_depth_per_stroke","stroke_opacity":"final_premultiplied_interpolation_with_original"}),
     )
 }

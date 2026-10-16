@@ -5,6 +5,30 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W4.4: larger native image admission verified
+
+[Coordinated admission](SCALE_ADMISSION.md) now supports the verified 8192-square
+native import/TIFF/preflight/PNG path and a 50 MP true-RGBA16 local patch, brush,
+history and export workflow. Private source/output and disk-pixel budgets are
+separate from inline responses, resident codec/render storage and local edit
+work. Source preparation is counted separately without skipping dependencies.
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 261 | 286 | 2,735 | 13 | 787.906 |
+| Linux / WSL | 261 | 252 | 2,697 | 51 | 494.359 |
+
+All full stages ran fresh on matching unchanged inputs. Independent complete
+sample checks also passed for both 24 MP JPEG variants and a sparse A2 PNG/PDF
+page on both systems. Windows process commit remained below 512 MiB in these
+diagnostics; Unix memory is explicitly unavailable. One run per operation does
+not establish repeated latency acceptance. Initial brush and focused fixture
+failures, plus interrupted full runs, remain in the retained audit.
+
+The contract records scope, source identity and evidence hashes. Full W4 and
+scale-v2, native repair/mask baking, larger layered files and additional original
+checkpoints remain open. The registry stays 163/167 and v0.82.0 is unchanged.
+
 ## W4.5: bounded image output; coordinated scale admission open
 
 The subsequent [file-free TIFF preflight](STREAMING_IMAGE_OUTPUT.md#file-free-tiff-preflight)

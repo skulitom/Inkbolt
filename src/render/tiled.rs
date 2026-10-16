@@ -250,7 +250,7 @@ impl Neighborhood {
         for (position, size) in traversal.tiles() {
             control.check()?;
             work += self.mapping.as_ref().map_or(0, |m| m.work);
-            if work > MAX_RENDER_WORK {
+            if work > crate::limits::render_tiled::MAX_WORK {
                 return Err(limit("Filter source mapping exceeds render work limit"));
             }
             let origin = position.map(|v| sampling.offset + v * factor);
@@ -275,7 +275,7 @@ impl Neighborhood {
                 work += path_work(document, texts, size)?
                     + generated * u64::from(size[1]) * u64::from(size[0].div_ceil(EDGE));
             }
-            if work > MAX_RENDER_WORK
+            if work > crate::limits::render_tiled::MAX_WORK
                 || paint_work > crate::paint::MAX_PAINT_WORK
                 || filter_work > crate::filters::MAX_WORK
                 || effect_work > crate::effects::MAX_WORK
@@ -290,7 +290,7 @@ impl Neighborhood {
         }
         work += crate::resample::document_work_for_pixels(document, scale, Some(&pixels))?;
         work += crate::pixel_warps::work_for_pixels(document, scale, Some(&pixels))?;
-        if work > MAX_RENDER_WORK {
+        if work > crate::limits::render_tiled::MAX_WORK {
             return Err(limit(
                 "Filter/effect neighborhoods and reconstruction exceed render work limit",
             ));

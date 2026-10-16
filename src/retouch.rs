@@ -80,6 +80,7 @@ fn invalid(message: &str) -> Error {
 }
 struct Work<'a> {
     count: u64,
+    preparation: pixels::Preparation,
     control: &'a Control,
 }
 impl Work<'_> {
@@ -92,6 +93,9 @@ impl Work<'_> {
     }
 }
 impl pixels::Budget for Work<'_> {
+    fn preparation(&mut self) -> &mut pixels::Preparation {
+        &mut self.preparation
+    }
     fn charge(&mut self, pixels: usize) -> Result<(), Error> {
         self.add(pixels)
     }
@@ -338,7 +342,11 @@ pub(crate) fn apply(
             "Retouch preparation and replacement blocks exceed the processing memory bound",
         ));
     }
-    let mut work = Work { count: 0, control };
+    let mut work = Work {
+        count: 0,
+        preparation: Default::default(),
+        control,
+    };
     let mut target = pixels::Pixels::new(
         &document.items[index].content,
         asset_root,
@@ -621,6 +629,6 @@ pub(crate) fn apply(
     control.check()?;
     document.items[index].content = content;
     Ok(
-        json!({"algorithm":ALGORITHM,"settings_sha256":hash,"source_id":o.source_id,"source_sha256":source_hash,"target_before_sha256":target_hash,"result_sha256":result_hash,"region_pixels":ids.len(),"region_bounds":global_extent(&ids),"coverage_sum":weights.iter().sum::<f64>(),"components":components,"boundary_edges":boundary_edges,"image_edge_faces":image_edges,"perimeter":boundary_edges+image_edges,"changed_pixels":changed.len(),"changed_bounds":global_extent(&changed),"clamped_pixels":clamped,"solver_iterations":solver_iterations,"solver_residuals":residuals,"solver_residual_space":"unclamped_normalized_premultiplied_rgba","boundary_rms_before":seam(seam_before),"boundary_rms_after":seam(seam_after),"work":work.count,"coordinates":"target_native_grid_to_source_native_grid","source_sampling":"frozen_before_this_operation","selection_sampling":"world_mapped_native_centers","compositing":"masked_premultiplied_replacement_once","boundary_measurement":"four_connected_positive_coverage_domain","source_samples":source.spec,"target_samples":target.spec,"source_identity_kind":source.identity_kind,"target_identity_kind":target.identity_kind,"working_window":[x0,y0,w,h],"processing_memory_bound_bytes":memory,"files_written":false,"outside_region_preserved":true,"quantization":"one_final_straight_encoding_at_target_native_depth"}),
+        json!({"algorithm":ALGORITHM,"settings_sha256":hash,"source_id":o.source_id,"source_sha256":source_hash,"target_before_sha256":target_hash,"result_sha256":result_hash,"region_pixels":ids.len(),"region_bounds":global_extent(&ids),"coverage_sum":weights.iter().sum::<f64>(),"components":components,"boundary_edges":boundary_edges,"image_edge_faces":image_edges,"perimeter":boundary_edges+image_edges,"changed_pixels":changed.len(),"changed_bounds":global_extent(&changed),"clamped_pixels":clamped,"solver_iterations":solver_iterations,"solver_residuals":residuals,"solver_residual_space":"unclamped_normalized_premultiplied_rgba","boundary_rms_before":seam(seam_before),"boundary_rms_after":seam(seam_after),"work":work.count+work.preparation.work,"local_work":work.count,"source_preparation_work":work.preparation.work,"coordinates":"target_native_grid_to_source_native_grid","source_sampling":"frozen_before_this_operation","selection_sampling":"world_mapped_native_centers","compositing":"masked_premultiplied_replacement_once","boundary_measurement":"four_connected_positive_coverage_domain","source_samples":source.spec,"target_samples":target.spec,"source_identity_kind":source.identity_kind,"target_identity_kind":target.identity_kind,"working_window":[x0,y0,w,h],"processing_memory_bound_bytes":memory,"files_written":false,"outside_region_preserved":true,"quantization":"one_final_straight_encoding_at_target_native_depth"}),
     )
 }

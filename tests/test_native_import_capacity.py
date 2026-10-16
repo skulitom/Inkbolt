@@ -131,13 +131,16 @@ class NativeImportCapacityTests(unittest.TestCase):
         self.assertGreater(caps['max_decoded_bytes'], caps['max_codec_allocation_bytes'])
         self.assertGreater(caps['max_tiff_padded_tile_bytes'], caps['max_codec_allocation_bytes'])
         # Tiny cropped content still charges the padded source tile. Its decoded
-        # work exceeds 256 MiB; a compressed file is not permission to allocate it.
+        # work exceeds the independently advertised padded-work limit.
+        side = 128
+        while side * side * 8 <= caps['max_tiff_padded_tile_bytes']:
+            side *= 2
         data = bytearray(tiff_fixture(1, 1, tile_size=128))
         count = struct.unpack_from('<H', data, 8)[0]
         for index in range(count):
             at = 10 + 12*index
             if struct.unpack_from('<H', data, at)[0] in (322, 323):
-                struct.pack_into('<I', data, at+8, 8192)
+                struct.pack_into('<I', data, at+8, side)
         path = self.root/'padded.tif'
         path.write_bytes(data)
         self.cli('sample.import', source_path=path.name, id='padded', storage={},

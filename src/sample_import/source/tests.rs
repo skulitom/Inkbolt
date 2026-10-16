@@ -136,7 +136,7 @@ fn bounded_copy_cancellation_io_failure_and_growth_release_private_payloads() {
         let control = Control::default();
         let mut input = Generated {
             remaining: if mode == "growth" {
-                assets::MAX_IMPORT_BYTES as usize + 1
+                limits::INPUT_BUFFER_BYTES * 2 + 1
             } else {
                 limits::INPUT_BUFFER_BYTES + 7
             },
@@ -146,7 +146,12 @@ fn bounded_copy_cancellation_io_failure_and_growth_release_private_payloads() {
             fail_on_second: mode == "io",
         };
         let scratch = Scratch::create(&dir.0, budget.clone(), &control).unwrap();
-        let result = Source::capture(&mut input, scratch, &control);
+        let result = Source::capture(
+            &mut input,
+            scratch,
+            (limits::INPUT_BUFFER_BYTES * 2) as u64,
+            &control,
+        );
         match mode {
             "success" => {
                 let mut source = result.unwrap();
@@ -362,7 +367,7 @@ fn source_admission_checks_file_kind_size_and_initial_cancellation() {
     let dir = Directory::new();
     let path = dir.0.join("input");
     let file = File::create(&path).unwrap();
-    file.set_len(assets::MAX_IMPORT_BYTES + 1).unwrap();
+    file.set_len(limits::MAX_NATIVE_SOURCE_BYTES + 1).unwrap();
     drop(file);
     assert_eq!(
         Source::open(&path, true, &Control::default())
@@ -385,4 +390,42 @@ fn source_admission_checks_file_kind_size_and_initial_cancellation() {
         "CANCELLED"
     );
     assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 1);
+}
+
+#[test]
+fn native_capture_exceeds_inline_input_without_changing_the_source() {
+    let dir = Directory::new();
+    let path = dir.0.join("original");
+    let bytes = assets::MAX_IMPORT_BYTES + 1;
+    let file = File::create(&path).unwrap();
+    file.set_len(bytes).unwrap();
+    drop(file);
+    assert_eq!(
+        Source::open(&path, false, &Control::default())
+            .err()
+            .unwrap()
+            .code,
+        "RESOURCE_LIMIT"
+    );
+    let mut captured = Source::open(&path, true, &Control::default()).unwrap();
+    assert_eq!(captured.bytes as u64, bytes);
+    captured.reader.seek(SeekFrom::Start(bytes - 1)).unwrap();
+    let mut last = [1];
+    captured.reader.read_exact(&mut last).unwrap();
+    assert_eq!(last, [0]);
+    assert_eq!(path.metadata().unwrap().len(), bytes);
+    let expected = {
+        let mut file = File::open(&path).unwrap();
+        let mut hash = Sha256::new();
+        let mut buffer = [0; 4096];
+        loop {
+            let read = file.read(&mut buffer).unwrap();
+            if read == 0 {
+                break;
+            }
+            hash.update(&buffer[..read]);
+        }
+        format!("{:x}", hash.finalize())
+    };
+    assert_eq!(captured.sha256, expected);
 }

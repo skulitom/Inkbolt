@@ -47,7 +47,12 @@ impl Prepared {
         native_samples: bool,
         control: &Control,
     ) -> Result<Self, Error> {
-        let _object_render = crate::objects::RenderGuard::enter(document)?;
+        let maximum_work = options
+            .copied()
+            .unwrap_or_default()
+            .evaluation
+            .maximum_work();
+        let _object_render = crate::objects::RenderGuard::enter(document, maximum_work)?;
         control.check()?;
         validate_controlled(document, control)?;
         let colors = crate::swatches::evaluate(document)?;
@@ -124,12 +129,12 @@ impl Prepared {
             } else {
                 1
             };
-        if outline_scan_work > MAX_RENDER_WORK {
+        if outline_scan_work > maximum_work {
             return Err(limit("Stroke outline scan work exceeds render limit"));
         }
         if sparse.is_none()
             && spatial.is_none()
-            && count * document.items.len().max(1) as u64 > MAX_RENDER_WORK
+            && count * document.items.len().max(1) as u64 > maximum_work
         {
             return Err(limit("Render exceeds pixel or work limits"));
         }
@@ -144,7 +149,7 @@ impl Prepared {
         let pixel_warp_work =
             crate::pixel_warps::work_for_pixels(document, scale, regional_pixels)?;
         let shape_work = crate::knockout::work(document, scale);
-        if spatial.is_none() && count * shape_work > MAX_RENDER_WORK {
+        if spatial.is_none() && count * shape_work > maximum_work {
             return Err(limit("Knockout footprint evaluation exceeds work limit"));
         }
         let effect_work: u64 = document
@@ -165,13 +170,13 @@ impl Prepared {
         } else {
             0
         };
-        if tiled_path_work > MAX_RENDER_WORK {
+        if tiled_path_work > maximum_work {
             return Err(limit("Tiled coverage preparation exceeds work limit"));
         }
         let passes = texts.values().map(|t| t.paths.len()).sum::<usize>()
             + document.items.len()
             + usize::from(document.background.is_some());
-        if sparse.is_none() && spatial.is_none() && count * passes.max(1) as u64 > MAX_RENDER_WORK {
+        if sparse.is_none() && spatial.is_none() && count * passes.max(1) as u64 > maximum_work {
             return Err(limit("Text rendering exceeds work limit"));
         }
         for (i, item) in document.items.iter().enumerate() {
@@ -391,7 +396,7 @@ impl Prepared {
         }
         if object_count > crate::objects::MAX_RENDERED_OBJECTS
             || depth > crate::objects::MAX_NESTING
-            || work > MAX_RENDER_WORK
+            || work > maximum_work
             || buffers > MAX_BUFFER_PIXELS * 4
         {
             return Err(limit(
@@ -575,7 +580,7 @@ impl Prepared {
                 max_rows,
                 &self.resources.control,
             )?;
-            if self.work - self.tile_work + work.0 > MAX_RENDER_WORK {
+            if self.work - self.tile_work + work.0 > crate::limits::render_tiled::MAX_WORK {
                 return Err(limit(
                     "Codec band filter/effect neighborhoods exceed render work limit",
                 ));
@@ -604,7 +609,7 @@ impl Prepared {
             specific_work[2],
         ];
         let bounds = [
-            MAX_RENDER_WORK,
+            crate::limits::render_tiled::MAX_WORK,
             crate::paint::MAX_PAINT_WORK,
             crate::filters::MAX_WORK,
             crate::effects::MAX_WORK,
@@ -758,9 +763,53 @@ impl Bands<'_> {
 #[cfg(test)]
 mod replay_tests {
     use super::*;
+    #[test]
+    fn target_canvas_preparation_and_replay_keep_whole_render_limits_separate() {
+        let document = serde_json::from_value(serde_json::json!({"schema_version":2,
+            "id":"target","kind":"raster","width":8192,"height":8192,"color_space":"srgb"}))
+        .unwrap();
+        let options = serde_json::from_value(serde_json::json!({"evaluation":"tiled"})).unwrap();
+        let prepared = Prepared::new(
+            &document,
+            1,
+            None,
+            None,
+            Some(&options),
+            true,
+            &Control::default(),
+        )
+        .unwrap();
+        assert!(prepared.buffers < MAX_BUFFER_PIXELS * 4);
+        prepared.bands(128).unwrap();
+        prepared.bands(128).unwrap();
+        assert_eq!(
+            Prepared::new(&document, 1, None, None, None, true, &Control::default())
+                .err()
+                .unwrap()
+                .code,
+            "RESOURCE_LIMIT"
+        );
+        let mut too_large = document.clone();
+        too_large.height += 1;
+        assert_eq!(
+            Prepared::new(
+                &too_large,
+                1,
+                None,
+                None,
+                Some(&options),
+                true,
+                &Control::default()
+            )
+            .err()
+            .unwrap()
+            .code,
+            "RESOURCE_LIMIT"
+        );
+    }
     fn prepared() -> Prepared {
         let document = serde_json::from_value(serde_json::json!({"schema_version":2,
-            "id":"work-budget","kind":"raster","width":512,"height":512,"color_space":"srgb"}))
+            "id":"work-budget","kind":"raster","width":1024,"height":1024,"color_space":"srgb"}))
         .unwrap();
         let options = serde_json::from_value(serde_json::json!({"evaluation":"tiled"})).unwrap();
         Prepared::new(
@@ -777,7 +826,8 @@ mod replay_tests {
     #[test]
     fn repeated_band_visits_cannot_reset_the_render_work_budget() {
         let prepared = prepared();
-        let visits = (MAX_RENDER_WORK - (prepared.work - prepared.tile_work)) / prepared.tile_work;
+        let visits = (crate::limits::render_tiled::MAX_WORK - (prepared.work - prepared.tile_work))
+            / prepared.tile_work;
         assert!(visits > 1 && visits < 1024);
         for _ in 0..visits {
             prepared.bands(u32::MAX).unwrap();

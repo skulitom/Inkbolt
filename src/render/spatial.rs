@@ -203,7 +203,9 @@ impl Plan {
             };
             work += pixels[i] * (crate::limits::render::ITEM_SETUP_WORK + passes + paint + shape)
                 + refs * EDGE as u64 * controls[i] * phase;
-            if work > MAX_RENDER_WORK || paint_work > crate::paint::MAX_PAINT_WORK {
+            if work > crate::limits::render_tiled::MAX_WORK
+                || paint_work > crate::paint::MAX_PAINT_WORK
+            {
                 return Err(limit("Spatial render exceeds visited tile work limit"));
             }
             for y in y0 / EDGE..y1.div_ceil(EDGE) {
@@ -260,10 +262,13 @@ impl Plan {
             size,
             antialias,
             control,
-            [MAX_RENDER_WORK - work, MAX_BUFFER_PIXELS * 4 - index_values],
+            [
+                crate::limits::render_tiled::MAX_WORK - work,
+                MAX_BUFFER_PIXELS * 4 - index_values,
+            ],
         )?;
         work += coverage.work;
-        if work > MAX_RENDER_WORK {
+        if work > crate::limits::render_tiled::MAX_WORK {
             return Err(limit("Spatial coverage preparation exceeds work limit"));
         }
         let buffer_values = index_values + coverage.buffer_values;
