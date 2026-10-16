@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from benchmark_driver import ExternalTrial,run_external_task,workspace_files
+from benchmark_driver import ExternalTrial,run_external_task,workspace_files,run_owned
 from benchmark_photo import PROMPT,judge,judge_memory,MAX_PEAK_COMMIT_BYTES
 from benchmark_baseline_photo import manifest,inspect_tiff
 from benchmark_tasks import CHECKS,ENGINE_CHECKS
@@ -22,7 +22,8 @@ from verify_process import MEMORY_SCOPE,MEMORY_METHOD,unavailable_memory
 class ExternalPhotoTests(unittest.TestCase):
     def assert_photo(self,row):
         self.assertEqual(row['status'],'passed' if os.name=='nt' else 'failed',
-                         dict(error=row['error'],checks=row['checks'],missing=row['missing_checks']))
+                         dict(error=row['error'],checks=row['checks'],missing=row['missing_checks'],
+                              synthetic_client_failures=getattr(self,'client_failures',[])))
         self.assertEqual({c['name'] for c in row['checks'] if c['status']=='fail'},
                          set() if os.name=='nt' else {'memory-budget'})
         self.assertFalse(row['model_trials']);self.assertIsNone(row['model_calls'])
@@ -30,7 +31,18 @@ class ExternalPhotoTests(unittest.TestCase):
     def test_external_model_relocated_capture_and_damaged_delivery_controls(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);configuration=driver('--photo-names','--custom-session-store');configuration['timeout_seconds']=90
-            row=run_external_task(EXE,root/'live','B10',1,'model',configuration)
+            self.client_failures=[]
+            def observed_client(*args,**kwargs):
+                # Only this known credential-free synthetic fixture is captured.
+                # The production harness still discards arbitrary client output.
+                self.assertIn(str(ROOT/'tests/benchmark_fake_driver.py'),args[0])
+                result=run_owned(*args,**kwargs)
+                if result['status']!='passed':
+                    self.client_failures.append(dict(status=result['status'],exit_code=result['exit_code'],
+                        seconds=result['seconds'],output=result.get('output','')[-4000:]))
+                return result
+            with patch('benchmark_driver.run_owned',side_effect=observed_client):
+                row=run_external_task(EXE,root/'live','B10',1,'model',configuration)
             self.assert_photo(row)
             self.assertEqual(row['judge_engine_commands'],9)
             self.assertIsNone(row['peak_commit_bytes']);self.assertFalse(row['memory_complete'])

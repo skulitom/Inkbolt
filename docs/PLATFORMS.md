@@ -49,6 +49,16 @@ Inputs remained unchanged, with no failed, pending or reused checks in these
 full runs. Source fingerprint is `2df00b88dab8796c134466463580bd169bdde60a6609863d54dfe8e16cd975e3`;
 audit is `0fbefa78af9480c8d8dbebc3a181f19d064b49ee5aa8138b5db1d9184092b4b4`. macOS and Unix background-job evidence are unchanged.
 
+The subsequent [private TIFF publication acceptance](DEVELOPMENT_STATUS.md#w45-private-tiff-publication-jpeg-and-scale-open)
+passed 260 fresh stages per platform on matching unchanged inputs:
+Windows ran 263 Rust and 2,729 Python tests
+(13 explicit skips) in 870.390 seconds; Linux ran
+229 Rust and 2,691 Python tests
+(51 skips) in 584.872 seconds. No stages failed,
+remained pending or reused results. Fingerprint is `c32922061ede418fe97d2925125e00464310c4e4d114280b03eeb8ead8fab2f6`;
+retained audit is `951ae7dd8641a1e3fc158b928a2533ac45d0123a44baff3ac715cb8a6ae7c58d`. This is separate from
+hosted macOS evidence and does not change Unix job support.
+
 The earlier [native import admission acceptance](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open)
 passed all 257 stages fresh on matching unchanged inputs. Windows ran
 251 Rust and 2,701 Python tests, with 13 explicit skips,

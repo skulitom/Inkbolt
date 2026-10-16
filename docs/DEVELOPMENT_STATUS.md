@@ -2587,10 +2587,47 @@ Source fingerprint is `2df00b88dab8796c134466463580bd169bdde60a6609863d54dfe8e16
 the frozen suite. The prior JPEG milestone's intermittent recovery failure remains
 documented above; this passing run does not establish that issue fixed.
 
-No canvas, source or output ceiling increased. TIFF/private encoded output,
-explicit JPEG output budgets, coordinated scale admission, the complete 50 MP
-workflow and independent scale-v2 acceptance remain open. This source change is
-outside v0.82.0 and earns no additional original engine-checkpoint credit.
+No canvas, source or output ceiling increased. TIFF/private encoded output
+is verified in the following milestone; explicit JPEG output budgets, coordinated
+scale admission, the complete 50 MP workflow and independent scale-v2 acceptance
+remain open. This source change is outside v0.82.0 and earns no additional
+original engine-checkpoint credit.
+
+### W4.5: private TIFF publication; JPEG and scale open
+
+[TIFF publication](STREAMING_IMAGE_OUTPUT.md#verified-tiff-publication-phase)
+now encodes into a bounded private seekable file and hashes the final
+backpatched bytes before the existing create-only publication protocol.
+Inline export retains base64; file-free preflight retains one bounded encoded
+buffer. Current native strips, ordinary/whole pixel buffers and ceilings remain.
+
+Fresh full acceptance used matching unchanged source with no failed, pending or
+reused stages:
+
+| Platform | Stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 260 | 263 | 2,729 | 13 | 870.390 |
+| Linux / WSL | 260 | 229 | 2,691 | 51 | 584.872 |
+
+Focused Windows/Linux feedback took 55.2/74.8 seconds. Independent sample/color
+checks, final-write/cancellation checks and existing recovery suites passed.
+Forty-eight complete artifacts match `6a674d2`; a real pre-change durable receipt
+replays without altering its output. Twelve isolated Windows debug publications
+checked every channel and retained native inputs: median peak commit fell from
+51.980 to 21.008 MiB for empty RGBA8 and
+81.891 to 21.715 MiB for stored RGBA16 delivery.
+These 3 MP diagnostics do not establish release latency or full scale acceptance.
+
+Source fingerprint: `c32922061ede418fe97d2925125e00464310c4e4d114280b03eeb8ead8fab2f6`.
+Retained `w4-tiff-output-acceptance-02/audit.json` SHA-256:
+`951ae7dd8641a1e3fc158b928a2533ac45d0123a44baff3ac715cb8a6ae7c58d`.
+Earlier focused failures and two interrupted Windows B10 runs are retained.
+The B10 client failure's cause remains unestablished despite passing standalone,
+parallel and subsequent full runs. Synthetic-test failure reporting improved;
+no timeout changed. Only acceptance documentation changes after this frozen
+suite. Prior recovery timing intermittency is also not claimed fixed. JPEG
+budgeting, coordinated limits, the 50 MP workflow and scale-v2 remain open;
+no registry credit changes.
 
 ## W3b: complete within the insertion contract
 

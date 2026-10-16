@@ -9,6 +9,9 @@ use std::{
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
+mod seekable;
+pub(crate) use seekable::SeekSink;
+
 enum Storage {
     Memory(Vec<u8>),
     Private(File),

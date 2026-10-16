@@ -1,7 +1,7 @@
 //! Assemble one bounded native strip from independently composed output tiles.
 use super::*;
 use crate::limits::sample_tiff_tiled::MAX_STRIP_BYTES;
-use std::io::{self, Seek, SeekFrom, Write};
+use std::io::{self, Cursor, Seek, SeekFrom, Write};
 use tiff::encoder::compression::{CompressionAlgorithm, Deflate, Lzw};
 
 struct Output(Cursor<Vec<u8>>);
@@ -43,7 +43,8 @@ pub(super) fn encode<C: ColorType>(
     ppi: f64,
     metadata: Option<&str>,
     project: impl Fn(f64) -> C::Inner,
-) -> Result<Vec<u8>, Error>
+    output: &mut (impl Write + Seek),
+) -> Result<(), Error>
 where
     [C::Inner]: TiffValue,
     C::Inner: Default + Copy,
@@ -57,9 +58,8 @@ where
         Compression::Lzw => 5,
         Compression::Deflate => 8,
     };
-    let mut output = Output(Cursor::new(Vec::new()));
     {
-        let mut encoder = tiff::encoder::TiffEncoder::new(&mut output).map_err(error)?;
+        let mut encoder = tiff::encoder::TiffEncoder::new(output).map_err(error)?;
         // Use public directory and compression APIs: ImageEncoder::write_strip
         // in the locked codec does not activate the configured compressor.
         let mut image = encoder.image_directory().map_err(error)?;
@@ -182,7 +182,7 @@ where
             .map_err(error)?;
         image.finish().map_err(error)?;
     }
-    Ok(output.0.into_inner())
+    Ok(())
 }
 
 #[cfg(test)]

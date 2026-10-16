@@ -357,12 +357,12 @@ pub fn export_with_render_options(
     }
     Ok(artifact)
 }
-fn png_to_writer(
+fn image_to_writer(
     document: &Document,
+    format: ExportFormat,
     scale: u32,
-    resources: &Resources,
     options: FormatOptions<'_>,
-    output: impl std::io::Write,
+    encode: impl FnOnce(Option<&str>, &Control) -> Result<Value, Error>,
 ) -> Result<Value, Error> {
     if options.layered_options.is_some() {
         return Err(Error::new(
@@ -370,11 +370,11 @@ fn png_to_writer(
             "layered_options requires layered or layered_large format",
         ));
     }
-    crate::render_quality::validate_format(ExportFormat::Png, options.render_options)?;
+    crate::render_quality::validate_format(format, options.render_options)?;
     let default_control = Control::default();
     let control = options.control.unwrap_or(&default_control);
     crate::model::validate_controlled(document, control)?;
-    crate::image_io::validate_options(ExportFormat::Png, options.image_options)?;
+    crate::image_io::validate_options(format, options.image_options)?;
     if options.pdf_options.is_some() {
         return Err(Error::new(
             "INVALID_REQUEST",
@@ -383,33 +383,26 @@ fn png_to_writer(
     }
     let mut packet = crate::metadata::packet(
         document,
-        ExportFormat::Png,
+        format,
         scale,
         options.metadata_policy.unwrap_or_default(),
     )?;
-    if let Some(render) = options.render_options {
-        let plan = crate::render_quality::Plan::for_document(document, scale, Some(render))?;
-        if let Some(packet) = &mut packet {
-            let mut value: Value = serde_json::from_str(packet)
-                .map_err(|_| Error::new("EXPORT_ERROR", "Invalid metadata envelope"))?;
-            value["delivery"]["width"] = json!(plan.output[0]);
-            value["delivery"]["height"] = json!(plan.output[1]);
-            value["delivery"]["render_settings"] = plan.receipt();
-            *packet = value.to_string();
-        }
+    let render_plan = options
+        .render_options
+        .map(|render| crate::render_quality::Plan::for_document(document, scale, Some(render)))
+        .transpose()?;
+    if let (Some(packet), Some(plan)) = (&mut packet, &render_plan) {
+        let mut value: Value = serde_json::from_str(packet)
+            .map_err(|_| Error::new("EXPORT_ERROR", "Invalid metadata envelope"))?;
+        value["delivery"]["width"] = json!(plan.output[0]);
+        value["delivery"]["height"] = json!(plan.output[1]);
+        value["delivery"]["render_settings"] = plan.receipt();
+        *packet = value.to_string();
     }
-    let mut artifact = crate::render::png_output::write(
-        document,
-        scale,
-        (
-            resources.asset_root.as_deref(),
-            resources.font_root.as_deref(),
-        ),
-        options.render_options,
-        packet.as_deref(),
-        control,
-        output,
-    )?;
+    let mut artifact = encode(packet.as_deref(), control)?;
+    if let Some(plan) = render_plan {
+        artifact["render_settings"] = plan.receipt();
+    }
     crate::metadata::annotate(
         &mut artifact,
         packet.as_deref(),
@@ -504,12 +497,46 @@ fn prepare_output(
     };
     let (mut artifact, bytes) = if matches!(options.format, ExportFormat::Png) {
         let mut sink = payload::Sink::publication(retain, control)?;
-        let artifact = png_to_writer(
+        let artifact = image_to_writer(
             board.as_ref().unwrap_or(document),
+            options.format,
             options.scale,
-            resources,
             format_options,
-            &mut sink,
+            |packet, control| {
+                crate::render::png_output::write(
+                    board.as_ref().unwrap_or(document),
+                    options.scale,
+                    (
+                        resources.asset_root.as_deref(),
+                        resources.font_root.as_deref(),
+                    ),
+                    options.render_options.as_ref(),
+                    packet,
+                    control,
+                    &mut sink,
+                )
+            },
+        );
+        let bytes = sink.finish()?;
+        (artifact?, bytes)
+    } else if matches!(options.format, ExportFormat::Tiff) {
+        let mut sink = payload::SeekSink::publication(retain, control)?;
+        let artifact = image_to_writer(
+            board.as_ref().unwrap_or(document),
+            options.format,
+            options.scale,
+            format_options,
+            |packet, control| {
+                crate::image_io::tiff_to_writer(
+                    board.as_ref().unwrap_or(document),
+                    options.scale,
+                    resources,
+                    options.image_options.as_ref(),
+                    packet,
+                    (options.render_options.as_ref(), control),
+                    &mut sink,
+                )
+            },
         );
         let bytes = sink.finish()?;
         (artifact?, bytes)

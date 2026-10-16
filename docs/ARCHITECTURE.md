@@ -35,8 +35,12 @@ codec buffers; whole evaluation keeps its existing composition surfaces. File
 publication holds the encoded stream in private temporary storage, then copies
 and verifies it through the existing create-only staging protocol. Preflight
 hashes and counts the same stream without creating a file. See
-[bounded image output](STREAMING_IMAGE_OUTPUT.md) for acceptance status and the
-separate remaining TIFF/JPEG output work.
+[bounded image output](STREAMING_IMAGE_OUTPUT.md) for acceptance status.
+TIFF publication uses a bounded private seekable file and hashes the finalized
+bytes after codec backpatches. File-free TIFF preflight keeps one encoded memory
+buffer without a base64 round trip. Existing native strips and ordinary/whole
+pixel buffers retain their layout and bounds. Fresh full Windows/Linux TIFF
+acceptance passed; JPEG output budgeting remains open in that contract.
 
 Typed JSON rejection now adds bounded, advisory missing-field guidance using the
 same generated schemas as discovery. The fast inline path retains only the

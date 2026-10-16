@@ -10,6 +10,8 @@ use std::io::Cursor;
 use tiff::tags::Tag;
 pub(crate) mod gif;
 mod legacy;
+mod tiff_output;
+pub(crate) use tiff_output::write as tiff_to_writer;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -482,24 +484,18 @@ pub(crate) fn export_with_metadata(
     ),
 ) -> Result<Value, Error> {
     validate_options(format, options)?;
-    let defaults = Options::default();
-    let options = options.unwrap_or(&defaults);
-    if options.depth.is_some() || options.channels.is_some() {
-        if matches!(options.alpha, Some(Alpha::Associated)) {
-            return Err(unsupported(
-                "Associated TIFF delivery currently requires the RGBA8 image path; explicit native-depth delivery retains unassociated alpha",
-            ));
-        }
-        return crate::sample_tiff::export(
+    if matches!(format, ExportFormat::Tiff) {
+        return tiff_output::export(
             document,
             scale,
             resources,
             options,
             metadata,
-            render_options,
-            control,
+            (render_options, control),
         );
     }
+    let defaults = Options::default();
+    let options = options.unwrap_or(&defaults);
     let mut p = crate::render::rasterize_controlled(
         document,
         scale,
@@ -605,86 +601,6 @@ pub(crate) fn export_with_metadata(
                     },
                 ],
                 json!({"quality":quality,"chroma":chroma,"matte":options.matte,"resolution_ppi":ppi.round()}),
-            )
-        }
-        ExportFormat::Tiff => {
-            let compression = options.compression.unwrap_or_default();
-            let alpha = options.alpha.unwrap_or_default();
-            if matches!(alpha, Alpha::Associated) {
-                for pixel in p.rgba.as_chunks_mut::<4>().0 {
-                    let a = u32::from(pixel[3]);
-                    for v in &mut pixel[..3] {
-                        *v = ((u32::from(*v) * a + 127) / 255) as u8;
-                    }
-                }
-            }
-            let mut bytes = Cursor::new(Vec::new());
-            {
-                let method = match compression {
-                    Compression::None => tiff::encoder::Compression::Uncompressed,
-                    Compression::Lzw => tiff::encoder::Compression::Lzw,
-                    Compression::Deflate => tiff::encoder::Compression::Deflate(Default::default()),
-                };
-                let mut encoder = tiff::encoder::TiffEncoder::new(&mut bytes)
-                    .map_err(|_| Error::new("EXPORT_ERROR", "Unable to create TIFF"))?
-                    .with_compression(method);
-                let mut image = encoder
-                    .new_image::<tiff::encoder::colortype::RGBA8>(p.width, p.height)
-                    .map_err(|_| Error::new("EXPORT_ERROR", "Unable to encode TIFF header"))?;
-                if let Some(metadata) = metadata {
-                    image
-                        .encoder()
-                        .write_tag(
-                            Tag::ImageDescription,
-                            format!("{}{}", crate::metadata::TEXT_PREFIX, metadata).as_str(),
-                        )
-                        .map_err(|_| {
-                            Error::new("EXPORT_ERROR", "Unable to encode TIFF metadata")
-                        })?;
-                }
-                if let Some((bytes, _)) = &profile {
-                    image
-                        .encoder()
-                        .write_tag(Tag::from_u16_exhaustive(34675), bytes.as_slice())
-                        .map_err(|_| Error::new("EXPORT_ERROR", "Unable to embed TIFF profile"))?;
-                }
-                image
-                    .encoder()
-                    .write_tag(
-                        Tag::ExtraSamples,
-                        &[if matches!(alpha, Alpha::Associated) {
-                            1u16
-                        } else {
-                            2u16
-                        }][..],
-                    )
-                    .map_err(|_| {
-                        Error::new("EXPORT_ERROR", "Unable to encode TIFF alpha semantics")
-                    })?;
-                image
-                    .encoder()
-                    .write_tag(Tag::Orientation, 1u16)
-                    .map_err(|_| Error::new("EXPORT_ERROR", "Unable to encode TIFF orientation"))?;
-                image.resolution(
-                    tiff::tags::ResolutionUnit::Inch,
-                    tiff::encoder::Rational {
-                        n: (ppi * 1000.0).round() as u32,
-                        d: 1000,
-                    },
-                );
-                image
-                    .write_data(&p.rgba)
-                    .map_err(|_| Error::new("EXPORT_ERROR", "Unable to encode TIFF samples"))?;
-            }
-            (
-                bytes.into_inner(),
-                "image/tiff",
-                vec![if profile.is_some() {
-                    "TIFF stores converted RGBA8 samples with the exact embedded RGB profile and declared alpha mode. Relative colorimetric conversion clips gamut and quantizes RGB8 without black-point compensation; that conversion is not reversible. Editable layers require snapshots. Density is rounded to 0.001 pixels per inch."
-                } else {
-                    "TIFF retains rendered RGBA8 with declared alpha mode; unassociated samples are lossless. Editable layers and source metadata require snapshots. Output uses untagged sRGB sample interpretation with no ICC profile; density is rounded to 0.001 pixels per inch."
-                }],
-                json!({"compression":compression,"alpha":alpha,"resolution_ppi":(ppi*1000.0).round()/1000.0}),
             )
         }
         _ => return Err(unsupported("JPEG/TIFF encoder requires a matching format")),
