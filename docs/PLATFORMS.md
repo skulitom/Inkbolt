@@ -7,10 +7,12 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful hosted Windows/Linux/macOS matrix is `d4692ea`,
-through SVG images, spans, omissions and request guidance. This predates native
-block migration, store admission and [private source snapshots](STREAMING_SAMPLE_IMPORT.md),
-whose later evidence is Windows/WSL.
+The latest retained successful hosted Windows/Linux/macOS matrix is `133ebee`,
+through native block migration, store admission and
+[private PNG/TIFF staging](STREAMING_SAMPLE_IMPORT.md). The release and downloaded
+Windows/Linux packages also passed their separate checks; see
+[release acceptance](DEVELOPMENT_STATUS.md#w7w8-v0820-published-and-downloaded-packages-verified).
+This predates the later native import-capacity change and native JPEG work.
 The subsequent [native import admission acceptance](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open)
 passed all 257 stages fresh on matching unchanged inputs. Windows ran
 251 Rust and 2,701 Python tests, with 13 explicit skips,
@@ -24,7 +26,24 @@ This does not extend hosted macOS evidence beyond the run recorded below.
 Earlier failures and their focused follow-up remain recorded.
 This does not establish full W1, distribution, Unix jobs or scale acceptance.
 
-The [latest complete run](https://github.com/skulitom/Inkbolt/actions/runs/38791299542)
+The [v0.82.0 candidate matrix](https://github.com/skulitom/Inkbolt/actions/runs/38822552988)
+passed 256 fresh stages per platform with matching unchanged source inputs,
+no failures, pending checks or reused results, and passing minimum-compiler checks.
+
+| Hosted platform | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows 2025 | 251 | 2,702 | 9 | 3615.277 |
+| Ubuntu 24.04 | 217 | 2,660 | 51 | 1202.372 |
+| macOS 15 ARM64 | 217 | 2,660 | 51 | 2877.831 |
+
+The 912-file source archive matches every report's fingerprint
+`7d770482beb6ace55e1535c326d41a690cba5c0cfc8c9076268797789805542a`.
+Reports, all 768 stage logs and run metadata are retained under
+`release-v0.82.0-ci-133ebee`; its 773-file evidence audit has SHA-256
+`bee3e687b2bfb62bc93fd389b6399bba19f1d60a34f7699e4b1f7549bd61665f`.
+Explicit skips and the separate local private guard remain part of the record.
+
+The [earlier SVG/request-guidance run](https://github.com/skulitom/Inkbolt/actions/runs/38791299542)
 passed 255 fresh stages on each platform with matching unchanged inputs, no
 failed, pending or reused checks, and successful minimum-compiler checks.
 

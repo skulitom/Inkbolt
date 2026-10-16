@@ -5,6 +5,29 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W7/W8: v0.82.0 published and downloaded packages verified
+
+[v0.82.0](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) was published
+on 16 October 2026 from `133ebeedb77ea0ca4a1717b3789e578363f82f76` after the
+full candidate matrix and [release workflow](https://github.com/skulitom/Inkbolt/actions/runs/38829229082)
+passed. It includes expanded editable SVG import, native block storage and
+private PNG/TIFF staging. Later source changes are outside this fixed release.
+
+The actual downloaded Windows x64, Linux x64 and macOS ARM64 archives and Windows
+bundle passed checksum and attestation checks bound to that tag, commit and
+release workflow. Archive README/license/notice bytes match the frozen source;
+the Windows archive and bundle contain the same executable. The downloaded
+Windows bundle passed its MCP smoke test. Nine frozen-source regression modules
+then executed 96 tests on Windows (one explicit symlink-privilege skip) and all
+97 on Linux under WSL. macOS evidence is the hosted full source suite plus release
+startup; there is no separate local macOS download-runtime claim.
+
+Evidence is retained under `release-v0.82.0-download-acceptance`, with completion
+record `release-v0.82.0-completion-01.json`, SHA-256
+`4832ed35ffebbca914e758a64de8d5816fdc6444b06f2367f5d8b7ed9381b2da`.
+Registry publication, SBOM, macOS x64 and broader distribution acceptance remain
+open. This release does not complete the overall plan or award engine credit.
+
 ## W0: closed
 
 **Complete, 11 October 2026.** The central catalog at that milestone contained 773 documented
@@ -34,13 +57,14 @@ W1, any additional engine checkpoint, the scale targets or the overall goal.
 
 ## W1: core platform tier and hosted matrix verified; Unix jobs open
 
-The latest retained [hosted matrix at `d4692ea`](https://github.com/skulitom/Inkbolt/actions/runs/38791299542)
-passed all 255 fresh stages on Windows, Ubuntu and macOS, including SVG images,
-span ranges, omissions and request guidance.
-All three minimum-compiler checks also passed. Reports and logs are retained in
-`w1-public-ci-d4692ea`; see [platform evidence](PLATFORMS.md) for exact counts,
-timings and the audit identity. This hosted run predates native block migration and
-does not replace the mandatory local private publication guard.
+The latest retained [hosted matrix at `133ebee`](https://github.com/skulitom/Inkbolt/actions/runs/38822552988)
+passed all 256 fresh stages on Windows, Ubuntu and macOS, through native block
+migration, store admission and private PNG/TIFF staging. All three
+minimum-compiler checks passed. Reports and all stage logs are retained in
+`release-v0.82.0-ci-133ebee`; see [platform evidence](PLATFORMS.md) for counts,
+timings and audit identity. Later native import-capacity changes retain separate
+Windows/WSL evidence; native JPEG remains unpublished work. Hosted checks do not
+replace the mandatory local private publication guard.
 
 Linux tier 1 covers core/library/CLI/MCP, sessions and durable publication/history
 receipts on Ubuntu 22.04 under WSL2, using native Linux storage. Background jobs
