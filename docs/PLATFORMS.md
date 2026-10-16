@@ -7,21 +7,21 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/38843005426)
-is `6a674d2`, through bounded PNG output. All stages ran fresh, all three
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/38848641460)
+is `8232222`, through private TIFF publication. All stages ran fresh, all three
 minimum-compiler checks passed and source inputs remained unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 259 | 258 | 2,727 | 9 | 4415.975 |
-| Ubuntu 24.04 | 259 | 224 | 2,685 | 51 | 1515.850 |
-| macOS 15 ARM64 | 259 | 224 | 2,685 | 51 | 2750.806 |
+| Windows 2025 | 260 | 263 | 2,733 | 9 | 4324.721 |
+| Ubuntu 24.04 | 260 | 229 | 2,691 | 51 | 1506.793 |
+| macOS 15 ARM64 | 260 | 229 | 2,691 | 51 | 2622.255 |
 
-Reports and all stage logs are retained in `w4-png-output-ci-6a674d2`.
-Audit SHA-256: `b5275dedafea0bf69ba90819d2f7b75d55685289ede02587a808999b6e2d6d52`;
-shared hosted source fingerprint: `069e32e6080f988a3407d52d534dcdf976f58d2d38b2e8b7f5e2679d58af4f03`.
-This matrix predates TIFF/JPEG output, which has separate local acceptance
-below. Unix background jobs remain unsupported.
+Reports and all stage logs are retained in `w4-tiff-output-ci-8232222`.
+Audit SHA-256: `422a2159b1431477c8fc98c66381493f5c681c9818d5051e0521aaf066118faa`;
+shared hosted source fingerprint: `20a538bec1b1effffa93a67b7f84e40e10011e2185eb43eed7554d6c27699818`.
+This matrix predates JPEG output and file-free TIFF preflight, which have separate
+local acceptance below. Unix background jobs remain unsupported.
 
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See
@@ -46,7 +46,7 @@ passed all 259 stages fresh on both platforms: Windows executed
 The owned-child private-payload process-death check passed on both systems.
 Inputs remained unchanged, with no failed, pending or reused checks in these
 full runs. Source fingerprint is `2df00b88dab8796c134466463580bd169bdde60a6609863d54dfe8e16cd975e3`;
-audit is `0fbefa78af9480c8d8dbebc3a181f19d064b49ee5aa8138b5db1d9184092b4b4`. Hosted macOS PNG evidence is recorded above; Unix background jobs remain unsupported.
+audit is `0fbefa78af9480c8d8dbebc3a181f19d064b49ee5aa8138b5db1d9184092b4b4`. Hosted macOS PNG/TIFF publication evidence is recorded above; Unix background jobs remain unsupported.
 
 The subsequent [private TIFF publication acceptance](DEVELOPMENT_STATUS.md#w45-private-tiff-publication-jpeg-and-scale-open)
 passed 260 fresh stages per platform on matching unchanged inputs:
@@ -58,13 +58,21 @@ remained pending or reused results. Fingerprint is `c32922061ede418fe97d2925125e
 retained audit is `951ae7dd8641a1e3fc158b928a2533ac45d0123a44baff3ac715cb8a6ae7c58d`. This is separate from
 hosted macOS evidence and does not change Unix job support.
 
-The subsequent [bounded JPEG output acceptance](DEVELOPMENT_STATUS.md#w45-bounded-jpeg-output-coordinated-scale-admission-open)
+The subsequent [bounded JPEG output acceptance](DEVELOPMENT_STATUS.md#w45-bounded-image-output-coordinated-scale-admission-open)
 passed all 261 stages fresh on matching unchanged inputs. Windows ran
 269 Rust and 2,734 Python tests (13 explicit skips) in 1003.969 seconds;
 Linux ran 235 Rust and 2,696 Python tests (51 skips) in 566.980 seconds.
 No stage failed, remained pending or reused a result. Source fingerprint:
 `1ae1cefc5de6fde022ad419b402cebd016afa9dab5f312c8bd640abbf4d0cbbe`; audit: `848f8ec54f74a55831577d07f20137b1cc06d80bbc7744fc2735938e32a2ba11`.
 Hosted macOS JPEG evidence and Unix background jobs remain separate.
+
+The subsequent [file-free TIFF preflight](STREAMING_IMAGE_OUTPUT.md#file-free-tiff-preflight)
+passed all 261 stages fresh on matching unchanged inputs. Windows ran
+280 Rust and 2,734 Python tests (13 explicit skips) in 904.625 seconds;
+Linux ran 246 Rust and 2,696 Python tests (51 skips) in 582.776 seconds.
+No stage failed, remained pending or reused results. Source fingerprint:
+`304bee31a1d03782444c3ee910d77298c689a8219d4b4a7e1e8864d2d03f5dcb`; audit: `108d77a5aeb56de7e924cf8d8fa135d12dd952c814e41a94808969053e826bda`.
+This local acceptance does not establish hosted macOS support for the new phase.
 
 The earlier [native import admission acceptance](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open)
 passed all 257 stages fresh on matching unchanged inputs. Windows ran

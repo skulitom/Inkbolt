@@ -7,6 +7,74 @@ acceptance, followed by the TIFF publication phase below. Current image and
 encoded-output limits remain unchanged. JPEG output now also has fresh full Windows/Linux acceptance below. Coordinated
 scale admission and complete scale acceptance remain open.
 
+## File-free TIFF preflight
+
+Large native-depth TIFF output requires an exact final size and hash without a
+resident encoded frame. Preflight now encodes twice against a seekable
+projection. The first pass discards newly appended bytes and retains only final
+overwrites, merging overlapping ranges. The second hashes newly reached extents
+with those final patches applied; holes have zero bytes. Its complete ordered
+write/seek/flush transcript, final position and extent must match the first pass.
+A changed encoding, cancellation, codec failure or budget failure returns no
+successful preflight. No file, output reservation or destination is created.
+
+The journal retains at most 1 MiB in 4096 disjoint ranges. Merging can temporarily
+retain twice the byte bound, plus bounded map entries. Hashing uses a 64 KiB
+buffer. Codec allocations, metadata, profiles and renderer resources remain
+additional. Current locked single-image TIFF routes overwrite only the four-byte
+directory pointer; dedicated tests check every depth/compression/evaluation route.
+Inline TIFF still retains its encoded/base64 result and publication still uses
+the private seekable file. Their exact bytes and receipt format are unchanged.
+
+Whole-image routes prepare pixels once and repeat only encoding. Native tiled
+preflight retains one prepared renderer across both passes, including its fixed
+native cache and cumulative decode counter. Each band traversal charges its
+composition, paint, filter and effect work against the existing aggregate limits;
+source preparation is charged once. Preflight can therefore refuse work that
+single-pass publication admits. Two encodings and, for native tiled output, two
+render visits are an explicit CPU cost; none of the work/decode limits is raised
+or reset. Coordinated image/output admission and the full scale-v2 gate remain
+separate requirements. Fresh Windows/Linux acceptance and the retained isolated
+comparison below verify this phase; the larger-scale acceptance is still open.
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 261 | 280 | 2,734 | 13 | 904.625 |
+| Linux / WSL | 261 | 246 | 2,696 | 51 | 582.776 |
+
+All stages ran fresh on matching unchanged inputs, with no failed or pending
+checks. Focused Windows/Linux feedback passed in 90.0/76.9 seconds. Eleven new
+Rust tests cover journal overlaps, holes, boundary arithmetic, transcript
+mutation, cancellation, failure propagation, all locked TIFF codec routes and
+aggregate replay work. Existing TIFF, PNG, JPEG, renderer, stored-source and
+publication suites also ran. Forty-eight complete inline artifacts and complete
+preflight responses match the accepted `4091326` build; an actual historical
+durable receipt replays without altering its output bytes or timestamp.
+
+Three isolated Windows debug preflights per arm retained process lifetime peak
+commit and wall time. Direct publication from both builds had identical bytes;
+an independent TIFF strip parser checked every channel against original row
+equations. The stored fixture has 8-bit grayscale source samples exported as
+exact 16-bit RGBA, not arbitrary photographic or 50 MP precision evidence.
+
+| Original fixture | Prior memory | New memory | Prior time | New time |
+| --- | ---: | ---: | ---: | ---: |
+| Empty 3072x1024 RGBA8 canvas | 42.969 MiB | 20.996 MiB | 0.901 s | 0.908 s |
+| Stored 2048x1536 grayscale, RGBA16 TIFF | 69.848 MiB | 21.742 MiB | 4.385 s | 9.815 s |
+
+The native path trades additional rendering and encoding time for bounded
+encoded storage. Fixture/oracle work is outside the measured process. These
+diagnostics establish neither release latency nor the complete scale-v2 gate.
+Native inputs remained unchanged and preflight created no destination.
+
+Frozen source fingerprint: `304bee31a1d03782444c3ee910d77298c689a8219d4b4a7e1e8864d2d03f5dcb`. Retained
+`w4-tiff-preflight-acceptance-01/audit.json` SHA-256:
+`108d77a5aeb56de7e924cf8d8fa135d12dd952c814e41a94808969053e826bda`. The audit binds full reports and logs, measured binaries, source,
+compatibility outputs and immutable native inputs. Earlier focused test-oracle
+and test-module ordering failures remain retained; no guard or acceptance bound
+was weakened. Unrelated benchmark/recovery intermittency is not claimed fixed.
+This phase is outside v0.82.0 and adds no original engine-checkpoint credit.
+
 ## JPEG output contract
 
 Feed the locked JPEG encoder from bounded RGBA8 bands in tiled evaluation,
@@ -275,6 +343,7 @@ recovery intermittency is not claimed fixed.
 
 JPEG publication and file-free preflight now avoid complete encoded buffers;
 tiled evaluation avoids complete RGBA8/RGB frames. Whole evaluation and inline
-responses retain their declared storage. Coordinated larger-scale admission,
-bounded large TIFF preflight and independent scale acceptance remain open.
+responses retain their declared storage. The subsequent file-free TIFF preflight
+phase is recorded above. Coordinated larger-scale admission and independent
+scale acceptance remain open.
 This change is outside v0.82.0 and adds no original engine-checkpoint credit.

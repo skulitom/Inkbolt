@@ -654,6 +654,8 @@ BINDINGS = {
     'image_output/png/codec_chunk_bytes': 'png_output.STREAM_CHUNK_BYTES',
     'image_output/png/private_file_bytes': 'publish.MAX_OUTPUT_BYTES',
     'image_output/tiff/encoded_bytes': 'publish.MAX_OUTPUT_BYTES',
+    'image_output/tiff/preflight_patch_bytes': 'publish.MAX_PREFLIGHT_PATCH_BYTES',
+    'image_output/tiff/preflight_patch_entries': 'publish.MAX_PREFLIGHT_PATCHES',
     'image_output/jpeg/band_bytes': 'jpeg_output.MAX_BAND_BYTES',
     'image_output/jpeg/encoded_buffer_bytes': 'jpeg_output.STREAM_BUFFER_BYTES',
     'image_output/jpeg/encoded_bytes': 'publish.MAX_OUTPUT_BYTES',

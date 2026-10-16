@@ -1331,6 +1331,10 @@ pub mod jpeg_output {
 
 /// Limits for `src/publish.rs`.
 pub mod publish {
+    /// Retained seekable-preflight overwrite bytes; merging needs at most twice this bound.
+    pub const MAX_PREFLIGHT_PATCH_BYTES: usize = 1024 * 1024;
+    /// Disjoint overwrite ranges in seekable preflight, independent of output extent.
+    pub const MAX_PREFLIGHT_PATCHES: usize = 4096;
     /// Maximum temporary-file reservation attempts for direct output publication.
     pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Maximum bytes per checked staging write or receipt-verification read; cancellation is checked between chunks.

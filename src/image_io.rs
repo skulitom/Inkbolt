@@ -14,6 +14,7 @@ mod legacy;
 mod tiff_output;
 pub(crate) use jpeg_output::write as jpeg_to_writer;
 pub(crate) use tiff_output::write as tiff_to_writer;
+pub(crate) use tiff_output::{Encoding as TiffEncoding, preflight as tiff_preflight};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]

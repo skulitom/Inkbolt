@@ -1,6 +1,8 @@
 //! Existing TIFF pixels and codec layout with caller-owned encoded storage.
 use super::*;
 use std::io::{Seek, Write};
+mod encoding;
+pub(crate) use encoding::Encoding;
 
 pub(crate) fn export(
     document: &Document,
@@ -34,6 +36,53 @@ pub(crate) fn write(
         &crate::control::Control,
     ),
     output: &mut (impl Write + Seek),
+) -> Result<Value, Error> {
+    write_encoding(
+        document,
+        scale,
+        resources,
+        options,
+        metadata,
+        (render_options, control),
+        &mut Encoding::once(output, control),
+    )
+}
+
+pub(crate) fn preflight(
+    document: &Document,
+    scale: u32,
+    resources: &Resources,
+    options: Option<&Options>,
+    metadata: Option<&str>,
+    context: (
+        Option<&crate::render_quality::Options>,
+        &crate::control::Control,
+    ),
+) -> Result<(Value, crate::publish::payload::Payload), Error> {
+    let mut encoding = Encoding::preflight(context.1);
+    let artifact = write_encoding(
+        document,
+        scale,
+        resources,
+        options,
+        metadata,
+        context,
+        &mut encoding,
+    )?;
+    Ok((artifact, encoding.finish()?))
+}
+
+fn write_encoding(
+    document: &Document,
+    scale: u32,
+    resources: &Resources,
+    options: Option<&Options>,
+    metadata: Option<&str>,
+    (render_options, control): (
+        Option<&crate::render_quality::Options>,
+        &crate::control::Control,
+    ),
+    output: &mut Encoding<'_>,
 ) -> Result<Value, Error> {
     validate_options(ExportFormat::Tiff, options)?;
     let defaults = Options::default();
@@ -74,13 +123,13 @@ pub(crate) fn write(
             }
         }
     }
-    {
+    output.run(|mut output| {
         let method = match compression {
             Compression::None => tiff::encoder::Compression::Uncompressed,
             Compression::Lzw => tiff::encoder::Compression::Lzw,
             Compression::Deflate => tiff::encoder::Compression::Deflate(Default::default()),
         };
-        let mut encoder = tiff::encoder::TiffEncoder::new(output)
+        let mut encoder = tiff::encoder::TiffEncoder::new(&mut output)
             .map_err(|_| Error::new("EXPORT_ERROR", "Unable to create TIFF"))?
             .with_compression(method);
         let mut image = encoder
@@ -126,7 +175,8 @@ pub(crate) fn write(
         image
             .write_data(&p.rgba)
             .map_err(|_| Error::new("EXPORT_ERROR", "Unable to encode TIFF samples"))?;
-    }
+        Ok(())
+    })?;
     let losses = vec![if profile.is_some() {
         "TIFF stores converted RGBA8 samples with the exact embedded RGB profile and declared alpha mode. Relative colorimetric conversion clips gamut and quantizes RGB8 without black-point compensation; that conversion is not reversible. Editable layers require snapshots. Density is rounded to 0.001 pixels per inch."
     } else {

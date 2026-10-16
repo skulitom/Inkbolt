@@ -5,9 +5,28 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
-## W4.5: bounded JPEG output; coordinated scale admission open
+## W4.5: bounded image output; coordinated scale admission open
 
-The [JPEG output contract](STREAMING_IMAGE_OUTPUT.md#verified-jpeg-phase) passed
+The subsequent [file-free TIFF preflight](STREAMING_IMAGE_OUTPUT.md#file-free-tiff-preflight)
+passed fresh full Windows/Linux acceptance on matching unchanged inputs:
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 261 | 280 | 2,734 | 13 | 904.625 |
+| Linux / WSL | 261 | 246 | 2,696 | 51 | 582.776 |
+
+It retains only bounded overwrite ranges and hashes a verified second encoding.
+Prepared native caches and decode counters remain shared; repeated render work
+is charged to existing limits. Whole routes prepare pixels once. Forty-eight
+old/new artifacts and preflight responses, a historical receipt, exact sample
+oracles and three isolated memory/time repetitions per arm are retained.
+The stored 3 MP fixture reduced median peak commit from 69.848 to
+21.742 MiB, with median preflight time increasing from
+4.385 to 9.815 seconds.
+Full scope, limits and the frozen-source audit are in the contract. Coordinated
+scale admission and the 50 MP workflow remain open; v0.82.0 is unchanged.
+
+The earlier [JPEG output contract](STREAMING_IMAGE_OUTPUT.md#verified-jpeg-phase) passed
 fresh full acceptance on matching unchanged source inputs:
 
 | Platform | Stages | Rust tests | Python executed | Explicit skips | Seconds |
@@ -31,8 +50,9 @@ Fingerprint: `1ae1cefc5de6fde022ad419b402cebd016afa9dab5f312c8bd640abbf4d0cbbe`.
 `w4-jpeg-output-acceptance-02/audit.json`: `848f8ec54f74a55831577d07f20137b1cc06d80bbc7744fc2735938e32a2ba11`.
 All source, full logs, earlier focused failures and measurement/compatibility
 outputs are retained. Previous benchmark/recovery intermittency remains open;
-this acceptance does not prove its cause fixed. Coordinated ceilings, large TIFF
-preflight, the 50 MP workflow and complete scale-v2 acceptance remain required.
+this acceptance does not prove its cause fixed. File-free TIFF preflight has
+subsequent acceptance above. Coordinated ceilings, the 50 MP workflow and
+complete scale-v2 acceptance remain required.
 No additional original checkpoint is awarded and v0.82.0 is unchanged.
 
 ## W7/W8: v0.82.0 published and downloaded packages verified

@@ -10,6 +10,8 @@ pub(crate) struct Prepared {
     tile_work: u64,
     tile_peak_pixels: u64,
     tile_buffer_rate: u64,
+    tile_specific_work: [u64; 3],
+    band_work: std::cell::Cell<[u64; 4]>,
     pub sampling: crate::render_quality::Plan,
     pub work: u64,
     pub buffers: u64,
@@ -215,7 +217,7 @@ impl Prepared {
             .as_ref()
             .map(|n| n.work(document, &texts, spatial.as_ref(), &plan, u32::MAX, control))
             .transpose()?;
-        let own_work = if let Some((work, _)) = neighborhood_cost {
+        let own_work = if let Some((work, _, _)) = neighborhood_cost {
             work
         } else if let Some(plan) = &spatial {
             if plan.paint_work > crate::paint::MAX_PAINT_WORK {
@@ -287,7 +289,7 @@ impl Prepared {
                     u64::from(width.min(super::tiled::EDGE))
                         * u64::from(height.min(super::tiled::EDGE))
                 },
-                |(_, pixels)| pixels,
+                |(_, pixels, _)| pixels,
             )
         } else {
             count
@@ -396,6 +398,16 @@ impl Prepared {
                 "Prepared source tree exceeds render work, storage or nesting limits",
             ));
         }
+        let tile_specific_work = neighborhood_cost.map_or(
+            [
+                spatial
+                    .as_ref()
+                    .map_or(count * (paint_work + mask_work), |p| p.paint_work),
+                count * filter_work,
+                count * effect_work,
+            ],
+            |(_, _, costs)| costs,
+        );
         let resources = Resources {
             spatial,
             control: control.clone(),
@@ -476,6 +488,8 @@ impl Prepared {
             tile_work: own_work,
             tile_peak_pixels: buffer_count,
             tile_buffer_rate: (buffer_pixels * 4).div_ceil(buffer_count.max(1)),
+            tile_specific_work,
+            band_work: std::cell::Cell::new([0; 4]),
             sampling: plan,
             work,
             buffers,
@@ -548,6 +562,8 @@ impl Prepared {
             ));
         }
         let traversal = self.traversal(max_rows);
+        let mut total_work = self.work;
+        let mut specific_work = self.tile_specific_work;
         if let Some(neighborhood) = &self.neighborhood
             && traversal.rows != self.traversal(u32::MAX).rows
         {
@@ -564,6 +580,8 @@ impl Prepared {
                     "Codec band filter/effect neighborhoods exceed render work limit",
                 ));
             }
+            total_work = self.work - self.tile_work + work.0;
+            specific_work = work.2;
             let extra = work.1.saturating_sub(self.tile_peak_pixels) * self.tile_buffer_rate;
             if self.buffers + extra > MAX_BUFFER_PIXELS * 4 {
                 return Err(limit(
@@ -571,6 +589,37 @@ impl Prepared {
                 ));
             }
         }
+        // Replaying a prepared source retains native-reader caches and decode
+        // counters. Charge every complete visit against the same work budgets.
+        // Source preparation and its bounded native-decode allowance are held
+        // once; repeated tile composition is additional work.
+        let previous = self.band_work.get();
+        if previous[0] != 0 {
+            total_work -= self.work - self.tile_work;
+        }
+        let costs = [
+            total_work,
+            specific_work[0],
+            specific_work[1],
+            specific_work[2],
+        ];
+        let bounds = [
+            MAX_RENDER_WORK,
+            crate::paint::MAX_PAINT_WORK,
+            crate::filters::MAX_WORK,
+            crate::effects::MAX_WORK,
+        ];
+        let charged = std::array::from_fn(|i| previous[i].saturating_add(costs[i]));
+        if charged
+            .iter()
+            .zip(bounds)
+            .any(|(&value, bound)| value > bound)
+        {
+            return Err(limit(
+                "Repeated codec bands exceed aggregate render work limits",
+            ));
+        }
+        self.band_work.set(charged);
         self.resources
             .control
             .progress("render_tiles", 0, Some(traversal.total));
@@ -703,5 +752,61 @@ impl Bands<'_> {
         prepared.resources.control.check()?;
         self.next_y += rows;
         Ok(Some((band_y, rows)))
+    }
+}
+
+#[cfg(test)]
+mod replay_tests {
+    use super::*;
+    fn prepared() -> Prepared {
+        let document = serde_json::from_value(serde_json::json!({"schema_version":2,
+            "id":"work-budget","kind":"raster","width":512,"height":512,"color_space":"srgb"}))
+        .unwrap();
+        let options = serde_json::from_value(serde_json::json!({"evaluation":"tiled"})).unwrap();
+        Prepared::new(
+            &document,
+            1,
+            None,
+            None,
+            Some(&options),
+            true,
+            &Control::default(),
+        )
+        .unwrap()
+    }
+    #[test]
+    fn repeated_band_visits_cannot_reset_the_render_work_budget() {
+        let prepared = prepared();
+        let visits = (MAX_RENDER_WORK - (prepared.work - prepared.tile_work)) / prepared.tile_work;
+        assert!(visits > 1 && visits < 1024);
+        for _ in 0..visits {
+            prepared.bands(u32::MAX).unwrap();
+        }
+        let before = prepared.band_work.get();
+        assert_eq!(
+            prepared.bands(u32::MAX).err().unwrap().code,
+            "RESOURCE_LIMIT"
+        );
+        assert_eq!(prepared.band_work.get(), before);
+    }
+    #[test]
+    fn repeated_visits_keep_each_independent_paint_filter_and_effect_budget() {
+        for (index, bound) in [
+            crate::paint::MAX_PAINT_WORK,
+            crate::filters::MAX_WORK,
+            crate::effects::MAX_WORK,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut prepared = prepared();
+            // Inject an admitted planner cost to isolate each independent ceiling.
+            prepared.tile_specific_work[index] = bound / 2 + 1;
+            prepared.bands(u32::MAX).unwrap();
+            assert_eq!(
+                prepared.bands(u32::MAX).err().unwrap().code,
+                "RESOURCE_LIMIT"
+            );
+        }
     }
 }

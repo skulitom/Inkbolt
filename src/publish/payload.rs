@@ -11,6 +11,8 @@ static NEXT: AtomicU64 = AtomicU64::new(0);
 
 mod seekable;
 pub(crate) use seekable::SeekSink;
+mod projection;
+pub(crate) use projection::Projection;
 
 enum Storage {
     Memory(Vec<u8>),

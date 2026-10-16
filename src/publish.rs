@@ -541,14 +541,27 @@ fn prepare_output(
         let bytes = sink.finish()?;
         (artifact?, bytes)
     } else if matches!(options.format, ExportFormat::Tiff) {
-        let mut sink = payload::SeekSink::publication(retain, control)?;
+        let mut payload = None;
         let artifact = image_to_writer(
             board.as_ref().unwrap_or(document),
             options.format,
             options.scale,
             format_options,
             |packet, control| {
-                crate::image_io::tiff_to_writer(
+                if !retain {
+                    let (artifact, bytes) = crate::image_io::tiff_preflight(
+                        board.as_ref().unwrap_or(document),
+                        options.scale,
+                        resources,
+                        options.image_options.as_ref(),
+                        packet,
+                        (options.render_options.as_ref(), control),
+                    )?;
+                    payload = Some(bytes);
+                    return Ok(artifact);
+                }
+                let mut sink = payload::SeekSink::publication(true, control)?;
+                let artifact = crate::image_io::tiff_to_writer(
                     board.as_ref().unwrap_or(document),
                     options.scale,
                     resources,
@@ -556,11 +569,15 @@ fn prepare_output(
                     packet,
                     (options.render_options.as_ref(), control),
                     &mut sink,
-                )
+                );
+                payload = Some(sink.finish()?);
+                artifact
             },
         );
-        let bytes = sink.finish()?;
-        (artifact?, bytes)
+        (
+            artifact?,
+            payload.ok_or_else(|| Error::new("EXPORT_ERROR", "Missing TIFF output"))?,
+        )
     } else {
         let artifact = export_with_render_options(
             board.as_ref().unwrap_or(document),

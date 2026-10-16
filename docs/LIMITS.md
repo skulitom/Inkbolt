@@ -500,6 +500,8 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `publications_store.MAX_SQL_ROW_BYTES` | `usize` | 1064960 | `super::publications::MAX_RECEIPT_BYTES + 16384` |
 | `publish.IO_CHUNK_BYTES` | `usize` | 65536 | `65536` |
 | `publish.MAX_OUTPUT_BYTES` | `usize` | 33554432 | `32 * 1024 * 1024` |
+| `publish.MAX_PREFLIGHT_PATCHES` | `usize` | 4096 | `4096` |
+| `publish.MAX_PREFLIGHT_PATCH_BYTES` | `usize` | 1048576 | `1024 * 1024` |
 | `publish.MAX_STAGE_ATTEMPTS` | `usize` | 64 | `64` |
 | `query.MAX_SHAPES` | `usize` | 8 | `8` |
 | `query.MAX_TYPES` | `usize` | 12 | `12` |

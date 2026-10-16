@@ -189,7 +189,7 @@ impl Neighborhood {
         sampling: &crate::render_quality::Plan,
         max_rows: u32,
         control: &crate::control::Control,
-    ) -> Result<(u64, u64), Error> {
+    ) -> Result<(u64, u64, [u64; 3]), Error> {
         let scale = sampling.internal_scale;
         let factor = sampling.options.antialias.factor();
         let edge = if spatial.is_some() {
@@ -295,7 +295,7 @@ impl Neighborhood {
                 "Filter/effect neighborhoods and reconstruction exceed render work limit",
             ));
         }
-        Ok((work, peak_pixels))
+        Ok((work, peak_pixels, [paint_work, filter_work, effect_work]))
     }
 }
 

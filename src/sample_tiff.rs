@@ -88,7 +88,7 @@ pub(crate) fn write(
         Option<&crate::render_quality::Options>,
         &crate::control::Control,
     ),
-    output: &mut (impl Write + Seek),
+    output: &mut crate::image_io::TiffEncoding<'_>,
 ) -> Result<Value, Error> {
     if document.output_profile.is_some() {
         return Err(Error::new(
@@ -120,24 +120,24 @@ pub(crate) fn write(
         let ppi = document.resolution_ppi * scale as f64;
         macro_rules! write_tiled {
             ($rgba:ty,$gray:ty,$project:expr) => {
-                match channels {
+                output.run(|mut output| match channels {
                     Channels::Rgba => tiled::encode::<$rgba>(
                         &prepared,
                         (depth, channels, compression),
                         ppi,
                         metadata,
                         $project,
-                        output,
-                    )?,
+                        &mut output,
+                    ),
                     Channels::GrayAlpha => tiled::encode::<GrayAlpha<$gray>>(
                         &prepared,
                         (depth, channels, compression),
                         ppi,
                         metadata,
                         $project,
-                        output,
-                    )?,
-                }
+                        &mut output,
+                    ),
+                })?
             };
         }
         match depth {
@@ -202,14 +202,19 @@ pub(crate) fn write(
     macro_rules! write {
         ($t:ty,$rgba:ty,$gray:ty,$value:expr) => {{
             let values: Vec<$t> = samples.iter().map($value).collect();
-            match channels {
+            output.run(|mut output| match channels {
                 Channels::Rgba => {
-                    encode::<$rgba>(size, &values, compression, ppi, metadata, output)?
+                    encode::<$rgba>(size, &values, compression, ppi, metadata, &mut output)
                 }
-                Channels::GrayAlpha => {
-                    encode::<GrayAlpha<$gray>>(size, &values, compression, ppi, metadata, output)?
-                }
-            }
+                Channels::GrayAlpha => encode::<GrayAlpha<$gray>>(
+                    size,
+                    &values,
+                    compression,
+                    ppi,
+                    metadata,
+                    &mut output,
+                ),
+            })?;
         }};
     }
     match depth {
