@@ -19,7 +19,10 @@ full streaming import and the storage/scale milestones remain pending. Native
 PNG/TIFF input now uses private seekable source snapshots with bounded copy/CRC
 buffers and shared source/metadata identities. Native import pixels assemble in
 a separately reserved private file; TIFF retains one source chunk at a time.
-The public in-memory candidate API remains pure. See
+The public in-memory candidate API remains pure. Native pixel extents now use a
+256 MiB disk budget while codec allocations remain separately bounded at 64 MiB;
+canvas, encoded-source and output ceilings are unchanged. Full Windows/Linux
+acceptance and larger-input measurements cover this admission change. See
 [bounded import](STREAMING_SAMPLE_IMPORT.md) for acceptance status.
 
 Typed JSON rejection now adds bounded, advisory missing-field guidance using the

@@ -578,8 +578,10 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `retouch.WORKING_BYTES_PER_PIXEL` | `u64` | 256 | `256` |
 | `sample_import.INPUT_BUFFER_BYTES` | `usize` | 65536 | `64 * 1024` |
 | `sample_import.MAX_INLINE_DECODER_BYTES` | `usize` | 16777216 | `16 * 1024 * 1024` |
-| `sample_import.MAX_NATIVE_DECODED_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
-| `sample_import.MAX_PRIVATE_STAGING_BYTES` | `u64` | 100663296 | `96 * 1024 * 1024` |
+| `sample_import.MAX_NATIVE_CODEC_BYTES` | `usize` | 67108864 | `64 * 1024 * 1024` |
+| `sample_import.MAX_NATIVE_DECODED_BYTES` | `usize` | 268435456 | `256 * 1024 * 1024` |
+| `sample_import.MAX_NATIVE_TIFF_PADDED_BYTES` | `u64` | 268435456 | `256 * 1024 * 1024` |
+| `sample_import.MAX_PRIVATE_STAGING_BYTES` | `u64` | 301989888 | `288 * 1024 * 1024` |
 | `sample_import.MAX_SCRATCH_ATTEMPTS` | `usize` | 64 | `64` |
 | `sample_import.MAX_TIFF_PADDED_BYTES` | `u64` | 67108864 | `64 * 1024 * 1024` |
 | `sample_profiles.MAX_ENCODED_PROFILE_BYTES` | `usize` | 524288 | `512 * 1024` |

@@ -44,10 +44,10 @@ pub(super) fn decode<R: Read + Seek>(
             .checked_mul(height as u64)
             .and_then(|bytes| bytes.checked_mul(chunks as u64))
             .ok_or_else(|| limit("Sample TIFF padded tile work exceeds limit"))?;
-        if padded > super::MAX_NATIVE_DECODED_BYTES as u64 {
+        if padded > crate::limits::sample_import::MAX_NATIVE_TIFF_PADDED_BYTES {
             return Err(limit(&format!(
                 "Sample TIFF padded tile work exceeds {} MiB",
-                super::MAX_NATIVE_DECODED_BYTES as f64 / 1_048_576.0
+                crate::limits::sample_import::MAX_NATIVE_TIFF_PADDED_BYTES / (1024 * 1024)
             )));
         }
     }

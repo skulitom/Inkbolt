@@ -30,7 +30,7 @@ pub enum Policy {
 pub use crate::limits::sample_import::MAX_NATIVE_DECODED_BYTES;
 fn decoder_limit(max_pixels: usize) -> usize {
     if max_pixels > MAX_STORED_PIXELS {
-        MAX_NATIVE_DECODED_BYTES
+        crate::limits::sample_import::MAX_NATIVE_CODEC_BYTES
     } else {
         crate::limits::sample_import::MAX_INLINE_DECODER_BYTES
     }
@@ -137,7 +137,7 @@ fn png<R: Read + Seek>(
     let native_size = width as usize * height as usize * channels.count() * depth.bytes();
     if native_size > MAX_NATIVE_DECODED_BYTES {
         return Err(limit(&format!(
-            "Native image channels exceed the {} MiB decoded byte budget",
+            "Native image channels exceed the {} MiB private pixel extent budget",
             MAX_NATIVE_DECODED_BYTES / (1024 * 1024)
         )));
     }
@@ -339,7 +339,7 @@ fn tiff<R: Read + Seek>(
     let unit = depth.bytes();
     if count * channels.count() * unit > MAX_NATIVE_DECODED_BYTES {
         return Err(limit(&format!(
-            "Native image channels exceed the {} MiB decoded byte budget",
+            "Native image channels exceed the {} MiB private pixel extent budget",
             MAX_NATIVE_DECODED_BYTES / (1024 * 1024)
         )));
     }

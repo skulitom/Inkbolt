@@ -118,6 +118,8 @@ BINDINGS = {
     'image_tracing/unit_edges': 'tracing.MAX_EDGES',
     'meshes/max_contraction': 'meshes.MAX_CONTRACTION',
     'native_sample_store_library/import/max_decoded_bytes': 'sample_import.MAX_NATIVE_DECODED_BYTES',
+    'native_sample_store_library/import/max_codec_allocation_bytes': 'sample_import.MAX_NATIVE_CODEC_BYTES',
+    'native_sample_store_library/import/max_tiff_padded_tile_bytes': 'sample_import.MAX_NATIVE_TIFF_PADDED_BYTES',
     'native_sample_store_library/private_import_staging/max_bytes': 'sample_import.MAX_PRIVATE_STAGING_BYTES',
     'native_sample_store_library/private_import_staging/input_buffer_bytes': 'sample_import.INPUT_BUFFER_BYTES',
     'native_sample_store_library/private_import_staging/maximum_name_attempts': 'sample_import.MAX_SCRATCH_ATTEMPTS',

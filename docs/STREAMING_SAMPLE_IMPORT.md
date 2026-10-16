@@ -3,8 +3,10 @@
 This is the W4.2 implementation contract under [FIX_PLAN.md](../FIX_PLAN.md).
 Native imports capture encoded input and assemble native pixels in private
 seekable storage, with bounded PNG framing/metadata reads. Source/pixel staging
-passed full Windows/Linux acceptance within existing ceilings; the complete
-streaming milestone and larger-workload target remain open.
+passed full Windows/Linux acceptance within their original ceilings. Separate
+native extent and codec admission passed fresh full Windows/Linux acceptance,
+including independent larger-image checks and retained memory measurements. The
+complete streaming milestone and larger-workload target remain open.
 
 Fresh full Windows/Linux acceptance includes process termination, shared capacity,
 exact native imports, publication and history checks. The retained memory
@@ -54,10 +56,12 @@ and [Rust file options](https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOp
 No claim is made about power loss, hostile filesystem replacement or filesystem
 implementations that do not provide the required semantics.
 
-Initially, one import may reserve at most 96 MiB of aggregate logical private
-staging bytes, with 64 KiB copy/scan buffers. Encoded input retains its 32 MiB
-limit and native decoded work retains its 64 MiB limit until the coordinated W4
-scale change is measured. File growth must be checked before writing; failed
+One import may reserve at most 288 MiB of aggregate logical private staging
+bytes, with 64 KiB copy/scan buffers. Encoded input retains its 32 MiB limit;
+the private native extent admits up to 256 MiB. The 16,777,216-pixel bound is
+unchanged, including its existing tile-count and dimension restrictions. This
+allows all native depths within that pixel bound when source codec chunks fit
+their independent budgets. File growth must be checked before writing; failed
 writes must not release accounting for bytes the file may still contain. This
 is an operation budget, distinct from resident memory, filesystem free space
 and the persistent native-store budget. Concurrent live operations have separate
@@ -78,11 +82,16 @@ API remains pure and continues to retain its pending blocks in memory; private
 files belong only to the importer. Existing decode-storage receipt labels remain
 unchanged, including `chunk_bands_to_native_blocks` for TIFF.
 
-The source, native extent and total staging limits remain 32, 64 and 96 MiB.
-Codec output/intermediate allocations retain their separate 64 MiB bounds, and
-TIFF padded work retains its 64 MiB bound. A single source-defined TIFF chunk can
-still cover a complete image. These limits do not establish a whole-process
-memory ceiling; no previously admitted layout is silently removed.
+Source, native extent and total staging limits are 32, 256 and 288 MiB.
+Codec output/intermediate allocations retain their separate 64 MiB bounds.
+Aggregate native TIFF padded tile work is separately bounded at 256 MiB; inline
+TIFF retains its 64 MiB padded-work limit and 16 MiB codec allocation limits.
+A single source-defined TIFF chunk can still cover a complete image and is
+rejected if its codec allocation exceeds 64 MiB, even when the complete native
+extent would fit on disk. No whole-frame allocation receives the disk allowance.
+These limits do not establish a whole-process memory ceiling; no previously
+admitted layout is silently removed. Encoded-source, canvas, render, output and
+persistent-store limits are unchanged.
 
 Validate the complete decoded content, metadata and document before publishing
 any persistent block or returning a document. Publish through the existing
@@ -111,6 +120,7 @@ No manifest, native block, document, session or receipt format changes are neede
 The first delivery unit is not complete streaming import. The 50 MP RGBA16 /
 512 MiB edit/export workflow, larger ceilings, JPEG, streaming output and
 independent `scale-v2` acceptance remain required under W4.
-Private pixel staging and one-chunk TIFF retention are now accepted within the
-existing limits. Replacing the legacy whole-image ceiling with coordinated
-codec/staging admission remains part of the larger-workload milestone.
+Private pixel staging and one-chunk TIFF retention are accepted within their
+original limits. Separate codec/staging admission passed larger-fixture
+measurement and full platform acceptance within the unchanged canvas ceiling. Coordinated 8192-square canvases,
+larger encoded inputs/outputs and independent scale acceptance remain required.

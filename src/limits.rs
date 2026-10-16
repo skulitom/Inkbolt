@@ -1518,17 +1518,21 @@ pub mod retouch {
 /// Limits for `src/sample_import.rs`.
 pub mod sample_import {
     /// Aggregate logical private staging bytes reserved by one native import.
-    pub const MAX_PRIVATE_STAGING_BYTES: u64 = 96 * 1024 * 1024;
+    pub const MAX_PRIVATE_STAGING_BYTES: u64 = 288 * 1024 * 1024;
     /// Reusable encoded-input copy and framing/CRC scan buffer.
     pub const INPUT_BUFFER_BYTES: usize = 64 * 1024;
     /// Exclusive scratch-name reservation attempts; existing files are preserved.
     pub const MAX_SCRATCH_ATTEMPTS: usize = 64;
     /// Scratch allocation ceiling for decoders producing inline samples.
     pub const MAX_INLINE_DECODER_BYTES: usize = 16 * 1024 * 1024;
+    /// Per-codec output/intermediate allocation ceiling for native imports.
+    pub const MAX_NATIVE_CODEC_BYTES: usize = 64 * 1024 * 1024;
     /// Aggregate decoded padded TIFF tile work, separate from native storage.
     pub const MAX_TIFF_PADDED_BYTES: u64 = 64 * 1024 * 1024;
-    /// Max native decoded bytes (sample import).
-    pub const MAX_NATIVE_DECODED_BYTES: usize = 64 * 1024 * 1024;
+    /// Aggregate native TIFF padded tile work, independent of one codec chunk.
+    pub const MAX_NATIVE_TIFF_PADDED_BYTES: u64 = 256 * 1024 * 1024;
+    /// Native pixel extent in private storage; never a resident-frame allowance.
+    pub const MAX_NATIVE_DECODED_BYTES: usize = 256 * 1024 * 1024;
 }
 
 /// Limits for `src/sample_profiles.rs`.

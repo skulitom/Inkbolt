@@ -82,13 +82,13 @@ or missing pixel coverage and observe cancellation during actual codec input.
 
 ## Document and agent contract
 
-Opt in with `sample.import` and `"storage":{"store_root":"C:/absolute/native-store"}`. Under `--workspace`, `"storage":{}` selects `.inkbolt/assets`. Omitting `storage` retains the existing inline import. The source limit stays 32 MiB; native import also caps decoded native channels at 64 MiB and uses 64 MiB decoder allocation limits. These are separate bounds, not a whole-process peak-memory guarantee.
+Opt in with `sample.import` and `"storage":{"store_root":"C:/absolute/native-store"}`. Under `--workspace`, `"storage":{}` selects `.inkbolt/assets`. Omitting `storage` retains the existing inline import. The source limit stays 32 MiB; native import stages up to 256 MiB of native channels on disk while retaining separate 64 MiB decoder allocation limits. The existing 16,777,216-pixel ceiling is unchanged. See [import admission and acceptance](STREAMING_SAMPLE_IMPORT.md) for the separate staging/work budgets. These bounds are not a whole-process peak-memory guarantee.
 
 Native PNG/TIFF imports capture the encoded source into a private seekable file
 using 64 KiB buffers. Decode, metadata and source hashes use that same snapshot.
 Scratch payloads live outside document resources and are released on handle close
-or process exit. The operation's private staging budget is 96 MiB; existing source,
-codec and pixel limits are unchanged. See [bounded import](STREAMING_SAMPLE_IMPORT.md).
+or process exit. The operation's private staging budget is 288 MiB; encoded-source,
+codec and canvas-pixel limits are unchanged. See [bounded import](STREAMING_SAMPLE_IMPORT.md).
 
 Noninterlaced PNG normalizes byte order, expanded channels and opaque missing
 alpha one row at a time into private pixel storage. Its
@@ -111,8 +111,8 @@ returned. Byte order, transparency and missing alpha share ordinary row
 normalization. Cancellation is checked before and after each codec row and during
 block finalization. Encoded input and completed pixels remain in private files;
 codec buffers, a normalized row, an assembly row and the coverage bitmap remain
-resident during decoding. This is not constant-memory decoding and does not
-lower or waive any existing byte limit.
+resident during decoding. This is not constant-memory decoding; codec allocations
+and private disk extent have independent bounds.
 
 Native TIFF retains its `normalization.decode_storage:chunk_bands_to_native_blocks`
 receipt for compatibility. Preparation now retains one decoded source chunk at a
@@ -122,7 +122,8 @@ padding is excluded from native samples. Integer and binary32 bits retain their
 precision, and missing alpha becomes opaque. Cancellation is checked around each
 chunk read and row segment. A codec operation remains bounded and synchronous.
 A source-defined chunk can cover the complete image; the 64 MiB codec allocation
-and padded-work limits remain. This is not a constant-memory import. See
+limit remains; aggregate native padded work is bounded at 256 MiB. This is not a
+constant-memory import. See
 [bounded import](STREAMING_SAMPLE_IMPORT.md) for private staging and acceptance.
 
 Raster content `{"type":"stored_samples","grid":{...}}` holds a storage version, `base` (the manifest), optional `profile`, and `sampling`. New stored imports use version 2 with the [block-edit contract](NATIVE_COPY_ON_WRITE.md). Missing `storage_version` means legacy version 1, which also admits `patches`. Each legacy patch contains a native `region` and exact little-endian `data_hex`. Patches apply in order. Legacy `sample_replace` verifies every base dependency, preserves all outside samples, and appends a patch only when native values change. It records before/after native manifest identities and `files_written:false`. At most 256 patches and 65,536 aggregate patch pixels are retained in version 1; cumulative touched-block work is capped at 16,777,216 pixels. Version 2 retains only the current manifest after committing, with separate pending-block budgets. Session history remains bounded in either mode; explicit continuation preserves earlier history.

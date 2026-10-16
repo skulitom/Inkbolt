@@ -128,7 +128,7 @@ class NativePngPassTests(unittest.TestCase):
         valid = encode(w,h,8,6,values)
         bad_metadata = valid[:-12]+chunk(b'iTXt',b'Inkbolt Metadata'+bytes(5)+b'{bad')+valid[-12:]
         oversized = (b'\x89PNG\r\n\x1a\n'
-                     + chunk(b'IHDR',struct.pack('>IIBBBBB',3072,3072,16,6,0,0,1))
+                     + chunk(b'IHDR',struct.pack('>IIBBBBB',4096,4097,16,6,0,0,1))
                      + chunk(b'sRGB',b'\0')+chunk(b'IDAT',zlib.compress(b''))+chunk(b'IEND',b''))
         cases = [(encode(w,h,8,6,values,fault=f),{},'INVALID_IMAGE')
                  for f in ('filter','missing','checksum')]
