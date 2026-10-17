@@ -20,6 +20,9 @@ particular AI model is required.
   and local image storage that preserves earlier revisions while reusing
   unchanged data.
 - **Revise artwork** with targeted edits, layers, masks and image adjustments.
+- **Repair images** with patch placement, region fills, content-sensitive moves
+  and guided edge correction, including local edits on stored high-precision
+  images.
 - **Review and continue** using previews, saved sessions, undo/redo and revision
   comparisons.
 - **Check exports before writing files** with preflight results that report
@@ -40,9 +43,9 @@ Prebuilt archives are available for Windows x64, Linux x64 and macOS Apple
 silicon, with a desktop extension bundle for Windows.
 
 This README describes the development branch. Build from `main` for newer native
-JPEG import, larger native image workflows and lower-memory PNG/JPEG/TIFF file
-exports. These improvements are not included in v0.82.0; current image-size and
-output limits still apply. See the
+JPEG import, larger image workflows, repair on stored high-precision images and
+lower-memory PNG/JPEG/TIFF file exports. These improvements are not included in
+v0.82.0; current image-size and output limits still apply. See the
 [release notes](https://github.com/skulitom/Inkbolt/releases) for each download's
 included features.
 
@@ -70,6 +73,7 @@ images and exporting assets.
 | [SVG import](docs/SVG_IMPORT.md) and [image import](docs/SAMPLES.md#import-without-reducing-depth) | Supported inputs, preservation and conversion limits |
 | [Image export](docs/STREAMING_IMAGE_OUTPUT.md) | PNG/JPEG/TIFF file output, preflight and memory bounds |
 | [Large-image workflows](docs/SCALE_ADMISSION.md) | Verified image sizes, local edits and remaining workflow limits |
+| [Image repair](docs/NATIVE_REPAIR.md) | Patch, fill, move and correction tools, supported precision and local edit limits |
 | [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
 
@@ -78,8 +82,9 @@ images and exporting assets.
 Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
 receipts have Windows, Linux and macOS verification; background export jobs are
 currently Windows-only. Large-image import, local brush and repair edits, and
-export have been verified. Native masks, broader large-image workflows, format
-support and agent usability remain active work.
+export have Windows and Linux verification within their documented limits.
+Block-based masks for large images, broader image workflows, format support and
+agent usability remain active work.
 See the [large-image workflows](docs/SCALE_ADMISSION.md) and
 [resource limits](docs/LIMITS.md) for current bounds.
 
