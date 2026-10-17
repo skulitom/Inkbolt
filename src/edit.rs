@@ -1018,7 +1018,9 @@ fn apply_one(
         Operation::Repair { id, options } => {
             let i = index(document, id)?;
             unlocked(document, i)?;
-            *details = Some(crate::repair::apply(document, i, options, control)?);
+            *details = Some(crate::repair::apply(
+                document, i, options, asset_root, control,
+            )?);
             Ok((id.clone(), "repair"))
         }
         Operation::Retouch { id, options } => {

@@ -5,6 +5,35 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W4.6: native repair verified; masks and remaining native work open
+
+[Native repair](NATIVE_REPAIR.md) now supports patch placement, exemplar fill,
+content-sensitive move and guided correction on stored and typed samples.
+Bounded local views retain native precision and global coordinates, while
+dependency verification remains complete. Distant moves retain separate source
+and destination windows. Entirely inline responses retain their previous identity.
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 262 | 286 | 2,745 | 13 | 939.453 |
+| Linux / WSL | 262 | 252 | 2,707 | 51 | 589.039 |
+
+All stages ran fresh on matching unchanged inputs, without failures, pending
+checks or reused results. Focused feedback took 63.3 seconds on Windows and
+83.8 seconds on Linux. Fifty-four previous/current complete-response comparisons
+matched. The retained first fixture failures and their correction remain visible.
+
+Independent 50 MP true-RGBA16 runs checked every stored and exported sample for
+all four actions, durable TIFF retries, undo/redo, pinned originals and atomic
+quality rejection. Windows/Linux documents, repair receipts and TIFF hashes
+matched. Peak Windows process commit was 35.828 MiB; Unix memory is unavailable.
+These one-run measurements overlapped full suites and do not establish repeated
+latency gates. Native masks, selection, segmentation regions, larger edit regions
+and the rest of W4/scale-v2 remain open; the registry stays 163/167.
+
+The contract records source and audit identities. v0.82.0 and the latest hosted
+matrix remain at their earlier revisions; this acceptance covers Windows/WSL.
+
 ## W4.4: larger native image admission verified
 
 [Coordinated admission](SCALE_ADMISSION.md) now supports the verified 8192-square
@@ -26,7 +55,7 @@ not establish repeated latency acceptance. Initial brush and focused fixture
 failures, plus interrupted full runs, remain in the retained audit.
 
 The contract records scope, source identity and evidence hashes. Full W4 and
-scale-v2, native repair/mask baking, larger layered files and additional original
+scale-v2, native mask baking, larger layered files and additional original
 checkpoints remain open. The registry stays 163/167 and v0.82.0 is unchanged.
 
 ## W4.5: bounded image output; coordinated scale admission open

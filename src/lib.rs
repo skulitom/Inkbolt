@@ -1324,6 +1324,15 @@ fn capability_report() -> Value {
     capabilities["repair"] = json!({"operation":"repair","actions":["patch","fill","move","edge_correct"],"coordinates":"native_pixel_grids","sources":"explicit_frozen_inline_pixels","patch_search":"exhaustive_integer_translation;context_rms_then_requested_distance_then_row_major","fill_search":"exhaustive_complete_valid_donor_patches;source_row_major_ties","fill_priority":"most_known_context_cells_then_target_row_major","fill_patch_radius":[1,limits::repair::MAX_FILL_PATCH_RADIUS],"self_donors":"exclude_entire_positive_domain","move":"synthesize_source_then_copy_frozen_original_to_integer_offset","edge_correction":"guided_per_channel_weighted_median","guide_radius":[1,limits::repair::MAX_GUIDE_RADIUS],"quality":["required_context_rms","required_final_change_rms","minimum_effective_guide_support","optional_final_boundary_rms"],"quality_failure":"atomic_REPAIR_QUALITY","maximum_patches":repair::MAX_PATCHES,"work":repair::MAX_WORK,"automatic_semantic_reconstruction":false});
     capabilities["repair"].as_object_mut().unwrap().extend(
         json!({
+            "sources": "explicit_frozen_raster_samples_or_stored_samples",
+            "native_depths": ["u8", "u16", "f32"],
+            "native_channels": ["rgba", "gray_alpha"],
+            "native_encoding": "encoded_srgb;explicit_conversion_required_for_linear_or_profiled_sources",
+            "native_region_pixels": sample_store::MAX_REGION_PIXELS,
+            "native_memory_bytes": limits::repair::MAX_MEMORY_BYTES,
+            "native_source_preparation_work": limits::native_pixels::MAX_PREPARATION_WORK,
+            "native_windows": "selected_domain_and_halo;disjoint_move_destination;bounded_explicit_donor_region_or_admitted_complete_source",
+            "native_quantization": "one_final_target_depth_encoding;outside_domain_exact",
             "patch_search_radius": [0, limits::repair::MAX_SEARCH_RADIUS],
             "patch_context_radius": [1, limits::repair::MAX_CONTEXT_RADIUS],
             "patch_source_origin": [0, model::MAX_COORDINATE],

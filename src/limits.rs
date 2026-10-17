@@ -1463,6 +1463,12 @@ pub mod render {
 
 /// Limits for `src/repair.rs`.
 pub mod repair {
+    /// Simultaneous local repair fields, native preparation and replacement blocks.
+    pub const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
+    /// Conservative allowance per retained target or donor cell, including search fields.
+    pub const WORKING_BYTES_PER_PIXEL: u64 = 384;
+    /// Cache, receipt and temporary preparation allowance independent of image extent.
+    pub const FIXED_WORKING_BYTES: u64 = 32 * 1024 * 1024;
     /// Maximum exemplar-fill patch radius, independent of patch placement context.
     pub const MAX_FILL_PATCH_RADIUS: u32 = 4;
     /// Minimum confidence weight for newly synthesized context samples.

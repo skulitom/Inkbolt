@@ -1,5 +1,13 @@
 # Architecture
 
+Native repair uses bounded typed views with sorted global cell addresses. The
+shared algorithms retain their existing ordering and quality gates; disjoint
+move destinations do not allocate the gap between windows. Full dependency
+verification remains separate from local sample loading. Changed cells form
+block-local replacements against one prepared source, preserving private review
+and durable publication boundaries. See [native repair](NATIVE_REPAIR.md) for
+the contract and acceptance status.
+
 Explicit native-layer migration prepares block-mode snapshots with shared
 immutable pending buffers. Pure review retains those buffers; durable state
 contains only the current manifests. CLI/MCP edit and session commit publish

@@ -101,8 +101,10 @@ Windows figures use lifetime process commit peaks from the owned process handle.
 Linux memory remains explicitly unavailable. The original scale-v1 and B10
 budgets are unchanged. Full scale-v2 still requires the complete 50 MP native
 brush/repair/mask/history workflow, larger layered-file coverage, repeated
-workload gates and independently verified Unix memory. Native automatic repair
-and mask baking remain unsupported; no whole-W4 completion is claimed.
+workload gates and independently verified Unix memory. The subsequent
+[native repair contract](NATIVE_REPAIR.md) has separate full Windows/Linux
+acceptance and 50 MP evidence for all four repair actions. Native mask baking
+remains unsupported; no whole-W4 completion is claimed.
 
 Frozen full-suite input fingerprint:
 `7d9dda670159acf7caea6470674fce5b2ef6f657677f60ba56fc335f8ced5e83`.

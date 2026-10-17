@@ -555,15 +555,18 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `render_tiled.MAX_WORK` | `u64` | 536870912 | `536_870_912` |
 | `render_traversal.NEIGHBORHOOD_UNITS` | `u32` | 256 | `256` |
 | `repair.DEFAULT_SYNTHESIZED_WEIGHT` | `f64` | 0.5 | `0.5` |
+| `repair.FIXED_WORKING_BYTES` | `u64` | 33554432 | `32 * 1024 * 1024` |
 | `repair.MAX_CONTEXT_RADIUS` | `u32` | 4 | `4` |
 | `repair.MAX_EFFECTIVE_SAMPLES` | `u32` | 1089 | `(2 * MAX_GUIDE_RADIUS + 1) * (2 * MAX_GUIDE_RADIUS + 1)` |
 | `repair.MAX_FILL_PATCH_RADIUS` | `u32` | 4 | `4` |
 | `repair.MAX_GUIDE_RADIUS` | `u32` | 16 | `16` |
+| `repair.MAX_MEMORY_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
 | `repair.MAX_PATCHES` | `usize` | 4096 | `4096` |
 | `repair.MAX_SEARCH_RADIUS` | `u32` | 32 | `32` |
 | `repair.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
 | `repair.MIN_RANGE_SIGMA` | `f64` | 0.0001 | `0.0001` |
 | `repair.MIN_SYNTHESIZED_WEIGHT` | `f64` | 0.01 | `0.01` |
+| `repair.WORKING_BYTES_PER_PIXEL` | `u64` | 384 | `384` |
 | `repeats.MAX_COPIES` | `usize` | 128 | `128` |
 | `repeats.MAX_RADIAL_ANGLE_DEGREES` | `u32` | 360 | `360` |
 | `repeats.MIN_RADIUS` | `f64` | 0.001 | `0.001` |

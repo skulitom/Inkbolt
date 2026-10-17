@@ -228,19 +228,32 @@ impl<'a> Pixels<'a> {
         bytes: &[u8],
         work: &mut impl Budget,
     ) -> Result<(Content, String), Error> {
+        self.replace_regions(content, &[(region, bytes)], work)
+    }
+
+    /// Apply disjoint local replacements to one prepared source. This keeps a
+    /// distant move local without re-preparing or rebuilding the complete grid.
+    pub fn replace_regions(
+        &self,
+        content: &Content,
+        regions: &[(Region, &[u8])],
+        work: &mut impl Budget,
+    ) -> Result<(Content, String), Error> {
         let mut content = content.clone();
         let identity = match &self.data {
             Data::Inline(original) => {
                 let stride = self.stride();
                 let mut output = original.clone();
-                for y in 0..region.height as usize {
-                    work.control().check()?;
-                    let at = ((region.y as usize + y) * self.spec.width as usize
-                        + region.x as usize)
-                        * stride;
-                    let start = y * region.width as usize * stride;
-                    let len = region.width as usize * stride;
-                    output[at..at + len].copy_from_slice(&bytes[start..start + len]);
+                for &(region, bytes) in regions {
+                    for y in 0..region.height as usize {
+                        work.control().check()?;
+                        let at = ((region.y as usize + y) * self.spec.width as usize
+                            + region.x as usize)
+                            * stride;
+                        let start = y * region.width as usize * stride;
+                        let len = region.width as usize * stride;
+                        output[at..at + len].copy_from_slice(&bytes[start..start + len]);
+                    }
                 }
                 match &mut content {
                     Content::Raster { rgba_hex, .. } => {
@@ -261,23 +274,27 @@ impl<'a> Pixels<'a> {
                 let Content::StoredSamples { grid } = &mut content else {
                     unreachable!()
                 };
-                // Replacement visits complete intersecting blocks, even when
-                // their source pixels were already read through the local cache.
-                let columns = (region.x + region.width).div_ceil(TILE_EDGE) - region.x / TILE_EDGE;
-                let rows = (region.y + region.height).div_ceil(TILE_EDGE) - region.y / TILE_EDGE;
-                work.charge((columns * rows * TILE_EDGE * TILE_EDGE) as usize)?;
-                let after = before.replace(self.root, region, bytes, work.control())?;
-                let identity = after.manifest().sha256.clone();
-                if before.manifest().sha256 != after.manifest().sha256 {
-                    grid.retain_replacement(
-                        after,
-                        crate::stored_samples::Patch {
-                            region,
-                            data_hex: render::hex(bytes),
-                        },
-                    )?;
+                let mut current = before.clone();
+                for &(region, bytes) in regions {
+                    // Charge complete intersecting blocks, including cached ones.
+                    let columns =
+                        (region.x + region.width).div_ceil(TILE_EDGE) - region.x / TILE_EDGE;
+                    let rows =
+                        (region.y + region.height).div_ceil(TILE_EDGE) - region.y / TILE_EDGE;
+                    work.charge((columns * rows * TILE_EDGE * TILE_EDGE) as usize)?;
+                    let after = current.replace(self.root, region, bytes, work.control())?;
+                    if current.manifest().sha256 != after.manifest().sha256 {
+                        grid.retain_replacement(
+                            after.clone(),
+                            crate::stored_samples::Patch {
+                                region,
+                                data_hex: render::hex(bytes),
+                            },
+                        )?;
+                    }
+                    current = after;
                 }
-                identity
+                current.manifest().sha256.clone()
             }
         };
         Ok((content, identity))

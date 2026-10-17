@@ -33,6 +33,14 @@ memory metric remains unavailable. The separate target-image measurements ran
 on Windows and Linux; the hosted macOS suite does not establish those memory or
 target-size measurements on macOS.
 
+The subsequent [native repair contract](NATIVE_REPAIR.md) passed all 262 fresh
+stages on both Windows and Linux, with matching unchanged inputs and independent
+50 MP operation/export/history evidence. Windows ran 286 Rust and 2,745 Python
+tests (13 explicit skips); Linux ran 252 Rust and 2,707 Python tests (51 skips).
+The contract records timings, source identity and retained evidence. This local
+milestone does not extend the hosted macOS matrix above; Unix jobs and memory
+verification remain open.
+
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See
 [release acceptance](DEVELOPMENT_STATUS.md#w7w8-v0820-published-and-downloaded-packages-verified).

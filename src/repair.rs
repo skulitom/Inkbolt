@@ -4,6 +4,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use std::path::Path;
+
+use crate::native_pixels as typed;
+mod native;
 
 use crate::limits::repair as bounds;
 pub use crate::limits::repair::MAX_PATCHES;
@@ -80,6 +84,7 @@ pub struct Options {
 }
 struct Work<'a> {
     count: u64,
+    preparation: typed::Preparation,
     control: &'a Control,
 }
 impl Work<'_> {
@@ -91,14 +96,29 @@ impl Work<'_> {
         self.control.check()
     }
 }
+impl typed::Budget for Work<'_> {
+    fn charge(&mut self, pixels: usize) -> Result<(), Error> {
+        self.add(pixels)
+    }
+    fn preparation(&mut self) -> &mut typed::Preparation {
+        &mut self.preparation
+    }
+    fn control(&self) -> &Control {
+        self.control
+    }
+}
 #[derive(Clone)]
-struct Grid {
+struct Grid<'a> {
     w: usize,
     h: usize,
     bytes: Vec<u8>,
     pixels: Vec<[f64; 4]>,
+    // Sorted global row-major cell addresses for a bounded, possibly disjoint view.
+    locations: Option<Vec<usize>>,
+    reader: Option<typed::Pixels<'a>>,
+    identity: String,
 }
-impl Grid {
+impl Grid<'_> {
     fn read(document: &Document, id: &str) -> Result<Self, Error> {
         let i = scene::index(document, id)?;
         crate::pixel_warps::reject_native(&document.items[i])?;
@@ -119,19 +139,43 @@ impl Grid {
         Ok(Self {
             w: *width as usize,
             h: *height as usize,
+            identity: assets::identity(*width, *height, &bytes),
             bytes,
             pixels,
+            locations: None,
+            reader: None,
         })
     }
     fn hash(&self) -> String {
-        assets::identity(self.w as u32, self.h as u32, &self.bytes)
+        self.identity.clone()
+    }
+    fn xy(&self, i: usize) -> [usize; 2] {
+        let i = self.locations.as_ref().map_or(i, |locations| locations[i]);
+        [i % self.w, i / self.w]
     }
     fn at(&self, x: i64, y: i64) -> Option<usize> {
         if x >= 0 && y >= 0 && x < self.w as i64 && y < self.h as i64 {
-            Some(y as usize * self.w + x as usize)
+            let i = y as usize * self.w + x as usize;
+            self.locations
+                .as_ref()
+                .map_or(Some(i), |v| v.binary_search(&i).ok())
         } else {
             None
         }
+    }
+    fn stride(&self) -> usize {
+        self.reader.as_ref().map_or(4, typed::Pixels::stride)
+    }
+    fn encode(&self, value: [f64; 4]) -> Result<Vec<u8>, Error> {
+        match &self.reader {
+            Some(reader) => Ok(typed::encode(value, reader.spec)?[..self.stride()].to_vec()),
+            None => Ok(encoded(value).to_vec()),
+        }
+    }
+    fn decode(&self, value: &[u8]) -> [f64; 4] {
+        self.reader
+            .as_ref()
+            .map_or_else(|| pm(value), |p| typed::premultiplied(value, p.spec))
     }
 }
 fn pm(c: &[u8]) -> [f64; 4] {
@@ -155,11 +199,11 @@ fn encoded(c: [f64; 4]) -> [u8; 4] {
 fn error2(a: [f64; 4], b: [f64; 4]) -> f64 {
     (0..4).map(|k| (a[k] - b[k]).powi(2)).sum::<f64>() / 4.0
 }
-fn region(r: &retouch::Region, w: usize, h: usize) -> Result<Vec<f64>, Error> {
+fn region(r: &retouch::Region, grid: &Grid) -> Result<Vec<f64>, Error> {
     if r.width == 0
         || r.height == 0
-        || r.x as u64 + r.width as u64 > w as u64
-        || r.y as u64 + r.height as u64 > h as u64
+        || r.x as u64 + r.width as u64 > grid.w as u64
+        || r.y as u64 + r.height as u64 > grid.h as u64
     {
         return Err(invalid(
             "Repair region must be nonempty and inside its native grid",
@@ -175,18 +219,18 @@ fn region(r: &retouch::Region, w: usize, h: usize) -> Result<Vec<f64>, Error> {
     } else {
         vec![255; r.width as usize * r.height as usize]
     };
-    let mut out = vec![0.0; w * h];
+    let mut out = vec![0.0; grid.pixels.len()];
     for y in 0..r.height as usize {
         for x in 0..r.width as usize {
-            out[(y + r.y as usize) * w + x + r.x as usize] =
-                mask[y * r.width as usize + x] as f64 / 255.0;
+            if let Some(i) = grid.at(x as i64 + r.x as i64, y as i64 + r.y as i64) {
+                out[i] = mask[y * r.width as usize + x] as f64 / 255.0;
+            }
         }
     }
     Ok(out)
 }
 fn window(g: &Grid, i: usize, r: u32) -> Vec<(usize, i64, i64)> {
-    let x = (i % g.w) as i64;
-    let y = (i / g.w) as i64;
+    let [x, y] = g.xy(i).map(|v| v as i64);
     let r = r as i64;
     let mut out = Vec::new();
     for dy in -r..=r {
@@ -198,14 +242,13 @@ fn window(g: &Grid, i: usize, r: u32) -> Vec<(usize, i64, i64)> {
     }
     out
 }
-fn extent(ids: &[usize], w: usize) -> Option<[usize; 4]> {
+fn extent(ids: &[usize], grid: &Grid) -> Option<[usize; 4]> {
     if ids.is_empty() {
         return None;
     }
     let mut b = [usize::MAX, usize::MAX, 0, 0];
     for &i in ids {
-        let x = i % w;
-        let y = i / w;
+        let [x, y] = grid.xy(i);
         b = [b[0].min(x), b[1].min(y), b[2].max(x + 1), b[3].max(y + 1)];
     }
     Some(b)
@@ -215,8 +258,7 @@ fn boundary(g: &Grid, weights: &[f64], pixels: &[[f64; 4]]) -> (usize, Option<f6
     let mut sum = 0.0;
     for (i, &a) in weights.iter().enumerate() {
         if a > 0.0 {
-            let x = (i % g.w) as i64;
-            let y = (i / g.w) as i64;
+            let [x, y] = g.xy(i).map(|v| v as i64);
             for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
                 if let Some(j) = g.at(x + dx, y + dy)
                     && weights[j] == 0.0
@@ -264,19 +306,20 @@ fn synthesize(
 ) -> Result<Synthesis, Error> {
     validate_fill(f)?;
     let mut allowed = if let Some(r) = &f.donor_region {
-        region(r, source.w, source.h)?
+        region(r, source)?
     } else {
-        vec![1.0; source.w * source.h]
+        vec![1.0; source.pixels.len()]
     };
     for (i, a) in allowed.iter_mut().enumerate() {
         if *a != 0.0 && *a != 1.0 {
             return Err(invalid("Donor regions require binary0/255 masks"));
         }
-        if same && weights[i] > 0.0 {
+        let [x, y] = source.xy(i).map(|v| v as i64);
+        if same && target.at(x, y).is_some_and(|j| weights[j] > 0.0) {
             *a = 0.0;
         }
     }
-    let n = target.w * target.h;
+    let n = target.pixels.len();
     let mut pending: Vec<_> = weights.iter().map(|&v| v > 0.0).collect();
     let original_pending = pending.clone();
     let mut remaining = pending.iter().filter(|&&v| v).count();
@@ -285,13 +328,18 @@ fn synthesize(
     let side = 2 * r + 1;
     let mut candidates = Vec::new();
     if source.w >= side && source.h >= side {
-        for y in r..source.h - r {
-            for x in r..source.w - r {
+        for i in 0..source.pixels.len() {
+            let [x, y] = source.xy(i);
+            if x >= r && y >= r && x < source.w - r && y < source.h - r {
                 work.add(side * side)?;
-                if (y - r..=y + r)
-                    .all(|yy| (x - r..=x + r).all(|xx| allowed[yy * source.w + xx] > 0.0))
-                {
-                    candidates.push(y * source.w + x);
+                if (y - r..=y + r).all(|yy| {
+                    (x - r..=x + r).all(|xx| {
+                        source
+                            .at(xx as i64, yy as i64)
+                            .is_some_and(|j| allowed[j] > 0.0)
+                    })
+                }) {
+                    candidates.push(i);
                 }
             }
         }
@@ -340,8 +388,7 @@ fn synthesize(
             .sum();
         for &candidate in &candidates {
             work.add(context.len())?;
-            let x = (candidate % source.w) as i64;
-            let y = (candidate / source.w) as i64;
+            let [x, y] = source.xy(candidate).map(|v| v as i64);
             let mut score = 0.0;
             for &(j, dx, dy) in &context {
                 let donor = source.at(x + dx, y + dy).expect("complete donor patch");
@@ -365,8 +412,7 @@ fn synthesize(
             return Err(quality("Best donor patch exceeds max_context_rms"));
         }
         let mut filled = 0;
-        let sx = (donor % source.w) as i64;
-        let sy = (donor / source.w) as i64;
+        let [sx, sy] = source.xy(donor).map(|v| v as i64);
         for (i, dx, dy) in window(target, center, f.patch_radius) {
             if pending[i] {
                 pixels[i] =
@@ -376,7 +422,7 @@ fn synthesize(
                 filled += 1;
             }
         }
-        decisions.push(json!({"target_center":[center%target.w,center/target.w],"source_center":[donor%source.w,donor/source.w],"context_cells":context.len(),"context_weight":total,"context_rms":rms,"filled_pixels":filled}));
+        decisions.push(json!({"target_center":target.xy(center),"source_center":source.xy(donor),"context_cells":context.len(),"context_weight":total,"context_rms":rms,"filled_pixels":filled}));
     }
     work.add(n)?;
     Ok(Synthesis {
@@ -384,33 +430,44 @@ fn synthesize(
         receipt: json!({"source_id":f.source_id,"source_sha256":source.hash(),"candidate_patches":candidates.len(),"maximum_context_rms":worst,"patches":decisions,"donor_policy":"frozen_complete_binary_valid_patches;self_source_excludes_entire_positive_domain","priority":"most_known_context_cells_then_target_row_major","tie":"first_source_row_major_exact_minimum","synthesized_weight":f.synthesized_weight}),
     })
 }
-fn write_result(
+fn write_result<'a>(
     document: &mut Document,
     index: usize,
-    target: &Grid,
+    target: &Grid<'a>,
     values: &[[f64; 4]],
-) -> Vec<usize> {
+    work: &mut Work<'_>,
+) -> Result<(Vec<usize>, Grid<'a>), Error> {
     let mut bytes = target.bytes.clone();
     let mut changed = Vec::new();
+    let stride = target.stride();
+    let mut output = target.clone();
     for (i, &value) in values.iter().enumerate() {
         if value != target.pixels[i] {
-            let out = encoded(value);
-            if out != target.bytes[i * 4..i * 4 + 4] {
-                bytes[i * 4..i * 4 + 4].copy_from_slice(&out);
+            let out = target.encode(value)?;
+            if out != target.bytes[i * stride..i * stride + stride] {
+                bytes[i * stride..i * stride + stride].copy_from_slice(&out);
+                output.pixels[i] = target.decode(&out);
                 changed.push(i);
             }
         }
     }
-    let Content::Raster { rgba_hex, .. } = &mut document.items[index].content else {
-        unreachable!()
+    output.identity = if target.reader.is_some() {
+        native::write(document, index, target, &bytes, &changed, work)?
+    } else {
+        let Content::Raster { rgba_hex, .. } = &mut document.items[index].content else {
+            unreachable!()
+        };
+        *rgba_hex = render::hex(&bytes);
+        assets::identity(target.w as u32, target.h as u32, &bytes)
     };
-    *rgba_hex = render::hex(&bytes);
-    changed
+    output.bytes = bytes;
+    Ok((changed, output))
 }
 pub(crate) fn apply(
     document: &mut Document,
     index: usize,
     o: &Options,
+    asset_root: Option<&Path>,
     control: &Control,
 ) -> Result<Value, Error> {
     control.check()?;
@@ -419,9 +476,17 @@ pub(crate) fn apply(
             "Repair opacity and boundary RMS limits require0..1",
         ));
     }
-    let target = Grid::read(document, &document.items[index].id)?;
-    let n = target.w * target.h;
-    let mut weights = region(&o.region, target.w, target.h)?;
+    let mut work = Work {
+        count: 0,
+        preparation: Default::default(),
+        control,
+    };
+    let (target, native_source) = match native::inputs(document, index, o, asset_root, &mut work)? {
+        Some((target, source)) => (target, Some(source)),
+        None => (Grid::read(document, &document.items[index].id)?, None),
+    };
+    let n = target.pixels.len();
+    let mut weights = region(&o.region, &target)?;
     let world = scene::world_transform(document, index)?;
     if o.use_selection {
         let s = document
@@ -430,10 +495,7 @@ pub(crate) fn apply(
             .ok_or_else(|| invalid("use_selection requires an explicit active selection"))?;
         let gray = render::unhex(&s.gray_hex);
         for (i, a) in weights.iter_mut().enumerate() {
-            let p = geometry::map(
-                world,
-                [(i % target.w) as f64 + 0.5, (i / target.w) as f64 + 0.5],
-            );
+            let p = geometry::map(world, target.xy(i).map(|v| v as f64 + 0.5));
             let x = p[0].floor();
             let y = p[1].floor();
             *a *= if x >= 0.0 && y >= 0.0 && x < document.width as f64 && y < document.height as f64
@@ -451,7 +513,6 @@ pub(crate) fn apply(
         .collect();
     let mut affected = weights.clone();
     let mut values = target.pixels.clone();
-    let mut work = Work { count: 0, control };
     work.add(n)?;
     let action_receipt = match &o.action {
         Action::Patch {
@@ -473,7 +534,10 @@ pub(crate) fn apply(
                     bounds::MAX_CONTEXT_RADIUS
                 )));
             }
-            let source = Grid::read(document, source_id)?;
+            let source = match &native_source {
+                Some(source) => source.clone(),
+                None => Grid::read(document, source_id)?,
+            };
             let mut context_flag = vec![false; n];
             for &i in &ids {
                 let cells = window(&target, i, *context_radius);
@@ -505,12 +569,15 @@ pub(crate) fn apply(
                     let tx = sx - o.region.x as i64;
                     let ty = sy - o.region.y as i64;
                     let mapped = |i: usize| {
-                        source.at((i % target.w) as i64 + tx, (i / target.w) as i64 + ty)
+                        let [x, y] = target.xy(i).map(|v| v as i64);
+                        source.at(x + tx, y + ty)
                     };
                     work.add(ids.len() + context.len())?;
                     if !ids.iter().chain(&context).all(|&i| {
                         mapped(i).is_some_and(|j| {
-                            source_id != &document.items[index].id || weights[j] == 0.0
+                            let [x, y] = source.xy(j).map(|v| v as i64);
+                            source_id != &document.items[index].id
+                                || target.at(x, y).is_none_or(|k| weights[k] == 0.0)
                         })
                     }) {
                         continue;
@@ -560,13 +627,26 @@ pub(crate) fn apply(
                 opacity: o.opacity,
                 use_selection: o.use_selection,
             };
-            let details = retouch::apply(document, index, &ro, None, control)?;
-            work.add(details["work"].as_u64().expect("retouch work") as usize)?;
+            let details = retouch::apply(document, index, &ro, asset_root, control)?;
+            if native_source.is_some() {
+                work.add(details["local_work"].as_u64().expect("retouch local work") as usize)?;
+                typed::Budget::prepare(
+                    &mut work,
+                    details["source_preparation_work"]
+                        .as_u64()
+                        .expect("retouch preparation work"),
+                )?;
+            } else {
+                work.add(details["work"].as_u64().expect("retouch work") as usize)?;
+            }
             json!({"source_id":source_id,"source_sha256":source.hash(),"source_origin":chosen,"valid_candidates":valid,"context_cells":context.len(),"context_rms":rms,"retouch":details})
         }
         Action::Fill { fill } | Action::Move { fill, .. } => {
             validate_fill(fill)?;
-            let source = Grid::read(document, &fill.source_id)?;
+            let source = match &native_source {
+                Some(source) => source.clone(),
+                None => Grid::read(document, &fill.source_id)?,
+            };
             let moved = if let Action::Move { offset, .. } = &o.action {
                 Some(*offset)
             } else {
@@ -575,14 +655,10 @@ pub(crate) fn apply(
             let mut destination = Vec::new();
             if let Some([dx, dy]) = moved {
                 for &i in &ids {
-                    let j = target
-                        .at(
-                            (i % target.w) as i64 + dx as i64,
-                            (i / target.w) as i64 + dy as i64,
-                        )
-                        .ok_or_else(|| {
-                            invalid("Move destination extends outside the target native grid")
-                        })?;
+                    let [x, y] = target.xy(i).map(|v| v as i64);
+                    let j = target.at(x + dx as i64, y + dy as i64).ok_or_else(|| {
+                        invalid("Move destination extends outside the target native grid")
+                    })?;
                     destination.push((i, j));
                     affected[j] = affected[j].max(weights[i]);
                 }
@@ -590,9 +666,7 @@ pub(crate) fn apply(
             let same = fill.source_id == document.items[index].id;
             let synthesis = if moved == Some([0, 0]) {
                 if let Some(r) = &fill.donor_region
-                    && region(r, source.w, source.h)?
-                        .iter()
-                        .any(|&v| v != 0.0 && v != 1.0)
+                    && region(r, &source)?.iter().any(|&v| v != 0.0 && v != 1.0)
                 {
                     return Err(invalid("Donor regions require binary0/255 masks"));
                 }
@@ -643,7 +717,10 @@ pub(crate) fn apply(
                     bounds::MAX_EFFECTIVE_SAMPLES
                 )));
             }
-            let guide = Grid::read(document, guide_id)?;
+            let guide = match &native_source {
+                Some(source) => source.clone(),
+                None => Grid::read(document, guide_id)?,
+            };
             if guide.w != target.w || guide.h != target.h {
                 return Err(invalid(
                     "Guide and target native grids must have the same dimensions",
@@ -660,8 +737,12 @@ pub(crate) fn apply(
                 for (j, dx, dy) in cells {
                     let spatial = (*radius as i64 + 1 - dx.abs()) as f64
                         * (*radius as i64 + 1 - dy.abs()) as f64;
+                    let [ix, iy] = target.xy(i).map(|v| v as i64);
+                    let [jx, jy] = target.xy(j).map(|v| v as i64);
+                    let gi = guide.at(ix, iy).expect("prepared guide footprint");
+                    let gj = guide.at(jx, jy).expect("prepared guide footprint");
                     let weight = spatial
-                        * (-error2(guide.pixels[i], guide.pixels[j])
+                        * (-error2(guide.pixels[gi], guide.pixels[gj])
                             / (2.0 * range_sigma * range_sigma))
                             .exp();
                     if weight > 0.0 {
@@ -700,7 +781,7 @@ pub(crate) fn apply(
                 let preview = if values[i] == target.pixels[i] {
                     values[i]
                 } else {
-                    pm(&encoded(values[i]))
+                    target.decode(&target.encode(values[i])?)
                 };
                 let shift = error2(target.pixels[i], preview).sqrt();
                 maximum = maximum.max(shift);
@@ -712,15 +793,28 @@ pub(crate) fn apply(
         }
     };
     work.add(n)?;
-    let changed = if matches!(o.action, Action::Patch { .. }) {
-        let out = Grid::read(document, &document.items[index].id)?;
-        (0..n)
-            .filter(|&i| target.bytes[i * 4..i * 4 + 4] != out.bytes[i * 4..i * 4 + 4])
-            .collect()
+    let (changed, output) = if matches!(o.action, Action::Patch { .. }) {
+        let out = if target.reader.is_some() {
+            native::reload(
+                &document.items[index].content,
+                &target,
+                asset_root,
+                &mut work,
+            )?
+        } else {
+            Grid::read(document, &document.items[index].id)?
+        };
+        let stride = target.stride();
+        let changed: Vec<_> = (0..n)
+            .filter(|&i| {
+                target.bytes[i * stride..i * stride + stride]
+                    != out.bytes[i * stride..i * stride + stride]
+            })
+            .collect();
+        (changed, out)
     } else {
-        write_result(document, index, &target, &values)
+        write_result(document, index, &target, &values, &mut work)?
     };
-    let output = Grid::read(document, &document.items[index].id)?;
     let (edges, after) = boundary(&target, &affected, &output.pixels);
     if o.max_boundary_rms
         .is_some_and(|limit| after.is_some_and(|v| v > limit))
@@ -733,7 +827,26 @@ pub(crate) fn apply(
         "{:x}",
         Sha256::digest(serde_json::to_vec(o).expect("validated repair"))
     );
-    Ok(
-        json!({"algorithm":"inkbolt-region-repair-v1","settings_sha256":settings,"target_before_sha256":target.hash(),"result_sha256":output.hash(),"region_pixels":ids.len(),"region_bounds":extent(&ids,target.w),"changed_pixels":changed.len(),"changed_bounds":extent(&changed,target.w),"boundary_edges":edges,"boundary_rms_before":before,"boundary_rms_after":after,"action":action_receipt,"work":work.count,"coordinates":"native_pixel_grids","quantization":"final_rgba8_once","source_state":"frozen_before_operation","quality_failure":"atomic_rejection_no_candidate_published"}),
-    )
+    let mut receipt = json!({"algorithm":"inkbolt-region-repair-v1","settings_sha256":settings,"target_before_sha256":target.hash(),"result_sha256":output.hash(),"region_pixels":ids.len(),"region_bounds":extent(&ids,&target),"changed_pixels":changed.len(),"changed_bounds":extent(&changed,&target),"boundary_edges":edges,"boundary_rms_before":before,"boundary_rms_after":after,"action":action_receipt,"work":work.count,"coordinates":"native_pixel_grids","quantization":"final_rgba8_once","source_state":"frozen_before_operation","quality_failure":"atomic_rejection_no_candidate_published"});
+    if let Some(reader) = &target.reader {
+        receipt["algorithm"] = json!("inkbolt-native-region-repair-v1");
+        receipt["quantization"] = json!("final_native_depth_once");
+        receipt["target_identity_kind"] = json!(reader.identity_kind);
+        receipt["source_identity_kind"] = json!(
+            native_source
+                .as_ref()
+                .unwrap()
+                .reader
+                .as_ref()
+                .unwrap()
+                .identity_kind
+        );
+        receipt["native_spec"] = json!(reader.spec);
+        receipt["window_pixels"] = json!(n);
+        receipt["source_window_pixels"] = json!(native_source.as_ref().unwrap().pixels.len());
+        receipt["local_work"] = json!(work.count);
+        receipt["source_preparation_work"] = json!(work.preparation.work);
+        receipt["work"] = json!(work.count + work.preparation.work);
+    }
+    Ok(receipt)
 }

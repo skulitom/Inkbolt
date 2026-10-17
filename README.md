@@ -77,9 +77,9 @@ images and exporting assets.
 
 Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
 receipts have Windows, Linux and macOS verification; background export jobs are
-currently Windows-only. Large-image import, local brush edits and export have
-been verified; repair and mask support for these larger images remains in
-development. Broader format support and agent usability also remain active work.
+currently Windows-only. Large-image import, local brush and repair edits, and
+export have been verified. Native masks, broader large-image workflows, format
+support and agent usability remain active work.
 See the [large-image workflows](docs/SCALE_ADMISSION.md) and
 [resource limits](docs/LIMITS.md) for current bounds.
 
