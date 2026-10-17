@@ -31,11 +31,17 @@ const HEADER_BYTES: usize = 20;
 const MAGIC: &[u8; 8] = b"INKTILE1";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 pub(crate) mod admission;
+pub(crate) mod layout;
+pub use layout::Layout;
 pub(crate) mod publication;
 #[cfg(test)]
 mod scatter;
 mod transfer;
-pub use transfer::{PendingBlock, Transfer};
+pub use transfer::{BlockTransfer, PendingBlock};
+pub type Manifest = BlockManifest<Spec>;
+pub type Candidate = BlockCandidate<Spec>;
+pub type Publication = BlockPublication<Spec>;
+pub type Transfer = BlockTransfer<Spec>;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -48,15 +54,7 @@ pub struct Spec {
 }
 impl Spec {
     pub fn validate(&self) -> Result<(), Error> {
-        if !(1..=crate::model::MAX_DIMENSION).contains(&self.width)
-            || !(1..=crate::model::MAX_DIMENSION).contains(&self.height)
-            || self.width as u64 * self.height as u64 > MAX_PIXELS
-            || self.tile_count() > MAX_TILES
-        {
-            return Err(crate::model::limit(
-                "Native sample store dimensions, pixels or tile count exceed the bound",
-            ));
-        }
+        self.validate_dimensions()?;
         if self.encoding == Encoding::LinearSrgb && self.depth != Depth::F32 {
             return Err(Error::new(
                 "UNSUPPORTED_HDR_MODE",
@@ -76,7 +74,7 @@ impl Spec {
         if bytes.len() != region.width as usize * region.height as usize * self.stride() {
             return Err(invalid("Replacement bytes do not match the native region"));
         }
-        validate_samples(bytes, *self)
+        self.validate_samples(bytes)
     }
     pub(crate) fn stride(&self) -> usize {
         self.depth.bytes() * self.channels.count()
@@ -126,11 +124,11 @@ pub struct Region {
     pub height: u32,
 }
 impl Region {
-    fn validate(&self, spec: Spec) -> Result<(), Error> {
+    fn validate(&self, spec: impl Layout) -> Result<(), Error> {
         if self.width == 0
             || self.height == 0
-            || self.x as u64 + self.width as u64 > spec.width as u64
-            || self.y as u64 + self.height as u64 > spec.height as u64
+            || self.x as u64 + self.width as u64 > spec.width() as u64
+            || self.y as u64 + self.height as u64 > spec.height() as u64
         {
             return Err(invalid(
                 "Native sample region must be nonempty and within its grid",
@@ -145,21 +143,41 @@ impl Region {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct Manifest {
+pub struct BlockManifest<S> {
     pub version: u32,
-    pub spec: Spec,
+    pub spec: S,
     /// Fixed row-major tile order. Pixel interpretation profiles remain separate
     /// document metadata and must also bind any decoded/rendered cache key.
     pub tiles: Vec<String>,
     pub sha256: String,
 }
-impl Manifest {
+impl<S: Layout + JsonSchema> JsonSchema for BlockManifest<S> {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        S::MANIFEST_SCHEMA.into()
+    }
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        #[derive(JsonSchema)]
+        #[serde(deny_unknown_fields)]
+        #[allow(dead_code)]
+        struct Definition<S> {
+            version: u32,
+            spec: S,
+            /// Fixed row-major tile order. Pixel interpretation profiles remain separate
+            /// document metadata and must also bind any decoded/rendered cache key.
+            tiles: Vec<String>,
+            sha256: String,
+        }
+        Definition::<S>::json_schema(generator)
+    }
+}
+
+impl<S: Layout> BlockManifest<S> {
     pub(crate) fn identity(&self) -> String {
         let mut hash = Sha256::new();
-        hash.update(b"INKGRID1");
-        hash.update(self.spec.header(self.spec.width, self.spec.height));
+        hash.update(S::GRID_MAGIC);
+        hash.update(self.spec.header(self.spec.width(), self.spec.height()));
         hash.update(TILE_EDGE.to_le_bytes());
         for tile in &self.tiles {
             hash.update(crate::render::unhex(tile));
@@ -190,27 +208,27 @@ impl Manifest {
 /// Only referenced blobs survive a replacement; retained older candidates remain
 /// unchanged. Construction, reads and edits never create directories or files.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Candidate {
-    manifest: Manifest,
+pub struct BlockCandidate<S> {
+    manifest: BlockManifest<S>,
     pending: BTreeMap<String, Arc<[u8]>>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct Publication {
-    pub manifest: Manifest,
+pub struct BlockPublication<S> {
+    pub manifest: BlockManifest<S>,
     pub created_tiles: usize,
     pub existing_tiles: usize,
 }
 
-impl Candidate {
-    pub fn from_manifest(manifest: Manifest) -> Result<Self, Error> {
+impl<S: Layout> BlockCandidate<S> {
+    pub fn from_manifest(manifest: BlockManifest<S>) -> Result<Self, Error> {
         manifest.validate()?;
         Ok(Self {
             manifest,
             pending: BTreeMap::new(),
         })
     }
-    pub fn manifest(&self) -> &Manifest {
+    pub fn manifest(&self) -> &BlockManifest<S> {
         &self.manifest
     }
     pub fn pending_bytes(&self) -> usize {
@@ -223,7 +241,7 @@ impl Candidate {
     /// Input bytes are exact little-endian straight channels, never quantized.
     /// This initial constructor retains at most the validated whole native frame
     /// plus tile headers; it does not claim a streaming image decoder.
-    pub fn from_bytes(spec: Spec, bytes: &[u8], control: &Control) -> Result<Self, Error> {
+    pub fn from_bytes(spec: S, bytes: &[u8], control: &Control) -> Result<Self, Error> {
         control.check()?;
         if bytes.len() != spec.byte_len()? {
             return Err(invalid(
@@ -231,7 +249,7 @@ impl Candidate {
             ));
         }
         let mut candidate = Self {
-            manifest: Manifest {
+            manifest: BlockManifest {
                 version: 1,
                 spec,
                 tiles: Vec::new(),
@@ -244,12 +262,12 @@ impl Candidate {
             let tile = spec.tile(index);
             let mut blob = spec.header(tile.width, tile.height).to_vec();
             for y in tile.y..tile.y + tile.height {
-                let offset = (y as usize * spec.width as usize + tile.x as usize) * spec.stride();
+                let offset = (y as usize * spec.width() as usize + tile.x as usize) * spec.stride();
                 blob.extend_from_slice(
                     &bytes[offset..offset + tile.width as usize * spec.stride()],
                 );
             }
-            validate_samples(&blob[HEADER_BYTES..], spec)?;
+            spec.validate_samples(&blob[HEADER_BYTES..])?;
             let id = assets::sha256(&blob);
             candidate
                 .pending
@@ -267,14 +285,14 @@ impl Candidate {
     /// band is unfinished at once; completed unique blocks remain in memory
     /// until explicit publication. Failure/cancellation writes no files.
     pub fn from_rows(
-        spec: Spec,
+        spec: S,
         control: &Control,
         mut read_row: impl FnMut(u32, &mut [u8]) -> Result<(), Error>,
     ) -> Result<Self, Error> {
         control.check()?;
         spec.validate()?;
         let mut candidate = Self {
-            manifest: Manifest {
+            manifest: BlockManifest {
                 version: 1,
                 spec,
                 tiles: Vec::with_capacity(spec.tile_count()),
@@ -282,7 +300,7 @@ impl Candidate {
             },
             pending: BTreeMap::new(),
         };
-        let mut row = vec![0; spec.width as usize * spec.stride()];
+        let mut row = vec![0; spec.width() as usize * spec.stride()];
         let columns = spec.columns() as usize;
         for first in (0..spec.tile_count()).step_by(columns) {
             control.check()?;
@@ -301,7 +319,7 @@ impl Candidate {
                 control.check()?;
                 read_row(y, &mut row)?;
                 control.check()?;
-                validate_samples(&row, spec)?;
+                spec.validate_samples(&row)?;
                 for (region, blob) in regions.iter().zip(&mut band) {
                     let start = region.x as usize * spec.stride();
                     let end = start + region.width as usize * spec.stride();
@@ -361,7 +379,9 @@ impl Candidate {
     ) -> Result<Vec<u8>, Error> {
         control.check()?;
         check_root(root, control)?;
-        self.manifest.validate()?;
+        // Candidate construction validated this immutable manifest. Rehashing
+        // every reference on each window would make tiled reads quadratic;
+        // loaded external blocks still receive full content verification.
         let spec = self.manifest.spec;
         region.validate(spec)?;
         let mut result = vec![0; region.width as usize * region.height as usize * spec.stride()];
@@ -397,7 +417,9 @@ impl Candidate {
     ) -> Result<Self, Error> {
         control.check()?;
         check_root(root, control)?;
-        self.manifest.validate()?;
+        // Candidate construction validated this immutable manifest. Rehashing
+        // every reference on each window would make tiled reads quadratic;
+        // loaded external blocks still receive full content verification.
         let spec = self.manifest.spec;
         spec.validate_region_bytes(region, bytes)?;
         let mut next = self.clone();
@@ -435,12 +457,12 @@ impl Candidate {
     /// Publish complete immutable blocks, never a mutable document/history state.
     /// A failed/cancelled multi-block publication may retain complete cache files;
     /// retry verifies/deduplicates them. There is no historical request receipt.
-    pub fn publish(&self, root: &Path, control: &Control) -> Result<Publication, Error> {
+    pub fn publish(&self, root: &Path, control: &Control) -> Result<BlockPublication<S>, Error> {
         publication::publish(&self.manifest, &mut &self.pending, root, control)
     }
 }
 
-fn intersecting(spec: Spec, region: Region) -> impl Iterator<Item = usize> {
+fn intersecting(spec: impl Layout, region: Region) -> impl Iterator<Item = usize> {
     let x0 = region.x / TILE_EDGE;
     let x1 = (region.x + region.width - 1) / TILE_EDGE;
     let y0 = region.y / TILE_EDGE;
@@ -475,7 +497,7 @@ fn io_error() -> Error {
         "Unable to access the explicit native sample store",
     )
 }
-fn validate_samples(bytes: &[u8], spec: Spec) -> Result<(), Error> {
+fn validate_image_samples(bytes: &[u8], spec: Spec) -> Result<(), Error> {
     if spec.depth == Depth::F32 {
         let linear = spec.encoding == Encoding::LinearSrgb;
         for (index, data) in bytes.as_chunks::<4>().0.iter().enumerate() {
@@ -493,7 +515,7 @@ fn validate_samples(bytes: &[u8], spec: Spec) -> Result<(), Error> {
     }
     Ok(())
 }
-fn validate_blob(bytes: &[u8], id: &str, spec: Spec, tile: Region) -> Result<(), Error> {
+fn validate_blob(bytes: &[u8], id: &str, spec: impl Layout, tile: Region) -> Result<(), Error> {
     let len = HEADER_BYTES + tile.width as usize * tile.height as usize * spec.stride();
     if bytes.len() != len
         || bytes[..HEADER_BYTES] != spec.header(tile.width, tile.height)
@@ -501,9 +523,14 @@ fn validate_blob(bytes: &[u8], id: &str, spec: Spec, tile: Region) -> Result<(),
     {
         return Err(corrupt());
     }
-    validate_samples(&bytes[HEADER_BYTES..], spec)
+    spec.validate_samples(&bytes[HEADER_BYTES..])
 }
-fn read_blob(root: Option<&Path>, id: &str, spec: Spec, tile: Region) -> Result<Arc<[u8]>, Error> {
+fn read_blob(
+    root: Option<&Path>,
+    id: &str,
+    spec: impl Layout,
+    tile: Region,
+) -> Result<Arc<[u8]>, Error> {
     let root = root.ok_or_else(|| {
         Error::new(
             "SAMPLE_ROOT_REQUIRED",
@@ -550,7 +577,7 @@ fn publish_blob(
     root: &Path,
     id: &str,
     bytes: &[u8],
-    spec: Spec,
+    spec: impl Layout,
     tile: Region,
     control: &Control,
 ) -> Result<bool, Error> {

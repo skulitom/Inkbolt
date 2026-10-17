@@ -11,19 +11,42 @@ pub struct PendingBlock {
 
 /// Pending blocks are unique and strictly sorted by identity. Other manifest
 /// references remain external dependencies; preparation never opens a store.
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct Transfer {
+pub struct BlockTransfer<S> {
     pub version: u32,
-    pub manifest: Manifest,
+    pub manifest: BlockManifest<S>,
     pub pending: Vec<PendingBlock>,
 }
 
-impl Candidate {
+impl<S: Layout + JsonSchema> JsonSchema for BlockTransfer<S> {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        S::TRANSFER_SCHEMA.into()
+    }
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        /// Pending blocks are unique and strictly sorted by identity. Other manifest
+        /// references remain external dependencies; preparation never opens a store.
+        #[derive(JsonSchema)]
+        #[serde(deny_unknown_fields)]
+        #[allow(dead_code)]
+        struct Definition<S: Layout> {
+            version: u32,
+            manifest: BlockManifest<S>,
+            pending: Vec<PendingBlock>,
+        }
+        Definition::<S>::json_schema(generator)
+    }
+}
+
+impl<S: Layout> BlockCandidate<S> {
     /// Encode private pending blocks without publishing them. The explicit
     /// budget counts decoded block bytes including headers, not JSON bytes.
     /// Callers must also bound serialization and total live memory (hex is 2x).
-    pub fn transfer(&self, max_pending_bytes: usize, control: &Control) -> Result<Transfer, Error> {
+    pub fn transfer(
+        &self,
+        max_pending_bytes: usize,
+        control: &Control,
+    ) -> Result<BlockTransfer<S>, Error> {
         control.check()?;
         if self.pending_bytes() > max_pending_bytes {
             return Err(budget());
@@ -37,7 +60,7 @@ impl Candidate {
             });
         }
         control.check()?;
-        Ok(Transfer {
+        Ok(BlockTransfer {
             version: 1,
             manifest: self.manifest.clone(),
             pending,
@@ -45,11 +68,15 @@ impl Candidate {
     }
 }
 
-impl Transfer {
+impl<S: Layout> BlockTransfer<S> {
     /// Check all framing and the explicit decoded-byte budget before decoding.
     /// This proves pending bytes only. Use Candidate::verify with the explicit
     /// root to certify inherited dependencies before publication or admission.
-    pub fn prepare(&self, max_pending_bytes: usize, control: &Control) -> Result<Candidate, Error> {
+    pub fn prepare(
+        &self,
+        max_pending_bytes: usize,
+        control: &Control,
+    ) -> Result<BlockCandidate<S>, Error> {
         control.check()?;
         if self.version != 1 {
             return Err(invalid("Unsupported native candidate transfer version"));
@@ -113,7 +140,7 @@ impl Transfer {
             pending.insert(block.sha256.clone(), bytes.into());
         }
         control.check()?;
-        Ok(Candidate {
+        Ok(BlockCandidate {
             manifest: self.manifest.clone(),
             pending,
         })

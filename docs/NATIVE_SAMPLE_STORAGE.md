@@ -21,6 +21,11 @@ Entirely deduplicated publication needs no spare capacity. Fresh full-suite
 acceptance of admission passed on Windows and Linux; the larger-scale gates
 remain pending.
 
+The shared candidate and publication implementation also supports a distinct
+[scalar block format](NATIVE_SCALAR_STORAGE.md). Image-store type aliases,
+serialized descriptors, schemas and canonical image identities stay unchanged.
+Scalar document masks and selections remain separate integration work.
+
 ## Data contract
 
 `Spec` declares width, height, depth (`u8`, `u16`, `f32`), channels (`rgba`, `gray_alpha`) and encoding (`encoded_srgb`, `linear_srgb`, `profiled_rgb`). Native bytes are little-endian straight channels. Integer values are retained exactly. Binary32 validation rejects nonfinite values, requires normalized alpha and encoded values, and permits signed finite HDR color only under explicit linear encoding. Linear storage requires binary32 depth. Signed zero and subnormal bit patterns are preserved; validation does not quantize or normalize their bytes.
@@ -46,7 +51,7 @@ The file identity hashes its entire header and payload. The manifest identity ha
 
 ## Pure candidates and bounded reads
 
-`Candidate::from_bytes` validates a bounded complete native frame and retains only unique immutable block buffers. This constructor is not a streaming image decoder: caller-owned input plus candidate memory can cover two whole native frames. At the maximum binary32 RGBA bound that is approximately 512 MiB plus headers/metadata and temporary allocations. Import integration must account for codec buffers and its own memory budget instead of assuming chunked storage alone solves memory use.
+`Candidate::from_bytes` validates a bounded complete native frame and retains only unique immutable block buffers. This constructor is not a streaming image decoder: caller-owned input plus candidate memory can cover two whole native frames. At the maximum binary32 RGBA bound, caller input plus unique pending blocks can approach 2 GiB before headers/metadata and temporary allocations. Native import retains its separate 512 MiB private pixel-extent limit. Import integration must account for codec buffers and its own memory budget instead of assuming chunked storage alone solves memory use.
 
 `Candidate::from_rows` gives its producer one reusable native row in ascending order. It validates every filled row, appends its segments to one unfinished block band, and retains completed unique blocks for later explicit publication. It produces the same canonical files and ordered manifest as `from_bytes`, including shortened edge blocks and exact signed-zero/subnormal binary32 bits. Cancellation is checked before and after every producer call and between completed blocks; a producer error or invalid sample returns without publication. Pending unique blocks remain in memory, so total memory still grows with image content and dimensions.
 

@@ -1,32 +1,32 @@
 //! Shared verified publication for pure memory candidates and private imports.
 use super::*;
 
-pub(crate) trait Pending {
+pub(crate) trait Pending<S = Spec> {
     fn contains(&self, id: &str) -> bool;
     fn load(
         &mut self,
         id: &str,
-        spec: Spec,
+        spec: S,
         tile: Region,
         control: &Control,
     ) -> Result<Arc<[u8]>, Error>;
 }
 
-impl Pending for &BTreeMap<String, Arc<[u8]>> {
+impl<S: Layout> Pending<S> for &BTreeMap<String, Arc<[u8]>> {
     fn contains(&self, id: &str) -> bool {
         self.contains_key(id)
     }
-    fn load(&mut self, id: &str, _: Spec, _: Region, _: &Control) -> Result<Arc<[u8]>, Error> {
+    fn load(&mut self, id: &str, _: S, _: Region, _: &Control) -> Result<Arc<[u8]>, Error> {
         self.get(id).cloned().ok_or_else(corrupt)
     }
 }
 
-pub(crate) fn publish(
-    manifest: &Manifest,
-    pending: &mut impl Pending,
+pub(crate) fn publish<S: Layout>(
+    manifest: &BlockManifest<S>,
+    pending: &mut impl Pending<S>,
     root: &Path,
     control: &Control,
-) -> Result<Publication, Error> {
+) -> Result<BlockPublication<S>, Error> {
     control.check()?;
     assets::absolute(root)?;
     check_root(Some(root), control)?;
@@ -47,7 +47,7 @@ pub(crate) fn publish(
     control.check()?;
     let existing = manifest.tiles.iter().collect::<BTreeSet<_>>().len();
     if unpublished(manifest, pending, root, control)?.is_empty() {
-        return Ok(Publication {
+        return Ok(BlockPublication {
             manifest: manifest.clone(),
             created_tiles: 0,
             existing_tiles: existing,
@@ -79,16 +79,16 @@ pub(crate) fn publish(
         #[cfg(test)]
         crate::sessions::fault_point("native_block_published");
     }
-    Ok(Publication {
+    Ok(BlockPublication {
         manifest: manifest.clone(),
         created_tiles: created,
         existing_tiles: seen.len() - created,
     })
 }
 
-fn unpublished(
-    manifest: &Manifest,
-    pending: &impl Pending,
+fn unpublished<S: Layout>(
+    manifest: &BlockManifest<S>,
+    pending: &impl Pending<S>,
     root: &Path,
     control: &Control,
 ) -> Result<Vec<usize>, Error> {

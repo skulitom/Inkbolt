@@ -80,6 +80,7 @@ pub mod sample_profiles;
 pub mod sample_store;
 mod sample_tiff;
 pub mod samples;
+pub mod scalar_store;
 pub mod scene;
 pub mod schema;
 pub mod selection_analysis;
@@ -1905,12 +1906,25 @@ fn capability_report() -> Value {
         "document_history_integration":true, "render_integration":true,
         "content":"stored_samples", "resource_binding":"asset_root",
         "import":{"command":"sample.import","opt_in":"storage.store_root","workspace_opt_in":"storage:{}","max_source_bytes":limits::sample_import::MAX_NATIVE_SOURCE_BYTES,"max_decoded_bytes":sample_import::MAX_NATIVE_DECODED_BYTES,"decoded_bytes_scope":"private_native_pixel_extent;not_resident_memory","max_codec_allocation_bytes":limits::sample_import::MAX_NATIVE_CODEC_BYTES,"codec_allocation_scope":"PNG_and_TIFF;JPEG_has_separate_whole_frame_admission","max_tiff_padded_tile_bytes":limits::sample_import::MAX_NATIVE_TIFF_PADDED_BYTES},
-        "retained_edits":{"operation":"sample_replace","operations":["sample_replace","retouch","brush_stroke"],"max_patches":stored_samples::MAX_PATCHES,"max_aggregate_patch_pixels":stored_samples::MAX_PATCH_PIXELS,"writes_files":false,"snapshot":"immutable_base_manifest_plus_exact_native_patch_bytes"},
-        "block_edits":{"storage_version":2,"migration_operation":"sample_storage_migrate","default_import_storage_version":2,"legacy_import":"storage.storage_version:1","operations":["sample_replace","retouch","brush_stroke"],"maximum_pending_document_bytes":stored_samples::MAX_PENDING_BYTES,"lifetime_patch_limit":false,"pure_library_preparation":true,"commit":"CLI_and_MCP_document_edit_and_session_commit_publish_immutable_blocks_before_durable_state","review":"staged_blocks_in_memory;included_document_has_bounded_explicit_transfer","history":"current_manifest_only;old_states_and_receipts_preserved","full_storage_milestone_verified":false},
+        "retained_edits":{"operation":"sample_replace","operations":["sample_replace","retouch","brush_stroke","repair"],"max_patches":stored_samples::MAX_PATCHES,"max_aggregate_patch_pixels":stored_samples::MAX_PATCH_PIXELS,"writes_files":false,"snapshot":"immutable_base_manifest_plus_exact_native_patch_bytes"},
+        "block_edits":{"storage_version":2,"migration_operation":"sample_storage_migrate","default_import_storage_version":2,"legacy_import":"storage.storage_version:1","operations":["sample_replace","retouch","brush_stroke","repair"],"maximum_pending_document_bytes":stored_samples::MAX_PENDING_BYTES,"lifetime_patch_limit":false,"pure_library_preparation":true,"commit":"CLI_and_MCP_document_edit_and_session_commit_publish_immutable_blocks_before_durable_state","review":"staged_blocks_in_memory;included_document_has_bounded_explicit_transfer","history":"current_manifest_only;old_states_and_receipts_preserved","full_storage_milestone_verified":false},
         "render_cache":{"scope":"one_prepared_source","max_decoded_pixels":limits::stored_samples::CACHE_PIXELS,"maximum_source_decoding_passes":limits::stored_samples::MAX_SOURCE_DECODING_PASSES},
         "output_limits_changed":true, "large_output_opt_in":"render_options.evaluation:tiled",
-        "unsupported":["stored_sample_convert","stored_sample_profile_edits","native_automatic_repair_and_mask_bake","native_ink_separations","layered_pixel_export","structural_SVG_PDF_export"],
-        "full_dependency_verification":["sample_replace","retouch","brush_stroke","visible_render_sources","document.check_resources","verified_transfer","job_admission_and_execution"]
+        "unsupported":["stored_sample_convert","stored_sample_profile_edits","native_mask_bake","native_ink_separations","layered_pixel_export","structural_SVG_PDF_export"],
+        "full_dependency_verification":["sample_replace","retouch","brush_stroke","repair","visible_render_sources","document.check_resources","verified_transfer","job_admission_and_execution"]
+    });
+    capabilities["native_scalar_store_library"] = json!({
+        "status":"library_primitive;document_mask_and_selection_integration_pending",
+        "module":"scalar_store", "manifest_version":1, "transfer_version":1,
+        "tile_edge":scalar_store::TILE_EDGE, "max_pixels":scalar_store::MAX_PIXELS,
+        "max_tiles":scalar_store::MAX_TILES, "max_region_pixels":scalar_store::MAX_REGION_PIXELS,
+        "representation":"one_unsigned_coverage_byte_per_pixel;no_color_or_alpha_channels",
+        "identity":"INKSCAL1_blocks;INKSCGR1_manifest;separate_from_image_identities",
+        "candidate_edits":"pure_copy_on_write;complete_changed_blocks;old_candidates_preserved",
+        "publication":"shared_native_store_lock_capacity_and_create_only_protocol",
+        "preparation_memory":"completed_unique_blocks_remain_resident;not_a_disk_backed_mask_pipeline",
+        "document_integration":false, "mask_application":false, "selection_to_mask":false,
+        "contract":"docs/NATIVE_SCALAR_STORAGE.md"
     });
     for key in ["pixel_brushes", "retouch"] {
         capabilities[key]["maximum_source_preparation_work"] =

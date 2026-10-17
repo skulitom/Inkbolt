@@ -5,6 +5,26 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W4.6: scalar storage verified; native mask integration open
+
+[Scalar block storage](NATIVE_SCALAR_STORAGE.md) adds true grayscale coverage
+blocks through the shared immutable candidate, transfer and publication paths.
+Image formats, identities, Rust aliases and full command/document/operation
+schemas are preserved. Repeated window reads retain external-file verification
+without rehashing an already validated immutable manifest.
+
+Fresh Windows and Linux suites each passed all 262 stages on matching unchanged
+inputs. Windows ran 293 Rust and 2,745 Python tests
+(13 explicit skips); Linux ran 259 Rust and
+2,707 Python tests (51 skips). Seven scalar
+tests include an independent every-sample 50 MP comparison. The contract records
+timings, compatibility checks, retained failures and source/evidence identities.
+
+This completes the scalar storage prerequisite, not the mask workflow. Native
+mask/selection descriptors, resource/history integration, bounded rendering and
+complete-image mask application remain open. No engine checkpoint, release or
+full W4/agent-readiness completion is claimed.
+
 ## W4.6: native repair verified; masks and remaining native work open
 
 [Native repair](NATIVE_REPAIR.md) now supports patch placement, exemplar fill,

@@ -41,6 +41,14 @@ The contract records timings, source identity and retained evidence. This local
 milestone does not extend the hosted macOS matrix above; Unix jobs and memory
 verification remain open.
 
+The subsequent [scalar storage prerequisite](NATIVE_SCALAR_STORAGE.md) passed
+all 262 fresh stages on both Windows and Linux. Windows ran 293 Rust
+and 2,745 Python tests (13 explicit skips);
+Linux ran 259 Rust and 2,707 Python tests
+(51 skips), including the 50 MP scalar-plane oracle. This is
+library storage acceptance; document-mask integration and Unix memory measurement
+remain open. The hosted macOS evidence above retains its original scope.
+
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See
 [release acceptance](DEVELOPMENT_STATUS.md#w7w8-v0820-published-and-downloaded-packages-verified).

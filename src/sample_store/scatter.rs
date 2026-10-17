@@ -58,7 +58,7 @@ impl Scatter {
                 "Scattered native row exceeds its grid or sample bounds",
             ));
         }
-        validate_samples(bytes, spec)?;
+        spec.validate_samples(bytes)?;
         // Check the entire row before changing either storage or its coverage.
         for i in 0..count {
             let pixel = y as usize * spec.width as usize + x as usize + i * step as usize;

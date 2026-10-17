@@ -1,5 +1,13 @@
 # Architecture
 
+Image and scalar blocks share sealed-layout candidates, transfer validation and
+create-only publication. The existing image-store Rust aliases and schemas keep
+their representation; scalar coverage has distinct block/manifest identities and
+no color channels. Immutable candidates validate descriptors on construction;
+window reads still verify loaded external blocks without repeatedly hashing the
+whole manifest. [Scalar storage](NATIVE_SCALAR_STORAGE.md) is a library foundation;
+mask/selection descriptors, rendering and application still require integration.
+
 Native repair uses bounded typed views with sorted global cell addresses. The
 shared algorithms retain their existing ordering and quality gates; disjoint
 move destinations do not allocate the gap between windows. Full dependency
