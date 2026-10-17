@@ -131,14 +131,17 @@ W1, any additional engine checkpoint, the scale targets or the overall goal.
 
 ## W1: core platform tier and hosted matrix verified; Unix jobs open
 
-The latest retained [hosted matrix at `1c3ffe9`](https://github.com/skulitom/Inkbolt/actions/runs/38836056633)
-passed all 258 fresh stages on Windows, Ubuntu and macOS through native JPEG
-import. All three minimum-compiler checks passed. The source remained unchanged,
+The latest retained [hosted matrix at `c8945ca`](https://github.com/skulitom/Inkbolt/actions/runs/38884911654)
+passed all 261 fresh stages on Windows, Ubuntu and macOS through larger-image
+admission, bounded JPEG output and file-free TIFF preflight. All three
+minimum-compiler checks passed. The source remained unchanged,
 with no failed, pending or reused stages. Reports and all logs are retained in
-`w4-native-jpeg-ci-1c3ffe9`, audit SHA-256
-`baaf83a02bbad4eddbf831953f4879819995cc19e39b4e7344426ca17a6a7769`. See [platform evidence](PLATFORMS.md) for
-counts and timings. This predates bounded PNG output, whose later local
-Windows/WSL acceptance is recorded below. Hosted checks do not replace the
+`w4-scale-admission-ci-c8945ca`, audit SHA-256
+`68af885114fa053b4908e8f73681e85d98b236a45c145e4f3cdd5f9ead69cab7`.
+The retained source archive matches all reports. See [platform evidence](PLATFORMS.md)
+for counts and timings. Target-size memory measurements remain separate;
+Unix memory verification and background jobs are still open.
+Hosted checks do not replace the
 mandatory local private publication guard.
 
 Linux tier 1 covers core/library/CLI/MCP, sessions and durable publication/history

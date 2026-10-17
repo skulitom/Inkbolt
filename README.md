@@ -69,6 +69,7 @@ images and exporting assets.
 | [Workspaces and sessions](docs/AGENT_WORKSPACE.md) | Local resources and saved revision references |
 | [SVG import](docs/SVG_IMPORT.md) and [image import](docs/SAMPLES.md#import-without-reducing-depth) | Supported inputs, preservation and conversion limits |
 | [Image export](docs/STREAMING_IMAGE_OUTPUT.md) | PNG/JPEG/TIFF file output, preflight and memory bounds |
+| [Large-image workflows](docs/SCALE_ADMISSION.md) | Verified image sizes, local edits and remaining workflow limits |
 | [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
 
@@ -76,9 +77,11 @@ images and exporting assets.
 
 Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
 receipts have Windows, Linux and macOS verification; background export jobs are
-currently Windows-only. Broader format support, larger image workloads and agent
-usability remain active work. See the [resource limits](docs/LIMITS.md) for current
-bounds.
+currently Windows-only. Large-image import, local brush edits and export have
+been verified; repair and mask support for these larger images remains in
+development. Broader format support and agent usability also remain active work.
+See the [large-image workflows](docs/SCALE_ADMISSION.md) and
+[resource limits](docs/LIMITS.md) for current bounds.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.
 [Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their

@@ -7,26 +7,31 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/38848641460)
-is `8232222`, through private TIFF publication. All stages ran fresh, all three
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/38884911654)
+is `c8945ca`, through larger-image admission, bounded JPEG output and file-free
+TIFF preflight. All stages ran fresh, all three
 minimum-compiler checks passed and source inputs remained unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 260 | 263 | 2,733 | 9 | 4324.721 |
-| Ubuntu 24.04 | 260 | 229 | 2,691 | 51 | 1506.793 |
-| macOS 15 ARM64 | 260 | 229 | 2,691 | 51 | 2622.255 |
+| Windows 2025 | 261 | 286 | 2,739 | 9 | 4636.908 |
+| Ubuntu 24.04 | 261 | 252 | 2,697 | 51 | 1577.901 |
+| macOS 15 ARM64 | 261 | 252 | 2,697 | 51 | 2614.572 |
 
-Reports and all stage logs are retained in `w4-tiff-output-ci-8232222`.
-Audit SHA-256: `422a2159b1431477c8fc98c66381493f5c681c9818d5051e0521aaf066118faa`;
-shared hosted source fingerprint: `20a538bec1b1effffa93a67b7f84e40e10011e2185eb43eed7554d6c27699818`.
-This matrix predates JPEG output and file-free TIFF preflight, which have separate
-local acceptance below. Unix background jobs remain unsupported.
+Reports, all 783 stage logs, run metadata and the 934-file source archive are
+retained in `w4-scale-admission-ci-c8945ca`. The archive matches every report's
+source fingerprint. Audit SHA-256:
+`68af885114fa053b4908e8f73681e85d98b236a45c145e4f3cdd5f9ead69cab7`;
+shared hosted source fingerprint:
+`3739d2163d57a7614c09a177fe0ff483535918a12e98b5b4ac80e5c742f97a73`.
+Hosted checks evaluate the public structural guard; local private-policy checks
+remain separate. Unix background jobs remain unsupported.
 
-The subsequent [larger-image admission](SCALE_ADMISSION.md) has fresh full local
+The [larger-image admission](SCALE_ADMISSION.md) also has fresh full local
 Windows/Linux acceptance and complete target-image checks. Its Unix process
-memory metric remains unavailable. This local milestone does not extend the
-hosted macOS evidence or enable Unix background jobs.
+memory metric remains unavailable. The separate target-image measurements ran
+on Windows and Linux; the hosted macOS suite does not establish those memory or
+target-size measurements on macOS.
 
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See
@@ -69,7 +74,8 @@ passed all 261 stages fresh on matching unchanged inputs. Windows ran
 Linux ran 235 Rust and 2,696 Python tests (51 skips) in 566.980 seconds.
 No stage failed, remained pending or reused a result. Source fingerprint:
 `1ae1cefc5de6fde022ad419b402cebd016afa9dab5f312c8bd640abbf4d0cbbe`; audit: `848f8ec54f74a55831577d07f20137b1cc06d80bbc7744fc2735938e32a2ba11`.
-Hosted macOS JPEG evidence and Unix background jobs remain separate.
+The later hosted matrix above includes JPEG output; Unix background jobs remain
+unsupported.
 
 The subsequent [file-free TIFF preflight](STREAMING_IMAGE_OUTPUT.md#file-free-tiff-preflight)
 passed all 261 stages fresh on matching unchanged inputs. Windows ran
@@ -77,7 +83,7 @@ passed all 261 stages fresh on matching unchanged inputs. Windows ran
 Linux ran 246 Rust and 2,696 Python tests (51 skips) in 582.776 seconds.
 No stage failed, remained pending or reused results. Source fingerprint:
 `304bee31a1d03782444c3ee910d77298c689a8219d4b4a7e1e8864d2d03f5dcb`; audit: `108d77a5aeb56de7e924cf8d8fa135d12dd952c814e41a94808969053e826bda`.
-This local acceptance does not establish hosted macOS support for the new phase.
+The later hosted matrix above includes this preflight phase on macOS.
 
 The earlier [native import admission acceptance](DEVELOPMENT_STATUS.md#w42-private-source-and-pixel-staging-scale-admission-open)
 passed all 257 stages fresh on matching unchanged inputs. Windows ran

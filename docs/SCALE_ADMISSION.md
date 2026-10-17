@@ -70,6 +70,12 @@ full runs are retained.
 The interrupted runs are not acceptance. Test corrections preserve rejection
 above the new limits, including the specific SVG aggregate-pixel diagnostic.
 
+The later [hosted Windows/Linux/macOS matrix](PLATFORMS.md) passed all 261
+stages fresh at `c8945ca`, with matching unchanged source inputs and passing
+minimum-compiler checks. Those reports and logs are retained separately from
+the target-size measurements below. Unix memory verification and background
+jobs remain open.
+
 ## Independent target-size evidence
 
 Optimized Windows and Linux binaries ran original synthetic inputs. The oracle
