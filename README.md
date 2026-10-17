@@ -2,9 +2,9 @@
 
 Local vector and raster editing for AI agents.
 
-Inkbolt lets agents create graphics, preview their work, make precise revisions
-and export the result while keeping an editable source. Use it for diagrams,
-illustrations, layouts and image assets.
+Inkbolt is a graphics engine that agents can inspect and control through
+structured commands. Create diagrams, illustrations, layouts and image assets;
+preview and revise them; then export the result while keeping an editable source.
 
 It runs locally through **MCP over stdio**, a **JSON command-line interface**, or
 the **Rust library**. There is no account, network service or telemetry, and no
@@ -12,42 +12,39 @@ particular AI model is required.
 
 ## What you can do
 
-- **Build compositions** from vector shapes, text and images.
-- **Bring in SVG artwork** with styles, reusable symbols, placed images and
-  positioned text. Keep supported content editable and request omission reports
-  when an input uses unsupported features.
-- **Work with images** using PNG, JPEG and TIFF import, high-precision samples
-  and local image storage that preserves earlier revisions while reusing
-  unchanged data.
-- **Revise artwork** with targeted edits, layers, masks and image adjustments.
-- **Repair images** with patch placement, region fills, content-sensitive moves
-  and guided edge correction, including local edits on stored high-precision
-  images.
-- **Review and continue** using previews, saved sessions, undo/redo and revision
-  comparisons.
-- **Check exports before writing files** with preflight results that report
-  output size and conversion losses.
-- **Deliver assets** as PNG, JPEG, TIFF, SVG or PDF within the supported workflows,
-  preserving source files and refusing to overwrite existing outputs.
+- **Compose graphics** with vector shapes, text, images, layers and artboards.
+- **Import artwork** from SVG, PNG, JPEG and TIFF. Supported SVG content stays
+  editable, including styles, reusable symbols, placed images and positioned text.
+- **Edit and repair images** with brushes, masks, adjustments, patch placement,
+  region fills, content-sensitive moves and guided edge correction. Native image
+  storage supports high-precision samples and reuses unchanged data across edits.
+- **Review revisions** with previews, comparisons, saved sessions and undo/redo.
+- **Deliver assets** as PNG, JPEG, TIFF, SVG or PDF within the supported workflows.
+  Preflight reports output size and conversion losses before publication; file
+  delivery preserves sources and refuses to overwrite existing outputs.
 
 Agents can discover tools and request individual operation schemas as they work.
 Unsupported features fail explicitly; approximations and conversion losses are
 reported.
 
+## How agents work with Inkbolt
+
+1. Discover the relevant tools and create or import a document.
+2. Make focused edits, preview the result and compare revisions.
+3. Save the editable session, check the intended export and publish to a new file.
+
+Saved sessions let an agent resume work later with the document's revision
+history. See the [runnable examples](examples/README.md) for complete workflows.
+
 ## Get started
 
-Download [v0.82.0](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) or follow
-the [installation guide](docs/INSTALLATION.md) to build from source, then connect
-your agent through MCP or use the command line.
-Prebuilt archives are available for Windows x64, Linux x64 and macOS Apple
-silicon, with a desktop extension bundle for Windows.
+This README describes `main`. Choose a release download or build the latest
+development version using the [installation guide](docs/INSTALLATION.md).
 
-This README describes the development branch. Build from `main` for newer native
-JPEG import, larger image workflows, repair on stored high-precision images and
-lower-memory PNG/JPEG/TIFF file exports. These improvements are not included in
-v0.82.0; current image-size and output limits still apply. See the
-[release notes](https://github.com/skulitom/Inkbolt/releases) for each download's
-included features.
+| Version | What to expect |
+| --- | --- |
+| [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Prebuilt Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. See its release notes for included features. |
+| Build from `main` | Adds native JPEG import, larger image workflows, repair on stored high-precision images and lower-memory PNG/JPEG/TIFF file exports. These additions are not in v0.82.0. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -59,9 +56,6 @@ inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools core
 The [installation guide](docs/INSTALLATION.md) includes ready-to-adapt client
 configuration. The core catalog keeps initial tool discovery compact; agents can
 request more operations and their schemas when needed.
-
-Try the [runnable examples](examples/README.md) for creating artwork, revising
-images and exporting assets.
 
 ## Documentation
 
@@ -81,12 +75,17 @@ images and exporting assets.
 
 Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
 receipts have Windows, Linux and macOS verification; background export jobs are
-currently Windows-only. Large-image import, local brush and repair edits, and
-export have Windows and Linux verification within their documented limits.
-Block-based masks for large images, broader image workflows, format support and
-agent usability remain active work.
-See the [large-image workflows](docs/SCALE_ADMISSION.md) and
-[resource limits](docs/LIMITS.md) for current bounds.
+currently Windows-only.
+
+On `main`, Windows and Linux checks cover 50 MP images through local brush and
+repair edits, saved history and TIFF delivery. Each operation has its own size,
+precision and work limits. Masks and selections retain smaller limits;
+large-image mask editing and application remain in development. See
+[large-image workflows](docs/SCALE_ADMISSION.md), [image repair](docs/NATIVE_REPAIR.md)
+and [resource limits](docs/LIMITS.md) for the verified scope.
+
+Broader image workflows, editable format coverage and agent usability remain
+active work.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.
 [Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their
