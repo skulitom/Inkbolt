@@ -13,6 +13,11 @@ particular AI model is required.
 [Install and connect](docs/INSTALLATION.md) · [Try the examples](examples/README.md) ·
 [Download a release](https://github.com/skulitom/Inkbolt/releases)
 
+**Compared with** SVGMaker MCP, two Inkscape MCP servers, image2svg-mcp, svg-maker-mcp, EditItAll, LayerBack and
+the Illustrator MCP bridges in [SVG and vector editing MCP servers for AI agents: 9 compared](https://skulitom.github.io/Inkbolt/compare/svg-vector-editing-mcp-servers/)
+(checked 18 October 2026): Inkbolt measured over MCP, the others read from their code and docs, and when to choose
+each instead.
+
 ## What you can do
 
 - **Compose graphics** with vector shapes, text, images, layers and artboards.
