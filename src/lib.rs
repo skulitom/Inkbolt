@@ -91,6 +91,7 @@ pub mod simplify;
 pub mod snapping;
 pub mod spatial_filters;
 pub mod stored_samples;
+pub mod stored_scalars;
 pub mod strokes;
 mod svg;
 pub mod svg_import;
@@ -1914,7 +1915,7 @@ fn capability_report() -> Value {
         "full_dependency_verification":["sample_replace","retouch","brush_stroke","repair","visible_render_sources","document.check_resources","verified_transfer","job_admission_and_execution"]
     });
     capabilities["native_scalar_store_library"] = json!({
-        "status":"library_primitive;document_mask_and_selection_integration_pending",
+        "status":"library_primitive;item_and_filter_masks;selection_integration_pending",
         "module":"scalar_store", "manifest_version":1, "transfer_version":1,
         "tile_edge":scalar_store::TILE_EDGE, "max_pixels":scalar_store::MAX_PIXELS,
         "max_tiles":scalar_store::MAX_TILES, "max_region_pixels":scalar_store::MAX_REGION_PIXELS,
@@ -1923,8 +1924,25 @@ fn capability_report() -> Value {
         "candidate_edits":"pure_copy_on_write;complete_changed_blocks;old_candidates_preserved",
         "publication":"shared_native_store_lock_capacity_and_create_only_protocol",
         "preparation_memory":"completed_unique_blocks_remain_resident;not_a_disk_backed_mask_pipeline",
-        "document_integration":false, "mask_application":false, "selection_to_mask":false,
+        "document_integration":true, "mask_application":false, "selection_to_mask":false,
         "contract":"docs/NATIVE_SCALAR_STORAGE.md"
+    });
+    capabilities["masks"]["storage"] = json!("inline_gray8_or_native_scalar_blocks");
+    capabilities["native_masks"] = json!({
+        "field":"mask.native", "targets":["item_masks","filter_masks"],
+        "source":"validated_scalar_manifest_and_optional_private_transfer;explicit_asset_root",
+        "max_aggregate_pixels":limits::masks::MAX_NATIVE_PIXELS,
+        "source_cache_tile_rows":limits::masks::NATIVE_SOURCE_CACHE_ROWS,
+        "filtered_cache_tile_rows":limits::masks::NATIVE_FILTER_CACHE_ROWS,
+        "max_cumulative_feather_work":masks::MAX_FEATHER_WORK,
+        "controls":["transform","linked","enabled","clip","invert","density","feather","nearest","bilinear"],
+        "rendering":"windowed;full_source_verification;shared_filter_cache_across_tiles_and_codec_replays",
+        "pending_blocks":"pure_review;aggregate_native_byte_and_transport_limits;publication_before_durable_state",
+        "history":"manifest_only;existing_inline_identities_unchanged",
+        "permanent_application_targets":["inline_raster","placed_image","fill"],
+        "native_image_mask_application":false, "native_selections":false,
+        "unsupported":["structural_svg_mask_export","layered_mask_export","pending_masks_in_retained_object_snapshots"],
+        "contract":"docs/NATIVE_MASKS.md"
     });
     for key in ["pixel_brushes", "retouch"] {
         capabilities[key]["maximum_source_preparation_work"] =

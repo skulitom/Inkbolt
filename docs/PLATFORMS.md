@@ -46,8 +46,14 @@ all 262 fresh stages on both Windows and Linux. Windows ran 293 Rust
 and 2,745 Python tests (13 explicit skips);
 Linux ran 259 Rust and 2,707 Python tests
 (51 skips), including the 50 MP scalar-plane oracle. This is
-library storage acceptance; document-mask integration and Unix memory measurement
-remain open. The hosted macOS evidence above retains its original scope.
+library storage acceptance; the hosted macOS evidence above retains its original scope.
+
+The subsequent [item/filter mask integration](NATIVE_MASKS.md) passed all 263
+fresh stages on matching unchanged inputs: Windows ran 297 Rust and 2,753 Python
+tests (13 skips) in 781.750 seconds; Linux ran 263 Rust and 2,715 Python tests
+(51 skips) in 501.898 seconds. Independent bounded previews from a 50 MP scalar
+source matched on both platforms. Native selections, whole-image mask application
+and Unix memory measurement remain open; no new hosted macOS claim is made.
 
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See

@@ -356,12 +356,19 @@ pub(crate) fn apply_region(
     size: [u32; 3],
     world: Matrix,
     origin: [u32; 2],
+    masks: &[Option<crate::masks::Prepared>],
 ) -> Result<(), Error> {
+    if masks.len() != item.filters.len() {
+        return Err(crate::model::invalid(
+            "Filter evaluation requires its complete prepared mask table",
+        ));
+    }
     let [width, _, scale] = size;
-    for f in item
+    for (index, f) in item
         .filters
         .iter()
-        .filter(|f| f.enabled && f.opacity != 0.0)
+        .enumerate()
+        .filter(|(_, f)| f.enabled && f.opacity != 0.0)
     {
         let filtered = evaluate_region(pixels, size, world, &f.operator, f.border, origin);
         if direct_replacement(f) {
@@ -380,12 +387,7 @@ pub(crate) fn apply_region(
             }
             continue;
         }
-        let mask = f
-            .mask
-            .as_ref()
-            .filter(|m| m.enabled)
-            .map(|m| crate::masks::prepare(m, world))
-            .transpose()?;
+        let mask = masks.get(index).and_then(Option::as_ref);
         for (i, (dst, src)) in pixels
             .as_chunks_mut::<4>()
             .0
@@ -394,14 +396,17 @@ pub(crate) fn apply_region(
             .enumerate()
         {
             let weight = f.opacity
-                * mask.as_ref().map_or(1.0, |m| {
-                    m.sample([
-                        (origin[0] as usize + i % width as usize) as f64 / scale as f64
-                            + 0.5 / scale as f64,
-                        (origin[1] as usize + i / width as usize) as f64 / scale as f64
-                            + 0.5 / scale as f64,
-                    ])
-                });
+                * mask
+                    .map(|m| {
+                        m.sample([
+                            (origin[0] as usize + i % width as usize) as f64 / scale as f64
+                                + 0.5 / scale as f64,
+                            (origin[1] as usize + i / width as usize) as f64 / scale as f64
+                                + 0.5 / scale as f64,
+                        ])
+                    })
+                    .transpose()?
+                    .unwrap_or(1.0);
             let before = straight(*dst);
             let after = straight(*src);
             let blended = crate::blending::mix(

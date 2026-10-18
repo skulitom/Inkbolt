@@ -329,7 +329,10 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `masks.MAX_DOCUMENT_PIXELS` | `u64` | 1048576 | `1_048_576` |
 | `masks.MAX_FEATHER` | `u32` | 32 | `32` |
 | `masks.MAX_FEATHER_WORK` | `u64` | 67108864 | `67_108_864` |
+| `masks.MAX_NATIVE_PIXELS` | `u64` | 67108864 | `super::sample_store::MAX_PIXELS` |
 | `masks.MAX_PREPARED_PIXELS` | `u64` | 262144 | `262_144` |
+| `masks.NATIVE_FILTER_CACHE_ROWS` | `u64` | 2 | `2` |
+| `masks.NATIVE_SOURCE_CACHE_ROWS` | `u64` | 4 | `4` |
 | `mcp.CORE_CATALOG_BYTES` | `usize` | 98304 | `96 * 1024` |
 | `mcp.MAX_ID_BYTES` | `usize` | 256 | `256` |
 | `mcp.MAX_MESSAGE_BYTES` | `usize` | 16793600 | `super::request::MAX_REQUEST_BYTES as usize + 16384` |

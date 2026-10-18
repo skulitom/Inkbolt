@@ -291,6 +291,7 @@ pub fn to_mask(
         position
     };
     document.items[index].mask = Some(Box::new(crate::masks::Mask {
+        native: None,
         constant: false,
         width,
         height,

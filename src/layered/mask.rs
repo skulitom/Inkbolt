@@ -110,6 +110,11 @@ pub(super) fn encode_mask(
     version: Version,
     compression: Compression,
 ) -> Result<Encoded, Error> {
+    if mask.native.is_some() {
+        return Err(unsupported(
+            "Native scalar masks require separate layered-format export support",
+        ));
+    }
     if mask.invert || mask.feather != 0 || mask.sampling != assets::Sampling::Nearest {
         return Err(unsupported(
             "Layered masks require authored nearest gray8 samples without implicit inversion or feather conversion",

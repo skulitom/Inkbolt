@@ -338,6 +338,7 @@ fn verify_resources(
     for item in &document.items {
         content(&item.content, resources, control, visited)?;
     }
+    crate::masks::verify_resources(document, resources.asset_root.as_deref(), control)?;
     Ok(())
 }
 fn view(root: &Path, input: &Input, state: &State, replayed: bool) -> Value {

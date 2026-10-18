@@ -5,7 +5,29 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
-## W4.6: scalar storage verified; native mask integration open
+## W4.6: native item/filter masks verified; selection and application open
+
+[Item and filter mask integration](NATIVE_MASKS.md) passed fresh full Windows/Linux
+acceptance for exact controls, native sample depths, tiled/print rendering,
+resource failures, private previews, publication and history.
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 263 | 297 | 2,753 | 13 | 781.750 |
+| Linux / WSL | 263 | 263 | 2,715 | 51 | 501.898 |
+
+Every stage ran fresh on matching unchanged inputs. Twenty-two complete inline
+responses and saved-state identities matched the previous engine. Independent
+bounded previews from a 50 MP scalar source matched all sampled coverage values
+and matched between platforms. The first Windows full run caught unnecessary
+hierarchy work on unmasked objects; the corrected 5,000-object test passed with
+its existing deadline. Focused correction feedback took 94.3/48.7 seconds on
+Windows/Linux. The contract records retained failures, timings and exact evidence.
+
+Native selection authoring, whole-image stored mask application and D7 memory
+remain open. No new engine checkpoint, release or full W4 completion is claimed.
+
+## W4.6: scalar storage prerequisite verified
 
 [Scalar block storage](NATIVE_SCALAR_STORAGE.md) adds true grayscale coverage
 blocks through the shared immutable candidate, transfer and publication paths.
@@ -20,10 +42,9 @@ inputs. Windows ran 293 Rust and 2,745 Python tests
 tests include an independent every-sample 50 MP comparison. The contract records
 timings, compatibility checks, retained failures and source/evidence identities.
 
-This completes the scalar storage prerequisite, not the mask workflow. Native
-mask/selection descriptors, resource/history integration, bounded rendering and
-complete-image mask application remain open. No engine checkpoint, release or
-full W4/agent-readiness completion is claimed.
+This completed the scalar storage prerequisite. The later item/filter integration
+is recorded above; complete mask/selection workflows and full W4/agent-readiness
+acceptance remain open.
 
 ## W4.6: native repair verified; masks and remaining native work open
 

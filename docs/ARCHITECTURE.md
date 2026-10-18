@@ -5,8 +5,13 @@ create-only publication. The existing image-store Rust aliases and schemas keep
 their representation; scalar coverage has distinct block/manifest identities and
 no color channels. Immutable candidates validate descriptors on construction;
 window reads still verify loaded external blocks without repeatedly hashing the
-whole manifest. [Scalar storage](NATIVE_SCALAR_STORAGE.md) is a library foundation;
-mask/selection descriptors, rendering and application still require integration.
+whole manifest. [Scalar storage](NATIVE_SCALAR_STORAGE.md) now supplies optional
+native item/filter mask descriptors. Their bounded readers retain authored
+coverage, share feather work, and survive tiled render and codec replays.
+Publication, durable projections and resource checks include scalar dependencies;
+old inline masks omit the new field. [Mask integration](NATIVE_MASKS.md) has fresh
+full Windows/Linux acceptance; native selections and whole-image application
+remain open. Mask preparation resolves hierarchy transforms only when needed.
 
 Native repair uses bounded typed views with sorted global cell addresses. The
 shared algorithms retain their existing ordering and quality gates; disjoint

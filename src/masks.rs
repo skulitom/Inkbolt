@@ -3,6 +3,10 @@ use crate::{Error, assets::Sampling, geometry, model::*, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::path::Path;
+mod native;
+#[cfg(test)]
+mod native_tests;
 
 pub use crate::limits::masks::MAX_DOCUMENT_PIXELS;
 pub use crate::limits::masks::MAX_FEATHER;
@@ -27,6 +31,8 @@ pub struct Mask {
     pub width: u32,
     pub height: u32,
     pub gray_hex: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native: Option<crate::stored_scalars::Grid>,
     #[serde(default = "identity")]
     pub transform: Matrix,
     #[serde(default = "yes")]
@@ -76,11 +82,23 @@ impl Mask {
             )));
         }
         let pixels = self.width as usize * self.height as usize;
-        if pixels > MAX_STORED_PIXELS {
+        if let Some(grid) = &self.native {
+            grid.validate()?;
+            if self.constant
+                || !self.gray_hex.is_empty()
+                || grid.base.spec.width != self.width
+                || grid.base.spec.height != self.height
+            {
+                return Err(invalid(
+                    "A native mask requires matching dimensions, empty gray_hex and nonconstant coverage",
+                ));
+            }
+        } else if pixels > MAX_STORED_PIXELS {
             return Err(limit("Mask exceeds inline pixel storage limit"));
         }
-        if self.gray_hex.len() != pixels * 2
-            || !self.gray_hex.bytes().all(|c| c.is_ascii_hexdigit())
+        if self.native.is_none()
+            && (self.gray_hex.len() != pixels * 2
+                || !self.gray_hex.bytes().all(|c| c.is_ascii_hexdigit()))
         {
             return Err(invalid(
                 "Mask data must contain exactly width*height grayscale8 hex values",
@@ -98,7 +116,7 @@ impl Mask {
         let world = self.world_transform(item_world);
         geometry::validate_matrix(world)?;
         let [width, height] = self.prepared_size();
-        if width as u64 * height as u64 > MAX_PREPARED_PIXELS {
+        if self.native.is_none() && width as u64 * height as u64 > MAX_PREPARED_PIXELS {
             return Err(limit(&format!(
                 "Prepared mask exceeds {MAX_PREPARED_PIXELS} pixels"
             )));
@@ -113,7 +131,7 @@ impl Mask {
             },
             world,
         )?;
-        Ok(pixels)
+        Ok(if self.native.is_some() { 0 } else { pixels })
     }
 }
 
@@ -121,11 +139,18 @@ impl Mask {
 pub(crate) fn validate_budget(document: &Document) -> Result<(), Error> {
     let mut pixels = 0;
     let mut work = 0;
+    let mut native_pixels = 0u64;
+    let mut native_buffers = 0u64;
     for mask in document.items.iter().flat_map(|i| {
         i.mask
             .iter()
             .chain(i.filters.iter().filter_map(|f| f.mask.as_ref()))
     }) {
+        if let Some(grid) = &mask.native {
+            native_pixels += mask.width as u64 * mask.height as u64;
+            native_buffers += native::buffer_values(mask, grid);
+            continue;
+        }
         let [w, h] = mask.prepared_size();
         let n = w as u64 * h as u64;
         pixels += n;
@@ -140,6 +165,13 @@ pub(crate) fn validate_budget(document: &Document) -> Result<(), Error> {
             "Masks exceed document preparation memory or feather work limit",
         ));
     }
+    if native_pixels > crate::limits::masks::MAX_NATIVE_PIXELS
+        || native_buffers > crate::render::MAX_BUFFER_PIXELS * 4
+    {
+        return Err(limit(
+            "Native masks exceed aggregate source pixels or prepared buffer limits",
+        ));
+    }
     Ok(())
 }
 
@@ -151,22 +183,25 @@ pub(crate) struct Prepared {
     pub outside: f64,
     inverse: Matrix,
     sampling: Sampling,
+    native: Option<native::Prepared>,
 }
 impl Prepared {
-    fn at(&self, x: i64, y: i64) -> f64 {
+    fn at(&self, x: i64, y: i64) -> Result<f64, Error> {
         if x < 0 || y < 0 || x >= self.width as i64 || y >= self.height as i64 {
-            self.outside
+            Ok(self.outside)
+        } else if let Some(native) = &self.native {
+            native.at(x as u32, y as u32)
         } else {
-            self.values[y as usize * self.width as usize + x as usize]
+            Ok(self.values[y as usize * self.width as usize + x as usize])
         }
     }
-    pub fn sample(&self, world: Point) -> f64 {
+    pub fn sample(&self, world: Point) -> Result<f64, Error> {
         let p = geometry::map(self.inverse, world);
         let x = p[0] + self.pad as f64;
         let y = p[1] + self.pad as f64;
         // Bound before converting to integers or adding neighbor offsets.
         if x < -1.0 || y < -1.0 || x > self.width as f64 + 1.0 || y > self.height as f64 + 1.0 {
-            return self.outside;
+            return Ok(self.outside);
         }
         match self.sampling {
             Sampling::Nearest => {
@@ -179,8 +214,10 @@ impl Prepared {
                 let iy = y.floor() as i64;
                 let fx = x - ix as f64;
                 let fy = y - iy as f64;
-                (self.at(ix, iy) * (1.0 - fx) + self.at(ix + 1, iy) * fx) * (1.0 - fy)
-                    + (self.at(ix, iy + 1) * (1.0 - fx) + self.at(ix + 1, iy + 1) * fx) * fy
+                Ok(
+                    (self.at(ix, iy)? * (1.0 - fx) + self.at(ix + 1, iy)? * fx) * (1.0 - fy)
+                        + (self.at(ix, iy + 1)? * (1.0 - fx) + self.at(ix + 1, iy + 1)? * fx) * fy,
+                )
             }
             _ => unreachable!("Mask sampling was validated"),
         }
@@ -188,10 +225,44 @@ impl Prepared {
 }
 
 pub(crate) fn prepare(mask: &Mask, item_world: Matrix) -> Result<Prepared, Error> {
+    if mask.native.is_some() {
+        return Err(Error::new(
+            "UNSUPPORTED_NATIVE_MASK",
+            "This consumer requires inline mask coverage",
+        ));
+    }
+    prepare_with_resources(
+        mask,
+        item_world,
+        None,
+        &crate::control::Control::default(),
+        native::Budget::default(),
+    )
+}
+
+pub(crate) fn prepare_with_resources(
+    mask: &Mask,
+    item_world: Matrix,
+    root: Option<&Path>,
+    control: &crate::control::Control,
+    budget: native::Budget,
+) -> Result<Prepared, Error> {
     mask.validate(item_world)?;
     let [width, height] = mask.prepared_size();
     let pad = mask.feather + 1;
     let outside = f64::from(!mask.clip);
+    if let Some(grid) = &mask.native {
+        return Ok(Prepared {
+            width,
+            height,
+            pad,
+            values: Vec::new(),
+            outside: 1.0 - mask.density * (1.0 - outside),
+            inverse: geometry::inverse(mask.world_transform(item_world))?,
+            sampling: mask.sampling,
+            native: Some(native::Prepared::new(mask, grid, root, control, budget)?),
+        });
+    }
     let mut values = vec![outside; width as usize * height as usize];
     let source = crate::render::unhex(&mask.gray_hex);
     for y in 0..mask.height as usize {
@@ -236,23 +307,110 @@ pub(crate) fn prepare(mask: &Mask, item_world: Matrix) -> Result<Prepared, Error
         outside: 1.0 - mask.density * (1.0 - outside),
         inverse: geometry::inverse(mask.world_transform(item_world))?,
         sampling: mask.sampling,
+        native: None,
     })
 }
 
-pub(crate) fn prepare_document(document: &Document) -> Result<BTreeMap<String, Prepared>, Error> {
+#[derive(Default)]
+pub(crate) struct PreparedDocument {
+    pub items: BTreeMap<String, Prepared>,
+    pub filters: BTreeMap<String, Vec<Option<Prepared>>>,
+}
+
+pub(crate) fn native_costs(document: &Document) -> (u64, u64) {
+    grids(document).fold((0, 0), |(work, buffers), (mask, grid)| {
+        (
+            work + mask.width as u64 * mask.height as u64 * 3,
+            buffers + native::buffer_values(mask, grid),
+        )
+    })
+}
+
+pub(crate) fn grids(
+    document: &Document,
+) -> impl Iterator<Item = (&Mask, &crate::stored_scalars::Grid)> {
     document
         .items
         .iter()
-        .enumerate()
-        .filter_map(|(i, item)| {
-            item.mask.as_ref().filter(|m| m.enabled).map(|m| {
-                let world = scene::world_transform(document, i)?;
-                prepare(m, world)
-                    .map(|p| (item.id.clone(), p))
-                    .map_err(|e| e.at_item(&item.id))
-            })
+        .flat_map(|item| {
+            item.mask
+                .iter()
+                .map(Box::as_ref)
+                .chain(item.filters.iter().filter_map(|f| f.mask.as_deref()))
         })
-        .collect()
+        .filter_map(|mask| mask.native.as_ref().map(|g| (mask, g)))
+}
+
+pub(crate) fn verify_resources(
+    document: &Document,
+    root: Option<&Path>,
+    control: &crate::control::Control,
+) -> Result<(), Error> {
+    for (_, grid) in grids(document) {
+        grid.prepare(root, control)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn prepare_document(
+    document: &Document,
+    root: Option<&Path>,
+    control: &crate::control::Control,
+) -> Result<PreparedDocument, Error> {
+    let budget = native::Budget::default();
+    let mut result = PreparedDocument {
+        items: BTreeMap::new(),
+        filters: BTreeMap::new(),
+    };
+    for (i, item) in document.items.iter().enumerate() {
+        control.check()?;
+        let needs_world = item
+            .mask
+            .iter()
+            .chain(
+                item.filters
+                    .iter()
+                    .filter_map(|filter| filter.mask.as_ref()),
+            )
+            .any(|mask| mask.enabled);
+        let world = if needs_world {
+            scene::world_transform(document, i)?
+        } else {
+            identity()
+        };
+        let prepare_one = |mask: &Mask| -> Result<Option<Prepared>, Error> {
+            if mask.enabled {
+                prepare_with_resources(mask, world, root, control, budget.clone()).map(Some)
+            } else {
+                if let Some(grid) = &mask.native {
+                    grid.prepare(root, control)?;
+                }
+                Ok(None)
+            }
+            .map_err(|e| e.at_item(&item.id))
+        };
+        if let Some(mask) = &item.mask
+            && let Some(prepared) = prepare_one(mask)?
+        {
+            result.items.insert(item.id.clone(), prepared);
+        }
+        if !item.filters.is_empty() {
+            let masks = item
+                .filters
+                .iter()
+                .map(|filter| {
+                    filter
+                        .mask
+                        .as_deref()
+                        .map(prepare_one)
+                        .transpose()
+                        .map(Option::flatten)
+                })
+                .collect::<Result<_, _>>()?;
+            result.filters.insert(item.id.clone(), masks);
+        }
+    }
+    Ok(result)
 }
 
 /// Commit coverage into a finite pixel plane at its native sample centers.
@@ -261,6 +419,7 @@ pub(crate) fn apply_pixels(
     document: &mut Document,
     index: usize,
     asset_root: Option<&std::path::Path>,
+    control: &crate::control::Control,
 ) -> Result<(), Error> {
     if document.kind != DocumentKind::Raster {
         return Err(Error::new(
@@ -281,7 +440,8 @@ pub(crate) fn apply_pixels(
         ));
     }
     let world = scene::world_transform(document, index)?;
-    let prepared = prepare(mask, world)?;
+    let prepared =
+        prepare_with_resources(mask, world, asset_root, control, native::Budget::default())?;
     let (width, height, grid, sampling) = match &item.content {
         Content::Raster {
             width,
@@ -368,7 +528,7 @@ pub(crate) fn apply_pixels(
             (i % width as usize) as f64 + 0.5,
             (i / width as usize) as f64 + 0.5,
         ];
-        let alpha = byte(color[3] * prepared.sample(geometry::map(grid_world, point)));
+        let alpha = byte(color[3] * prepared.sample(geometry::map(grid_world, point))?);
         if alpha == 0 {
             pixels.extend_from_slice(&[0; 4]);
         } else {

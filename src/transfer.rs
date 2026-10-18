@@ -269,6 +269,15 @@ fn apply_with_mode(
     // Verify explicit destination bindings without publishing or moving any bytes.
     if transfer.verify_resources {
         for (_, item) in &copies {
+            for mask in item
+                .mask
+                .iter()
+                .chain(item.filters.iter().filter_map(|f| f.mask.as_ref()))
+            {
+                if let Some(grid) = &mask.native {
+                    grid.prepare(asset_root, control)?;
+                }
+            }
             crate::objects::verify_content_resources(
                 &item.content,
                 asset_root,

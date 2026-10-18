@@ -63,12 +63,7 @@ impl Context<'_> {
                 )
             })
             .transpose()?;
-        let mask = item
-            .mask
-            .as_ref()
-            .filter(|m| m.enabled)
-            .map(|m| crate::masks::prepare(m, world))
-            .transpose()?;
+        let mask = self.masks.items.get(&item.id);
         let n = self.channels();
         let pixels = surface.values.len() / (n + 1);
         for start in (0..pixels).step_by(crate::limits::profiles::MAX_CONVERSION_SAMPLES) {
@@ -91,7 +86,10 @@ impl Context<'_> {
                     * clip
                         .as_ref()
                         .map_or(1.0, |m| m.data()[pixel] as f64 / 255.0)
-                    * mask.as_ref().map_or(1.0, |m| m.sample(self.point(pixel)))
+                    * mask
+                        .map(|m| m.sample(self.point(pixel)))
+                        .transpose()?
+                        .unwrap_or(1.0)
                     * self.artwork_masks.get(&item.id).map_or(1.0, |m| m[pixel]);
                 weights.push(if alpha == 0.0 { 0.0 } else { weight });
                 for c in 0..4 {

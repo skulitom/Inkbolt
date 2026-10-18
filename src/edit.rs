@@ -697,6 +697,7 @@ pub fn apply_with_resources(
     control.check()?;
     candidate.revision = next;
     validate_controlled(&candidate, control)?;
+    crate::masks::verify_resources(&candidate, asset_root, control)?;
     Ok(EditResult {
         document: candidate,
         from_revision: document.revision,
@@ -1824,7 +1825,8 @@ fn apply_one(
                     "Applying an item mask before filters, layer effects or dissolve would change evaluation order; remove those controls first",
                 ));
             }
-            crate::masks::apply_pixels(document, i, asset_root).map_err(|e| e.at_item(id))?;
+            crate::masks::apply_pixels(document, i, asset_root, control)
+                .map_err(|e| e.at_item(id))?;
             Ok((id.clone(), "mask_applied_at_native_pixels"))
         }
         Operation::ArtworkMask { id, mask } => {

@@ -10,10 +10,11 @@ impl Context<'_> {
         let world = scene::world_transform(self.document, i)?;
         let size = [self.width, self.height, self.scale];
         let n = self.channels();
-        for f in item
+        for (index, f) in item
             .filters
             .iter()
-            .filter(|f| f.enabled && f.opacity != 0.0)
+            .enumerate()
+            .filter(|(_, f)| f.enabled && f.opacity != 0.0)
         {
             self.control.check()?;
             let mut filtered = if transport::supports(&f.operator) {
@@ -57,12 +58,7 @@ impl Context<'_> {
             // against the original intrinsic content on transparency. It
             // closes its replacement inks; Normal preserves partial addressing.
             self.apply_blend(&mut filtered, surface, None, f.blend, false)?;
-            let mask = f
-                .mask
-                .as_ref()
-                .filter(|m| m.enabled)
-                .map(|m| crate::masks::prepare(m, world))
-                .transpose()?;
+            let mask = self.masks.filters[&item.id][index].as_ref();
             for (pixel, (dst, src)) in surface
                 .values
                 .chunks_exact_mut(n + 1)
@@ -72,7 +68,11 @@ impl Context<'_> {
                 if pixel.is_multiple_of(crate::limits::control::PIXEL_CHECK_INTERVAL) {
                     self.control.check()?;
                 }
-                let q = f.opacity * mask.as_ref().map_or(1.0, |m| m.sample(self.point(pixel)));
+                let q = f.opacity
+                    * mask
+                        .map(|m| m.sample(self.point(pixel)))
+                        .transpose()?
+                        .unwrap_or(1.0);
                 for c in 0..=n {
                     dst[c] = (1.0 - q) * dst[c] + q * src[c];
                 }

@@ -37,6 +37,7 @@ pub(crate) fn check_pending_budget(document: &Document) -> Result<(), Error> {
             Content::StoredSamples { grid } => grid.staged.as_ref().map(|s| s.0.pending_bytes()),
             _ => None,
         })
+        .chain(crate::masks::grids(document).map(|(_, grid)| grid.pending_bytes()))
         .try_fold(0usize, |total, bytes| total.checked_add(bytes))
         .ok_or_else(|| crate::model::limit("Prepared native block byte count overflowed"))?;
     if total > MAX_PENDING_BYTES {
@@ -62,13 +63,22 @@ pub(crate) fn has_staged(document: &Document) -> bool {
     document.items.iter().any(|item| {
         matches!(&item.content,
         Content::StoredSamples { grid } if grid.staged.is_some())
-    })
+    }) || crate::masks::grids(document).any(|(_, grid)| grid.staged.is_some())
 }
 
 pub(crate) fn clear_staged(document: &mut Document) {
     for item in &mut document.items {
         if let Content::StoredSamples { grid } = &mut item.content {
             grid.staged = None;
+        }
+        for mask in item
+            .mask
+            .iter_mut()
+            .chain(item.filters.iter_mut().filter_map(|f| f.mask.as_mut()))
+        {
+            if let Some(grid) = &mut mask.native {
+                grid.staged = None;
+            }
         }
     }
 }
@@ -84,6 +94,13 @@ pub fn publish_document(
     control.check()?;
     check_pending_budget(document)?;
     let mut pending = Vec::new();
+    let mut scalar_pending = Vec::new();
+    for (_, grid) in crate::masks::grids(document) {
+        let candidate = grid.prepare(root, control)?;
+        if grid.staged.is_some() {
+            scalar_pending.push(candidate);
+        }
+    }
     for item in &document.items {
         if let Content::StoredSamples { grid } = &item.content
             && grid.staged.is_some()
@@ -91,7 +108,7 @@ pub fn publish_document(
             pending.push(grid.prepare(root, control)?);
         }
     }
-    if !pending.is_empty() {
+    if !pending.is_empty() || !scalar_pending.is_empty() {
         let root = root.ok_or_else(|| {
             Error::new(
                 "SAMPLE_ROOT_REQUIRED",
@@ -99,6 +116,9 @@ pub fn publish_document(
             )
         })?;
         for candidate in pending {
+            candidate.publish(root, control)?;
+        }
+        for candidate in scalar_pending {
             candidate.publish(root, control)?;
         }
     }
@@ -123,6 +143,9 @@ pub(crate) fn check_review_document(document: &Document) -> Result<(), Error> {
                 + 256;
         }
     }
+    bytes += crate::masks::grids(document)
+        .map(|(_, grid)| grid.transport_bytes())
+        .sum::<usize>();
     if bytes as u64 > crate::MAX_REQUEST_BYTES {
         return Err(crate::model::limit(
             "Prepared native document exceeds the round-trip transport budget; commit before snapshot export or omit include_document during review",

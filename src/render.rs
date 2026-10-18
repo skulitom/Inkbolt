@@ -426,7 +426,7 @@ struct Resources {
     antialias: crate::render_quality::Antialias,
     light: crate::effects::Lighting,
     track_shape: bool,
-    masks: BTreeMap<String, crate::masks::Prepared>,
+    masks: crate::masks::PreparedDocument,
     assets: BTreeMap<String, Pixels>,
     stored_samples: BTreeMap<String, crate::stored_samples::Reader>,
     inline_samples: BTreeMap<String, crate::samples::Decoded>,
@@ -600,14 +600,20 @@ fn apply_adjustment(
         let weight = item.opacity
             * resources.artwork_masks.get(&item.id).map_or(1.0, |m| m[n])
             * mask.as_ref().map_or(1.0, |m| m.data()[n] as f64 / 255.0)
-            * resources.masks.get(&item.id).map_or(1.0, |m| {
-                m.sample([
-                    (resources.origin[0] as usize + n % width as usize) as f64 / scale as f64
-                        + 0.5 / scale as f64,
-                    (resources.origin[1] as usize + n / width as usize) as f64 / scale as f64
-                        + 0.5 / scale as f64,
-                ])
-            });
+            * resources
+                .masks
+                .items
+                .get(&item.id)
+                .map(|m| {
+                    m.sample([
+                        (resources.origin[0] as usize + n % width as usize) as f64 / scale as f64
+                            + 0.5 / scale as f64,
+                        (resources.origin[1] as usize + n / width as usize) as f64 / scale as f64
+                            + 0.5 / scale as f64,
+                    ])
+                })
+                .transpose()?
+                .unwrap_or(1.0);
         if weight == 0.0 {
             continue;
         }
@@ -665,38 +671,42 @@ struct Coverage<'a> {
     origin: [u32; 2],
 }
 impl Coverage<'_> {
-    fn alpha(&self, pixel: usize, alpha: f64) -> f64 {
+    fn alpha(&self, pixel: usize, alpha: f64) -> Result<f64, Error> {
         self.sample(pixel, alpha, self.opacity)
     }
-    fn shape(&self, pixel: usize, shape: f64) -> f64 {
+    fn shape(&self, pixel: usize, shape: f64) -> Result<f64, Error> {
         self.sample(pixel, shape, 1.0)
     }
-    fn sample(&self, pixel: usize, alpha: f64, opacity: f64) -> f64 {
+    fn sample(&self, pixel: usize, alpha: f64, opacity: f64) -> Result<f64, Error> {
         let point = [
             self.origin[0] as f64 + (pixel % self.width as usize) as f64 + 0.5,
             self.origin[1] as f64 + (pixel / self.width as usize) as f64 + 0.5,
         ]
         .map(|v| v / self.scale as f64);
-        self.mode.alpha(
-            alpha * opacity * self.mask_at(pixel),
+        Ok(self.mode.alpha(
+            alpha * opacity * self.mask_at(pixel)?,
             geometry::map(self.inverse, point),
-        )
+        ))
     }
-    fn at(&self, pixel: usize) -> f64 {
-        self.opacity * self.mask_at(pixel)
+    fn at(&self, pixel: usize) -> Result<f64, Error> {
+        Ok(self.opacity * self.mask_at(pixel)?)
     }
-    fn mask_at(&self, pixel: usize) -> f64 {
-        self.artwork_mask.map_or(1.0, |m| m[pixel])
-            * self.mask.map_or(1.0, |mask| {
-                mask.sample([
-                    (self.origin[0] as usize + pixel % self.width as usize) as f64
-                        / self.scale as f64
-                        + 0.5 / self.scale as f64,
-                    (self.origin[1] as usize + pixel / self.width as usize) as f64
-                        / self.scale as f64
-                        + 0.5 / self.scale as f64,
-                ])
-            })
+    fn mask_at(&self, pixel: usize) -> Result<f64, Error> {
+        Ok(self.artwork_mask.map_or(1.0, |m| m[pixel])
+            * self
+                .mask
+                .map(|mask| {
+                    mask.sample([
+                        (self.origin[0] as usize + pixel % self.width as usize) as f64
+                            / self.scale as f64
+                            + 0.5 / self.scale as f64,
+                        (self.origin[1] as usize + pixel / self.width as usize) as f64
+                            / self.scale as f64
+                            + 0.5 / self.scale as f64,
+                    ])
+                })
+                .transpose()?
+                .unwrap_or(1.0)
             * self
                 .clip
                 .as_ref()
@@ -704,7 +714,7 @@ impl Coverage<'_> {
             * self
                 .frame
                 .as_ref()
-                .map_or(1.0, |m| m.data()[pixel] as f64 / 255.0)
+                .map_or(1.0, |m| m.data()[pixel] as f64 / 255.0))
     }
 }
 fn coverage<'a>(
@@ -734,7 +744,7 @@ fn coverage<'a>(
         opacity: item.opacity,
         width,
         scale,
-        mask: resources.masks.get(&item.id),
+        mask: resources.masks.items.get(&item.id),
         artwork_mask: resources.artwork_masks.get(&item.id).map(Vec::as_slice),
         clip,
         frame,
@@ -759,13 +769,14 @@ fn transform_shape(
     world: Matrix,
     filters: bool,
     (light, origin): (crate::effects::Lighting, [u32; 2]),
+    masks: &[Option<crate::masks::Prepared>],
 ) -> Result<(), Error> {
     if (filters && item.filters.is_empty()) || (!filters && item.effects.is_empty()) {
         return Ok(());
     }
     let mut pixels: Vec<f64> = shape.iter().flat_map(|&a| [0.0, 0.0, 0.0, a]).collect();
     if filters {
-        crate::filters::apply_region(item, &mut pixels, size, world, origin)?;
+        crate::filters::apply_region(item, &mut pixels, size, world, origin, masks)?;
     } else {
         let mut shape_item = item.clone();
         shape_item.fill_opacity = 1.0;
@@ -785,7 +796,7 @@ fn decorate(
     origin: [u32; 2],
 ) -> Result<(), Error> {
     if let Some(shape) = &mut surface.shape {
-        transform_shape(item, shape, size, world, false, (light, origin))?;
+        transform_shape(item, shape, size, world, false, (light, origin), &[])?;
     }
     crate::effects::apply_region(item, &mut surface.pixels, size, world, light, origin)?;
     if let Some(shape) = &mut surface.shape {
@@ -1036,9 +1047,25 @@ fn drawable_pixels(
             world,
             true,
             (resources.light, resources.origin),
+            resources
+                .masks
+                .filters
+                .get(&item.id)
+                .map_or(&[], Vec::as_slice),
         )?;
     }
-    crate::filters::apply_region(item, &mut pixels, size, world, resources.origin)?;
+    crate::filters::apply_region(
+        item,
+        &mut pixels,
+        size,
+        world,
+        resources.origin,
+        resources
+            .masks
+            .filters
+            .get(&item.id)
+            .map_or(&[], Vec::as_slice),
+    )?;
     if resources.track_shape && shape.is_none() {
         shape = Some(alphas(&pixels));
     }
@@ -1091,7 +1118,7 @@ fn apply_clipped_layers(
             .enumerate()
         {
             let alpha = dst[3];
-            let weight = coverage.alpha(pixel, src[3]);
+            let weight = coverage.alpha(pixel, src[3])?;
             if alpha == 0.0 || weight == 0.0 {
                 continue;
             }
@@ -1172,8 +1199,10 @@ fn draw_items(
                 {
                     let f = child_shape
                         .as_ref()
-                        .map_or(0.0, |s| coverage.shape(pixel, s[pixel]));
-                    let weight = coverage.at(pixel);
+                        .map(|s| coverage.shape(pixel, s[pixel]))
+                        .transpose()?
+                        .unwrap_or(0.0);
+                    let weight = coverage.at(pixel)?;
                     if let Some(initial) = &initial {
                         let b = &initial[pixel * 4..pixel * 4 + 4];
                         for c in 0..4 {
@@ -1229,7 +1258,7 @@ fn draw_items(
                 };
                 composite(
                     &mut dst,
-                    [color[0], color[1], color[2], coverage.alpha(pixel, src[3])],
+                    [color[0], color[1], color[2], coverage.alpha(pixel, src[3])?],
                     1.0,
                     item.blend,
                     resources.linear,
@@ -1268,11 +1297,13 @@ fn draw_items(
             } else {
                 [src[0] / src[3], src[1] / src[3], src[2] / src[3], src[3]]
             };
-            let alpha = coverage.alpha(pixel, straight[3]);
+            let alpha = coverage.alpha(pixel, straight[3])?;
             let f = surface
                 .shape
                 .as_ref()
-                .map_or(alpha, |s| coverage.shape(pixel, s[pixel]));
+                .map(|s| coverage.shape(pixel, s[pixel]))
+                .transpose()?
+                .unwrap_or(alpha);
             if let Some(initial) = &initial {
                 let b: &[f64; 4] = initial[pixel * 4..pixel * 4 + 4].try_into().unwrap();
                 crate::knockout::composite(
@@ -1533,7 +1564,7 @@ pub(crate) fn plan_artwork_masks(
                 antialias,
                 light: document.global_light,
                 track_shape: false,
-                masks: BTreeMap::new(),
+                masks: Default::default(),
                 assets: BTreeMap::new(),
                 stored_samples: BTreeMap::new(),
                 inline_samples: BTreeMap::new(),

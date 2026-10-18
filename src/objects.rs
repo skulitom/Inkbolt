@@ -101,6 +101,11 @@ impl Object {
             view.validate()?;
         }
         let d = parse(&self.snapshot)?;
+        if crate::masks::grids(&d).any(|(_, grid)| grid.staged.is_some()) {
+            return Err(invalid(
+                "Commit pending scalar blocks before retaining an object snapshot",
+            ));
+        }
         if self.view.is_some() && !crate::hdr::linear(&d) {
             return Err(invalid("Object display views require a linear HDR source"));
         }
@@ -405,6 +410,7 @@ pub(crate) fn verify_resources(
     for item in &d.items {
         verify_content_resources(&item.content, asset_root, font_root, control)?;
     }
+    crate::masks::verify_resources(&d, asset_root, control)?;
     Ok(())
 }
 pub(crate) fn verify_content_resources(

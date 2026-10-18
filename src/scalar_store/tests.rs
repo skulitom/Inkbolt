@@ -532,11 +532,8 @@ fn scalar_bounds_and_schema_names_do_not_expand_image_interpretations() {
     let caps = crate::execute(crate::Request::Capabilities {}).unwrap();
     let scalar = &caps["native_scalar_store_library"];
     assert_eq!(scalar["max_pixels"], 67_108_864);
-    for key in [
-        "document_integration",
-        "mask_application",
-        "selection_to_mask",
-    ] {
+    assert_eq!(scalar["document_integration"], true);
+    for key in ["mask_application", "selection_to_mask"] {
         assert_eq!(scalar[key], false);
     }
     let native = &caps["native_sample_store_library"];

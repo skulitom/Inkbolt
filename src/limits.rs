@@ -831,6 +831,12 @@ pub mod request {
 
 /// Limits for `src/masks.rs`.
 pub mod masks {
+    /// Raw scalar tile rows retained for feather halos and adjacent output bands.
+    pub const NATIVE_SOURCE_CACHE_ROWS: u64 = 4;
+    /// Processed scalar tile rows retained for nearest/bilinear traversal.
+    pub const NATIVE_FILTER_CACHE_ROWS: u64 = 2;
+    /// Aggregate scalar source pixels across item and filter masks.
+    pub const MAX_NATIVE_PIXELS: u64 = super::sample_store::MAX_PIXELS;
     /// Max feather (masks).
     pub const MAX_FEATHER: u32 = 32;
     /// Max prepared pixels (masks).

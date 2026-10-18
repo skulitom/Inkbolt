@@ -270,6 +270,36 @@ impl Report<'_> {
         drop(cache); // Never retain ancestor font caches while checking nested snapshots.
         for (index, item) in d.items.iter().enumerate() {
             self.content_objects(&item.content, objects, &format!("/items/{index}/content"))?;
+            if self.options.resources {
+                let planes = item
+                    .mask
+                    .iter()
+                    .map(|m| (format!("/items/{index}/mask/native"), m))
+                    .chain(item.filters.iter().enumerate().filter_map(|(f, value)| {
+                        value
+                            .mask
+                            .as_ref()
+                            .map(|m| (format!("/items/{index}/filters/{f}/mask/native"), m))
+                    }));
+                for (pointer, mask) in planes {
+                    if self.stopped {
+                        break;
+                    }
+                    if let Some(grid) = &mask.native {
+                        self.counts.images += 1;
+                        if let Err(error) =
+                            grid.prepare(self.resources.asset_root.as_deref(), self.control)
+                        {
+                            self.issue(
+                                error.at_item(&item.id),
+                                "error",
+                                location(objects, &pointer),
+                                json!({"base_manifest_sha256":grid.base.sha256}),
+                            )?;
+                        }
+                    }
+                }
+            }
             if self.stopped {
                 break;
             }

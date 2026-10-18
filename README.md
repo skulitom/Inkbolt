@@ -44,7 +44,7 @@ development version using the [installation guide](docs/INSTALLATION.md).
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Prebuilt Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. See its release notes for included features. |
-| Build from `main` | Adds native JPEG import, larger image workflows, repair on stored high-precision images and lower-memory PNG/JPEG/TIFF file exports. These additions are not in v0.82.0. |
+| Build from `main` | Adds larger image workflows, native JPEG import, high-precision repair, previews of large masks and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -78,11 +78,12 @@ receipts have Windows, Linux and macOS verification; background export jobs are
 currently Windows-only.
 
 On `main`, Windows and Linux checks cover 50 MP images through local brush and
-repair edits, saved history and TIFF delivery. Each operation has its own size,
-precision and work limits. Masks and selections retain smaller limits;
-large-image mask editing and application remain in development. See
-[large-image workflows](docs/SCALE_ADMISSION.md), [image repair](docs/NATIVE_REPAIR.md)
-and [resource limits](docs/LIMITS.md) for the verified scope.
+repair edits, saved history and TIFF delivery. Large masks support focused
+previews. Each operation has its own size, precision and work limits;
+large selections and whole-image mask application remain in development. See
+[large-image workflows](docs/SCALE_ADMISSION.md), [image repair](docs/NATIVE_REPAIR.md),
+[image masks](docs/NATIVE_MASKS.md) and [resource limits](docs/LIMITS.md) for the
+verified scope.
 
 Broader image workflows, editable format coverage and agent usability remain
 active work.

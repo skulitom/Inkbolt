@@ -332,6 +332,9 @@ impl Prepared {
         let mut source_profiles = std::collections::BTreeSet::new();
         let mut depth = 0;
         let mut work = own_work + mask_plan.work;
+        let (native_mask_work, native_mask_buffers) = crate::masks::native_costs(document);
+        work = work.saturating_add(native_mask_work);
+        crate::objects::charge(native_mask_work)?;
         let mut buffers = (buffer_pixels * 4).max(mask_plan.buffer_values)
             + spatial.as_ref().map_or(0, |p| p.buffer_values)
             + neighborhood.as_ref().map_or(0, |n| n.buffer_values())
@@ -341,6 +344,7 @@ impl Prepared {
                 .map(|item| crate::filters::scratch(item, scale))
                 .max()
                 .unwrap_or(0);
+        buffers = buffers.saturating_add(native_mask_buffers);
         for (i, item) in document.items.iter().enumerate() {
             control.check()?;
             if !scene::effective_visible(document, i)? {
@@ -421,7 +425,7 @@ impl Prepared {
             antialias: plan.options.antialias,
             light: document.global_light,
             track_shape: crate::knockout::active(document),
-            masks: crate::masks::prepare_document(document)?,
+            masks: crate::masks::prepare_document(document, asset_root, control)?,
             assets: assets::resolve(document, asset_root)?,
             inline_samples: if tiled {
                 let mut values = BTreeMap::new();

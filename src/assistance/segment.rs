@@ -404,6 +404,7 @@ fn evaluate(
         ));
     }
     let mask = masks::Mask {
+        native: None,
         constant: false,
         width: grid.width,
         height: grid.height,

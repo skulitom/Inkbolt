@@ -1,10 +1,10 @@
 # Native scalar blocks for masks and selections
 
 This is the format and migration contract for W4.6's grayscale block storage.
-The storage primitive is implemented; document mask/selection integration,
-bounded evaluation and full-image mask application are still pending. Existing
-mask and selection commands retain their inline representation and limits until
-those operations have their own acceptance evidence.
+The storage primitive has full acceptance. [Item and filter mask integration](NATIVE_MASKS.md)
+now has fresh full Windows/Linux acceptance. Native
+selection authoring and whole-image mask application remain open. Existing
+inline planes retain their representation and limits.
 
 ## Representation and compatibility
 
@@ -94,8 +94,9 @@ session, publication and recovery contracts also pass.
 
 Complete command, document and operation schema responses match the previous
 engine exactly. The original feature registry is unchanged. Capabilities report
-the scalar API as a library primitive and keep native mask integration false;
-the stale native-repair refusal entry has been corrected.
+the scalar API as a library primitive at this storage-only milestone, with mask
+integration then false. The subsequent [mask increment](NATIVE_MASKS.md) enables
+item/filter integration; native selection and whole-image application remain false.
 
 Initial focused acceptance took 174.8 seconds on Windows and 164.6 on Linux.
 After eliminating repeated immutable-manifest hashing, Windows's storage-focused
@@ -118,10 +119,10 @@ remain open.
 
 ## Required integration
 
-The next increments must connect these blocks to mask and selection descriptors,
-resource discovery, proposals, saved revisions, backups and publication. They
-must preserve existing linked/unlinked transforms, clip/outside values,
-inversion, density, feather and sampling. Every selection consumer must resolve
+The subsequent [item/filter mask increment](NATIVE_MASKS.md) connects descriptors,
+resource checks, proposals, saved revisions, backups and publication, retaining
+linked/unlinked transforms, clip/outside values, inversion, density, feather and
+sampling. Native selection integration remains open. Every selection consumer must resolve
 the new representation or refuse it explicitly; no consumer may treat an absent
 inline buffer as empty coverage.
 

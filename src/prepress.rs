@@ -246,6 +246,7 @@ impl Surface {
 }
 
 struct Context<'a> {
+    masks: crate::masks::PreparedDocument,
     document: &'a Document,
     converter: profiles::cmyk::PaintConverter,
     observer: Option<profiles::proof::Observer>,
@@ -651,12 +652,7 @@ impl Context<'_> {
             }
             _ => None,
         };
-        let mask = item
-            .mask
-            .as_ref()
-            .filter(|m| m.enabled)
-            .map(|m| crate::masks::prepare(m, world))
-            .transpose()?;
+        let mask = self.masks.items.get(&item.id);
         let n = self.channels();
         let inverse = (!item.coverage.is_smooth())
             .then(|| geometry::inverse(world))
@@ -678,7 +674,7 @@ impl Context<'_> {
                 shape_weight *= coverage.data()[pixel] as f64 / 255.0;
             }
             if let Some(mask) = &mask {
-                let amount = mask.sample(self.point(pixel));
+                let amount = mask.sample(self.point(pixel))?;
                 g *= amount;
                 shape_weight *= amount;
             }
@@ -960,6 +956,11 @@ impl NativePlan {
             coverage_sources["adjustments"]["separation_intent"] = json!(options.intent);
         }
         let context = Context {
+            masks: crate::masks::prepare_document(
+                document,
+                resources.asset_root.as_deref(),
+                control,
+            )?,
             document,
             observer: if self.adjustments {
                 Some(profiles::proof::Observer::new(
@@ -1228,6 +1229,7 @@ fn native_plan(
             filter_work += filter.operator.work(plan.internal_scale);
             if let Some(mask) = &filter.mask
                 && mask.enabled
+                && mask.native.is_none()
             {
                 let [w, h] = mask.prepared_size();
                 let count = w as u64 * h as u64;
@@ -1482,6 +1484,8 @@ fn native_plan(
                         + crate::limits::prepress::FILTER_PIXEL_OVERHEAD))
         + filter_mask_work
         + mask_plan.work;
+    let (native_mask_work, native_mask_buffers) = crate::masks::native_costs(document);
+    let total_work = total_work.saturating_add(native_mask_work);
     let image_buffers = if image_count == 0 {
         0
     } else {
@@ -1524,7 +1528,7 @@ fn native_plan(
         + warp_buffers
         + mask_plan.retained_values
         + object_buffers;
-    let buffers = buffers.max(mask_plan.buffer_values + object_buffers);
+    let buffers = buffers.max(mask_plan.buffer_values + object_buffers) + native_mask_buffers;
     if buffers > MAX_BUFFER_VALUES
         || total_work > MAX_WORK
         || outline_work > crate::render::MAX_RENDER_WORK
