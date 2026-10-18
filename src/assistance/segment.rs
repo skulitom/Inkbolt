@@ -8,6 +8,7 @@ use std::{
     path::Path,
 };
 mod input;
+mod proxy;
 
 use crate::limits::assistance_segment as limits;
 pub use crate::limits::assistance_segment::MAX_PIXELS;
@@ -25,6 +26,8 @@ fn invalid(message: &str) -> Error {
 pub struct Options {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<crate::sample_store::Region>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proxy: Option<proxy::Options>,
     pub foreground: Vec<[u32; 2]>,
     pub background: Vec<[u32; 2]>,
     #[serde(default = "default_weight")]
@@ -199,6 +202,75 @@ impl Graph {
     }
 }
 
+struct Cut {
+    labels: Vec<bool>,
+    flow: u64,
+    data_cost: u64,
+    boundary_cost: u64,
+    hard: u64,
+}
+
+fn cut(
+    costs: &mut [[u64; 2]],
+    neighbors: &[(usize, usize, u64)],
+    seeds: &[Vec<usize>; 2],
+    work: &mut Work<'_>,
+) -> Result<Cut, Error> {
+    let n = costs.len();
+    // This strict upper bound exceeds every feasible finite-labeling energy.
+    let hard = 1
+        + costs.iter().map(|c| c[0].max(c[1])).sum::<u64>()
+        + neighbors.iter().map(|n| n.2).sum::<u64>();
+    for &p in &seeds[0] {
+        costs[p][1] = hard;
+    }
+    for &p in &seeds[1] {
+        costs[p][0] = hard;
+    }
+    let source = n;
+    let sink = n + 1;
+    let mut graph = Graph {
+        edges: vec![Vec::new(); n + 2],
+    };
+    for (p, &[foreground, background]) in costs.iter().enumerate() {
+        work.add(2)?;
+        graph.edge(source, p, background, 0);
+        graph.edge(p, sink, foreground, 0);
+    }
+    for &(u, v, w) in neighbors {
+        work.add(1)?;
+        graph.edge(u, v, w, w);
+    }
+    let (flow, mut reachable) = graph.solve(source, sink, work)?;
+    let data_cost = costs
+        .iter()
+        .enumerate()
+        .map(|(p, c)| c[usize::from(!reachable[p])])
+        .sum::<u64>();
+    let boundary_cost = neighbors
+        .iter()
+        .filter(|&&(u, v, _)| reachable[u] != reachable[v])
+        .map(|n| n.2)
+        .sum::<u64>();
+    if data_cost + boundary_cost != flow
+        || seeds[0].iter().any(|&p| !reachable[p])
+        || seeds[1].iter().any(|&p| reachable[p])
+    {
+        return Err(Error::new(
+            "ASSISTANCE_SOLVER",
+            "Local selection failed its minimum-cut or hard-seed certificate",
+        ));
+    }
+    reachable.truncate(n);
+    Ok(Cut {
+        labels: reachable,
+        flow,
+        data_cost,
+        boundary_cost,
+        hard,
+    })
+}
+
 pub fn inspect(
     document: &Document,
     id: &str,
@@ -241,6 +313,9 @@ fn evaluate(
         preparation: Default::default(),
         control,
     };
+    if let Some(proxy) = &options.proxy {
+        return proxy::evaluate(document, id, options, proxy, root, &mut work);
+    }
     let mut grid = input::read(document, id, options.region, root, &mut work)?;
     let n = grid.width as usize * grid.height as usize;
     let mut seen = HashSet::new();
@@ -311,50 +386,13 @@ fn evaluate(
             }
         }
     }
-    // This strict upper bound exceeds every feasible finite-labeling energy.
-    let hard = 1
-        + costs.iter().map(|c| c[0].max(c[1])).sum::<u64>()
-        + neighbors.iter().map(|n| n.2).sum::<u64>();
-    for &p in &seeds[0] {
-        costs[p][1] = hard;
-    }
-    for &p in &seeds[1] {
-        costs[p][0] = hard;
-    }
-    let source = n;
-    let sink = n + 1;
-    let mut graph = Graph {
-        edges: vec![Vec::new(); n + 2],
-    };
-    for (p, &[foreground, background]) in costs.iter().enumerate() {
-        work.add(2)?;
-        graph.edge(source, p, background, 0);
-        graph.edge(p, sink, foreground, 0);
-    }
-    for &(u, v, w) in &neighbors {
-        work.add(1)?;
-        graph.edge(u, v, w, w);
-    }
-    let (flow, reachable) = graph.solve(source, sink, &mut work)?;
-    let data_cost = costs
-        .iter()
-        .enumerate()
-        .map(|(p, c)| c[usize::from(!reachable[p])])
-        .sum::<u64>();
-    let boundary_cost = neighbors
-        .iter()
-        .filter(|&&(u, v, _)| reachable[u] != reachable[v])
-        .map(|n| n.2)
-        .sum::<u64>();
-    if data_cost + boundary_cost != flow
-        || seeds[0].iter().any(|&p| !reachable[p])
-        || seeds[1].iter().any(|&p| reachable[p])
-    {
-        return Err(Error::new(
-            "ASSISTANCE_SOLVER",
-            "Local selection failed its minimum-cut or hard-seed certificate",
-        ));
-    }
+    let Cut {
+        labels: reachable,
+        flow,
+        data_cost,
+        boundary_cost,
+        hard,
+    } = cut(&mut costs, &neighbors, &seeds, &mut work)?;
     let mask = masks::Mask {
         native: None,
         constant: false,
@@ -416,7 +454,9 @@ pub(crate) fn apply(
         ));
     }
     let (mask, mut report) = evaluate(document, id, options, root, control)?;
-    if report.get("analysis").is_some() {
+    if options.proxy.is_some() {
+        proxy::compact(&mut report);
+    } else if report.get("analysis").is_some() {
         // Native edit receipts describe the retained mask without duplicating
         // its pixels or optional per-pixel costs into bounded session history.
         // Inspection still returns the full mask and requested cost arrays.

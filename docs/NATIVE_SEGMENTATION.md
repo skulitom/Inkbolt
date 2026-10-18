@@ -3,8 +3,8 @@
 This contract extends `assist.segment` and `assist_mask` to an explicit native
 region of an image, including stored RGBA/gray-alpha samples. Fresh full
 Windows/Linux acceptance and an independent 50 MP workflow passed within this
-contract. It advances W4.6; proxy-then-refine selection, larger graphs and full W4
-remain open.
+contract. The optional [proxy/refine mode](PROXY_SEGMENTATION.md) has its own
+separate approximation contract and acceptance. Full W4 remains open.
 
 ## Region and coordinates
 
@@ -133,6 +133,7 @@ Retained `w4-native-segment-acceptance-02/audit.json` SHA-256:
 `36db7283c7621cd1fa4c4624b6910ca9c3fa07d77402ba7af056563b33762f5e`.
 The audit binds the source archive, executables, complete/focused logs, failures,
 independent sample oracles and compatibility comparisons. Later documentation
-changes are recorded separately. Proxy/refine selection, larger operation regions,
-larger layered files, repeated scale-v2 and Unix memory remain open. The unchanged
+changes are recorded separately. The subsequent [proxy/refine increment](PROXY_SEGMENTATION.md)
+has separate acceptance. Larger operation regions and layered files, repeated
+scale-v2 and Unix memory remain open. The unchanged
 registry stays 163/167; full W4 and the overall goal remain incomplete.

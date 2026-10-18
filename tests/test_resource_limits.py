@@ -696,6 +696,12 @@ BINDINGS = {
     'pixel_assistance/native_region/maximum_pixels': 'assistance_segment.MAX_PIXELS',
     'pixel_assistance/native_region/memory_bytes': 'assistance_segment.MAX_MEMORY_BYTES',
     'pixel_assistance/native_region/source_preparation_work': 'native_pixels.MAX_PREPARATION_WORK',
+    'pixel_assistance/proxy_then_refine/step/1': 'assistance_segment.MAX_PROXY_STEP',
+    'pixel_assistance/proxy_then_refine/refine_radius/1': 'assistance_segment.MAX_REFINE_RADIUS',
+    'pixel_assistance/proxy_then_refine/maximum_coarse_pixels': 'assistance_segment.MAX_PIXELS',
+    'pixel_assistance/proxy_then_refine/maximum_refinement_pixels': 'assistance_segment.MAX_REFINE_PIXELS',
+    'pixel_assistance/proxy_then_refine/memory_bytes': 'assistance_segment.PROXY_MEMORY_BYTES',
+    'pixel_assistance/proxy_then_refine/preparation_work': 'native_pixels.MAX_PREPARATION_WORK',
     'job_process/default_lifetime_ms': 'job_process.DEFAULT_LIFETIME_MS',
     'job_process/maximum_lifetime_ms': 'job_process.MAX_LIFETIME_MS',
     'job_process/default_committed_memory_mib': 'job_process.DEFAULT_MEMORY_MIB',
@@ -915,6 +921,8 @@ class ResourceLimitTests(unittest.TestCase):
         # Selection zero/required-positive and normalized volume endpoints are
         # structural semantics; all other numeric controls have catalog bindings.
         fixed = {'pixel_assistance/smoothness/0':0, 'pixel_assistance/edge_scale/0':1,
+                 'pixel_assistance/proxy_then_refine/step/0':1,
+                 'pixel_assistance/proxy_then_refine/refine_radius/0':1,
                  'pixel_assistance/native_region/feature_bits/u8':8,
                  'pixel_assistance/native_region/feature_bits/u16':16,
                  'pixel_assistance/native_region/feature_bits/f32':16,

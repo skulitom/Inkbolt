@@ -87,6 +87,22 @@ pub mod assistance_segment {
     pub const WORKING_BYTES_PER_PIXEL: u64 = 1024;
     /// Fixed allowance for native-region selection bookkeeping and buffers.
     pub const FIXED_WORKING_BYTES: u64 = 8 * 1024 * 1024;
+    /// Maximum native boundary nodes in the opt-in proxy/refine solver.
+    pub const MAX_REFINE_PIXELS: usize = 262_144;
+    /// Largest explicitly requested proxy sampling step in native pixels.
+    pub const MAX_PROXY_STEP: u32 = 1024;
+    /// Largest Chebyshev boundary radius in native pixels.
+    pub const MAX_REFINE_RADIUS: u32 = 64;
+    /// Combined admission bound for proxy/refine processing, including inputs.
+    pub const PROXY_MEMORY_BYTES: u64 = 256 * 1024 * 1024;
+    /// Source caches, sweep events, row staging and bounded output bookkeeping.
+    pub const PROXY_FIXED_BYTES: u64 = 32 * 1024 * 1024;
+    /// Retained coarse fields while solving the native boundary.
+    pub const PROXY_RETAINED_BYTES_PER_PIXEL: u64 = 128;
+    /// Conservative boundary graph, feature, solver and query storage per node.
+    pub const REFINE_BYTES_PER_PIXEL: u64 = 640;
+    /// Additional JSON cost construction/serialization allowance per graph node.
+    pub const PROXY_COST_BYTES_PER_PIXEL: u64 = 2048;
 }
 
 /// Limits for `src/assistance.rs`.

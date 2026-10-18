@@ -5,6 +5,27 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W4.6: proxy selection with native boundary refinement verified
+
+[Proxy/refine selection](PROXY_SEGMENTATION.md) creates full-resolution native
+masks from a declared coarse cut and an exact conditional native boundary cut.
+It preserves source samples and records fixed outside labels, sampling losses,
+large integer energies, bounded work and optional single-copy previews.
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 267 | 307 | 2,783 | 13 | 996.797 |
+| Linux / WSL | 267 | 273 | 2,745 | 51 | 645.059 |
+
+Independent 50 MP and 8192 x 8192 Windows/Linux workflows verify every mask,
+source/edited/TIFF sample, exact declared objectives, proposals, retries and
+history. Windows peaks were 89.371 and 108.473 MiB. The maximum case reaches
+both graph bounds. Complete large-image MCP responses match CLI results; 192
+legacy/native responses remain unchanged. The contract records source identities,
+retained failures and all acceptance evidence. Larger edit regions and layered
+files, repeated scale-v2, Unix memory and the overall goal remain open. No
+registry point or release is added.
+
 ## W4.6: native region selection verified
 
 [Native region selection](NATIVE_SEGMENTATION.md) now accepts stored and
@@ -24,7 +45,7 @@ and mask cell, proposal/retry and all history states. Cross-platform documents,
 change receipts and hashes match; Windows peak process commit was 60.730 MiB.
 Ninety-six successful eight-bit responses remain identical. The contract records
 the retained initial receipt failure, focused corrections and source/evidence
-identities. Proxy/refine selection, larger operation regions, larger layered files,
+identities. Proxy/refine now has separate acceptance above. Larger operation regions and layered files,
 repeated scale-v2 and Unix memory remain open. No registry point or release is added.
 
 ## W4.6: selected patch repair verified within existing limits
@@ -49,9 +70,8 @@ change receipts and exported hashes match; Windows peak process commit was
 
 The contract records source/evidence identities and retained initial fixture and
 Clippy failures. Native segmentation, larger layered files, remaining W4 work,
-repeated scale-v2 and Unix memory remain open. The hosted Windows idle-exit
-`JOB_BUSY` failure recorded in [platform coverage](PLATFORMS.md) also needs
-resolution before another release. No checkpoint or release is added.
+repeated scale-v2 and Unix memory remain open. The corrected hosted Windows
+idle-exit fixture now passes the full matrix recorded in [platform coverage](PLATFORMS.md). No checkpoint or release is added.
 
 ## W4.6: native selections verified within the bounded contract
 
@@ -154,7 +174,7 @@ matrix remain at their earlier revisions; this acceptance covers Windows/WSL.
 
 ## W4.4: larger native image admission verified
 
-[Coordinated admission](SCALE_ADMISSION.md) now supports the verified 8192-square
+[Coordinated admission](SCALE_ADMISSION.md) now supports the verified 8192 x 8192
 native import/TIFF/preflight/PNG path and a 50 MP true-RGBA16 local patch, brush,
 history and export workflow. Private source/output and disk-pixel budgets are
 separate from inline responses, resident codec/render storage and local edit
@@ -2710,7 +2730,7 @@ acceptance remains retained under `w4-source-staging-acceptance-01` and
 `w4-pixel-staging-acceptance-01`, including the paired 48-import diagnostic and
 their original failed attempts. Subsequent changes update acceptance docs only.
 
-Native JPEG has separate acceptance below. Coordinated 8192-square canvases and
+Native JPEG has separate acceptance below. Coordinated 8192 x 8192 canvases and
 encoded-input/output limits, streaming output, the complete 50 MP workflow and
 independent `scale-v2` acceptance remain open. No original checkpoint receives
 additional credit.

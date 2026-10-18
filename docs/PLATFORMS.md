@@ -7,23 +7,23 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/39091934487)
-is `5b51681`, through native repair, masks, selections and shared patch
-preparation. All stages ran fresh, all three
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/39119850643)
+is `2793896`, through native repair, masks, selections, shared patch
+preparation and the corrected idle-exit contention/retry fixture. All stages ran fresh, all three
 minimum-compiler checks passed and source inputs remained unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 265 | 306 | 2,772 | 9 | 4566.751 |
-| Ubuntu 24.04 | 265 | 272 | 2,730 | 51 | 1550.440 |
-| macOS 15 ARM64 | 265 | 272 | 2,730 | 51 | 3291.106 |
+| Windows 2025 | 265 | 306 | 2,772 | 9 | 4534.814 |
+| Ubuntu 24.04 | 265 | 272 | 2,730 | 51 | 880.952 |
+| macOS 15 ARM64 | 265 | 272 | 2,730 | 51 | 2541.953 |
 
 Reports, all 795 stage logs, run metadata and the 958-file source archive are
-retained in `w4-shared-patch-ci-5b51681`. The archive matches every report's
+retained in `idle-retry-ci-2793896`. The archive matches every report's
 source fingerprint. Audit SHA-256:
-`ecf7207a6586b8de0353b3ab08972fe61aaf2e107f38fdfaad9ef3aa1795f27a`;
+`b47cc6ce52ddb4c8a6c4cca7d9c817d2879e88021ee84e42bc3c64c9560ee06e`;
 shared hosted source fingerprint:
-`fb75a6db2367109f57b434e04fe9890ae74fa772ee88fa1b3144ede7daa6dcf9`.
+`4e66e54d2cc86f90347b1d2a197a2cfcdb23d28331d69d9cbeee4b16209ec0c7`.
 Hosted checks evaluate the public structural guard; local private-policy checks
 remain separate. Unix background jobs remain unsupported.
 
@@ -86,12 +86,20 @@ matched across both platforms. Windows peak process commit was 60.730 MiB;
 Unix memory remains unavailable. This local increment makes no new hosted macOS
 claim; its contract records the complete counts, failures and evidence.
 
+The subsequent [proxy/refine selection](PROXY_SEGMENTATION.md) passes all
+267 stages fresh on Windows and Linux, with matching unchanged inputs. Independent
+50 MP and 8192 x 8192 workflows check native masks, source/edited/TIFF samples,
+MCP/CLI parity and session history. Windows peaks were 89.371/108.473 MiB;
+Unix memory remains unavailable. This local milestone makes no additional hosted
+macOS or repeated scale-v2 claim.
+
 The earlier [hosted run at `3cc2232`](https://github.com/skulitom/Inkbolt/actions/runs/39086192118)
 passed on Ubuntu and macOS but failed the Windows idle-exit enqueue test with
 `JOB_BUSY`. Its report and logs are retained with the shared-patch audit. The
 test assumes admission succeeds after a short lock release; the launcher has a
 documented bounded wait and retryable contention response. The later successful
-matrix does not establish that this intermittent test failure is fixed.
+matrix at `5b51681` alone did not establish a fixture correction; `2793896`
+subsequently changes and verifies the fixture described below.
 
 The corrected fixture holds the shutdown lease until a real submission returns
 `JOB_BUSY`, checks that nothing was admitted, then submits the identical request
@@ -102,8 +110,8 @@ The final focused Windows check passed in 54.7 seconds; Linux support checks pas
 in 7.3 seconds with the Windows-only job skips explicit. An earlier 50.1-second
 Windows run also covered the job CLI and verifier dependency tests. Both production
 executables match the prior full acceptance exactly. A formatting failure and its
-correction are retained. Fresh hosted validation of this fixture correction remains
-required before another release.
+correction are retained. The fresh full hosted matrix at `2793896` above
+includes and passes the corrected fixture on Windows; Unix skips remain explicit.
 
 Retained `ci-idle-exit-retry-01/audit.json` SHA-256:
 `f4400234beae746273ca370607f89be816d5aa783017a16b26585b44cb87a73d`.

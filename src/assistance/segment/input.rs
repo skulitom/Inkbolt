@@ -164,7 +164,10 @@ fn description(region: Region, bits: u32, memory: u64, source: Value, float: boo
             "losses":["float_analysis_feature_quantization"],"source_converted":false})} else {Value::Null}})
 }
 
-fn native_feature(raw: &[u8; 16], spec: crate::sample_store::Spec) -> Result<[i64; 4], Error> {
+pub(super) fn native_feature(
+    raw: &[u8; 16],
+    spec: crate::sample_store::Spec,
+) -> Result<[i64; 4], Error> {
     let mut p = [0u64; 4];
     if spec.depth != Depth::F32 {
         for (value, bytes) in p

@@ -1,5 +1,12 @@
 # Architecture
 
+Optional [whole-image selection](PROXY_SEGMENTATION.md) reads coarse samples in
+block order, solves a weighted cut and refines the dilated boundary on native
+features with outside labels fixed. Scalar masks are authored into private
+row-based block extents; inspection returns compact certificates and an optional
+single-copy preview. Native cut energies use decimal strings to retain large
+integer values in JSON clients. Both modes preserve source samples.
+
 Native image-guided selection reads an explicit region through verified native
 readers and preserves high-depth source samples. Its declared integer features
 feed the existing exact cut solver; compact edit summaries keep maximum-region

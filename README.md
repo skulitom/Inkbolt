@@ -19,7 +19,8 @@ particular AI model is required.
 - **Import artwork** from SVG, PNG, JPEG and TIFF. Supported SVG content stays
   editable, including styles, reusable symbols, placed images and positioned text.
 - **Select and mask** with rectangular selections, feathered edges and
-  image-guided region masks from foreground/background seeds. Keep masks editable
+  image-guided masks from foreground/background seeds, including opt-in whole-image
+  selection with native boundary refinement. Keep masks editable
   while preserving the original image samples.
 - **Edit and repair images** with brushes, adjustments, patch
   placement, region fills, content-sensitive moves and guided edge correction.
@@ -53,7 +54,7 @@ for setup on your system.
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Prebuilt Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. See its release notes for included features. |
-| Build from `main` | Adds larger image workflows, native JPEG import, large rectangular selections, guided region masks for high-precision images, selected patch repair and lower-memory image exports. These additions are not in v0.82.0. |
+| Build from `main` | Adds larger image workflows, native JPEG import, large rectangular selections, guided region and whole-image masks for high-precision images, selected patch repair and lower-memory image exports. These additions are not in v0.82.0. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -77,7 +78,7 @@ request more operations and their schemas when needed.
 | [Image export](docs/STREAMING_IMAGE_OUTPUT.md) | PNG/JPEG/TIFF file output, preflight and memory bounds |
 | [Large-image workflows](docs/SCALE_ADMISSION.md) | Verified image sizes, local edits and remaining workflow limits |
 | [Selections](docs/NATIVE_SELECTIONS.md) and [masks](docs/NATIVE_MASKS.md) | Select regions, refine coverage, preview and apply masks |
-| [Image-guided selection](docs/NATIVE_SEGMENTATION.md) | Use foreground/background seeds to create masks within an explicit image region |
+| [Image-guided selection](docs/NATIVE_SEGMENTATION.md) and [whole-image refinement](docs/PROXY_SEGMENTATION.md) | Seeded masks, source precision and declared sampling limits |
 | [Image repair](docs/NATIVE_REPAIR.md) | Patch, fill, move and correction tools, supported precision and local edit limits |
 | [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
@@ -97,10 +98,12 @@ limits; this does not establish support for every operation at that size.
 The latest [image-guided selection](docs/NATIVE_SEGMENTATION.md) works on stored
 and high-precision images, with Windows/Linux acceptance. It analyzes a region
 of up to **65,536 source pixels** (for example, 256 x 256) and preserves the
-original image samples. The surrounding image can be much larger.
+original image samples. For larger masks, [whole-image selection](docs/PROXY_SEGMENTATION.md)
+uses a coarse pass and refines its boundary at native resolution. This mode can
+miss small features outside the refined area; its approximation is explicit.
 
-Work in progress includes proxy-based whole-image selection, larger layered
-files, broader curve combinations and editable format interchange. Agent usability
+Work in progress includes larger edit regions and layered files, broader curve
+combinations and editable format interchange. Agent usability
 and complete large-image workflows also remain part of the active plan.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.

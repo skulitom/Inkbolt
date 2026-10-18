@@ -1498,7 +1498,7 @@ fn capability_report() -> Value {
         "rounded_premultiplied_encoded_RGB_plus_alpha;8_bit_for_u8;16_bit_for_u16_and_normalized_f32"
     );
     capabilities["pixel_assistance"]["algorithms"] = json!({
-        "legacy_eight_bit":"seeded_color_cut_v1", "native_region":"seeded_native_color_cut_v1"
+        "legacy_eight_bit":"seeded_color_cut_v1", "native_region":"seeded_native_color_cut_v1", "proxy_then_refine":"seeded_proxy_refine_cut_v1"
     });
     capabilities["pixel_assistance"]["native_edit_receipt"] = json!(
         "native_selection_summary_v1;mask_metadata_and_gray_sha256;full_mask_retained_in_document;cost_arrays_available_through_assist.segment"
@@ -1511,9 +1511,21 @@ fn capability_report() -> Value {
         "remote_services",
         "visible_HDR_range",
         "linear_or_profiled_input_without_explicit_conversion",
-        "retained_pixel_warps",
-        "proxy_then_refine"
+        "retained_pixel_warps"
     ]);
+    capabilities["pixel_assistance"]["proxy_then_refine"] = json!({
+        "option":"proxy","step":[1,limits::assistance_segment::MAX_PROXY_STEP],
+        "refine_radius":[1,limits::assistance_segment::MAX_REFINE_RADIUS],
+        "maximum_coarse_pixels":limits::assistance_segment::MAX_PIXELS,
+        "maximum_refinement_pixels":limits::assistance_segment::MAX_REFINE_PIXELS,
+        "memory_bytes":limits::assistance_segment::PROXY_MEMORY_BYTES,
+        "preparation_work":limits::native_pixels::MAX_PREPARATION_WORK,
+        "coarse":"lower_cell_center_features;native_seed_prototypes;area_weighted_color;boundary_length_weighted_edges",
+        "refinement":"exact_conditional_native_cut_in_dilated_coarse_boundary;outside_band_fixed;global_optimality_not_claimed",
+        "losses":["small_features_outside_boundary_may_be_missed"],
+        "mask":"full_native_scalar_blocks;compact_summary;optional_sampled_PNG_preview",
+        "energy_encoding":"decimal_string","seed_collision":"opposite_classes_in_one_cell_refused"
+    });
 
     capabilities["pixel_assistance"]["workflows"] = json!({"remove":{"op":"repair","action":"fill","region":"explicit_native_mask","source":"frozen_local_donors","quality":"context_and_boundary_RMS_limits"},"denoise":{"op":"repair","action":"edge_correct","guide":"explicit_self_or_local_guide","estimator":"guided_weighted_median","quality":"change_RMS_and_effective_support_limits"},"upscale":{"op":"canvas","action":"scale","sampling":"explicit_reconstruction_kernel","source":"retained_native_samples","border":"existing_clamped_sampling"},"models":[],"remote_fallback":false});
     capabilities["volumes"] = json!({

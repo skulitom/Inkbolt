@@ -4,6 +4,11 @@ This implements the coordinated admission part of W4 in [FIX_PLAN.md](../FIX_PLA
 Target-sized checks and fresh full Windows/Linux acceptance passed. Complete storage, larger layered
 files and independent scale-v2 gates remain open; these limits do not complete W4.
 
+The subsequent [proxy/refine selection contract](PROXY_SEGMENTATION.md) verifies
+whole-image native masks, mask application, retained sources, history and TIFF
+delivery on Windows/Linux at both 50 MP and 8192 x 8192. Its sampled coarse pass
+and bounded native refinement have explicit approximation and work limits.
+
 ## Separate budgets
 
 | Boundary | Current ceiling | Scope |
