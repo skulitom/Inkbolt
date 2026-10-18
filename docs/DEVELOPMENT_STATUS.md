@@ -256,18 +256,25 @@ W1, any additional engine checkpoint, the scale targets or the overall goal.
 
 ## W1: core platform tier and hosted matrix verified; Unix jobs open
 
-The latest retained [hosted matrix at `c8945ca`](https://github.com/skulitom/Inkbolt/actions/runs/38884911654)
-passed all 261 fresh stages on Windows, Ubuntu and macOS through larger-image
-admission, bounded JPEG output and file-free TIFF preflight. All three
-minimum-compiler checks passed. The source remained unchanged,
-with no failed, pending or reused stages. Reports and all logs are retained in
-`w4-scale-admission-ci-c8945ca`, audit SHA-256
-`68af885114fa053b4908e8f73681e85d98b236a45c145e4f3cdd5f9ead69cab7`.
-The retained source archive matches all reports. See [platform evidence](PLATFORMS.md)
-for counts and timings. Target-size memory measurements remain separate;
-Unix memory verification and background jobs are still open.
-Hosted checks do not replace the
-mandatory local private publication guard.
+The latest retained [hosted matrix at `5b51681`](https://github.com/skulitom/Inkbolt/actions/runs/39091934487)
+passed all 265 fresh stages on Windows, Ubuntu and macOS through native repair,
+mask application, selections and shared patch preparation. All three
+minimum-compiler checks passed. Source inputs remained unchanged, with no failed,
+pending or reused stages. Reports and all 795 logs are retained in
+`w4-shared-patch-ci-5b51681`, audit SHA-256
+`ecf7207a6586b8de0353b3ab08972fe61aaf2e107f38fdfaad9ef3aa1795f27a`.
+The 958-file source archive matches all reports. See [platform evidence](PLATFORMS.md)
+for counts and timings. Independent target-image measurements cover Windows/Linux;
+Unix memory verification and background jobs remain open. Hosted checks do not
+replace the mandatory local private publication guard.
+
+The earlier Windows idle-exit test failure at `3cc2232` remains retained. Its
+corrected fixture now forces the documented bounded-wait refusal and verifies
+same-request retry, one completed attempt, exact queue membership and unchanged
+output replay during shutdown. Focused checks passed in 54.7 seconds on Windows
+and 7.3 seconds on Linux; production executables are byte-identical to the prior
+full acceptance. The source/evidence audit is recorded in platform coverage.
+Fresh hosted validation of this test correction remains required before release.
 
 Linux tier 1 covers core/library/CLI/MCP, sessions and durable publication/history
 receipts on Ubuntu 22.04 under WSL2, using native Linux storage. Background jobs

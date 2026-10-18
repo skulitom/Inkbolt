@@ -76,10 +76,10 @@ request more operations and their schemas when needed.
 ## Project status
 
 Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
-receipts have verified Windows, Linux and macOS builds. The latest repair,
-mask and selection workflows have Windows/Linux acceptance; macOS verification
-covers an earlier build. See [platform support](docs/PLATFORMS.md) for the tested
-scope.
+receipts have verified Windows, Linux and macOS builds. Full suites include the
+latest native repair, mask and selection features on all three platforms.
+Independent 50 MP workflow measurements cover Windows and Linux; see
+[platform support](docs/PLATFORMS.md) for the tested scope.
 Background export jobs are currently Windows-only.
 
 On `main`, Windows and Linux checks cover 50 MP images with rectangular

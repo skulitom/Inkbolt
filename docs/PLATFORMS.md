@@ -7,23 +7,23 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/38884911654)
-is `c8945ca`, through larger-image admission, bounded JPEG output and file-free
-TIFF preflight. All stages ran fresh, all three
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/39091934487)
+is `5b51681`, through native repair, masks, selections and shared patch
+preparation. All stages ran fresh, all three
 minimum-compiler checks passed and source inputs remained unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 261 | 286 | 2,739 | 9 | 4636.908 |
-| Ubuntu 24.04 | 261 | 252 | 2,697 | 51 | 1577.901 |
-| macOS 15 ARM64 | 261 | 252 | 2,697 | 51 | 2614.572 |
+| Windows 2025 | 265 | 306 | 2,772 | 9 | 4566.751 |
+| Ubuntu 24.04 | 265 | 272 | 2,730 | 51 | 1550.440 |
+| macOS 15 ARM64 | 265 | 272 | 2,730 | 51 | 3291.106 |
 
-Reports, all 783 stage logs, run metadata and the 934-file source archive are
-retained in `w4-scale-admission-ci-c8945ca`. The archive matches every report's
+Reports, all 795 stage logs, run metadata and the 958-file source archive are
+retained in `w4-shared-patch-ci-5b51681`. The archive matches every report's
 source fingerprint. Audit SHA-256:
-`68af885114fa053b4908e8f73681e85d98b236a45c145e4f3cdd5f9ead69cab7`;
+`ecf7207a6586b8de0353b3ab08972fe61aaf2e107f38fdfaad9ef3aa1795f27a`;
 shared hosted source fingerprint:
-`3739d2163d57a7614c09a177fe0ff483535918a12e98b5b4ac80e5c742f97a73`.
+`fb75a6db2367109f57b434e04fe9890ae74fa772ee88fa1b3144ede7daa6dcf9`.
 Hosted checks evaluate the public structural guard; local private-policy checks
 remain separate. Unix background jobs remain unsupported.
 
@@ -37,9 +37,9 @@ The subsequent [native repair contract](NATIVE_REPAIR.md) passed all 262 fresh
 stages on both Windows and Linux, with matching unchanged inputs and independent
 50 MP operation/export/history evidence. Windows ran 286 Rust and 2,745 Python
 tests (13 explicit skips); Linux ran 252 Rust and 2,707 Python tests (51 skips).
-The contract records timings, source identity and retained evidence. This local
-milestone does not extend the hosted macOS matrix above; Unix jobs and memory
-verification remain open.
+The contract records timings, source identity and retained evidence. These local
+target-image checks are separate from the hosted macOS suite above; Unix jobs
+and memory verification remain open.
 
 The subsequent [scalar storage prerequisite](NATIVE_SCALAR_STORAGE.md) passed
 all 262 fresh stages on both Windows and Linux. Windows ran 293 Rust
@@ -66,8 +66,8 @@ and 2,766 Python tests (13 skips) in 850.500 seconds;
 Linux ran 270 Rust and 2,728 Python tests (51 skips)
 in 561.903 seconds. Complete 50 MP selection/mask/selected-brush/retouch/
 history/TIFF checks matched; selected patch repair retained its explicit work
-refusal. Windows peak process commit was 36.094 MiB. Unix memory and the newer
-hosted macOS scope remain open.
+refusal. Windows peak process commit was 36.094 MiB. The later hosted matrix above
+includes selections; independent target-image measurements still cover Windows/Linux.
 
 The subsequent [shared patch preparation](NATIVE_REPAIR.md#selected-patch-acceptance)
 passed all 265 stages fresh on matching unchanged inputs. Windows ran
@@ -76,14 +76,32 @@ Linux ran 272 Rust and 2,730 Python tests (51 skips).
 Complete 50 MP selected self-source/separate-donor patch, mask, brush, history
 and TIFF checks matched. Windows peak process commit was 36.719 MiB; the
 contract records timings, exact source identities and retained first attempts.
-Unix memory and newer hosted macOS acceptance remain open.
+The later hosted matrix above includes this engine increment. Unix memory and
+macOS target-image measurements remain open.
 
-The later [hosted run at `3cc2232`](https://github.com/skulitom/Inkbolt/actions/runs/39086192118)
+The earlier [hosted run at `3cc2232`](https://github.com/skulitom/Inkbolt/actions/runs/39086192118)
 passed on Ubuntu and macOS but failed the Windows idle-exit enqueue test with
 `JOB_BUSY`. Its report and logs are retained with the shared-patch audit. The
 test assumes admission succeeds after a short lock release; the launcher has a
-documented bounded wait and retryable contention response. This failure requires
-investigation before another release; a passing local run does not resolve it.
+documented bounded wait and retryable contention response. The later successful
+matrix does not establish that this intermittent test failure is fixed.
+
+The corrected fixture holds the shutdown lease until a real submission returns
+`JOB_BUSY`, checks that nothing was admitted, then submits the identical request
+while releasing shutdown. It retries only documented contention within a bounded
+deadline and requires one completed attempt, exactly two retained jobs, unchanged
+output bytes and an idempotent replay. Production limits and behavior are unchanged.
+The final focused Windows check passed in 54.7 seconds; Linux support checks passed
+in 7.3 seconds with the Windows-only job skips explicit. An earlier 50.1-second
+Windows run also covered the job CLI and verifier dependency tests. Both production
+executables match the prior full acceptance exactly. A formatting failure and its
+correction are retained. Fresh hosted validation of this fixture correction remains
+required before another release.
+
+Retained `ci-idle-exit-retry-01/audit.json` SHA-256:
+`f4400234beae746273ca370607f89be816d5aa783017a16b26585b44cb87a73d`.
+This is focused harness evidence, not a new full-suite pass. The accepted engine
+and hosted matrix above retain their exact revision identities.
 
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See

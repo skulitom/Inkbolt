@@ -100,3 +100,11 @@ Completed receipts remain historical even after the output is deleted. Neither s
 ## Evidence
 
 Original Rust fixtures exercise submission loss, supervisor death around claim/runner registration, a stopped encoder, both sides of publication, timeout after publication, queued/running cancellation, the idle-exit/admission race, capacity, and preserved receipts. CLI/MCP checks independently read PNG bytes and SQLite records and cover exact saved revisions, changed image/license/build identities, explicit resume, concurrent identical submissions, historical results, workspace restrictions and MCP EOF. Discovery checks cover progress and admission changes between pages, missing resources/builds/outputs, changed cursors, byte limits and corrupt rows. Crash fixtures verify that discovery does not reconcile or publish stopped work. The full repository checks remain required before accepting a build. This evidence does not replace model-driven workflow trials or practical-scale gates.
+
+The idle-exit fixture holds the actual shutdown lease until submission returns
+`JOB_BUSY`, then checks that the queue and output are unchanged. An identical
+request races shutdown release with bounded contention retries. It must complete
+once, retain one job identity and replay without changing the output. This removes
+the assumption that a hosted runner releases the lease within a short sleep;
+production wait limits are unchanged. See [platform evidence](PLATFORMS.md) for
+the retained failure, focused checks and pending hosted verification.

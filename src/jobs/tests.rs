@@ -450,15 +450,62 @@ fn queued_cancel_retry_conflict_and_active_capacity_are_durable() {
 fn enqueue_during_idle_exit_cannot_lose_the_new_job() {
     let mut owned = Owned::new();
     owned.start("idle_exit_locked", 30000);
-    let root = owned.root.clone();
-    let thread = std::thread::spawn(move || invoke(request(&root, "second", 30000)));
-    std::thread::sleep(Duration::from_millis(150));
-    assert!(!thread.is_finished());
+    let second = request(&owned.root, "second", 30000);
+    // Hold the actual shutdown lease until admission exercises its bounded wait.
+    // A short sleep cannot guarantee when a hosted runner schedules either side.
+    assert_eq!(invoke(second.clone()).unwrap_err().code, "JOB_BUSY");
+    assert_eq!(
+        store::ids(&store::required(&owned.jobs()).unwrap()).unwrap(),
+        ["one"]
+    );
+    assert!(!owned.root.join("second.png").exists());
+
+    let retry = |request: Value| {
+        let began = Instant::now();
+        loop {
+            match invoke(request.clone()) {
+                Ok(ticket) => return ticket,
+                Err(error) if error.code == "JOB_BUSY" => {
+                    assert!(began.elapsed() < Duration::from_secs(30), "{error:?}");
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(error) => panic!("{error:?}"),
+            }
+        }
+    };
+    let ready = std::sync::Arc::new(std::sync::Barrier::new(2));
+    let queued = second.clone();
+    let submitting = ready.clone();
+    let thread = std::thread::spawn(move || {
+        submitting.wait();
+        retry(queued)
+    });
+    ready.wait();
     owned.release();
-    thread.join().unwrap().unwrap();
+    let admitted = thread.join().unwrap();
+    assert_eq!(admitted["request_id"], "second");
     let terminal = owned.terminal_for("second");
     assert_eq!(terminal["state"], "completed", "{terminal:#}");
-    assert!(owned.root.join("second.png").exists());
+    assert_eq!(terminal["attempt"], 1);
+    let original = fs::read(owned.root.join("second.png")).unwrap();
+    let replay = retry(second);
+    assert_eq!(replay["replayed"], true);
+    assert_eq!(replay["state"], "completed");
+    assert_eq!(replay["attempt"], 1);
+    assert_eq!(replay["document"], admitted["document"]);
+    assert_eq!(replay["submitted_ms"], admitted["submitted_ms"]);
+    assert_eq!(replay["output"], terminal["output"]);
+    assert_eq!(fs::read(owned.root.join("second.png")).unwrap(), original);
+    owned.until(
+        || match store::required(&owned.jobs()).and_then(|db| store::ids(&db)) {
+            Ok(ids) => {
+                assert_eq!(ids, ["one", "second"]);
+                true
+            }
+            Err(error) if error.code == "JOB_BUSY" => false,
+            Err(error) => panic!("{error:?}"),
+        },
+    );
 }
 
 #[test]
