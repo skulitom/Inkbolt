@@ -18,7 +18,10 @@ particular AI model is required.
 - **Compose graphics** with vector shapes, text, images, layers and artboards.
 - **Import artwork** from SVG, PNG, JPEG and TIFF. Supported SVG content stays
   editable, including styles, reusable symbols, placed images and positioned text.
-- **Edit and repair images** with selections, brushes, masks, adjustments, patch
+- **Select and mask** with rectangular selections, feathered edges and
+  image-guided region masks from foreground/background seeds. Keep masks editable
+  while preserving the original image samples.
+- **Edit and repair images** with brushes, adjustments, patch
   placement, region fills, content-sensitive moves and guided edge correction.
   Native image storage supports high-precision samples and reuses unchanged data
   across edits.
@@ -50,7 +53,7 @@ for setup on your system.
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Prebuilt Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. See its release notes for included features. |
-| Build from `main` | Adds larger image workflows, native JPEG import, large selections, image-guided region masks, selected patch repair, high-precision mask application and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
+| Build from `main` | Adds larger image workflows, native JPEG import, large rectangular selections, guided region masks for high-precision images, selected patch repair and lower-memory image exports. These additions are not in v0.82.0. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -74,27 +77,27 @@ request more operations and their schemas when needed.
 | [Image export](docs/STREAMING_IMAGE_OUTPUT.md) | PNG/JPEG/TIFF file output, preflight and memory bounds |
 | [Large-image workflows](docs/SCALE_ADMISSION.md) | Verified image sizes, local edits and remaining workflow limits |
 | [Selections](docs/NATIVE_SELECTIONS.md) and [masks](docs/NATIVE_MASKS.md) | Select regions, refine coverage, preview and apply masks |
+| [Image-guided selection](docs/NATIVE_SEGMENTATION.md) | Use foreground/background seeds to create masks within an explicit image region |
 | [Image repair](docs/NATIVE_REPAIR.md) | Patch, fill, move and correction tools, supported precision and local edit limits |
 | [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
 
 ## Project status
 
-Inkbolt is under active development. The verified scope on `main` includes:
+Inkbolt is under active development. The core engine, CLI/MCP, saved sessions
+and file-delivery receipts are tested on Windows, Linux and macOS. Background
+export jobs currently require Windows. The [platform guide](docs/PLATFORMS.md)
+records tested revisions and the scope of each platform's coverage.
 
-| Area | Verified coverage |
-| --- | --- |
-| Core engine and agent interface | Windows, Linux and macOS builds, including CLI/MCP, sessions, revision history and durable file-delivery receipts |
-| Rectangular selections, masks and image repair | Full test suites on all three platforms, including patch repair from the same image or a separate donor |
-| 50 MP image workflows | Independent Windows/Linux checks for rectangular selections, feathering, image-guided region masks, mask application, local selected brush and patch edits, undo/redo and TIFF delivery |
-| Image-guided region selection | Windows/Linux checks for stored and high-precision images; [explicit regions](docs/NATIVE_SEGMENTATION.md) retain original source pixels |
-| Background export jobs | Windows only |
+Selected [50 MP image workflows](docs/SCALE_ADMISSION.md) have independent
+Windows/Linux checks, including masks, local brush and patch edits, undo/redo
+and TIFF delivery. Each operation retains its own size, precision and work
+limits; this does not establish support for every operation at that size.
 
-The [platform evidence](docs/PLATFORMS.md) identifies the tested revisions and
-remaining platform gaps. Each image operation retains its own size, precision
-and work limits; the measured workflows do not establish support for every
-operation or composition at 50 MP. See [large-image workflows](docs/SCALE_ADMISSION.md)
-and [image repair](docs/NATIVE_REPAIR.md) for details.
+The latest [image-guided selection](docs/NATIVE_SEGMENTATION.md) works on stored
+and high-precision images, with Windows/Linux acceptance. It analyzes a region
+of up to **65,536 source pixels** (for example, 256 x 256) and preserves the
+original image samples. The surrounding image can be much larger.
 
 Work in progress includes proxy-based whole-image selection, larger layered
 files, broader curve combinations and editable format interchange. Agent usability
