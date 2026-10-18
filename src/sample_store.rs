@@ -1,7 +1,8 @@
 //! Immutable native pixel blocks and pure copy-on-write candidates.
 //!
 //! This library primitive deliberately separates candidate construction/reads
-//! from publication. A dry run can render a candidate without creating files.
+//! from publication. A dry run never publishes resource or session files;
+//! internal whole-image edits can own bounded, delete-on-close private extents.
 //! Document/CLI integration must preserve that separation at its commit point.
 use crate::{
     Error, assets,
@@ -27,13 +28,15 @@ pub use crate::limits::sample_store::MAX_PIXELS;
 pub use crate::limits::sample_store::MAX_REGION_PIXELS;
 pub use crate::limits::sample_store::MAX_TILES;
 pub use crate::limits::sample_store::TILE_EDGE;
-const HEADER_BYTES: usize = 20;
+pub(crate) const HEADER_BYTES: usize = crate::limits::sample_store::HEADER_BYTES;
 const MAGIC: &[u8; 8] = b"INKTILE1";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 pub(crate) mod admission;
 pub(crate) mod layout;
 pub use layout::Layout;
+pub(crate) mod private;
 pub(crate) mod publication;
+use private::PendingData;
 #[cfg(test)]
 mod scatter;
 mod transfer;
@@ -204,14 +207,20 @@ impl<S: Layout> BlockManifest<S> {
     }
 }
 
-/// Pending blobs are private immutable memory, shared by cheap candidate clones.
+/// Pending blobs are immutable memory or internal owned extents, shared by clones.
 /// Only referenced blobs survive a replacement; retained older candidates remain
-/// unchanged. Construction, reads and edits never create directories or files.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// unchanged. Public constructors, reads and replacements never create files.
+#[derive(Clone, Debug)]
 pub struct BlockCandidate<S> {
     manifest: BlockManifest<S>,
-    pending: BTreeMap<String, Arc<[u8]>>,
+    pending: BTreeMap<String, PendingData>,
 }
+impl<S: PartialEq> PartialEq for BlockCandidate<S> {
+    fn eq(&self, other: &Self) -> bool {
+        self.manifest == other.manifest && self.pending.keys().eq(other.pending.keys())
+    }
+}
+impl<S: Eq> Eq for BlockCandidate<S> {}
 
 #[derive(Debug, Serialize)]
 pub struct BlockPublication<S> {
@@ -233,6 +242,18 @@ impl<S: Layout> BlockCandidate<S> {
     }
     pub fn pending_bytes(&self) -> usize {
         self.pending.values().map(|b| b.len()).sum()
+    }
+    pub(crate) fn resident_bytes(&self) -> usize {
+        self.pending.values().map(PendingData::resident_bytes).sum()
+    }
+    pub(crate) fn private_extents(&self) -> impl Iterator<Item = (usize, u64)> + '_ {
+        self.pending.values().filter_map(PendingData::extent)
+    }
+    pub(crate) fn private_bytes(&self) -> u64 {
+        self.private_extents()
+            .collect::<BTreeMap<_, _>>()
+            .values()
+            .sum()
     }
     pub fn pending_tiles(&self) -> usize {
         self.pending.len()
@@ -341,14 +362,19 @@ impl<S: Layout> BlockCandidate<S> {
         Ok(candidate)
     }
 
-    fn load(&self, index: usize, root: Option<&Path>) -> Result<Arc<[u8]>, Error> {
+    fn load(
+        &self,
+        index: usize,
+        root: Option<&Path>,
+        control: &Control,
+    ) -> Result<Arc<[u8]>, Error> {
         let id = &self.manifest.tiles[index];
         let spec = self.manifest.spec;
         let tile = spec.tile(index);
         // Only validated constructors can insert immutable pending bytes. The
         // private manifest/candidate cannot be changed through this public API.
         if let Some(bytes) = self.pending.get(id) {
-            Ok(bytes.clone())
+            bytes.load(id, spec, tile, control)
         } else {
             read_blob(root, id, spec, tile)
         }
@@ -365,7 +391,7 @@ impl<S: Layout> BlockCandidate<S> {
             control.check()?;
             let tile = self.manifest.spec.tile(index);
             if seen.insert((id, tile.width, tile.height)) {
-                self.load(index, root)?;
+                self.load(index, root, control)?;
             }
         }
         Ok(())
@@ -388,7 +414,7 @@ impl<S: Layout> BlockCandidate<S> {
         for index in intersecting(spec, region) {
             control.check()?;
             let tile = spec.tile(index);
-            let bytes = self.load(index, root)?;
+            let bytes = self.load(index, root, control)?;
             let x0 = tile.x.max(region.x);
             let x1 = (tile.x + tile.width).min(region.x + region.width);
             for y in tile.y.max(region.y)..(tile.y + tile.height).min(region.y + region.height) {
@@ -426,7 +452,7 @@ impl<S: Layout> BlockCandidate<S> {
         for index in intersecting(spec, region) {
             control.check()?;
             let tile = spec.tile(index);
-            let mut blob = self.load(index, root)?.to_vec();
+            let mut blob = self.load(index, root, control)?.to_vec();
             let x0 = tile.x.max(region.x);
             let x1 = (tile.x + tile.width).min(region.x + region.width);
             for y in tile.y.max(region.y)..(tile.y + tile.height).min(region.y + region.height) {

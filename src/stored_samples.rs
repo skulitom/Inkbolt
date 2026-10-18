@@ -96,7 +96,7 @@ impl Grid {
             + self
                 .staged
                 .as_ref()
-                .map_or(0, |s| s.0.pending_bytes() as u64);
+                .map_or(0, |s| s.0.resident_bytes() as u64);
         let scratch_pixels = pixels.min((edge * edge) as u64);
         (
             pixels * 3 + patch_work,
@@ -115,7 +115,8 @@ impl Grid {
         }
         if let Some(staged) = &self.staged
             && (staged.0.manifest() != &self.base
-                || staged.0.pending_bytes() > MAX_PENDING_BYTES
+                || staged.0.resident_bytes() > MAX_PENDING_BYTES
+                || staged.0.private_bytes() > crate::limits::stored_samples::MAX_PRIVATE_EDIT_BYTES
                 || staged.0.pending_tiles() == 0)
         {
             return Err(invalid(
@@ -231,8 +232,10 @@ impl Grid {
         self.validate()
     }
 
-    fn set_candidate(&mut self, candidate: Candidate) -> Result<(), Error> {
-        if candidate.pending_bytes() > MAX_PENDING_BYTES {
+    pub(crate) fn set_candidate(&mut self, candidate: Candidate) -> Result<(), Error> {
+        if candidate.resident_bytes() > MAX_PENDING_BYTES
+            || candidate.private_bytes() > crate::limits::stored_samples::MAX_PRIVATE_EDIT_BYTES
+        {
             return Err(crate::model::limit(
                 "Prepared native blocks exceed the document pending-byte budget",
             ));

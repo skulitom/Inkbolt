@@ -52,11 +52,23 @@ impl<S: Layout> BlockCandidate<S> {
             return Err(budget());
         }
         let mut pending = Vec::with_capacity(self.pending.len());
+        let references: BTreeMap<_, _> = self
+            .manifest
+            .tiles
+            .iter()
+            .enumerate()
+            .map(|(index, id)| (id, self.manifest.spec.tile(index)))
+            .collect();
         for (sha256, bytes) in &self.pending {
             control.check()?;
             pending.push(PendingBlock {
                 sha256: sha256.clone(),
-                data_hex: crate::render::hex(bytes),
+                data_hex: crate::render::hex(&bytes.load(
+                    sha256,
+                    self.manifest.spec,
+                    references[sha256],
+                    control,
+                )?),
             });
         }
         control.check()?;

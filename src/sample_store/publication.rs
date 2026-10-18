@@ -12,12 +12,20 @@ pub(crate) trait Pending<S = Spec> {
     ) -> Result<Arc<[u8]>, Error>;
 }
 
-impl<S: Layout> Pending<S> for &BTreeMap<String, Arc<[u8]>> {
+impl<S: Layout> Pending<S> for &BTreeMap<String, PendingData> {
     fn contains(&self, id: &str) -> bool {
         self.contains_key(id)
     }
-    fn load(&mut self, id: &str, _: S, _: Region, _: &Control) -> Result<Arc<[u8]>, Error> {
-        self.get(id).cloned().ok_or_else(corrupt)
+    fn load(
+        &mut self,
+        id: &str,
+        spec: S,
+        tile: Region,
+        control: &Control,
+    ) -> Result<Arc<[u8]>, Error> {
+        self.get(id)
+            .ok_or_else(corrupt)?
+            .load(id, spec, tile, control)
     }
 }
 

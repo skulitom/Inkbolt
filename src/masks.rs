@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
+mod application;
 mod native;
 #[cfg(test)]
 mod native_tests;
@@ -442,6 +443,12 @@ pub(crate) fn apply_pixels(
     let world = scene::world_transform(document, index)?;
     let prepared =
         prepare_with_resources(mask, world, asset_root, control, native::Budget::default())?;
+    if let Some(content) = application::apply(&item.content, &prepared, world, asset_root, control)?
+    {
+        document.items[index].content = content;
+        document.items[index].mask = None;
+        return Ok(());
+    }
     let (width, height, grid, sampling) = match &item.content {
         Content::Raster {
             width,

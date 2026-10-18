@@ -10,9 +10,9 @@ use std::{
 };
 
 static NEXT_TEST: AtomicU64 = AtomicU64::new(0);
-struct Directory(PathBuf);
+pub(super) struct Directory(pub(super) PathBuf);
 impl Directory {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let parent = std::env::temp_dir().canonicalize().unwrap();
         for _ in 0..64 {
             let root = parent.join(format!(
@@ -28,7 +28,7 @@ impl Directory {
         }
         panic!("Unable to reserve owned native-store test directory")
     }
-    fn store(&self) -> PathBuf {
+    pub(super) fn store(&self) -> PathBuf {
         self.0.join("store")
     }
 }
@@ -49,7 +49,7 @@ impl Drop for Directory {
         let _ = fs::remove_dir_all(&self.0);
     }
 }
-fn spec(w: u32, h: u32) -> Spec {
+pub(super) fn spec(w: u32, h: u32) -> Spec {
     Spec {
         width: w,
         height: h,
@@ -58,7 +58,7 @@ fn spec(w: u32, h: u32) -> Spec {
         encoding: Encoding::EncodedSrgb,
     }
 }
-fn fixture(s: Spec) -> Vec<u8> {
+pub(super) fn fixture(s: Spec) -> Vec<u8> {
     let mut bytes = Vec::new();
     for y in 0..s.height {
         for x in 0..s.width {
@@ -94,7 +94,7 @@ fn extract(s: Spec, bytes: &[u8], r: Region) -> Vec<u8> {
     }
     result
 }
-fn check_every_sample(candidate: &Candidate, root: Option<&Path>, expected: &[u8]) {
+pub(super) fn check_every_sample(candidate: &Candidate, root: Option<&Path>, expected: &[u8]) {
     let s = candidate.manifest().spec;
     for y in (0..s.height).step_by(128) {
         for x in (0..s.width).step_by(128) {
@@ -113,7 +113,7 @@ fn check_every_sample(candidate: &Candidate, root: Option<&Path>, expected: &[u8
         }
     }
 }
-fn files(root: &Path) -> BTreeMap<String, Vec<u8>> {
+pub(super) fn files(root: &Path) -> BTreeMap<String, Vec<u8>> {
     if !root.exists() {
         return BTreeMap::new();
     }
@@ -307,7 +307,10 @@ fn row_constructor_preserves_native_bits_edges_order_and_canonical_files() {
             for (i, id) in candidate.manifest().tiles.iter().enumerate() {
                 let blob = independent_blob(s, &bytes, s.tile(i));
                 assert_eq!(*id, assets::sha256(&blob));
-                assert_eq!(candidate.pending[id].as_ref(), blob);
+                let PendingData::Memory(bytes) = &candidate.pending[id] else {
+                    panic!("Public memory constructors must stay file-free")
+                };
+                assert_eq!(bytes.as_ref(), blob);
             }
             assert_eq!(
                 candidate.manifest(),

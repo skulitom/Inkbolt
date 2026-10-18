@@ -22,9 +22,11 @@ serializes without the field. `patches` are permitted only in version 1.
 Version 2 may carry a `staged` version-1 candidate transfer during pure review;
 its manifest must equal `base`. Committed states omit `staged` entirely.
 
-Prepared documents admit at most 64 MiB of aggregate pending block bytes,
-including headers. This bounds current private work, not lifetime edits or the
-resource store. Unchanged blocks share immutable buffers. Durable manifest
+Prepared documents admit at most 64 MiB of aggregate resident pending block bytes,
+including headers. Whole-image edits can additionally own bounded
+[private file extents](PRIVATE_NATIVE_EDITS.md), with a separate disk budget and
+fresh full Windows/Linux acceptance. These bound current private work, not lifetime edits or the
+resource store. Unchanged blocks share immutable storage. Durable manifest
 snapshots retain the existing resource-profile byte budgets; pending bytes have
 their separate budget. An explicitly requested review document must also fit a
 conservative 16 MiB round-trip bound before its hexadecimal transport is built.
@@ -33,8 +35,12 @@ reviews can use the proposal and preview without `include_document`; committing
 first produces a small manifest-only snapshot.
 Existing region, input, source-pixel, history and rendering bounds still apply.
 
-`edit::apply_with_resources` remains pure. Its returned document carries any
-unpublished blocks and can render or round-trip them. The explicit Rust
+`edit::apply_with_resources` never publishes resource or session files. Its returned
+document carries unpublished blocks, potentially in owned private files, and can
+render them or round-trip them within the transport bound. Public memory candidate
+constructors remain file-free. The `pure_library_preparation` discovery field
+describes preparation without durable publication; whole-image preparation may
+own the bounded private files described above. The explicit Rust
 `edit::commit_with_resources` boundary and CLI/MCP `document.edit` publish blocks
 before returning a manifest-only document. Session preparation hashes the
 manifest-only projection; dry runs retain staged blocks for rendering, while

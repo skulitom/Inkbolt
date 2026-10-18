@@ -52,8 +52,14 @@ The subsequent [item/filter mask integration](NATIVE_MASKS.md) passed all 263
 fresh stages on matching unchanged inputs: Windows ran 297 Rust and 2,753 Python
 tests (13 skips) in 781.750 seconds; Linux ran 263 Rust and 2,715 Python tests
 (51 skips) in 501.898 seconds. Independent bounded previews from a 50 MP scalar
-source matched on both platforms. Native selections, whole-image mask application
-and Unix memory measurement remain open; no new hosted macOS claim is made.
+source matched on both platforms. The subsequent [whole-image application
+contract](PRIVATE_NATIVE_EDITS.md) passed 264 fresh stages per platform:
+Windows ran 302 Rust and 2,759 Python tests (13 skips) in
+793.453 seconds; Linux ran 268 Rust and 2,721 Python tests
+(51 skips) in 478.587 seconds. Complete 50 MP mask/edit/history/TIFF
+sample checks matched on both platforms. Windows peak process commit was
+35.219 MiB. Native selections and Unix memory measurement remain open;
+these local milestones make no new hosted macOS claim.
 
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See

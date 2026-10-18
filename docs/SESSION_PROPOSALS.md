@@ -22,7 +22,7 @@ The result contains:
 PNG preview and pixel comparison use the captured resource bindings. Structural inspection alone does not verify every external resource byte. Resource content is checked when the operation or rendering reads it. The read transaction is released before comparison and rendering; other writers can advance the session while the review result is being produced.
 
 [Block-mode native edits](NATIVE_COPY_ON_WRITE.md) keep unpublished blocks in
-private shared memory during review. An included document carries those bytes in
+private shared memory or bounded owned file extents during review. An included document carries those bytes in
 its explicit `staged` transfer, within a separate round-trip transport bound.
 The proposal, predicted receipt and structural comparison describe the durable
 manifest-only state. Committing first publishes complete immutable blocks, then

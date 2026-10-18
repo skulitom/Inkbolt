@@ -64,7 +64,9 @@ impl Grid {
                     "Pending scalar blocks must match the current manifest",
                 ));
             }
-            if staged.0.pending_bytes() > crate::stored_samples::MAX_PENDING_BYTES {
+            if staged.0.resident_bytes() > crate::stored_samples::MAX_PENDING_BYTES
+                || staged.0.private_bytes() > crate::limits::stored_samples::MAX_PRIVATE_EDIT_BYTES
+            {
                 return Err(crate::model::limit(
                     "Pending scalar blocks exceed the native byte budget",
                 ));
@@ -74,6 +76,9 @@ impl Grid {
     }
     pub fn pending_bytes(&self) -> usize {
         self.staged.as_ref().map_or(0, |s| s.0.pending_bytes())
+    }
+    pub(crate) fn candidate(&self) -> Option<&Candidate> {
+        self.staged.as_ref().map(|s| &s.0)
     }
     pub(crate) fn transport_bytes(&self) -> usize {
         self.staged.as_ref().map_or(0, |s| {

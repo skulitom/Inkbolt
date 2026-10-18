@@ -533,9 +533,8 @@ fn scalar_bounds_and_schema_names_do_not_expand_image_interpretations() {
     let scalar = &caps["native_scalar_store_library"];
     assert_eq!(scalar["max_pixels"], 67_108_864);
     assert_eq!(scalar["document_integration"], true);
-    for key in ["mask_application", "selection_to_mask"] {
-        assert_eq!(scalar[key], false);
-    }
+    assert_eq!(scalar["mask_application"], true);
+    assert_eq!(scalar["selection_to_mask"], false);
     let native = &caps["native_sample_store_library"];
     for key in ["retained_edits", "block_edits"] {
         assert!(
@@ -546,7 +545,7 @@ fn scalar_bounds_and_schema_names_do_not_expand_image_interpretations() {
         );
     }
     assert!(
-        native["unsupported"]
+        !native["unsupported"]
             .as_array()
             .unwrap()
             .contains(&serde_json::json!("native_mask_bake"))

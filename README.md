@@ -44,7 +44,7 @@ development version using the [installation guide](docs/INSTALLATION.md).
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Prebuilt Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. See its release notes for included features. |
-| Build from `main` | Adds larger image workflows, native JPEG import, high-precision repair, previews of large masks and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
+| Build from `main` | Adds larger image workflows, native JPEG import, high-precision repair and mask application, and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -67,6 +67,7 @@ request more operations and their schemas when needed.
 | [SVG import](docs/SVG_IMPORT.md) and [image import](docs/SAMPLES.md#import-without-reducing-depth) | Supported inputs, preservation and conversion limits |
 | [Image export](docs/STREAMING_IMAGE_OUTPUT.md) | PNG/JPEG/TIFF file output, preflight and memory bounds |
 | [Large-image workflows](docs/SCALE_ADMISSION.md) | Verified image sizes, local edits and remaining workflow limits |
+| [Image masks](docs/NATIVE_MASKS.md) | Editable coverage, previews and permanent application to native samples |
 | [Image repair](docs/NATIVE_REPAIR.md) | Patch, fill, move and correction tools, supported precision and local edit limits |
 | [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
@@ -78,9 +79,9 @@ receipts have Windows, Linux and macOS verification; background export jobs are
 currently Windows-only.
 
 On `main`, Windows and Linux checks cover 50 MP images through local brush and
-repair edits, saved history and TIFF delivery. Large masks support focused
-previews. Each operation has its own size, precision and work limits;
-large selections and whole-image mask application remain in development. See
+repair edits, whole-image mask application, saved history and TIFF delivery.
+Large masks also support focused previews. Each operation has its own size,
+precision and work limits; large selections remain in development. See
 [large-image workflows](docs/SCALE_ADMISSION.md), [image repair](docs/NATIVE_REPAIR.md),
 [image masks](docs/NATIVE_MASKS.md) and [resource limits](docs/LIMITS.md) for the
 verified scope.

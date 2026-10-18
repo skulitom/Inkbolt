@@ -30,19 +30,41 @@ impl<'de> Deserialize<'de> for Staged {
 }
 
 pub(crate) fn check_pending_budget(document: &Document) -> Result<(), Error> {
-    let total: usize = document
-        .items
-        .iter()
-        .filter_map(|item| match &item.content {
-            Content::StoredSamples { grid } => grid.staged.as_ref().map(|s| s.0.pending_bytes()),
-            _ => None,
-        })
-        .chain(crate::masks::grids(document).map(|(_, grid)| grid.pending_bytes()))
-        .try_fold(0usize, |total, bytes| total.checked_add(bytes))
-        .ok_or_else(|| crate::model::limit("Prepared native block byte count overflowed"))?;
+    let mut total = 0usize;
+    let mut extents = BTreeMap::new();
+    let mut add = |resident: usize, private: Vec<(usize, u64)>| -> Result<(), Error> {
+        total = total
+            .checked_add(resident)
+            .ok_or_else(|| crate::model::limit("Prepared native block byte count overflowed"))?;
+        extents.extend(private);
+        Ok(())
+    };
+    for item in &document.items {
+        if let Content::StoredSamples { grid } = &item.content
+            && let Some(staged) = &grid.staged
+        {
+            add(
+                staged.0.resident_bytes(),
+                staged.0.private_extents().collect(),
+            )?;
+        }
+    }
+    for (_, grid) in crate::masks::grids(document) {
+        if let Some(candidate) = grid.candidate() {
+            add(
+                candidate.resident_bytes(),
+                candidate.private_extents().collect(),
+            )?;
+        }
+    }
     if total > MAX_PENDING_BYTES {
         return Err(crate::model::limit(
             "Prepared document exceeds its aggregate native block byte budget",
+        ));
+    }
+    if extents.values().sum::<u64>() > crate::limits::stored_samples::MAX_PRIVATE_EDIT_BYTES {
+        return Err(crate::model::limit(
+            "Prepared document exceeds its private native edit extent budget",
         ));
     }
     Ok(())

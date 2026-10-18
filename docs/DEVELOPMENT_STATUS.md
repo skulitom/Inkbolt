@@ -5,27 +5,29 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
-## W4.6: native item/filter masks verified; selection and application open
+## W4.6: native masks and whole-image application verified; selections open
 
-[Item and filter mask integration](NATIVE_MASKS.md) passed fresh full Windows/Linux
-acceptance for exact controls, native sample depths, tiled/print rendering,
-resource failures, private previews, publication and history.
+[Item/filter masks](NATIVE_MASKS.md) and the subsequent [whole-image application
+contract](PRIVATE_NATIVE_EDITS.md) now preserve native precision through bounded
+private preparation, unchanged-block reuse, review, publication and history.
+The latest increment passed fresh full suites on matching unchanged inputs:
 
 | Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows | 263 | 297 | 2,753 | 13 | 781.750 |
-| Linux / WSL | 263 | 263 | 2,715 | 51 | 501.898 |
+| Windows | 264 | 302 | 2,759 | 13 | 793.453 |
+| Linux / WSL | 264 | 268 | 2,721 | 51 | 478.587 |
 
-Every stage ran fresh on matching unchanged inputs. Twenty-two complete inline
-responses and saved-state identities matched the previous engine. Independent
-bounded previews from a 50 MP scalar source matched all sampled coverage values
-and matched between platforms. The first Windows full run caught unnecessary
-hierarchy work on unmasked objects; the corrected 5,000-object test passed with
-its existing deadline. Focused correction feedback took 94.3/48.7 seconds on
-Windows/Linux. The contract records retained failures, timings and exact evidence.
+An independent 50 MP RGBA16 mask/edit/history/TIFF workflow checked every native
+and exported sample on Windows and Linux. Documents, change receipts and the
+entire TIFF identity matched. Windows peak process commit was 35.219 MiB;
+Unix memory is unavailable. Twenty-two unchanged inline responses and saved-state
+identities matched the previous accepted engine. The contract records source
+identities, retained evidence and the corrected initial color-space fixture.
 
-Native selection authoring, whole-image stored mask application and D7 memory
-remain open. No new engine checkpoint, release or full W4 completion is claimed.
+Focused feedback stayed within 180 seconds; large-workload and full-suite
+acceptance are separate milestone checks. Native selections, remaining native
+operations, larger layered files, repeated scale-v2 gates and verified Unix
+memory remain open. No new engine checkpoint, release or full W4 completion is claimed.
 
 ## W4.6: scalar storage prerequisite verified
 

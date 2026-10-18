@@ -12,6 +12,7 @@ files and independent scale-v2 gates remain open; these limits do not complete W
 | Native block references | 4,096 | 128-pixel edges; partial edge blocks also consume references |
 | Native encoded source | 544 MiB | Captured into private seekable storage |
 | Native decoded extent | 512 MiB | Private disk extent, sufficient for 8192×8192 RGBA16 |
+| Private native edit extents | 512 MiB plus at most 4,096 block headers | Shared control and distinct document extents; resident/transport limits remain separate |
 | Aggregate import staging | 1,056 MiB | Source plus decoded extent, reserved before writes |
 | Native TIFF padded work | 512 MiB | Separate from each actual codec allocation |
 | PNG/TIFF codec allocation | 64 MiB | Unchanged; source-defined chunks can still be refused |
@@ -103,8 +104,10 @@ budgets are unchanged. Full scale-v2 still requires the complete 50 MP native
 brush/repair/mask/history workflow, larger layered-file coverage, repeated
 workload gates and independently verified Unix memory. The subsequent
 [native repair contract](NATIVE_REPAIR.md) has separate full Windows/Linux
-acceptance and 50 MP evidence for all four repair actions. Native mask baking
-remains unsupported; no whole-W4 completion is claimed.
+acceptance and 50 MP evidence for all four repair actions. Whole-image native
+[mask application](PRIVATE_NATIVE_EDITS.md) subsequently passed fresh full
+Windows/Linux acceptance, every-sample 50 MP checks and the Windows memory target.
+Native selections and complete W4 acceptance remain open.
 
 Frozen full-suite input fingerprint:
 `7d9dda670159acf7caea6470674fce5b2ef6f657677f60ba56fc335f8ced5e83`.

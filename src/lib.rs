@@ -1660,7 +1660,7 @@ fn capability_report() -> Value {
         "history":"source_preserving_atomic_settings_edits_snapshots_sessions_undo_redo",
         "expansion":"explicit_raw_expand_to_native_samples","scene_resolution":"independent_from_recipe_output_preference"
     });
-    capabilities["sample_precision"] = json!({"content":"samples","depths":["u8","u16","f32"],"channels":["rgba","gray_alpha"],"storage":"little_endian_straight_channel_bytes_as_hex","float_range":[0.0,1.0],"working":"normalized_f64_encoded_srgb","native_edit":"sample_replace","sampling":["nearest","bilinear","area","bicubic","lanczos3"],"tiff":{"options":["depth","channels"],"depths":["u8","u16","f32"],"channels":["rgba","gray_alpha"],"alpha":"unassociated","gray_policy":"exact_neutral_rgb_required","output_profiles":false},"display_preview":"rgba8_quantized_copy","hdr":true,"native_brush_and_mask_bake":false,"native_brush":true,"native_retouch":true,"native_mask_bake":false,"high_depth_import":true,"import":{"command":"sample.import","formats":["png","tiff"],"png_depths":["u8","u16"],"tiff_depths":["u8","u16","f32"],"source_unchanged":true,"profiles":false,"orientation_transforms":false,"associated_alpha":false,"multiple_images":false,"max_inline_pixels":model::MAX_STORED_PIXELS,"max_source_bytes":assets::MAX_IMPORT_BYTES,"max_tiff_padded_tile_bytes":limits::sample_import::MAX_TIFF_PADDED_BYTES},"conversion":{"operation":"sample_convert","depths":["u8","u16","f32"],"channels":["rgba","gray_alpha"],"gray_policies":["require_neutral","encoded_luma","linear_luminance"],"legacy_inline_rgba8_promotion":true,"hidden_color":"converted_without_alpha_zero_discard","profiles":false,"hdr":true},"encodings":["encoded_srgb","linear_srgb","profiled_rgb"],"linear_float_color_range":"finite_signed_binary32","linear_alpha_range":[0.0,1.0],"source_preserved":true,"geometry_coverage":"existing_f32_and_byte_coverage"});
+    capabilities["sample_precision"] = json!({"content":"samples","depths":["u8","u16","f32"],"channels":["rgba","gray_alpha"],"storage":"little_endian_straight_channel_bytes_as_hex","float_range":[0.0,1.0],"working":"normalized_f64_encoded_srgb","native_edit":"sample_replace","sampling":["nearest","bilinear","area","bicubic","lanczos3"],"tiff":{"options":["depth","channels"],"depths":["u8","u16","f32"],"channels":["rgba","gray_alpha"],"alpha":"unassociated","gray_policy":"exact_neutral_rgb_required","output_profiles":false},"display_preview":"rgba8_quantized_copy","hdr":true,"native_brush_and_mask_bake":true,"native_brush":true,"native_retouch":true,"native_mask_bake":true,"high_depth_import":true,"import":{"command":"sample.import","formats":["png","tiff"],"png_depths":["u8","u16"],"tiff_depths":["u8","u16","f32"],"source_unchanged":true,"profiles":false,"orientation_transforms":false,"associated_alpha":false,"multiple_images":false,"max_inline_pixels":model::MAX_STORED_PIXELS,"max_source_bytes":assets::MAX_IMPORT_BYTES,"max_tiff_padded_tile_bytes":limits::sample_import::MAX_TIFF_PADDED_BYTES},"conversion":{"operation":"sample_convert","depths":["u8","u16","f32"],"channels":["rgba","gray_alpha"],"gray_policies":["require_neutral","encoded_luma","linear_luminance"],"legacy_inline_rgba8_promotion":true,"hidden_color":"converted_without_alpha_zero_discard","profiles":false,"hdr":true},"encodings":["encoded_srgb","linear_srgb","profiled_rgb"],"linear_float_color_range":"finite_signed_binary32","linear_alpha_range":[0.0,1.0],"source_preserved":true,"geometry_coverage":"existing_f32_and_byte_coverage"});
     capabilities["supported"]["raster"]
         .as_array_mut()
         .unwrap()
@@ -1908,11 +1908,11 @@ fn capability_report() -> Value {
         "content":"stored_samples", "resource_binding":"asset_root",
         "import":{"command":"sample.import","opt_in":"storage.store_root","workspace_opt_in":"storage:{}","max_source_bytes":limits::sample_import::MAX_NATIVE_SOURCE_BYTES,"max_decoded_bytes":sample_import::MAX_NATIVE_DECODED_BYTES,"decoded_bytes_scope":"private_native_pixel_extent;not_resident_memory","max_codec_allocation_bytes":limits::sample_import::MAX_NATIVE_CODEC_BYTES,"codec_allocation_scope":"PNG_and_TIFF;JPEG_has_separate_whole_frame_admission","max_tiff_padded_tile_bytes":limits::sample_import::MAX_NATIVE_TIFF_PADDED_BYTES},
         "retained_edits":{"operation":"sample_replace","operations":["sample_replace","retouch","brush_stroke","repair"],"max_patches":stored_samples::MAX_PATCHES,"max_aggregate_patch_pixels":stored_samples::MAX_PATCH_PIXELS,"writes_files":false,"snapshot":"immutable_base_manifest_plus_exact_native_patch_bytes"},
-        "block_edits":{"storage_version":2,"migration_operation":"sample_storage_migrate","default_import_storage_version":2,"legacy_import":"storage.storage_version:1","operations":["sample_replace","retouch","brush_stroke","repair"],"maximum_pending_document_bytes":stored_samples::MAX_PENDING_BYTES,"lifetime_patch_limit":false,"pure_library_preparation":true,"commit":"CLI_and_MCP_document_edit_and_session_commit_publish_immutable_blocks_before_durable_state","review":"staged_blocks_in_memory;included_document_has_bounded_explicit_transfer","history":"current_manifest_only;old_states_and_receipts_preserved","full_storage_milestone_verified":false},
+        "block_edits":{"storage_version":2,"migration_operation":"sample_storage_migrate","default_import_storage_version":2,"legacy_import":"storage.storage_version:1","operations":["sample_replace","retouch","brush_stroke","repair","mask_apply"],"maximum_pending_document_bytes":stored_samples::MAX_PENDING_BYTES,"lifetime_patch_limit":false,"pure_library_preparation":true,"commit":"CLI_and_MCP_document_edit_and_session_commit_publish_immutable_blocks_before_durable_state","review":"shared_memory_blocks_or_owned_private_extents;included_document_has_bounded_explicit_transfer","history":"current_manifest_only;old_states_and_receipts_preserved","full_storage_milestone_verified":false},
         "render_cache":{"scope":"one_prepared_source","max_decoded_pixels":limits::stored_samples::CACHE_PIXELS,"maximum_source_decoding_passes":limits::stored_samples::MAX_SOURCE_DECODING_PASSES},
         "output_limits_changed":true, "large_output_opt_in":"render_options.evaluation:tiled",
-        "unsupported":["stored_sample_convert","stored_sample_profile_edits","native_mask_bake","native_ink_separations","layered_pixel_export","structural_SVG_PDF_export"],
-        "full_dependency_verification":["sample_replace","retouch","brush_stroke","repair","visible_render_sources","document.check_resources","verified_transfer","job_admission_and_execution"]
+        "unsupported":["stored_sample_convert","stored_sample_profile_edits","native_ink_separations","layered_pixel_export","structural_SVG_PDF_export"],
+        "full_dependency_verification":["sample_replace","retouch","brush_stroke","repair","mask_apply","visible_render_sources","document.check_resources","verified_transfer","job_admission_and_execution"]
     });
     capabilities["native_scalar_store_library"] = json!({
         "status":"library_primitive;item_and_filter_masks;selection_integration_pending",
@@ -1924,7 +1924,7 @@ fn capability_report() -> Value {
         "candidate_edits":"pure_copy_on_write;complete_changed_blocks;old_candidates_preserved",
         "publication":"shared_native_store_lock_capacity_and_create_only_protocol",
         "preparation_memory":"completed_unique_blocks_remain_resident;not_a_disk_backed_mask_pipeline",
-        "document_integration":true, "mask_application":false, "selection_to_mask":false,
+        "document_integration":true, "mask_application":true, "selection_to_mask":false,
         "contract":"docs/NATIVE_SCALAR_STORAGE.md"
     });
     capabilities["masks"]["storage"] = json!("inline_gray8_or_native_scalar_blocks");
@@ -1939,8 +1939,8 @@ fn capability_report() -> Value {
         "rendering":"windowed;full_source_verification;shared_filter_cache_across_tiles_and_codec_replays",
         "pending_blocks":"pure_review;aggregate_native_byte_and_transport_limits;publication_before_durable_state",
         "history":"manifest_only;existing_inline_identities_unchanged",
-        "permanent_application_targets":["inline_raster","placed_image","fill"],
-        "native_image_mask_application":false, "native_selections":false,
+        "permanent_application_targets":["inline_raster","placed_image","fill","samples","stored_samples_v2"],
+        "native_image_mask_application":true, "native_selections":false,
         "unsupported":["structural_svg_mask_export","layered_mask_export","pending_masks_in_retained_object_snapshots"],
         "contract":"docs/NATIVE_MASKS.md"
     });
@@ -1951,6 +1951,17 @@ fn capability_report() -> Value {
             "stored_source_preparation_separate_from_local_work;receipt_work_is_sum;no_skipped_dependency_verification"
         );
     }
+    capabilities["native_masks"]["application"] = json!({
+        "operation":"mask_apply", "scope":"whole_native_image_at_transformed_pixel_centers",
+        "preserved":"dimensions_depth_channels_encoding_profile_sampling_placement_and_exact_color_bits_including_hidden_color",
+        "alpha":"clamped_coverage;unsigned_nearest_integer;binary32_after_binary64_multiply;full_coverage_retains_bits",
+        "legacy_storage":"explicit_sample_storage_migrate_required", "resident_output":"one_tile_band_and_row",
+        "private_extent_max_bytes":limits::stored_samples::MAX_PRIVATE_EDIT_BYTES,
+        "private_extent_scope":"shared_control_and_distinct_document_extents;last_handle_cleanup",
+        "unchanged_blocks":"reuse_existing_identities_and_pending_handles",
+        "transport_limit_unchanged":true, "full_workflow_acceptance":false,
+        "contract":"docs/PRIVATE_NATIVE_EDITS.md"
+    });
     capabilities["sample_precision"]["contents"] = json!(["samples", "stored_samples"]);
     capabilities["sample_precision"]["import"]["formats"] = json!(["png", "tiff", "jpeg"]);
     capabilities["sample_precision"]["import"]["orientation_transforms"] = json!(true);

@@ -1598,6 +1598,8 @@ pub mod sample_profiles {
 
 /// Limits for `src/sample_store.rs`.
 pub mod sample_store {
+    /// Canonical native block header length, included in private extent admission.
+    pub const HEADER_BYTES: usize = 20;
     /// Aggregate native block and interrupted-stage bytes in one store root.
     pub const MAX_STORE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
     /// Directory entries admitted/inspected, including shared assets and staging.
@@ -1794,8 +1796,11 @@ pub mod booleans_topology_quadratic {
 
 /// Limits for `src/stored_samples.rs`.
 pub mod stored_samples {
-    /// Aggregate private native block bytes in one prepared document, including headers.
+    /// Aggregate resident pending native block bytes in one prepared document, including headers.
     pub const MAX_PENDING_BYTES: usize = 64 * 1024 * 1024;
+    /// Private native edit extents per shared control and document; payload plus maximum block headers.
+    pub const MAX_PRIVATE_EDIT_BYTES: u64 = super::sample_import::MAX_NATIVE_DECODED_BYTES as u64
+        + super::sample_store::MAX_TILES as u64 * super::sample_store::HEADER_BYTES as u64;
     /// Aggregate decoded source pixels may cover each native image twice.
     pub const MAX_SOURCE_DECODING_PASSES: u64 = 2;
     /// Max patches (stored samples).

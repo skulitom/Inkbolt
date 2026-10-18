@@ -2,8 +2,11 @@
 
 Item and filter masks now accept the [scalar store](NATIVE_SCALAR_STORAGE.md),
 with fresh full Windows/Linux acceptance for the contract below.
-Native selection authoring and whole-image application to stored sample layers
-remain open. No complete 50 MP mask-workflow acceptance is claimed.
+Native selection authoring remains open. Whole-image application to typed inline
+and version-2 stored sample layers is implemented under the separate
+[private edit contract](PRIVATE_NATIVE_EDITS.md), with fresh full Windows/Linux
+acceptance and complete 50 MP mask/edit/history/TIFF sample checks. Native
+selections and the complete W4 workflow remain open.
 
 ## Representation and migration
 
@@ -86,8 +89,12 @@ the selection. These refusals must be listed separately from supported native
 operations and do not close the remaining work.
 
 Structural SVG and layered mask export currently reject native scalar masks.
-Permanent application still supports the existing bounded inline raster, image
-and fill targets. It does not yet bake native masks into large stored images.
+Permanent application supports the existing bounded inline raster, image and
+fill targets, plus typed inline samples and version-2 stored images. The native
+path retains every color-channel byte and multiplies alpha at transformed native
+pixel centers; it prepares changed blocks in bounded private storage. Legacy
+stored layers require explicit migration. See the separate application contract
+for precision, ownership, unchanged-block reuse and verified acceptance.
 
 Acceptance requires independent small dense oracles for all mask controls and
 sample depths, full-grid selection/mask checks, corruption and cancellation
@@ -131,6 +138,9 @@ Frozen source fingerprint:
 Retained `w4-native-mask-integration-acceptance-01/audit.json` SHA-256:
 `62d14656c3ce51cdfb5422cb41bb44f4e49e728b94d4c3d42a7b88c86bd3512f`.
 The audit binds sources, executables, reports, independent checks and failures;
-post-acceptance documentation changes are bound separately. Native selections,
-whole-image application, the full 50 MP mask workflow and D7 memory remain open.
+post-acceptance documentation changes are bound separately. At this increment,
+whole-image application and memory were still open. The subsequent
+[application acceptance](PRIVATE_NATIVE_EDITS.md#verified-whole-image-increment)
+records full-image and Windows memory evidence; native selections and complete
+W4 acceptance remain open.
 No engine checkpoint, new release or complete W4 acceptance is claimed.

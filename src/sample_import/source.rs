@@ -24,12 +24,12 @@ fn scratch_error() -> Error {
 mod tests;
 
 #[derive(Clone)]
-pub(super) struct Budget {
+pub(crate) struct Budget {
     maximum: u64,
     used: Arc<Mutex<u64>>,
 }
 impl Budget {
-    pub(super) fn new(maximum: u64) -> Self {
+    pub(crate) fn new(maximum: u64) -> Self {
         assert!(maximum <= limits::MAX_PRIVATE_STAGING_BYTES);
         Self {
             maximum,
@@ -46,13 +46,13 @@ impl Budget {
     }
 }
 
-pub(super) struct Scratch {
+pub(crate) struct Scratch {
     file: Option<File>,
     budget: Budget,
     reserved: u64,
 }
 impl Scratch {
-    pub(super) fn create(parent: &Path, budget: Budget, control: &Control) -> Result<Self, Error> {
+    pub(crate) fn create(parent: &Path, budget: Budget, control: &Control) -> Result<Self, Error> {
         control.check()?;
         let mut options = OpenOptions::new();
         options.read(true).write(true).create_new(true);
@@ -98,7 +98,7 @@ impl Scratch {
         Err(scratch_error())
     }
 
-    fn append(&mut self, bytes: &[u8], control: &Control) -> Result<(), Error> {
+    pub(crate) fn append(&mut self, bytes: &[u8], control: &Control) -> Result<(), Error> {
         control.check()?;
         self.budget.reserve(bytes.len() as u64)?;
         // Keep the complete reservation after a partial failed write. Drop closes
@@ -126,7 +126,7 @@ impl Scratch {
             .map_err(|_| scratch_error())
     }
 
-    pub(super) fn write_at(
+    pub(crate) fn write_at(
         &mut self,
         offset: u64,
         bytes: &[u8],
@@ -145,7 +145,7 @@ impl Scratch {
             .map_err(|_| scratch_error())
     }
 
-    pub(super) fn read_at(
+    pub(crate) fn read_at(
         &mut self,
         offset: u64,
         bytes: &mut [u8],

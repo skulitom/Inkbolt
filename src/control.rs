@@ -24,6 +24,7 @@ pub struct Control {
     cancel_files: Vec<PathBuf>,
     workspace: Option<crate::workspace::Workspace>,
     hooks: Option<Arc<dyn JobHooks>>,
+    native_staging: crate::sample_store::private::Budget,
 }
 pub(crate) trait PublicationPermit {
     fn committed(&mut self, result: &serde_json::Value) -> Result<(), Error>;
@@ -37,6 +38,9 @@ pub(crate) trait JobHooks: Send + Sync {
     ) -> Result<Box<dyn PublicationPermit>, Error>;
 }
 impl Control {
+    pub(crate) fn native_staging(&self) -> &crate::sample_store::private::Budget {
+        &self.native_staging
+    }
     pub(crate) fn workspace_root(&self) -> Option<PathBuf> {
         self.workspace.as_ref().map(|w| w.root().to_owned())
     }
@@ -147,6 +151,7 @@ impl Control {
             cancel_files,
             workspace: self.workspace.clone(),
             hooks: self.hooks.clone(),
+            native_staging: self.native_staging.clone(),
         })
     }
 

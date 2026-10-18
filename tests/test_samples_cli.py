@@ -185,7 +185,9 @@ class SampleTests(unittest.TestCase):
         self.assertEqual(self.invoke(dict(command='document.export',document=d,format='pdf'),1)['code'],'UNSUPPORTED')
         for fmt in ['png','jpeg','snapshot']:
             self.assertEqual(self.invoke(dict(command='document.export',document=d,format=fmt,image_options=dict(depth='u16')),1)['code'],'INVALID_REQUEST')
-        self.assertEqual(self.edit(d,[dict(op='mask_apply',id='source')],1)['code'],'UNSUPPORTED')
+        baked=self.edit(d,[dict(op='mask_apply',id='source')])
+        self.assertEqual(baked['items'][0]['content'],d['items'][0]['content'])
+        self.assertNotIn('mask',baked['items'][0])
         stroke=dict(points=[dict(point=[.5,.5])],diameter=1,mode=dict(type='paint',color=[20,40,60,255]))
         # Keep this historical registry evidence entry while checking the new
         # native brush path and its remaining unsupported color domain.
@@ -258,7 +260,7 @@ class SampleTests(unittest.TestCase):
 
     def test_capabilities_describe_complete_supported_path_and_pending_boundaries(self):
         caps=self.invoke(dict(command='capabilities'))['sample_precision']
-        self.assertEqual(caps['depths'],['u8','u16','f32']);self.assertTrue(caps['hdr']);self.assertTrue(caps['high_depth_import']);self.assertFalse(caps['import']['profiles']);self.assertEqual(caps['conversion']['operation'],'sample_convert');self.assertFalse(caps['native_brush_and_mask_bake']);self.assertTrue(caps['native_brush']);self.assertTrue(caps['native_retouch']);self.assertFalse(caps['native_mask_bake']);self.assertEqual(caps['tiff']['gray_policy'],'exact_neutral_rgb_required')
+        self.assertEqual(caps['depths'],['u8','u16','f32']);self.assertTrue(caps['hdr']);self.assertTrue(caps['high_depth_import']);self.assertFalse(caps['import']['profiles']);self.assertEqual(caps['conversion']['operation'],'sample_convert');self.assertTrue(caps['native_brush_and_mask_bake']);self.assertTrue(caps['native_brush']);self.assertTrue(caps['native_retouch']);self.assertTrue(caps['native_mask_bake']);self.assertEqual(caps['tiff']['gray_policy'],'exact_neutral_rgb_required')
 
 
 if __name__=='__main__':unittest.main()

@@ -10,8 +10,10 @@ native item/filter mask descriptors. Their bounded readers retain authored
 coverage, share feather work, and survive tiled render and codec replays.
 Publication, durable projections and resource checks include scalar dependencies;
 old inline masks omit the new field. [Mask integration](NATIVE_MASKS.md) has fresh
-full Windows/Linux acceptance; native selections and whole-image application
-remain open. Mask preparation resolves hierarchy transforms only when needed.
+full Windows/Linux acceptance. Whole-image mask application now prepares native
+image blocks in bounded owned private extents, sharing unchanged blocks; this
+increment has fresh full Windows/Linux acceptance under the [private edit contract](PRIVATE_NATIVE_EDITS.md).
+Native selections remain open. Mask preparation resolves hierarchy transforms only when needed.
 
 Native repair uses bounded typed views with sorted global cell addresses. The
 shared algorithms retain their existing ordering and quality gates; disjoint

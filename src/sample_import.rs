@@ -17,7 +17,7 @@ mod jpeg;
 pub use jpeg::Orientation;
 mod pixels;
 mod png_passes;
-mod source;
+pub(crate) mod source;
 mod tiff_rows;
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
