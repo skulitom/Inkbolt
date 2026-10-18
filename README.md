@@ -10,6 +10,9 @@ It runs locally through **MCP over stdio**, a **JSON command-line interface**, o
 the **Rust library**. There is no account, network service or telemetry, and no
 particular AI model is required.
 
+[Install and connect](docs/INSTALLATION.md) · [Try the examples](examples/README.md) ·
+[Download a release](https://github.com/skulitom/Inkbolt/releases)
+
 ## What you can do
 
 - **Compose graphics** with vector shapes, text, images, layers and artboards.
@@ -39,8 +42,10 @@ history. See the [runnable examples](examples/README.md) for complete workflows.
 
 ## Get started
 
-This README describes `main`. Choose a release download or build the latest
-development version using the [installation guide](docs/INSTALLATION.md).
+Start with a release download, or build from source for the latest verified
+development features. This README describes `main`; the release notes describe
+what is included in each download. See the [installation guide](docs/INSTALLATION.md)
+for setup on your system.
 
 | Version | What to expect |
 | --- | --- |
@@ -75,24 +80,24 @@ request more operations and their schemas when needed.
 
 ## Project status
 
-Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
-receipts have verified Windows, Linux and macOS builds. Full suites include the
-latest native repair, mask and selection features on all three platforms.
-Independent 50 MP workflow measurements cover Windows and Linux; see
-[platform support](docs/PLATFORMS.md) for the tested scope.
-Background export jobs are currently Windows-only.
+Inkbolt is under active development. The verified scope on `main` includes:
 
-On `main`, Windows and Linux checks cover 50 MP images with rectangular
-selections and feathering, whole-image mask application, local selected brush
-and patch edits, undo/redo and TIFF delivery. Patch repair can use the same image
-or a separate donor within the document's size budget. Large masks support
-focused previews. Each operation retains its own size, precision and work limits;
-see [large-image workflows](docs/SCALE_ADMISSION.md) and
-[image repair](docs/NATIVE_REPAIR.md) for the verified scope.
+| Area | Verified coverage |
+| --- | --- |
+| Core engine and agent interface | Windows, Linux and macOS builds, including CLI/MCP, sessions, revision history and durable file-delivery receipts |
+| Selections, masks and image repair | Full test suites on all three platforms, including patch repair from the same image or a separate donor |
+| 50 MP image workflows | Independent Windows/Linux checks for rectangular selections, feathering, mask application, local selected brush and patch edits, undo/redo and TIFF delivery |
+| Background export jobs | Windows only |
 
-Large image-guided selections, larger layered files, broader curve combinations
-and editable format interchange remain in development, alongside agent usability
-and complete large-image workflows.
+The [platform evidence](docs/PLATFORMS.md) identifies the tested revisions and
+remaining platform gaps. Each image operation retains its own size, precision
+and work limits; the measured workflows do not establish support for every
+operation or composition at 50 MP. See [large-image workflows](docs/SCALE_ADMISSION.md)
+and [image repair](docs/NATIVE_REPAIR.md) for details.
+
+Work in progress includes image-guided selections on large images, larger layered
+files, broader curve combinations and editable format interchange. Agent usability
+and complete large-image workflows also remain part of the active plan.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.
 [Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their
