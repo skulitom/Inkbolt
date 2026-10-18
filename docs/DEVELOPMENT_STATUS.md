@@ -5,7 +5,33 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
-## W4.6: native masks and whole-image application verified; selections open
+## W4.6: native selections verified within the bounded contract
+
+[Native selections](NATIVE_SELECTIONS.md) now support row-based authoring,
+refinement, canvas edits, shared mask conversion and selected local consumers.
+Private review, publication, resources and saved history retain scalar manifests;
+existing inline response and state identities are preserved.
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 265 | 304 | 2,766 | 13 | 850.500 |
+| Linux / WSL | 265 | 270 | 2,728 | 51 | 561.903 |
+
+All stages ran fresh on matching unchanged inputs. Forty-two previous/current
+complete responses and saved-state identities matched. Independent 50 MP checks
+verified every selection and image byte through feathering, mask application,
+selected brush/retouch, TIFF, retries and undo/redo on both platforms. Windows
+peak process commit was 36.094 MiB; Unix memory remains unavailable.
+
+The initial missing-selection error regressions were fixed, with final focused
+feedback of 75.2 seconds on Windows and 51.1 seconds on Linux. The 50 MP selected
+patch-repair budget refusal remains explicit and preserves the original state.
+Its repeated source preparation, native segmentation, larger layered files,
+repeated scale-v2 gates and verified Unix memory remain open. The contract binds
+source/evidence identities and retained failures; no new checkpoint or full W4
+completion is claimed.
+
+## W4.6: native masks and whole-image application verified
 
 [Item/filter masks](NATIVE_MASKS.md) and the subsequent [whole-image application
 contract](PRIVATE_NATIVE_EDITS.md) now preserve native precision through bounded
@@ -25,9 +51,10 @@ identities matched the previous accepted engine. The contract records source
 identities, retained evidence and the corrected initial color-space fixture.
 
 Focused feedback stayed within 180 seconds; large-workload and full-suite
-acceptance are separate milestone checks. Native selections, remaining native
-operations, larger layered files, repeated scale-v2 gates and verified Unix
-memory remain open. No new engine checkpoint, release or full W4 completion is claimed.
+acceptance are separate milestone checks. Native selections have subsequent
+acceptance above. Remaining native operations, larger layered files, repeated
+scale-v2 gates and verified Unix memory remain open. No new engine checkpoint,
+release or full W4 completion is claimed.
 
 ## W4.6: scalar storage prerequisite verified
 

@@ -88,14 +88,16 @@ fn plane(
     height: u32,
     transform: Matrix,
     sampling: Option<Sampling>,
+    root: Option<&std::path::Path>,
+    control: &crate::control::Control,
 ) -> Result<selections::Selection, Error> {
-    let original = crate::render::unhex(&source.gray_hex);
+    let original = crate::selections::Prepared::new(source, root, control)?;
     let inverse = geometry::inverse(transform)?;
     let plan = crate::resample::Plan::new(
         sampling.unwrap_or_default(),
         [inverse[0].abs(), inverse[3].abs()],
     )?;
-    let at = |x: i64, y: i64| -> f64 {
+    let at = |x: i64, y: i64| -> Result<f64, Error> {
         // Scaling reconstructs within the original canvas, clamping boundary
         // samples. Reframing extends with zero rather than repeated edge pixels.
         let (x, y) = if sampling.is_some() {
@@ -107,43 +109,57 @@ fn plane(
             (x, y)
         };
         if x < 0 || y < 0 || x >= source.width as i64 || y >= source.height as i64 {
-            0.0
+            Ok(0.0)
         } else {
-            original[y as usize * source.width as usize + x as usize] as f64
+            Ok(original.at(x as u32, y as u32)? as f64)
         }
     };
-    let mut pixels = Vec::with_capacity(width as usize * height as usize);
-    for y in 0..height {
+    let read_row = |y: u32, row: &mut [u8]| -> Result<(), Error> {
+        control.check()?;
         for x in 0..width {
             let p = geometry::map(inverse, [x as f64 + 0.5, y as f64 + 0.5]);
             let value = match sampling.unwrap_or_default() {
                 Sampling::Nearest => at(
                     crate::assets::pixel_index(p[0]),
                     crate::assets::pixel_index(p[1]),
-                ),
+                )?,
                 Sampling::Bilinear => {
                     let x = p[0] - 0.5;
                     let y = p[1] - 0.5;
                     let (ix, iy) = (x.floor() as i64, y.floor() as i64);
                     let (fx, fy) = (x - x.floor(), y - y.floor());
-                    at(ix, iy) * (1.0 - fx) * (1.0 - fy)
-                        + at(ix + 1, iy) * fx * (1.0 - fy)
-                        + at(ix, iy + 1) * (1.0 - fx) * fy
-                        + at(ix + 1, iy + 1) * fx * fy
+                    at(ix, iy)? * (1.0 - fx) * (1.0 - fy)
+                        + at(ix + 1, iy)? * fx * (1.0 - fy)
+                        + at(ix, iy + 1)? * (1.0 - fx) * fy
+                        + at(ix + 1, iy + 1)? * fx * fy
                 }
-                _ => plan.sample(p, |x, y| [at(x, y)])?[0],
+                _ => plan.sample_checked(p, |x, y| Ok([at(x, y)?]))?[0],
             };
-            pixels.push(value.clamp(0.0, 255.0).round() as u8);
+            row[x as usize] = value.clamp(0.0, 255.0).round() as u8;
         }
+        Ok(())
+    };
+    if source.native.is_some() || width as u64 * height as u64 > selections::MAX_PIXELS {
+        return selections::storage::generate(width, height, Some(source), root, control, read_row);
+    }
+    let mut pixels = vec![0; width as usize * height as usize];
+    for (y, row) in pixels.chunks_mut(width as usize).enumerate() {
+        read_row(y as u32, row)?;
     }
     Ok(selections::Selection {
+        native: None,
         width,
         height,
         gray_hex: crate::render::hex(&pixels),
     })
 }
 
-pub(crate) fn edit(document: &mut Document, action: &Action) -> Result<Value, Error> {
+pub(crate) fn edit(
+    document: &mut Document,
+    action: &Action,
+    root: Option<&std::path::Path>,
+    control: &crate::control::Control,
+) -> Result<Value, Error> {
     if document.kind != DocumentKind::Raster {
         return Err(Error::new(
             "UNSUPPORTED",
@@ -256,9 +272,10 @@ pub(crate) fn edit(document: &mut Document, action: &Action) -> Result<Value, Er
             ));
         }
     }
-    if (document.selection.is_some() && count > selections::MAX_PIXELS)
-        || count * document.channels.len() as u64 > crate::channels::MAX_SAMPLES as u64
-    {
+    if document.selection.is_some() {
+        crate::scalar_store::Spec { width, height }.validate()?;
+    }
+    if count * document.channels.len() as u64 > crate::channels::MAX_SAMPLES as u64 {
         return Err(Error::new(
             "RESOURCE_LIMIT",
             "Resized auxiliary planes exceed selection or aggregate channel storage",
@@ -302,10 +319,20 @@ pub(crate) fn edit(document: &mut Document, action: &Action) -> Result<Value, Er
         }
     }
     if let Some(source) = &document.selection {
-        document.selection = Some(plane(source, width, height, transform, sampling)?);
+        document.selection = Some(plane(
+            source, width, height, transform, sampling, root, control,
+        )?);
     }
     for channel in document.channels.values_mut() {
-        channel.plane = plane(&channel.plane, width, height, transform, sampling)?;
+        channel.plane = plane(
+            &channel.plane,
+            width,
+            height,
+            transform,
+            sampling,
+            root,
+            control,
+        )?;
     }
     document.width = width;
     document.height = height;

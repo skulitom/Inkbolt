@@ -2,9 +2,11 @@
 
 This is the format and migration contract for W4.6's grayscale block storage.
 The storage primitive has full acceptance. [Item and filter mask integration](NATIVE_MASKS.md)
-now has fresh full Windows/Linux acceptance. Native
-selection authoring and whole-image mask application remain open. Existing
-inline planes retain their representation and limits.
+now has fresh full Windows/Linux acceptance, as does
+[whole-image application](PRIVATE_NATIVE_EDITS.md). [Native selection authoring](NATIVE_SELECTIONS.md)
+has fresh full Windows/Linux and complete target-image acceptance within its
+declared contract; selected patch repair and full W4 remain open.
+Existing inline planes retain their representation and limits.
 
 ## Representation and compatibility
 
@@ -96,7 +98,9 @@ Complete command, document and operation schema responses match the previous
 engine exactly. The original feature registry is unchanged. Capabilities report
 the scalar API as a library primitive at this storage-only milestone, with mask
 integration then false. The subsequent [mask increment](NATIVE_MASKS.md) enables
-item/filter integration; native selection and whole-image application remain false.
+item/filter integration. The later [application](PRIVATE_NATIVE_EDITS.md) and
+[selection](NATIVE_SELECTIONS.md) increments enable those paths within their
+separately verified contracts.
 
 Initial focused acceptance took 174.8 seconds on Windows and 164.6 on Linux.
 After eliminating repeated immutable-manifest hashing, Windows's storage-focused
@@ -122,7 +126,8 @@ remain open.
 The subsequent [item/filter mask increment](NATIVE_MASKS.md) connects descriptors,
 resource checks, proposals, saved revisions, backups and publication, retaining
 linked/unlinked transforms, clip/outside values, inversion, density, feather and
-sampling. Native selection integration remains open. Every selection consumer must resolve
+sampling. The subsequent [native selection increment](NATIVE_SELECTIONS.md)
+connects active coverage to authoring, local consumers and history. Every selection consumer must resolve
 the new representation or refuse it explicitly; no consumer may treat an absent
 inline buffer as empty coverage.
 

@@ -628,6 +628,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `selection_analysis.MAX_EDGE_RADIUS` | `u32` | 8 | `8` |
 | `selection_analysis.MAX_TARGETS` | `usize` | 32 | `32` |
 | `selections.COVERAGE_SUBROWS` | `u32` | 256 | `256` |
+| `selections.MAX_NATIVE_WORK` | `u64` | 536870912 | `536_870_912` |
 | `selections.MAX_PIXELS` | `u64` | 262144 | `262_144` |
 | `selections.MAX_POLYGON_POINTS` | `usize` | 1024 | `1024` |
 | `selections.MAX_RADIUS` | `u32` | 32 | `32` |

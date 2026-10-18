@@ -534,7 +534,7 @@ fn scalar_bounds_and_schema_names_do_not_expand_image_interpretations() {
     assert_eq!(scalar["max_pixels"], 67_108_864);
     assert_eq!(scalar["document_integration"], true);
     assert_eq!(scalar["mask_application"], true);
-    assert_eq!(scalar["selection_to_mask"], false);
+    assert_eq!(scalar["selection_to_mask"], true);
     let native = &caps["native_sample_store_library"];
     for key in ["retained_edits", "block_edits"] {
         assert!(

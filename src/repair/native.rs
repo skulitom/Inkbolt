@@ -166,6 +166,7 @@ pub(super) fn inputs<'a>(
         .sum::<u64>();
     let memory = cells * bounds::WORKING_BYTES_PER_PIXEL
         + bounds::FIXED_WORKING_BYTES
+        + crate::selections::selection_memory(document, o.use_selection)
         + typed::memory(target_content)
         + replacement
         + if source_index != index {

@@ -1,8 +1,17 @@
 //! Persistent scalar pixel selections in document coordinates; no rendering side effects.
+use crate::control::Control;
 use crate::{Error, geometry, model::*, render, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::path::Path;
+
+mod coverage;
+mod native;
+pub(crate) mod storage;
+#[cfg(test)]
+mod tests;
+pub(crate) use storage::{Prepared, dense, selection_memory};
 
 pub use crate::limits::selections::MAX_PIXELS;
 pub use crate::limits::selections::MAX_POLYGON_POINTS;
@@ -15,6 +24,8 @@ pub struct Selection {
     pub width: u32,
     pub height: u32,
     pub gray_hex: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native: Option<crate::stored_scalars::Grid>,
 }
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -87,6 +98,18 @@ impl Boundary {
     }
 }
 pub fn validate(selection: &Selection, width: u32, height: u32) -> Result<(), Error> {
+    if let Some(grid) = &selection.native {
+        grid.validate()?;
+        if (selection.width, selection.height) != (width, height)
+            || (grid.base.spec.width, grid.base.spec.height) != (width, height)
+            || !selection.gray_hex.is_empty()
+        {
+            return Err(invalid(
+                "Native selection requires canvas-sized scalar storage and empty gray_hex",
+            ));
+        }
+        return Ok(());
+    }
     let n = check_size(width, height)?;
     if (selection.width, selection.height) != (width, height)
         || selection.gray_hex.len() != n * 2
@@ -115,16 +138,17 @@ pub(crate) fn check_size(width: u32, height: u32) -> Result<usize, Error> {
 fn active(document: &Document) -> Result<&Selection, Error> {
     document.selection.as_ref().ok_or_else(|| Error::new("INVALID_OPERATION","This operation requires an active pixel selection, including an explicit empty or full selection"))
 }
-pub fn fill(document: &mut Document, selected: bool) -> Result<(), Error> {
+fn inline_fill(document: &mut Document, selected: bool) -> Result<(), Error> {
     let n = check_size(document.width, document.height)?;
     document.selection = Some(Selection {
+        native: None,
         width: document.width,
         height: document.height,
         gray_hex: if selected { "ff" } else { "00" }.repeat(n),
     });
     Ok(())
 }
-pub fn shape(
+fn inline_shape(
     document: &mut Document,
     boundary: &Boundary,
     combine: Combine,
@@ -140,9 +164,9 @@ pub fn shape(
         antialias,
         fill_rule,
     )?;
-    combine_values(document, mask, combine)
+    inline_combine_values(document, mask, combine)
 }
-pub(crate) fn combine_values(
+fn inline_combine_values(
     document: &mut Document,
     mask: Vec<u8>,
     combine: Combine,
@@ -165,13 +189,14 @@ pub(crate) fn combine_values(
             .collect()
     };
     document.selection = Some(Selection {
+        native: None,
         width: document.width,
         height: document.height,
         gray_hex: render::hex(&values),
     });
     Ok(())
 }
-pub fn invert(document: &mut Document) -> Result<(), Error> {
+fn inline_invert(document: &mut Document) -> Result<(), Error> {
     let mut s = active(document)?.clone();
     s.gray_hex = render::hex(
         &render::unhex(&s.gray_hex)
@@ -182,7 +207,7 @@ pub fn invert(document: &mut Document) -> Result<(), Error> {
     document.selection = Some(s);
     Ok(())
 }
-pub fn refine(document: &mut Document, mode: Refine, radius: u32) -> Result<(), Error> {
+fn inline_refine(document: &mut Document, mode: Refine, radius: u32) -> Result<(), Error> {
     let selection = active(document)?;
     if radius > MAX_RADIUS {
         return Err(invalid(&format!(
@@ -254,6 +279,11 @@ pub fn inspect(selection: Option<&Selection>) -> Value {
     let Some(s) = selection else {
         return Value::Null;
     };
+    if let Some(grid) = &s.native {
+        return json!({"width":s.width,"height":s.height,"storage":"native_scalar_blocks",
+            "native_sha256":grid.base.sha256,"coordinates":"document_pixel_grid",
+            "statistics":null,"statistics_availability":"resource_aware_document_inspect"});
+    }
     let bytes = render::unhex(&s.gray_hex);
     json!({"width":s.width,"height":s.height,"bounds":bounds(s.width,s.height,&bytes),"selected_pixels":bytes.iter().filter(|&&v|v!=0).count(),"fully_selected_pixels":bytes.iter().filter(|&&v|v==255).count(),"coverage_sum":bytes.iter().map(|&v|v as u64).sum::<u64>() as f64/255.0,"sha256":crate::assets::sha256(&bytes),"coordinates":"document_pixel_grid","bounds_contract":"nonzero_end_exclusive"})
 }
@@ -263,6 +293,22 @@ pub fn to_mask(
     linked: bool,
     replace_existing: bool,
 ) -> Result<(), Error> {
+    to_mask_controlled(
+        document,
+        index,
+        linked,
+        replace_existing,
+        &Control::default(),
+    )
+}
+pub(crate) fn to_mask_controlled(
+    document: &mut Document,
+    index: usize,
+    linked: bool,
+    replace_existing: bool,
+    control: &Control,
+) -> Result<(), Error> {
+    control.check()?;
     if document.items[index].mask.is_some() && !replace_existing {
         return Err(Error::new(
             "INVALID_OPERATION",
@@ -270,20 +316,48 @@ pub fn to_mask(
         ));
     }
     let selection = active(document)?;
+    if let Some(grid) = &selection.native {
+        let transform = if linked {
+            geometry::relative_transform(scene::world_transform(document, index)?, &[identity()])?
+        } else {
+            identity()
+        };
+        document.items[index].mask = Some(Box::new(crate::masks::Mask {
+            native: Some(grid.clone()),
+            constant: false,
+            width: selection.width,
+            height: selection.height,
+            gray_hex: String::new(),
+            transform,
+            linked,
+            enabled: true,
+            clip: true,
+            invert: false,
+            density: 1.0,
+            feather: 0,
+            sampling: crate::assets::Sampling::Nearest,
+        }));
+        return Ok(());
+    }
     let source = render::unhex(&selection.gray_hex);
     let b = bounds(selection.width, selection.height, &source).unwrap_or([0, 0, 1, 1]);
     let width = b[2] - b[0];
     let height = b[3] - b[1];
-    if width as usize * height as usize > MAX_STORED_PIXELS {
-        return Err(limit(
-            "Selection mask exceeds inline pixel limit; refine its bounds or retain the selection",
-        ));
-    }
-    let mut pixels = Vec::with_capacity(width as usize * height as usize);
-    for y in b[1]..b[3] {
-        let start = (y * selection.width + b[0]) as usize;
-        pixels.extend_from_slice(&source[start..start + width as usize]);
-    }
+    let (native, gray_hex) = if width as usize * height as usize > MAX_STORED_PIXELS {
+        let grid = storage::generate(width, height, None, None, control, |y, row| {
+            let start = ((y + b[1]) * selection.width + b[0]) as usize;
+            row.copy_from_slice(&source[start..start + width as usize]);
+            Ok(())
+        })?;
+        (grid.native, String::new())
+    } else {
+        let mut pixels = Vec::with_capacity(width as usize * height as usize);
+        for y in b[1]..b[3] {
+            let start = (y * selection.width + b[0]) as usize;
+            pixels.extend_from_slice(&source[start..start + width as usize]);
+        }
+        (None, render::hex(&pixels))
+    };
     let position = [1.0, 0.0, 0.0, 1.0, b[0] as f64, b[1] as f64];
     let transform = if linked {
         geometry::relative_transform(scene::world_transform(document, index)?, &[position])?
@@ -291,11 +365,11 @@ pub fn to_mask(
         position
     };
     document.items[index].mask = Some(Box::new(crate::masks::Mask {
-        native: None,
+        native,
         constant: false,
         width,
         height,
-        gray_hex: render::hex(&pixels),
+        gray_hex,
         transform,
         linked,
         enabled: true,
@@ -318,115 +392,142 @@ fn coverage(
     antialias: bool,
     rule: FillRule,
 ) -> Result<Vec<u8>, Error> {
-    let mut values = vec![0.0_f64; width as usize * height as usize];
-    let g = boundary.geometry()?;
-    let b = crate::geometry::bounds(&g, identity());
-    let top = b[1].floor().clamp(0.0, height as f64) as u32;
-    let bottom = b[3].ceil().clamp(0.0, height as f64) as u32;
-    let left = b[0].floor().clamp(0.0, width as f64) as u32;
-    let right = b[2].ceil().clamp(0.0, width as f64) as u32;
-    if let Boundary::Rect {
-        x,
-        y,
-        width: w,
-        height: h,
-    } = boundary
-    {
-        for py in top..bottom {
-            for px in left..right {
-                values[(py * width + px) as usize] = if antialias {
-                    ((px as f64 + 1.0).min(x + w) - (px as f64).max(*x)).max(0.0)
-                        * ((py as f64 + 1.0).min(y + h) - (py as f64).max(*y)).max(0.0)
-                } else {
-                    f64::from(
-                        px as f64 + 0.5 >= *x
-                            && px as f64 + 0.5 < x + w
-                            && py as f64 + 0.5 >= *y
-                            && py as f64 + 0.5 < y + h,
-                    )
-                };
-            }
-        }
-    } else {
-        let rows = if antialias { COVERAGE_SUBROWS } else { 1 };
-        let edges = match boundary {
-            Boundary::Polygon { points } => points.len() as u64,
-            _ => 2,
-        };
-        let work = (bottom - top) as u64
-            * rows as u64
-            * ((right - left) as u64 + edges * (edges.ilog2() as u64 + 2));
-        if work > MAX_WORK {
-            return Err(limit("Selection subrow integration exceeds work budget"));
-        }
-        let mut crossings = Vec::with_capacity(edges as usize);
-        for py in top..bottom {
-            let row = &mut values[(py * width) as usize..((py + 1) * width) as usize];
-            for sub in 0..rows {
-                let y = py as f64 + (sub as f64 + 0.5) / rows as f64;
-                let mut span = |a: f64, b: f64| {
-                    let a = a.max(0.0);
-                    let b = b.min(width as f64);
-                    if b <= a {
-                        return;
-                    }
-                    for (x, value) in row
-                        .iter_mut()
-                        .enumerate()
-                        .take(b.ceil() as usize)
-                        .skip(a.floor() as usize)
-                    {
-                        let amount = if antialias {
-                            ((x as f64 + 1.0).min(b) - (x as f64).max(a)).max(0.0)
-                        } else {
-                            f64::from(x as f64 + 0.5 >= a && x as f64 + 0.5 < b)
-                        };
-                        *value += amount / rows as f64;
-                    }
-                };
-                match boundary {
-                    Boundary::Ellipse { cx, cy, rx, ry } => {
-                        let t = 1.0 - ((y - cy) / ry).powi(2);
-                        if t > 0.0 {
-                            let r = rx * t.sqrt();
-                            span(cx - r, cx + r);
-                        }
-                    }
-                    Boundary::Polygon { points } => {
-                        crossings.clear();
-                        for (a, b) in points
-                            .iter()
-                            .zip(points.iter().cycle().skip(1))
-                            .take(points.len())
-                        {
-                            if (a[1] <= y && y < b[1]) || (b[1] <= y && y < a[1]) {
-                                crossings.push((
-                                    a[0] + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]),
-                                    if b[1] > a[1] { 1 } else { -1 },
-                                ));
-                            }
-                        }
-                        crossings.sort_by(|a, b| a.0.total_cmp(&b.0));
-                        let mut winding = 0i32;
-                        let mut previous = 0.0;
-                        for &(x, delta) in &crossings {
-                            if match rule {
-                                FillRule::Nonzero => winding != 0,
-                                FillRule::EvenOdd => winding % 2 != 0,
-                            } {
-                                span(previous, x);
-                            }
-                            winding += delta;
-                            previous = x;
-                        }
-                    }
-                    _ => unreachable!(),
-                }
-            }
-        }
+    let mut raster = coverage::Rasterizer::new(boundary, width, height, antialias, rule, MAX_WORK)?;
+    let mut result = vec![0; width as usize * height as usize];
+    for (y, row) in result.chunks_mut(width as usize).enumerate() {
+        raster.read(y as u32, row)?;
     }
-    Ok(values
-        .into_iter()
-        .map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8)
-        .collect())
+    Ok(result)
+}
+
+pub fn fill(document: &mut Document, selected: bool) -> Result<(), Error> {
+    fill_with_resources(document, selected, None, &Control::default())
+}
+pub fn fill_with_resources(
+    document: &mut Document,
+    selected: bool,
+    root: Option<&Path>,
+    control: &Control,
+) -> Result<(), Error> {
+    control.check()?;
+    if native::needed(document) {
+        native::fill(document, selected, root, control)
+    } else {
+        inline_fill(document, selected)
+    }
+}
+pub fn shape(
+    document: &mut Document,
+    boundary: &Boundary,
+    combine: Combine,
+    antialias: bool,
+    rule: FillRule,
+) -> Result<(), Error> {
+    shape_with_resources(
+        document,
+        boundary,
+        combine,
+        antialias,
+        rule,
+        None,
+        &Control::default(),
+    )
+}
+pub fn shape_with_resources(
+    document: &mut Document,
+    boundary: &Boundary,
+    combine: Combine,
+    antialias: bool,
+    rule: FillRule,
+    root: Option<&Path>,
+    control: &Control,
+) -> Result<(), Error> {
+    control.check()?;
+    if native::needed(document) {
+        native::shape(document, boundary, combine, antialias, rule, root, control)
+    } else {
+        inline_shape(document, boundary, combine, antialias, rule)
+    }
+}
+pub fn invert(document: &mut Document) -> Result<(), Error> {
+    invert_with_resources(document, None, &Control::default())
+}
+pub fn invert_with_resources(
+    document: &mut Document,
+    root: Option<&Path>,
+    control: &Control,
+) -> Result<(), Error> {
+    control.check()?;
+    if active(document)?.native.is_some() {
+        native::invert(document, root, control)
+    } else {
+        inline_invert(document)
+    }
+}
+pub fn refine(document: &mut Document, mode: Refine, radius: u32) -> Result<(), Error> {
+    refine_with_resources(document, mode, radius, None, &Control::default())
+}
+pub fn refine_with_resources(
+    document: &mut Document,
+    mode: Refine,
+    radius: u32,
+    root: Option<&Path>,
+    control: &Control,
+) -> Result<(), Error> {
+    control.check()?;
+    if active(document)?.native.is_some() {
+        native::refine(document, mode, radius, root, control)
+    } else {
+        inline_refine(document, mode, radius)
+    }
+}
+pub fn inspect_with_resources(
+    selection: Option<&Selection>,
+    root: Option<&Path>,
+    control: &Control,
+) -> Result<Value, Error> {
+    control.check()?;
+    match selection {
+        Some(s) if s.native.is_some() => storage::inspect(s, root, control),
+        _ => Ok(inspect(selection)),
+    }
+}
+
+pub(crate) fn combine_values(
+    document: &mut Document,
+    mask: Vec<u8>,
+    combine: Combine,
+    root: Option<&Path>,
+    control: &Control,
+) -> Result<(), Error> {
+    if mask.len() != check_size(document.width, document.height)? {
+        return Err(invalid("Selection operand must match the canvas"));
+    }
+    if !native::needed(document) {
+        return inline_combine_values(document, mask, combine);
+    }
+    let mut source = if matches!(combine, Combine::Replace) {
+        None
+    } else {
+        Some(storage::SourceRows::new(active(document)?, root, control)?)
+    };
+    let mut old = vec![0; document.width as usize];
+    let width = document.width as usize;
+    document.selection = Some(storage::generate(
+        document.width,
+        document.height,
+        document.selection.as_ref(),
+        root,
+        control,
+        |y, row| {
+            if let Some(source) = &mut source {
+                source.read(y, &mut old, control)?;
+            }
+            for (x, out) in row.iter_mut().enumerate() {
+                *out = native::combine_byte(old[x], mask[y as usize * width + x], combine);
+            }
+            Ok(())
+        },
+    )?);
+    Ok(())
 }

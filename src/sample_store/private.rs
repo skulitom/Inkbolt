@@ -96,6 +96,21 @@ impl PendingData {
 }
 
 impl<S: Layout> BlockCandidate<S> {
+    pub(crate) fn from_private_rows(
+        spec: S,
+        control: &Control,
+        read_row: impl FnMut(u32, &mut [u8]) -> Result<(), Error>,
+    ) -> Result<Self, Error> {
+        from_rows(
+            spec,
+            None,
+            control.native_staging(),
+            &std::env::temp_dir(),
+            control,
+            read_row,
+        )
+    }
+
     pub(crate) fn map_private_rows(
         &self,
         control: &Control,

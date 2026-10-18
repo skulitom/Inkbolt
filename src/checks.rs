@@ -268,6 +268,20 @@ impl Report<'_> {
             }
         }
         drop(cache); // Never retain ancestor font caches while checking nested snapshots.
+        if self.options.resources
+            && !self.stopped
+            && let Some(grid) = d.selection.as_ref().and_then(|s| s.native.as_ref())
+        {
+            self.counts.images += 1;
+            if let Err(error) = grid.prepare(self.resources.asset_root.as_deref(), self.control) {
+                self.issue(
+                    error,
+                    "error",
+                    location(objects, "/selection/native"),
+                    json!({"base_manifest_sha256":grid.base.sha256}),
+                )?;
+            }
+        }
         for (index, item) in d.items.iter().enumerate() {
             self.content_objects(&item.content, objects, &format!("/items/{index}/content"))?;
             if self.options.resources {

@@ -805,7 +805,16 @@ pub enum Request {
         control: control::Options,
     },
     #[serde(rename = "document.inspect")]
-    Inspect { document: Document },
+    Inspect {
+        document: Document,
+        #[serde(default)]
+        asset_root: Option<PathBuf>,
+        /// Read all native selection bytes to report bounds, coverage and hash.
+        #[serde(default)]
+        selection_statistics: bool,
+        #[serde(default)]
+        control: control::Options,
+    },
     #[serde(rename = "document.inspect.page")]
     InspectPage {
         document: Document,
@@ -1915,7 +1924,7 @@ fn capability_report() -> Value {
         "full_dependency_verification":["sample_replace","retouch","brush_stroke","repair","mask_apply","visible_render_sources","document.check_resources","verified_transfer","job_admission_and_execution"]
     });
     capabilities["native_scalar_store_library"] = json!({
-        "status":"library_primitive;item_and_filter_masks;selection_integration_pending",
+        "status":"library_primitive;item_and_filter_masks;native_selections",
         "module":"scalar_store", "manifest_version":1, "transfer_version":1,
         "tile_edge":scalar_store::TILE_EDGE, "max_pixels":scalar_store::MAX_PIXELS,
         "max_tiles":scalar_store::MAX_TILES, "max_region_pixels":scalar_store::MAX_REGION_PIXELS,
@@ -1923,8 +1932,8 @@ fn capability_report() -> Value {
         "identity":"INKSCAL1_blocks;INKSCGR1_manifest;separate_from_image_identities",
         "candidate_edits":"pure_copy_on_write;complete_changed_blocks;old_candidates_preserved",
         "publication":"shared_native_store_lock_capacity_and_create_only_protocol",
-        "preparation_memory":"completed_unique_blocks_remain_resident;not_a_disk_backed_mask_pipeline",
-        "document_integration":true, "mask_application":true, "selection_to_mask":false,
+        "preparation_memory":"public_constructors_keep_unique_blocks_resident;selection_authoring_uses_owned_private_extents",
+        "document_integration":true, "mask_application":true, "selection_to_mask":true,
         "contract":"docs/NATIVE_SCALAR_STORAGE.md"
     });
     capabilities["masks"]["storage"] = json!("inline_gray8_or_native_scalar_blocks");
@@ -1940,9 +1949,27 @@ fn capability_report() -> Value {
         "pending_blocks":"pure_review;aggregate_native_byte_and_transport_limits;publication_before_durable_state",
         "history":"manifest_only;existing_inline_identities_unchanged",
         "permanent_application_targets":["inline_raster","placed_image","fill","samples","stored_samples_v2"],
-        "native_image_mask_application":true, "native_selections":false,
+        "native_image_mask_application":true, "native_selections":true,
         "unsupported":["structural_svg_mask_export","layered_mask_export","pending_masks_in_retained_object_snapshots"],
         "contract":"docs/NATIVE_MASKS.md"
+    });
+    capabilities["native_selections"] = json!({
+        "field":"selection.native", "storage":"scalar_manifest_and_optional_private_transfer",
+        "coordinates":"document_pixel_grid", "max_pixels":scalar_store::MAX_PIXELS,
+        "max_authoring_work":limits::selections::MAX_NATIVE_WORK,
+        "adoption":"new_planes_above_inline_limit;existing_native_planes_stay_native;no_implicit_history_migration",
+        "authoring":["fill","shape","invert","refine","set","canvas_crop_extent_scale"],
+        "set_operations":["replace","maximum","saturating_subtract","minimum"],
+        "refinement":"zero_border;horizontal_then_vertical;triangular_feather;one_final_byte_round",
+        "output_memory":"one_tile_band_plus_rows;refinement_keeps_2r_plus_1_horizontal_rows",
+        "selection_to_mask":"shared_native_grid;large_inline_mask_results_use_private_native_blocks",
+        "consumers":["brush","retouch","repair","mask_from_selection"],
+        "local_sampling":"world_mapped_native_centers;bounded_source_cache;full_dependency_verification",
+        "inspect":"document.inspect_selection_statistics_true;explicit_or_inherited_asset_root",
+        "structural_inspect":"manifest_identity;statistics_null_until_requested",
+        "bounded_dense_consumers":["channel_calculation","image_guided_selection","work_path_selection","composite_measurement"],
+        "native_saved_channels":false, "full_workflow_acceptance":false,
+        "contract":"docs/NATIVE_SELECTIONS.md"
     });
     for key in ["pixel_brushes", "retouch"] {
         capabilities[key]["maximum_source_preparation_work"] =
@@ -2981,16 +3008,31 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             resources,
             control,
         } => checks::preflight(&document, &resources, &output, &context.scoped(&control)?),
-        Request::Inspect { document } => {
-            model::validate_controlled(&document, context)?;
-            let mut geometry = scene::GeometryCache::new(&document, context)?;
+        Request::Inspect {
+            document,
+            asset_root,
+            selection_statistics,
+            control,
+        } => {
+            let context = context.scoped(&control)?;
+            model::validate_controlled(&document, &context)?;
+            let selection = if selection_statistics {
+                selections::inspect_with_resources(
+                    document.selection.as_ref(),
+                    asset_root.as_deref(),
+                    &context,
+                )?
+            } else {
+                selections::inspect(document.selection.as_ref())
+            };
+            let mut geometry = scene::GeometryCache::new(&document, &context)?;
             let items: Vec<Value> = (0..document.items.len())
                 .map(|i| inspect_item(&document, i, &mut geometry))
                 .collect::<Result<_, _>>()?;
             let assets:Vec<_>=document.assets.iter().map(|(id,a)|json!({"id":id,"width":a.width,"height":a.height,"sha256":a.sha256,"storage":match a.storage{assets::Storage::Stored=>"stored",assets::Storage::Embedded{..}=>"embedded",assets::Storage::Encoded{..}=>"encoded"},"provenance":a.provenance,"used_by":document.items.iter().filter_map(|item|match &item.content{model::Content::Image{asset_id,..} if asset_id==id=>Some(&item.id),_=>None}).collect::<Vec<_>>()})).collect();
             let fonts:Vec<_>=document.fonts.iter().map(|(id,font)|json!({"id":id,"font":font,"used_by":document.items.iter().filter(|item|instances::any_content(&item.content,&|c|match c {model::Content::Text {frame}=>text::styles(frame).any(|s|s.font_ids().any(|f|f==id)),model::Content::StoryFrame {story_id,..}=>document.stories.get(story_id).is_some_and(|story|story.styles().any(|s|s.font_ids().any(|f|f==id))),_=>false})).map(|item|&item.id).collect::<Vec<_>>()})).collect();
             Ok(
-                json!({"stories":document.stories,"swatches":swatches::inspect(&document)?,"background":backgrounds::inspect(&document),"metadata":document.metadata,"resource_manifest":metadata::manifest(&document),"id":document.id,"revision":document.revision,"kind":document.kind,"width":document.width,"height":document.height,"canvas_bounds":if document.vector_canvas.is_some(){json!(vector_canvas::bounds(&document))}else{json!([0,0,document.width,document.height])},"vector_canvas":document.vector_canvas.map(|c|c.receipt(document.resolution_ppi)).transpose()?,"output_profile":document.output_profile.as_ref().map(profiles::summary).transpose()?,"global_light":document.global_light,"resolution_ppi":document.resolution_ppi,"variants":document.variants,"selection":selections::inspect(document.selection.as_ref()),"channels":channels::inspect(&document),"ink_recipe":ink_recipes::inspect(&document),"items":items,"assets":assets,"fonts":fonts,"artboards":boards::inspect(&document)?,"resource_profile":document.resource_profile,"bounds_semantics":"Unclipped geometry only; excludes strokes, visibility and opacity. Text uses its frame here; text.inspect reports glyph ink. Resource inventories are structural; use asset.verify/font.verify to check stored bytes."}),
+                json!({"stories":document.stories,"swatches":swatches::inspect(&document)?,"background":backgrounds::inspect(&document),"metadata":document.metadata,"resource_manifest":metadata::manifest(&document),"id":document.id,"revision":document.revision,"kind":document.kind,"width":document.width,"height":document.height,"canvas_bounds":if document.vector_canvas.is_some(){json!(vector_canvas::bounds(&document))}else{json!([0,0,document.width,document.height])},"vector_canvas":document.vector_canvas.map(|c|c.receipt(document.resolution_ppi)).transpose()?,"output_profile":document.output_profile.as_ref().map(profiles::summary).transpose()?,"global_light":document.global_light,"resolution_ppi":document.resolution_ppi,"variants":document.variants,"selection":selection,"channels":channels::inspect(&document),"ink_recipe":ink_recipes::inspect(&document),"items":items,"assets":assets,"fonts":fonts,"artboards":boards::inspect(&document)?,"resource_profile":document.resource_profile,"bounds_semantics":"Unclipped geometry only; excludes strokes, visibility and opacity. Text uses its frame here; text.inspect reports glyph ink. Resource inventories are structural; use asset.verify/font.verify to check stored bytes."}),
             )
         }
         Request::InspectPage {

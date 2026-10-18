@@ -197,3 +197,10 @@ impl Reader {
         Ok(tile.bytes[((y % edge) * tile.width + x % edge) as usize])
     }
 }
+
+/// Every scalar dependency, including nonprinting active selection coverage.
+pub(crate) fn grids(document: &crate::model::Document) -> impl Iterator<Item = &Grid> {
+    crate::masks::grids(document)
+        .map(|(_, grid)| grid)
+        .chain(document.selection.iter().filter_map(|s| s.native.as_ref()))
+}

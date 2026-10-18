@@ -1658,6 +1658,8 @@ pub mod selection_analysis {
 
 /// Limits for `src/selections.rs`.
 pub mod selections {
+    /// Native row authoring/refinement work; source storage has separate limits.
+    pub const MAX_NATIVE_WORK: u64 = 536_870_912;
     /// Max pixels (selections).
     pub const MAX_PIXELS: u64 = 262_144;
     /// Max work (selections).

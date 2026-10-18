@@ -347,7 +347,7 @@ pub(crate) fn verify_resources(
     root: Option<&Path>,
     control: &crate::control::Control,
 ) -> Result<(), Error> {
-    for (_, grid) in grids(document) {
+    for grid in crate::stored_scalars::grids(document) {
         grid.prepare(root, control)?;
     }
     Ok(())

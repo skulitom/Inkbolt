@@ -107,7 +107,11 @@ workload gates and independently verified Unix memory. The subsequent
 acceptance and 50 MP evidence for all four repair actions. Whole-image native
 [mask application](PRIVATE_NATIVE_EDITS.md) subsequently passed fresh full
 Windows/Linux acceptance, every-sample 50 MP checks and the Windows memory target.
-Native selections and complete W4 acceptance remain open.
+[Native selections](NATIVE_SELECTIONS.md) subsequently passed full Windows/Linux
+acceptance and complete 50 MP shape/feather/mask/selected-brush/retouch/history/TIFF
+checks. Selected patch repair still exceeds its shared source-preparation budget
+at that size; its refusal preserves the revision and resources. Complete W4,
+repeated scale-v2 and Unix memory acceptance remain open.
 
 Frozen full-suite input fingerprint:
 `7d9dda670159acf7caea6470674fce5b2ef6f657677f60ba56fc335f8ced5e83`.

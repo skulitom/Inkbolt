@@ -101,7 +101,7 @@ impl Object {
             view.validate()?;
         }
         let d = parse(&self.snapshot)?;
-        if crate::masks::grids(&d).any(|(_, grid)| grid.staged.is_some()) {
+        if crate::stored_scalars::grids(&d).any(|grid| grid.staged.is_some()) {
             return Err(invalid(
                 "Commit pending scalar blocks before retaining an object snapshot",
             ));

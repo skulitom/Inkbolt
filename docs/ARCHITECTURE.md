@@ -13,7 +13,12 @@ old inline masks omit the new field. [Mask integration](NATIVE_MASKS.md) has fre
 full Windows/Linux acceptance. Whole-image mask application now prepares native
 image blocks in bounded owned private extents, sharing unchanged blocks; this
 increment has fresh full Windows/Linux acceptance under the [private edit contract](PRIVATE_NATIVE_EDITS.md).
-Native selections remain open. Mask preparation resolves hierarchy transforms only when needed.
+Native selections use the same scalar dependencies and owned private extents,
+with row authoring, windowed local consumers and manifest-only durable projection.
+Their [contract](NATIVE_SELECTIONS.md) records fresh full Windows/Linux acceptance,
+complete 50 MP selection/mask/brush/retouch/history/TIFF checks, and the remaining
+selected patch-repair work limit.
+Mask preparation resolves hierarchy transforms only when needed.
 
 Native repair uses bounded typed views with sorted global cell addresses. The
 shared algorithms retain their existing ordering and quality gates; disjoint

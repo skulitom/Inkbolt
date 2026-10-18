@@ -232,7 +232,7 @@ class CanvasTests(unittest.TestCase):
         vector=self.invoke(dict(command='document.create',id='v',kind='vector',width=2,height=2))
         self.assertEqual(self.edit(vector,[dict(op='canvas',action=dict(type='resolution',ppi=72))],1)['code'],'UNSUPPORTED')
         selected=self.edit(d,[dict(op='selection_fill',selected=True)])
-        self.assertEqual(self.edit(selected,[dict(op='canvas',action=dict(type='extent',width=513,height=512))],1)['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.edit(selected,[dict(op='canvas',action=dict(type='extent',width=513,height=512))],1)['code'],'SAMPLE_ROOT_REQUIRED')
         ch=self.edit(d,[dict(op='channel_put',id=str(i),channel=dict(name='plane',plane=dict(width=6,height=4,gray_hex='ff'*24))) for i in range(2)])
         self.assertEqual(self.edit(ch,[dict(op='canvas',action=dict(type='extent',width=512,height=512))],1)['code'],'RESOURCE_LIMIT')
 

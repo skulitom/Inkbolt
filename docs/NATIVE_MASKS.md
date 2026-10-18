@@ -2,11 +2,12 @@
 
 Item and filter masks now accept the [scalar store](NATIVE_SCALAR_STORAGE.md),
 with fresh full Windows/Linux acceptance for the contract below.
-Native selection authoring remains open. Whole-image application to typed inline
+Native selection authoring and consumers have fresh Windows/Linux acceptance
+under the [selection contract](NATIVE_SELECTIONS.md). Whole-image application to typed inline
 and version-2 stored sample layers is implemented under the separate
 [private edit contract](PRIVATE_NATIVE_EDITS.md), with fresh full Windows/Linux
-acceptance and complete 50 MP mask/edit/history/TIFF sample checks. Native
-selections and the complete W4 workflow remain open.
+acceptance and complete 50 MP mask/edit/history/TIFF sample checks. Selected patch
+repair preparation and the complete W4 workflow remain open.
 
 ## Representation and migration
 
@@ -23,8 +24,7 @@ The current entry point is the existing `mask` edit operation (or a filter's
 `mask` field), with `native.base` holding a scalar manifest. The optional
 `native.staged` carries a validated scalar transfer for pure library edits and
 private review. The Rust `stored_scalars::Grid::from_candidate` constructor
-retains shared buffers. Native selection descriptors are not admitted yet;
-existing selection operations keep their representation and limits.
+retains shared buffers. Native selection descriptors follow the separate selection contract.
 Rust callers constructing `Mask` literals supply `native: None` for inline data.
 
 Native mask bytes are unsigned grayscale coverage, with no color profile or
@@ -141,6 +141,7 @@ The audit binds sources, executables, reports, independent checks and failures;
 post-acceptance documentation changes are bound separately. At this increment,
 whole-image application and memory were still open. The subsequent
 [application acceptance](PRIVATE_NATIVE_EDITS.md#verified-whole-image-increment)
-records full-image and Windows memory evidence; native selections and complete
-W4 acceptance remain open.
+records full-image and Windows memory evidence. The subsequent
+[native selection increment](NATIVE_SELECTIONS.md) records complete 50 MP
+selection/mask/selected-brush/retouch/history/TIFF checks; full W4 remains open.
 No engine checkpoint, new release or complete W4 acceptance is claimed.

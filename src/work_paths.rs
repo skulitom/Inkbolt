@@ -250,6 +250,8 @@ pub(crate) fn select(
     id: &str,
     combine: selections::Combine,
     antialias: bool,
+    root: Option<&std::path::Path>,
+    control: &crate::control::Control,
 ) -> Result<(), Error> {
     let (geometry, fill_rule, world) = source(document, id)?;
     let values = coverage::evaluate(
@@ -260,7 +262,7 @@ pub(crate) fn select(
         document.height,
         antialias,
     )?;
-    selections::combine_values(document, values, combine)
+    selections::combine_values(document, values, combine, root, control)
 }
 
 pub(crate) fn clip_from_path(

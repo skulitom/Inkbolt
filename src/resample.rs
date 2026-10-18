@@ -132,12 +132,19 @@ impl Plan {
         point: Point,
         at: impl Fn(i64, i64) -> [f64; N],
     ) -> Result<[f64; N], Error> {
+        self.sample_checked(point, |x, y| Ok(at(x, y)))
+    }
+    pub(crate) fn sample_checked<const N: usize>(
+        self,
+        point: Point,
+        at: impl Fn(i64, i64) -> Result<[f64; N], Error>,
+    ) -> Result<[f64; N], Error> {
         let xs = self.weights(point[0], 0)?;
         let ys = self.weights(point[1], 1)?;
         let mut value = [0.0; N];
         for (y, wy) in ys {
             for &(x, wx) in &xs {
-                let p = at(x, y);
+                let p = at(x, y)?;
                 for c in 0..N {
                     value[c] += p[c] * wx * wy;
                 }

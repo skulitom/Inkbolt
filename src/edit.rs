@@ -1128,7 +1128,7 @@ fn apply_one(
             Ok((document.id.clone(), "vector_canvas_edited"))
         }
         Operation::Canvas { action } => {
-            *details = Some(crate::canvas::edit(document, action)?);
+            *details = Some(crate::canvas::edit(document, action, asset_root, control)?);
             Ok((document.id.clone(), "canvas_edited"))
         }
         Operation::Filters { id, filters } => {
@@ -1206,7 +1206,7 @@ fn apply_one(
             combine,
             antialias,
         } => {
-            crate::work_paths::select(document, id, *combine, *antialias)?;
+            crate::work_paths::select(document, id, *combine, *antialias, asset_root, control)?;
             Ok((document.id.clone(), "pixel_selection"))
         }
         Operation::ClipFromPath {
@@ -1773,17 +1773,17 @@ fn apply_one(
         }
         Operation::ChannelLoad { id, combine } => {
             let values = crate::render::unhex(&crate::channels::get(document, id)?.plane.gray_hex);
-            crate::selections::combine_values(document, values, *combine)?;
+            crate::selections::combine_values(document, values, *combine, asset_root, control)?;
             Ok((document.id.clone(), "pixel_selection"))
         }
         Operation::SelectionSample { method, combine } => {
             let values =
                 crate::selection_analysis::evaluate(document, method, asset_root, font_root)?;
-            crate::selections::combine_values(document, values, *combine)?;
+            crate::selections::combine_values(document, values, *combine, asset_root, control)?;
             Ok((document.id.clone(), "pixel_selection"))
         }
         Operation::SelectionFill { selected } => {
-            crate::selections::fill(document, *selected)?;
+            crate::selections::fill_with_resources(document, *selected, asset_root, control)?;
             Ok((document.id.clone(), "pixel_selection"))
         }
         Operation::SelectionShape {
@@ -1792,15 +1792,19 @@ fn apply_one(
             antialias,
             fill_rule,
         } => {
-            crate::selections::shape(document, boundary, *combine, *antialias, *fill_rule)?;
+            crate::selections::shape_with_resources(
+                document, boundary, *combine, *antialias, *fill_rule, asset_root, control,
+            )?;
             Ok((document.id.clone(), "pixel_selection"))
         }
         Operation::SelectionInvert {} => {
-            crate::selections::invert(document)?;
+            crate::selections::invert_with_resources(document, asset_root, control)?;
             Ok((document.id.clone(), "pixel_selection"))
         }
         Operation::SelectionRefine { mode, radius } => {
-            crate::selections::refine(document, *mode, *radius)?;
+            crate::selections::refine_with_resources(
+                document, *mode, *radius, asset_root, control,
+            )?;
             Ok((document.id.clone(), "pixel_selection"))
         }
         Operation::MaskFromSelection {
@@ -1810,7 +1814,13 @@ fn apply_one(
         } => {
             let i = index(document, id)?;
             unlocked(document, i)?;
-            crate::selections::to_mask(document, i, *linked, *replace_existing)?;
+            crate::selections::to_mask_controlled(
+                document,
+                i,
+                *linked,
+                *replace_existing,
+                control,
+            )?;
             Ok((id.clone(), "mask_from_selection"))
         }
         Operation::MaskApply { id } => {

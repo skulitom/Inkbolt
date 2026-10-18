@@ -488,19 +488,21 @@ pub(crate) fn apply(
     let n = target.pixels.len();
     let mut weights = region(&o.region, &target)?;
     let world = scene::world_transform(document, index)?;
-    if o.use_selection {
-        let s = document
-            .selection
-            .as_ref()
-            .ok_or_else(|| invalid("use_selection requires an explicit active selection"))?;
-        let gray = render::unhex(&s.gray_hex);
+    let selection = crate::selections::Prepared::for_edit(
+        document,
+        o.use_selection,
+        asset_root,
+        &mut work,
+        invalid,
+    )?;
+    if let Some(selection) = &selection {
         for (i, a) in weights.iter_mut().enumerate() {
             let p = geometry::map(world, target.xy(i).map(|v| v as f64 + 0.5));
             let x = p[0].floor();
             let y = p[1].floor();
             *a *= if x >= 0.0 && y >= 0.0 && x < document.width as f64 && y < document.height as f64
             {
-                gray[y as usize * document.width as usize + x as usize] as f64 / 255.0
+                selection.at(x as u32, y as u32)? as f64 / 255.0
             } else {
                 0.0
             };

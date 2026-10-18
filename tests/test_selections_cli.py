@@ -281,10 +281,14 @@ class SelectionCliTests(unittest.TestCase):
         boundary=dict(shape='polygon',points=[[0,0],[512,0],[512,256],[0,256]]*256)
         self.assertEqual(self.edit(crowded,[dict(op='selection_shape',boundary=boundary)],1)['code'],'RESOURCE_LIMIT')
         large=self.document(1024,1024)
-        self.assertEqual(self.edit(large,[dict(op='selection_fill',selected=True)],1)['code'],'RESOURCE_LIMIT')
-        # A valid large selection may exceed the separately bounded inline layer-mask grid.
+        self.assertEqual(self.edit(large,[dict(op='selection_fill',selected=True)],1)['code'],'SAMPLE_ROOT_REQUIRED')
+        oversized=self.document(8193,8193)
+        self.assertEqual(self.edit(oversized,[dict(op='selection_fill',selected=True)],1)['code'],'RESOURCE_LIMIT')
+        inline=dict(width=1024,height=1024,gray_hex='ff'*(1024*1024))
+        self.assertEqual(self.edit(large,[dict(op='selection_set',selection=inline)],1)['code'],'RESOURCE_LIMIT')
+        # A larger result uses native blocks and requires an explicit publication root.
         large=self.edit(self.document(512,256),[dict(op='add',item=self.layer(w=1,h=1)),dict(op='selection_fill',selected=True)])
-        self.assertEqual(self.edit(large,[dict(op='mask_from_selection',id='pixels')],1)['code'],'RESOURCE_LIMIT')
+        self.assertEqual(self.edit(large,[dict(op='mask_from_selection',id='pixels')],1)['code'],'SAMPLE_ROOT_REQUIRED')
         invalid=copy.deepcopy(selected);invalid['schema_version']=1
         self.assertEqual(self.invoke(dict(command='document.validate',document=invalid),1)['code'],'INVALID_DOCUMENT')
 

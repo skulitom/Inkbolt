@@ -186,6 +186,10 @@ pub fn manifest(document: &Document) -> Value {
     if !stored.is_empty() {
         result["stored_samples"] = json!(stored);
     }
+    if let Some(grid) = document.selection.as_ref().and_then(|s| s.native.as_ref()) {
+        result["native_selection"] = json!({"base_manifest_sha256":grid.base.sha256,
+            "spec":grid.base.spec,"nonprinting":true});
+    }
     result
 }
 pub fn packet(

@@ -58,8 +58,16 @@ Windows ran 302 Rust and 2,759 Python tests (13 skips) in
 793.453 seconds; Linux ran 268 Rust and 2,721 Python tests
 (51 skips) in 478.587 seconds. Complete 50 MP mask/edit/history/TIFF
 sample checks matched on both platforms. Windows peak process commit was
-35.219 MiB. Native selections and Unix memory measurement remain open;
-these local milestones make no new hosted macOS claim.
+35.219 MiB. These local milestones make no new hosted macOS claim.
+
+The subsequent [native selection increment](NATIVE_SELECTIONS.md) passed all
+265 fresh stages on matching unchanged inputs. Windows ran 304 Rust
+and 2,766 Python tests (13 skips) in 850.500 seconds;
+Linux ran 270 Rust and 2,728 Python tests (51 skips)
+in 561.903 seconds. Complete 50 MP selection/mask/selected-brush/retouch/
+history/TIFF checks matched; selected patch repair retained its explicit work
+refusal. Windows peak process commit was 36.094 MiB. Unix memory and the newer
+hosted macOS scope remain open.
 
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See

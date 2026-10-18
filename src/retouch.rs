@@ -322,7 +322,8 @@ pub(crate) fn apply(
     let mut memory = n as u64 * bounds::WORKING_BYTES_PER_PIXEL
         + r.width as u64 * r.height as u64 * bounds::WORKING_BYTES_PER_PIXEL
         + bounds::FIXED_WORKING_BYTES
-        + pixels::memory(&document.items[index].content);
+        + pixels::memory(&document.items[index].content)
+        + crate::selections::selection_memory(document, o.use_selection);
     if source_index != index {
         memory += pixels::memory(&document.items[source_index].content);
     }
@@ -385,17 +386,13 @@ pub(crate) fn apply(
     } else {
         vec![255; r.width as usize * r.height as usize]
     };
-    let selection = if o.use_selection {
-        Some(render::unhex(
-            &document
-                .selection
-                .as_ref()
-                .ok_or_else(|| invalid("use_selection requires an explicit active selection"))?
-                .gray_hex,
-        ))
-    } else {
-        None
-    };
+    let selection = crate::selections::Prepared::for_edit(
+        document,
+        o.use_selection,
+        asset_root,
+        &mut work,
+        invalid,
+    )?;
     let world = scene::world_transform(document, index)?;
     work.add(n)?;
     let mut weights = vec![0.0; n];
@@ -415,7 +412,7 @@ pub(crate) fn apply(
                     && xx < document.width as f64
                     && yy < document.height as f64
                 {
-                    s[yy as usize * document.width as usize + xx as usize] as f64 / 255.0
+                    s.at(xx as u32, yy as u32)? as f64 / 255.0
                 } else {
                     0.0
                 };

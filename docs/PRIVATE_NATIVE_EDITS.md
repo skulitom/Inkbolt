@@ -2,7 +2,8 @@
 
 Implementation contract for W4.6. The whole-image mask increment passed fresh
 full Windows/Linux acceptance and independent 50 MP sample checks. Native
-selection authoring and complete W4/scale-v2 acceptance remain open.
+[selection authoring](NATIVE_SELECTIONS.md) has separate full Windows/Linux
+acceptance; complete W4/scale-v2 acceptance remains open.
 
 Whole-image edits may prepare immutable native blocks in an owned private file.
 Only a bounded tile band and row are resident during construction. Existing
@@ -105,6 +106,7 @@ The audit binds source, debug/optimized identities, all full/focused logs,
 fixtures, requests, outputs and oracle scripts. Documentation following acceptance
 is bound separately. The optimized target runs precede only the recorded
 `cfg(test)` assertion correction; every production source is identical.
-Native selections, other W4 operations, larger layered files, repeated scale-v2
-gates and verified Unix memory remain open. No new
+Native selections have subsequent [bounded acceptance](NATIVE_SELECTIONS.md).
+Selected patch repair preparation, other W4 operations, larger layered files,
+repeated scale-v2 gates and verified Unix memory remain open. No new
 engine checkpoint, release or whole-goal completion is claimed.

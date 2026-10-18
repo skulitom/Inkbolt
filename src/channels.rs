@@ -99,6 +99,12 @@ pub fn validate(document: &Document) -> Result<(), Error> {
         {
             return Err(invalid("Channel ID or name is invalid"));
         }
+        if channel.plane.native.is_some() {
+            return Err(Error::new(
+                "UNSUPPORTED",
+                "Saved channels require inline coverage; native selection storage is not a channel plane",
+            ));
+        }
         selections::validate(&channel.plane, document.width, document.height)?;
         count += channel.plane.width as usize * channel.plane.height as usize;
         if let Role::Spot { ink_id, .. } = &channel.role
@@ -156,18 +162,16 @@ fn resolve(
     font_root: Option<&Path>,
 ) -> Result<Vec<u8>, Error> {
     Ok(match source {
-        Source::Selection {} => render::unhex(
-            &document
-                .selection
-                .as_ref()
-                .ok_or_else(|| {
-                    Error::new(
-                        "INVALID_OPERATION",
-                        "Channel calculation requires an active selection",
-                    )
-                })?
-                .gray_hex,
-        ),
+        Source::Selection {} => selections::dense(
+            document.selection.as_ref().ok_or_else(|| {
+                Error::new(
+                    "INVALID_OPERATION",
+                    "Channel calculation requires an active selection",
+                )
+            })?,
+            asset_root,
+            &crate::control::Control::default(),
+        )?,
         Source::Channel { id } => render::unhex(&get(document, id)?.plane.gray_hex),
         Source::Constant { value } => {
             vec![*value; document.width as usize * document.height as usize]
@@ -245,6 +249,7 @@ pub fn calculate(
         }
     };
     Ok(selections::Selection {
+        native: None,
         width: document.width,
         height: document.height,
         gray_hex: render::hex(&values),

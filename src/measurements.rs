@@ -64,18 +64,17 @@ pub fn measure(
         ));
     }
     let selection = if options.use_selection {
-        Some(render::unhex(
-            &document
-                .selection
-                .as_ref()
-                .ok_or_else(|| {
-                    Error::new(
-                        "INVALID_REQUEST",
-                        "Selection-weighted measurements require an active pixel selection",
-                    )
-                })?
-                .gray_hex,
-        ))
+        let s = document.selection.as_ref().ok_or_else(|| {
+            Error::new(
+                "INVALID_REQUEST",
+                "Selection-weighted measurements require an active pixel selection",
+            )
+        })?;
+        Some(crate::selections::dense(
+            s,
+            asset_root,
+            &crate::control::Control::default(),
+        )?)
     } else {
         None
     };

@@ -49,7 +49,7 @@ pub(crate) fn check_pending_budget(document: &Document) -> Result<(), Error> {
             )?;
         }
     }
-    for (_, grid) in crate::masks::grids(document) {
+    for grid in crate::stored_scalars::grids(document) {
         if let Some(candidate) = grid.candidate() {
             add(
                 candidate.resident_bytes(),
@@ -85,10 +85,13 @@ pub(crate) fn has_staged(document: &Document) -> bool {
     document.items.iter().any(|item| {
         matches!(&item.content,
         Content::StoredSamples { grid } if grid.staged.is_some())
-    }) || crate::masks::grids(document).any(|(_, grid)| grid.staged.is_some())
+    }) || crate::stored_scalars::grids(document).any(|grid| grid.staged.is_some())
 }
 
 pub(crate) fn clear_staged(document: &mut Document) {
+    if let Some(grid) = document.selection.as_mut().and_then(|s| s.native.as_mut()) {
+        grid.staged = None;
+    }
     for item in &mut document.items {
         if let Content::StoredSamples { grid } = &mut item.content {
             grid.staged = None;
@@ -117,7 +120,7 @@ pub fn publish_document(
     check_pending_budget(document)?;
     let mut pending = Vec::new();
     let mut scalar_pending = Vec::new();
-    for (_, grid) in crate::masks::grids(document) {
+    for grid in crate::stored_scalars::grids(document) {
         let candidate = grid.prepare(root, control)?;
         if grid.staged.is_some() {
             scalar_pending.push(candidate);
@@ -165,8 +168,8 @@ pub(crate) fn check_review_document(document: &Document) -> Result<(), Error> {
                 + 256;
         }
     }
-    bytes += crate::masks::grids(document)
-        .map(|(_, grid)| grid.transport_bytes())
+    bytes += crate::stored_scalars::grids(document)
+        .map(|grid| grid.transport_bytes())
         .sum::<usize>();
     if bytes as u64 > crate::MAX_REQUEST_BYTES {
         return Err(crate::model::limit(

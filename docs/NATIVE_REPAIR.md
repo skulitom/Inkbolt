@@ -122,9 +122,11 @@ TIFF hashes. The largest measured Windows process commit was **35.828 MiB**,
 below the 512 MiB target. Unix memory remains explicitly unavailable.
 
 These were one-run diagnostics while full suites were active, not repeated
-latency acceptance or general photographic reconstruction evidence. Native masks,
-selection-to-mask, segmentation regions, larger brush/retouch regions, larger
-layered files, repeated scale-v2 and verified Unix memory remain open. Full W4
+latency acceptance or general photographic reconstruction evidence. The later
+[mask](NATIVE_MASKS.md) and [selection](NATIVE_SELECTIONS.md) contracts record their
+separate acceptance. Selected patch repair still repeats source preparation and
+exceeds the shared work limit at 50 MP. Segmentation, larger brush/retouch regions,
+larger layered files, repeated scale-v2 and verified Unix memory remain open. Full W4
 and the overall agent-readiness goal are not complete. The registry stays 163/167;
 v0.82.0 is unchanged.
 

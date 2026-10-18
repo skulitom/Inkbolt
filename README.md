@@ -15,9 +15,10 @@ particular AI model is required.
 - **Compose graphics** with vector shapes, text, images, layers and artboards.
 - **Import artwork** from SVG, PNG, JPEG and TIFF. Supported SVG content stays
   editable, including styles, reusable symbols, placed images and positioned text.
-- **Edit and repair images** with brushes, masks, adjustments, patch placement,
-  region fills, content-sensitive moves and guided edge correction. Native image
-  storage supports high-precision samples and reuses unchanged data across edits.
+- **Edit and repair images** with selections, brushes, masks, adjustments, patch
+  placement, region fills, content-sensitive moves and guided edge correction.
+  Native image storage supports high-precision samples and reuses unchanged data
+  across edits.
 - **Review revisions** with previews, comparisons, saved sessions and undo/redo.
 - **Deliver assets** as PNG, JPEG, TIFF, SVG or PDF within the supported workflows.
   Preflight reports output size and conversion losses before publication; file
@@ -44,7 +45,7 @@ development version using the [installation guide](docs/INSTALLATION.md).
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Prebuilt Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. See its release notes for included features. |
-| Build from `main` | Adds larger image workflows, native JPEG import, high-precision repair and mask application, and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
+| Build from `main` | Adds larger image workflows, native JPEG import, large selections, high-precision repair and mask application, and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -67,7 +68,7 @@ request more operations and their schemas when needed.
 | [SVG import](docs/SVG_IMPORT.md) and [image import](docs/SAMPLES.md#import-without-reducing-depth) | Supported inputs, preservation and conversion limits |
 | [Image export](docs/STREAMING_IMAGE_OUTPUT.md) | PNG/JPEG/TIFF file output, preflight and memory bounds |
 | [Large-image workflows](docs/SCALE_ADMISSION.md) | Verified image sizes, local edits and remaining workflow limits |
-| [Image masks](docs/NATIVE_MASKS.md) | Editable coverage, previews and permanent application to native samples |
+| [Selections](docs/NATIVE_SELECTIONS.md) and [masks](docs/NATIVE_MASKS.md) | Select regions, refine coverage, preview and apply masks |
 | [Image repair](docs/NATIVE_REPAIR.md) | Patch, fill, move and correction tools, supported precision and local edit limits |
 | [Platforms](docs/PLATFORMS.md) | Windows, Linux, WSL and macOS coverage |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
@@ -75,22 +76,24 @@ request more operations and their schemas when needed.
 ## Project status
 
 Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
-receipts have verified Windows, Linux and macOS builds. The latest image repair
-and mask workflows have Windows/Linux acceptance; macOS verification covers an
-earlier build. See [platform support](docs/PLATFORMS.md) for the tested scope.
+receipts have verified Windows, Linux and macOS builds. The latest repair,
+mask and selection workflows have Windows/Linux acceptance; macOS verification
+covers an earlier build. See [platform support](docs/PLATFORMS.md) for the tested
+scope.
 Background export jobs are currently Windows-only.
 
-On `main`, Windows and Linux checks cover 50 MP images through local brush and
-repair edits, whole-image mask application, saved history and TIFF delivery.
-Large masks also support focused previews. Each operation has its own size,
-precision and work limits. See
+On `main`, Windows and Linux checks cover 50 MP rectangular selections and
+feathering, selected brush and retouch edits, whole-image mask application,
+history and TIFF delivery. Local repair has separate 50 MP checks; selected patch
+repair still hits its work limit at that size. Large masks support focused
+previews. Each operation has its own size, precision and work limits. See
 [large-image workflows](docs/SCALE_ADMISSION.md), [image repair](docs/NATIVE_REPAIR.md),
 [image masks](docs/NATIVE_MASKS.md) and [resource limits](docs/LIMITS.md) for the
 verified scope.
 
-Large selections, larger layered files, broader curve combinations and editable
-format interchange remain in development, alongside agent usability and
-complete large-image workflows.
+Large image-guided selections, larger layered files, broader curve combinations
+and editable format interchange remain in development, alongside agent usability
+and complete large-image workflows.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.
 [Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their

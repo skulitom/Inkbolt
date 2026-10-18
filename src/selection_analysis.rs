@@ -137,7 +137,11 @@ pub fn evaluate(
         white,
     } = *method
     {
-        let old = render::unhex(&document.selection.as_ref().unwrap().gray_hex);
+        let old = selections::dense(
+            document.selection.as_ref().unwrap(),
+            asset_root,
+            &crate::control::Control::default(),
+        )?;
         let r = radius as i64;
         let mut out = vec![0; n];
         for y in 0..h {

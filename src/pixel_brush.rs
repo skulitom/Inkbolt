@@ -602,7 +602,8 @@ pub(crate) fn apply(
     let processing_memory_bytes = count * bounds::WORKING_BYTES_PER_PIXEL
         + bounds::FIXED_WORKING_BYTES
         + pixels::memory(content)
-        + pixels::replacement_memory(content, region);
+        + pixels::replacement_memory(content, region)
+        + crate::selections::selection_memory(document, s.use_selection);
     if processing_memory_bytes > MAX_MEMORY_BYTES {
         return Err(limit(
             "Brush preparation and replacement blocks exceed the processing memory bound",
@@ -625,17 +626,13 @@ pub(crate) fn apply(
         }
     }
 
-    let selection = if s.use_selection {
-        Some(render::unhex(
-            &document
-                .selection
-                .as_ref()
-                .ok_or_else(|| invalid("use_selection requires an explicit active selection"))?
-                .gray_hex,
-        ))
-    } else {
-        None
-    };
+    let selection = crate::selections::Prepared::for_edit(
+        document,
+        s.use_selection,
+        asset_root,
+        &mut work,
+        invalid,
+    )?;
     let mut data: Vec<_> = original
         .chunks_exact(stride)
         .map(|c| pixels::premultiplied(c, spec))
@@ -676,8 +673,7 @@ pub(crate) fn apply(
                         && xx < document.width as f64
                         && yy < document.height as f64
                     {
-                        selection[yy as usize * document.width as usize + xx as usize] as f64
-                            / 255.0
+                        selection.at(xx as u32, yy as u32)? as f64 / 255.0
                     } else {
                         0.0
                     };

@@ -1,6 +1,10 @@
 # Pixel selections and permanent mask application
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
+The [native selection contract](NATIVE_SELECTIONS.md) extends this inline contract
+with bounded block storage, local consumers and full-grid mask conversion.
+Its full Windows/Linux acceptance and complete 50 MP selection/mask/selected-
+brush/retouch/history/TIFF checks passed; the contract lists remaining limits.
 
 A document can retain one optional `selection:{width,height,gray_hex}`. It is a canvas-sized row-major grayscale8 field in document pixel coordinates. Zero is unselected, 255 is fully selected, and intermediate values are partial coverage. `null` means no active selection, which differs from an explicit all-zero selection. Both document kinds can use this state; permanent application to pixel content requires a raster document.
 
@@ -30,7 +34,7 @@ Refinement modes are `expand`, `contract` and `feather`; integer radius is 0 thr
 
 ## From selection to editable mask
 
-`mask_from_selection` crops the selection to its nonzero bounds and copies all coverage inside that rectangle. Empty selections become a one-pixel zero mask. Outside the copied field is hidden. The selection itself remains unchanged. `linked` defaults true: the operation converts document coordinates through the inverse item world transform, so attachment preserves the selection's current position. Choose false for a mask fixed in document coordinates. Later link switches and mask transforms follow [MASKS.md](MASKS.md).
+For inline storage, `mask_from_selection` crops the selection to its nonzero bounds and copies all coverage inside that rectangle. Empty selections become a one-pixel zero mask. Outside the copied field is hidden. The selection itself remains unchanged. `linked` defaults true: the operation converts document coordinates through the inverse item world transform, so attachment preserves the selection's current position. Choose false for a mask fixed in document coordinates. Later link switches and mask transforms follow [MASKS.md](MASKS.md).
 
 An existing mask causes an explicit error unless `replace_existing:true` is supplied. The copied mask starts enabled, uninverted, at density 1 and feather 0 with nearest sampling. Its source already includes any antialiasing or refinement in the selection. Subsequent mask controls remain independent of the original selection.
 
@@ -54,8 +58,8 @@ Application samples a continuous transformed mask onto the finite native grid. F
 
 ## Limits
 
-One selection allows at most 262,144 scalar pixels, separately from the existing 65,536 inline pixel/asset/pattern/mask budget. The complete snapshot still has a 768 KiB limit. Polygon/ellipse integration work is bounded by visible rows times subrows times `(visible columns + edges*(floor(log2(edges))+2))`, at most 67,108,864 units; ellipse edge count is two and binary coverage uses one subrow. Rectangle coverage is bounded directly by selection size. Refinement has the same work cap, counting `2*pixel_count*(2*radius+1)` taps. Large or highly complex operations fail before expensive evaluation.
+One inline selection allows at most 262,144 scalar pixels, separately from the existing 65,536 inline pixel/asset/pattern/mask budget. The complete snapshot still has a 768 KiB limit. Polygon/ellipse integration work is bounded by visible rows times subrows times `(visible columns + edges*(floor(log2(edges))+2))`, at most 67,108,864 units; ellipse edge count is two and binary coverage uses one subrow. Rectangle coverage is bounded directly by selection size. Refinement has the same work cap, counting `2*pixel_count*(2*radius+1)` taps. Large or highly complex operations fail before expensive evaluation.
 
-Copying to a mask and permanent application must fit ordinary inline-pixel, mask-preparation and snapshot limits. A large selection can be valid while its copied mask exceeds a separate budget. Selection, mask and baked pixel data can coexist and all relevant budgets apply. Source assets remain external and licensed; application never overwrites them. Connected/color-range selection, image-guided edge refinement and saved alpha/ink channels are specified in [CHANNELS_AND_SELECTIONS.md](CHANNELS_AND_SELECTIONS.md). Broader mutable tiles and selection paths remain tracked requirements.
+Copied masks above the inline ceiling now use native blocks; native selection masks share their complete grid. Permanent application to typed and stored image samples follows [the private edit contract](PRIVATE_NATIVE_EDITS.md). Each route retains its own mask-preparation, transport, work and snapshot limits. Selection, mask and baked pixel data can coexist and all relevant budgets apply. Source assets remain external and licensed; application never overwrites them. Connected/color-range selection, image-guided edge refinement and saved alpha/ink channels are specified in [CHANNELS_AND_SELECTIONS.md](CHANNELS_AND_SELECTIONS.md). Broader mutable tiles and selection paths remain tracked requirements.
 
 An item with editable viewport filters cannot use native pixel mask application: filtering precedes the item mask, and baking that mask into the source would reverse the order. This combination fails explicitly; the mask remains editable. See [FILTERS.md](FILTERS.md).
