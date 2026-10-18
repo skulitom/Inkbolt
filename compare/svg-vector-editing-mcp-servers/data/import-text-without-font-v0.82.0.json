@@ -1,0 +1,27 @@
+{
+ "build": "Inkbolt 0.82.0 release, Windows x64",
+ "run": "2026-10-18, CLI with --workspace set to a new folder holding diagram-with-text.svg",
+ "request": {
+  "command": "svg.import",
+  "id": "diagram",
+  "source": {
+   "kind": "file",
+   "source_path": "diagram-with-text.svg"
+  },
+  "unsupported": "omit_and_report"
+ },
+ "exit_code": 1,
+ "response": {
+  "error": {
+   "code": "SVG_FONT_NOT_BOUND",
+   "details": {
+    "byte_offset": 828,
+    "column": 3,
+    "element": "text",
+    "line": 15
+   },
+   "message": "No explicit font binding matches the requested family, weight and style"
+  },
+  "ok": false
+ }
+}

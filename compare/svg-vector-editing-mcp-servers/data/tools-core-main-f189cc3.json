@@ -1,0 +1,35 @@
+{
+ "tools": 22,
+ "pages": 3,
+ "wire_bytes_all_pages": 86185,
+ "server": {
+  "name": "inkbolt",
+  "version": "0.82.0"
+ },
+ "protocol": "2025-11-25",
+ "instructions_chars": 568,
+ "names": [
+  "inkbolt_schema_lookup",
+  "inkbolt_run",
+  "inkbolt_asset_import",
+  "inkbolt_document_check",
+  "inkbolt_document_create",
+  "inkbolt_document_edit",
+  "inkbolt_document_inspect",
+  "inkbolt_document_inspect_page",
+  "inkbolt_document_preview",
+  "inkbolt_document_query",
+  "inkbolt_document_render",
+  "inkbolt_font_import",
+  "inkbolt_session_apply",
+  "inkbolt_session_apply_proposal",
+  "inkbolt_session_create",
+  "inkbolt_session_diff",
+  "inkbolt_session_diff_preview",
+  "inkbolt_session_dry_run",
+  "inkbolt_session_history",
+  "inkbolt_session_publish",
+  "inkbolt_session_read",
+  "inkbolt_session_receipt"
+ ]
+}

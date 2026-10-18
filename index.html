@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inkbolt: local vector and raster editing for AI agents</title>
+<meta name="description" content="Inkbolt is a free, MIT-licensed graphics engine with a local MCP server: agents import SVG, edit vector and raster documents by id in saved sessions with undo and safe retries, preview the result and publish SVG, PNG, JPEG, TIFF or PDF without overwriting files. No account or hosted service.">
+<link rel="canonical" href="https://skulitom.github.io/Inkbolt/">
+<style>
+:root { --bg: #ffffff; --fg: #1d1d1f; --muted: #5b5b66; --link: #0b57d0; --rule: #d9d9e0; }
+@media (prefers-color-scheme: dark) { :root { --bg: #16171a; --fg: #e8e8ec; --muted: #a2a2ad; --link: #8ab4f8; --rule: #33343a; } }
+body { background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; }
+main { max-width: 46rem; margin: 0 auto; padding: 2rem 16px 4rem; }
+a { color: var(--link); }
+h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 1rem; }
+h2 { font-size: 1.2rem; margin: 2rem 0 0.5rem; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+footer { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>Inkbolt: local vector and raster editing for AI agents</h1>
+<p>Inkbolt is a graphics engine for AI agents. Claude Code or another MCP client creates diagrams, illustrations,
+layouts and image assets on your own machine: it imports SVG and images into an editable document, changes items by
+id, previews the result as an image, and publishes SVG, PNG, JPEG, TIFF or PDF files without overwriting anything.
+Every saved edit has a revision, so the agent can retry a request safely, compare revisions or undo a change. It is a
+single Rust executable with a local MCP server over stdio and a JSON command line, free and MIT-licensed, with no
+account, network service or telemetry.</p>
+<p><a href="https://github.com/skulitom/Inkbolt">Source, install and docs on GitHub</a> ·
+<a href="https://github.com/skulitom/Inkbolt/releases/latest">Latest release</a></p>
+
+<h2>Comparisons</h2>
+<ul>
+<li><a href="compare/svg-vector-editing-mcp-servers/">SVG and vector editing MCP servers for AI agents</a> (checked 18
+October 2026)</li>
+</ul>
+
+<footer class="muted">Plain static pages: no JavaScript, trackers or cookies. Made by the Inkbolt maintainers.</footer>
+</main>
+</body>
+</html>

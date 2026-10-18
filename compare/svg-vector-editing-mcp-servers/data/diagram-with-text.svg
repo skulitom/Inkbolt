@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120">
+  <title>Probe diagram (original fixture for this comparison)</title>
+  <defs>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2468ac"/>
+      <stop offset="1" stop-color="#5fa8d3"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="2"/></filter>
+  </defs>
+  <rect id="input" x="16" y="36" width="56" height="48" rx="8" fill="url(#fade)"/>
+  <rect id="output" x="168" y="36" width="56" height="48" rx="8" fill="#2468ac"/>
+  <path id="link" d="M72 60 C100 30 140 90 168 60" fill="none" stroke="#bd6134" stroke-width="3"/>
+  <path id="arrow" d="M160 54 L168 60 L160 66 Z" fill="#bd6134"/>
+  <circle id="glow" cx="120" cy="20" r="8" fill="#f2c14e" filter="url(#soft)"/>
+  <text id="label" x="120" y="110" font-family="sans-serif" font-size="12" text-anchor="middle">in to out</text>
+</svg>

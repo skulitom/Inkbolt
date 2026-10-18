@@ -1,0 +1,22 @@
+Searches run 2026-10-18 about 15:00 BST with a web search engine (US results). Inkbolt appeared in none.
+
+1. "SVG vector graphics editing MCP server comparison"
+   Results: glama.ai/mcp/servers/integrations/svg (Best SVG MCP Servers); Glama README + listing for GenWaveLLC/svgmaker-mcp (x3);
+   glama botmonster/image2svg-mcp; glama ay93n65e3z; glama erkamkavak/svg-maker-mcp README; glama ujo78/imagetosvg-mcp;
+   playbooks.com/mcp/genwave-svgmaker.
+   Summary: "mostly directory listings and READMEs, with no independent head-to-head benchmarks." Named SVGMaker (hosted,
+   API key), imagetosvg-mcp (local, layer-id edits), image2svg-mcp (conversion), svg-maker-mcp (render + svgo).
+
+2. "SVG editing MCP server for AI agents local"
+   Results: Glama SVGMaker dev plan + README + listing; glama ay93n65e3z; glama Inkscape MCP Server (k24heo3z44);
+   enterprisedna.co genwavellc-svgmaker-mcp; glama LayerBack MCP (gomge65jv1); glama imagetosvg-mcp; playbooks SVGMaker;
+   images.glama.ai integrations/inkscape.
+   Summary: local = imagetosvg-mcp and several Inkscape MCP servers; hosted = SVGMaker (2 calls/min default, MIT, ~73 stars
+   per a directory) and LayerBack (API key). "these details come from directory listings ... not the repositories".
+
+3. "best MCP server for vector graphics and image editing Claude Code"
+   Results: gauravtiwari.org (12 MCP servers for Claude Code); toools.design (MCP servers for designers); glama Illustrator
+   MCP (lbq9j2l82y); claudemarket.ai blog; blog.aibox.ai; playbooks anshuldalua-illustrator; images.glama.ai
+   Subcue/edititall-mcp; claudemarketplaces gimp-mcp; claudemarketplaces ideogram-mcp.
+   Summary: "No clear winner came up." Illustrator MCP (macOS + Illustrator), replicate-flux-mcp (Recraft SVG),
+   EditItAll (local vector editor), GIMP-MCP, Ideogram, gpt-image-1, Adobe connector.

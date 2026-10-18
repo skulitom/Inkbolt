@@ -1,0 +1,6 @@
+Decoded RGBA8 pixel SHA-256 of the published edited.png and the MCP preview image, 2026-10-18 (pure-Python PNG decoder, zlib + filters):
+v0.82.0 run1 out/edited.png : 240x120 RGBA8, chunks IHDR pHYs sRGB IDAT IEND,      pixels a99b0a18d7fc772096020d9d94dec69423744771dfb08f545fe69fcbf6d4da0b
+main f189cc3 run1 out/edited.png : 240x120 RGBA8, chunks IHDR pHYs sRGB IDAT IDAT IEND, pixels a99b0a18d7fc772096020d9d94dec69423744771dfb08f545fe69fcbf6d4da0b
+v0.82.0 run1 preview-r1.png (MCP image block): pixels a99b0a18d7fc772096020d9d94dec69423744771dfb08f545fe69fcbf6d4da0b
+main run1 preview-r1.png (MCP image block):     pixels a99b0a18d7fc772096020d9d94dec69423744771dfb08f545fe69fcbf6d4da0b
+File bytes differ between builds (main publishes PNG through bounded bands: two IDAT chunks); pixels are identical, and each build's files are byte-identical across its own three runs.

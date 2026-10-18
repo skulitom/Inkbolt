@@ -1,0 +1,3 @@
+Inkbolt v0.82.0, downloaded 2026-10-18 from https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0
+inkbolt-v0.82.0-x86_64-pc-windows-msvc.zip SHA-256 8cf4ef55226b2a46b4b2b0c2942965154d8a1ba44f0d85e7df3d040e4b4dae8b (matches the release's SHA256SUMS)
+inkbolt.exe (inside it) SHA-256 f65634aa40f869f3675848550427885f0c609690208c494b6d9d57a73c9af08e, 33180672 bytes

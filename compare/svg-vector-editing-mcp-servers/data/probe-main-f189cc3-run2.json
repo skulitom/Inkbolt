@@ -1,0 +1,319 @@
+{
+ "exe_sha256": "43adeb8fc59e25cf3ea902ac0fd72f1b3f390cea7fee81055bc5cbc2b8ffb51f",
+ "fixture_sha256_before": "8baaa3971c80b446def755ced49904f5b850c23780a3d694dfc3aebed7cabc7d",
+ "steps": [
+  {
+   "label": "svg.import strict (default policy)",
+   "tool": "inkbolt_run",
+   "ms": 0.8,
+   "wire_bytes": 460,
+   "is_error": true,
+   "error": "{\"error\": {\"code\": \"SVG_UNSUPPORTED\", \"details\": {\"byte_offset\": 344, \"column\": 5, \"element\": \"filter\", \"line\": 8}, \"message\": \"Geometry <filter> is not supported\"}, \"ok\": false}"
+  },
+  {
+   "label": "svg.import omit_and_report",
+   "tool": "inkbolt_run",
+   "ms": 1.6,
+   "wire_bytes": 16531,
+   "is_error": false
+  },
+  {
+   "label": "document.inspect",
+   "tool": "inkbolt_document_inspect",
+   "ms": 1.6,
+   "wire_bytes": 18135,
+   "is_error": false
+  },
+  {
+   "label": "session.create",
+   "tool": "inkbolt_session_create",
+   "ms": 24.1,
+   "wire_bytes": 10881,
+   "is_error": false
+  },
+  {
+   "label": "publish r0 svg (before any edit)",
+   "tool": "inkbolt_session_publish",
+   "ms": 4.1,
+   "wire_bytes": 1349,
+   "is_error": false
+  },
+  {
+   "label": "session.apply edit",
+   "tool": "inkbolt_session_apply",
+   "ms": 8.8,
+   "wire_bytes": 11175,
+   "is_error": false
+  },
+  {
+   "label": "session.apply same request_id retried",
+   "tool": "inkbolt_session_apply",
+   "ms": 1.8,
+   "wire_bytes": 11173,
+   "is_error": false
+  },
+  {
+   "label": "session.read after retry",
+   "tool": "inkbolt_session_read",
+   "ms": 1.5,
+   "wire_bytes": 10659,
+   "is_error": false
+  },
+  {
+   "label": "document.preview revision 1",
+   "tool": "inkbolt_document_preview",
+   "ms": 6.9,
+   "wire_bytes": 5674,
+   "is_error": false,
+   "image_blocks": [
+    {
+     "mime": "image/png",
+     "bytes": 1806
+    }
+   ]
+  },
+  {
+   "label": "publish r1 svg",
+   "tool": "inkbolt_session_publish",
+   "ms": 4.1,
+   "wire_bytes": 1346,
+   "is_error": false
+  },
+  {
+   "label": "publish r1 png",
+   "tool": "inkbolt_session_publish",
+   "ms": 10.2,
+   "wire_bytes": 1028,
+   "is_error": false
+  },
+  {
+   "label": "publish r1 svg again to the same file",
+   "tool": "inkbolt_session_publish",
+   "ms": 1.8,
+   "wire_bytes": 413,
+   "is_error": true,
+   "error": "{\"error\": {\"code\": \"OUTPUT_EXISTS\", \"message\": \"Destination already exists; choose a new filename. Existing files are never overwritten\"}, \"ok\": false}"
+  },
+  {
+   "label": "session.apply undo",
+   "tool": "inkbolt_session_apply",
+   "ms": 7.7,
+   "wire_bytes": 10878,
+   "is_error": false
+  },
+  {
+   "label": "publish r2 svg",
+   "tool": "inkbolt_session_publish",
+   "ms": 4.1,
+   "wire_bytes": 1350,
+   "is_error": false
+  },
+  {
+   "label": "session.apply stale expected_revision 0",
+   "tool": "inkbolt_session_apply",
+   "ms": 1.0,
+   "wire_bytes": 365,
+   "is_error": true,
+   "error": "{\"error\": {\"code\": \"REVISION_CONFLICT\", \"message\": \"Expected revision does not match the committed session head\"}, \"ok\": false}"
+  },
+  {
+   "label": "session.history",
+   "tool": "inkbolt_session_history",
+   "ms": 0.9,
+   "wire_bytes": 2080,
+   "is_error": false
+  }
+ ],
+ "server": {
+  "name": "inkbolt",
+  "version": "0.82.0"
+ },
+ "strict_import_refused": true,
+ "import_report_keys": [
+  "approximations",
+  "definitions",
+  "losses",
+  "mapping",
+  "omissions",
+  "reuse",
+  "source",
+  "unsupported"
+ ],
+ "import_omissions": [
+  {
+   "byte_end": 405,
+   "byte_offset": 344,
+   "cause": {
+    "byte_offset": 344,
+    "column": 5,
+    "element": "filter",
+    "line": 8
+   },
+   "code": "SVG_UNSUPPORTED",
+   "column": 5,
+   "covered_omissions": [],
+   "descendant_elements": 1,
+   "element": "filter",
+   "line": 8,
+   "reason": "Geometry <filter> is not supported",
+   "scope": "source_element_and_descendants",
+   "source_id": "soft"
+  },
+  {
+   "byte_end": 825,
+   "byte_offset": 748,
+   "cause": {
+    "byte_offset": 748,
+    "column": 3,
+    "element": "circle",
+    "line": 14
+   },
+   "code": "SVG_UNSUPPORTED",
+   "column": 3,
+   "covered_omissions": [],
+   "descendant_elements": 0,
+   "element": "circle",
+   "line": 14,
+   "reason": "Attribute filter on <circle> is not supported",
+   "scope": "source_element_and_descendants",
+   "source_id": "glow"
+  }
+ ],
+ "import_losses": [
+  "Elliptical arcs and rounded rectangle corners become editable tangent cubics (degenerate arcs become lines or no segment). The approximations receipt bounds radial error in source-element local units, before transforms and excluding binary64 roundoff. Original arc/corner parameters are not retained.",
+  "Paint colors and fill/stroke opacity are quantized to RGBA8; object and group opacity retain f64 precision. Geometry is f64; display coverage uses the existing f32 renderer.",
+  "Presentation inheritance, embedded stylesheets and inline style are resolved into editable properties. Classes, selectors and stylesheet syntax are not retained. Quadratic curves and shorthand become explicit cubic/line commands; units/viewBox become affine transforms. Original syntax is not retained.",
+  "SVG gradient and clip definitions are copied into each referencing item. Shared references, templates and definition metadata are not retained; object-bounding-box coordinates are resolved at import.",
+  "Source IDs are mapped to deterministic item IDs; the root is an editable group. Retain the source for XML formatting, comments and original IDs.",
+  "Unsupported source subtrees and their reported dependents were omitted by explicit request. Removed styles and text may change remaining appearance and layout; retain the original source."
+ ],
+ "import_approximations": [
+  {
+   "arcs": {
+    "arc_commands": 4,
+    "coincident_endpoints": 0,
+    "cubic_segments": 8,
+    "max_radial_error_local": 3.3964301954577995e-05,
+    "zero_radius_lines": 0
+   },
+   "binary64_roundoff_included": false,
+   "byte_offset": 418,
+   "coordinate_space": "source_element_local_before_transforms",
+   "element": "rect",
+   "method": "tangent_cubics",
+   "source_id": "input"
+  },
+  {
+   "arcs": {
+    "arc_commands": 4,
+    "coincident_endpoints": 0,
+    "cubic_segments": 8,
+    "max_radial_error_local": 3.3964301954577995e-05,
+    "zero_radius_lines": 0
+   },
+   "binary64_roundoff_included": false,
+   "byte_offset": 501,
+   "coordinate_space": "source_element_local_before_transforms",
+   "element": "rect",
+   "method": "tangent_cubics",
+   "source_id": "output"
+  }
+ ],
+ "ids_after_import": [
+  "svg-0",
+  "svg-1",
+  "svg-2",
+  "svg-3",
+  "svg-4"
+ ],
+ "inspect_item_count": 9367,
+ "mapping": {
+  "input": "svg-1",
+  "output": "svg-2",
+  "link": "svg-3",
+  "arrow": "svg-4"
+ },
+ "output_before": [
+  36,
+  104,
+  172,
+  255
+ ],
+ "revision_after_edit": null,
+ "retry_is_error": false,
+ "head_after_retry": 1,
+ "retry_receipt_equal": true,
+ "output_after_edit": [
+  46,
+  139,
+  87,
+  255
+ ],
+ "preview_keys": [
+  "actual_bounds",
+  "artifact",
+  "bounds_space",
+  "clipped_to_render",
+  "composition",
+  "crop_pixels",
+  "document_id",
+  "document_sha256",
+  "focus",
+  "full_render",
+  "mapping",
+  "requested_bounds",
+  "revision",
+  "semantics",
+  "source_changed"
+ ],
+ "preview_png_bytes": 1806,
+ "preview_png_size": [
+  240,
+  120
+ ],
+ "overwrite_refused": true,
+ "existing_output_unchanged": true,
+ "output_after_undo": [
+  36,
+  104,
+  172,
+  255
+ ],
+ "input_transform_after_undo": [
+  1.0,
+  0.0,
+  0.0,
+  1.0,
+  0.0,
+  0.0
+ ],
+ "restored_svg_equals_original_svg": true,
+ "stale_revision_refused": true,
+ "history_len": 3,
+ "fixture_sha256_after": "8baaa3971c80b446def755ced49904f5b850c23780a3d694dfc3aebed7cabc7d",
+ "fixture_unchanged": true,
+ "edited_svg_keeps_source_id_attrs": false,
+ "edited_svg_keeps_source_ids_as_titles": true,
+ "edited_svg_has_rect_elements": false,
+ "outputs": {
+  "edited.png": {
+   "sha256": "a5d90e59c43f5ecf0150d8243ec98847bb8c702ff708a28df63031aaf47ae472",
+   "bytes": 1825
+  },
+  "edited.svg": {
+   "sha256": "ee4f8a2b33717557ab17032495880b4c8bb1f6e0fbb9b4e14b345a5c072ac0df",
+   "bytes": 2737
+  },
+  "original.svg": {
+   "sha256": "d302c3186dde264abb44f65576fe3a87a83172a9f90f838a48e46b1e7055052c",
+   "bytes": 2736
+  },
+  "restored.svg": {
+   "sha256": "d302c3186dde264abb44f65576fe3a87a83172a9f90f838a48e46b1e7055052c",
+   "bytes": 2736
+  }
+ },
+ "calls": 16,
+ "total_wire_bytes": 103497,
+ "total_ms": 81.0
+}

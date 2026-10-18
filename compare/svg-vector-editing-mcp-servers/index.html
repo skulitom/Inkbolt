@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>SVG and vector editing MCP servers for AI agents: 9 compared (Oct 2026)</title>
+<meta name="description" content="Inkbolt's makers compared 9 SVG MCP servers on 18 Oct 2026: edit an SVG by id locally with Inkbolt or an Inkscape server; SVGMaker generates with AI; image2svg traces.">
+<link rel="canonical" href="https://skulitom.github.io/Inkbolt/compare/svg-vector-editing-mcp-servers/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "SVG and vector editing MCP servers for AI agents, local and hosted: 9 compared",
+  "description": "By the Inkbolt maintainers: nine SVG and vector tools for AI agents compared (Inkbolt, SVGMaker MCP, sandraschi/inkscape-mcp, aravindev/inkscape_mcp, image2svg-mcp, svg-maker-mcp, EditItAll MCP, LayerBack MCP and the Illustrator MCP bridges): what each one is, where it runs, accounts and keys, editing an existing SVG by element id, previews, undo, output formats and what happens to existing files. Inkbolt 0.82.0 and main measured over MCP; the others read from their code and docs.",
+  "datePublished": "2026-10-18",
+  "dateModified": "2026-10-18",
+  "inLanguage": "en",
+  "url": "https://skulitom.github.io/Inkbolt/compare/svg-vector-editing-mcp-servers/",
+  "mainEntityOfPage": "https://skulitom.github.io/Inkbolt/compare/svg-vector-editing-mcp-servers/",
+  "author": {"@type": "Organization", "name": "Inkbolt maintainers", "url": "https://github.com/skulitom/Inkbolt"},
+  "publisher": {"@type": "Organization", "name": "Inkbolt maintainers", "url": "https://github.com/skulitom/Inkbolt"},
+  "about": [
+    {"@type": "SoftwareApplication", "name": "Inkbolt", "url": "https://github.com/skulitom/Inkbolt", "applicationCategory": "DesignApplication"},
+    {"@type": "SoftwareApplication", "name": "SVGMaker MCP", "url": "https://github.com/GenWaveLLC/svgmaker-mcp", "applicationCategory": "DesignApplication"},
+    {"@type": "SoftwareApplication", "name": "inkscape-mcp (sandraschi)", "url": "https://github.com/sandraschi/inkscape-mcp", "applicationCategory": "DesignApplication"},
+    {"@type": "SoftwareApplication", "name": "inkscape_mcp (aravindev)", "url": "https://github.com/aravindev/inkscape_mcp", "applicationCategory": "DesignApplication"},
+    {"@type": "SoftwareApplication", "name": "image2svg-mcp", "url": "https://github.com/botmonster/image2svg-mcp", "applicationCategory": "DesignApplication"},
+    {"@type": "SoftwareApplication", "name": "svg-maker-mcp", "url": "https://github.com/erkamkavak/svg-maker-mcp", "applicationCategory": "DesignApplication"},
+    {"@type": "SoftwareApplication", "name": "EditItAll MCP", "url": "https://github.com/Subcue/edititall-mcp", "applicationCategory": "DesignApplication"},
+    {"@type": "SoftwareApplication", "name": "LayerBack MCP", "url": "https://github.com/TopLocalAI/layerback-mcp", "applicationCategory": "DesignApplication"},
+    {"@type": "SoftwareApplication", "name": "Illustrator MCP", "url": "https://github.com/slashprint/illustrator-mcp", "applicationCategory": "DesignApplication"}
+  ]
+}
+</script>
+<style>
+:root { --bg: #ffffff; --fg: #1d1d1f; --muted: #5b5b66; --link: #0b57d0; --rule: #d9d9e0; --head: #f3f3f6; --note: #fff8e1; }
+@media (prefers-color-scheme: dark) { :root { --bg: #16171a; --fg: #e8e8ec; --muted: #a2a2ad; --link: #8ab4f8; --rule: #33343a; --head: #202126; --note: #2a2618; } }
+body { background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; }
+main { max-width: 64rem; margin: 0 auto; padding: 2rem 16px 4rem; }
+a { color: var(--link); }
+h1 { font-size: 1.65rem; line-height: 1.25; margin: 0 0 1rem; }
+h2 { font-size: 1.25rem; margin: 2.2rem 0 0.6rem; }
+h3 { font-size: 1.05rem; margin: 1.6rem 0 0.4rem; }
+.lead { font-size: 1.08rem; }
+.meta, .muted { color: var(--muted); font-size: 0.92rem; }
+.note { background: var(--note); border: 1px solid var(--rule); border-radius: 6px; padding: 0.6rem 0.9rem; }
+.wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1rem 0; }
+table { border-collapse: collapse; font-size: 0.86rem; min-width: 84rem; }
+th, td { border: 1px solid var(--rule); padding: 0.45rem 0.55rem; text-align: left; vertical-align: top; }
+thead th { background: var(--head); }
+tbody th { background: var(--head); font-weight: 600; }
+tbody th, thead th:first-child { position: sticky; left: 0; z-index: 1; box-shadow: inset -1px 0 0 var(--rule); }
+code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.88em; overflow-wrap: anywhere; }
+pre { background: var(--head); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem; overflow-x: auto; font-size: 0.85rem; }
+li { margin: 0.25rem 0; }
+footer { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>SVG and vector editing MCP servers for AI agents, local and hosted: 9 compared</h1>
+
+<p class="lead"><strong>To let an AI agent edit an existing SVG by element id on your own machine with no account, use
+Inkbolt (one executable, with saved revisions, undo and PNG previews the agent can see) or an Inkscape MCP server
+(sandraschi/inkscape-mcp or aravindev/inkscape_mcp, with Inkscape installed); for AI-generated artwork use SVGMaker MCP
+(an account and credits), and to trace images into SVG use image2svg-mcp. We make Inkbolt: on 18 October 2026 we
+compared nine SVG and vector MCP tools, measuring Inkbolt over MCP in six runs on Windows and reading the other eight
+from their source code and docs without running them.</strong> The catch with Inkbolt: it imports the SVG into its own
+document and writes new markup on export, and it won't import text until you supply a font file; the Inkscape servers
+edit the file's XML directly. In all six runs (the 0.82.0 release and
+<code>main</code>), importing an SVG, recolouring one shape and moving another by id, resending the edit, undoing it and
+publishing SVG and PNG gave byte-identical files run to run on each build; the strict import refused an unsupported blur
+filter with its line and column, a publish over an existing file was refused, and the source SVG was unchanged. Method,
+sources and data are below.</p>
+
+<p class="note"><strong>We make Inkbolt.</strong> Read this as a vendor's page: our own numbers come from runs you can
+repeat, and everything about the other tools links to where we read it. If we got something wrong,
+<a href="https://github.com/skulitom/Inkbolt/issues/new">open an issue</a> and we will correct it.</p>
+
+<p class="meta">Last checked: 18 October 2026 (UK time) · Inkbolt measured as the 0.82.0 release download (Windows x64
+archive, its SHA-256 checked against the release's <code>SHA256SUMS</code>) and as <code>main</code> at
+<code>f189cc3</code> (26 commits later), built from source · Next check by 17 November 2026, or sooner when one of these
+tools releases.</p>
+
+<h2>The short answer</h2>
+<ul>
+<li><strong>Your agent should change a specific SVG or image precisely (recolour this shape, move that one, check the
+result, undo a mistake) on your own machine, with no account and no desktop app:</strong> Inkbolt. It imports the SVG
+into an editable document, edits items by id in a saved session with revisions and undo, returns a preview image the
+agent can see, and publishes new files without overwriting anything. It also edits raster images. It rewrites the SVG
+it exports rather than patching your markup (details under <a href="#limits">Inkbolt's limits</a>), an SVG with text
+won't import until you supply and bind a font file (and its text is exported as outlines), and it is young: version 0.82.0 and 1 GitHub star.</li>
+<li><strong>You already use Inkscape, or you need its breadth (extensions, path operations, exports to EPS, DXF, EMF or
+XAML):</strong> one of the Inkscape MCP servers. <a href="#aravindev">aravindev/inkscape_mcp</a> can also edit the
+document open in Inkscape's window, with Inkscape's own undo; <a href="#sandraschi">sandraschi/inkscape-mcp</a> has more
+tools than aravindev's (19 against 8) and adds AI generation through your MCP client. Most of their operations need
+Inkscape installed.</li>
+<li><strong>You want new SVG artwork from a text prompt, or AI vectorisation of a photo or logo:</strong> SVGMaker MCP,
+with an SVGMaker account and credits. Its "edit" re-generates the image from a prompt; it doesn't edit elements.</li>
+<li><strong>You want to trace a raster image (PNG, JPEG) into SVG with smooth curves, locally and for free:</strong>
+image2svg-mcp (one tool, built on vtracer). Inkbolt's tracer follows pixel edges exactly and does no curve fitting.</li>
+<li><strong>You want a diagram screenshot rebuilt as editable Visio, PowerPoint or draw.io:</strong> LayerBack MCP,
+hosted and paid per conversion (10 credits).</li>
+<li><strong>Your artwork lives in Adobe Illustrator:</strong> an Illustrator MCP bridge, with Illustrator installed and
+running. None of the three repositories we read has a licence.</li>
+<li><strong>svg-maker-mcp and EditItAll</strong> are utilities, not editors: the first renders, optimises and converts
+SVG text the agent writes (its repository has no licence file); the second imports SVG text into a closed web editor,
+where another tool can screenshot it, with no way to export a vector file.</li>
+</ul>
+
+<h2>Side by side</h2>
+<p class="muted">Inkbolt's column is measured or taken from its own docs, and says which. The other columns are from each
+project's README, docs and source at the commit named under <a href="#sources">Sources</a>, or from its own web pages,
+read on 18 October 2026, not run by us. Tool counts for the others are counted in their source.</p>
+<div class="wrap">
+<table>
+<thead>
+<tr><th></th><th>Inkbolt</th><th>SVGMaker MCP</th><th>inkscape-mcp (sandraschi)</th><th>inkscape_mcp (aravindev)</th><th>image2svg-mcp</th><th>svg-maker-mcp</th><th>EditItAll MCP</th><th>LayerBack MCP</th><th>Illustrator MCP (slashprint)</th></tr>
+</thead>
+<tbody>
+<tr><th>What it is</th>
+<td>A local graphics engine: editable vector and raster documents in saved sessions</td>
+<td>A client for SVGMaker's hosted AI: generate, prompt-edit and vectorise</td>
+<td>A toolbox over the Inkscape command line and the SVG's XML, one file per call</td>
+<td>An editor over Inkscape: file operations, or the document open in Inkscape</td>
+<td>A tracer: one raster image in, SVG text out</td>
+<td>Utilities for SVG text the agent writes: render, optimise, format, convert to React</td>
+<td>A bridge to a closed web suite (PDF, sheets, images); one tool imports SVG text</td>
+<td>A client for a hosted service that rebuilds diagram images as editable files</td>
+<td>A bridge to Adobe Illustrator: typed helpers plus free-form ExtendScript</td></tr>
+<tr><th>What you need</th>
+<td>One executable: Windows x64 (33 MB, no runtime to install; measured), Linux x64 or macOS Apple silicon archives,
+or the Windows MCPB bundle</td>
+<td>Node.js 20.9+</td>
+<td>Python 3.12+ and Inkscape installed for most operations</td>
+<td>Python 3.12+ and Inkscape; Linux or Windows (live mode on Windows also needs a D-Bus daemon)</td>
+<td>Python 3.12+ (<code>uvx image2svg-mcp</code>), or Docker</td>
+<td>Node.js and the cloned repository (run with <code>tsx</code>)</td>
+<td>Node.js 22+ and Chrome, Edge, Chromium or Brave</td>
+<td>Node.js 18+</td>
+<td>Adobe Illustrator installed and running, on Windows or macOS; Python 3.12+</td></tr>
+<tr><th>Network at run time</th>
+<td>None: its docs say it has no network service, and remote resources in an SVG are refused</td>
+<td>Every tool except the local preview calls SVGMaker's API: local input files are uploaded, image URLs you pass are
+handed to the API, which fetches them, and results are downloaded from SVGMaker's servers</td>
+<td>A metrics HTTP server on port 9074 on all network interfaces, on by default when prometheus-client is installed
+(its start script installs it); on request, downloads from inkscape.org's extension gallery, posts to other local MCP
+servers and queries local Ollama or LM Studio</td>
+<td>None found in its code (on Windows, live mode runs a D-Bus daemon on a local TCP port)</td>
+<td>Fetches any http or https URL you pass</td>
+<td>None found in its code</td>
+<td>Loads its editors from edititall.com on every run</td>
+<td>Uploads each image to layerback.com</td>
+<td>None found in its code</td></tr>
+<tr><th>Account or API key</th>
+<td>None</td>
+<td>Yes: an API key (local) or an SVGMaker account (hosted server)</td>
+<td>None</td>
+<td>None</td>
+<td>None</td>
+<td>None</td>
+<td>None</td>
+<td>Yes: an API key from a LayerBack account</td>
+<td>None in the server; an Adobe subscription for Illustrator</td></tr>
+<tr><th>Open an existing SVG and keep it editable</th>
+<td>Yes: imported into an editable document; unsupported content is refused with its line and column, or omitted and
+reported when asked (measured). Text needs a font you import and bind first</td>
+<td>No document: <code>svgmaker_edit</code> sends the image and a prompt and gets back a new AI-made SVG</td>
+<td>Yes, file by file: each call reads the SVG and writes a file</td>
+<td>Yes: file by file, or as the document open in Inkscape</td>
+<td>No: input must be a raster image</td>
+<td>No: the agent passes SVG text with each call</td>
+<td>SVG text opens in the web editor for the session; no vector export</td>
+<td>No: input is a diagram image</td>
+<td>Yes: opens .svg, .ai, .pdf or .eps as an Illustrator document</td></tr>
+<tr><th>Change one element by id</th>
+<td>Yes: typed operations on item ids, with each source id mapped to an item id (measured)</td>
+<td>No</td>
+<td>Yes: attributes by object id, restyling by CSS-like selector</td>
+<td>Yes: object ids in file operations; id or XPath edits in live mode</td>
+<td>No</td>
+<td>No</td>
+<td>No</td>
+<td>No</td>
+<td>Move and align by item name or index; anything else through a script</td></tr>
+<tr><th>Create shapes and text</th>
+<td>Yes: shapes, paths, text (with a font file you supply), images, layers, artboards (docs)</td>
+<td>Only by AI generation from a prompt</td>
+<td>Yes: one primitive per new file, plus gradients, symbols and text on paths</td>
+<td>Yes, including inserting SVG fragments into the open document</td>
+<td>No</td>
+<td>No: the agent writes the SVG</td>
+<td>No</td>
+<td>No</td>
+<td>Through scripts</td></tr>
+<tr><th>Raster (pixel) editing</th>
+<td>Yes: brushes, adjustments, selections, masks and repair (its docs and operation schema; not part of this
+test)</td>
+<td>No pixel tools; AI background removal (returns SVG) and prompt edits that can return a PNG</td>
+<td>No (bitmap tracing via Inkscape)</td>
+<td>No (bitmap tracing via Inkscape)</td>
+<td>No</td>
+<td>No</td>
+<td>Compress, convert and resize only</td>
+<td>No</td>
+<td>No</td></tr>
+<tr><th>Preview the agent can see</th>
+<td>Yes: a PNG returned in the MCP reply (measured)</td>
+<td>Yes: local PNG preview in the reply</td>
+<td>PNG files on disk only</td>
+<td>PNG files on disk only</td>
+<td>No</td>
+<td>Yes: PNG in the reply</td>
+<td>A screenshot of the editor page</td>
+<td>A preview PNG downloaded to a file</td>
+<td>Yes: an artboard PNG in the reply; <code>view</code> is a full-screen screenshot</td></tr>
+<tr><th>Undo and saved revisions</th>
+<td>Yes: saved sessions, undo, resent requests return their original receipt and stale revisions are refused
+(measured); redo (docs)</td>
+<td>No undo; past generations are kept in your SVGMaker account</td>
+<td>None</td>
+<td>Inkscape's own undo per edit in live mode; none for file operations</td>
+<td>None (stateless)</td>
+<td>None (stateless)</td>
+<td>None; state ends with the process</td>
+<td>None</td>
+<td>None exposed</td></tr>
+<tr><th>Output</th>
+<td>SVG and PNG measured; JPEG, TIFF, PDF and others in its publish schema</td>
+<td>SVG, optimised SVG, SVGZ, PNG, WebP</td>
+<td>PDF, EPS, PS, SVG, PNG, WMF, EMF, XAML and DXF via Inkscape (its code also accepts AI and CDR)</td>
+<td>PDF, EPS, PS, SVG, PNG, WMF, EMF, XAML and DXF via Inkscape, and JPEG, WebP and AVIF via Pillow (its code also
+accepts AI and CDR)</td>
+<td>SVG text in the reply; writes no files</td>
+<td>SVG, optimised SVG, React and React Native components, data URIs; PNG only in the reply</td>
+<td>No vector output; PNG, JPEG, WebP, AVIF, JPEG XL, QOI for images</td>
+<td>VSDX, PPTX, draw.io, SVG, a JSON intermediate form, preview PNG</td>
+<td>.ai and .pdf; other formats through scripts</td></tr>
+<tr><th>Existing files</th>
+<td>Never overwritten: publishing to an existing name was refused, and the source was unchanged (measured)</td>
+<td>Output paths are written over without a check</td>
+<td>Edits write back to the input file unless you give an output path</td>
+<td>Outputs are written over; live mode saves the open document after every edit</td>
+<td>Writes no files</td>
+<td>Saving writes over an existing file, anywhere the process can write</td>
+<td>Exports are written over without a check</td>
+<td>Downloads are written over without a check</td>
+<td>Save As has no existence check</td></tr>
+<tr><th>Licence, stars, last push (18 Oct 2026)</th>
+<td>MIT · 1 · 18 Oct 2026 (0.82.0 released 16 Oct)</td>
+<td>MIT (the client; the service is closed) · 88 · 13 Aug 2026</td>
+<td>MIT · 88 · 12 Oct 2026</td>
+<td>MIT · 79 · 5 Oct 2026</td>
+<td>Apache-2.0 · 9 · 9 Jul 2026</td>
+<td>No licence file (ISC in package.json) · 0 · 4 Jan 2026</td>
+<td>MIT for the bridge; the editors are closed · 0 · 31 Aug 2026</td>
+<td>MIT (the client) · 1 · 5 Aug 2026</td>
+<td>No licence · 3 · 29 Apr 2026</td></tr>
+<tr><th>MCP tools</th>
+<td>22 in its documented core catalogue (96 with <code>--tools full</code>) (measured)</td>
+<td>17 (18 names across its two transports)</td>
+<td>19, with about 110 operations</td>
+<td>8, with 108 operations</td>
+<td>1</td>
+<td>10</td>
+<td>18 (1 for vectors)</td>
+<td>3</td>
+<td>28</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="measured">What we measured on Inkbolt</h2>
+<p>One editing task, run over MCP the way an agent runs it, on Windows 11 (x64), with the documented launch command
+<code>inkbolt --workspace &lt;new folder&gt; mcp --tools core</code>. The client is a small Python MCP stdio client. The
+probe script, the input SVG and every result file are in <a href="data/">data/</a>.</p>
+<ol>
+<li><strong>The input:</strong> an original 240 × 120 SVG diagram made for this test: two rounded rectangles with ids
+<code>input</code> (filled with a linear gradient) and <code>output</code>, a curved connector <code>link</code>, an
+arrowhead <code>arrow</code>, and a circle <code>glow</code> blurred by an SVG <code>&lt;filter&gt;</code>. We took its
+SHA-256 before the server started.</li>
+<li><strong>Strict import</strong> (the default): refused with <code>SVG_UNSUPPORTED</code>, "Geometry &lt;filter&gt; is
+not supported", at line 8, column 5.</li>
+<li><strong>Import with <code>unsupported: "omit_and_report"</code>:</strong> four editable shapes under a root group.
+The reply listed two omissions (the filter, and the circle that used it, each with its line and column), two
+approximations (each rounded rectangle's corners became cubic curves, with a maximum radial error of 0.000034 units)
+and six plain-language notes on what import changes. Each source id maps to a new item id (<code>output</code> →
+<code>svg-2</code>) and stays as the item's name.</li>
+<li><strong>One atomic edit in a saved session:</strong> recolour <code>output</code> to #2e8b57 and move
+<code>input</code> 10 units down, giving revision 1.</li>
+<li><strong>The same request resent</strong> with the same <code>request_id</code>: the original receipt came back, and
+the session stayed at revision 1.</li>
+<li><strong>Preview:</strong> a 240 × 120 PNG returned as an MCP image in the reply, so the agent sees the result without
+writing a file. Its pixels match the published PNG's.</li>
+<li><strong>Publish:</strong> revision 0 as SVG before the edit, then revision 1 as SVG and PNG. Publishing revision 1
+again to the same file name was refused with <code>OUTPUT_EXISTS</code> ("Existing files are never overwritten"), and
+the existing file's hash didn't change.</li>
+<li><strong>Undo</strong> gave revision 2. Its published SVG was byte-identical to the SVG published before the
+edit.</li>
+<li><strong>A stale edit</strong> (expected revision 0 while the session was at 2) was refused with
+<code>REVISION_CONFLICT</code>.</li>
+<li><strong>The source SVG</strong> had the same SHA-256 after the run.</li>
+</ol>
+<p>We ran the task three times on each build, each time in a new empty folder:</p>
+<div class="wrap">
+<table style="min-width: 40rem">
+<thead><tr><th></th><th>0.82.0 release (Windows x64 download)</th><th><code>main</code> at <code>f189cc3</code> (built from source)</th></tr></thead>
+<tbody>
+<tr><th>Steps 2 to 10 as described</th><td>3 of 3 runs</td><td>3 of 3 runs</td></tr>
+<tr><th>Published SVG files, run to run</th><td>Byte-identical</td><td>Byte-identical, and identical to 0.82.0's</td></tr>
+<tr><th>Published PNG, run to run</th><td>Byte-identical</td><td>Byte-identical; the file bytes differ from 0.82.0's (<code>main</code> writes PNGs in bands), the decoded pixels are identical</td></tr>
+<tr><th>MCP calls per run, and reply bytes</th><td>16 calls, 103,525 bytes</td><td>16 calls, 103,497 bytes (replies
+include the workspace path; with paths of equal length both builds send the same number of bytes)</td></tr>
+<tr><th>Sum of the 16 round trips</th><td>80 to 84 ms</td><td>81 to 84 ms</td></tr>
+<tr><th>Core tool catalogue</th><td>22 tools in 3 pages, 85,134 bytes</td><td>22 tools in 3 pages, 86,185 bytes</td></tr>
+</tbody>
+</table>
+</div>
+<p>Two more checks on 0.82.0: the same SVG with a <code>&lt;text&gt;</code> label and no font supplied was refused with
+<code>SVG_FONT_NOT_BOUND</code> at the text's line and column, even with <code>omit_and_report</code>; and the full
+catalogue (<code>--tools full</code>) lists 96 tools in 12 pages totalling 4,046,021 bytes, which is why the docs launch
+the core catalogue.</p>
+<p><strong>To repeat it:</strong> download the release archive, then run
+<code>python -I inkbolt_probe.py &lt;path to inkbolt.exe&gt; &lt;path of a folder that doesn't exist yet&gt; diagram.svg
+out.json</code> with the files in <a href="data/">data/</a> (Python 3, standard library only); the probe creates the
+folder. Your timings and reply byte counts (which include the folder path) will differ; the outcomes and the SVG hashes
+should match ours.</p>
+
+<h2>Each tool, and when to choose it over Inkbolt</h2>
+
+<h3 id="svgmaker">SVGMaker MCP</h3>
+<p><a href="https://github.com/GenWaveLLC/svgmaker-mcp">GenWaveLLC/svgmaker-mcp</a> (npm
+<code>@genwave/svgmaker-mcp</code> 2.1.0) is a TypeScript client for SVGMaker's hosted AI service, and ranked for two of our
+three searches. Run locally, it exits unless <code>SVGMAKER_API_KEY</code> is set;
+the hosted server at mcp.svgmaker.io signs you in with an SVGMaker account instead. It advertises 17 tools on each
+transport: generate an SVG from a prompt, "edit" (send an image or SVG with a prompt and receive a new AI-made SVG, not
+an element-level change), convert a raster image to SVG with AI, remove a background, manage your past generations and
+a public gallery, and, run locally, preview a local file as PNG (the hosted server swaps that tool for an upload
+tool). Generate, edit and convert run on SVGMaker's servers, and local
+input files are uploaded. The client sets a default limit of 2 requests a minute (<code>SVGMAKER_RATE_LIMIT_RPM</code> raises
+it); SVGMaker's API documentation lists 5 requests a minute for generate and edit, and credits per call (generate 1 to
+3, edit 2 to 5, AI vectorise 1, background removal 1). Downloading past generations needs a paid account. New accounts get 6 free credits, then a daily top-up to 3, and free-plan generations are
+public. Its pricing page didn't show plan prices when we read it, so we can't quote them.</p>
+<p><strong>Choose it</strong> when you want new artwork from a text description, or an AI conversion of a photo or logo,
+and you accept an account, credits and uploading your images. <strong>Choose Inkbolt</strong> when the agent must make
+exact changes to a specific drawing, such as one colour or one position, and check, retry or undo them offline.</p>
+
+<h3 id="sandraschi">inkscape-mcp (sandraschi)</h3>
+<p><a href="https://github.com/sandraschi/inkscape-mcp">sandraschi/inkscape-mcp</a> (MIT, 88 stars) is a Python server
+over the Inkscape command line and the SVG's XML. Its source registers 19 tools that each take an <code>operation</code>,
+about 110 operations in all (its docs say 17 tools and 60+ operations): attribute edits by object id, restyling by
+CSS-like selector, path and boolean operations, layers, gradients, text on paths, animation, bitmap tracing, and
+conversion to PDF, EPS, PS, PNG, WMF, EMF, XAML and DXF (its code also accepts AI and CDR). Its editing calls work on
+files: XML edits write back to the input file unless you name an output, previews are PNG files on disk, and there is
+no session or undo. Some tools generate SVG with your MCP client's own model (the client must support MCP sampling).
+Most operations need Inkscape installed; its by-id XML edits don't. By default it also starts a Prometheus metrics
+server on port 9074; it can search inkscape.org's extension gallery and install extensions from it (verified ones only
+by default), send actions to a running Inkscape window, and post to other local MCP servers (Blender, Unity, GIMP). A configured list of allowed
+folders exists, but nothing in the code enforces it.</p>
+<p><strong>Choose it</strong> when you use Inkscape already and want a broad set of Inkscape operations (about 110) plus
+its extras: AI generation through your MCP client, the inkscape.org extension gallery and links to other local MCP
+servers. <strong>Choose Inkbolt</strong> when you want no desktop app to install, revisions with undo and safe
+retries, and outputs that never replace your files.</p>
+
+<h3 id="aravindev">inkscape_mcp (aravindev)</h3>
+<p><a href="https://github.com/aravindev/inkscape_mcp">aravindev/inkscape_mcp</a> (MIT, 79 stars, PyPI
+<code>inkscape-mcp</code> 1.3.1) is a declared fork of sandraschi's server, retargeted at Linux and Windows. It has 8
+tools with 108 operations in two modes. Headless, it runs the Inkscape command line or edits the XML of a file, with
+object ids checked against each operation's scope. Live, it drives a running Inkscape over D-Bus (and on Windows
+launches one): it can edit the open document by id or XPath, insert SVG fragments, and each edit becomes one step in
+Inkscape's own undo. Live mode saves the document after every change unless you set
+<code>INKSCAPE_MCP_AUTO_SAVE=0</code>, and one operation runs arbitrary Python inside Inkscape. Previews are PNG files
+on disk. On start it installs its own extensions into your Inkscape profile when they are missing or a different
+version. We found no network calls in its
+code.</p>
+<p><strong>Choose it</strong> when you want to watch the drawing change in Inkscape and undo there, or need Inkscape's
+extensions and formats. <strong>Choose Inkbolt</strong> for headless runs with no GUI app on the machine, previews the
+agent sees in its reply, revisions it can retry and diff, and raster editing in the same tool.</p>
+
+<h3 id="image2svg">image2svg-mcp</h3>
+<p><a href="https://github.com/botmonster/image2svg-mcp">botmonster/image2svg-mcp</a> (Apache-2.0, PyPI 1.0.1) has one
+tool, <code>convert_image_to_svg</code>, which traces a raster image with vtracer and returns SVG text, with vtracer's
+settings (colour or binary, spline or polygon curves, speckle filter, precision). It takes a base64 image or a URL,
+writes no files, needs no key, and reads local files only from a folder you allow at launch. It will fetch any http or
+https URL it is given.</p>
+<p><strong>Choose it</strong> to turn a logo, icon or photo into smooth SVG curves, free and locally. <strong>Choose
+Inkbolt</strong> to edit the result afterwards. Inkbolt also traces (<code>image.trace</code>), but it follows pixel
+edges exactly, with no smooth curve fitting, which suits pixel art and flat icons rather than photos.</p>
+
+<h3 id="svg-maker-mcp">svg-maker-mcp</h3>
+<p><a href="https://github.com/erkamkavak/svg-maker-mcp">erkamkavak/svg-maker-mcp</a> has 10 tools for SVG text that the
+agent writes itself: render it to a PNG the agent sees, optimise it with SVGO, format and validate it, read its
+metadata, and convert it to React or React Native components or a data URI, plus one prompt for designing an icon. It
+keeps no document and reads no files; saving writes a file anywhere the process can write, over any existing one. The
+repository has no licence file (its <code>package.json</code> says ISC), and its README's launch command doesn't set
+<code>MCP_RUN_LOCAL=true</code>, which the code needs before it starts the stdio server.</p>
+<p><strong>Choose it</strong> when the agent hand-writes SVG and wants a quick render, SVGO and React output in one
+place. <strong>Choose Inkbolt</strong> when it should work on a document rather than retype SVG text on every change.</p>
+
+<h3 id="edititall">EditItAll MCP</h3>
+<p><a href="https://github.com/Subcue/edititall-mcp">Subcue/edititall-mcp</a> (npm <code>@edititall/mcp</code> 0.2.1)
+starts a headless Chrome, Edge, Chromium or Brave and loads EditItAll's closed-source web editors from edititall.com,
+then drives them with 18 tools for spreadsheets, PDFs, Word documents, slides and images. For vectors there is one tool:
+it opens SVG text in the web vector editor, and another tool takes a screenshot of the editor page. There is no tool to
+edit an element or to export a vector file. Its README says files are processed on your device; the editors that do the
+work aren't in the repository, so we couldn't check that.</p>
+<p><strong>Choose it</strong> for PDF, spreadsheet and image compression or conversion jobs from one server.
+<strong>Choose Inkbolt</strong> to edit vector shapes and export the result as a file.</p>
+
+<h3 id="layerback">LayerBack MCP</h3>
+<p><a href="https://github.com/TopLocalAI/layerback-mcp">TopLocalAI/layerback-mcp</a> (npm <code>layerback-mcp</code>
+0.1.2) uploads a diagram image (PNG, JPEG or WebP) to LayerBack's hosted service, which rebuilds it as editable VSDX,
+PPTX, draw.io or SVG. It has 3 tools and needs an API key. Each conversion through the API, which the MCP uses, costs 10
+credits and includes every format (on LayerBack's website, downloading or editing a conversion costs 10 credits). Plans
+are US$20, $40 and $80 a month for 1,000, 3,000 and 10,000 credits (half that billed yearly). Its API docs list 20
+conversions an hour per account (the top plan advertises higher limits); its README says uploads are deleted within 72
+hours, while its API docs say results are kept for at least 72 hours.</p>
+<p><strong>Choose it</strong> to turn a screenshot of a diagram into an editable Visio, PowerPoint or draw.io file.
+<strong>Choose Inkbolt</strong> to draw or edit the diagram itself.</p>
+
+<h3 id="illustrator">Illustrator MCP bridges</h3>
+<p>The "Illustrator MCP Server" on Glama is <a href="https://github.com/slashprint/illustrator-mcp">slashprint/illustrator-mcp</a>,
+an extended copy of <a href="https://github.com/krVatsal/illustrator-mcp">krVatsal/illustrator-mcp</a> (165 stars).
+slashprint's source registers 28 tools (its README and Glama's page describe 5 to 7): run any ExtendScript in a running
+Illustrator through COM on Windows or AppleScript on macOS, open and save documents, render an artboard as a PNG in the
+reply, position and align items by name, fonts and layout helpers, and design checks. Its <code>view</code> tool brings
+Illustrator to the front and screenshots the whole screen, including other windows. The playbooks.com entry (its page returned 404 on 18
+October) pointed to AnshulDalua/illustrator-mcp, a macOS-only copy of spencerhhubert/illustrator-mcp-server with two tools. None of these four
+repositories has a licence.</p>
+<p><strong>Choose one</strong> when your artwork and workflow are in Illustrator and you have it installed.
+<strong>Choose Inkbolt</strong> when you want typed, checked edits instead of scripts, nothing on your screen, and a tool
+licensed for reuse.</p>
+
+<h2 id="limits">Inkbolt's limits</h2>
+<ul>
+<li><strong>It rewrites the SVG it exports.</strong> Import turns the file into Inkbolt's own document, and export
+writes new markup: in our run, rectangles became paths (rounded corners as cubic curves), ids became
+<code>svg-1</code> to <code>svg-4</code> with each source id kept as a <code>&lt;title&gt;</code>, and the gradient was
+renamed; our 833-byte input came back as 2,736 bytes. Text is exported as one path per glyph, so the SVG it writes
+has no live text (per its docs; our test drawing had no text). Classes, selectors, comments and formatting are not kept,
+and colours are stored as 8-bit RGBA; its own import report says so. If the job is to
+change one attribute and keep everything else in a hand-written file as it was, a tool that edits the XML directly
+changes less of it (we didn't test how much of a file the Inkscape servers keep).</li>
+<li><strong>Strict by default.</strong> SVG features it doesn't support, such as filters and animation, stop the
+import. With <code>omit_and_report</code> the import goes ahead and lists what was dropped, but the element that used
+the feature goes too: our blurred circle disappeared entirely.</li>
+<li><strong>Text needs a font file you supply.</strong> An SVG with any <code>&lt;text&gt;</code> element fails to import,
+even with <code>omit_and_report</code>, until you import a font (with its licence file) through <code>font.import</code>
+and bind it to each font family, weight and style the SVG uses. There is no fallback to installed system fonts.</li>
+<li><strong>It doesn't generate artwork from a prompt.</strong> The agent composes the shapes; for AI-made illustrations
+use a generator such as SVGMaker.</li>
+<li><strong>Its tracer follows pixel edges exactly</strong> and has no smooth curve fitting or photo reconstruction
+(per its docs).</li>
+<li><strong>The tool definitions are large.</strong> The core catalogue is 22 tools but 85 KB of definitions; the full
+catalogue is 4 MB, so use the documented <code>--tools core</code> launch.</li>
+<li><strong>Replies are large by default.</strong> Session create, apply and read return the whole document: about 11 KB
+per edit for our four-shape test drawing, and the 16-call task's replies came to 104 KB in all. A compact response mode
+(<code>response_mode: "compact"</code> on those session calls) returns less; we didn't measure it.</li>
+<li><strong>Background export jobs need Windows.</strong> Its core editing, MCP server and sessions are verified on
+Windows, Linux and macOS; some newer storage work is verified only on Windows and on Linux under WSL (per its README and
+<code>docs/PLATFORMS.md</code>). We ran it on Windows only.</li>
+<li><strong>It is young:</strong> version 0.82.0 (16 October 2026), 1 GitHub star. <code>main</code> adds raster
+features that aren't in the release. It is in the official MCP Registry as <code>io.github.skulitom/inkbolt</code>.</li>
+</ul>
+
+<h2 id="also">Also in the results, and two that are gone</h2>
+<ul>
+<li><strong>imagetosvg-mcp</strong> (ujo78/imagetosvg-mcp) ranked for two of our searches as a local tracer with an
+<code>edit_svg</code> tool that changes layers by id. On 18 October its GitHub repository returned 404, there is no npm
+package, and we found no archived copy, so it can't be installed from its README; Glama still lists it.</li>
+<li><strong>ws-buntu/inkscape-mcp-server</strong>, the "Inkscape MCP Server" that ranked on Glama, has no server code in
+its repository: only a README, a <code>pyproject.toml</code>, a licence and an image.</li>
+<li>Other Inkscape servers we didn't read: <a href="https://github.com/Shriinivas/inkmcp">Shriinivas/inkmcp</a> (75
+stars, AGPL-3.0) and <a href="https://github.com/grumpydevorg/inkscape-mcps">grumpydevorg/inkscape-mcps</a> (55 stars),
+plus several with fewer than 10 stars on Glama.</li>
+<li>Named in one search summary and not read by us, described there as: replicate-flux-mcp (SVG generation with a Recraft model on
+Replicate, which needs a Replicate account), GIMP-MCP (drives a running GIMP), the Ideogram and OpenAI image MCP servers
+(hosted AI image editing with your API key) and Adobe's own connector for Claude.</li>
+</ul>
+
+<h2 id="method">Method</h2>
+<ul>
+<li><strong>The searches this page answers</strong>, run on 18 October 2026: "SVG vector graphics editing MCP server
+comparison", "SVG editing MCP server for AI agents local" and "best MCP server for vector graphics and image editing
+Claude Code". Directory pages (Glama, Playbooks, Enterprise DNA) filled most results, with a few blog round-ups. Two
+summaries said they found no independent head-to-head comparison or no clear winner. Inkbolt appeared in none.</li>
+<li><strong>Which tools:</strong> the SVG and vector MCP servers with a real repository that ranked in those
+results: SVGMaker MCP, image2svg-mcp, svg-maker-mcp, EditItAll, LayerBack and the Illustrator bridge; for Inkscape, the
+two most starred servers listed on Glama, because the one that ranked has no code. The rest are under "Also in the results".</li>
+<li><strong>Inkbolt</strong> was measured as described above: the 0.82.0 Windows x64 release download, and
+<code>main</code> at <code>f189cc3</code> built with <code>cargo build --release --locked</code> in 2 minutes 48
+seconds. Its SVG import source files are unchanged between the two (<code>main</code> raises a shared image-size limit).</li>
+<li><strong>The other tools were not installed or run.</strong> We run another tool only when it is open source from its
+official source, works offline with no account or key, and can't reach the network or your desktop beyond its own
+install. None of the eight met all three: SVGMaker and LayerBack need accounts and upload files, EditItAll loads remote
+code, the Inkscape servers and the Illustrator bridges drive desktop apps (or, for sandraschi's, open a metrics port and
+download extensions), image2svg-mcp fetches any URL it is given, and svg-maker-mcp has no licence file. So only Inkbolt's claims are tested
+here; the other columns describe what each tool's code and docs say, not how well it works. We read each
+README, the source files named below and the hosted services' own pages, and counted MCP tools where each server
+registers them. Stars and versions come from GitHub, npm and PyPI on 18 October 2026.</li>
+</ul>
+
+<h2 id="sources">Sources</h2>
+<p class="muted">All read on 18 October 2026, at the commit shown.</p>
+<ul>
+<li>Inkbolt: <a href="https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0">the 0.82.0 release</a> and
+<a href="https://github.com/skulitom/Inkbolt/tree/f189cc3">main at f189cc3</a>;
+<a href="https://github.com/skulitom/Inkbolt/blob/v0.82.0/docs/SVG_IMPORT.md">docs/SVG_IMPORT.md</a>,
+<a href="https://github.com/skulitom/Inkbolt/blob/v0.82.0/docs/TRACING.md">docs/TRACING.md</a>,
+<a href="https://github.com/skulitom/Inkbolt/blob/v0.82.0/docs/INSTALLATION.md">docs/INSTALLATION.md</a>,
+<a href="https://github.com/skulitom/Inkbolt/blob/v0.82.0/docs/PLATFORMS.md">docs/PLATFORMS.md</a>,
+<a href="https://github.com/skulitom/Inkbolt/blob/v0.82.0/docs/AGENT_RESPONSES.md">docs/AGENT_RESPONSES.md</a>,
+<a href="https://github.com/skulitom/Inkbolt/blob/v0.82.0/README.md">README</a>; our run data in
+<a href="data/">data/</a>.</li>
+<li>SVGMaker MCP at <code>9108df4</code>:
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/README.md">README</a>,
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/src/index.ts">src/index.ts</a>
+(API key check),
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/src/server.ts">src/server.ts</a>
+(tool list),
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/src/tools/editTool.ts">src/tools/editTool.ts</a>,
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/src/tools/previewTool.ts">src/tools/previewTool.ts</a>,
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/src/utils/fileUtils.ts">src/utils/fileUtils.ts</a>,
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/src/services/svgmakerService.ts">src/services/svgmakerService.ts</a>
+(rate limit),
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/src/utils/inputResolver.ts">src/utils/inputResolver.ts</a>
+(uploads),
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/src/tools/generationsTool.ts">src/tools/generationsTool.ts</a>,
+<a href="https://github.com/GenWaveLLC/svgmaker-mcp/blob/9108df4104598189d8898517fc55a8b0a85d9ec6/src/tools/removeBackgroundTool.ts">src/tools/removeBackgroundTool.ts</a>; SVGMaker's <a href="https://svgmaker.io/docs/api-reference">API reference</a> (credits and rate limits)
+and <a href="https://svgmaker.io/pricing">pricing page</a> (free credits; plan prices didn't load).</li>
+<li>inkscape-mcp (sandraschi) at <code>b1f5d64</code>:
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/README.md">README</a>,
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/src/inkscape_mcp/main.py">src/inkscape_mcp/main.py</a>
+(19 tools),
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/src/inkscape_mcp/tools/vector_operations.py">tools/vector_operations.py</a>
+(write-back to the input),
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/src/inkscape_mcp/utils/telemetry.py">utils/telemetry.py</a>
+(metrics port),
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/src/inkscape_mcp/utils/inkscape_gallery.py">utils/inkscape_gallery.py</a>,
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/src/inkscape_mcp/tools/system.py">tools/system.py</a>,
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/src/inkscape_mcp/config.py">config.py</a>,
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/src/inkscape_mcp/tools/file_operations.py">tools/file_operations.py</a>
+(formats),
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/src/inkscape_mcp/utils/fleet_http.py">utils/fleet_http.py</a>,
+<a href="https://github.com/sandraschi/inkscape-mcp/blob/b1f5d64fb0d2f7c61e584205c07d0c44dc64eead/src/inkscape_mcp/agentic.py">agentic.py</a>
+(sampling).</li>
+<li>inkscape_mcp (aravindev) at <code>5a53f76</code>:
+<a href="https://github.com/aravindev/inkscape_mcp/blob/5a53f769fc33a5c3b5e6e7049797d74bcb67bc51/README.md">README</a>,
+<a href="https://github.com/aravindev/inkscape_mcp/blob/5a53f769fc33a5c3b5e6e7049797d74bcb67bc51/NOTICE.md">NOTICE.md</a>,
+<a href="https://github.com/aravindev/inkscape_mcp/blob/5a53f769fc33a5c3b5e6e7049797d74bcb67bc51/src/inkscape_mcp/main.py">src/inkscape_mcp/main.py</a>
+(8 tools),
+<a href="https://github.com/aravindev/inkscape_mcp/blob/5a53f769fc33a5c3b5e6e7049797d74bcb67bc51/src/inkscape_mcp/mcp_tool_types.py">mcp_tool_types.py</a>
+(108 operations),
+<a href="https://github.com/aravindev/inkscape_mcp/blob/5a53f769fc33a5c3b5e6e7049797d74bcb67bc51/src/inkscape_mcp/tools/live.py">tools/live.py</a>
+(live mode, auto-save, undo),
+<a href="https://github.com/aravindev/inkscape_mcp/blob/5a53f769fc33a5c3b5e6e7049797d74bcb67bc51/src/inkscape_mcp/extension_bridge.py">extension_bridge.py</a>,
+<a href="https://github.com/aravindev/inkscape_mcp/blob/5a53f769fc33a5c3b5e6e7049797d74bcb67bc51/src/inkscape_mcp/tools/vector_operations.py">tools/vector_operations.py</a>,
+<a href="https://github.com/aravindev/inkscape_mcp/blob/5a53f769fc33a5c3b5e6e7049797d74bcb67bc51/src/inkscape_mcp/tools/metadata.py">tools/metadata.py</a>.</li>
+<li>image2svg-mcp at <code>2c855cc</code>:
+<a href="https://github.com/botmonster/image2svg-mcp/blob/2c855cc67df6081e3be53e89502b86065e06398d/README.md">README</a>,
+<a href="https://github.com/botmonster/image2svg-mcp/blob/2c855cc67df6081e3be53e89502b86065e06398d/src/image2svg_mcp/server.py">src/image2svg_mcp/server.py</a>,
+<a href="https://github.com/botmonster/image2svg-mcp/blob/2c855cc67df6081e3be53e89502b86065e06398d/src/image2svg_mcp/convert.py">convert.py</a>.</li>
+<li>svg-maker-mcp at <code>ae2d3fc</code>:
+<a href="https://github.com/erkamkavak/svg-maker-mcp/blob/ae2d3fc73e884b2830870b57e7782abf164962b0/README.md">README</a>,
+<a href="https://github.com/erkamkavak/svg-maker-mcp/blob/ae2d3fc73e884b2830870b57e7782abf164962b0/package.json">package.json</a>,
+<a href="https://github.com/erkamkavak/svg-maker-mcp/blob/ae2d3fc73e884b2830870b57e7782abf164962b0/src/index.ts">src/index.ts</a>
+(10 tools, the save path, the <code>MCP_RUN_LOCAL</code> check).</li>
+<li>EditItAll MCP at <code>5cd19e5</code>:
+<a href="https://github.com/Subcue/edititall-mcp/blob/5cd19e516dc4c8ee778c8202f2e3c8b4d7801271/README.md">README</a>,
+<a href="https://github.com/Subcue/edititall-mcp/blob/5cd19e516dc4c8ee778c8202f2e3c8b4d7801271/edititall-mcp.mjs">edititall-mcp.mjs</a>
+(18 tools, the editor address, file writes).</li>
+<li>LayerBack MCP at <code>577161a</code>:
+<a href="https://github.com/TopLocalAI/layerback-mcp/blob/577161a5f36c3019d06ecc9c215c06b2b7e3c61f/README.md">README</a>,
+<a href="https://github.com/TopLocalAI/layerback-mcp/blob/577161a5f36c3019d06ecc9c215c06b2b7e3c61f/index.js">index.js</a>;
+LayerBack's <a href="https://layerback.com/pricing">pricing</a> and <a href="https://layerback.com/docs/api">API docs</a>.</li>
+<li>Illustrator: slashprint/illustrator-mcp at <code>de39154</code>
+(<a href="https://github.com/slashprint/illustrator-mcp/blob/de39154663e2962bf753ddd63fc6501d4c14d0db/README.md">README</a>,
+<a href="https://github.com/slashprint/illustrator-mcp/blob/de39154663e2962bf753ddd63fc6501d4c14d0db/illustrator/server.py">illustrator/server.py</a>,
+<a href="https://github.com/slashprint/illustrator-mcp/blob/de39154663e2962bf753ddd63fc6501d4c14d0db/illustrator/platform_backend.py">illustrator/platform_backend.py</a>);
+krVatsal/illustrator-mcp at <code>5040dde</code>
+(<a href="https://github.com/krVatsal/illustrator-mcp/tree/5040dde760688502f6006204ce9562c01c82c65c">tree</a>);
+AnshulDalua/illustrator-mcp at <code>9956c1f</code>
+(<a href="https://github.com/AnshulDalua/illustrator-mcp/tree/9956c1f5322274907d4226302efae6b75cf94bb2">tree</a>).</li>
+<li>Gone or empty: <a href="https://glama.ai/mcp/servers/ujo78/imagetosvg-mcp">imagetosvg-mcp on Glama</a> (its GitHub
+repository returned 404);
+<a href="https://github.com/ws-buntu/inkscape-mcp-server/tree/bebd213e261f4065c5ead68c5b96acc5669bce8e">ws-buntu/inkscape-mcp-server
+at bebd213</a>.</li>
+</ul>
+
+<footer class="muted">A plain static page: no JavaScript, trackers or cookies. Made by the Inkbolt maintainers ·
+<a href="../../">Inkbolt's site</a> · <a href="https://github.com/skulitom/Inkbolt">Inkbolt on GitHub</a></footer>
+</main>
+</body>
+</html>
