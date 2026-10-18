@@ -276,9 +276,40 @@ fn concurrent_native_writers_commit_one_revision_without_changing_original_block
         .collect();
     let results: Vec<_> = threads.into_iter().map(|t| t.join().unwrap()).collect();
     assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
+    let (loser, error) = results
+        .iter()
+        .enumerate()
+        .find_map(|(index, result)| result.as_ref().err().map(|error| (index, error)))
+        .unwrap();
+    assert!(
+        matches!(error.code, "SESSION_BUSY" | "REVISION_CONFLICT"),
+        "{}",
+        error.code
+    );
+    let committed = read(&root.0, "native", None).unwrap();
+    let committed_blocks = blocks(&root.0);
+    // The bounded lock wait may expire before the competing revision is visible.
+    // Once both writers finish, the same request must observe that revision.
     assert_eq!(
-        results.iter().find_map(|r| r.as_ref().err()).unwrap().code,
+        mutate(
+            &root.0,
+            "native",
+            &format!("edit-{loser}"),
+            0,
+            &action(),
+            &Control::default(),
+        )
+        .unwrap_err()
+        .code,
         "REVISION_CONFLICT"
+    );
+    assert_eq!(read(&root.0, "native", None).unwrap(), committed);
+    assert_eq!(blocks(&root.0), committed_blocks);
+    assert_eq!(
+        receipt(&root.0, "native", &format!("edit-{loser}"))
+            .unwrap_err()
+            .code,
+        "REQUEST_NOT_FOUND"
     );
     check_result(
         &root.0,
