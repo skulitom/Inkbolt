@@ -75,19 +75,22 @@ request more operations and their schemas when needed.
 ## Project status
 
 Inkbolt is under active development. Core editing, CLI/MCP, sessions and durable
-receipts have Windows, Linux and macOS verification; background export jobs are
-currently Windows-only.
+receipts have verified Windows, Linux and macOS builds. The latest image repair
+and mask workflows have Windows/Linux acceptance; macOS verification covers an
+earlier build. See [platform support](docs/PLATFORMS.md) for the tested scope.
+Background export jobs are currently Windows-only.
 
 On `main`, Windows and Linux checks cover 50 MP images through local brush and
 repair edits, whole-image mask application, saved history and TIFF delivery.
 Large masks also support focused previews. Each operation has its own size,
-precision and work limits; large selections remain in development. See
+precision and work limits. See
 [large-image workflows](docs/SCALE_ADMISSION.md), [image repair](docs/NATIVE_REPAIR.md),
 [image masks](docs/NATIVE_MASKS.md) and [resource limits](docs/LIMITS.md) for the
 verified scope.
 
-Broader image workflows, editable format coverage and agent usability remain
-active work.
+Large selections, larger layered files, broader curve combinations and editable
+format interchange remain in development, alongside agent usability and
+complete large-image workflows.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.
 [Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their
