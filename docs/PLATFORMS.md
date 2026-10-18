@@ -69,6 +69,22 @@ history/TIFF checks matched; selected patch repair retained its explicit work
 refusal. Windows peak process commit was 36.094 MiB. Unix memory and the newer
 hosted macOS scope remain open.
 
+The subsequent [shared patch preparation](NATIVE_REPAIR.md#selected-patch-acceptance)
+passed all 265 stages fresh on matching unchanged inputs. Windows ran
+306 Rust and 2,768 Python tests (13 skips);
+Linux ran 272 Rust and 2,730 Python tests (51 skips).
+Complete 50 MP selected self-source/separate-donor patch, mask, brush, history
+and TIFF checks matched. Windows peak process commit was 36.719 MiB; the
+contract records timings, exact source identities and retained first attempts.
+Unix memory and newer hosted macOS acceptance remain open.
+
+The later [hosted run at `3cc2232`](https://github.com/skulitom/Inkbolt/actions/runs/39086192118)
+passed on Ubuntu and macOS but failed the Windows idle-exit enqueue test with
+`JOB_BUSY`. Its report and logs are retained with the shared-patch audit. The
+test assumes admission succeeds after a short lock release; the launcher has a
+documented bounded wait and retryable contention response. This failure requires
+investigation before another release; a passing local run does not resolve it.
+
 The v0.82.0 release remains bound to the earlier `133ebee`; downloaded
 Windows/Linux packages passed their separate checks. See
 [release acceptance](DEVELOPMENT_STATUS.md#w7w8-v0820-published-and-downloaded-packages-verified).

@@ -59,11 +59,11 @@ dependency is verified, including blocks outside the edited window. A missing,
 changed or corrupt source never becomes zero coverage.
 
 Source preparation retains the shared 536,870,912-unit ceiling. Patch repair
-currently prepares its selection and image again for delegated retouch and
-result inspection. A 50 MP selected patch therefore fails with `RESOURCE_LIMIT`;
-direct selected retouch fits the same ceiling. This refusal preserves the
-original revision and resources. Removing repeated preparation is still open;
-the ceiling is not raised to admit the operation.
+now shares operation-local verified image and selection readers with delegated
+retouch and uses its constructed result for quality checks. The subsequent
+[shared-preparation acceptance](NATIVE_REPAIR.md#selected-patch-acceptance) verifies
+selected self-source and separate-donor patches on a 50 MP target within that
+unchanged ceiling. Document aggregate and local edit limits still apply.
 
 Saved channels retain their bounded inline contract and reject native channel
 descriptors. Channel calculation, work-path selection, image-guided selection and
@@ -128,7 +128,9 @@ Focused feedback then passed in 75.2 seconds on Windows and 51.1 seconds on Linu
 Initial focused failures, both failed full runs and the 50 MP selected patch
 repair work-budget failure are retained. The accepted target explicitly verifies
 that refusal leaves the revision and resources unchanged, then uses direct
-selected retouch. No source-preparation limit or acceptance criterion is weakened.
+selected retouch. This describes the initial selection milestone; the subsequent
+[shared patch follow-up](NATIVE_REPAIR.md#selected-patch-acceptance) resolves the
+refusal without weakening a source-preparation limit or acceptance criterion.
 
 Frozen source fingerprint:
 `8bd1f5a32423efe9dd03bb0e71b71fdaf0aaf06a7a624935ca95598b61723dc5`.
@@ -136,7 +138,7 @@ Retained `w4-native-selection-acceptance-02/audit.json` SHA-256:
 `5a16271d3153bb3bf03ea5985eae65bf2ab3affe357097fa0d5d667ca55b7eaf`.
 The audit binds sources, executables, reports, complete independent oracles,
 compatibility results and retained first attempts. Subsequent documentation
-changes are recorded separately. Native segmentation, repeated patch preparation,
-large saved channels, larger layered files, repeated scale-v2 and Unix memory
+changes are recorded separately. Native segmentation, large saved channels,
+larger layered files, repeated scale-v2 and Unix memory
 remain open. The unchanged registry stays 163/167; full W4 and the broader
 agent-readiness goal are not complete.

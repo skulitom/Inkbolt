@@ -5,6 +5,32 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W4.6: selected patch repair verified within existing limits
+
+[Shared patch preparation](NATIVE_REPAIR.md#selected-patch-acceptance) removes
+repeated image/selection preparation from native patch search, blending and
+quality inspection. Dependency verification, sample precision, local work and
+memory admission retain their contracts.
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 265 | 306 | 2,768 | 13 | 865.000 |
+| Linux / WSL | 265 | 272 | 2,730 | 51 | 570.046 |
+
+All stages ran fresh on matching unchanged inputs. Ninety-six complete inline
+responses and saved-state payloads/hashes match the previous engine. Independent
+50 MP workflows checked every selection/image/TIFF sample for masks, selected
+brush and self-source/separate-donor patches, retries, pinned originals and all
+undo/redo states on Windows and Linux. The separate donor is 512x512. Documents,
+change receipts and exported hashes match; Windows peak process commit was
+36.719 MiB. Focused feedback passed in 76.4/62.2 seconds respectively.
+
+The contract records source/evidence identities and retained initial fixture and
+Clippy failures. Native segmentation, larger layered files, remaining W4 work,
+repeated scale-v2 and Unix memory remain open. The hosted Windows idle-exit
+`JOB_BUSY` failure recorded in [platform coverage](PLATFORMS.md) also needs
+resolution before another release. No checkpoint or release is added.
+
 ## W4.6: native selections verified within the bounded contract
 
 [Native selections](NATIVE_SELECTIONS.md) now support row-based authoring,
@@ -25,9 +51,9 @@ peak process commit was 36.094 MiB; Unix memory remains unavailable.
 
 The initial missing-selection error regressions were fixed, with final focused
 feedback of 75.2 seconds on Windows and 51.1 seconds on Linux. The 50 MP selected
-patch-repair budget refusal remains explicit and preserves the original state.
-Its repeated source preparation, native segmentation, larger layered files,
-repeated scale-v2 gates and verified Unix memory remain open. The contract binds
+patch-repair budget refusal preserved the original state at this milestone;
+the shared-preparation follow-up above resolves it. Native segmentation, larger
+layered files, repeated scale-v2 gates and verified Unix memory remain open. The contract binds
 source/evidence identities and retained failures; no new checkpoint or full W4
 completion is claimed.
 

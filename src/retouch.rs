@@ -261,7 +261,34 @@ pub(crate) fn apply(
     asset_root: Option<&Path>,
     control: &Control,
 ) -> Result<Value, Error> {
+    apply_with_inputs(document, index, o, asset_root, control, None).map(|(receipt, _)| receipt)
+}
+
+/// Borrow operation-local frozen readers from repair. They cannot outlive the
+/// operation or be populated from an unchecked public descriptor.
+pub(crate) struct Prepared<'p, 'a> {
+    pub target: &'p mut pixels::Pixels<'a>,
+    pub source: &'p mut pixels::Pixels<'a>,
+    pub selection: Option<&'p crate::selections::Prepared>,
+    pub local_work_before: u64,
+    pub retained_memory: u64,
+}
+
+pub(crate) fn apply_with_inputs<'a>(
+    document: &mut Document,
+    index: usize,
+    o: &Options,
+    asset_root: Option<&'a Path>,
+    control: &Control,
+    prepared: Option<Prepared<'_, 'a>>,
+) -> Result<(Value, pixels::Pixels<'a>), Error> {
     control.check()?;
+    let prior_work = prepared.as_ref().map_or(0, |p| p.local_work_before);
+    if prior_work > MAX_WORK {
+        return Err(limit(
+            "Repair and delegated retouch exceed local work limit",
+        ));
+    }
     if !o.opacity.is_finite() || !(0.0..=1.0).contains(&o.opacity) {
         return Err(invalid("Retouch opacity requires 0..1"));
     }
@@ -323,7 +350,8 @@ pub(crate) fn apply(
         + r.width as u64 * r.height as u64 * bounds::WORKING_BYTES_PER_PIXEL
         + bounds::FIXED_WORKING_BYTES
         + pixels::memory(&document.items[index].content)
-        + crate::selections::selection_memory(document, o.use_selection);
+        + crate::selections::selection_memory(document, o.use_selection)
+        + prepared.as_ref().map_or(0, |p| p.retained_memory);
     if source_index != index {
         memory += pixels::memory(&document.items[source_index].content);
     }
@@ -344,25 +372,41 @@ pub(crate) fn apply(
         ));
     }
     let mut work = Work {
-        count: 0,
+        count: prior_work,
         preparation: Default::default(),
         control,
     };
-    let mut target = pixels::Pixels::new(
-        &document.items[index].content,
-        asset_root,
-        "UNSUPPORTED_RETOUCH_ENCODING",
-        &mut work,
-    )?;
-    let mut source = if source_index == index {
-        target.clone()
-    } else {
-        pixels::Pixels::new(
-            &document.items[source_index].content,
+    let mut owned_target = if prepared.is_none() {
+        Some(pixels::Pixels::new(
+            &document.items[index].content,
             asset_root,
             "UNSUPPORTED_RETOUCH_ENCODING",
             &mut work,
-        )?
+        )?)
+    } else {
+        None
+    };
+    let mut owned_source = if let Some(target) = &owned_target {
+        Some(if source_index == index {
+            target.clone()
+        } else {
+            pixels::Pixels::new(
+                &document.items[source_index].content,
+                asset_root,
+                "UNSUPPORTED_RETOUCH_ENCODING",
+                &mut work,
+            )?
+        })
+    } else {
+        None
+    };
+    let (target, source, borrowed_selection) = match prepared {
+        Some(p) => (p.target, p.source, Some(p.selection)),
+        None => (
+            owned_target.as_mut().unwrap(),
+            owned_source.as_mut().unwrap(),
+            None,
+        ),
     };
     let source_hash = source.identity.clone();
     let target_hash = target.identity.clone();
@@ -386,13 +430,20 @@ pub(crate) fn apply(
     } else {
         vec![255; r.width as usize * r.height as usize]
     };
-    let selection = crate::selections::Prepared::for_edit(
-        document,
-        o.use_selection,
-        asset_root,
-        &mut work,
-        invalid,
-    )?;
+    let owned_selection;
+    let selection = match borrowed_selection {
+        Some(selection) => selection,
+        None => {
+            owned_selection = crate::selections::Prepared::for_edit(
+                document,
+                o.use_selection,
+                asset_root,
+                &mut work,
+                invalid,
+            )?;
+            owned_selection.as_ref()
+        }
+    };
     let world = scene::world_transform(document, index)?;
     work.add(n)?;
     let mut weights = vec![0.0; n];
@@ -606,17 +657,21 @@ pub(crate) fn apply(
         let at = ((y - y0) * w + r.x as usize - x0) * stride;
         patch.extend_from_slice(&output[at..at + r.width as usize * stride]);
     }
-    let (content, result_hash) = target.replace(
+    let (content, result) = target.replace_regions_prepared(
         &document.items[index].content,
-        crate::sample_store::Region {
-            x: r.x,
-            y: r.y,
-            width: r.width,
-            height: r.height,
-        },
-        &patch,
+        &[(
+            crate::sample_store::Region {
+                x: r.x,
+                y: r.y,
+                width: r.width,
+                height: r.height,
+            },
+            patch.as_slice(),
+        )],
         &mut work,
     )?;
+    let result_hash = &result.identity;
+    let local_work = work.count - prior_work;
     let global_extent =
         |ids: &[usize]| extent(ids, w).map(|b| [b[0] + x0, b[1] + y0, b[2] + x0, b[3] + y0]);
     let hash = format!(
@@ -625,7 +680,11 @@ pub(crate) fn apply(
     );
     control.check()?;
     document.items[index].content = content;
-    Ok(
-        json!({"algorithm":ALGORITHM,"settings_sha256":hash,"source_id":o.source_id,"source_sha256":source_hash,"target_before_sha256":target_hash,"result_sha256":result_hash,"region_pixels":ids.len(),"region_bounds":global_extent(&ids),"coverage_sum":weights.iter().sum::<f64>(),"components":components,"boundary_edges":boundary_edges,"image_edge_faces":image_edges,"perimeter":boundary_edges+image_edges,"changed_pixels":changed.len(),"changed_bounds":global_extent(&changed),"clamped_pixels":clamped,"solver_iterations":solver_iterations,"solver_residuals":residuals,"solver_residual_space":"unclamped_normalized_premultiplied_rgba","boundary_rms_before":seam(seam_before),"boundary_rms_after":seam(seam_after),"work":work.count+work.preparation.work,"local_work":work.count,"source_preparation_work":work.preparation.work,"coordinates":"target_native_grid_to_source_native_grid","source_sampling":"frozen_before_this_operation","selection_sampling":"world_mapped_native_centers","compositing":"masked_premultiplied_replacement_once","boundary_measurement":"four_connected_positive_coverage_domain","source_samples":source.spec,"target_samples":target.spec,"source_identity_kind":source.identity_kind,"target_identity_kind":target.identity_kind,"working_window":[x0,y0,w,h],"processing_memory_bound_bytes":memory,"files_written":false,"outside_region_preserved":true,"quantization":"one_final_straight_encoding_at_target_native_depth"}),
-    )
+    Ok((
+        json!({"algorithm":ALGORITHM,"settings_sha256":hash,"source_id":o.source_id,"source_sha256":source_hash,"target_before_sha256":target_hash,"result_sha256":result_hash,"region_pixels":ids.len(),"region_bounds":global_extent(&ids),"coverage_sum":weights.iter().sum::<f64>(),"components":components,"boundary_edges":boundary_edges,"image_edge_faces":image_edges,"perimeter":boundary_edges+image_edges,"changed_pixels":changed.len(),"changed_bounds":global_extent(&changed),"clamped_pixels":clamped,"solver_iterations":solver_iterations,"solver_residuals":residuals,"solver_residual_space":"unclamped_normalized_premultiplied_rgba","boundary_rms_before":seam(seam_before),"boundary_rms_after":seam(seam_after),"work":local_work+work.preparation.work,"local_work":local_work,"source_preparation_work":work.preparation.work,"coordinates":"target_native_grid_to_source_native_grid","source_sampling":"frozen_before_this_operation","selection_sampling":"world_mapped_native_centers","compositing":"masked_premultiplied_replacement_once","boundary_measurement":"four_connected_positive_coverage_domain","source_samples":source.spec,"target_samples":target.spec,"source_identity_kind":source.identity_kind,"target_identity_kind":target.identity_kind,"working_window":[x0,y0,w,h],"processing_memory_bound_bytes":memory,"files_written":false,"outside_region_preserved":true,"quantization":"one_final_straight_encoding_at_target_native_depth"}),
+        result,
+    ))
 }
+
+#[cfg(test)]
+mod tests;

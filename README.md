@@ -45,7 +45,7 @@ development version using the [installation guide](docs/INSTALLATION.md).
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Prebuilt Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. See its release notes for included features. |
-| Build from `main` | Adds larger image workflows, native JPEG import, large selections, high-precision repair and mask application, and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
+| Build from `main` | Adds larger image workflows, native JPEG import, large selections, selected patch repair, high-precision mask application and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -82,14 +82,13 @@ covers an earlier build. See [platform support](docs/PLATFORMS.md) for the teste
 scope.
 Background export jobs are currently Windows-only.
 
-On `main`, Windows and Linux checks cover 50 MP rectangular selections and
-feathering, selected brush and retouch edits, whole-image mask application,
-history and TIFF delivery. Local repair has separate 50 MP checks; selected patch
-repair still hits its work limit at that size. Large masks support focused
-previews. Each operation has its own size, precision and work limits. See
-[large-image workflows](docs/SCALE_ADMISSION.md), [image repair](docs/NATIVE_REPAIR.md),
-[image masks](docs/NATIVE_MASKS.md) and [resource limits](docs/LIMITS.md) for the
-verified scope.
+On `main`, Windows and Linux checks cover 50 MP images with rectangular
+selections and feathering, whole-image mask application, local selected brush
+and patch edits, undo/redo and TIFF delivery. Patch repair can use the same image
+or a separate donor within the document's size budget. Large masks support
+focused previews. Each operation retains its own size, precision and work limits;
+see [large-image workflows](docs/SCALE_ADMISSION.md) and
+[image repair](docs/NATIVE_REPAIR.md) for the verified scope.
 
 Large image-guided selections, larger layered files, broader curve combinations
 and editable format interchange remain in development, alongside agent usability

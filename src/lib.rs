@@ -1342,6 +1342,8 @@ fn capability_report() -> Value {
             "native_region_pixels": sample_store::MAX_REGION_PIXELS,
             "native_memory_bytes": limits::repair::MAX_MEMORY_BYTES,
             "native_source_preparation_work": limits::native_pixels::MAX_PREPARATION_WORK,
+            "native_patch_preparation": "operation_local_verified_readers_shared_by_search_blending_and_result_checks;no_repeated_full_source_preparation",
+            "native_patch_budget": "shared_local_work;simultaneous_repair_and_retouch_memory;existing_limits_unchanged",
             "native_windows": "selected_domain_and_halo;disjoint_move_destination;bounded_explicit_donor_region_or_admitted_complete_source",
             "native_quantization": "one_final_target_depth_encoding;outside_domain_exact",
             "patch_search_radius": [0, limits::repair::MAX_SEARCH_RADIUS],

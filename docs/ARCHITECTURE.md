@@ -16,8 +16,9 @@ increment has fresh full Windows/Linux acceptance under the [private edit contra
 Native selections use the same scalar dependencies and owned private extents,
 with row authoring, windowed local consumers and manifest-only durable projection.
 Their [contract](NATIVE_SELECTIONS.md) records fresh full Windows/Linux acceptance,
-complete 50 MP selection/mask/brush/retouch/history/TIFF checks, and the remaining
-selected patch-repair work limit.
+complete 50 MP selection/mask/brush/retouch/history/TIFF checks. The subsequent
+[shared patch contract](NATIVE_REPAIR.md#selected-patch-acceptance) admits selected
+self-source and separate-donor patches on 50 MP targets within unchanged limits.
 Mask preparation resolves hierarchy transforms only when needed.
 
 Native repair uses bounded typed views with sorted global cell addresses. The
@@ -25,8 +26,11 @@ shared algorithms retain their existing ordering and quality gates; disjoint
 move destinations do not allocate the gap between windows. Full dependency
 verification remains separate from local sample loading. Changed cells form
 block-local replacements against one prepared source, preserving private review
-and durable publication boundaries. See [native repair](NATIVE_REPAIR.md) for
-the contract and acceptance status.
+and durable publication boundaries. Patch search lends its verified image and
+selection readers to blending; quality checks read the constructed replacement.
+Delegated work inherits the search count, memory includes retained repair fields,
+and external block cache misses still verify bytes. No reader survives the
+operation. See [native repair](NATIVE_REPAIR.md) for the contract and acceptance.
 
 Explicit native-layer migration prepares block-mode snapshots with shared
 immutable pending buffers. Pure review retains those buffers; durable state

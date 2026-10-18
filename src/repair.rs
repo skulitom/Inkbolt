@@ -481,10 +481,11 @@ pub(crate) fn apply(
         preparation: Default::default(),
         control,
     };
-    let (target, native_source) = match native::inputs(document, index, o, asset_root, &mut work)? {
-        Some((target, source)) => (target, Some(source)),
-        None => (Grid::read(document, &document.items[index].id)?, None),
-    };
+    let (mut target, mut native_source) =
+        match native::inputs(document, index, o, asset_root, &mut work)? {
+            Some((target, source)) => (target, Some(source)),
+            None => (Grid::read(document, &document.items[index].id)?, None),
+        };
     let n = target.pixels.len();
     let mut weights = region(&o.region, &target)?;
     let world = scene::world_transform(document, index)?;
@@ -516,6 +517,7 @@ pub(crate) fn apply(
     let mut affected = weights.clone();
     let mut values = target.pixels.clone();
     work.add(n)?;
+    let mut patch_output = None;
     let action_receipt = match &o.action {
         Action::Patch {
             source_id,
@@ -536,9 +538,13 @@ pub(crate) fn apply(
                     bounds::MAX_CONTEXT_RADIUS
                 )));
             }
+            let inline_source;
             let source = match &native_source {
-                Some(source) => source.clone(),
-                None => Grid::read(document, source_id)?,
+                Some(source) => source,
+                None => {
+                    inline_source = Grid::read(document, source_id)?;
+                    &inline_source
+                }
             };
             let mut context_flag = vec![false; n];
             for &i in &ids {
@@ -629,7 +635,32 @@ pub(crate) fn apply(
                 opacity: o.opacity,
                 use_selection: o.use_selection,
             };
-            let details = retouch::apply(document, index, &ro, asset_root, control)?;
+            let source_hash = source.hash();
+            let details = if let Some(source) = &mut native_source {
+                // Retain the repair search/quality fields while borrowing its
+                // verified readers; account for both lifetimes before blending.
+                let retained_memory = (n + source.pixels.len()) as u64
+                    * bounds::WORKING_BYTES_PER_PIXEL
+                    + bounds::FIXED_WORKING_BYTES;
+                let (details, output) = retouch::apply_with_inputs(
+                    document,
+                    index,
+                    &ro,
+                    asset_root,
+                    control,
+                    Some(retouch::Prepared {
+                        target: target.reader.as_mut().unwrap(),
+                        source: source.reader.as_mut().unwrap(),
+                        selection: selection.as_ref(),
+                        local_work_before: work.count,
+                        retained_memory,
+                    }),
+                )?;
+                patch_output = Some(output);
+                details
+            } else {
+                retouch::apply(document, index, &ro, asset_root, control)?
+            };
             if native_source.is_some() {
                 work.add(details["local_work"].as_u64().expect("retouch local work") as usize)?;
                 typed::Budget::prepare(
@@ -641,7 +672,7 @@ pub(crate) fn apply(
             } else {
                 work.add(details["work"].as_u64().expect("retouch work") as usize)?;
             }
-            json!({"source_id":source_id,"source_sha256":source.hash(),"source_origin":chosen,"valid_candidates":valid,"context_cells":context.len(),"context_rms":rms,"retouch":details})
+            json!({"source_id":source_id,"source_sha256":source_hash,"source_origin":chosen,"valid_candidates":valid,"context_cells":context.len(),"context_rms":rms,"retouch":details})
         }
         Action::Fill { fill } | Action::Move { fill, .. } => {
             validate_fill(fill)?;
@@ -798,9 +829,8 @@ pub(crate) fn apply(
     let (changed, output) = if matches!(o.action, Action::Patch { .. }) {
         let out = if target.reader.is_some() {
             native::reload(
-                &document.items[index].content,
+                patch_output.expect("native patch result"),
                 &target,
-                asset_root,
                 &mut work,
             )?
         } else {

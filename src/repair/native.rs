@@ -240,12 +240,10 @@ fn read<'a>(
 }
 
 pub(super) fn reload<'a>(
-    content: &Content,
+    reader: typed::Pixels<'a>,
     before: &Grid,
-    root: Option<&'a Path>,
     work: &mut Work<'_>,
 ) -> Result<Grid<'a>, Error> {
-    let reader = typed::Pixels::new(content, root, "UNSUPPORTED_REPAIR_ENCODING", work)?;
     read(reader, before.locations.as_ref().unwrap().clone(), work)
 }
 

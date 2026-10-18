@@ -109,8 +109,10 @@ acceptance and 50 MP evidence for all four repair actions. Whole-image native
 Windows/Linux acceptance, every-sample 50 MP checks and the Windows memory target.
 [Native selections](NATIVE_SELECTIONS.md) subsequently passed full Windows/Linux
 acceptance and complete 50 MP shape/feather/mask/selected-brush/retouch/history/TIFF
-checks. Selected patch repair still exceeds its shared source-preparation budget
-at that size; its refusal preserves the revision and resources. Complete W4,
+checks. The subsequent [shared patch preparation](NATIVE_REPAIR.md#selected-patch-acceptance)
+passed fresh full Windows/Linux suites and complete 50 MP selected self-source
+and separate-donor patch/mask/brush/history/TIFF checks. The separate donor is
+512x512; document aggregate and local edit bounds remain unchanged. Complete W4,
 repeated scale-v2 and Unix memory acceptance remain open.
 
 Frozen full-suite input fingerprint:

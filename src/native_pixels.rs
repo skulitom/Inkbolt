@@ -239,8 +239,21 @@ impl<'a> Pixels<'a> {
         regions: &[(Region, &[u8])],
         work: &mut impl Budget,
     ) -> Result<(Content, String), Error> {
+        let (content, result) = self.replace_regions_prepared(content, regions, work)?;
+        Ok((content, result.identity))
+    }
+
+    /// Retain the constructed result for a later local quality check. Inputs
+    /// were verified by this reader; every external cache miss still verifies
+    /// its block. No descriptor supplied by a caller can claim this provenance.
+    pub fn replace_regions_prepared(
+        &self,
+        content: &Content,
+        regions: &[(Region, &[u8])],
+        work: &mut impl Budget,
+    ) -> Result<(Content, Self), Error> {
         let mut content = content.clone();
-        let identity = match &self.data {
+        let (identity, data) = match &self.data {
             Data::Inline(original) => {
                 let stride = self.stride();
                 let mut output = original.clone();
@@ -255,7 +268,7 @@ impl<'a> Pixels<'a> {
                         output[at..at + len].copy_from_slice(&bytes[start..start + len]);
                     }
                 }
-                match &mut content {
+                let identity = match &mut content {
                     Content::Raster { rgba_hex, .. } => {
                         *rgba_hex = render::hex(&output);
                         assets::identity(self.spec.width, self.spec.height, &output)
@@ -268,7 +281,8 @@ impl<'a> Pixels<'a> {
                             .clone()
                     }
                     _ => unreachable!(),
-                }
+                };
+                (identity, Data::Inline(output))
             }
             Data::Stored(before) => {
                 let Content::StoredSamples { grid } = &mut content else {
@@ -294,10 +308,21 @@ impl<'a> Pixels<'a> {
                     }
                     current = after;
                 }
-                current.manifest().sha256.clone()
+                (current.manifest().sha256.clone(), Data::Stored(current))
             }
         };
-        Ok((content, identity))
+        Ok((
+            content,
+            Self {
+                spec: self.spec,
+                identity,
+                identity_kind: self.identity_kind,
+                data,
+                root: self.root,
+                cache: BTreeMap::new(),
+                clock: 0,
+            },
+        ))
     }
 }
 

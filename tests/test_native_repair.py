@@ -10,6 +10,7 @@ import test_agent_workspace as workspace
 import test_native_retouch as native
 import test_repair_cli as legacy
 from test_mcp import Client
+from test_native_masks import scalar
 from test_sample_conversion_cli import tiff
 from test_samples_cli import packed
 
@@ -64,6 +65,84 @@ class NativeRepairTests(unittest.TestCase):
                         self.assertEqual(detail['window_pixels'], 16)
                         self.assertEqual(detail['source_window_pixels'], 84)
                         self.assertEqual(detail['work'], detail['local_work'] + detail['source_preparation_work'])
+
+    def test_selected_patch_reuses_verified_inputs_in_all_sample_formats(self):
+        w,h=133,7
+        coverage=lambda x,y:255 if (x+y)%2 else 0
+        manifest,blobs=scalar(w,h,coverage)
+        store=self.root/'.inkbolt/assets';store.mkdir(parents=True,exist_ok=True)
+        for digest,blob in blobs.items():(store/(digest+'.native-tile')).write_bytes(blob)
+        selection=dict(width=w,height=h,gray_hex='',native=dict(base=manifest))
+        for depth in ['u8','u16','f32']:
+            for n in [2,4]:
+                maximum={'u8':255,'u16':65535,'f32':1}[depth]
+                values=[c for y in range(h) for x in range(w) for c in
+                        [(((x+y+k)%16)/16 if depth=='f32' else ((x+y+k)%16)*maximum//16) for k in range(n-1)]+[maximum]]
+                for version in [None,1,2]:
+                    for distinct in [False,True]:
+                        with self.subTest(depth=depth,channels=n,version=version,distinct=distinct):
+                            d=self.imported(w,h,values,depth,n,version)
+                            d['selection']=selection
+                            original=self.raw(d);source=original
+                            if distinct:
+                                # Keep opacity and valid straight colors; only reverse spatial cells.
+                                donor=self.imported(w,h,[c for i in range(w*h-1,-1,-1) for c in values[i*n:(i+1)*n]],depth,n,version)['items'][0]
+                                donor['id']='donor';donor['visible']=False;d['items'].append(donor)
+                                source=self.raw(d,1)
+                            action=dict(type='patch',source_id='donor' if distinct else 'pixels',source_origin=[122,2],search_radius=0,context_radius=1,max_context_rms=1,blend=dict(type='clone'))
+                            result=self.apply(d,legacy.options(legacy.region(127,2,3,2),action,use_selection=True))
+                            stride=n*{'u8':1,'u16':2,'f32':4}[depth];expected=bytearray(original)
+                            for y in range(2,4):
+                                for x in range(127,130):
+                                    if coverage(x,y):expected[(y*w+x)*stride:(y*w+x+1)*stride]=source[(y*w+x-5)*stride:(y*w+x-4)*stride]
+                            self.assertEqual(self.raw(result['document']),expected)
+                            self.assertEqual(self.raw(d),original)
+                            if distinct:self.assertEqual(result['document']['items'][1],d['items'][1])
+                            detail=result['changes'][0]['details']
+                            self.assertEqual(detail['source_preparation_work'],w*h*3*(1+(0 if version is None else 2 if distinct else 1)))
+                            self.assertEqual(detail['action']['retouch']['source_preparation_work'],0)
+                            self.assertEqual(detail['work'],detail['local_work']+detail['source_preparation_work'])
+
+    def test_shared_selected_clone_and_heal_match_rational_reference_and_history(self):
+        w,h=7,6
+        target=[[20003+x*31,21001+y*71,34003+x+y,59003] for y in range(h) for x in range(w)]
+        source=[[7001+x*277,13003+y*577,25007+x*y*31,55001+x*233] for y in range(h) for x in range(w)]
+        coverage=lambda x,y:[0,64,128,255][(x+2*y)%4]
+        manifest,blobs=scalar(w,h,coverage)
+        store=self.root/'.inkbolt/assets';store.mkdir(parents=True,exist_ok=True)
+        for digest,blob in blobs.items():(store/(digest+'.native-tile')).write_bytes(blob)
+        r=legacy.region(2,2,3,2)
+        for mode in ['clone','heal']:
+            with self.subTest(mode=mode):
+                d=self.imported(w,h,[c for pixel in target for c in pixel])
+                donor=self.imported(w,h,[c for pixel in source for c in pixel])['items'][0]
+                donor['id']='donor';donor['visible']=False;d['items'].append(donor)
+                d['selection']=dict(width=w,height=h,gray_hex='',native=dict(base=manifest))
+                blend=dict(type=mode,**(dict(screening=.25,tolerance=1e-12) if mode=='heal' else {}))
+                action=dict(type='patch',source_id='donor',source_origin=[2,2],search_radius=0,context_radius=1,max_context_rms=1,blend=blend)
+                o=legacy.options(r,action,use_selection=True,opacity=.625)
+                reference=dict(source_id='donor',region=legacy.region(2,2,3,2,[coverage(x,y) for y in range(2,4) for x in range(2,5)]),mode=blend,opacity=.625)
+                expected=native.oracle(target,source,w,h,reference)
+                result=self.apply(d,o)
+                self.assert_codes(self.raw(result['document']),expected)
+                self.assertEqual(result['changes'][0]['details']['source_preparation_work'],w*h*9)
+                before=self.files()
+                self.apply(d,dict(o,max_boundary_rms=0),error='REPAIR_QUALITY')
+                self.assertEqual(before,self.files())
+        # The native patch path participates in private proposals and exact retries.
+        self.save(d)
+        action=dict(type='edit',operations=[dict(op='repair',id='pixels',options=o)])
+        before=self.files()
+        review=self.cli('session.dry_run',session_id='work',request_id='patch',expected_revision=0,action=action,options=dict(include_document=True))
+        self.assertEqual(before,self.files())
+        saved=self.cli('session.apply_proposal',proposal=review['proposal'],action=action)
+        self.assertEqual(saved['receipt'],review['predicted_receipt'])
+        self.assert_codes(self.raw(saved['document']),expected)
+        self.assertTrue(self.cli('session.apply_proposal',proposal=review['proposal'],action=action)['replayed'])
+        undone=self.cli('session.apply',session_id='work',request_id='undo',expected_revision=1,action=dict(type='undo'))
+        self.assertEqual(self.raw(undone['document']),self.raw(d))
+        redone=self.cli('session.apply',session_id='work',request_id='redo',expected_revision=2,action=dict(type='redo'))
+        self.assert_codes(self.raw(redone['document']),expected)
 
     def test_typed_fill_replays_exhaustive_donor_minima_without_eight_bit_rounding(self):
         # The independent original repair oracle consumes normalized RGBA8-valued
@@ -238,6 +317,8 @@ class NativeRepairTests(unittest.TestCase):
         blob=path.read_bytes();path.write_bytes(blob[:-1]+bytes([blob[-1]^1]))
         o=legacy.options(legacy.region(2,2,1,1),dict(type='edge_correct',guide_id='pixels',radius=1,range_sigma=.1,max_change_rms=1))
         self.apply(d,o,error='SAMPLE_TILE_CORRUPT')
+        patch=legacy.options(legacy.region(2,2,1,1),dict(type='patch',source_id='pixels',source_origin=[1,1],max_context_rms=1,blend=dict(type='clone')))
+        self.apply(d,patch,error='SAMPLE_TILE_CORRUPT')
 
     def test_self_donor_exclusion_move_overlap_boundaries_and_atomic_rejections(self):
         w,h=138,7; background=[10003,20011,30013,65535]
