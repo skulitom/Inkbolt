@@ -1,5 +1,11 @@
 # Architecture
 
+Native image-guided selection reads an explicit region through verified native
+readers and preserves high-depth source samples. Its declared integer features
+feed the existing exact cut solver; compact edit summaries keep maximum-region
+masks reviewable in sessions. See [native region selection](NATIVE_SEGMENTATION.md)
+for precision, budgets and Windows/Linux acceptance.
+
 Image and scalar blocks share sealed-layout candidates, transfer validation and
 create-only publication. The existing image-store Rust aliases and schemas keep
 their representation; scalar coverage has distinct block/manifest identities and

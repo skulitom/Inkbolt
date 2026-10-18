@@ -34,11 +34,14 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `assistance.PLACEMENT_ERROR` | `f64` | 1e-07 | `1e-7` |
 | `assistance_segment.CONTROL_WORK_INTERVAL` | `u64` | 2048 | `2048` |
 | `assistance_segment.DEFAULT_WEIGHT` | `u32` | 4096 | `4096` |
+| `assistance_segment.FIXED_WORKING_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |
 | `assistance_segment.MAX_EDGE_SCALE` | `u32` | 260100 | `4 * 255 * 255` |
+| `assistance_segment.MAX_MEMORY_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
 | `assistance_segment.MAX_PIXELS` | `usize` | 65536 | `65_536` |
 | `assistance_segment.MAX_SEEDS` | `usize` | 32 | `32` |
 | `assistance_segment.MAX_SMOOTHNESS` | `u32` | 65535 | `65535` |
 | `assistance_segment.MAX_WORK` | `u64` | 67108864 | `67_108_864` |
+| `assistance_segment.WORKING_BYTES_PER_PIXEL` | `u64` | 1024 | `1024` |
 | `blending.COMPARISON_TIE_EPSILONS` | `u32` | 8 | `8` |
 | `boards.GUIDE_ALIGNMENT_TOLERANCE` | `f64` | 1e-08 | `1e-8` |
 | `boards.MAX_ARTBOARDS` | `usize` | 32 | `32` |

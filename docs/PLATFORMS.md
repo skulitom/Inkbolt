@@ -79,6 +79,13 @@ contract records timings, exact source identities and retained first attempts.
 The later hosted matrix above includes this engine increment. Unix memory and
 macOS target-image measurements remain open.
 
+The subsequent [native region selection](NATIVE_SEGMENTATION.md) passed all
+266 fresh stages on Windows and Linux with matching unchanged inputs. Independent
+50 MP maximum-region selection, mask application, history and TIFF sample checks
+matched across both platforms. Windows peak process commit was 60.730 MiB;
+Unix memory remains unavailable. This local increment makes no new hosted macOS
+claim; its contract records the complete counts, failures and evidence.
+
 The earlier [hosted run at `3cc2232`](https://github.com/skulitom/Inkbolt/actions/runs/39086192118)
 passed on Ubuntu and macOS but failed the Windows idle-exit enqueue test with
 `JOB_BUSY`. Its report and logs are retained with the shared-patch audit. The

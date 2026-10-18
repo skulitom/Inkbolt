@@ -5,6 +5,28 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W4.6: native region selection verified
+
+[Native region selection](NATIVE_SEGMENTATION.md) now accepts stored and
+high-precision sources without converting their pixels. Explicit global seeds
+and region placement retain exact integer-cut certificates; normalized float
+analysis declares its quantization. Native edit summaries keep the maximum
+region's mask reviewable without duplicating it into bounded session receipts.
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 266 | 306 | 2,775 | 13 | 828.344 |
+| Linux / WSL | 266 | 272 | 2,737 | 51 | 509.250 |
+
+All stages ran fresh on matching unchanged inputs. Independent 50 MP Windows/Linux
+workflows checked every source/edited/TIFF sample, every maximum-region cut cost
+and mask cell, proposal/retry and all history states. Cross-platform documents,
+change receipts and hashes match; Windows peak process commit was 60.730 MiB.
+Ninety-six successful eight-bit responses remain identical. The contract records
+the retained initial receipt failure, focused corrections and source/evidence
+identities. Proxy/refine selection, larger operation regions, larger layered files,
+repeated scale-v2 and Unix memory remain open. No registry point or release is added.
+
 ## W4.6: selected patch repair verified within existing limits
 
 [Shared patch preparation](NATIVE_REPAIR.md#selected-patch-acceptance) removes

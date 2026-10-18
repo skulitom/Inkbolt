@@ -138,7 +138,8 @@ Retained `w4-native-selection-acceptance-02/audit.json` SHA-256:
 `5a16271d3153bb3bf03ea5985eae65bf2ab3affe357097fa0d5d667ca55b7eaf`.
 The audit binds sources, executables, reports, complete independent oracles,
 compatibility results and retained first attempts. Subsequent documentation
-changes are recorded separately. Native segmentation, large saved channels,
+changes are recorded separately. The [native region selection follow-up](NATIVE_SEGMENTATION.md) has separate
+acceptance. Proxy/refine selection, large saved channels,
 larger layered files, repeated scale-v2 and Unix memory
 remain open. The unchanged registry stays 163/167; full W4 and the broader
 agent-readiness goal are not complete.

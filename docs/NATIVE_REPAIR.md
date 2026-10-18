@@ -189,7 +189,8 @@ These were one-run diagnostics while full suites were active, not repeated
 latency acceptance or general photographic reconstruction evidence. The later
 [mask](NATIVE_MASKS.md) and [selection](NATIVE_SELECTIONS.md) contracts record their
 separate acceptance. The shared-preparation follow-up above resolves the later
-50 MP selected patch refusal. Segmentation, larger brush/retouch regions,
+50 MP selected patch refusal. The [native region selection follow-up](NATIVE_SEGMENTATION.md) has separate
+acceptance. Proxy/refine selection, larger brush/retouch regions,
 larger layered files, repeated scale-v2 and verified Unix memory remain open. Full W4
 and the overall agent-readiness goal are not complete. The registry stays 163/167;
 v0.82.0 is unchanged.

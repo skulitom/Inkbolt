@@ -1,6 +1,6 @@
 # Local pixel assistance
 
-Selection smoothness, edge scale and their shared defaults use the catalog. The edge-scale maximum derives from the largest squared distance across four encoded-byte features. Layout placement error is separately catalog-backed. Energy equations, deterministic ties, source retention and work accounting are unchanged.
+Selection smoothness, edge scale and their shared defaults use the catalog. The edge-scale maximum derives from the largest squared distance across four encoded-byte features. Layout placement error is separately catalog-backed. The original eight-bit energy and deterministic tie rules retain their contract. Native-region analysis uses the declared feature precision and source-preparation accounting below.
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
@@ -8,7 +8,7 @@ Agents can select an object from explicit foreground/background seeds, apply an 
 
 ## Select and inspect
 
-`assist.segment` accepts a document, an item `id`, `options`, an optional explicit `asset_root`, and ordinary execution `control`. Supported sources are inline RGBA8, encoded eight-bit RGBA/gray-alpha sample grids, and verified stored or embedded RGBA8 image assets. An image crop is applied before selection. Native source pixels are examined before masks, clips, opacity, filters and effects. High-depth, HDR and retained pixel deformations require explicit preparation; they are never silently reduced or baked.
+`assist.segment` accepts a document, an item `id`, `options`, an optional explicit `asset_root`, and ordinary execution `control`. Sources include inline RGBA8, typed RGBA/gray-alpha grids, stored native samples and verified stored or embedded RGBA8 image assets. An image crop is applied before selection. Native source pixels are examined before masks, clips, opacity, filters and effects. The [native-region contract](NATIVE_SEGMENTATION.md) defines explicit regions, 16-bit and normalized float analysis, source verification and its acceptance status. Visible HDR range, linear/profiled encodings and retained pixel deformations require explicit preparation; they are never silently reduced or baked.
 
 ```json
 {
@@ -35,7 +35,7 @@ This is a precisely defined seeded colour/edge objective, not an assertion that 
 
 `{"op":"assist_mask","id":"pixels","options":{...}}` applies the same selection through atomic editing. The mask follows the item's transform; placed image masks include the native-to-display scale. Original pixel/asset/sample content stays unchanged. An existing pixel mask requires explicit `"replace_existing":true`. Locks, expected revisions, cancellation, undo/redo and retry rules are shared with ordinary edits. Read-only selection can inspect a locked item; editing it cannot bypass locks.
 
-Limits are 65,536 cropped native pixels, 32 seeds per class and 67,108,864 selection work units. Stored image reading also retains the existing bounded asset limits and verifies the complete source asset identity. Cost construction, graph traversal and augmentation count toward the work budget. Selection returns no approximate mask on resource or deadline failure. Mask preparation, document validation and delivery retain their existing bounds. Stored assets need their explicitly supplied local root; embedded/inline inputs need no resource files. Unknown model or remote-service fields fail schema validation.
+Limits are 65,536 pixels in the requested native region, 32 seeds per class and 67,108,864 local selection work units. Native source preparation has its separate existing budget. New native edit receipts retain mask metadata and its hash; inspect with `assist.segment` for complete mask bytes and optional per-pixel costs. Stored image reading also retains the existing bounded asset limits and verifies the complete source asset identity. Cost construction, graph traversal and augmentation count toward the work budget. Selection returns no approximate mask on resource or deadline failure. Mask preparation, document validation and delivery retain their existing bounds. Stored assets need their explicitly supplied local root; embedded/inline inputs need no resource files. Unknown model or remote-service fields fail schema validation.
 
 ## Remove, denoise and enlarge
 
@@ -47,7 +47,7 @@ The selected mask composes with existing original operators; no second copy of t
 | Reduce noise | `repair` / `edge_correct` | Use the original item itself as `guide_id` for a self-guided weighted median. Radius, range sigma and maximum allowed change are explicit. The guide and target are frozen before the operation; no clean reference is supplied to the engine. |
 | Enlarge | `canvas` / `scale` | Set the destination width/height and `sampling:"lanczos3"` (or another explicit supported kernel). Editable layer placement and original native samples remain retained. Reconstruction interpolates existing information; it does not recover unknown detail. |
 
-The bundled removal and denoising example uses inline RGBA8. [Repair](REPAIR.md) also accepts typed and stored samples under the [native repair contract](NATIVE_REPAIR.md), using explicit bounded regions and donors. Segmentation retains its own input and mask limits; this repair extension does not add native segmentation regions or block-mask storage. Selection of an image asset does not silently convert it to an editable pixel layer. Reconstruction and border rules are in [RESAMPLING.md](RESAMPLING.md) and [CANVAS.md](CANVAS.md). Keep the original snapshot or use a persistent session; edits return new source states and session history preserves undo. Run removal from the original source snapshot, not an already extracted foreground view, unless retaining that mask is intentional.
+The bundled removal and denoising example uses inline RGBA8. [Repair](REPAIR.md) also accepts typed and stored samples under the [native repair contract](NATIVE_REPAIR.md), using explicit bounded regions and donors. Segmentation retains its own input and mask limits; its native-region extension is described separately. Selection of an image asset does not silently convert it to an editable pixel layer. Reconstruction and border rules are in [RESAMPLING.md](RESAMPLING.md) and [CANVAS.md](CANVAS.md). Keep the original snapshot or use a persistent session; edits return new source states and session history preserves undo. Run removal from the original source snapshot, not an already extracted foreground view, unless retaining that mask is intentional.
 
 ## Original evidence and example
 

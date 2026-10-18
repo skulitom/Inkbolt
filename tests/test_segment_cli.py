@@ -124,4 +124,6 @@ class SegmentTests(unittest.TestCase):
             sample=copy.deepcopy(d);sample['items'][0]['content']=dict(type='samples',grid=dict(width=2,height=2,depth='u8',channels=channels,data_hex=data.hex()));sample=self.valid(sample)
             self.assertEqual(self.segment(sample,o)['mask'],expected);changed=self.edit(sample,dict(op='assist_mask',id='pixels',options=o));self.assertEqual(changed['items'][0]['content'],sample['items'][0]['content'])
             high=copy.deepcopy(sample);grid=high['items'][0]['content']['grid'];grid['depth']='u16';grid['data_hex']=b''.join((b*257).to_bytes(2,'little') for b in data).hex();high=self.valid(high)
-            self.assertEqual(self.segment(high,o,1)['code'],'UNSUPPORTED')
+            report=self.segment(high,o);self.assertEqual(report['mask'],expected)
+            self.assertEqual(report['analysis']['feature_bits'],16);self.assertIsNone(report['analysis']['approximation'])
+            self.assertEqual(self.edit(high,dict(op='assist_mask',id='pixels',options=o))['items'][0]['content'],high['items'][0]['content'])

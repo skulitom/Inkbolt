@@ -81,6 +81,12 @@ pub mod assistance_segment {
     pub const MAX_SEEDS: usize = 32;
     /// Max work (assistance segment).
     pub const MAX_WORK: u64 = 67_108_864;
+    /// Combined native preparation, graph and response-construction admission.
+    pub const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
+    /// Conservative simultaneous graph, solver, sample and optional JSON fields.
+    pub const WORKING_BYTES_PER_PIXEL: u64 = 1024;
+    /// Fixed allowance for native-region selection bookkeeping and buffers.
+    pub const FIXED_WORKING_BYTES: u64 = 8 * 1024 * 1024;
 }
 
 /// Limits for `src/assistance.rs`.

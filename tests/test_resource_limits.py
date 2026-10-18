@@ -693,6 +693,9 @@ BINDINGS = {
     'pixel_brushes/maximum_processing_memory_bytes': 'pixel_brush.MAX_MEMORY_BYTES',
     'pixel_assistance/maximum_pixels': 'assistance_segment.MAX_PIXELS',
     'pixel_assistance/maximum_work': 'assistance_segment.MAX_WORK',
+    'pixel_assistance/native_region/maximum_pixels': 'assistance_segment.MAX_PIXELS',
+    'pixel_assistance/native_region/memory_bytes': 'assistance_segment.MAX_MEMORY_BYTES',
+    'pixel_assistance/native_region/source_preparation_work': 'native_pixels.MAX_PREPARATION_WORK',
     'job_process/default_lifetime_ms': 'job_process.DEFAULT_LIFETIME_MS',
     'job_process/maximum_lifetime_ms': 'job_process.MAX_LIFETIME_MS',
     'job_process/default_committed_memory_mib': 'job_process.DEFAULT_MEMORY_MIB',
@@ -912,6 +915,9 @@ class ResourceLimitTests(unittest.TestCase):
         # Selection zero/required-positive and normalized volume endpoints are
         # structural semantics; all other numeric controls have catalog bindings.
         fixed = {'pixel_assistance/smoothness/0':0, 'pixel_assistance/edge_scale/0':1,
+                 'pixel_assistance/native_region/feature_bits/u8':8,
+                 'pixel_assistance/native_region/feature_bits/u16':16,
+                 'pixel_assistance/native_region/feature_bits/f32':16,
                  'volumes/depth/0':0, 'volumes/light_intensity/0':0}
         for path, expected in fixed.items():
             value = capabilities()

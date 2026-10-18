@@ -50,7 +50,7 @@ for setup on your system.
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Prebuilt Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. See its release notes for included features. |
-| Build from `main` | Adds larger image workflows, native JPEG import, large selections, selected patch repair, high-precision mask application and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
+| Build from `main` | Adds larger image workflows, native JPEG import, large selections, image-guided region masks, selected patch repair, high-precision mask application and lower-memory PNG/JPEG/TIFF exports. These additions are not in v0.82.0. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -85,8 +85,9 @@ Inkbolt is under active development. The verified scope on `main` includes:
 | Area | Verified coverage |
 | --- | --- |
 | Core engine and agent interface | Windows, Linux and macOS builds, including CLI/MCP, sessions, revision history and durable file-delivery receipts |
-| Selections, masks and image repair | Full test suites on all three platforms, including patch repair from the same image or a separate donor |
-| 50 MP image workflows | Independent Windows/Linux checks for rectangular selections, feathering, mask application, local selected brush and patch edits, undo/redo and TIFF delivery |
+| Rectangular selections, masks and image repair | Full test suites on all three platforms, including patch repair from the same image or a separate donor |
+| 50 MP image workflows | Independent Windows/Linux checks for rectangular selections, feathering, image-guided region masks, mask application, local selected brush and patch edits, undo/redo and TIFF delivery |
+| Image-guided region selection | Windows/Linux checks for stored and high-precision images; [explicit regions](docs/NATIVE_SEGMENTATION.md) retain original source pixels |
 | Background export jobs | Windows only |
 
 The [platform evidence](docs/PLATFORMS.md) identifies the tested revisions and
@@ -95,7 +96,7 @@ and work limits; the measured workflows do not establish support for every
 operation or composition at 50 MP. See [large-image workflows](docs/SCALE_ADMISSION.md)
 and [image repair](docs/NATIVE_REPAIR.md) for details.
 
-Work in progress includes image-guided selections on large images, larger layered
+Work in progress includes proxy-based whole-image selection, larger layered
 files, broader curve combinations and editable format interchange. Agent usability
 and complete large-image workflows also remain part of the active plan.
 

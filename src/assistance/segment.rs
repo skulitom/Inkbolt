@@ -7,6 +7,7 @@ use std::{
     collections::{HashSet, VecDeque},
     path::Path,
 };
+mod input;
 
 use crate::limits::assistance_segment as limits;
 pub use crate::limits::assistance_segment::MAX_PIXELS;
@@ -22,6 +23,8 @@ fn invalid(message: &str) -> Error {
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Options {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<crate::sample_store::Region>,
     pub foreground: Vec<[u32; 2]>,
     pub background: Vec<[u32; 2]>,
     #[serde(default = "default_weight")]
@@ -33,7 +36,19 @@ pub struct Options {
 }
 struct Work<'a> {
     count: u64,
+    preparation: crate::native_pixels::Preparation,
     control: &'a Control,
+}
+impl crate::native_pixels::Budget for Work<'_> {
+    fn charge(&mut self, pixels: usize) -> Result<(), Error> {
+        self.add(pixels as u64)
+    }
+    fn control(&self) -> &Control {
+        self.control
+    }
+    fn preparation(&mut self) -> &mut crate::native_pixels::Preparation {
+        &mut self.preparation
+    }
 }
 impl Work<'_> {
     fn add(&mut self, count: u64) -> Result<(), Error> {
@@ -57,92 +72,12 @@ struct Grid {
     height: u32,
     bytes: Vec<u8>,
     transform: Matrix,
+    origin: [u32; 2],
+    features: Option<Vec<[i64; 4]>>,
+    feature_scale: u64,
+    analysis: Option<Value>,
 }
-fn grid(document: &Document, id: &str, root: Option<&Path>) -> Result<Grid, Error> {
-    let i = scene::index(document, id)?;
-    crate::pixel_warps::reject_native(&document.items[i])?;
-    match &document.items[i].content {
-        Content::Samples { grid } => {
-            if grid.profile.is_some() {
-                return Err(Error::new(
-                    "PROFILE_CONVERSION_REQUIRED",
-                    "Local selection requires explicit sample_profile conversion to working sRGB",
-                ));
-            }
-            if grid.depth != crate::samples::Depth::U8 {
-                return Err(Error::new(
-                    "UNSUPPORTED",
-                    "Local selection requires explicit conversion of high-depth samples to encoded eight-bit input",
-                ));
-            }
-            size(grid.width, grid.height)?;
-            let data = render::unhex(&grid.data_hex);
-            let bytes = match grid.channels {
-                crate::samples::Channels::Rgba => data,
-                crate::samples::Channels::GrayAlpha => data
-                    .as_chunks::<2>()
-                    .0
-                    .iter()
-                    .flat_map(|p| [p[0], p[0], p[0], p[1]])
-                    .collect(),
-            };
-            Ok(Grid {
-                width: grid.width,
-                height: grid.height,
-                bytes,
-                transform: identity(),
-            })
-        }
-        Content::Raster {
-            width,
-            height,
-            rgba_hex,
-            ..
-        } => {
-            size(*width, *height)?;
-            Ok(Grid {
-                width: *width,
-                height: *height,
-                bytes: render::unhex(rgba_hex),
-                transform: identity(),
-            })
-        }
-        Content::Image {
-            asset_id,
-            width,
-            height,
-            crop,
-            ..
-        } => {
-            let asset = &document.assets[asset_id];
-            let crop = assets::crop(asset.width, asset.height, *crop)?;
-            size(crop.width, crop.height)?;
-            let pixels = assets::load(asset, root)?;
-            let mut bytes = Vec::with_capacity(crop.width as usize * crop.height as usize * 4);
-            for y in crop.y..crop.y + crop.height {
-                let start = (y as usize * pixels.width as usize + crop.x as usize) * 4;
-                bytes.extend_from_slice(&pixels.rgba[start..start + crop.width as usize * 4]);
-            }
-            Ok(Grid {
-                width: crop.width,
-                height: crop.height,
-                bytes,
-                transform: [
-                    width / crop.width as f64,
-                    0.0,
-                    0.0,
-                    height / crop.height as f64,
-                    0.0,
-                    0.0,
-                ],
-            })
-        }
-        _ => Err(Error::new(
-            "UNSUPPORTED",
-            "Local selection requires an inline eight-bit pixel layer or a verified RGBA8 image asset",
-        )),
-    }
-}
+
 fn size(width: u32, height: u32) -> Result<(), Error> {
     if width == 0 || height == 0 || width as u64 * height as u64 > MAX_PIXELS as u64 {
         return Err(Error::new(
@@ -301,7 +236,12 @@ fn evaluate(
             limits::MAX_EDGE_SCALE
         )));
     }
-    let grid = grid(document, id, root)?;
+    let mut work = Work {
+        count: 0,
+        preparation: Default::default(),
+        control,
+    };
+    let mut grid = input::read(document, id, options.region, root, &mut work)?;
     let n = grid.width as usize * grid.height as usize;
     let mut seen = HashSet::new();
     let mut seeds = [Vec::new(), Vec::new()];
@@ -310,16 +250,25 @@ fn evaluate(
         .enumerate()
     {
         for &[x, y] in values {
-            if x >= grid.width || y >= grid.height || !seen.insert([x, y]) {
+            if x < grid.origin[0]
+                || y < grid.origin[1]
+                || x - grid.origin[0] >= grid.width
+                || y - grid.origin[1] >= grid.height
+                || !seen.insert([x, y])
+            {
                 return Err(invalid(
                     "Seed coordinates must be unique across both classes and inside the native cropped grid",
                 ));
             }
-            seeds[class].push(y as usize * grid.width as usize + x as usize);
+            seeds[class].push(
+                (y - grid.origin[1]) as usize * grid.width as usize + (x - grid.origin[0]) as usize,
+            );
         }
     }
-    let features: Vec<_> = grid.bytes.as_chunks::<4>().0.iter().map(feature).collect();
-    let mut work = Work { count: 0, control };
+    let features: Vec<_> = grid
+        .features
+        .take()
+        .unwrap_or_else(|| grid.bytes.as_chunks::<4>().0.iter().map(feature).collect());
     let mut costs = Vec::with_capacity(n);
     for &pixel in &features {
         let mut cost = [0; 2];
@@ -353,8 +302,11 @@ fn evaluate(
             .flatten()
             {
                 work.add(5)?;
-                let capacity = options.smoothness as u64 * options.edge_scale as u64
-                    / (options.edge_scale as u64 + distance(features[u], features[v]));
+                let strength = options.smoothness as u128 * grid.feature_scale as u128;
+                let scale = options.edge_scale as u128 * grid.feature_scale as u128;
+                let capacity = (strength * scale
+                    / (scale + distance(features[u], features[v]) as u128))
+                    as u64;
                 neighbors.push((u, v, capacity));
             }
         }
@@ -435,6 +387,16 @@ fn evaluate(
         report["class_costs"] = json!(costs);
         report["neighbor_costs"] = json!(neighbors);
     }
+    if let Some(mut analysis) = grid.analysis {
+        analysis["local_work"] = json!(work.count);
+        analysis["source_preparation_work"] = json!(work.preparation.work);
+        report["algorithm"] = json!("seeded_native_color_cut_v1");
+        report["scope"] = json!(
+            "declared_native_region_and_feature_precision;binary_mask;global_cropped_native_seeds;source_samples_unchanged"
+        );
+        report["analysis"] = analysis;
+        report["work"] = json!(work.count + work.preparation.work);
+    }
     Ok((mask, report))
 }
 
@@ -453,7 +415,21 @@ pub(crate) fn apply(
             "An existing pixel mask requires explicit replace_existing",
         ));
     }
-    let (mask, report) = evaluate(document, id, options, root, control)?;
+    let (mask, mut report) = evaluate(document, id, options, root, control)?;
+    if report.get("analysis").is_some() {
+        // Native edit receipts describe the retained mask without duplicating
+        // its pixels or optional per-pixel costs into bounded session history.
+        // Inspection still returns the full mask and requested cost arrays.
+        let fields = report.as_object_mut().unwrap();
+        let mut summary = fields.remove("mask").unwrap();
+        summary.as_object_mut().unwrap().remove("gray_hex");
+        summary["gray_sha256"] = json!(assets::sha256(&render::unhex(&mask.gray_hex)));
+        fields.insert("mask_summary".into(), summary);
+        fields.remove("class_costs");
+        fields.remove("neighbor_costs");
+        fields.insert("result_format".into(), json!("native_selection_summary_v1"));
+        fields.insert("cost_arrays_included".into(), json!(false));
+    }
     document.items[i].mask = Some(Box::new(mask));
     Ok(report)
 }
@@ -469,6 +445,7 @@ mod tests {
             let control = Control::default();
             let mut work = Work {
                 count: 0,
+                preparation: Default::default(),
                 control: &control,
             };
             work.add(interval - 2).unwrap();
