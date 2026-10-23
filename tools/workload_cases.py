@@ -11,6 +11,7 @@ import struct
 import subprocess
 import sys
 import time
+import linux_process_memory
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tests'))
@@ -69,6 +70,8 @@ def process_memory(process):
 
 def run_process(argv, payload, timeout):
     """Only used for synchronous commands; these workloads never start job workers."""
+    if sys.platform == 'linux':
+        return linux_process_memory.run(argv, payload, timeout)
     start = time.perf_counter()
     with subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,
@@ -238,6 +241,8 @@ class Case:
         success = success and all(row['status'] == 'pass' for row in self.checks)
         memory = [row['memory'] for row in self.calls if 'memory' in row]
         available = bool(memory) and all(value['available'] for value in memory)
+        residents = [value.get('resident', {}) for value in memory]
+        resident_complete = bool(residents) and all(value.get('available') is True for value in residents)
         result = dict(case=self.name, adapter=self.adapter, repetition=self.repetition, success=success,
             calls=self.calls, checks=self.checks, fixture_sources=self.sources,
             engine_seconds=sum(row.get('seconds', 0) for row in self.calls),
@@ -248,7 +253,9 @@ class Case:
             first_verified_png_engine_seconds=self.first_preview,
             memory_complete=available,
             peak_working_set_bytes=max(m['peak_working_set_bytes'] for m in memory) if available else None,
-            peak_commit_bytes=max(m['peak_commit_bytes'] for m in memory) if available else None)
+            peak_commit_bytes=max(m['peak_commit_bytes'] for m in memory) if available else None,
+            resident_memory_complete=resident_complete,
+            peak_resident_bytes=max(m['peak_resident_bytes'] for m in residents) if resident_complete else None)
         save_json(self.root / 'case.json', result)
         return result
 
@@ -381,5 +388,9 @@ def aggregate(rows):
                                                          if row['peak_commit_bytes'] is not None]),
             successful_peak_commit_bytes=statistics_of([row['peak_commit_bytes'] for row in successes
                                                         if row['peak_commit_bytes'] is not None]),
+            all_attempt_peak_resident_bytes=statistics_of([row['peak_resident_bytes'] for row in group
+                                                          if row.get('peak_resident_bytes') is not None]),
+            successful_peak_resident_bytes=statistics_of([row['peak_resident_bytes'] for row in successes
+                                                         if row.get('peak_resident_bytes') is not None]),
             response_bytes=statistics_of([row['response_bytes'] for row in group])))
     return results

@@ -27,7 +27,7 @@ def main(workload):
         row=workload.run(measure.Case(executable,root/f'{repetition:02d}-{workload.CASE}',workload.CASE,repetition))
         rows.append(row)
         print(json.dumps(dict(repetition=repetition,success=row['success'],seconds=row['engine_seconds'],
-                              peak_commit=row['peak_commit_bytes'])),flush=True)
+                              peak_commit=row['peak_commit_bytes'],peak_resident=row['peak_resident_bytes'])),flush=True)
     successes=[row for row in rows if row['success']]
     report=dict(schema_version=1,suite=workload.SUITE,adapter=measure.ADAPTERS[0],selected_cases=[workload.CASE],
         repetitions=args.repetitions,source_sha256=source,source_unchanged=source==measure.source_identity(),
@@ -40,10 +40,11 @@ def main(workload):
         rows=rows,attempted=len(rows),successful=len(successes),failed=len(rows)-len(successes),
         successful_engine_seconds=measure.statistics_of([row['engine_seconds'] for row in successes]),
         successful_peak_commit_bytes=measure.statistics_of([row['peak_commit_bytes'] for row in successes if row['peak_commit_bytes'] is not None]),
+        successful_peak_resident_bytes=measure.statistics_of([row['peak_resident_bytes'] for row in successes if row['peak_resident_bytes'] is not None]),
         scope=f'Additional {workload.SUITE} baseline; unchanged scale-v1 and its gates remain separate; no full A5 acceptance',
         model_trials=False,token_usage=None,agent_time=None,
         timing='Sum of synchronous CLI process startup, transfer, execution and exit; fixture/oracle/build time excluded',
-        memory='Maximum owned Windows process lifetime peak; driver excluded',
+        memory='Separate Windows commit/working-set and Linux lifetime RSS; Linux includes isolated pre-exec footprint; fixture/oracle excluded',
         latency_memory_gates=f'Not evaluated by this measurement driver; use workload_gates.py with a separate {workload.SUITE} baseline')
     report['valid_inputs']=all(report[k] for k in ('source_unchanged','candidate_files_unchanged','executable_unchanged','environment_unchanged'))
     report['outcome']='invalid_inputs_changed' if not report['valid_inputs'] else 'all_selected_workloads_passed' if len(successes)==len(rows) else 'baseline_recorded_with_failures'

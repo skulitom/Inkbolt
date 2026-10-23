@@ -35,6 +35,11 @@ class WorkloadMeasurementTests(unittest.TestCase):
             if os.name == 'nt':
                 self.assertTrue(row['memory_complete'])
                 self.assertGreater(row['peak_commit_bytes'], 0)
+            elif sys.platform == 'linux':
+                self.assertTrue(row['resident_memory_complete'])
+                self.assertGreater(row['peak_resident_bytes'], 0)
+                self.assertFalse(row['memory_complete'])
+                self.assertIsNone(row['peak_commit_bytes'])
 
     def test_legacy_adapter_preserves_original_calls_and_native_oracle(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -104,6 +109,15 @@ class WorkloadMeasurementTests(unittest.TestCase):
         self.assertEqual(result['successful_engine_seconds']['min'], 5)
         self.assertEqual(result['successful_peak_commit_bytes']['min'], 1000)
         self.assertIsNone(measure.aggregate([failure])[0]['successful_engine_seconds'])
+
+    def test_resident_aggregation_keeps_metrics_and_failures_separate(self):
+        success = dict(case='native-screen', success=True, engine_seconds=5,
+                       peak_commit_bytes=None, peak_resident_bytes=1000, response_bytes=100)
+        failure = dict(success, success=False, peak_resident_bytes=2000)
+        result = measure.aggregate([success, failure])[0]
+        self.assertIsNone(result['successful_peak_commit_bytes'])
+        self.assertEqual(result['all_attempt_peak_resident_bytes']['max'], 2000)
+        self.assertEqual(result['successful_peak_resident_bytes']['max'], 1000)
 
     @unittest.skipUnless(os.name == 'nt', 'Verified Windows measurement backend')
     def test_memory_high_water_survives_free_and_process_exit(self):

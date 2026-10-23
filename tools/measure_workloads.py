@@ -100,7 +100,8 @@ def main():
             row = run_case(case)
             rows.append(row)
             print(json.dumps(dict(case=name, repetition=repetition+1, success=row['success'],
-                                  seconds=row['engine_seconds'], peak_commit=row['peak_commit_bytes'])), flush=True)
+                                  seconds=row['engine_seconds'], peak_commit=row['peak_commit_bytes'],
+                                  peak_resident=row['peak_resident_bytes'])), flush=True)
     unchanged = candidates == candidate_identity()
     report = dict(schema_version=1, suite=SUITE_VERSION, adapter=args.adapter, model_trials=False,
         full_readiness_benchmark=False, selected_cases=list(cases), repetitions=args.repetitions,
@@ -113,7 +114,7 @@ def main():
         environment=environment, environment_unchanged=environment == measurement_host.identity(),
         conditions=args.conditions, rows=rows, aggregates=aggregate(rows),
         timing='Synchronous CLI process startup, JSON transfer, execution and exit; excludes fixture generation, oracle and report work',
-        memory='Max of per-command Windows lifetime working-set/commit peaks; excludes driver and no child processes are started',
+        memory='Separate Windows commit/working-set and Linux lifetime RSS; Linux includes isolated pre-exec footprint; fixture/oracle excluded',
         cache_conditions='Fresh workspace and process per case/call; OS caches may be warm, no application cache reuse across cases',
         token_usage=None, model_calls=None, agent_time=None,
         latency_memory_gates='Not established; failed workloads cannot set successful-task budgets',

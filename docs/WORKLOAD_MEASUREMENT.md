@@ -30,9 +30,88 @@ All sources are original synthetic generators. The native pattern varies across 
 
 Each command records wall time from process startup through JSON transfer, execution and exit, exact input/output byte counts, exit status, structured errors, and retries (zero for these scripted calls). Fixture generation, output decoding, correctness comparisons, report work and release compilation are outside engine time. The first independently correct PNG records cumulative engine-call time to that output; cases without a verified PNG retain `null`. This is not model time or a user-observed end-to-end preview latency. Unknown model calls, tokens and agent time remain `null`.
 
-On Windows, the driver queries the still-owned process handle after exit. [`GetProcessMemoryInfo`](https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getprocessmemoryinfo) supplies lifetime peak working-set bytes and peak committed bytes through [`PROCESS_MEMORY_COUNTERS`](https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters). These are OS high-water marks, not periodic samples or heap allocations. Whole-case memory is the maximum of its sequential command peaks. The driver/oracles are excluded; these cases do not launch background job children. A missing backend or API failure is explicit unavailable data, never zero. Other platforms do not yet have verified memory measurement support.
+On Windows, the driver queries the still-owned process handle after exit. [`GetProcessMemoryInfo`](https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getprocessmemoryinfo) supplies lifetime peak working-set bytes and peak committed bytes through [`PROCESS_MEMORY_COUNTERS`](https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters). These are OS high-water marks, not periodic samples or heap allocations. Whole-case memory is the maximum of its sequential command peaks. The driver/oracles are excluded; these cases do not launch background job children. A missing backend or API failure is explicit unavailable data, never zero.
 
-`tests/test_workload_measurement.py` verifies this distinction with an owned process that allocates and frees 32 MiB before exit, compared with a separate no-allocation process. It also exercises actual native edit/history fidelity, failure/blocked-step accounting, incorrect oracles, changed sources, malformed envelopes, owned timeout cleanup and create-only evidence paths. Small harness checks run in ordinary verification; the full release benchmark is a separate sequential run.
+### Linux synchronous-command memory
+
+The shared `run_process` runner records a separate Linux resident-memory metric.
+An isolated Python supervisor, with site initialization disabled, forks and
+executes the command and reads its lifetime peak through
+[`wait4`](https://man7.org/linux/man-pages/man2/wait4.2.html).
+Linux [`ru_maxrss`](https://man7.org/linux/man-pages/man2/getrusage.2.html)
+uses KiB; the report converts it to bytes. This includes the small supervisor
+image inherited before exec, and the largest peak among descendants the command
+itself reaped. It is neither a sum of concurrent process memory nor a
+post-exec-only measurement. The large fixture/oracle process is excluded.
+No baseline subtraction or sampling attempts to remove the pre-exec floor.
+
+Using `wait4` directly from the fixture process would charge its inherited
+resident image to the command. The isolated supervisor avoids that contamination
+and prevents earlier or unrelated commands from contributing to the result.
+It retains the enclosing process group, observes exit without reaping using
+`waitid(WNOWAIT)`, then collects exactly its own child with `wait4`.
+Timeouts kill and reap that child. Both supervisor and command arm the Linux
+[parent-death signal](https://man7.org/linux/man-pages/man2/PR_SET_PDEATHSIG.2const.html)
+and check their parent after arming. This protects ordinary unprivileged
+synchronous commands if their owner dies; it does not implement durable Unix
+jobs or general descendant-tree containment.
+
+| Field | Meaning |
+| --- | --- |
+| `memory.available` | Existing Windows working-set/commit pair; remains false on Linux |
+| `memory.resident.available` | Whether a positive Linux lifetime RSS was collected |
+| `memory.resident.peak_resident_bytes` | Linux RSS, including the declared pre-exec footprint |
+| `resident_memory_complete`, `peak_resident_bytes` | Case-level completeness and maximum of sequential command peaks |
+
+The method `linux_wait4_isolated_supervisor_v1`, scope and supervisor source hash
+accompany each observation. Linux timing includes supervisor startup and up to
+one millisecond of exit-observation polling; it is a new measurement path and
+must not be treated as an unchanged latency baseline. Spawn/supervisor failures
+fail the run; missing or zero RSS never becomes a positive observation.
+Windows commit and Linux RSS are not interchangeable. Existing Windows gates
+and B10's fixed commit requirement remain unchanged; a Linux RSS record cannot
+satisfy them. Linux host comparability, separate regression gates, persistent
+MCP-server memory and macOS memory remain separate work.
+
+`tests/test_linux_process_memory.py` checks freed allocations, isolation from a
+128 MiB fixture and unrelated children, sequential peaks, reaped descendants,
+pipe pressure, exit/signal/exec failures, timeout reaping and supervisor death.
+The shared native edit/history fixture also checks complete Linux RSS records.
+
+#### Linux RSS acceptance
+
+Fresh full Windows/Linux checks passed on matching unchanged inputs:
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 269 | 308 | 2,792 | 20 | 863.2 |
+| Linux / WSL | 269 | 274 | 2,761 | 51 | 586.3 |
+
+No checks failed, remained pending or reused earlier results. Focused feedback
+passed in 34.9 seconds on Windows and 18.7 seconds on Linux. Initial failures
+exposed the missing helper-identity pin and a Python build without `pidfd_open`;
+the final implementation uses `waitid` and retains those failed attempts.
+
+A separate optimized Linux run exercised the existing 8192 x 6144 RGBA16
+[larger-window workflow](LARGE_EDIT_WINDOWS.md): selected brush, clone,
+private review, failed-batch atomicity, retries, undo/redo, historical access
+and TIFF delivery. All 19 commands and six independent checks passed, with
+every image/export sample verified. Peak lifetime RSS was **52.168 MiB**
+(54,702,080 bytes), including the declared pre-exec floor. The TIFF hash matches
+the previously accepted Windows/Linux output. This is a single fidelity/RSS
+observation, not a repeated performance gate or a Windows commit measurement.
+The first target run completed its oracles but failed summary writing; its
+script, outputs and failure remain retained beside the corrected separate run.
+
+Frozen source fingerprint:
+`c30efb894a2940de58b9c965265d93bdea8ab8a386d270f32897adba033acfe2`.
+Retained `linux-memory-acceptance-01/audit.json` SHA-256:
+`404339703e88c33f3496a54864ebc31a22b5f6db2f8d39abc89c3d31a0fe279a`.
+The audit binds all full-suite logs, source archive, target commands, memory
+method/source identity, independent checks and prior matching output. Subsequent
+documentation changes are recorded separately. The feature registry is unchanged.
+
+The Windows high-water test in `tests/test_workload_measurement.py` uses an owned process that allocates and frees 32 MiB before exit, compared with a separate no-allocation process. It also exercises actual native edit/history fidelity, failure/blocked-step accounting, incorrect oracles, changed sources, malformed envelopes, owned timeout cleanup and create-only evidence paths. Small harness checks run in ordinary verification; the full release benchmark is a separate sequential run.
 
 Aggregates report all attempts, successes, failures, variance, bytes and observed memory. Successful-task timing/memory distributions exclude failed cases; fast resource-limit rejections cannot improve a success budget. No current latency/memory threshold is inferred from an unsuccessful workload. Record actual machine load and repeatability conditions; this tool does not isolate the computer from other desktop work.
 

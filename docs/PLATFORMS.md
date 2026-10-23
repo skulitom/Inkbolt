@@ -32,6 +32,14 @@ The subsequent [larger native edit windows](LARGE_EDIT_WINDOWS.md) passed all
 inputs and independent 50 MP brush/clone/history/TIFF checks. This does not add
 macOS target-image or Unix process-memory acceptance.
 
+The subsequent [Linux synchronous-memory increment](WORKLOAD_MEASUREMENT.md#linux-rss-acceptance)
+passed all 269 full stages fresh on Windows and Linux. A separate 50 MP
+brush/clone/history/TIFF workflow recorded 52.168 MiB peak Linux resident memory,
+with every sample checked and the prior TIFF output hash preserved. Linux RSS
+and Windows commit remain separate metrics. Persistent MCP-server memory,
+Linux performance gates and macOS memory remain open. Historical measurements
+below retain their original scope and unavailable-memory status.
+
 The [larger-image admission](SCALE_ADMISSION.md) also has fresh full local
 Windows/Linux acceptance and complete target-image checks. Its Unix process
 memory metric remains unavailable. The separate target-image measurements ran

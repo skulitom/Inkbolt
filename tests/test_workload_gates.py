@@ -82,6 +82,16 @@ class WorkloadGateTests(unittest.TestCase):
         result=gates.check(self.gate,self.report)
         self.assertEqual(result['comparisons'][0]['exceeded'],['peak_commit_bytes'])
 
+    def test_linux_resident_observation_cannot_satisfy_windows_commit_gate(self):
+        row = self.report['rows'][0]
+        row.update(memory_complete=False, peak_commit_bytes=None,
+                   peak_working_set_bytes=None, resident_memory_complete=True,
+                   peak_resident_bytes=4*1024*1024)
+        for call in row['calls']:
+            call['memory'] = dict(available=False, resident=dict(available=True,
+                method='linux_wait4_isolated_supervisor_v1', peak_resident_bytes=4*1024*1024))
+        self.reject(self.report)
+
     def test_failed_fast_work_and_missing_oracle_are_never_success(self):
         for change in ('failure','oracle','blocked','timeout','retry','steps','no_checks'):
             with self.subTest(change=change):

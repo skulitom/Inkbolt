@@ -102,7 +102,7 @@ area. Both modes preserve the original image samples.
 
 Work in progress includes larger layered files, broader curve combinations and
 editable format interchange. Agent usability, complete large-image workflows
-and Linux memory measurements also remain part of the active plan.
+and cross-platform performance gates also remain part of the active plan.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.
 [Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their
