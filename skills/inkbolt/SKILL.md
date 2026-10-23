@@ -54,8 +54,10 @@ The core catalog has 22 tools; `tools/list` sends them in three pages. `inkbolt_
    Importing an image returns a receipt, not a document. To place the image in a layout, create a document, then add
    an `asset_put` operation (the receipt's `asset`) and an `add` operation whose item content is
    `{"type": "image", "asset_id": ..., "width": ..., "height": ...}`. A placed image can't take pixel edits: to
-   retouch or paint on a photo, bring it in as pixels with `sample.import` through `inkbolt_run`, after looking up
-   its schema.
+   retouch or paint on a photo, bring it in as pixels with `sample.import` through `inkbolt_run` (`id`,
+   `source_path`, and `storage: {}` so the pixels go to the workspace's store; without it, all but small images fail
+   with `RESOURCE_LIMIT`). In v0.82.0 `sample.import` reads PNG and TIFF only, and native JPEG import needs a build
+   from `main`: convert a JPEG to PNG first, for example by placing it as an image and publishing a PNG.
 3. **Edit.** Send `inkbolt_document_edit` the latest snapshot with `expected_revision` set to its `revision`. The
    quickest way to draw shapes is an `add_svg` operation with an SVG fragment; look up `name: "operation"` for the
    others (transforms, groups, canvas size, clips, masks, adjustments, retouching). Each edit returns the next
@@ -76,7 +78,8 @@ The core catalog has 22 tools; `tools/list` sends them in three pages. `inkbolt_
 5. **Deliver.** Call `document.publish` through `inkbolt_run` with the snapshot and an `output` of `file_name`,
    `format` (`png`, `jpeg`, `svg`, `pdf` or `tiff`), an optional `scale` for raster formats and, for a subfolder,
    `output_root`. It refuses to overwrite an existing file: choose a new name rather than replacing the user's file.
-   Publish an `svg` alongside a raster when the user may edit again.
+   For vector artwork, publish an `svg` alongside a raster when the user may edit again. Raster documents can't be
+   exported as SVG; keep them editable in a saved session instead.
 6. **Report** the paths written, the sizes, and anything Inkbolt said it approximated or couldn't represent.
 
 For work the user will come back to, save it as a session (`inkbolt_session_create`, then `inkbolt_session_apply`
