@@ -1,7 +1,7 @@
 # Plugin evals
 
 Cases for `claude plugin eval`, with every Inkbolt tool answered by the mock in `mocks/inkbolt/`. The mock's
-`_tools.json` is v0.82.0's real `tools/list` with `--tools core`.
+`_tools.json` is v0.82.0's real `tools/list` with `--tools core`, all three pages (22 tools).
 
 Each run starts in an empty folder, while the mock describes the project's files. So keep Claude's own file tools
 out of the runs:
