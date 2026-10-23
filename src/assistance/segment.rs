@@ -9,6 +9,7 @@ use std::{
 };
 mod input;
 mod proxy;
+pub use proxy::Options as ProxyOptions;
 
 use crate::limits::assistance_segment as limits;
 pub use crate::limits::assistance_segment::MAX_PIXELS;
@@ -27,7 +28,7 @@ pub struct Options {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<crate::sample_store::Region>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub proxy: Option<proxy::Options>,
+    pub proxy: Option<ProxyOptions>,
     pub foreground: Vec<[u32; 2]>,
     pub background: Vec<[u32; 2]>,
     #[serde(default = "default_weight")]

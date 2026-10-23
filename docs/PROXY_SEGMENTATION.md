@@ -29,6 +29,13 @@ boundary; all coordinates use the source image's cropped native grid:
 ```
 
 Use the same options with `assist_mask` to attach the full-resolution mask.
+Rust callers can construct `assistance::segment::ProxyOptions` directly and
+pass it through `assistance::segment::Options::proxy`. The public alias retains
+the existing JSON and schema representation. An external integration test checks
+typed construction, inspection, the independently expected mask digest and
+source preservation; targeted Windows/Linux verification passed in 90.5/45.9
+seconds after exposing this type.
+
 The step is explicitly chosen in `1..1024`, and the radius in `1..64`.
 These parameter ranges do not guarantee admission: a complicated boundary can
 exceed the node or work budget. Preview and full cost detail are opt-in. Edit

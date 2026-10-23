@@ -7,23 +7,23 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/39119850643)
-is `2793896`, through native repair, masks, selections, shared patch
-preparation and the corrected idle-exit contention/retry fixture. All stages ran fresh, all three
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/39128328941)
+is `f189cc3`, including native-region and whole-image proxy/refine selection,
+native repair, masks and shared patch preparation. All stages ran fresh, all three
 minimum-compiler checks passed and source inputs remained unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 265 | 306 | 2,772 | 9 | 4534.814 |
-| Ubuntu 24.04 | 265 | 272 | 2,730 | 51 | 880.952 |
-| macOS 15 ARM64 | 265 | 272 | 2,730 | 51 | 2541.953 |
+| Windows 2025 | 267 | 307 | 2,787 | 9 | 4656.130 |
+| Ubuntu 24.04 | 267 | 273 | 2,745 | 51 | 1558.942 |
+| macOS 15 ARM64 | 267 | 273 | 2,745 | 51 | 2851.446 |
 
-Reports, all 795 stage logs, run metadata and the 958-file source archive are
-retained in `idle-retry-ci-2793896`. The archive matches every report's
+Reports, all 801 stage logs, run metadata and the 966-file source archive are
+retained in `proxy-selection-ci-f189cc3`. The archive matches every report's
 source fingerprint. Audit SHA-256:
-`b47cc6ce52ddb4c8a6c4cca7d9c817d2879e88021ee84e42bc3c64c9560ee06e`;
+`5040a70ad959b20c981de802dadde36b2c186a2e944da3c4b3db058678131699`;
 shared hosted source fingerprint:
-`4e66e54d2cc86f90347b1d2a197a2cfcdb23d28331d69d9cbeee4b16209ec0c7`.
+`fc910512e5caf47ecae59eeefe42b36949edd95d201c80667c868e08f0d6400a`.
 Hosted checks evaluate the public structural guard; local private-policy checks
 remain separate. Unix background jobs remain unsupported.
 
