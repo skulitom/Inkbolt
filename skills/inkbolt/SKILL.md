@@ -51,9 +51,11 @@ The core catalog has 22 tools; `tools/list` sends them in three pages. `inkbolt_
    its first use. Large schemas come back as outlines: repeat the lookup with one listed `select` value, rather than
    `full: true`.
 2. **Start.** Create a document or import the user's SVG; both return a snapshot, which every later call takes.
-   Importing an image returns a receipt, not a document: create a document, then place the image with an
-   `asset_put` operation (the receipt's `asset`) and an `add` operation whose item content is
-   `{"type": "image", "asset_id": ..., "width": ..., "height": ...}`.
+   Importing an image returns a receipt, not a document. To place the image in a layout, create a document, then add
+   an `asset_put` operation (the receipt's `asset`) and an `add` operation whose item content is
+   `{"type": "image", "asset_id": ..., "width": ..., "height": ...}`. A placed image can't take pixel edits: to
+   retouch or paint on a photo, bring it in as pixels with `sample.import` through `inkbolt_run`, after looking up
+   its schema.
 3. **Edit.** Send `inkbolt_document_edit` the latest snapshot with `expected_revision` set to its `revision`. The
    quickest way to draw shapes is an `add_svg` operation with an SVG fragment; look up `name: "operation"` for the
    others (transforms, groups, canvas size, clips, masks, adjustments, retouching). Each edit returns the next
@@ -65,9 +67,10 @@ The core catalog has 22 tools; `tools/list` sends them in three pages. `inkbolt_
      opacity, blend, visibility, lock and name.
    - **After `svg.import`**, items are named `svg-0`, `svg-1` and so on. `result.mapping` links each to the SVG's own
      `id`.
-   - **Text** takes two steps after `inkbolt_font_import`: a `font_put` operation adds the font to the document, and
-     the `add_svg` operation's `font_bindings` (`{"family": ..., "font_id": ...}`) maps the SVG's font family to it.
-     Without the binding, `<text>` fails with `SVG_FONT_NOT_BOUND`.
+   - **Text** takes two steps after `inkbolt_font_import`, which returns the font's pinned descriptor. A `font_put`
+     operation adds it to the document (`{"op": "font_put", "id": ..., "font": <descriptor>}`), and the `add_svg`
+     operation's `font_bindings` (`{"family": ..., "font_id": ...}`) maps the SVG's `font-family` to it. Without the
+     binding, `<text>` fails with `SVG_FONT_NOT_BOUND`.
 4. **Check.** Look at `inkbolt_document_preview` before delivering. Fix what's wrong and preview again.
    `inkbolt_document_check` reports structure problems and text that overflows.
 5. **Deliver.** Call `document.publish` through `inkbolt_run` with the snapshot and an `output` of `file_name`,

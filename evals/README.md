@@ -11,3 +11,6 @@ claude plugin eval . --no-publish --disallow-tools Glob Grep Read
 ```
 
 `app-icon`, `recolor-logo` and `readme-diagram` should use Inkbolt. `trim-video-not-graphics` should not.
+
+Each run writes its report under `results/`, which `.gitignore` here keeps out of Git and out of
+`tools/check_repo.py`.
