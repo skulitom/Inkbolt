@@ -4,9 +4,10 @@
 [the primary plan](../FIX_PLAN.md#w4-practical-raster-scale-p1-multiple-substantial-milestones-w0-d7-a5).
 It is separate from `scale-v1`, the native-* suites and B10's unchanged 256 MiB
 photo budget. All four fixed target-size cases pass independent Windows/Linux
-fidelity checks, with fresh full suites on both platforms. Five-repeat regression
-gates and Unix commit-budget evidence remain open. No new engine checkpoint is
-awarded.
+fidelity checks, with fresh full suites on both platforms. A Windows regression
+gate now has a five-repeat baseline and a separate passing five-repeat check.
+Unix commit-budget evidence and regression gates remain open. No new engine
+checkpoint is awarded.
 
 The first Windows target run passed JPEG, the complete photo workflow and A2
 delivery, but refused the three-shape 8192 x 8192 render on the conservative
@@ -133,6 +134,50 @@ Retained `audit.json` SHA-256:
 `5aca800a3f1fc7b35191532ac96c70151c53a2b1e3d70614c4ca0c824302085f`.
 The audit binds all 540 full-suite logs, exact binaries, every target evidence
 file and matching output hashes. Subsequent Markdown-only updates are recorded
-separately. Larger layered files, the separate large B10 variant, repeated gates,
-Unix commit-budget acceptance and the remaining four original checkpoints stay
-open; the registry remains 163/167.
+separately. Larger layered files, the separate large B10 variant, Unix
+commit-budget acceptance and the remaining four original checkpoints stay open;
+the registry remains 163/167. The Windows repeated gate is recorded below.
+
+## Windows repeated regression acceptance
+
+Two separate five-repeat runs passed all four fixed cases, giving 40 complete
+workflows, 350 engine calls and 390 oracle checks. Each case used a new workspace;
+order rotated across repetitions. No failed attempts were dropped. The edited/restored
+TIFF, A2 PDF/PNG and 8192 x 8192 PNG output hashes match across all ten
+repetitions and the previously accepted target-size runs.
+
+The first five repetitions established the gate before the second run started.
+The second five passed its unchanged limits. Both runs used the same accepted
+optimized executable, source, helper/decoder identities and recorded Windows
+host. They ran sequentially without another Inkbolt verifier or workload;
+desktop load was uncontrolled and OS caches could be warm. Fixture generation,
+independent checking and builds remain outside engine timings.
+
+| Case | Baseline median seconds | Check median seconds | Check maximum seconds | Check peak commit MiB | Gate commit ceiling MiB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `jpeg-24mp` | 6.653 | 6.893 | 7.583 | 283.828 | 426 |
+| `photo-50mp` | 51.331 | 52.826 | 63.499 | 36.691 | 56 |
+| `print-a2` | 1.989 | 2.146 | 2.613 | 13.855 | 21 |
+| `rgba8-8192` | 6.505 | 6.475 | 7.932 | 78.523 | 118 |
+
+The existing regression policy allows 1.5 times baseline median time and twice
+baseline maximum time. Memory headroom is 1.5 times the observed baseline peak,
+rounded up to MiB and capped at the original **512 MiB** ceiling. Neither the
+original B10 256 MiB budget nor earlier suite gates changed. These local Windows
+budgets do not establish Linux/macOS performance or full A5/W4 acceptance.
+
+Retained runs: `scale-v2-windows-five-baseline-01` and
+`scale-v2-windows-five-check-01`. The gate, comparison, source archive, complete
+raw-file inventories and audit are in `scale-v2-repeated-acceptance-01`.
+Gate SHA-256: `8ee370720f5f06b2f39d9600612c24fca85019d97cef284d14657b379c36dc83`.
+Comparison SHA-256: `c59b1ca6f38a38363e1197cd6d19d53cd00ce00a1fd75ef80239718fc715d010`.
+Audit SHA-256: `a78a7b903ea653d2705a253ff8ffb5aa5cecc89452390cec74216b133805f889`.
+
+Measured source fingerprint:
+`3ce7131bc8665ceca8a83aaa23f115581811b5e682c7cfe7dbbc060c3bcd757f`.
+All implementation, fixture and test inputs and the optimized executable match
+the target-size acceptance above; only its subsequent Markdown update differs.
+That binding retains the fresh 270-stage Windows/Linux suites. This milestone
+adds repeated measurement evidence without redundantly rebuilding or rerunning
+the unchanged full implementation tests. The later documentation delta is
+recorded separately.

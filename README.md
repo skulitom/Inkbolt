@@ -99,8 +99,9 @@ independent output checks on **Windows and Linux**:
 | Rendering and PNG export with opaque, translucent and transparent regions | 8192 x 8192 |
 
 These checks use fixed original fixtures and preserve source files and revision
-history. Each operation retains its own size, precision and work limits;
-repeated performance gates are still in progress.
+history. Windows regression budgets use five baseline repetitions and a
+separate five-repeat check. Each operation retains its own size, precision and
+work limits; cross-platform performance acceptance remains in progress.
 
 [Image-guided selection](docs/NATIVE_SEGMENTATION.md) supports direct analysis of
 bounded regions and an opt-in whole-image mode. The latter uses a coarse image
