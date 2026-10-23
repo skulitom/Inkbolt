@@ -1,5 +1,12 @@
 # Architecture
 
+Tiled rendering also selects the bounded spatial index when a small scene's
+whole-canvas paint/mask estimate exceeds the paint budget. Separated large
+shapes then pay for visited tiles; genuinely excessive overlap still fails.
+The same membership, coverage, memory and cumulative replay limits apply. This
+supports the fixed [scale-v2 rendering case](SCALE_WORKLOADS.md) without raising
+processing ceilings.
+
 Version-2 native layers admit [larger brush and retouch windows](LARGE_EDIT_WINDOWS.md)
 under unchanged processing budgets. Replacement traverses disjoint native block
 intersections while brush ordering, frozen sampling and the complete healing

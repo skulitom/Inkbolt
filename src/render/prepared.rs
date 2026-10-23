@@ -99,7 +99,38 @@ impl Prepared {
         }
         let fonts = crate::fonts::resolve(document, font_root)?;
         let texts = crate::text::prepare(document, &fonts)?;
-        let spatial = if tiled && document.items.len() >= crate::limits::render_spatial::MIN_ITEMS {
+        let paint_work: u64 = document
+            .items
+            .iter()
+            .map(|item| match &item.content {
+                Content::Adjustment { adjustment } => adjustment.work(),
+                Content::Vector { fill, stroke, .. } => fill
+                    .iter()
+                    .chain(stroke.iter().map(|s| &s.color))
+                    .map(crate::paint::work)
+                    .sum(),
+                Content::Fill { paint, .. } => crate::paint::work(paint),
+                Content::Text { .. } | Content::StoryFrame { .. } => texts[&item.id]
+                    .paths
+                    .iter()
+                    .map(|p| crate::paint::work(&p.fill))
+                    .sum(),
+                _ => 1,
+            })
+            .sum();
+        let mask_work = document
+            .items
+            .iter()
+            .filter(|i| i.mask.as_ref().is_some_and(|m| m.enabled))
+            .count() as u64
+            * crate::limits::render::MASK_SAMPLE_WORK;
+        // A few separated shapes on a large canvas can exceed the conservative
+        // whole-canvas estimate. Charge their actual tile memberships through
+        // the same bounded spatial plan used for large item counts.
+        let spatial = if tiled
+            && (document.items.len() >= crate::limits::render_spatial::MIN_ITEMS
+                || count * (paint_work + mask_work) > crate::paint::MAX_PAINT_WORK)
+        {
             Some(super::spatial::Plan::new(
                 document,
                 &texts,
@@ -187,31 +218,6 @@ impl Prepared {
                 }
             }
         }
-        let paint_work: u64 = document
-            .items
-            .iter()
-            .map(|item| match &item.content {
-                Content::Adjustment { adjustment } => adjustment.work(),
-                Content::Vector { fill, stroke, .. } => fill
-                    .iter()
-                    .chain(stroke.iter().map(|s| &s.color))
-                    .map(crate::paint::work)
-                    .sum(),
-                Content::Fill { paint, .. } => crate::paint::work(paint),
-                Content::Text { .. } | Content::StoryFrame { .. } => texts[&item.id]
-                    .paths
-                    .iter()
-                    .map(|p| crate::paint::work(&p.fill))
-                    .sum(),
-                _ => 1,
-            })
-            .sum();
-        let mask_work = document
-            .items
-            .iter()
-            .filter(|i| i.mask.as_ref().is_some_and(|m| m.enabled))
-            .count() as u64
-            * crate::limits::render::MASK_SAMPLE_WORK;
         if sparse.is_none()
             && spatial.is_none()
             && count * (paint_work + mask_work) > crate::paint::MAX_PAINT_WORK
@@ -767,6 +773,56 @@ impl Bands<'_> {
 #[cfg(test)]
 mod replay_tests {
     use super::*;
+    #[test]
+    fn few_large_shapes_use_visited_tiles_without_raising_paint_or_replay_budgets() {
+        let items: Vec<_> = (0..3)
+            .map(|i| {
+                serde_json::json!({"id":format!("quadrant-{i}"),"content":{
+                "type":"vector","geometry":{"shape":"rect","x":(i%2)*4096,
+                "y":(i/2)*4096,"width":4096,"height":4096},"fill":[23,81,147,128]}})
+            })
+            .collect();
+        let mut document: Document = serde_json::from_value(serde_json::json!({"schema_version":2,
+            "id":"few-large-shapes","kind":"vector","width":8192,"height":8192,
+            "color_space":"srgb","items":items}))
+        .unwrap();
+        let options = serde_json::from_value(serde_json::json!({"evaluation":"tiled"})).unwrap();
+        let prepare = |d: &Document| {
+            Prepared::new(d, 1, None, None, Some(&options), false, &Control::default())
+        };
+        let prepared = prepare(&document).unwrap();
+        let spatial = prepared.resources.spatial.as_ref().unwrap();
+        assert!(spatial.paint_work < crate::paint::MAX_PAINT_WORK);
+        assert!(spatial.pixels.iter().sum::<u64>() < 8192 * 8192);
+        assert_eq!(prepared.tile_edge(), crate::limits::render_spatial::EDGE);
+        prepared.bands(128).unwrap();
+        // Repeated visits still consume the unchanged cumulative budgets.
+        let mut rejected = false;
+        for _ in 0..3 {
+            if let Err(error) = prepared.bands(128) {
+                assert_eq!(error.code, "RESOURCE_LIMIT");
+                rejected = true;
+                break;
+            }
+        }
+        assert!(rejected);
+        // Real overlap remains over budget; indexing cannot waive its work.
+        for item in &mut document.items {
+            if let Content::Vector { geometry, .. } = &mut item.content {
+                *geometry = Geometry::Rect {
+                    x: 0.,
+                    y: 0.,
+                    width: 8192.,
+                    height: 8192.,
+                };
+            }
+        }
+        assert_eq!(prepare(&document).err().unwrap().code, "RESOURCE_LIMIT");
+        // Existing small-scene selection remains unchanged.
+        document.width = 256;
+        document.height = 256;
+        assert!(prepare(&document).unwrap().resources.spatial.is_none());
+    }
     #[test]
     fn target_canvas_preparation_and_replay_keep_whole_render_limits_separate() {
         let document = serde_json::from_value(serde_json::json!({"schema_version":2,

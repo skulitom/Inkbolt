@@ -49,7 +49,7 @@ build from source for the newer features below. Follow the
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. Release notes describe the included features. |
-| Build from `main` | Adds larger image workflows, native JPEG import, large selections, guided region and whole-image masks, selected patch repair, larger brush and retouch regions, and lower-memory exports. These additions are not in v0.82.0. |
+| Build from `main` | Adds larger image editing, native JPEG import, guided selections and masks, patch repair, and lower-memory exports. The large-image workflows described below require this newer source build. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -70,7 +70,7 @@ operations and their schemas when needed.
 | [Workspaces and sessions](docs/AGENT_WORKSPACE.md) | Local resources, saved work and revision references |
 | [SVG import](docs/SVG_IMPORT.md) and [image import](docs/SAMPLES.md#import-without-reducing-depth) | Editable inputs, source precision and conversion limits |
 | [Selections](docs/NATIVE_SELECTIONS.md), [masks](docs/NATIVE_MASKS.md) and [image repair](docs/NATIVE_REPAIR.md) | Image editing workflows and operation limits |
-| [Larger brush and retouch regions](docs/LARGE_EDIT_WINDOWS.md) | Native image editing bounds and Windows/Linux verification |
+| [Large-image workflows](docs/SCALE_WORKLOADS.md) | 24 MP import, 50 MP editing, A2 delivery and 8192 x 8192 rendering; [brush and retouch bounds](docs/LARGE_EDIT_WINDOWS.md) |
 | [Image export](docs/STREAMING_IMAGE_OUTPUT.md) | PNG/JPEG/TIFF file output, preflight and memory bounds |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
 | [Platform support](docs/PLATFORMS.md) and [benchmark results](docs/BENCHMARK_RESULTS.md) | Tested systems, agent evaluations and remaining gaps |
@@ -88,21 +88,28 @@ and file-delivery receipts are tested on Windows, Linux and macOS. Background
 export jobs currently require Windows. The [platform guide](docs/PLATFORMS.md)
 records tested revisions and the scope of each platform's coverage.
 
-Selected [50 MP workflows](docs/SCALE_ADMISSION.md) have independent Windows/Linux
-checks for masks, [brush and clone edits](docs/LARGE_EDIT_WINDOWS.md), patch repair,
-undo/redo and TIFF delivery, with original samples and revision history preserved.
-[Whole-image selection](docs/PROXY_SEGMENTATION.md), mask application and TIFF
-export have also been checked at **8192 x 8192**. These are specific verified
-workflows; each operation retains its own size, precision and work limits.
+The following [large-image workflows](docs/SCALE_WORKLOADS.md) have passed
+independent output checks on **Windows and Linux**:
+
+| Workflow | Checked size |
+| --- | --- |
+| Baseline and progressive JPEG import | 24 MP |
+| 16-bit image editing: cloned patch, selected brush, repair, feathered mask, undo/redo and TIFF export | 50 MP |
+| A2 page delivery as PDF and PNG | 300 ppi |
+| Rendering and PNG export with opaque, translucent and transparent regions | 8192 x 8192 |
+
+These checks use fixed original fixtures and preserve source files and revision
+history. Each operation retains its own size, precision and work limits;
+repeated performance gates are still in progress.
 
 [Image-guided selection](docs/NATIVE_SEGMENTATION.md) supports direct analysis of
 bounded regions and an opt-in whole-image mode. The latter uses a coarse image
 and refines boundaries at full resolution; it can miss small features. Both
 preserve the original image samples.
 
-Work in progress includes larger layered files, broader curve combinations and
-editable format interchange. Agent usability, complete large-image workflows
-and cross-platform performance gates also remain part of the active plan.
+Work in progress includes larger layered files, broader curve combinations,
+editable format interchange, agent usability and cross-platform performance
+acceptance.
 
 The [primary plan](FIX_PLAN.md) tracks development priorities.
 [Benchmark results](docs/BENCHMARK_RESULTS.md) record agent evaluations and their

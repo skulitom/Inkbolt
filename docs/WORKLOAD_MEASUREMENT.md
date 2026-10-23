@@ -10,6 +10,11 @@ The parent directory must exist; the output directory must be new and outside th
 
 ## Versioned workloads
 
+The separate [scale-v2 runner](SCALE_WORKLOADS.md) covers the primary plan's four
+larger-image cases, with fixed dimensions and independent oracles. Its Windows
+gate retains the fixed D7 ceiling; Linux RSS remains a separate observation.
+It does not replace or alter the scale-v1 cases below.
+
 The initial `scale-v1` suite has seven fixed cases. Each repetition uses new workspaces and synchronous CLI processes. Case order rotates deterministically; filesystem/page caches are not flushed, and the tool makes no cold-cache claim.
 
 The call adapter is versioned separately from these fixed fixtures and outcomes. Default `--adapter native-tiled-v1` opts into native block import and tiled PNG/native-TIFF output. The pure `sparse-5000` case retains the existing sparse whole evaluator; the mixed case uses tiled evaluation. `--adapter legacy-v1` reproduces the original inline import and whole-output calls for comparison. Reports record the adapter per run and per case. Both adapters use exactly the same dimensions, original sources, edit region, history checks, final outputs and independent oracles; no failed case is removed. Different adapters measure different call paths and must be identified when comparing results.

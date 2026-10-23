@@ -66,6 +66,26 @@ DETAIL_CONTRACTS = {'native-sharpen-history': WIDE_CONTRACTS['wide-mixed-native'
 NONLOCAL_CASES = ('native-radial-history',)
 NONLOCAL_HARNESS = HARNESS + ('tools/measure_extra.py', 'tools/measure_native_nonlocal.py', 'tools/native_nonlocal_workload.py')
 NONLOCAL_CONTRACTS = {'native-radial-history': WIDE_CONTRACTS['wide-mixed-native']}
+SCALE_CASES = ('jpeg-24mp', 'photo-50mp', 'print-a2', 'rgba8-8192')
+SCALE_DIMENSIONS = {'jpeg-24mp':[6000,4000], 'photo-50mp':[8192,6144],
+                    'print-a2':[4961,7016], 'rgba8-8192':[8192,8192]}
+SCALE_HARNESS = HARNESS + ('tools/measure_scale.py', 'tools/scale_workloads.py',
+                         'tools/scale_oracles.py', 'tools/scale_jpeg.py')
+SCALE_COMMIT_CEILING = 512*1024*1024
+PHOTO_STAGES = ('patch', 'selection', 'brush', 'repair', 'mask-selection', 'mask')
+PHOTO_HISTORY = [f'undo-{n}' for n in range(5,-1,-1)]+[f'redo-{n}' for n in range(1,7)]
+SCALE_CONTRACTS = {
+    'jpeg-24mp': ([('import-baseline','sample.import'),('import-progressive','sample.import')],
+                  ['baseline-samples','progressive-samples','source-preservation']),
+    'photo-50mp': ([('import','sample.import'),('save','session.create')]
+        + [entry for name in PHOTO_STAGES for entry in [(name+'-review','session.dry_run'),(name,'session.apply_proposal')]]
+        + [('edited','document.publish')]+[(name,'session.apply') for name in PHOTO_HISTORY]
+        + [('historical','document.validate'),('restored','document.publish'),('verify','session.verify')],
+        ['native-import']+[check for name in PHOTO_STAGES for check in (name+'-review-bound',name+'-samples')]
+        + ['edited']+PHOTO_HISTORY+['historical','immutable-source-blocks','restored','history-valid','source-preservation']),
+    'print-a2': ([('page','document.publish'),('preview','document.publish')],['page','preview','source-preservation']),
+    'rgba8-8192': ([('image','document.publish')],['image','source-preservation']),
+}
 SUITES = {
     'scale-v1': (CASES, HARNESS, CONTRACTS, ('native-tiled-v1', 'legacy-v1')),
     'wide-native-v1': (WIDE_CASES, WIDE_HARNESS, WIDE_CONTRACTS, ('native-tiled-v1',)),
@@ -76,6 +96,7 @@ SUITES = {
     'native-brush-v1': (BRUSH_CASES, BRUSH_HARNESS, BRUSH_CONTRACTS, ('native-tiled-v1',)),
     'native-detail-v1': (DETAIL_CASES, DETAIL_HARNESS, DETAIL_CONTRACTS, ('native-tiled-v1',)),
     'native-nonlocal-v1': (NONLOCAL_CASES, NONLOCAL_HARNESS, NONLOCAL_CONTRACTS, ('native-tiled-v1',)),
+    'scale-v2': (SCALE_CASES, SCALE_HARNESS, SCALE_CONTRACTS, ('native-tiled-v1',)),
 }
 
 
@@ -131,6 +152,7 @@ def summarize(report):
     expected = {(name, n) for name in cases for n in range(1, repetitions+1)}
     require(len(rows) == len(expected), 'Incomplete or duplicate trials')
     seen, groups = set(), {name: [] for name in cases}
+    jpeg_tools = None
     for row in rows:
         key = (row['case'], row['repetition'])
         require(type(row['repetition']) is int and key in expected and key not in seen,
@@ -159,10 +181,26 @@ def summarize(report):
                 'Trial time disagrees with command records')
         require(type(row['peak_commit_bytes']) is int and row['peak_commit_bytes'] == peak,
                 'Trial memory disagrees with command records')
+        if report['suite'] == 'scale-v2':
+            require(row['fixed_fixture'] is True and row['dimensions'] == SCALE_DIMENSIONS[row['case']],
+                    'Reduced test fixtures cannot establish scale-v2 acceptance')
+            require(row['commit_budget'] == dict(status='passed',maximum_bytes=SCALE_COMMIT_CEILING)
+                    and peak <= SCALE_COMMIT_CEILING, 'Scale-v2 exceeds or lacks the fixed D7 commit budget')
+            if row['case'] == 'jpeg-24mp':
+                tools = row['jpeg_tools']
+                require(tools['pillow_version'] == '10.3.0' and tools['dimensions'] == SCALE_DIMENSIONS['jpeg-24mp']
+                        and tools['quality'] == 93 and tools['subsampling'] == 0,
+                        'Wrong JPEG generator/decoder contract')
+                identity = {key:tools[key] for key in ('python_sha256','pillow_files_sha256','source_rgb_sha256')}
+                require(all(hash_value(value) for value in identity.values()), 'Missing pinned JPEG oracle identity')
+                require(jpeg_tools is None or jpeg_tools == identity, 'JPEG oracle/source changed between repetitions')
+                jpeg_tools = identity
         require(row['peak_working_set_bytes'] == max(c['memory']['peak_working_set_bytes'] for c in calls),
                 'Working set disagrees with command records')
         groups[row['case']].append((seconds, peak))
     require(seen == expected, 'Missing trials')
+    if report['suite'] == 'scale-v2':
+        environment['scale_v2_jpeg_oracle'] = jpeg_tools
     return dict(suite=report['suite'], adapter=report['adapter'], repetitions=repetitions,
                 environment=environment, toolchain=report['toolchain'], harness=harness,
                 metrics={name: dict(median_seconds=statistics.median(v[0] for v in values),
@@ -182,6 +220,9 @@ def limits(metrics, cases=CASES):
             median_seconds=math.ceil(row['median_seconds']*POLICY['median_seconds_factor']*1000)/1000,
             maximum_seconds=math.ceil(row['maximum_seconds']*POLICY['maximum_seconds_factor']*1000)/1000,
             peak_commit_bytes=math.ceil(row['peak_commit_bytes']*POLICY['peak_commit_factor']/(1024*1024))*(1024*1024))
+        if tuple(cases) == SCALE_CASES:
+            require(row['peak_commit_bytes'] <= SCALE_COMMIT_CEILING, 'Baseline exceeds the fixed D7 ceiling')
+            result[name]['peak_commit_bytes'] = min(result[name]['peak_commit_bytes'], SCALE_COMMIT_CEILING)
     return result
 
 

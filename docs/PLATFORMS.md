@@ -46,6 +46,12 @@ unchanged commit-budget requirement; RSS does not satisfy that check. Actual
 model memory, Linux performance gates and macOS memory remain open. Historical
 measurements below retain their original scope and unavailable-memory status.
 
+The fixed [scale-v2 suite](SCALE_WORKLOADS.md#target-size-acceptance) subsequently
+passed all 270 stages fresh on matching Windows/Linux inputs, plus all four
+target-size workflows. Windows process commit and Linux RSS remain separate;
+five-repeat gates and Unix commit-budget acceptance are still open. This adds no
+macOS target-size or memory claim.
+
 The [larger-image admission](SCALE_ADMISSION.md) also has fresh full local
 Windows/Linux acceptance and complete target-image checks. Its Unix process
 memory metric remains unavailable. The separate target-image measurements ran
