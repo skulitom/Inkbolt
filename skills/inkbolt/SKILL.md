@@ -50,8 +50,13 @@ same validation.
    later call takes it.
 3. **Edit.** Send `inkbolt_document_edit` the latest snapshot with `expected_revision` set to its `revision`. The
    quickest way to draw shapes is an `add_svg` operation with an SVG fragment; look up `name: "operation"` for the
-   others (fills and properties, transforms, groups, canvas size, clips, masks, adjustments, retouching). Each edit
-   returns the next snapshot at revision + 1, so always pass the newest one.
+   others (transforms, groups, canvas size, clips, masks, adjustments, retouching). Each edit returns the next
+   snapshot at revision + 1, so always pass the newest one.
+   - **Colours** are RGBA arrays: `#0B6E4F` is `[11, 110, 79, 255]`.
+   - **To recolour a shape**, send a `vector` operation with the item's `id`, its unchanged `geometry` and the new
+     `fill` (or `stroke`). `properties` changes only opacity, blend, visibility, lock and name.
+   - **After `svg.import`**, items are named `svg-0`, `svg-1` and so on. `result.mapping` links each to the SVG's own
+     `id`.
 4. **Check.** Preview the result with `document.preview` and look at it before delivering. Fix what's wrong and
    preview again. `inkbolt_document_check` reports structure problems and text that overflows.
 5. **Deliver.** Call `document.publish` with the snapshot and an `output` of `file_name`, `format` (`png`, `jpeg`,

@@ -7,4 +7,4 @@ tags: [inkbolt, create, text]
 allowed_tools: [Skill]
 ---
 
-Draw a simple architecture diagram for my README: three boxes labelled "Browser", "API server" and "Postgres", left to right, with arrows between them. Use the font in fonts/ for the labels. Save it as docs/architecture.svg and docs/architecture.png.
+Draw a simple architecture diagram for my README: three boxes labelled "Browser", "API server" and "Postgres", left to right, with arrows between them. Use our font, fonts/ProjectSans-Regular.ttf (its licence is fonts/ProjectSans-LICENSE.txt), for the labels. Save it as docs/architecture.svg and docs/architecture.png.
