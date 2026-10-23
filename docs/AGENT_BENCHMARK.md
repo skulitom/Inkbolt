@@ -497,6 +497,17 @@ Complete print/interchange scope remains governed by the original feature regist
   B20 separately reports `consumer_peak_tree_commit_bytes`, the maximum of the
   consumer's per-call aggregate job peaks. It is not combined with individual
   Inkbolt process peaks or presented as whole-machine memory.
+- Linux reference CLI and persistent MCP trials record separate lifetime RSS
+  through the [isolated supervisor](WORKLOAD_MEASUREMENT.md#linux-synchronous-command-memory).
+  MCP `server_memory` retains the raw observation; `resident_memory_complete`
+  and `peak_resident_bytes` summarize consistent positive observations with their
+  method, scope and supervisor source hash. The server peak includes its judging
+  calls and the declared pre-exec footprint; separate judge-only CLI processes
+  remain excluded. A stop request lets the supervisor kill/reap the server and
+  retain its peak, while forced shutdown still fails the task's clean-exit check.
+  Imported model captures do not acquire engine RSS from a later judge run.
+  Windows commit budgets, B10 acceptance, macOS memory and Linux regression gates
+  remain separate; RSS cannot satisfy a committed-memory requirement.
 - Per-task distributions include every measured attempt, with count, minimum,
   median, maximum and population standard deviation. Success/failure/open counts
   remain alongside them. Unknown token use, model calls and autonomous-agent time

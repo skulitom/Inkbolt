@@ -76,6 +76,9 @@ class BenchmarkDriverTests(unittest.TestCase):
             self.assertEqual(memory['scope'],MEMORY_SCOPE)
             self.assertFalse(row['memory_complete'])
             self.assertIsNone(row['peak_commit_bytes'])
+            self.assertFalse(row['resident_memory_complete'])
+            self.assertIsNone(row['peak_resident_bytes'])
+            self.assertIsNone(row['server_memory'])
             execution=json.loads((root/'live/evidence/execution.json').read_text())
             self.assertEqual(memory,execution['memory'])
             before=workspace_files(root/'live/workspace')
@@ -86,6 +89,8 @@ class BenchmarkDriverTests(unittest.TestCase):
             self.assertEqual(before,workspace_files(root/'imported/workspace'))
             self.assertTrue(imported['driver']['imported'])
             self.assertEqual(imported['external_process_tree_memory'],memory)
+            self.assertFalse(imported['resident_memory_complete'])
+            self.assertIsNone(imported['peak_resident_bytes'])
             capture_path=root/'live/evidence/capture.json'
             capture=json.loads(capture_path.read_text())
             capture['execution'].pop('memory')
@@ -114,7 +119,8 @@ class BenchmarkDriverTests(unittest.TestCase):
         for bad in (None,{},dict(valid,available=False),dict(valid,method=None)):
             with self.subTest(bad=bad),self.assertRaises(TaskFailure):
                 execution_memory(dict(memory=bad))
-        for key in ('memory','peak_commit_bytes','external_process_tree_memory'):
+        for key in ('memory','peak_commit_bytes','external_process_tree_memory',
+                    'resident_memory_complete','peak_resident_bytes','server_memory'):
             with self.subTest(client_key=key),self.assertRaises(TaskFailure):
                 observations(dict(observations=dict(source='client_reported',**{key:valid})))
 

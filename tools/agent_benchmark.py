@@ -54,7 +54,7 @@ def aggregate(rows):
             observations={key:distribution([row[key] for row in measured if row.get(key) is not None])
                 for key in ('engine_commands','request_bytes','response_bytes','retries',
                             'engine_roundtrip_seconds','scripted_wall_seconds',
-                            'first_verified_preview_seconds','peak_commit_bytes','peak_working_set_bytes',
+                            'first_verified_preview_seconds','peak_commit_bytes','peak_working_set_bytes','peak_resident_bytes',
                             'total_engine_commands','total_engine_retries','total_request_bytes','total_response_bytes',
                             'total_engine_roundtrip_seconds','consumer_peak_tree_commit_bytes','model_calls','agent_seconds')},
             token_observations={key:distribution([row['token_usage'][key] for row in measured
@@ -139,7 +139,7 @@ def main(argv=None):
         environment=environment,conditions=args.conditions,consumer_tools=consumer_identity,
         rows=rows,aggregates=aggregate(rows),outcome=status,
         timing='Round trips include local process/stdio/JSON costs. Rows with judge_separated=true exclude judge calls/traffic and stop scripted wall time before judging; judge metrics and raw traffic are retained separately. B19 can overlap a CLI launch caller with its independent cancellation caller; summed round trips are not wall time. Verified-preview times require a successful observed solve response. Fixture generation precedes begin. B20 consumer solve calls/bytes/time are separately recorded in each row.consumer, with total_engine_commands and total_engine_retries covering solve work in both engines. Consumer judge queries and independent decoding are recorded separately and excluded from solve wall time. No autonomous agent time is inferred.',
-        memory='Inkbolt CLI uses the maximum observed individual-process lifetime peaks; MCP uses the persistent server lifetime. B19 also retains every supervisor/runner and owned console-host handle and requires complete contained-process counts. B20 separately reports the OS job commit peak of each Cutbolt caller and all inherited encoder/probe children; it is not mixed with individual Inkbolt peaks. Neither includes the Python driver or independent decoder judge. Missing observations stay null.',
+        memory='Windows commit/working-set and Linux RSS are separate metrics. Linux includes the isolated pre-exec footprint. Inkbolt CLI uses the maximum observed individual-process lifetime peaks; MCP uses the persistent server lifetime including judge calls, retained in server_memory. B19 also retains every supervisor/runner and owned console-host handle and requires complete contained-process counts. B20 separately reports the OS job commit peak of each Cutbolt caller and all inherited encoder/probe children; it is not mixed with individual Inkbolt peaks. Neither includes the Python driver or independent decoder judge. Missing observations stay null.',
         cache_conditions='Fresh workspace and server per trial; CLI process per call. OS caches may be warm. Repetition order rotates deterministically.',
         evidence='Raw CLI/MCP request/response bytes, stderr, original fixtures, delivered artifacts, exact source/executable and explicit required-check results retained. A lost-response injection retains the hidden response for the judge and marks it unobserved by the solver.',
         token_usage=None,model_calls=None,agent_seconds=None,

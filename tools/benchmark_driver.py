@@ -213,6 +213,8 @@ class ExternalTrial(Trial):
             process_calls=None,protocol_requests=None,
             external_process_tree_memory=execution_memory(evidence.get('execution',self.driver_execution)),
             memory_complete=False,memory_scope='Engine-only memory was not separately observed',
+            server_memory=None,resident_memory_complete=False,peak_resident_bytes=None,
+            resident_memory_method=None,resident_memory_scope=None,resident_supervisor_sha256=None,
             peak_commit_bytes=None,peak_working_set_bytes=None)
 
 

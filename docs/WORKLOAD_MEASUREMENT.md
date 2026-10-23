@@ -70,8 +70,13 @@ must not be treated as an unchanged latency baseline. Spawn/supervisor failures
 fail the run; missing or zero RSS never becomes a positive observation.
 Windows commit and Linux RSS are not interchangeable. Existing Windows gates
 and B10's fixed commit requirement remain unchanged; a Linux RSS record cannot
-satisfy them. Linux host comparability, separate regression gates, persistent
-MCP-server memory and macOS memory remain separate work.
+satisfy them. Linux host comparability, separate regression gates and macOS memory
+remain separate work. [Reference MCP trials](AGENT_BENCHMARK.md) also use the
+isolated supervisor for a complete server lifetime. A private control pipe
+requests termination while preserving the child's final counters, including
+when stopped immediately after launch. Per-request and shutdown deadlines remain
+enforced by the benchmark. This streaming adapter has no durable-job or
+descendant-tree claim.
 
 `tests/test_linux_process_memory.py` checks freed allocations, isolation from a
 128 MiB fixture and unrelated children, sequential peaks, reaped descendants,
@@ -110,6 +115,46 @@ Retained `linux-memory-acceptance-01/audit.json` SHA-256:
 The audit binds all full-suite logs, source archive, target commands, memory
 method/source identity, independent checks and prior matching output. Subsequent
 documentation changes are recorded separately. The feature registry is unchanged.
+
+#### Linux persistent MCP acceptance
+
+The streaming supervisor and reference benchmark integration passed fresh full
+checks on matching unchanged inputs:
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 269 | 308 | 2,794 | 24 | 793.6 |
+| Linux / WSL | 269 | 274 | 2,767 | 51 | 537.6 |
+
+No stages failed, remained pending or reused earlier results. Focused feedback
+took 114.2 seconds on Windows and 91.2 seconds on Linux; a final Linux constructor
+cleanup check took 7.0 seconds. Tests cover streaming requests, freed allocations,
+immediate stop, failed exec, lost supervisor, descriptor cleanup, incomplete
+observations and exclusion of judge metrics from external model trials.
+
+A separate optimized Linux MCP run retained one attempt per selected task:
+
+| Task | Result | Peak lifetime RSS |
+| --- | --- | ---: |
+| B01 graphics creation | Passed | 27.64 MiB |
+| B03 large layout | Passed | 91.61 MiB |
+| B10 photo editing | Failed only the commit-memory budget check | 175.19 MiB |
+| B17 retry recovery | Passed | 26.47 MiB |
+
+All four resident observations are complete and include the server's judge calls.
+B10's artifact/edit/history checks passed, but the fixed 256 MiB committed-memory
+requirement remains unverified on Linux: RSS is a different metric. The run
+correctly exits with failure and retains that failed check. These shared-workstation
+observations are transport, fidelity and memory evidence, not actual model trials,
+a full benchmark suite or repeated performance-gate acceptance.
+
+Frozen source fingerprint:
+`142cb833350c9d4af917d942a9de5a4ece28472e20ff273a0daa8846ba1c8efc`.
+Retained `linux-mcp-memory-acceptance-01/audit.json` SHA-256:
+`b4946d5c3177459423b2eab7f9202414496575580091bc79b15637dc820ecf60`.
+The audit binds all full-suite logs, source archive, reference traffic, artifacts,
+task results and memory method/source identities. Later documentation changes
+are recorded separately. Original checkpoint credit remains unchanged.
 
 The Windows high-water test in `tests/test_workload_measurement.py` uses an owned process that allocates and frees 32 MiB before exit, compared with a separate no-allocation process. It also exercises actual native edit/history fidelity, failure/blocked-step accounting, incorrect oracles, changed sources, malformed envelopes, owned timeout cleanup and create-only evidence paths. Small harness checks run in ordinary verification; the full release benchmark is a separate sequential run.
 

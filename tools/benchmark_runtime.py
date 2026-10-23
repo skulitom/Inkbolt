@@ -7,10 +7,12 @@ from pathlib import Path
 import queue
 import re
 import subprocess
+import sys
 import threading
 import time
 
 from workload_cases import process_memory, run_process, save, save_json, sha
+import linux_process_memory
 from mcp_artifacts import restore
 from benchmark_tasks import check_class
 
@@ -52,9 +54,13 @@ class Mcp:
         self.closed = False
         self.stderr_path = case.root/'mcp.stderr.log'
         self.stderr = self.stderr_path.open('xb')
-        self.process = case.spawn([str(case.executable), '--workspace', str(case.root),
-            'mcp', '--tools', 'core'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=self.stderr, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+        try:
+            self.process = case.spawn([str(case.executable), '--workspace', str(case.root),
+                'mcp', '--tools', 'core'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=self.stderr, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+        except BaseException:
+            self.stderr.close()
+            raise
         self.lines = queue.Queue(maxsize=2)
         self.stop = threading.Event()
         def receive():
@@ -139,13 +145,14 @@ class Mcp:
                 self.process.kill(); self.process.wait(timeout=10)
             memory = process_memory(self.process)
             self.case.server_memory = memory
-            self.reader.join(timeout=2)
-            self.process.stdout.close()
-            self.stderr.close()
             require(not forced and self.process.returncode == 0 and self.stderr_path.stat().st_size == 0,
                     'MCP server did not close cleanly; retained its stderr')
             return memory
         finally:
+            if isinstance(self.process, linux_process_memory.Process):
+                self.process.close()
+            self.reader.join(timeout=2)
+            self.process.stdout.close()
             self.stderr.close()
 
 
@@ -201,6 +208,8 @@ class Trial:
             self.server.initialize()
 
     def spawn(self, argv, **options):
+        if sys.platform == 'linux':
+            return linux_process_memory.Process(argv, **options)
         return subprocess.Popen(argv, **options)
 
     def begin_judging(self):
@@ -395,6 +404,8 @@ class Trial:
             judge_roundtrip_seconds=sum(row.get('seconds',0) for row in judge_traffic),
             first_verified_preview_seconds=self.first_preview,
             memory_complete=memory_complete, memory_scope=memory_scope,
+            server_memory=self.server_memory if self.transport == 'mcp' else None,
+            **linux_process_memory.resident_summary(memory),
             peak_working_set_bytes=max(m['peak_working_set_bytes'] for m in memory_values) if memory_complete else None,
             peak_commit_bytes=max(m['peak_commit_bytes'] for m in memory_values) if memory_complete else None,
             token_usage=None,model_calls=None,agent_seconds=None,model_trials=False)

@@ -73,6 +73,8 @@ operations and their schemas when needed.
 | [Larger brush and retouch regions](docs/LARGE_EDIT_WINDOWS.md) | Native image editing bounds and Windows/Linux verification |
 | [Image export](docs/STREAMING_IMAGE_OUTPUT.md) | PNG/JPEG/TIFF file output, preflight and memory bounds |
 | [Capabilities and limits](docs/IMPLEMENTATION.md) | Verified behavior and links to feature contracts |
+| [Platform support](docs/PLATFORMS.md) and [benchmark results](docs/BENCHMARK_RESULTS.md) | Tested systems, agent evaluations and remaining gaps |
+| [Workload measurements](docs/WORKLOAD_MEASUREMENT.md) | Reproducible runtime and memory checks, including Linux CLI and MCP sessions |
 
 For context on other tools, see
 [SVG and vector editing MCP servers for AI agents: 9 compared](https://skulitom.github.io/Inkbolt/compare/svg-vector-editing-mcp-servers/).
@@ -87,18 +89,16 @@ export jobs currently require Windows. The [platform guide](docs/PLATFORMS.md)
 records tested revisions and the scope of each platform's coverage.
 
 Selected [50 MP workflows](docs/SCALE_ADMISSION.md) have independent Windows/Linux
-checks for masks, local brush and patch edits, undo/redo and TIFF delivery.
-The latest checks also cover [larger brush and clone regions](docs/LARGE_EDIT_WINDOWS.md)
-on 50 MP images, with the original samples and revision history preserved.
+checks for masks, [brush and clone edits](docs/LARGE_EDIT_WINDOWS.md), patch repair,
+undo/redo and TIFF delivery, with original samples and revision history preserved.
 [Whole-image selection](docs/PROXY_SEGMENTATION.md), mask application and TIFF
-export have also been checked at **8192 x 8192**. Each operation retains its own
-size, precision and work limits; these checks do not establish support for every
-operation at those sizes.
+export have also been checked at **8192 x 8192**. These are specific verified
+workflows; each operation retains its own size, precision and work limits.
 
-[Image-guided selection](docs/NATIVE_SEGMENTATION.md) analyzes up to 65,536 source
-pixels directly. The opt-in whole-image mode samples a coarse image and refines
-its boundary at native resolution; it can miss small features outside the refined
-area. Both modes preserve the original image samples.
+[Image-guided selection](docs/NATIVE_SEGMENTATION.md) supports direct analysis of
+bounded regions and an opt-in whole-image mode. The latter uses a coarse image
+and refines boundaries at full resolution; it can miss small features. Both
+preserve the original image samples.
 
 Work in progress includes larger layered files, broader curve combinations and
 editable format interchange. Agent usability, complete large-image workflows

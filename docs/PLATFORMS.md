@@ -7,23 +7,23 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/39128328941)
-is `f189cc3`, including native-region and whole-image proxy/refine selection,
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/39940601570)
+is `c35dc81`, including native-region and whole-image proxy/refine selection,
 native repair, masks and shared patch preparation. All stages ran fresh, all three
 minimum-compiler checks passed and source inputs remained unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 267 | 307 | 2,787 | 9 | 4656.130 |
-| Ubuntu 24.04 | 267 | 273 | 2,745 | 51 | 1558.942 |
-| macOS 15 ARM64 | 267 | 273 | 2,745 | 51 | 2851.446 |
+| Windows 2025 | 267 | 307 | 2,787 | 9 | 4453.820 |
+| Ubuntu 24.04 | 267 | 273 | 2,745 | 51 | 1551.216 |
+| macOS 15 ARM64 | 267 | 273 | 2,745 | 51 | 3037.650 |
 
 Reports, all 801 stage logs, run metadata and the 966-file source archive are
-retained in `proxy-selection-ci-f189cc3`. The archive matches every report's
+retained in `readme-ci-c35dc81`. The archive matches every report's
 source fingerprint. Audit SHA-256:
-`5040a70ad959b20c981de802dadde36b2c186a2e944da3c4b3db058678131699`;
+`20f0d3e253b7ffaca4b44c4a2fc6e3441e2602c8f52f748e1c8c5d3587e107ea`;
 shared hosted source fingerprint:
-`fc910512e5caf47ecae59eeefe42b36949edd95d201c80667c868e08f0d6400a`.
+`c78a15885ee892a3e41e0476ecaa8125360e27e34f7f040c9f9e68a519cf4549`.
 Hosted checks evaluate the public structural guard; local private-policy checks
 remain separate. Unix background jobs remain unsupported.
 
@@ -36,9 +36,15 @@ The subsequent [Linux synchronous-memory increment](WORKLOAD_MEASUREMENT.md#linu
 passed all 269 full stages fresh on Windows and Linux. A separate 50 MP
 brush/clone/history/TIFF workflow recorded 52.168 MiB peak Linux resident memory,
 with every sample checked and the prior TIFF output hash preserved. Linux RSS
-and Windows commit remain separate metrics. Persistent MCP-server memory,
-Linux performance gates and macOS memory remain open. Historical measurements
-below retain their original scope and unavailable-memory status.
+and Windows commit remain separate metrics.
+
+[Persistent reference MCP memory](WORKLOAD_MEASUREMENT.md#linux-persistent-mcp-acceptance)
+also passed all 269 full stages fresh on matching Windows/Linux inputs. Retained
+Linux reference runs have complete server-lifetime RSS for graphics creation,
+large layout, photo editing and retry recovery. The photo task still fails its
+unchanged commit-budget requirement; RSS does not satisfy that check. Actual
+model memory, Linux performance gates and macOS memory remain open. Historical
+measurements below retain their original scope and unavailable-memory status.
 
 The [larger-image admission](SCALE_ADMISSION.md) also has fresh full local
 Windows/Linux acceptance and complete target-image checks. Its Unix process

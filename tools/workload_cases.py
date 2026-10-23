@@ -48,11 +48,13 @@ class MemoryCounters(ctypes.Structure):
 
 
 def process_memory(process):
-    """Read OS lifetime high-water marks through the still-owned process handle.
+    """Read lifetime counters from an owned Windows process or Linux supervisor.
 
-    These are whole-process working set and commit, not sampled RSS, heap size,
+    Windows counters are whole-process working set and commit, not sampled RSS, heap size,
     child aggregation, system memory or the Python fixture/oracle process.
     """
+    if isinstance(process, linux_process_memory.Process):
+        return process.memory()
     if os.name != 'nt':
         return dict(available=False, reason='Only the Windows backend is verified')
     api = ctypes.WinDLL('psapi', use_last_error=True)
@@ -241,8 +243,7 @@ class Case:
         success = success and all(row['status'] == 'pass' for row in self.checks)
         memory = [row['memory'] for row in self.calls if 'memory' in row]
         available = bool(memory) and all(value['available'] for value in memory)
-        residents = [value.get('resident', {}) for value in memory]
-        resident_complete = bool(residents) and all(value.get('available') is True for value in residents)
+        resident = linux_process_memory.resident_summary(memory)
         result = dict(case=self.name, adapter=self.adapter, repetition=self.repetition, success=success,
             calls=self.calls, checks=self.checks, fixture_sources=self.sources,
             engine_seconds=sum(row.get('seconds', 0) for row in self.calls),
@@ -254,8 +255,7 @@ class Case:
             memory_complete=available,
             peak_working_set_bytes=max(m['peak_working_set_bytes'] for m in memory) if available else None,
             peak_commit_bytes=max(m['peak_commit_bytes'] for m in memory) if available else None,
-            resident_memory_complete=resident_complete,
-            peak_resident_bytes=max(m['peak_resident_bytes'] for m in residents) if resident_complete else None)
+            **resident)
         save_json(self.root / 'case.json', result)
         return result
 

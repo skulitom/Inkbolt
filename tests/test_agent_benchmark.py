@@ -77,6 +77,14 @@ class AgentBenchmarkTests(unittest.TestCase):
                         if sys.platform=='win32':
                             self.assertTrue(row['memory_complete'])
                             self.assertGreater(row['peak_commit_bytes'],0)
+                        elif sys.platform=='linux':
+                            self.assertTrue(row['resident_memory_complete'],row)
+                            self.assertGreater(row['peak_resident_bytes'],0)
+                            self.assertFalse(row['memory_complete'])
+                            self.assertIsNone(row['peak_commit_bytes'])
+                            if transport=='mcp':
+                                self.assertEqual(row['server_memory']['resident']['peak_resident_bytes'],row['peak_resident_bytes'])
+                                self.assertIn('including judge calls',row['memory_scope'])
                         if task=='B17':
                             self.assertEqual(row['retries'],2)
                             lost=next(c for c in row['calls'] if c['step']=='lost')
@@ -120,6 +128,7 @@ class AgentBenchmarkTests(unittest.TestCase):
         self.assertEqual((report['passed'],report['failed']),(1,1))
         self.assertEqual(report['observations']['engine_roundtrip_seconds']['count'],2)
         self.assertIsNone(report['observations']['peak_commit_bytes'])
+        self.assertIsNone(report['observations']['peak_resident_bytes'])
 
     def test_rejected_mcp_framing_and_response_identity_retain_observed_wire_bytes(self):
         for raw in [b'{"jsonrpc":"2.0","id":1,"result":{}}',
