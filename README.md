@@ -110,7 +110,8 @@ preserve the original image samples.
 
 Editable RGB8 [layered imports](docs/LAYERED_NATIVE_IMPORT.md) have also been
 checked at 8192 x 8192 on Windows and Linux. Larger canvases require an explicit
-import option, and encoded files remain limited to 32 MiB.
+import option. The native path reads larger encoded files in bounded chunks;
+its contract lists separate file, metadata and content limits.
 
 Work in progress includes broader layered-file interchange, broader curve combinations,
 editable format interchange, agent usability and cross-platform performance

@@ -843,6 +843,8 @@ pub mod layered {
     pub const MAX_CANVAS_PIXELS: usize = 1_048_576;
     /// Explicit native layered import: aggregate retained RGB pixels, including nested sources.
     pub const MAX_NATIVE_PIXELS: usize = super::sample_store::MAX_PIXELS as usize;
+    /// Native layered input captured privately; metadata and inline input remain separately bounded.
+    pub const MAX_NATIVE_FILE_BYTES: usize = super::sample_import::MAX_NATIVE_SOURCE_BYTES as usize;
     /// Aggregate layer, mask and merged-cache decode work; never a resident allocation allowance.
     pub const MAX_NATIVE_DECODED_BYTES: usize = super::sample_import::MAX_NATIVE_DECODED_BYTES;
 }

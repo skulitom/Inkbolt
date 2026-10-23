@@ -73,7 +73,19 @@ fn record(
         ));
     }
     let channels = (0..count)
-        .map(|_| Ok((input.short()? as i16, input.length(version)?)))
+        .map(|_| {
+            Ok((
+                input.short()? as i16,
+                input.length_bounded(
+                    version,
+                    if options.native {
+                        bounds::MAX_NATIVE_FILE_BYTES
+                    } else {
+                        MAX_FILE_BYTES
+                    },
+                )?,
+            ))
+        })
         .collect::<Result<Vec<_>, Error>>()?;
     let keys: BTreeSet<_> = channels.iter().map(|c| c.0).collect();
     if keys.len() != count as usize || keys.iter().any(|k| ![-2, -1, 0, 1, 2].contains(k)) {
@@ -410,6 +422,26 @@ pub(super) fn document(
     depth: usize,
     budget: &mut DecodeBudget,
 ) -> Result<Value, Error> {
+    document_parts(
+        super::input::Parts::memory(bytes)?,
+        id,
+        policy,
+        options,
+        control,
+        depth,
+        budget,
+    )
+}
+
+pub(super) fn document_parts(
+    mut parts: super::input::Parts<'_>,
+    id: String,
+    policy: assets::ColorPolicy,
+    options: Options<'_>,
+    control: &Control,
+    depth: usize,
+    budget: &mut DecodeBudget,
+) -> Result<Value, Error> {
     let embedded_objects = options.embedded_objects;
     if depth > crate::objects::MAX_NESTING {
         return Err(limit(&format!(
@@ -418,7 +450,7 @@ pub(super) fn document(
         )));
     }
     control.check()?;
-    let mut input = Reader::new(bytes);
+    let mut input = Reader::new(&parts.prefix);
     if input.take(4)? != b"8BPS" {
         return Err(malformed());
     }
@@ -582,12 +614,10 @@ pub(super) fn document(
             ));
         }
     };
-    let mut section = input.framed_section(version)?;
-    if section.left() == 0 {
-        return Err(unsupported("Flattened input has no editable layer records"));
-    }
-    let mut layers = section.framed_section(version)?;
-    if !layers.data.len().is_multiple_of(2) {
+    input.end()?;
+    let mut section = Reader::new(&parts.tail);
+    let mut layers = Reader::new(&parts.layers);
+    if !parts.layer_bytes.is_multiple_of(2) {
         return Err(malformed());
     }
     let count = layers.short()? as i16;
@@ -700,25 +730,21 @@ pub(super) fn document(
         let mut native_channels = Vec::new();
         let mut mask = None;
         for &(channel, count) in &r.channels {
+            let encoded = super::input::channel(&mut parts.channels, &mut layers, count)?;
             if channel == -2 {
                 let record = r.mask.as_ref().ok_or_else(malformed)?;
-                let values = binary::decode(
-                    layers.take(count)?,
-                    record.width,
-                    record.height,
-                    version,
-                    control,
-                )
-                .map_err(|e| context(e, "Mask samples"))?;
+                let values = super::rows::Rows::new(encoded, record.width, record.height, version)
+                    .and_then(|rows| rows.collect(control))
+                    .map_err(|e| context(e, "Mask samples"))?;
                 mask = Some(record.document_mask(&values, [r.bounds[1], r.bounds[0]]));
                 continue;
             }
-            let encoded = layers.take(count)?;
             if native_pixel {
                 native_channels.push((channel, encoded));
                 continue;
             }
-            let values = binary::decode(encoded, w, h, version, control)
+            let values = super::rows::Rows::new(encoded, w, h, version)
+                .and_then(|rows| rows.collect(control))
                 .map_err(|e| context(e, "Layer samples"))?;
             let c = if channel == -1 { 3 } else { channel as usize };
             for (p, v) in rgba.as_chunks_mut::<4>().0.iter_mut().zip(values) {
@@ -757,7 +783,7 @@ pub(super) fn document(
                     .ok_or_else(malformed)?
                     .layer(
                         [w, h],
-                        &native_channels,
+                        native_channels,
                         version,
                         profile.as_deref().filter(|_| convert),
                         control,
@@ -796,6 +822,13 @@ pub(super) fn document(
     layers
         .zero_padding(3)
         .map_err(|e| context(e, "Layer section padding"))?;
+    if parts
+        .channels
+        .as_ref()
+        .is_some_and(|channels| !channels.is_empty())
+    {
+        return Err(malformed());
+    }
     let mut overlay = section.section()?;
     if overlay.left() != 0 {
         overlay.take(10)?;
@@ -817,14 +850,14 @@ pub(super) fn document(
         reconstructed_text,
     )?;
     let (merged_hash, padding) = super::rows::Rows::new(
-        input.take(input.left())?,
+        parts.merged,
         width as usize,
         height as usize * channels as usize,
         version,
-    )?
-    .digest(depth > 0, control)
+    )
+    .and_then(|rows| rows.digest(depth > 0, control))
     .map_err(|e| context(e, "Merged samples"))?;
-    if padding != 0 && !bytes.len().is_multiple_of(1024 * 1024) {
+    if padding != 0 && !parts.source_bytes.is_multiple_of(1024 * 1024) {
         return Err(malformed());
     }
     let requested = records

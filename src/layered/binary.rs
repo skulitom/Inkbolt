@@ -25,15 +25,18 @@ impl<'a> Reader<'a> {
         Ok(u32::from_be_bytes(self.take(4)?.try_into().unwrap()))
     }
     pub fn length(&mut self, version: Version) -> Result<usize, Error> {
+        self.length_bounded(version, MAX_FILE_BYTES)
+    }
+    pub fn length_bounded(&mut self, version: Version, maximum: usize) -> Result<usize, Error> {
         let value = if version == Version::Large {
             u64::from_be_bytes(self.take(8)?.try_into().unwrap())
         } else {
             self.word()? as u64
         };
-        if value > MAX_FILE_BYTES as u64 {
+        if value > maximum as u64 {
             return Err(limit(&format!(
                 "Layered section or channel exceeds {} MiB",
-                MAX_FILE_BYTES / (1024 * 1024)
+                maximum / (1024 * 1024)
             )));
         }
         usize::try_from(value).map_err(|_| limit("Layered length exceeds address space"))
@@ -173,107 +176,6 @@ pub(super) fn tagged(out: &mut Vec<u8>, key: &[u8; 4], data: &[u8]) {
         out.push(0);
     }
 }
-pub(super) fn decode(
-    bytes: &[u8],
-    width: usize,
-    rows: usize,
-    version: Version,
-    control: &Control,
-) -> Result<Vec<u8>, Error> {
-    Ok(decode_padded(bytes, width, rows, version, control, false)?.0)
-}
-pub(super) fn decode_padded(
-    bytes: &[u8],
-    width: usize,
-    rows: usize,
-    version: Version,
-    control: &Control,
-    embedded: bool,
-) -> Result<(Vec<u8>, usize), Error> {
-    let expected = width
-        .checked_mul(rows)
-        .filter(|&n| n <= MAX_DECODED_BYTES)
-        .ok_or_else(|| limit("Layered sample buffer exceeds its byte bound"))?;
-    let mut input = Reader::new(bytes);
-    let compression = input.short()?;
-    let mut output = Vec::with_capacity(expected);
-    match compression {
-        0 => output.extend(input.take(expected)?),
-        1 => {
-            let sizes = (0..rows)
-                .map(|_| {
-                    if version == Version::Large {
-                        input.word().map(|v| v as usize)
-                    } else {
-                        input.short().map(usize::from)
-                    }
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            for size in sizes {
-                control.check()?;
-                let mut row = Reader::new(input.take(size)?);
-                let start = output.len();
-                while row.left() != 0 {
-                    let code = row.byte()?;
-                    match code {
-                        0..=127 => {
-                            let count = code as usize + 1;
-                            if output.len() - start + count > width {
-                                return Err(malformed());
-                            }
-                            output.extend(row.take(count)?);
-                        }
-                        129..=255 => {
-                            let count = 257 - code as usize;
-                            if output.len() - start + count > width {
-                                return Err(malformed());
-                            }
-                            let v = row.byte()?;
-                            output.extend(std::iter::repeat_n(v, count));
-                        }
-                        _ => {}
-                    }
-                }
-                if output.len() - start != width {
-                    return Err(malformed());
-                }
-            }
-        }
-        2 | 3 => {
-            // A fixed output buffer bounds both decompression and prediction work.
-            let mut decoded = vec![0; expected + 1];
-            let mut decoder = flate2::Decompress::new(true);
-            let data = &input.data[input.at..];
-            let status = decoder
-                .decompress(data, &mut decoded, flate2::FlushDecompress::Finish)
-                .map_err(|_| malformed())?;
-            if status != flate2::Status::StreamEnd || decoder.total_out() != expected as u64 {
-                return Err(malformed());
-            }
-            input.take(decoder.total_in() as usize)?;
-            decoded.truncate(expected);
-            if compression == 3 && width != 0 {
-                for row in decoded.chunks_exact_mut(width) {
-                    control.check()?;
-                    for i in 1..row.len() {
-                        row[i] = row[i].wrapping_add(row[i - 1]);
-                    }
-                }
-            }
-            output = decoded;
-        }
-        _ => return Err(unsupported("Unknown layered channel compression")),
-    }
-    let padding = input.left();
-    if embedded {
-        input.zero_padding(1024 * 1024)?;
-    } else {
-        input.end()?;
-    }
-    control.check()?;
-    Ok((output, padding))
-}
-
 pub(super) fn encode(
     plane: &[u8],
     width: usize,

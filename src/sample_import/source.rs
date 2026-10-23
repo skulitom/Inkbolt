@@ -182,10 +182,10 @@ impl Seek for Scratch {
     }
 }
 
-pub(super) trait ReadSeek: Read + Seek {}
+pub(crate) trait ReadSeek: Read + Seek {}
 impl<T: Read + Seek> ReadSeek for T {}
 
-pub(super) struct Source {
+pub(crate) struct Source {
     pub reader: Box<dyn ReadSeek>,
     pub sha256: String,
     pub bytes: usize,

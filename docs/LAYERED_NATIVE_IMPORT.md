@@ -34,6 +34,13 @@ layers. Both container versions retain their framing and trailing-data checks.
 Nested embedded sources use the same native storage and shared import budgets;
 their explicit reconstruction policy and cache limits remain unchanged.
 
+The native path captures the encoded file in private seekable storage, hashing
+the exact captured bytes. Layer channels and the merged cache read bounded
+ranges from that snapshot; they are not copied into whole-file or whole-plane
+memory buffers. Metadata retains a separate aggregate bound, including any
+embedded-source payloads stored in global metadata. Inline import still reads
+only files within its original 32 MiB limit.
+
 The resulting document works with native edits, snapshots, pinned session
 references, undo/redo and the existing image export paths. Saving a snapshot or
 session does not embed all pixel data: preserve its asset store as well.
@@ -45,7 +52,9 @@ work; unsupported inputs fail explicitly.
 
 | Resource | Bound |
 | --- | ---: |
-| Encoded input, still read as one bounded file | 32 MiB |
+| Native encoded input, captured privately | 544 MiB |
+| Aggregate retained metadata, including embedded-source payloads | 32 MiB |
+| Encoded input for the default inline route | 32 MiB |
 | Canvas with explicit native storage and `large_raster` | 67,108,864 pixels |
 | Aggregate retained layer/cache and mask pixels across nested sources | 67,108,864 pixels |
 | Aggregate decoded layer, mask and merged-cache work, conservatively charged as RGBA8 | 512 MiB |
@@ -79,7 +88,53 @@ refusals and late failures without publication. Existing layered tests continue
 to cover the inline route. These checks alone do not establish the full W4
 memory/performance or editable layered return-trip gates.
 
-### Windows and Linux acceptance, 23 October 2026
+`tests/test_layered_streaming.py` adds original raw/RLE files above 32 MiB,
+individual channels above 32 MiB, every-sample native block checks, distinct
+encoded/metadata limits and late refusals without publication. The fixture
+writer streams original coordinate planes and an intentionally unrelated
+merged cache. Focused Windows and Linux checks pass within the routine feedback
+budget; the full acceptance below covers the same source inputs.
+
+### Seekable-input acceptance, 23 October 2026
+
+Fresh full verification passed all 272 stages on each platform, with no reused
+results, failures or pending checks. Windows ran 309 Rust and 2,811 Python tests;
+Linux ran 275 Rust and 2,784 Python tests. The 24 Windows and 51 Linux skips are
+recorded explicitly. Full runs took 944.31 and 633.84 seconds respectively;
+focused change feedback took 85.13 seconds on Windows and 61.12 seconds on Linux.
+
+An original uncompressed 8192 x 8192 RGB8 fixture passed on both verified debug
+binaries. Its encoded file is 536,871,148 bytes, with individual channel lengths
+of 67,108,866 bytes. Independent checks covered every retained sample, including
+hidden color under zero alpha, block framing/hashes, manifest identity, the
+unrelated merged-cache hash and unchanged source. The resulting editable
+document is 279,205 bytes. Both platforms produce manifest
+`670106bcf3b068a9a911088fe63a3ba704dd34c7972b3c27f33ed562f2bb0b38`.
+
+| Single debug import | Windows | Linux |
+| --- | ---: | ---: |
+| CLI lifetime | 5.31 s | 5.13 s |
+| Peak process commit | 10.25 MiB | Unavailable |
+| Peak resident/working set | 25.62 MiB | 53.20 MiB |
+
+These are single-fixture diagnostics, not a repeated performance gate. Fixture
+generation and independent checks are excluded; desktop activity is uncontrolled
+and caches may be warm. Linux RSS does not establish commit-budget acceptance.
+
+Full reports, all 544 stage logs, source archive and target evidence are retained
+externally under `layered-streaming-acceptance-01`,
+`layered-streaming-windows-target-02` and `layered-streaming-linux-target-01`.
+The audit SHA-256 is
+`3f61b25516eb6bf305c7b537910b0bd155a640d01dda4e2866d0180f36f0db79`;
+the shared source fingerprint is
+`7589faa5e9fbcc1a1c33c09697465bf4e38d22dbe092087cb75e922a276bd80d`.
+Publication-only Markdown edits are recorded separately. The original checkpoint
+count remains 163/167; full W4 and extended layered interchange remain open.
+
+### Initial native-storage acceptance, 23 October 2026
+
+This evidence predates the seekable encoded-input path above and retains its
+original source identities and scope.
 
 Both full runs executed all 271 stages on matching source inputs. Each retained
 270 passing stages and one failed capability-limit registration check. The

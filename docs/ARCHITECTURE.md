@@ -4,7 +4,9 @@ Explicit [native layered import](LAYERED_NATIVE_IMPORT.md) decodes RGB8 layer
 channels and merged caches by row. Pixel layers share the image importer's
 private extent builder and immutable block publication. The complete source and
 all nested documents validate before publication. Larger canvases require the
-explicit raster profile; input files and inline masks retain their prior bounds.
+explicit raster profile. Encoded channels and merged caches read bounded ranges
+from a private seekable snapshot; metadata and inline masks retain separate
+bounds.
 
 Tiled rendering also selects the bounded spatial index when a small scene's
 whole-canvas paint/mask estimate exceeds the paint budget. Separated large

@@ -300,6 +300,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `layered.MAX_METADATA_RECORDS` | `u32` | 16 | `16` |
 | `layered.MAX_NAME_UNITS` | `usize` | 1024 | `1024` |
 | `layered.MAX_NATIVE_DECODED_BYTES` | `usize` | 536870912 | `super::sample_import::MAX_NATIVE_DECODED_BYTES` |
+| `layered.MAX_NATIVE_FILE_BYTES` | `usize` | 570425344 | `super::sample_import::MAX_NATIVE_SOURCE_BYTES as usize` |
 | `layered.MAX_NATIVE_PIXELS` | `usize` | 67108864 | `super::sample_store::MAX_PIXELS as usize` |
 | `layered.MAX_SERIALIZED_RECORDS` | `usize` | 512 | `super::model::MAX_ITEMS * 2` |
 | `layered.MAX_STANDARD_DIMENSION` | `u32` | 30000 | `30_000` |

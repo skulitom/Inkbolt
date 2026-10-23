@@ -46,7 +46,7 @@ impl Import {
     pub fn layer(
         &mut self,
         dimensions: [usize; 2],
-        channels: &[(i16, &[u8])],
+        channels: Vec<(i16, super::input::Plane<'_>)>,
         version: Version,
         profile: Option<&[u8]>,
         control: &Control,
@@ -61,8 +61,8 @@ impl Import {
         };
         spec.validate()?;
         let mut decoders = channels
-            .iter()
-            .map(|&(id, bytes)| {
+            .into_iter()
+            .map(|(id, bytes)| {
                 Ok((
                     if id == -1 { 3 } else { id as usize },
                     Rows::new(bytes, width, height, version)?,

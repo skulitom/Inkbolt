@@ -164,7 +164,8 @@ class NativeLayeredTests(unittest.TestCase):
             c.initialize()
             caps = c.success('capabilities')['layered_interchange']['native_import']
             self.assertEqual(caps['aggregate_retained_pixels'], 8192**2)
-            self.assertEqual(caps['file_bytes'],32*1024*1024)
+            self.assertEqual(caps['file_bytes'],544*1024*1024)
+            self.assertEqual(caps['metadata_bytes'],32*1024*1024)
             imported = c.success('layered.import',source_path='original.layered',id='mcp',color_policy='assume_srgb',storage={})
             self.assert_grid(imported['document']['items'][0],bytes([1,2,3,4]),1,1)
             self.assertEqual(imported['storage']['storage_version'],2)

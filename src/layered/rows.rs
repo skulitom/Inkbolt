@@ -1,10 +1,44 @@
-//! Bounded channel decoding: encoded input is borrowed, only one decoded row is retained.
-use super::{Version, binary::Reader, malformed, unsupported};
+//! Bounded channel decoding from borrowed bytes or an immutable private file range.
+use super::{Version, input::Plane, malformed, unsupported};
 use crate::{Error, control::Control};
 use sha2::{Digest, Sha256};
+use std::io::{BufRead, Read};
+
+struct Encoded<'a> {
+    reader: Box<dyn BufRead + 'a>,
+    at: usize,
+    length: usize,
+}
+impl Encoded<'_> {
+    fn read(&mut self, output: &mut [u8]) -> Result<(), Error> {
+        let end = self
+            .at
+            .checked_add(output.len())
+            .filter(|end| *end <= self.length)
+            .ok_or_else(malformed)?;
+        self.reader.read_exact(output).map_err(|_| malformed())?;
+        self.at = end;
+        Ok(())
+    }
+    fn byte(&mut self) -> Result<u8, Error> {
+        let mut b = [0];
+        self.read(&mut b)?;
+        Ok(b[0])
+    }
+    fn short(&mut self) -> Result<u16, Error> {
+        let mut b = [0; 2];
+        self.read(&mut b)?;
+        Ok(u16::from_be_bytes(b))
+    }
+    fn word(&mut self) -> Result<u32, Error> {
+        let mut b = [0; 4];
+        self.read(&mut b)?;
+        Ok(u32::from_be_bytes(b))
+    }
+}
 
 pub(super) struct Rows<'a> {
-    input: Reader<'a>,
+    input: Encoded<'a>,
     compression: u16,
     width: usize,
     rows: usize,
@@ -16,7 +50,7 @@ pub(super) struct Rows<'a> {
 
 impl<'a> Rows<'a> {
     pub fn new(
-        bytes: &'a [u8],
+        plane: Plane<'a>,
         width: usize,
         rows: usize,
         version: Version,
@@ -31,7 +65,12 @@ impl<'a> Rows<'a> {
                 "Layered channel exceeds bounded row decode work",
             ));
         }
-        let mut input = Reader::new(bytes);
+        let (reader, length) = plane.reader();
+        let mut input = Encoded {
+            reader,
+            length,
+            at: 0,
+        };
         let compression = input.short()?;
         if compression > 3 {
             return Err(unsupported("Unknown layered channel compression"));
@@ -67,14 +106,15 @@ impl<'a> Rows<'a> {
         let before_out = decoder.total_out();
         let status = decoder
             .decompress(
-                &self.input.data[self.input.at..],
+                self.input.reader.fill_buf().map_err(|_| malformed())?,
                 output,
                 flate2::FlushDecompress::None,
             )
             .map_err(|_| malformed())?;
         let consumed = (decoder.total_in() - before_in) as usize;
         let produced = (decoder.total_out() - before_out) as usize;
-        self.input.take(consumed)?;
+        self.input.reader.consume(consumed);
+        self.input.at += consumed;
         self.ended = status == flate2::Status::StreamEnd;
         if consumed == 0 && produced == 0 && !self.ended {
             return Err(malformed());
@@ -88,13 +128,18 @@ impl<'a> Rows<'a> {
             return Err(malformed());
         }
         match self.compression {
-            0 => output.copy_from_slice(self.input.take(self.width)?),
+            0 => self.input.read(output)?,
             1 => {
-                let mut row = Reader::new(self.input.take(self.sizes[self.at])?);
+                let end = self
+                    .input
+                    .at
+                    .checked_add(self.sizes[self.at])
+                    .filter(|end| *end <= self.input.length)
+                    .ok_or_else(malformed)?;
                 let mut at = 0;
-                while row.left() != 0 {
+                while self.input.at < end {
                     control.check()?;
-                    let code = row.byte()?;
+                    let code = self.input.byte()?;
                     let count = match code {
                         0..=127 => code as usize + 1,
                         129..=255 => 257 - code as usize,
@@ -102,9 +147,15 @@ impl<'a> Rows<'a> {
                     };
                     let target = output.get_mut(at..at + count).ok_or_else(malformed)?;
                     if code <= 127 {
-                        target.copy_from_slice(row.take(count)?);
+                        if count > end - self.input.at {
+                            return Err(malformed());
+                        }
+                        self.input.read(target)?;
                     } else if code != 128 {
-                        target.fill(row.byte()?);
+                        if self.input.at == end {
+                            return Err(malformed());
+                        }
+                        target.fill(self.input.byte()?);
                     }
                     at += count;
                 }
@@ -145,11 +196,18 @@ impl<'a> Rows<'a> {
                 }
             }
         }
-        let padding = self.input.left();
-        if embedded {
-            self.input.zero_padding(1024 * 1024)?;
-        } else {
-            self.input.end()?;
+        let padding = self.input.length - self.input.at;
+        if padding > if embedded { 1024 * 1024 } else { 0 } {
+            return Err(malformed());
+        }
+        let mut buffer = vec![0; padding.min(crate::limits::sample_import::INPUT_BUFFER_BYTES)];
+        while self.input.at < self.input.length {
+            control.check()?;
+            let size = buffer.len().min(self.input.length - self.input.at);
+            self.input.read(&mut buffer[..size])?;
+            if buffer[..size].iter().any(|b| *b != 0) {
+                return Err(malformed());
+            }
         }
         control.check()?;
         Ok(padding)
@@ -166,5 +224,19 @@ impl<'a> Rows<'a> {
             crate::render::hex(&hash.finalize()),
             self.finish(embedded, control)?,
         ))
+    }
+
+    pub fn collect(mut self, control: &Control) -> Result<Vec<u8>, Error> {
+        let count = self
+            .width
+            .checked_mul(self.rows)
+            .filter(|n| *n <= super::MAX_DECODED_BYTES)
+            .ok_or_else(|| crate::model::limit("Inline layered samples exceed their byte bound"))?;
+        let mut result = vec![0; count];
+        for y in 0..self.rows {
+            self.row(&mut result[y * self.width..(y + 1) * self.width], control)?;
+        }
+        self.finish(false, control)?;
+        Ok(result)
     }
 }

@@ -1,6 +1,7 @@
 //! Original local layered RGB interchange; no embedded engine snapshot.
 mod binary;
 mod descriptor;
+mod input;
 mod mask;
 mod metadata;
 mod native;
@@ -243,16 +244,37 @@ pub fn import_with_options(
         fonts.validate()?;
     }
     assets::absolute(source)?;
-    let bytes = assets::read_bounded(source, MAX_FILE_BYTES as u64)?;
-    let hash = assets::sha256(&bytes);
+    let captured = if options.storage.is_some() {
+        Some(crate::sample_import::source::Source::open(
+            source, true, control,
+        )?)
+    } else {
+        None
+    };
+    let bytes = if captured.is_none() {
+        Some(assets::read_bounded(source, MAX_FILE_BYTES as u64)?)
+    } else {
+        None
+    };
+    let (hash, source_bytes) = if let Some(source) = &captured {
+        (source.sha256.clone(), source.bytes)
+    } else {
+        let bytes = bytes.as_ref().unwrap();
+        (assets::sha256(bytes), bytes.len())
+    };
     if expected_sha256.is_some_and(|v| v != hash) {
         return Err(Error::new(
             "SOURCE_MISMATCH",
             "Layered source bytes do not match the declared SHA-256",
         ));
     }
-    let mut result = read::document(
-        &bytes,
+    let parts = if let Some(source) = captured {
+        input::Parts::captured(source, control)?
+    } else {
+        input::Parts::memory(bytes.as_ref().unwrap())?
+    };
+    let mut result = read::document_parts(
+        parts,
         id,
         color_policy,
         read::Options {
@@ -278,7 +300,7 @@ pub fn import_with_options(
         error
     })?;
     result["source_sha256"] = json!(hash);
-    result["source_bytes"] = json!(bytes.len());
+    result["source_bytes"] = json!(source_bytes);
     result["source_changed"] = json!(false);
     if let Some(native) = budget.native {
         result["storage"] = native.publish(options.storage.as_ref().unwrap(), control)?;
