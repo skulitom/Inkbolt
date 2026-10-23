@@ -591,10 +591,10 @@ pub(crate) fn apply(
         height: high[1] - low[1],
     };
     let count = region.width as u64 * region.height as u64;
-    if count > crate::sample_store::MAX_REGION_PIXELS {
+    let region_limit = pixels::region_limit(content, bounds::MAX_NATIVE_WINDOW_PIXELS);
+    if count > region_limit {
         return Err(limit(&format!(
-            "Brush deposition bounds exceed the {}-pixel local edit window",
-            crate::sample_store::MAX_REGION_PIXELS
+            "Brush deposition bounds exceed the {region_limit}-pixel local edit window"
         )));
     }
     // Include original/working/frozen-dab/output windows, weights, exact hex

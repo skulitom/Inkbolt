@@ -5,6 +5,21 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W4.6: larger native brush and retouch windows verified
+
+[The window contract](LARGE_EDIT_WINDOWS.md) admits 262,144-pixel brush windows
+and 131,072-pixel retouch regions on version-2 native layers, with unchanged
+128 MiB processing and local-work budgets. Replacement uses bounded block
+intersections without splitting brush semantics or the healing system.
+
+Fresh full Windows/Linux acceptance passed all 268 stages on matching inputs.
+Independent 50 MP workflows checked every original, edited, historical and TIFF
+sample, private proposals, failed batches and retries. Windows peak process
+commit was 37.285 MiB; Unix memory remains unverified. Focused Windows/Linux
+feedback took 114.2/112.3 seconds. The contract retains source identities,
+complete logs and compatibility evidence. Full W4, repeated scale-v2, larger
+layered files and the original four checkpoints remain open.
+
 ## W4.6: proxy selection with native boundary refinement verified
 
 [Proxy/refine selection](PROXY_SEGMENTATION.md) creates full-resolution native

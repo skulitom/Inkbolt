@@ -45,6 +45,71 @@ pub(crate) fn replacement_memory(content: &Content, region: Region) -> u64 {
         * grid.base.spec.channels.count() as u64
 }
 
+pub(crate) fn region_limit(content: &Content, native_limit: u64) -> u64 {
+    match content {
+        Content::StoredSamples { grid } if grid.storage_version == 2 => native_limit,
+        _ => crate::sample_store::MAX_REGION_PIXELS,
+    }
+}
+
+/// Large operation windows are committed through disjoint block intersections.
+/// Keep the public sample-store region ceiling and legacy patch format intact.
+fn replace_large_region(
+    candidate: &Candidate,
+    root: Option<&Path>,
+    region: Region,
+    bytes: &[u8],
+    work: &mut impl Budget,
+) -> Result<Candidate, Error> {
+    let spec = candidate.manifest().spec;
+    let stride = spec.depth.bytes() * spec.channels.count();
+    if region.width == 0
+        || region.height == 0
+        || u64::from(region.x) + u64::from(region.width) > u64::from(spec.width)
+        || u64::from(region.y) + u64::from(region.height) > u64::from(spec.height)
+        || bytes.len() as u64 != u64::from(region.width) * u64::from(region.height) * stride as u64
+    {
+        return Err(Error::new(
+            "INVALID_NATIVE_SAMPLES",
+            "Invalid native edit window bytes",
+        ));
+    }
+    let mut next = candidate.clone();
+    let mut buffer = Vec::new();
+    let mut y = region.y;
+    while y < region.y + region.height {
+        let height = (TILE_EDGE - y % TILE_EDGE).min(region.y + region.height - y);
+        let mut x = region.x;
+        while x < region.x + region.width {
+            work.control().check()?;
+            let width = (TILE_EDGE - x % TILE_EDGE).min(region.x + region.width - x);
+            buffer.clear();
+            for row in y..y + height {
+                let start = ((row - region.y) as usize * region.width as usize
+                    + (x - region.x) as usize)
+                    * stride;
+                buffer.extend_from_slice(&bytes[start..start + width as usize * stride]);
+            }
+            // Each intersecting block is charged and replaced exactly once.
+            work.charge((TILE_EDGE * TILE_EDGE) as usize)?;
+            next = next.replace(
+                root,
+                Region {
+                    x,
+                    y,
+                    width,
+                    height,
+                },
+                &buffer,
+                work.control(),
+            )?;
+            x += width;
+        }
+        y += height;
+    }
+    Ok(next)
+}
+
 pub(crate) fn memory(content: &Content) -> u64 {
     match content {
         Content::StoredSamples { grid } => grid.preparation_costs().1 * 8,
@@ -290,6 +355,14 @@ impl<'a> Pixels<'a> {
                 };
                 let mut current = before.clone();
                 for &(region, bytes) in regions {
+                    if grid.storage_version == 2
+                        && u64::from(region.width) * u64::from(region.height)
+                            > crate::sample_store::MAX_REGION_PIXELS
+                    {
+                        current = replace_large_region(&current, self.root, region, bytes, work)?;
+                        grid.set_candidate(current.clone())?;
+                        continue;
+                    }
                     // Charge complete intersecting blocks, including cached ones.
                     let columns =
                         (region.x + region.width).div_ceil(TILE_EDGE) - region.x / TILE_EDGE;

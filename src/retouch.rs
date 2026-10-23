@@ -329,10 +329,13 @@ pub(crate) fn apply_with_inputs<'a>(
             "Retouch region must be nonempty and entirely within the target native grid",
         ));
     }
-    if r.width as u64 * r.height as u64 > crate::sample_store::MAX_REGION_PIXELS {
+    let region_limit = pixels::region_limit(
+        &document.items[index].content,
+        bounds::MAX_NATIVE_REGION_PIXELS,
+    );
+    if r.width as u64 * r.height as u64 > region_limit {
         return Err(limit(&format!(
-            "Retouch exceeds the {}-pixel local edit region",
-            crate::sample_store::MAX_REGION_PIXELS
+            "Retouch exceeds the {region_limit}-pixel local edit region"
         )));
     }
     // Every selected cell has its actual in-image neighbors in this window.

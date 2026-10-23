@@ -98,7 +98,8 @@ class NativeBrushTests(unittest.TestCase):
     def test_paint_and_mixer_quantize_all_six_formats_once_without_implicit_gray_conversion(self):
         caps=self.cli('capabilities')['pixel_brushes']
         self.assertEqual(caps['target'],['raster','samples','stored_samples'])
-        self.assertEqual(caps['maximum_window_pixels'],capabilities()['native_sample_store_library']['max_region_pixels'])
+        self.assertEqual(caps['legacy_window_pixels'],capabilities()['native_sample_store_library']['max_region_pixels'])
+        self.assertGreater(caps['maximum_window_pixels'],caps['legacy_window_pixels'])
         self.assertGreater(caps['maximum_processing_memory_bytes'],caps['maximum_window_pixels']*4*8)
         color=pm([85,85,85,128],255)
         for depth in ['u8','u16','f32']:

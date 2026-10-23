@@ -1139,6 +1139,8 @@ pub mod pdf_marks {
 
 /// Limits for `src/pixel_brush.rs`.
 pub mod pixel_brush {
+    /// Maximum deposition window for version-2 native block layers; other storage keeps its region bound.
+    pub const MAX_NATIVE_WINDOW_PIXELS: u64 = 262_144;
     /// Relative roundoff allowance for a duplicate terminal dab.
     pub const ENDPOINT_EPSILONS: u32 = 16;
     /// Accumulated brush work units between cancellation checks.
@@ -1551,6 +1553,8 @@ pub mod responses {
 
 /// Limits for `src/retouch.rs`.
 pub mod retouch {
+    /// Maximum selected region for version-2 native block layers; solver memory/work remain separate.
+    pub const MAX_NATIVE_REGION_PIXELS: u64 = 131_072;
     /// Source sample positions between cancellation checks.
     pub const SAMPLE_CHECK_INTERVAL: usize = 1024;
     /// Maximum screening strength of the boundary-constrained healing system.

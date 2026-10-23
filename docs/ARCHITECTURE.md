@@ -1,5 +1,11 @@
 # Architecture
 
+Version-2 native layers admit [larger brush and retouch windows](LARGE_EDIT_WINDOWS.md)
+under unchanged processing budgets. Replacement traverses disjoint native block
+intersections while brush ordering, frozen sampling and the complete healing
+system retain their existing semantics. Small and legacy storage paths keep
+their prior region ceiling and representation.
+
 Optional [whole-image selection](PROXY_SEGMENTATION.md) reads coarse samples in
 block order, solves a weighted cut and refines the dilated boundary on native
 features with outside labels fixed. Scalar masks are authored into private

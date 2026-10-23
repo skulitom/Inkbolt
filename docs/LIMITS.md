@@ -440,6 +440,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `pixel_brush.MAX_DABS` | `usize` | 8192 | `8192` |
 | `pixel_brush.MAX_DIAMETER` | `u32` | 512 | `512` |
 | `pixel_brush.MAX_MEMORY_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
+| `pixel_brush.MAX_NATIVE_WINDOW_PIXELS` | `u64` | 262144 | `262_144` |
 | `pixel_brush.MAX_POINTS` | `usize` | 1024 | `1024` |
 | `pixel_brush.MAX_SCATTER` | `u32` | 4 | `4` |
 | `pixel_brush.MAX_SPACING` | `u32` | 4 | `4` |
@@ -597,6 +598,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `retouch.FIXED_WORKING_BYTES` | `u64` | 8388608 | `8 * 1024 * 1024` |
 | `retouch.MAX_ITERATIONS` | `u32` | 4096 | `4096` |
 | `retouch.MAX_MEMORY_BYTES` | `u64` | 134217728 | `128 * 1024 * 1024` |
+| `retouch.MAX_NATIVE_REGION_PIXELS` | `u64` | 131072 | `131_072` |
 | `retouch.MAX_RESIDUAL_TOLERANCE` | `f64` | 0.0001 | `1e-4` |
 | `retouch.MAX_SCREENING` | `u32` | 16 | `16` |
 | `retouch.MAX_WORK` | `u64` | 67108864 | `67_108_864` |

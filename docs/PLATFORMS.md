@@ -27,6 +27,11 @@ shared hosted source fingerprint:
 Hosted checks evaluate the public structural guard; local private-policy checks
 remain separate. Unix background jobs remain unsupported.
 
+The subsequent [larger native edit windows](LARGE_EDIT_WINDOWS.md) passed all
+268 full stages fresh on Windows and Linux, with matching unchanged source
+inputs and independent 50 MP brush/clone/history/TIFF checks. This does not add
+macOS target-image or Unix process-memory acceptance.
+
 The [larger-image admission](SCALE_ADMISSION.md) also has fresh full local
 Windows/Linux acceptance and complete target-image checks. Its Unix process
 memory metric remains unavailable. The separate target-image measurements ran
