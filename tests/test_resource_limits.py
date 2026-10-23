@@ -681,6 +681,11 @@ BINDINGS = {
     'layered_interchange/file_bytes': 'layered.MAX_FILE_BYTES',
     'layered_interchange/maximum_layers': 'model.MAX_ITEMS',
     'layered_interchange/stored_pixels': 'model.MAX_STORED_PIXELS',
+    'layered_interchange/native_import/file_bytes': 'layered.MAX_FILE_BYTES',
+    'layered_interchange/native_import/canvas_pixels': 'layered.MAX_NATIVE_PIXELS',
+    'layered_interchange/native_import/aggregate_retained_pixels': 'layered.MAX_NATIVE_PIXELS',
+    'layered_interchange/native_import/aggregate_decode_bytes': 'layered.MAX_NATIVE_DECODED_BYTES',
+    'layered_interchange/native_import/maximum_tiles_per_layer': 'sample_store.MAX_TILES',
     'layered_interchange/embedded_objects/limits/nesting': 'objects.MAX_NESTING',
     'layered_interchange/embedded_objects/limits/decoded_sample_bytes': 'layered.MAX_DECODED_BYTES',
     'layered_interchange/embedded_objects/limits/source_snapshot_bytes': 'model.MAX_DOCUMENT_BYTES',
@@ -1059,6 +1064,7 @@ class ResourceLimitTests(unittest.TestCase):
         # semantics, not tunable allocation or traversal ceilings.
         semantics = {
             'file_version', 'additional_file_versions/0',
+            'native_import/storage_version',
             'embedded_objects/export_source_record_version',
             *(f'embedded_objects/source_record_versions/{i}' for i in range(8)),
             'text_diagnostics/global_story/versions/0',

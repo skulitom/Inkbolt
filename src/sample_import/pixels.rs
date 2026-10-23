@@ -15,7 +15,7 @@ use crate::{
 };
 use std::{path::Path, sync::Arc};
 
-pub(super) struct Builder {
+pub(crate) struct Builder {
     data: Data,
     covered: Option<Vec<u8>>,
     written: usize,
@@ -26,7 +26,7 @@ struct Data {
     scratch: Scratch,
 }
 
-pub(super) struct Prepared {
+pub(crate) struct Prepared {
     manifest: Manifest,
     data: Data,
 }

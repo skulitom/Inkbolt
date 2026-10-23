@@ -501,7 +501,7 @@ fn digest(value: &str) -> bool {
             .bytes()
             .all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v))
 }
-fn check_root(root: Option<&Path>, control: &Control) -> Result<(), Error> {
+pub(crate) fn check_root(root: Option<&Path>, control: &Control) -> Result<(), Error> {
     if let Some(root) = root {
         assets::absolute(root)?;
         control.check_path(root)?;

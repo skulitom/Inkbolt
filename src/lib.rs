@@ -187,6 +187,10 @@ pub enum Request {
         control: control::Options,
         #[serde(default)]
         text_fonts: Option<layered::TextFonts>,
+        #[serde(default)]
+        storage: Option<sample_import::NativeStore>,
+        #[serde(default)]
+        resource_profile: model::ResourceProfile,
     },
     #[serde(rename = "assist.segment")]
     AssistSegment {
@@ -1806,6 +1810,20 @@ fn capability_report() -> Value {
             json!("native_vector"),
         ]);
     capabilities["layered_interchange"] = json!({"status":"basic_interchange_verified","import":"layered.import","export_format":"layered","file_version":1,"additional_file_versions":[2],"large_export_format":"layered_large","dimensions_by_version":{"standard":limits::layered::MAX_STANDARD_DIMENSION,"large":model::MAX_DIMENSION},"extended_status":"partial_uncredited","mode":"rgb8","layer_order":"bottom_to_top","layer_sources":["inline_raster","encoded_srgb_rgba8_samples"],"import_compression":["raw","rle","zip","zip_prediction"],"export_compression":"rle;raw_available_in_Rust_library","preserved":["original_layer_pixels_including_hidden_RGB","integer_extents","names","visibility","byte_opacity","byte_fill_opacity","whole_layer_lock"],"source_changed":false,"canvas_pixels":layered::MAX_CANVAS_PIXELS,"stored_pixels":model::MAX_STORED_PIXELS,"file_bytes":layered::MAX_FILE_BYTES,"maximum_layers":model::MAX_ITEMS,"profile_policy":"exact_builtin_srgb;explicit_convert_srgb_for_other_profiles;explicit_assume_srgb_for_untagged","merged_preview":"white_matted_RGB_with_separate_alpha;8bit_unmatting_loss;layers_remain_original","metadata":"explicit_strip_if_descriptive_metadata_present","incoming_metadata":"strict_known_inactive_records_with_omission_receipts","descriptor_limits":{"bytes":limits::layered_descriptor::MAX_BYTES,"depth":limits::layered_descriptor::MAX_DEPTH,"values":limits::layered_descriptor::MAX_NODES,"container_entries":limits::layered_descriptor::MAX_CONTAINER},"density_units":"fixed_values_always_ppi;unit_selectors_are_display_only","groups":{"modes":["normal_isolated","normal_pass_through"],"empty":true,"ancestor_levels":limits::scene::MAX_DEPTH,"serialized_records":limits::layered::MAX_SERIALIZED_RECORDS,"transforms":"absolute_integer_source_placements;imported_groups_identity","open_state":"omitted_UI_metadata","unsupported":["non_normal_group_blends","group_fill_opacity","knockout","cached_group_pixel_extents","layer_role_containers"]},"masks":{"authored_gray8":true,"independent_bounds":true,"constant_empty_planes":true,"controls":["linked","enabled","outside_black_or_white","exact_byte_density"],"sampling":"nearest_integer_translation","unsupported":["nonzero_native_feather","obsolete_invert_flag","derived_masks","combined_real_vector_masks","implicit_resampling"]},"empty_layer_names":"encoded_exactly;native_consumers_may_generate_names;receipt_lists_empty_name_source_ids","unsupported":["large_axes_above_32768","empty_pixel_layers","native_mask_feather","derived_or_combined_masks","unmapped_incoming_text_layout","unsupported_embedded_source_semantics","non_normal_blends","extra_channels","nonempty_guides","unknown_appearance_records"],"checkpoint":"raster.interchange.basic"});
+    capabilities["layered_interchange"]["native_import"] = json!({
+        "opt_in":"storage;resource_profile:large_raster_for_canvases_over_inline_limit",
+        "storage_version":2,"mode":"rgb8","file_bytes":layered::MAX_FILE_BYTES,
+        "canvas_pixels":limits::layered::MAX_NATIVE_PIXELS,
+        "aggregate_retained_pixels":limits::layered::MAX_NATIVE_PIXELS,
+        "aggregate_decode_bytes":limits::layered::MAX_NATIVE_DECODED_BYTES,
+        "maximum_tiles_per_layer":sample_store::MAX_TILES,
+        "pixel_decode":"one_row_per_channel;private_pixel_extents;bounded_block_publication",
+        "encoded_input":"bounded_whole_file","merged_cache":"row_validated_and_hashed;never_used_for_editable_reconstruction",
+        "masks":"inline_authored_gray8;unchanged_limits",
+        "text_and_placement_caches":"unchanged_inline_limits",
+        "publication":"after_all_source_semantics_and_documents_validate;partial_IO_or_cancellation_may_leave_immutable_unreferenced_blocks",
+        "layered_export":"native_sources_not_yet_supported"
+    });
     capabilities["layered_interchange"]["empty_external_link_tables"] = json!({"import":true,"framing":"version_specific_32_or_64_bit_length","receipt":"omitted_nonappearance_records","nonempty_references":"unsupported"});
     capabilities["layered_interchange"]["embedded_objects"] = json!({
         "import":"explicit_policy_required","export":"explicit_policy_required",
@@ -2232,13 +2250,19 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             embedded_objects,
             control,
             text_fonts,
-        } => layered::import_with_text_fonts(
+            storage,
+            resource_profile,
+        } => layered::import_with_options(
             &source_path,
             expected_sha256.as_deref(),
             id,
             color_policy,
-            embedded_objects,
-            text_fonts.as_ref(),
+            &layered::ImportOptions {
+                embedded_objects,
+                text_fonts,
+                storage,
+                resource_profile,
+            },
             &context.scoped(&control)?,
         ),
         Request::PresetList {} => Ok(presets::catalog()),

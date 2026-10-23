@@ -3,9 +3,11 @@ mod binary;
 mod descriptor;
 mod mask;
 mod metadata;
+mod native;
 mod object_write;
 mod objects;
 mod read;
+mod rows;
 mod text_data;
 mod text_font_records;
 mod text_fonts;
@@ -77,8 +79,21 @@ pub struct ExportOptions {
 #[derive(Default)]
 struct DecodeBudget {
     pixels: usize,
+    retained_pixels: usize,
     items: usize,
     snapshot_bytes: usize,
+    native: Option<native::Import>,
+}
+
+/// Explicit native storage and canvas admission. Legacy import functions retain inline limits.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ImportOptions {
+    pub embedded_objects: Option<EmbeddedObjects>,
+    pub text_fonts: Option<TextFonts>,
+    pub storage: Option<crate::sample_import::NativeStore>,
+    #[serde(default)]
+    pub resource_profile: ResourceProfile,
 }
 
 #[derive(Default)]
@@ -197,7 +212,33 @@ pub fn import_with_text_fonts(
     text_fonts: Option<&TextFonts>,
     control: &Control,
 ) -> Result<Value, Error> {
+    import_with_options(
+        source,
+        expected_sha256,
+        id,
+        color_policy,
+        &ImportOptions {
+            embedded_objects,
+            text_fonts: text_fonts.cloned(),
+            ..Default::default()
+        },
+        control,
+    )
+}
+pub fn import_with_options(
+    source: &Path,
+    expected_sha256: Option<&str>,
+    id: String,
+    color_policy: assets::ColorPolicy,
+    options: &ImportOptions,
+    control: &Control,
+) -> Result<Value, Error> {
     control.check()?;
+    let text_fonts = options.text_fonts.as_ref();
+    let mut budget = DecodeBudget {
+        native: native::Import::new(options, control)?,
+        ..Default::default()
+    };
     if let Some(fonts) = text_fonts {
         fonts.validate()?;
     }
@@ -215,12 +256,14 @@ pub fn import_with_text_fonts(
         id,
         color_policy,
         read::Options {
-            embedded_objects,
+            embedded_objects: options.embedded_objects,
             text_fonts,
+            native: options.storage.is_some(),
+            resource_profile: options.resource_profile,
         },
         control,
         0,
-        &mut DecodeBudget::default(),
+        &mut budget,
     )
     .map_err(|mut error| {
         if let Some(fonts) = text_fonts
@@ -237,6 +280,9 @@ pub fn import_with_text_fonts(
     result["source_sha256"] = json!(hash);
     result["source_bytes"] = json!(bytes.len());
     result["source_changed"] = json!(false);
+    if let Some(native) = budget.native {
+        result["storage"] = native.publish(options.storage.as_ref().unwrap(), control)?;
+    }
     Ok(result)
 }
 pub fn decode(
@@ -268,6 +314,8 @@ pub fn decode_with_objects(
         read::Options {
             embedded_objects,
             text_fonts: None,
+            native: false,
+            resource_profile: ResourceProfile::Standard,
         },
         control,
         0,

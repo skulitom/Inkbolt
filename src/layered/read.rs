@@ -6,6 +6,8 @@ use std::collections::BTreeSet;
 pub(super) struct Options<'a> {
     pub embedded_objects: Option<EmbeddedObjects>,
     pub text_fonts: Option<&'a TextFonts>,
+    pub native: bool,
+    pub resource_profile: ResourceProfile,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -343,7 +345,12 @@ fn record(
                 "Pixel records require ordinary normal compositing",
             ));
         }
-        size(width as u32, height as u32, MAX_STORED_PIXELS, version)?;
+        let maximum = if options.native && layer.placement.is_none() && layer.text.is_none() {
+            bounds::MAX_NATIVE_PIXELS
+        } else {
+            MAX_STORED_PIXELS
+        };
+        size(width as u32, height as u32, maximum, version)?;
     } else {
         if count != 0
             && (!(3..=4).contains(&count)
@@ -422,7 +429,16 @@ pub(super) fn document(
     let channels = input.short()?;
     let height = input.word()?;
     let width = input.word()?;
-    let canvas = size(width, height, MAX_CANVAS_PIXELS, version)?;
+    let canvas = size(
+        width,
+        height,
+        if options.resource_profile == ResourceProfile::LargeRaster {
+            bounds::MAX_NATIVE_PIXELS
+        } else {
+            MAX_CANVAS_PIXELS
+        },
+        version,
+    )?;
     if input.short()? != 8 || input.short()? != 3 || !(3..=4).contains(&channels) {
         return Err(unsupported(
             "Layered import requires 8-bit RGB with optional merged transparency",
@@ -591,6 +607,12 @@ pub(super) fn document(
     }
     let mut records = Vec::new();
     let mut total = 0;
+    let mut mask_pixels = 0;
+    let retained_maximum = if options.native {
+        bounds::MAX_NATIVE_PIXELS
+    } else {
+        MAX_STORED_PIXELS
+    };
     let mut ids = BTreeSet::new();
     let mut placement_ids = BTreeSet::new();
     for _ in 0..count.unsigned_abs() {
@@ -615,18 +637,35 @@ pub(super) fn document(
         }
         total += (r.bounds[3] - r.bounds[1]) as usize * (r.bounds[2] - r.bounds[0]) as usize;
         total += r.mask.as_ref().map_or(0, super::mask::Record::pixels);
-        if total > MAX_STORED_PIXELS {
+        mask_pixels += r.mask.as_ref().map_or(0, super::mask::Record::pixels);
+        if mask_pixels > MAX_STORED_PIXELS {
+            return Err(limit(
+                "Retained inline mask samples exceed their unchanged pixel budget",
+            ));
+        }
+        if total > retained_maximum {
             return Err(limit(&format!(
-                "Retained layer and mask pixels exceed {MAX_STORED_PIXELS}"
+                "Retained layer and mask pixels exceed {retained_maximum}"
             )));
         }
         records.push(r);
     }
     budget.pixels += total + canvas;
-    if budget.pixels > MAX_DECODED_BYTES / 4 {
+    budget.retained_pixels += total;
+    if options.native && budget.retained_pixels > retained_maximum {
+        return Err(limit(
+            "Nested retained layer and mask pixels exceed the native import budget",
+        ));
+    }
+    let decoded_maximum = if options.native {
+        bounds::MAX_NATIVE_DECODED_BYTES
+    } else {
+        MAX_DECODED_BYTES
+    };
+    if budget.pixels > decoded_maximum / 4 {
         return Err(limit(&format!(
             "Nested layered source, mask and merged cache samples exceed {} MiB",
-            MAX_DECODED_BYTES / (1024 * 1024)
+            decoded_maximum / (1024 * 1024)
         )));
     }
     let parents = hierarchy(&records)?;
@@ -651,7 +690,14 @@ pub(super) fn document(
         control.check()?;
         let w = (r.bounds[3] - r.bounds[1]) as usize;
         let h = (r.bounds[2] - r.bounds[0]) as usize;
-        let mut rgba = vec![255; w * h * 4];
+        let native_pixel =
+            options.native && r.kind == Kind::Pixel && r.placement.is_none() && r.text.is_none();
+        let mut rgba = if native_pixel {
+            Vec::new()
+        } else {
+            vec![255; w * h * 4]
+        };
+        let mut native_channels = Vec::new();
         let mut mask = None;
         for &(channel, count) in &r.channels {
             if channel == -2 {
@@ -667,7 +713,12 @@ pub(super) fn document(
                 mask = Some(record.document_mask(&values, [r.bounds[1], r.bounds[0]]));
                 continue;
             }
-            let values = binary::decode(layers.take(count)?, w, h, version, control)
+            let encoded = layers.take(count)?;
+            if native_pixel {
+                native_channels.push((channel, encoded));
+                continue;
+            }
+            let values = binary::decode(encoded, w, h, version, control)
                 .map_err(|e| context(e, "Layer samples"))?;
             let c = if channel == -1 { 3 } else { channel as usize };
             for (p, v) in rgba.as_chunks_mut::<4>().0.iter_mut().zip(values) {
@@ -680,7 +731,7 @@ pub(super) fn document(
         if r.placement.is_some() || r.text.is_some() {
             cache_hashes.insert(r.identity(index), assets::sha256(&rgba));
         }
-        if convert && r.kind == Kind::Pixel && r.text.is_none() {
+        if convert && r.kind == Kind::Pixel && r.text.is_none() && !native_pixel {
             let mut values = rgba.iter().map(|v| *v as f64 / 255.0).collect::<Vec<_>>();
             crate::profiles::convert_f64(
                 &mut values,
@@ -699,6 +750,21 @@ pub(super) fn document(
             }
         }
         let content = match r.kind {
+            Kind::Pixel if native_pixel => serde_json::to_value(
+                budget
+                    .native
+                    .as_mut()
+                    .ok_or_else(malformed)?
+                    .layer(
+                        [w, h],
+                        &native_channels,
+                        version,
+                        profile.as_deref().filter(|_| convert),
+                        control,
+                    )
+                    .map_err(|e| context(e, "Native layer samples"))?,
+            )
+            .map_err(|_| malformed())?,
             Kind::Pixel => {
                 json!({"type":"raster","width":w,"height":h,"rgba_hex":crate::render::hex(&rgba)})
             }
@@ -750,18 +816,14 @@ pub(super) fn document(
         version,
         reconstructed_text,
     )?;
-    let (merged, padding) = binary::decode_padded(
+    let (merged_hash, padding) = super::rows::Rows::new(
         input.take(input.left())?,
         width as usize,
         height as usize * channels as usize,
         version,
-        control,
-        depth > 0,
-    )
+    )?
+    .digest(depth > 0, control)
     .map_err(|e| context(e, "Merged samples"))?;
-    if merged.len() != canvas * channels as usize {
-        return Err(malformed());
-    }
     if padding != 0 && !bytes.len().is_multiple_of(1024 * 1024) {
         return Err(malformed());
     }
@@ -868,10 +930,10 @@ pub(super) fn document(
             "cached_rgba_sha256":cache_hashes.get(&item.id),"cache_used_for_editable_reconstruction":false,
             "sampling":options.sampling,"sharing":options.sharing}));
     }
-    let document:Document=serde_json::from_value(json!({"schema_version":2,"id":id,"kind":"raster","width":width,"height":height,"resolution_ppi":resolution,"color_space":"srgb","items":items,"fonts":fonts})).map_err(|_|malformed())?;
+    let document:Document=serde_json::from_value(json!({"schema_version":2,"resource_profile":options.resource_profile,"id":id,"kind":"raster","width":width,"height":height,"resolution_ppi":resolution,"color_space":"srgb","items":items,"fonts":fonts})).map_err(|_|malformed())?;
     crate::validate(&document)?;
     control.check()?;
-    let mut result = json!({"document":document,"format":if version==Version::Large{"layered_rgb_v2"}else{"layered_rgb_v1"},"file_version":version.number(),"layers":editable,"serialized_records":records.len(),"masked_items":records.iter().filter(|r|r.mask.is_some()).count(),"groups":records.iter().filter(|r|matches!(r.kind,Kind::Group{..})).count(),"source_profile_sha256":profile.as_ref().map(|v|assets::sha256(v)),"interpretation":if convert{"converted_srgb_per_layer"}else if profile.is_some(){"declared_working_srgb"}else{"assumed_srgb"},"merged_cache":{"sample_sha256":assets::sha256(&merged),"used_for_editable_reconstruction":false},"resolution_declared":density_declared,"omitted_nonappearance_records":ignored,"losses":["Creates new layer identities from numeric file IDs; preserves native pixel extents, sibling order, folder hierarchy, Unicode names, visibility, opacity and supported full locks. Folder expansion state is listed as omitted UI metadata. No file is overwritten.","The merged cache is decoded and validated but editable appearance is recomputed from layers. Descriptive/UI/thumbnail records listed in the receipt are not imported as trusted document metadata.","Explicit conversion to working sRGB changes layer RGB before compositing, preserves alpha and can change profile-space blending. It is not a promise of cross-consumer composite equality."]});
+    let mut result = json!({"document":document,"format":if version==Version::Large{"layered_rgb_v2"}else{"layered_rgb_v1"},"file_version":version.number(),"layers":editable,"serialized_records":records.len(),"masked_items":records.iter().filter(|r|r.mask.is_some()).count(),"groups":records.iter().filter(|r|matches!(r.kind,Kind::Group{..})).count(),"source_profile_sha256":profile.as_ref().map(|v|assets::sha256(v)),"interpretation":if convert{"converted_srgb_per_layer"}else if profile.is_some(){"declared_working_srgb"}else{"assumed_srgb"},"merged_cache":{"sample_sha256":merged_hash,"used_for_editable_reconstruction":false},"resolution_declared":density_declared,"omitted_nonappearance_records":ignored,"losses":["Creates new layer identities from numeric file IDs; preserves native pixel extents, sibling order, folder hierarchy, Unicode names, visibility, opacity and supported full locks. Folder expansion state is listed as omitted UI metadata. No file is overwritten.","The merged cache is decoded and validated but editable appearance is recomputed from layers. Descriptive/UI/thumbnail records listed in the receipt are not imported as trusted document metadata.","Explicit conversion to working sRGB changes layer RGB before compositing, preserves alpha and can change profile-space blending. It is not a promise of cross-consumer composite equality."]});
     result["embedded_zero_padding"] = json!(padding);
     if !text_receipts.is_empty() {
         result["losses"].as_array_mut().unwrap().push(json!("Text is reconstructed with explicitly chosen pinned fonts and engine shaping, metrics and antialiasing. Native point baselines are retained; the visible, unwrapped engine frame has a nominal one-pixel extent. Source glyph caches and inherited layout are not used. RGB fills are quantized to eight bits. Native layout or pixel equality is not promised."));

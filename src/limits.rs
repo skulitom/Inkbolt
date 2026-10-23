@@ -841,6 +841,10 @@ pub mod layered {
     pub const MAX_DECODED_BYTES: usize = 8 * 1024 * 1024;
     /// Max canvas pixels (layered).
     pub const MAX_CANVAS_PIXELS: usize = 1_048_576;
+    /// Explicit native layered import: aggregate retained RGB pixels, including nested sources.
+    pub const MAX_NATIVE_PIXELS: usize = super::sample_store::MAX_PIXELS as usize;
+    /// Aggregate layer, mask and merged-cache decode work; never a resident allocation allowance.
+    pub const MAX_NATIVE_DECODED_BYTES: usize = super::sample_import::MAX_NATIVE_DECODED_BYTES;
 }
 
 /// Limits for `src/lib.rs`.

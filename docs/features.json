@@ -2979,7 +2979,8 @@
         "tests/layered_api.rs::authored_and_constant_mask_planes_retain_controls_independently_of_color",
         "tests/test_layered_objects_cli.py::LayeredObjectTests",
         "tests/test_layered_object_export_cli.py::LayeredObjectExportTests",
-        "src/layered/object_write.rs::embedded_delivery_library_raw_and_rle_retain_sources"
+        "src/layered/object_write.rs::embedded_delivery_library_raw_and_rle_retain_sources",
+        "tests/test_layered_native.py::NativeLayeredTests"
       ]
     },
     {

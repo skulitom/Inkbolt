@@ -49,7 +49,7 @@ build from source for the newer features below. Follow the
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. Release notes describe the included features. |
-| Build from `main` | Adds larger image editing, native JPEG import, guided selections and masks, patch repair, and lower-memory exports. The large-image workflows described below require this newer source build. |
+| Build from `main` | Adds larger image editing, native JPEG import, guided selections and masks, patch repair, editable layered imports, and lower-memory exports. The large-image workflows described below require this newer source build. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
@@ -68,7 +68,7 @@ operations and their schemas when needed.
 | [Examples](examples/README.md) | Runnable graphics and image workflows |
 | [Agent interface](docs/AGENT_INTERFACE.md) and [tool discovery](docs/AGENT_DISCOVERY.md) | Commands, MCP tools and schemas |
 | [Workspaces and sessions](docs/AGENT_WORKSPACE.md) | Local resources, saved work and revision references |
-| [SVG import](docs/SVG_IMPORT.md) and [image import](docs/SAMPLES.md#import-without-reducing-depth) | Editable inputs, source precision and conversion limits |
+| [SVG import](docs/SVG_IMPORT.md), [image import](docs/SAMPLES.md#import-without-reducing-depth) and [layered import](docs/LAYERED_NATIVE_IMPORT.md) | Editable inputs, source precision and conversion limits |
 | [Selections](docs/NATIVE_SELECTIONS.md), [masks](docs/NATIVE_MASKS.md) and [image repair](docs/NATIVE_REPAIR.md) | Image editing workflows and operation limits |
 | [Large-image workflows](docs/SCALE_WORKLOADS.md) | 24 MP import, 50 MP editing, A2 delivery and 8192 x 8192 rendering; [brush and retouch bounds](docs/LARGE_EDIT_WINDOWS.md) |
 | [Image export](docs/STREAMING_IMAGE_OUTPUT.md) | PNG/JPEG/TIFF file output, preflight and memory bounds |
@@ -108,7 +108,11 @@ bounded regions and an opt-in whole-image mode. The latter uses a coarse image
 and refines boundaries at full resolution; it can miss small features. Both
 preserve the original image samples.
 
-Work in progress includes larger layered files, broader curve combinations,
+Editable RGB8 [layered imports](docs/LAYERED_NATIVE_IMPORT.md) have also been
+checked at 8192 x 8192 on Windows and Linux. Larger canvases require an explicit
+import option, and encoded files remain limited to 32 MiB.
+
+Work in progress includes broader layered-file interchange, broader curve combinations,
 editable format interchange, agent usability and cross-platform performance
 acceptance.
 

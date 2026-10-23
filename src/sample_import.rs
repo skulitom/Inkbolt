@@ -15,7 +15,7 @@ use std::{
 use tiff::tags::Tag;
 mod jpeg;
 pub use jpeg::Orientation;
-mod pixels;
+pub(crate) mod pixels;
 mod png_passes;
 pub(crate) mod source;
 mod tiff_rows;

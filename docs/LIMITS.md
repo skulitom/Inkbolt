@@ -299,6 +299,8 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `layered.MAX_LINK_ID_BYTES` | `usize` | 128 | `128` |
 | `layered.MAX_METADATA_RECORDS` | `u32` | 16 | `16` |
 | `layered.MAX_NAME_UNITS` | `usize` | 1024 | `1024` |
+| `layered.MAX_NATIVE_DECODED_BYTES` | `usize` | 536870912 | `super::sample_import::MAX_NATIVE_DECODED_BYTES` |
+| `layered.MAX_NATIVE_PIXELS` | `usize` | 67108864 | `super::sample_store::MAX_PIXELS as usize` |
 | `layered.MAX_SERIALIZED_RECORDS` | `usize` | 512 | `super::model::MAX_ITEMS * 2` |
 | `layered.MAX_STANDARD_DIMENSION` | `u32` | 30000 | `30_000` |
 | `layered.MAX_TEXT_CACHE_COORDINATE` | `f64` | 32767.0 | `super::model::MAX_COORDINATE - 1.0` |
