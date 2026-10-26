@@ -50,10 +50,17 @@ status read, preserving its requirement that no running child survives. An
 isolated Linux retry passed both failed modules in 69.9 seconds with unchanged
 timeouts and engine bytes. The test-only correction has source fingerprint
 `a6bca9621fdb6be462bb50eaa1d8792a0763f0ae96b39e16c6e965376774167c`.
-This gives current pass evidence for those checks, not an all-green Linux
-thorough report. A fresh all-green Linux run remains required before the model
-evaluation. Keep the normal worker limit for concurrent platform runs: the
-eight-worker Windows experiment coincided with heavy host scanning and a Linux
+That retry was followed by fresh all-green Linux acceptance on published
+`d18ac62`: all 273 stages, 278 Rust tests, 2,794 Python tests executed and 51
+explicit skips in 812.7 seconds, with unchanged inputs and no reused passes.
+Its report SHA-256 is
+`402c44dd1515f3861a8388bb0ab65b0e772607962cef882271a5a216982541c6`;
+source fingerprint is
+`84e828761576d331826052f0da0bccb1544eeb13f5dcf76b3946cda91e554f24`.
+The Windows full pass above has identical engine sources; only this Linux test
+correction and acceptance notes differ from its candidate. It is not a fresh
+Windows full pass of every published source byte. Keep the normal worker limit:
+the eight-worker Windows experiment coincided with heavy host scanning and a Linux
 timeout and does not establish a faster, reliable configuration.
 
 Retained evidence under `cli-examples-01` through `cli-examples-03` includes
@@ -64,9 +71,18 @@ helper restored selective test invalidation without changing its guard.
 Windows executable SHA-256 is
 `1f2b2599ab780e0f55961eaabfa013182a2a08b4dd93990506609da7631e95a5`;
 Linux is `c783c6e089c36b8b1ff8a1cab8ddfd4e13b9923887b4a2256340900a98ce0d5c`.
-No new model trials ran for this increment. The five matched B16 pairs above,
-coverage of every operation and full W5 acceptance remain open. No additional
-engine checkpoint or whole-goal credit is awarded.
+The [five matched B16 pairs](BENCHMARK_CLI_EXAMPLES.md) now pass every applicable
+check. Engine median tokens are 377,956, 35.8% below the prior essentials batch
+and 2.94x the fresh baseline. All five engine attempts received examples and
+used the CLI. The median count of shell events containing schema lookups did
+not fall; two attempts still missed workspace selection initially. Keep the
+bounded examples, with further work tied to demonstrated interaction failures.
+Acceptance, source/capture audits and all attempts are retained under
+`cli-examples-evaluation-01` and `cli-examples-evaluation-02`, including five
+earlier client-version setup failures before any model ran. This does not prove
+causation or general efficiency. Complete operation coverage, missing call/
+traffic metrics and full W5 acceptance remain open. No additional engine
+checkpoint or whole-goal credit is awarded.
 
 ## W5.2: essentials catalog verified; model results mixed
 
@@ -118,9 +134,9 @@ baseline each pass 5/5 applicable checks per task. Against core, essentials uses
 It still uses 4.28x/4.54x baseline tokens. All repeated engine attempts chose the
 CLI, so the result does not isolate MCP transport or initial catalog exposure.
 
-Pause further schema deferral. Investigate the repeated CLI schema/default
-lookups in B16, with a bounded examples/focused-information hypothesis and a
-new matched remeasurement before expanding it. The optional catalog and its
+Pause further schema deferral. The focused-example follow-up above records
+the B16 remeasurement; it does not justify broad interface expansion.
+The optional catalog and its
 byte budget remain verified. General efficiency, missing traffic/call metrics
 and complete W5 acceptance remain open; no original checkpoint or overall-goal
 completion is awarded.

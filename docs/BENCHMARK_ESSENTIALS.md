@@ -90,6 +90,8 @@ benefit. The next bounded W5 investigation should target CLI examples and
 focused access to the font/workspace information actually requested in B16.
 Record that hypothesis before implementation, rerun the affected matched task,
 and stop expansion if correctness drops or additional lookups erase the benefit.
+The subsequent [focused-example evaluation](BENCHMARK_CLI_EXAMPLES.md) completes
+that bounded B16 follow-up and records its remaining overhead separately.
 An MCP-specific evaluation needs a separately declared transport setup; these
 trials must not be relabeled. Full-suite model acceptance, missing metrics,
 smaller-model follow-ups and the sister-project comparison remain open.

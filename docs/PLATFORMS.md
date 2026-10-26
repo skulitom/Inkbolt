@@ -8,36 +8,43 @@ return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 
 The newer [focused-example increment](DEVELOPMENT_STATUS.md#implementation-and-retained-checks-26-october-2026)
-has a fresh 273-stage Windows pass. Its Linux full run had a render timeout and
-a cleanup-test race; both pass focused retries, but a fresh all-green Linux
-thorough run remains pending. These results do not extend platform or memory claims.
+has fresh 273-stage Windows and Linux passes. The final Linux run at `d18ac62`
+executed 278 Rust and 2,794 Python tests, with 51 explicit skips, in 812.7 seconds.
+The retained Windows pass has identical engine sources and precedes only a
+Linux-specific test correction and acceptance notes. Earlier Linux timeout/race
+failures and retries remain retained. These results do not extend platform or
+memory claims.
 
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/40357949929)
-is `f06d546`, including larger layered-input admission, focused large-image
-previews and the separate full-size B10 adapter. All stages ran fresh, all three
-minimum-compiler checks passed and source inputs remained unchanged:
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/40363643550)
+is `81e8830`, including the essentials catalog, larger layered-input admission,
+focused large-image previews and the separate full-size B10 adapter. All stages
+ran fresh, all three minimum-compiler checks passed and source inputs remained
+unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 273 | 310 | 2,822 | 20 | 4684.448 |
-| Ubuntu 24.04 | 273 | 276 | 2,791 | 51 | 1717.068 |
-| macOS 15 ARM64 | 273 | 276 | 2,780 | 62 | 2774.444 |
+| Windows 2025 | 273 | 312 | 2,823 | 20 | 4289.930 |
+| Ubuntu 24.04 | 273 | 278 | 2,792 | 51 | 1664.727 |
+| macOS 15 ARM64 | 273 | 278 | 2,781 | 62 | 2797.973 |
 
 Reports, all 819 stage logs, run metadata and the 991-file source archive are
-retained in `essentials-evaluation-01/ci-parent-f06d546`. The archive matches every report's
+retained in `cli-examples-evaluation-01/ci-essentials-81e8830`. The archive matches every report's
 source fingerprint. Audit SHA-256:
-`ef57fd63be66bf3cf56208dc242ed0d1aab1449106b51bb9ddb697591fa559b9`;
+`d5c6c7e91239f69846142c947344ce2d3fb84a7ff4301070643baca5093e06fb`;
 shared hosted source fingerprint:
-`b5b9e77558dcbebb329045ef04ab8ad316404fa8d67682c648390585bb478c70`.
+`d5d4ae22d5b6ce7961f4b177f6e3f650d9d74826f464a443f86170bb11d6670f`.
 Hosted checks evaluate the public structural guard; local private-policy checks
 remain separate. Unix background jobs remain unsupported.
 
-The newer essentials candidate `81e8830` has separate fresh full local
-Windows/Linux acceptance. Its [hosted matrix](https://github.com/skulitom/Inkbolt/actions/runs/40363643550)
-was still running when this evidence was recorded; it is not included in the
-completed matrix above. The local milestones below retain their original
-target-size and memory scopes; a hosted suite pass does not extend those claims.
+The preceding `f06d546` matrix remains retained under
+`essentials-evaluation-01/ci-parent-f06d546`. The newer focused-example candidate
+`d18ac62` has separate local acceptance above. Its
+[hosted matrix](https://github.com/skulitom/Inkbolt/actions/runs/40381375286)
+has passed Ubuntu while Windows and macOS remain in progress at this recording;
+it is not included in the completed matrix above. The local milestones below
+retain their original target-size and memory scopes; a hosted suite pass does
+not extend those claims.
 
 The [larger native edit windows](LARGE_EDIT_WINDOWS.md) passed all
 268 full stages fresh on Windows and Linux, with matching unchanged source

@@ -1,13 +1,21 @@
 # Recorded agent evaluation results
 
+The latest [focused CLI-example evaluation at `d18ac62`](BENCHMARK_CLI_EXAMPLES.md)
+passes all applicable B16 checks in five attempts per arm. Engine median tokens
+are 35.8% below the preceding essentials batch, but still 2.94x the fresh
+no-engine baseline. All five engine attempts received examples and chose the
+CLI. This one-task, sequential comparison does not establish causation or full
+W5 acceptance; all attempts and the earlier client-version setup failures remain
+retained separately.
+
 The [essentials catalog evaluation at `81e8830`](BENCHMARK_ESSENTIALS.md) retains
 five attempts per task for B03/B16 with essentials, core and the no-engine
 baseline. All applicable checks pass 5/5. Essentials uses 12.8% fewer median
 tokens than core on layout editing, but 13.3% more on text repair. It still uses
 4.28x/4.54x baseline tokens. All repeated engine attempts chose the CLI; no
-general catalog-efficiency or MCP-transport gain is established. The next
-bounded investigation targets observed CLI discovery costs; further schema
-deferral is paused. Earlier batches below remain separate.
+general catalog-efficiency or MCP-transport gain is established. The focused
+CLI-example follow-up above addresses observed discovery costs; further schema
+deferral stays paused. Earlier batches below remain separate.
 
 The separate [50 MP B10 evaluation](B10_LARGE.md) now retains exact full-size
 reference checks on Windows/Linux, relocation-tested external controls and one

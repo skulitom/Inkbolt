@@ -60,7 +60,8 @@ inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools essentials
 
 Source builds offer the ten-tool essentials catalog for compact discovery; use
 `--tools core` with the v0.82.0 release. Agents can request more
-operations and their schemas when needed.
+operations and their schemas when needed. Source builds also provide focused
+request examples and workspace guidance through discovery.
 
 ## Documentation
 
