@@ -61,6 +61,15 @@ inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools core
 The core catalog keeps initial tool discovery compact. Agents can request more
 operations and their schemas when needed.
 
+In Claude Code, the Inkbolt plugin sets this up for you, with your project folder
+as the workspace, and adds a skill that tells Claude when to use Inkbolt. Put the
+release's `inkbolt` binary on your PATH, then run:
+
+```text
+claude plugin marketplace add skulitom/Inkbolt
+claude plugin install inkbolt@inkbolt
+```
+
 ## Documentation
 
 | Start here | Details |
