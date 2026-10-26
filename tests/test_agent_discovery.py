@@ -1,5 +1,6 @@
 """Compact discovery and routed execution, checked through independent processes."""
 from contextlib import closing
+import base64
 import copy
 import json
 from pathlib import Path
@@ -9,6 +10,10 @@ import unittest
 
 from test_mcp import Client
 from test_sessions_cli import EXE, invoke
+from synthetic_font import geometric_font
+from mcp_artifacts import restore
+from test_editing_cli import png_pixels
+from external_workspace import files as workspace_files
 
 
 def catalog(client):
@@ -23,6 +28,126 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_focused_examples_are_bounded_scoped_and_identical_in_cli_mcp(self):
+        index = invoke(dict(command='schema.lookup', name='index'))['result']
+        caps = invoke(dict(command='capabilities'))['result']['agent_discovery']
+        with tempfile.TemporaryDirectory() as directory:
+            for workspace in (None, directory):
+                with closing(Client(('--tools', 'essentials'), workspace=workspace)) as client:
+                    client.initialize()
+                    for query in index['example_queries']:
+                        with self.subTest(query=query, workspace=workspace):
+                            prefix = ['--workspace', workspace] if workspace else []
+                            process = subprocess.run([str(EXE), *prefix], input=json.dumps(query).encode(),
+                                                     capture_output=True, timeout=20)
+                            self.assertEqual(process.returncode, 0, process.stdout)
+                            self.assertEqual(process.stderr, b'')
+                            cli = json.loads(process.stdout)
+                            arguments = {k: v for k, v in query.items() if k != 'command'}
+                            self.assertEqual(cli, client.tool('schema.lookup', **arguments)['structuredContent'])
+                            example = cli['result']['example']
+                            self.assertLessEqual(len(json.dumps(example, separators=(',', ':')).encode()),
+                                                 caps['schema_examples']['maximum_bytes'])
+                            self.assertEqual(set(example), {'kind', 'value', 'requires', 'usage'})
+                            wire = client.tool('schema.lookup', **arguments, full=True)
+                            full = wire['structuredContent']['result']
+                            self.assertEqual(example, full['example'])
+                            # Measure the engine's actual JSON bytes: Python formats tiny floats differently.
+                            raw_schema = wire['content'][0]['text'].split('"schema":', 1)[1]
+                            schema, end = json.JSONDecoder().raw_decode(raw_schema)
+                            self.assertEqual(schema, full['schema'])
+                            self.assertEqual(full['schema_bytes'], len(raw_schema[:end].encode()))
+                    for alias, nested in [('operation', 'Operation/text'), ('content', 'Content/text')]:
+                        direct = client.success('schema.lookup', name=alias, select='text', full=True)
+                        indirect = client.success('schema.lookup', name='session.apply', select=nested, full=True)
+                        self.assertEqual(direct['schema'], indirect['schema'])
+                        self.assertEqual(direct['example'], indirect['example'])
+                    for name, select in [('operation', 'reorder'), ('session.dry_run', 'Options')]:
+                        self.assertNotIn('example', client.success('schema.lookup', name=name, select=select))
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_advertised_examples_execute_preserve_artwork_and_review_without_writes(self):
+        queries = invoke(dict(command='schema.lookup', name='index'))['result']['example_queries']
+        examples = {(q['name'], q.get('select')): invoke(q)['result']['example']['value'] for q in queries}
+        self.assertEqual(len(examples), 7)  # Extend executable coverage whenever the index grows.
+        for transport in ('cli', 'mcp'):
+            with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                font = geometric_font()
+                license_bytes = b'Original synthetic fixture; permission to use and redistribute.\n'
+                (root / 'typeface.ttf').write_bytes(font)
+                (root / 'typeface-license.txt').write_bytes(license_bytes)
+                with closing(Client(('--tools', 'essentials'), workspace=root)) as client:
+                    client.initialize()
+
+                    def call(request, workspace=root, adapter=client):
+                        if transport == 'mcp':
+                            arguments = {k: v for k, v in request.items() if k != 'command'}
+                            result = restore(adapter.tool('run', command=request['command'], arguments=arguments))
+                        else:
+                            process = subprocess.run([str(EXE), '--workspace', str(workspace)],
+                                                     input=json.dumps(request).encode(), capture_output=True, timeout=20)
+                            self.assertEqual(process.stderr, b'')
+                            result = json.loads(process.stdout)
+                            self.assertEqual(process.returncode, 0, result)
+                        self.assertTrue(result['ok'], result)
+                        return result['result']
+
+                    def command(name, **arguments):
+                        return call(dict(command=name, **arguments))
+
+                    imported = call(examples['font.import', None])
+                    self.assertTrue((root / '.inkbolt/fonts').is_dir())
+                    blank = command('document.validate', document=examples['document', None])
+                    blank_root = root / 'blank'
+                    blank_root.mkdir()
+                    with closing(Client(('--tools', 'essentials'), workspace=blank_root)) as blank_client:
+                        blank_client.initialize()
+                        call(examples['session.create', None], blank_root, blank_client)
+                        created = call(dict(command='session.read', session_id='example'), blank_root, blank_client)
+                    self.assertEqual(created['document'], blank)
+                    self.assertEqual(created['current_revision'], 0)
+                    # Give the review example its separately declared populated-session prerequisites.
+                    populated = copy.deepcopy(blank)
+                    populated['fonts'] = {'face': imported}
+                    populated['items'] = [dict(id='label', content=copy.deepcopy(examples['content', 'text'])),
+                        dict(id='untouched', content=dict(type='vector', geometry=dict(shape='rect',
+                             x=48, y=48, width=8, height=8), fill=[0, 200, 0, 255]))]
+                    populated['items'][0]['content']['frame']['width'] = 16
+                    populated = command('document.validate', document=populated)
+                    text_result = command('document.edit', document=populated, expected_revision=0,
+                                          operations=[examples['operation', 'text']])['document']
+                    expected = copy.deepcopy(populated)
+                    expected['revision'] = 1
+                    expected['items'][0]['content']['frame']['width'] = 32
+                    self.assertEqual(text_result, expected)
+                    transformed = command('document.edit', document=text_result, expected_revision=1,
+                                          operations=[examples['operation', 'transform']])['document']
+                    expected['revision'] = 2
+                    expected['items'][0]['transform'] = [1, 0, 0, 1, 4, 4]
+                    self.assertEqual(transformed, expected)
+                    pixels = bytes.fromhex(command('document.render', document=transformed)['data'])
+                    self.assertEqual(pixels[(50 * 64 + 50) * 4:(50 * 64 + 51) * 4], bytes([0, 200, 0, 255]))
+                    self.assertTrue(any(pixels[(y * 64 + x) * 4 + 3] for y in range(4, 28) for x in range(4, 36)))
+                    command('session.create', session_id='example', request_id='setup',
+                            document=populated)
+                    review_request = copy.deepcopy(examples['session.dry_run', None])
+                    before = {p: p.read_bytes() for p in workspace_files(root)}
+                    reviewed = call(review_request)
+                    self.assertEqual({p: p.read_bytes() for p in workspace_files(root)}, before)
+                    self.assertFalse(reviewed['committed'])
+                    self.assertIn('preview', reviewed)
+                    self.assertEqual(command('session.read', session_id='example')['current_revision'], 0)
+                    committed = command('session.apply_proposal', proposal=reviewed['proposal'],
+                                        action=review_request['action'])
+                    self.assertEqual(committed['document'], text_result)
+                    width, height, preview_pixels, _ = png_pixels(base64.b64decode(reviewed['preview']['data']))
+                    self.assertEqual((width, height), (64, 64))
+                    self.assertEqual(preview_pixels, bytes.fromhex(command('document.render', document=text_result)['data']))
+                    self.assertEqual(command('session.read', session_id='example')['undo_depth'], 1)
+                    self.assertEqual((root / 'typeface.ttf').read_bytes(), font)
+                    self.assertEqual((root / 'typeface-license.txt').read_bytes(), license_bytes)
+
     def test_essentials_has_bounded_discovery_and_mode_bound_cursors(self):
         with tempfile.TemporaryDirectory() as directory:
             for workspace in (None, directory):
@@ -109,6 +234,10 @@ class AgentDiscoveryTests(unittest.TestCase):
                         if reference is None:
                             reference = reply
                         self.assertEqual(reply, reference)
+                caps = subprocess.run([str(EXE), '--workspace', directory, 'capabilities'],
+                                      capture_output=True, timeout=20, check=True)
+                self.assertEqual(reference['result']['workspace_defaults'],
+                                 json.loads(caps.stdout)['result']['workspace']['defaults'])
             self.assertEqual(list(Path(directory).iterdir()), [])
         for request in reference['result']['examples']:
             with self.subTest(request=request):

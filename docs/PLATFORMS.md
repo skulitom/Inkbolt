@@ -6,6 +6,12 @@ runs on Ubuntu 22.04 under WSL2, x86-64, with Rust 1.98.1 and Python 3.11.
 Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
+
+The newer [focused-example increment](DEVELOPMENT_STATUS.md#implementation-and-retained-checks-26-october-2026)
+has a fresh 273-stage Windows pass. Its Linux full run had a render timeout and
+a cleanup-test race; both pass focused retries, but a fresh all-green Linux
+thorough run remains pending. These results do not extend platform or memory claims.
+
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
 The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/40357949929)
 is `f06d546`, including larger layered-input admission, focused large-image

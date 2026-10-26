@@ -1,5 +1,10 @@
 # Architecture
 
+Focused schema examples are additive response metadata, separate from validation
+schemas and MCP catalogs. Their bounded JSON includes explicit prerequisites;
+discovery performs no I/O. CLI help and workspace execution share the same
+relative-default mapping, without inferring a workspace or changing root rules.
+
 The optional [essentials MCP catalog](AGENT_DISCOVERY.md) reuses existing commands
 and the complete dispatcher. It defers large action/review/delivery option trees
 to executable schema selectors and shares workspace path guidance per tool.

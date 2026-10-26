@@ -641,6 +641,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `scene.MAX_CACHED_CHAINS` | `usize` | 128 | `128` |
 | `scene.MAX_DEPTH` | `usize` | 16 | `16` |
 | `scene_hierarchy.MAX_FAST_POINT_ERROR` | `f64` | 1e-09 | `1e-9` |
+| `schema.EXAMPLE_BYTES` | `usize` | 2048 | `2 * 1024` |
 | `schema.MAX_SELECTOR_BYTES` | `usize` | 128 | `128` |
 | `schema.OUTLINE_BYTES` | `usize` | 12288 | `12 * 1024` |
 | `selection_analysis.MAX_EDGE_RADIUS` | `u32` | 8 | `8` |

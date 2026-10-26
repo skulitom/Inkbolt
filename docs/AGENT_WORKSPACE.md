@@ -18,6 +18,12 @@ The directory must already exist and be absolute. Starting a process, inspecting
 | `font_root`, font-import `store_root` | `.inkbolt/fonts` |
 | `output_root` | `.` |
 
+Current source builds expose these defaults, including publication and job
+stores, through `inkbolt --help` as `workspace_defaults`. Help requires no
+workspace and performs no filesystem writes; the paths apply only after an
+explicit workspace selection. `schema.lookup` examples list their workspace,
+source-file and resource prerequisites; see [discovery](AGENT_DISCOVERY.md).
+
 Explicit runtime paths can be relative to that workspace or absolute inside it. This includes request files, source images, fonts, licenses, profile sources, sequence-frame sources, linked-object roots, recipes and cancellation markers. Output names retain their existing validation and create-only publication rules. Output directories must still exist when required by the publication command; store commands create their own directories. Explicit `null` retains optional-root semantics, rather than selecting a default. Required non-null roots still reject `null`.
 
 For SVG images, `images.source_root` may also be workspace-relative, but must be

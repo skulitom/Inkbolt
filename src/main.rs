@@ -29,14 +29,17 @@ fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error>
                 ],
                 "requests":"One JSON request on stdin or in one UTF-8 request file. No arguments reads stdin.",
                 "workspace":"Optional existing absolute directory; selects default stores and resolves request paths within it.",
+                "workspace_defaults":inkbolt::workspace::default_paths(),
                 "responses":{"success":"One JSON line with ok:true and result; exit code 0.",
                     "failure":"One JSON line with ok:false and error containing code and message; exit code 1.",
                     "mcp":"MCP stdio protocol instead of CLI envelopes; use --tools essentials for the smallest catalog, core for more direct tools."},
-                "discovery":"Use schema.lookup for command arguments or one operation. Full schema and capabilities are larger responses.",
+                "discovery":"Use schema.lookup for command arguments or one operation; index.example_queries lists available small examples and their prerequisites. Full schema and capabilities are larger responses.",
                 "examples":[
                     {"command":"schema.lookup","name":"index"},
                     {"command":"schema.lookup","name":"document.create"},
                     {"command":"schema.lookup","name":"operation","select":"reorder"},
+                    {"command":"schema.lookup","name":"operation","select":"text"},
+                    {"command":"schema.lookup","name":"font.import"},
                     {"command":"document.create","id":"example","kind":"vector","width":32,"height":32}
                 ]
             }));

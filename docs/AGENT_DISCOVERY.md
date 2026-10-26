@@ -58,6 +58,26 @@ read stdin or execute those examples. `--workspace ABSOLUTE_DIRECTORY` may prece
 the help flag, with the usual existing-directory validation. Capabilities report
 the supported flags in `agent_discovery.cli_help_arguments`.
 
+Current source builds also include `workspace_defaults` in help. These paths are
+relative to a workspace explicitly selected with `--workspace`; help never
+selects or creates one. Image and font `store_root` defaults appear separately
+as `image_store_root` and `font_store_root` in this description.
+
+The schema index's `example_queries` lists focused examples for font import,
+session creation/review, an empty document, text content and text/transform
+operations. Those lookups include `example` beside the schema or outline, with
+`kind`, `value`, `requires` and `usage`. Each complete example is bounded to 2 KiB.
+`schema_bytes` continues to measure only the validation schema. Nested routes
+to the same selected type return the same example. Discovery never executes it.
+
+Request examples need the declared workspace, original input files and unused
+or existing session IDs. Content and operation examples are fragments with
+explicit font/item prerequisites. Bind the imported font descriptor in
+`document.fonts` and use that ID in the text style. A text operation replaces
+the complete frame: copy the existing frame and change only intended fields
+when repairing artwork. These examples cover a focused subset; they do not
+imply every operation has a recipe or establish model-efficiency gains.
+
 `schema.lookup` is a read-only CLI/library/MCP command. The original argument-free `schema` command still returns the complete engine schema unchanged in shape.
 
 ```json

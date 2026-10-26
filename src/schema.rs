@@ -3,6 +3,8 @@ use crate::{Error, Request};
 use serde_json::{Map, Value, json};
 use std::{collections::BTreeSet, sync::OnceLock};
 
+mod examples;
+
 pub use crate::limits::schema::OUTLINE_BYTES;
 const TYPES: &[(&str, &str)] = &[
     ("document", "Document"),
@@ -294,6 +296,7 @@ pub(crate) fn lookup_in_workspace(
         return Ok(
             json!({"detail":"index", "commands":commands().collect::<Vec<_>>(),
             "types":TYPES.iter().map(|(alias, _)| alias).collect::<Vec<_>>(),
+            "example_queries":examples::queries(),
             "usage":"Choose a command or type as name. Large schemas return an outline; select a listed variant/definition, or request full:true."}),
         );
     }
@@ -343,10 +346,12 @@ pub(crate) fn lookup_in_workspace(
     if workspace {
         crate::workspace::describe(&mut value);
     }
+    let example = examples::for_schema(name, prefix.as_deref(), &value);
     let bytes = serde_json::to_vec(&value).unwrap().len();
     if force_full || bytes <= OUTLINE_BYTES {
-        return Ok(
+        return examples::attach(
             json!({"name":name, "select":select, "detail":"full", "schema":value, "schema_bytes":bytes}),
+            example,
         );
     }
     let fields: Vec<Value> = value.get("properties").and_then(Value::as_object).into_iter().flat_map(|m| m.iter()).map(|(field, property)| {
@@ -358,11 +363,12 @@ pub(crate) fn lookup_in_workspace(
         }
         summary
     }).collect();
-    Ok(
+    examples::attach(
         json!({"name":name, "select":select, "detail":"outline", "schema_bytes":bytes,
         "fields":fields, "variants":variants(&value).iter().map(|(field, tag, _)| json!({"field":field,"value":tag,"select":variant_path(prefix.as_deref(), tag)})).collect::<Vec<_>>(),
         "definitions":value.get("$defs").and_then(Value::as_object).map(|m| m.keys().collect::<Vec<_>>()).unwrap_or_default(),
         "usage":"This is an outline, not a validation schema. Keep name and use a variant's select value or a listed definition name. Select components separated by / follow nested variants/definitions. Repeat this lookup with full:true for the complete schema."}),
+        example,
     )
 }
 

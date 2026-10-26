@@ -1682,6 +1682,8 @@ pub mod schema {
     pub const MAX_SELECTOR_BYTES: usize = 128;
     /// Outline bytes (schema).
     pub const OUTLINE_BYTES: usize = 12 * 1024;
+    /// Maximum bytes of one discovery example, including its prerequisites.
+    pub const EXAMPLE_BYTES: usize = 2 * 1024;
 }
 
 /// Limits for `src/selection_analysis.rs`.

@@ -2107,6 +2107,8 @@ fn capability_report() -> Value {
     });
     capabilities["agent_discovery"] = json!({
         "cli_help_arguments":["--help","-h"],
+        "cli_help_workspace_defaults":"workspace_defaults;relative_to_explicit_workspace_only",
+        "schema_examples":{"index_field":"example_queries","result_field":"example","maximum_bytes":limits::schema::EXAMPLE_BYTES,"fields":["kind","value","requires","usage"],"coverage":"focused_font_session_document_text_transform;not_every_operation","executes_during_discovery":false},
         "lookup":"schema.lookup", "index":"index",
         "large_schema_outline_bytes":schema::OUTLINE_BYTES,
         "schema_selector_separator":"/",

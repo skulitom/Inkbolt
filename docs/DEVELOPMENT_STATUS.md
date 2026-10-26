@@ -5,6 +5,69 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W5.4: focused CLI examples hypothesis
+
+The frozen `81e8830` B03/B16 evaluation shows mixed catalog results and repeated
+CLI schema/default lookups. This increment tests whether complete small examples
+reduce that discovery work: expose workspace default paths in CLI help, and
+attach explicitly scoped examples to existing schema lookups for font import,
+session creation/review, document/text content and text/transform operations.
+Examples must state required resources and target IDs and execute against
+original fixtures through the normal interface. They never execute during
+discovery. Keep each example within 2 KiB and CLI help within its existing 4 KiB
+check. Existing schema bodies, selectors, catalogs, defaults and edit semantics
+remain; no new command, inferred workspace or model choice is introduced.
+
+Before claiming efficiency, run fresh Windows/Linux acceptance, then five
+matched B16 engine/baseline attempts with the same external settings and fixed
+task/judge contracts. Retain failures and compare descriptively with the prior
+batch; sequential source changes cannot establish cause. Stop expansion if
+examples are unused, correctness falls or token/discovery work fails to improve.
+Coverage of every operation and full W5 acceptance remain required and open;
+this is the trace-motivated increment before any broader example campaign.
+
+### Implementation and retained checks, 26 October 2026
+
+The seven indexed examples now execute through CLI and MCP against original
+fixtures. Tests check font/source preservation, exact text and transform edits,
+unrelated artwork, read-only proposals, matching preview pixels and committed
+history. Alias and nested selections agree. CLI help reports workspace defaults
+from the same mapping used at execution; it remains read-only and requires no
+workspace selection. Complete schemas, all three tool catalogs and existing
+workspace defaults match the preceding build. Help is 1,717 envelope bytes;
+examples range from 256 to 847 bytes against the 2 KiB ceiling.
+
+Focused feedback passed in 52.0 seconds on Windows and 21.3 seconds on Linux.
+The fresh Windows thorough run passed all 273 stages: 312 Rust tests, 2,821 Python
+tests executed and 24 explicit skips, in 867.5 seconds. The Linux thorough run
+completed all stages with 271 passes and two failures: a large-render call's
+existing 20-second timeout and a cleanup-test procfs race. Both full runs shared
+the frozen source fingerprint
+`5f3cb8cfac5a3ce6009d17b45e5a9090ae7ffe3baf679920697f800c48f5bc70`.
+
+The cleanup test now accepts the specific process-disappeared error during a
+status read, preserving its requirement that no running child survives. An
+isolated Linux retry passed both failed modules in 69.9 seconds with unchanged
+timeouts and engine bytes. The test-only correction has source fingerprint
+`a6bca9621fdb6be462bb50eaa1d8792a0763f0ae96b39e16c6e965376774167c`.
+This gives current pass evidence for those checks, not an all-green Linux
+thorough report. A fresh all-green Linux run remains required before the model
+evaluation. Keep the normal worker limit for concurrent platform runs: the
+eight-worker Windows experiment coincided with heavy host scanning and a Linux
+timeout and does not establish a faster, reliable configuration.
+
+Retained evidence under `cli-examples-01` through `cli-examples-03` includes
+the pre-implementation hypothesis, source archives, compatibility comparisons,
+all full-run logs, failures and the isolated retry. The first run also caught
+an overly broad new fixture inventory; using the existing external-workspace
+helper restored selective test invalidation without changing its guard.
+Windows executable SHA-256 is
+`1f2b2599ab780e0f55961eaabfa013182a2a08b4dd93990506609da7631e95a5`;
+Linux is `c783c6e089c36b8b1ff8a1cab8ddfd4e13b9923887b4a2256340900a98ce0d5c`.
+No new model trials ran for this increment. The five matched B16 pairs above,
+coverage of every operation and full W5 acceptance remain open. No additional
+engine checkpoint or whole-goal credit is awarded.
+
 ## W5.2: essentials catalog verified; model results mixed
 
 The recorded B03/B16 token ratios (4.62x/5.20x the baseline) and the separate

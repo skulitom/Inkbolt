@@ -110,7 +110,8 @@ class LinuxProcessMemoryTests(unittest.TestCase):
                 while time.monotonic() < deadline:
                     try:
                         status = Path(f'/proc/{pid}/status').read_text()
-                    except FileNotFoundError:
+                    except (FileNotFoundError, ProcessLookupError):
+                        # procfs can lose the process after open, during read.
                         break
                     if '\nState:\tZ' in status:
                         break  # Dead; init owns reaping after supervisor death.

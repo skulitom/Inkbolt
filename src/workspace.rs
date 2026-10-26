@@ -15,6 +15,44 @@ fn invalid(message: &str) -> Error {
     Error::new("INVALID_PATH", message)
 }
 
+fn relative_default(field: &str, command: &str) -> Option<&'static str> {
+    Some(match field {
+        "session_root" => ".inkbolt/sessions",
+        "receipt_root" => ".inkbolt/publications",
+        "job_root" => ".inkbolt/jobs",
+        "asset_root" => ".inkbolt/assets",
+        "font_root" => ".inkbolt/fonts",
+        "store_root" if command == "font.import" => ".inkbolt/fonts",
+        "store_root" => ".inkbolt/assets",
+        "output_root" => ".",
+        _ => return None,
+    })
+}
+
+/// Static paths relative to an explicitly selected workspace; no filesystem I/O.
+pub fn default_paths() -> Value {
+    let mut defaults = serde_json::Map::new();
+    for field in [
+        "session_root",
+        "receipt_root",
+        "job_root",
+        "asset_root",
+        "font_root",
+        "output_root",
+    ] {
+        defaults.insert(field.into(), json!(relative_default(field, "")));
+    }
+    defaults.insert(
+        "image_store_root".into(),
+        json!(relative_default("store_root", "asset.import")),
+    );
+    defaults.insert(
+        "font_store_root".into(),
+        json!(relative_default("store_root", "font.import")),
+    );
+    Value::Object(defaults)
+}
+
 fn lexical(path: &Path) -> Result<(), Error> {
     if path.as_os_str().is_empty() || path.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS
     {
@@ -124,22 +162,11 @@ impl Workspace {
     }
 
     pub fn default_root(&self, field: &str, command: &str) -> Option<PathBuf> {
-        let relative = match field {
-            "session_root" => ".inkbolt/sessions",
-            "receipt_root" => ".inkbolt/publications",
-            "job_root" => ".inkbolt/jobs",
-            "asset_root" => ".inkbolt/assets",
-            "font_root" => ".inkbolt/fonts",
-            "store_root" if command == "font.import" => ".inkbolt/fonts",
-            "store_root" => ".inkbolt/assets",
-            "output_root" => ".",
-            _ => return None,
-        };
-        Some(self.root.join(relative))
+        relative_default(field, command).map(|relative| self.root.join(relative))
     }
 
     pub fn description(&self) -> Value {
-        json!({"root":self.root, "defaults":{"session_root":".inkbolt/sessions", "receipt_root":".inkbolt/publications", "job_root":".inkbolt/jobs", "asset_root":".inkbolt/assets", "font_root":".inkbolt/fonts", "image_store_root":".inkbolt/assets", "font_store_root":".inkbolt/fonts", "output_root":"."},
+        json!({"root":self.root, "defaults":default_paths(),
             "relative_paths":true, "outside_paths":"rejected_after_link_resolution", "creates_directories":"only_when_the_underlying_write_command_requires_them", "sandbox":false})
     }
 }
