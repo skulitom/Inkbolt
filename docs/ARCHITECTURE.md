@@ -1,5 +1,11 @@
 # Architecture
 
+Tiled [focused previews](FOCUSED_PREVIEWS.md) retain complete scene preparation
+and resource verification, then visit only intersecting original-grid tiles.
+They share tile evaluation with codec bands, preserving global coordinates,
+filter neighborhoods and sampling. Full admission and replay budgets remain
+unchanged; whole evaluation still crops a full rendered surface.
+
 Explicit [native layered import](LAYERED_NATIVE_IMPORT.md) decodes RGB8 layer
 channels and merged caches by row. Pixel layers share the image importer's
 private extent builder and immutable block publication. The complete source and

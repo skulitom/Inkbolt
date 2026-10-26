@@ -12,6 +12,7 @@ import measurement_host
 
 
 def run_suite(args, output, aggregate):
+    variant=getattr(args,'variant','standard')
     configuration=config(args.driver_config)
     driver=driver_identity(configuration)
     baseline_config=read_json(args.baseline_tools) if args.baseline_tools else None
@@ -21,7 +22,7 @@ def run_suite(args, output, aggregate):
     candidates=candidate_identity();environment=measurement_host.identity()
     executable,build=release_build(output) if args.arm=='model' else (None,None)
     selected=tuple(args.tasks or TASKS)
-    identity=dict(schema_version=1,suite=SUITE,arm=args.arm,client=configuration['client'],model=configuration['model'],
+    identity=dict(schema_version=1,suite=SUITE,arm=args.arm,benchmark_variant=variant,client=configuration['client'],model=configuration['model'],
         driver_kind=configuration['kind'],driver=driver,baseline_tools=tools,consumer_tools=consumer_identity,build=build,environment=environment,
         conditions=args.conditions,candidate_files=candidates,candidate_sha256=sha(json.dumps(candidates,sort_keys=True,separators=(',',':')).encode()),
         selected_tasks=selected,repetitions=args.repetitions,
@@ -37,7 +38,7 @@ def run_suite(args, output, aggregate):
             name=f'{repetition:02d}-{task}';base=output/name
             try:
                 row=run_external_task(executable,base,task,repetition,args.arm,configuration,tools,
-                    args.import_root.resolve()/name if args.import_root else None,args.prepare_only,consumer_tools=consumer_tools)
+                    args.import_root.resolve()/name if args.import_root else None,args.prepare_only,consumer_tools=consumer_tools,variant=variant)
             except Exception as error:
                 base.mkdir(exist_ok=True)
                 row=dict(task=task,repetition=repetition,arm=args.arm,status='failed',model_trials=False,
@@ -51,7 +52,7 @@ def run_suite(args, output, aggregate):
                (executable is None or file_hash(executable)==build['executable_sha256']) and
                (not consumer_tools or consumer_identity==tool_identities(consumer_tools)))
     success=all(row['status'] in (('prepared','not_applicable') if args.prepare_only else ('passed','not_applicable')) for row in rows)
-    report=dict(schema_version=2,suite=SUITE,arm=args.arm,transport='external-client',
+    report=dict(schema_version=2,suite=SUITE,arm=args.arm,transport='external-client',benchmark_variant=variant,
         selected_tasks=selected,all_tasks=list(TASKS),repetitions=args.repetitions,
         full_selection=set(selected)==set(TASKS),migrated_tasks=list(MIGRATED_TASKS),
         model_trials=any(row.get('model_trials') for row in rows),

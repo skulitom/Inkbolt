@@ -199,8 +199,8 @@ fn document_region(
         }
         Focus::Artboard { .. } => unreachable!(),
     };
-    // Crop completed full-scene pixels. Replacing the evaluation canvas would alter
-    // filters, backgrounds and canvas-relative operators at the new boundary.
+    // Keep the original evaluation canvas and pixel grid. Tiled evaluation can
+    // visit only intersecting tiles without introducing a new scene boundary.
     let wanted = [
         (requested[0] - base_origin[0]) * s,
         (requested[1] - base_origin[1]) * s,
@@ -222,30 +222,16 @@ fn document_region(
             "Preview focus does not intersect the rendered canvas; choose another region or explicit render padding",
         ));
     }
-    let full = render::rasterize_controlled(
+    let dimensions = [crop[2] - crop[0], crop[3] - crop[1]];
+    let pixels = render::rasterize_region_controlled(
         document,
         options.scale,
         asset_root,
         font_root,
-        Some(&options.render_options),
+        &options.render_options,
         control,
+        crop,
     )?;
-    let dimensions = [crop[2] - crop[0], crop[3] - crop[1]];
-    let pixels = if crop == [0, 0, full.width, full.height] {
-        full
-    } else {
-        let mut rgba = Vec::with_capacity(dimensions[0] as usize * dimensions[1] as usize * 4);
-        for y in crop[1]..crop[3] {
-            control.check()?;
-            let offset = (y as usize * full.width as usize + crop[0] as usize) * 4;
-            rgba.extend_from_slice(&full.rgba[offset..offset + dimensions[0] as usize * 4]);
-        }
-        render::Rasterized {
-            width: dimensions[0],
-            height: dimensions[1],
-            rgba,
-        }
-    };
     let origin = [
         base_origin[0] + crop[0] as f64 / s,
         base_origin[1] + crop[1] as f64 / s,
@@ -261,7 +247,7 @@ fn document_region(
         json!({"composition":"document","bounds_space":"document","requested_bounds":requested,"actual_bounds":actual,
         "clipped_to_render":(0..4).any(|i|quantized[i]!=crop[i] as f64),"crop_pixels":crop,
         "mapping":mapping(identity(),origin,options.scale,dimensions)?,"artifact":artifact,"full_render":plan.receipt(),
-        "semantics":"Full composition cropped outward to its existing pixel grid. Item focus uses unclipped geometry (text frames), including hidden items, excluding strokes/effects. Other artwork remains visible. Full render limits and evaluation cost apply."}),
+        "semantics":"Full composition cropped outward to its existing pixel grid. Item focus uses unclipped geometry (text frames), including hidden items, excluding strokes/effects. Other artwork remains visible. Full render admission limits apply. Tiled evaluation visits intersecting original-grid tiles with full-scene resource verification and filter neighborhoods; whole evaluation retains full render cost."}),
     )
 }
 

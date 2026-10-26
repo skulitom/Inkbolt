@@ -1,5 +1,12 @@
 # Recorded agent evaluation results
 
+The separate [50 MP B10 evaluation](B10_LARGE.md) now retains exact full-size
+reference checks on Windows/Linux, relocation-tested external controls and one
+genuine matched Codex pilot. Both pilot arms pass applicable artifact checks;
+the engine arm uses substantially more tokens in this single pair. Original B10
+and its 256 MiB criterion are unchanged. Linux commit-budget evidence, repeated
+matched model trials and broader readiness gates remain open.
+
 The latest [request-guidance follow-up](#b10b17b19-at-447bbc2-request-guidance-follow-up)
 passes 3/5 photograph workflows versus 5/5 baseline, 4/5 lost-response workflows,
 and 4/5 interrupted-job workflows. It retains every failure and establishes no

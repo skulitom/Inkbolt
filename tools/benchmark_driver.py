@@ -62,6 +62,15 @@ MAX_METADATA = 1024*1024
 MAX_TRANSCRIPT = 64*1024*1024
 
 
+def migration(task,variant='standard'):
+    require(variant in ('standard','photo-50mp-v1'),'Unknown benchmark variant')
+    if variant=='photo-50mp-v1':
+        require(task=='B10','The photo-50mp-v1 variant selects only B10')
+        import benchmark_photo_large
+        return benchmark_photo_large,benchmark_photo_large.judge_baseline
+    return MIGRATIONS[task]
+
+
 def read_json(path):
     require(path.is_file() and not path.is_symlink() and path.stat().st_size <= MAX_METADATA,
             'Missing, linked or oversized driver metadata')
@@ -197,7 +206,7 @@ class ExternalTrial(Trial):
         evidence=self.driver_evidence or {}
         observed=evidence.get('observations',{})
         preview=None
-        for check,filename in MIGRATIONS[self.task][0].PREVIEW_FILES.items():
+        for check,filename in migration(self.task,getattr(self,'benchmark_variant','standard'))[0].PREVIEW_FILES.items():
             if any(c['name']==check and c['status']=='pass' for c in self.checks):
                 path=self.root/getattr(self,'preview_paths',{}).get(filename,filename)
                 if path.is_file() and observed.get('first_preview_sha256')==file_hash(path):
@@ -224,7 +233,7 @@ def contract(case, configuration, tools):
         model=configuration['model'],kind=configuration['kind'],
         engine_sha256=file_hash(case.executable) if case.executable else None,
         baseline_tools=None if tools is None else {k:{a:b for a,b in v.items() if a!='path'} for k,v in tools.items()})
-    adapter=MIGRATIONS[case.task][0]
+    adapter=migration(case.task,getattr(case,'benchmark_variant','standard'))[0]
     if hasattr(adapter,'control_identity'):value['control_files']=adapter.control_identity()
     if hasattr(adapter,'contract_fields'):value.update(adapter.contract_fields(case))
     return value
@@ -272,7 +281,7 @@ def validate_result(evidence, request_contract, capture, files):
         transcript_sha256=capture['transcript_sha256'],result_sha256=capture['result_sha256'],
         workspace_sha256=sha(canonical(files)),contract_sha256=sha(canonical(request_contract)),
         original_host=capture['host'],execution=capture['execution'],harness_setup=setup)
-    adapter=MIGRATIONS[request_contract['task']][0]
+    adapter=migration(request_contract['task'],request_contract.get('benchmark_variant','standard'))[0]
     if hasattr(adapter,'validate_capture'):
         key=getattr(adapter,'CAPTURE_KEY','harness_recovery')
         validated[key]=adapter.validate_capture(evidence,capture.get(key))
@@ -302,7 +311,7 @@ def import_capture(source, case, evidence, expected):
     for name in (validated['harness_setup'] or {}).get('files',{}):
         save(evidence/name,(source/'evidence'/name).read_bytes())
     validate_setup(evidence,expected['task'],validated['harness_setup'])
-    adapter=MIGRATIONS[expected['task']][0];key=getattr(adapter,'CAPTURE_KEY','harness_recovery')
+    adapter=migration(expected['task'],expected.get('benchmark_variant','standard'))[0];key=getattr(adapter,'CAPTURE_KEY','harness_recovery')
     if validated.get(key):
         for name in validated[key]['files']:save(evidence/name,(source/'evidence'/name).read_bytes())
         adapter.validate_capture(evidence,validated[key])
@@ -310,7 +319,7 @@ def import_capture(source, case, evidence, expected):
     return validated
 
 
-def run_external_task(executable, base, task, repetition, arm, configuration, tools=None, import_source=None, prepare=False,consumer_tools=None):
+def run_external_task(executable, base, task, repetition, arm, configuration, tools=None, import_source=None, prepare=False,consumer_tools=None, *, variant='standard'):
     base.mkdir();evidence=base/'evidence';evidence.mkdir()
     if arm=='baseline' and task in BASELINE_NOT_APPLICABLE:
         row=dict(task=task,repetition=repetition,arm=arm,status='not_applicable',reason=BASELINE_NOT_APPLICABLE[task],model_trials=False)
@@ -320,10 +329,11 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
             reason='The separated fixture, prompt and artifact judge are not migrated yet.',model_trials=False)
         save_json(base/'result.json',row);return row
     require(arm in ('model','baseline'), 'Invalid external arm')
-    adapter,baseline_judge=MIGRATIONS[task]
+    adapter,baseline_judge=migration(task,variant)
     factory=getattr(adapter,'external_trial',ExternalTrial)
     options=dict(consumer_tools=consumer_tools) if task=='B20' else {}
     case=factory(executable if arm=='model' else None,base/'workspace',task,repetition,'cli',CHECKS[task],arm=arm,**options)
+    case.benchmark_variant=variant
     case.judge_root=evidence
     case.result_path=base/'result.json'
     adapter.fixture(case);case.begin(adapter.PROMPT.read_text(encoding='utf-8'))
@@ -398,5 +408,6 @@ def model_run_complete(rows, selected, repetitions, inputs_unchanged):
     return (inputs_unchanged and set(selected)==set(TASKS) and repetitions>=5 and len(rows)==len(expected)
         and {(row['task'],row['repetition']) for row in rows}==expected and all(
             row.get('arm')=='model' and row.get('model_trials') is True and row.get('driver',{}).get('kind')=='model'
+            and row.get('benchmark_variant','standard')=='standard'
             and not row.get('driver_failure')
             and row.get('status') in ('passed','failed') and bool(row.get('driver',{}).get('transcript_sha256')) for row in rows))

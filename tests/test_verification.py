@@ -124,6 +124,7 @@ class VerificationTests(unittest.TestCase):
             'test_wsl_verification',  # The WSL snapshot binds the whole candidate.
             'test_scale_workloads',  # External decoder worker identity and import discovery.
             'test_layered_native',  # Snapshots complete generated native resource folders.
+            'test_benchmark_photo_large',  # Separate capture identity and generated native stores.
         })
         # Refactoring must still invalidate actual shared helper consumers and
         # must not weaken the conservative Rust/unknown-input boundary.

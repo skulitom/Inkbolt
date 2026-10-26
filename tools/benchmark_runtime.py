@@ -1,6 +1,7 @@
 """Local, retained CLI/MCP task traffic and explicit independently judged results."""
 import base64
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -359,8 +360,11 @@ class Trial:
 
     def finish(self):
         self.close()
+        def file_digest(path):
+            with path.open('rb') as stream:
+                return hashlib.file_digest(stream,'sha256').hexdigest()
         self.check('source-preservation', lambda: require(all(
-            sha((self.root/name).read_bytes()) == expected for name,expected in self.sources.items()) and
+            file_digest(self.root/name) == expected for name,expected in self.sources.items()) and
             (self.prompt_sha256 is None or sha((self.root/'task.txt').read_bytes()) == self.prompt_sha256),
             'An original fixture source or task prompt changed'))
         names = {check['name'] for check in self.checks}
@@ -410,5 +414,7 @@ class Trial:
             peak_commit_bytes=max(m['peak_commit_bytes'] for m in memory_values) if memory_complete else None,
             token_usage=None,model_calls=None,agent_seconds=None,model_trials=False)
         result.update(self.extra_results())
+        if getattr(self,'benchmark_variant','standard')!='standard':
+            result['benchmark_variant']=self.benchmark_variant
         save_json(getattr(self,'result_path',self.root/'result.json'),result)
         return result

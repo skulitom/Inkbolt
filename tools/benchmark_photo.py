@@ -85,11 +85,11 @@ def preview_samples(raw):
     return bytes(result)
 
 
-def check_memory(observations):
+def check_memory(observations, maximum=MAX_PEAK_COMMIT_BYTES):
     require(bool(observations) and all(isinstance(m,dict) and m.get('available') is True for m in observations),
             'The fixed photo memory budget requires complete process observations')
-    require(all(type(m.get('peak_commit_bytes')) is int and 0<m['peak_commit_bytes']<=MAX_PEAK_COMMIT_BYTES for m in observations),
-            'Photo editing exceeded the fixed 256 MiB engine commit budget')
+    require(all(type(m.get('peak_commit_bytes')) is int and 0<m['peak_commit_bytes']<=maximum for m in observations),
+            f'Photo editing exceeded the fixed {maximum//1024**2} MiB engine commit budget')
 
 
 def fixture(case):
@@ -180,12 +180,12 @@ def check_review(review, receipts, edited, expected_transfer=None):
         'Delivered review must bind the exact original state and committed native edit')
 
 
-def judge_memory(case):
+def judge_memory(case, maximum=MAX_PEAK_COMMIT_BYTES):
     if case.arm=='reference':
         case.close()  # Include the persistent MCP lifetime through independent judging.
         observations,scope=case.memory_observations()
         evidence=dict(kind='engine_process_observations',scope=scope,observations=observations)
-        predicate=lambda:check_memory(observations)
+        predicate=lambda:check_memory(observations,maximum)
     else:
         # The enclosing client/launcher peak is a conservative upper bound for
         # every owned engine/tool process, not an exact engine-only observation.
@@ -195,10 +195,10 @@ def judge_memory(case):
         evidence=dict(kind='owned_tree_process_upper_bound',memory=memory)
         def predicate():
             require(memory['available'] and type(memory['peak_process_commit_bytes']) is int and
-                    0<memory['peak_process_commit_bytes']<=MAX_PEAK_COMMIT_BYTES,
-                    'The captured owned-tree process peak does not establish the fixed 256 MiB budget')
+                    0<memory['peak_process_commit_bytes']<=maximum,
+                    f'The captured owned-tree process peak does not establish the fixed {maximum//1024**2} MiB budget')
     save_json(getattr(case,'judge_root',case.root)/'memory-budget.json',
-              dict(maximum_peak_commit_bytes=MAX_PEAK_COMMIT_BYTES,**evidence))
+              dict(maximum_peak_commit_bytes=maximum,**evidence))
     case.check('memory-budget',predicate)
 
 

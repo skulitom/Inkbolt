@@ -1,6 +1,7 @@
 """The unchanged readiness tasks; implementation and measurement are separate."""
 
 SUITE = 'agent-tasks-v1'
+VARIANTS = ('standard','photo-50mp-v1')
 # These outcomes are copied from the accepted readiness plan. An absent adapter
 # remains a visible not_implemented result, never a reduced benchmark denominator.
 TASKS = {

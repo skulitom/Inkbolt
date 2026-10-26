@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 import statistics
 
-from benchmark_tasks import (SUITE, TASKS, CHECKS, ARTIFACT_CHECKS, ENGINE_CHECKS,
+from benchmark_tasks import (SUITE, TASKS, CHECKS, ARTIFACT_CHECKS, ENGINE_CHECKS, VARIANTS,
                              BASELINE_NOT_APPLICABLE, check_class)
 
 
@@ -69,6 +69,10 @@ def retained_contract(root, row, provenance):
                 'Unexpected inapplicable trial')
         return None,False
     request=read_json(base/'evidence/request.json');contract=request['contract']
+    require(contract.get('benchmark_variant','standard')==provenance.get('benchmark_variant','standard'),
+            'Request benchmark variant differs from report provenance')
+    require(row.get('benchmark_variant',contract.get('benchmark_variant','standard'))==contract.get('benchmark_variant','standard'),
+            'Trial benchmark variant differs from its request')
     require(request['contract_sha256']==digest(canonical(contract)),'Request contract hash differs')
     for key,value in dict(task=task,repetition=rep,arm=provenance['arm'],client=provenance['client'],
                           model=provenance['model'],kind=provenance['driver_kind']).items():
@@ -137,6 +141,10 @@ def load_report(path, arm):
             all(hash_string(v) for v in p['candidate_files'].values()) and
             p['candidate_sha256']==digest(canonical(p['candidate_files'])),'Candidate fingerprint differs')
     selected=report['selected_tasks'];reps=report['repetitions']
+    variant=report.get('benchmark_variant','standard')
+    require(variant in VARIANTS and p.get('benchmark_variant','standard')==variant,
+            'Invalid benchmark variant provenance')
+    require(variant=='standard' or selected==['B10'],'The photo-50mp-v1 variant selects only B10')
     require(isinstance(selected,list) and bool(selected) and len(selected)==len(set(selected)) and set(selected)<=set(TASKS),
             'Invalid task selection')
     require(type(reps) is int and 1<=reps<=10 and p['selected_tasks']==selected and p['repetitions']==reps,
@@ -244,6 +252,8 @@ def summarize(data, task):
 def compare(model, baseline):
     arms=dict(model=model,baseline=baseline);a=model['report'];b=baseline['report'];p=a['provenance'];q=b['provenance']
     global_issues=[]
+    if p.get('benchmark_variant','standard')!=q.get('benchmark_variant','standard'):
+        global_issues.append('Different benchmark_variant')
     for key in ('candidate_sha256','client','model','driver_kind','driver','conditions'):
         if p.get(key)!=q.get(key):global_issues.append('Different '+key)
     for arm,data in arms.items():
@@ -271,7 +281,7 @@ def compare(model, baseline):
             for rep in range(1,min(a['repetitions'],b['repetitions'])+1):
                 key=(task,rep);left=model['contracts'].get(key);right=baseline['contracts'].get(key)
                 if left is None or right is None:issues.append(f'Repetition {rep}: request contract unavailable');continue
-                for name in ('prompt_sha256','fixtures','control_files','consumer_tools'):
+                for name in ('prompt_sha256','fixtures','control_files','consumer_tools','benchmark_variant'):
                     if left.get(name)!=right.get(name):issues.append(f'Repetition {rep}: different '+name)
                 x=model['rows'].get(key,{});y=baseline['rows'].get(key,{})
                 hosts=[(row.get('driver') or {}).get('original_host',data['report']['provenance']['environment'])
@@ -304,14 +314,14 @@ def compare(model, baseline):
         if reasons:losing.append(dict(task=task,category=category,reasons=reasons))
     def complete(data):
         report=data['report']
-        return set(report['selected_tasks'])==set(TASKS) and report['repetitions']>=5 and report['inputs_unchanged'] is True and all(
+        return report.get('benchmark_variant','standard')=='standard' and set(report['selected_tasks'])==set(TASKS) and report['repetitions']>=5 and report['inputs_unchanged'] is True and all(
             data['valid'].get((task,rep),False) or (report['arm']=='baseline' and task in BASELINE_NOT_APPLICABLE and
                 data['rows'].get((task,rep),{}).get('status')=='not_applicable' and (task,rep) not in data['issues'])
             for task in TASKS for rep in range(1,report['repetitions']+1))
     genuine=p['driver_kind']==q['driver_kind']=='model'
     matched=not global_issues and all(row['minimum_repetitions_met'] for row in tasks if row['task'] not in BASELINE_NOT_APPLICABLE)
     ready=genuine and matched and all(complete(data) for data in arms.values())
-    return dict(schema_version=1,suite=SUITE,policy=POLICY,policy_sha256=digest(canonical(dict(policy=POLICY,checks=CHECKS,
+    return dict(schema_version=1,suite=SUITE,benchmark_variant=p.get('benchmark_variant','standard'),policy=POLICY,policy_sha256=digest(canonical(dict(policy=POLICY,checks=CHECKS,
         artifacts=ARTIFACT_CHECKS,engine=ENGINE_CHECKS))),
         inputs={arm:dict(report_path=data['path'],report_sha256=data['sha256'],candidate_sha256=data['report']['provenance']['candidate_sha256'])
                 for arm,data in arms.items()},
@@ -331,6 +341,7 @@ def compare(model, baseline):
 
 def markdown(report):
     lines=['# Agent benchmark comparison','',
+        'Variant: '+report.get('benchmark_variant','standard')+'.','',
         'Evidence: '+report['evidence_kind']+'. Decision-ready: '+str(report['decision_ready']).lower()+'.',
         'Synthetic or incomplete comparisons do not establish model performance.','',
         '| Task | Category | Model artifact passes | Baseline artifact passes | Comparable |',

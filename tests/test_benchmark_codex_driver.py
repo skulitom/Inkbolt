@@ -74,6 +74,26 @@ class CodexDriverTests(unittest.TestCase):
             self.contract['model']['id'] = value; self.bind()
             with self.assertRaises(ValueError): driver.prepare(self.request, Path(sys.executable))
 
+    def test_large_photo_streamed_identity_is_variant_specific_and_bounded(self):
+        source=self.workspace/'original.tiff'
+        with source.open('xb') as stream:stream.truncate(129*1024*1024)
+        self.contract['fixtures']={'original.tiff':driver.file_digest(source,130*1024*1024)}
+        self.contract['task']='B10';self.bind()
+        with self.assertRaisesRegex(ValueError,'oversized'):driver.prepare(self.request,Path(sys.executable))
+        self.contract['benchmark_variant']='photo-50mp-v1';self.bind()
+        original=Path.read_bytes
+        def read(path):
+            self.assertNotEqual(path,source,'Large fixture must be hashed as a stream')
+            return original(path)
+        with patch.object(Path,'read_bytes',read):driver.prepare(self.request,Path(sys.executable))
+        self.contract['fixtures']['original.tiff']='0'*64;self.bind()
+        with self.assertRaisesRegex(ValueError,'Fixture identity'):driver.prepare(self.request,Path(sys.executable))
+        self.contract['task']='B02';self.bind()
+        with self.assertRaisesRegex(ValueError,'variant'):driver.prepare(self.request,Path(sys.executable))
+        with source.open('r+b') as stream:stream.truncate(8192*6144*8+1024*1024+1)
+        self.contract['task']='B10';self.bind()
+        with self.assertRaisesRegex(ValueError,'oversized'):driver.prepare(self.request,Path(sys.executable))
+
     def test_unknown_settings_cannot_be_silently_ignored(self):
         for settings in ({}, {'reasoning_effort':''}, {'reasoning_effort':'medium','temperature':1}):
             self.contract['model']['settings'] = settings; self.bind()

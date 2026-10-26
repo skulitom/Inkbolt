@@ -49,7 +49,7 @@ build from source for the newer features below. Follow the
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. Release notes describe the included features. |
-| Build from `main` | Adds larger image editing, native JPEG import, guided selections and masks, patch repair, editable layered imports, and lower-memory exports. The large-image workflows described below require this newer source build. |
+| Build from `main` | Adds larger image editing, native JPEG import, guided selections and masks, patch repair, editable layered imports, focused previews for large images, and lower-memory exports. The large-image workflows described below require this newer source build. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:

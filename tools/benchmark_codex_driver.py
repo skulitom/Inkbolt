@@ -66,6 +66,19 @@ def regular(path, limit=MAX_METADATA):
     return path.read_bytes()
 
 
+def file_digest(path, limit):
+    path = Path(path)
+    require(path.is_file() and not path.is_symlink() and path.stat().st_size <= limit,
+            'Missing, linked or oversized input')
+    result = hashlib.sha256(); total = 0
+    with path.open('rb') as stream:
+        while chunk := stream.read(1024 * 1024):
+            total += len(chunk)
+            require(total <= limit, 'Input grew beyond its bound')
+            result.update(chunk)
+    return result.hexdigest()
+
+
 def bridge_directory(request, workspace):
     """Allow the owned file channel without granting the evidence directory."""
     contract=request['contract']
@@ -110,9 +123,13 @@ def prepare(request, executable, mcp_approval_mode=None):
     require(prompt_path.resolve().is_relative_to(workspace), 'Prompt escapes workspace')
     raw = regular(prompt_path)
     require(digest(raw) == contract['prompt_sha256'], 'Prompt hash differs')
+    variant = contract.get('benchmark_variant', 'standard')
+    require(variant == 'standard' or (variant == 'photo-50mp-v1' and contract['task'] == 'B10'),
+            'Unknown benchmark variant or task')
     for name, expected in contract['fixtures'].items():
         path = workspace / name
-        require(path.resolve().is_relative_to(workspace) and digest(regular(path, 128*1024*1024)) == expected,
+        limit = (8192 * 6144 * 8 + 1024 * 1024) if variant == 'photo-50mp-v1' and name == 'original.tiff' else 128 * 1024 * 1024
+        require(path.resolve().is_relative_to(workspace) and file_digest(path, limit) == expected,
                 'Fixture identity differs')
     require(Path(executable).is_absolute() and Path(executable).is_file(), 'Supply an absolute client executable')
     require(contract['arm'] in ('model', 'baseline'), 'Unknown benchmark arm')
@@ -144,7 +161,7 @@ def prepare(request, executable, mcp_approval_mode=None):
         server = mcp['mcpServers']['inkbolt']
         require(server == dict(command=request['engine_executable'],
                 args=['--workspace', str(workspace), 'mcp', '--tools', 'core']), 'Unexpected MCP configuration')
-        require(digest(regular(server['command'], 512*1024*1024)) == contract['engine_sha256'],
+        require(file_digest(server['command'], 512*1024*1024) == contract['engine_sha256'],
                 'Engine executable identity differs')
         for key, value in dict(command=server['command'], args=server['args'], required=True).items():
             argv += ['--config', 'mcp_servers.inkbolt.' + key + '=' + json.dumps(value)]

@@ -645,6 +645,86 @@ impl Prepared {
             completed: 0,
         })
     }
+    /// Render complete original-grid tiles that intersect a focus, retaining the
+    /// full scene, real viewport and filter neighborhoods. Admission and replay
+    /// charges remain those of the complete render; resource checks are unchanged.
+    pub(crate) fn visit_region(
+        &self,
+        bounds: [u32; 4],
+        mut consume: impl FnMut([u32; 2], [u32; 2], &[f64]) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let bands = self.bands(u32::MAX)?;
+        let intersects = |(origin, size): &([u32; 2], [u32; 2])| {
+            origin[0] < bounds[2]
+                && origin[1] < bounds[3]
+                && origin[0] + size[0] > bounds[0]
+                && origin[1] + size[1] > bounds[1]
+        };
+        let total = bands.traversal.tiles().filter(intersects).count() as u64;
+        self.resources
+            .control
+            .progress("render_tiles", 0, Some(total));
+        for (i, (origin, size)) in bands.traversal.tiles().filter(intersects).enumerate() {
+            let samples = self.tile_samples(origin, size)?;
+            consume(origin, size, &samples)?;
+            self.resources
+                .control
+                .progress("render_tiles", i as u64 + 1, Some(total));
+        }
+        self.resources.control.check()
+    }
+    fn tile_samples(&self, [x, y]: [u32; 2], output_size: [u32; 2]) -> Result<Vec<f64>, Error> {
+        let factor = self.sampling.options.antialias.factor();
+        let empty_masks = BTreeMap::new();
+        self.resources.control.check()?;
+        let mut size = [
+            output_size[0] * factor,
+            output_size[1] * factor,
+            self.sampling.internal_scale,
+        ];
+        let mut origin = [
+            self.sampling.offset + x * factor,
+            self.sampling.offset + y * factor,
+        ];
+        if let Some(neighborhood) = &self.neighborhood {
+            let (start, extent) = neighborhood.region(
+                origin,
+                [size[0], size[1]],
+                self.sampling
+                    .evaluation
+                    .map(|v| v * self.sampling.internal_scale),
+                &self.resources.control,
+            )?;
+            origin = start;
+            [size[0], size[1]] = extent;
+        }
+        let tile = self
+            .resources
+            .spatial
+            .as_ref()
+            .map(|p| p.tile(origin, [size[0], size[1]]));
+        let resources = ResourcesView {
+            tile: tile.as_ref(),
+            base: &self.resources,
+            artwork_masks: &empty_masks,
+            control: &self.resources.control,
+            origin,
+        };
+        let mut accum = vec![0.0; size[0] as usize * size[1] as usize * 4];
+        draw_items(&self.document, None, &mut accum, None, size, &resources)?;
+        if accum.iter().any(|v| !v.is_finite()) {
+            return Err(Error::new(
+                "NONFINITE_RENDER",
+                "Compositing exceeded finite working precision",
+            ));
+        }
+        let mut samples = Vec::with_capacity(output_size[0] as usize * output_size[1] as usize * 4);
+        self.sampling
+            .visit_region(&accum, size[0], origin, [x, y], output_size, |p| {
+                samples.extend_from_slice(&p)
+            });
+        Ok(samples)
+    }
     pub fn samples(&self) -> Result<SampleRaster, Error> {
         let values = self.render()?;
         let result = self
@@ -703,60 +783,9 @@ impl Bands<'_> {
             .traversal
             .rows
             .min(prepared.sampling.output[1] - band_y);
-        let factor = prepared.sampling.options.antialias.factor();
-        let empty_masks = BTreeMap::new();
-        for ([x, y], output_size) in self.traversal.band_tiles(band_y) {
-            prepared.resources.control.check()?;
-            let mut size = [
-                output_size[0] * factor,
-                output_size[1] * factor,
-                prepared.sampling.internal_scale,
-            ];
-            let mut origin = [
-                prepared.sampling.offset + x * factor,
-                prepared.sampling.offset + y * factor,
-            ];
-            if let Some(neighborhood) = &prepared.neighborhood {
-                let (start, extent) = neighborhood.region(
-                    origin,
-                    [size[0], size[1]],
-                    prepared
-                        .sampling
-                        .evaluation
-                        .map(|v| v * prepared.sampling.internal_scale),
-                    &prepared.resources.control,
-                )?;
-                origin = start;
-                [size[0], size[1]] = extent;
-            }
-            let tile = prepared
-                .resources
-                .spatial
-                .as_ref()
-                .map(|p| p.tile(origin, [size[0], size[1]]));
-            let resources = ResourcesView {
-                tile: tile.as_ref(),
-                base: &prepared.resources,
-                artwork_masks: &empty_masks,
-                control: &prepared.resources.control,
-                origin,
-            };
-            let mut accum = vec![0.0; size[0] as usize * size[1] as usize * 4];
-            draw_items(&prepared.document, None, &mut accum, None, size, &resources)?;
-            if accum.iter().any(|v| !v.is_finite()) {
-                return Err(Error::new(
-                    "NONFINITE_RENDER",
-                    "Compositing exceeded finite working precision",
-                ));
-            }
-            let mut samples =
-                Vec::with_capacity(output_size[0] as usize * output_size[1] as usize * 4);
-            prepared
-                .sampling
-                .visit_region(&accum, size[0], origin, [x, y], output_size, |p| {
-                    samples.extend_from_slice(&p)
-                });
-            consume([x, y], output_size, &samples)?;
+        for (origin, output_size) in self.traversal.band_tiles(band_y) {
+            let samples = prepared.tile_samples(origin, output_size)?;
+            consume(origin, output_size, &samples)?;
             self.completed += 1;
             prepared.resources.control.progress(
                 "render_tiles",
@@ -773,6 +802,48 @@ impl Bands<'_> {
 #[cfg(test)]
 mod replay_tests {
     use super::*;
+    #[test]
+    fn focused_target_visits_only_original_grid_tiles_and_keeps_admission() {
+        let document = serde_json::from_value(serde_json::json!({"schema_version":2,
+            "id":"focused-target","kind":"raster","width":8192,"height":6144,"color_space":"srgb"}))
+        .unwrap();
+        let options = serde_json::from_value(serde_json::json!({"evaluation":"tiled"})).unwrap();
+        let prepared = Prepared::new(
+            &document,
+            1,
+            None,
+            None,
+            Some(&options),
+            false,
+            &Control::default(),
+        )
+        .unwrap();
+        let bounds = [5114, 3835, 5134, 3851];
+        let mut visits = 0;
+        let mut pixels = 0;
+        prepared
+            .visit_region(bounds, |origin, size, values| {
+                visits += 1;
+                pixels += size[0] * size[1];
+                assert!(origin[0] < bounds[2] && origin[1] < bounds[3]);
+                assert!(origin[0] + size[0] > bounds[0] && origin[1] + size[1] > bounds[1]);
+                assert_eq!(origin[0] % prepared.tile_edge(), 0);
+                assert_eq!(origin[1] % prepared.tile_edge(), 0);
+                assert!(values.iter().all(|&v| v == 0.));
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(visits, 4);
+        assert_eq!(pixels, 256 * 256);
+        assert_eq!(prepared.band_work.get()[0], prepared.work);
+        assert_eq!(
+            Prepared::new(&document, 1, None, None, None, false, &Control::default())
+                .err()
+                .unwrap()
+                .code,
+            "RESOURCE_LIMIT"
+        );
+    }
     #[test]
     fn few_large_shapes_use_visited_tiles_without_raising_paint_or_replay_budgets() {
         let items: Vec<_> = (0..3)

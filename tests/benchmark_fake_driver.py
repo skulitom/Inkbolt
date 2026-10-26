@@ -235,8 +235,11 @@ def main():
                     request_id='author-items',expected_revision=response['result']['document_ref']['revision'],
                     action=dict(type='edit',operations=[dict(op='add',item=item) for item in added_items]),response_mode='compact')
             return response['result']
+        selected_photo=solve_photo
+        if request['contract'].get('benchmark_variant')=='photo-50mp-v1':
+            from benchmark_photo_large import solve as selected_photo
         {'B01':solve, 'B02':solve_icons, 'B03':solve_layout, 'B04':solve_svg, 'B05':solve_palette,
-         'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':solve_photo,
+         'B06':solve_flow, 'B07':solve_typography, 'B08':solve_mask, 'B09':solve_retouch, 'B10':selected_photo,
          'B11':solve_mixed,'B12':solve_variants,'B13':solve_screen,'B14':solve_print,'B15':solve_resources,'B16':solve_repair,'B17':solve_retry,'B18':solve_conflict}[task](SimpleNamespace(root=root,call=call))
         if task in ('B01','B06','B07','B12') and '--custom-font-store' in sys.argv:
             store=root/'chosen resources/fonts'
@@ -324,7 +327,8 @@ def main():
                 subprocess.run([request['baseline_tools']['python']['path'],'-I',str(ROOT/'tests/benchmark_mixed_client.py'),str(root)],check=True)
         elif task=='B10':
             options=[] if renderer['version']=='synthetic-fixture' else ['--pillow']
-            subprocess.run([request['baseline_tools']['python']['path'],'-I',str(ROOT/'tests/benchmark_photo_client.py'),str(root),*options],check=True)
+            script='benchmark_photo_large_client.py' if request['contract'].get('benchmark_variant')=='photo-50mp-v1' else 'benchmark_photo_client.py'
+            subprocess.run([request['baseline_tools']['python']['path'],'-I',str(ROOT/'tests'/script),str(root),*options],check=True)
         elif task=='B09':
             if renderer['version']=='synthetic-fixture':
                 source=json.loads((root/'source.json').read_bytes())

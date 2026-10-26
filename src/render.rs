@@ -1387,23 +1387,7 @@ pub fn rasterize_controlled(
             document, scale, asset_root, font_root, options, false, control,
         )?;
         let [width, height] = prepared.sampling.output;
-        let mut rgba = vec![0; width as usize * height as usize * 4];
-        prepared.visit(|origin, size, values| {
-            for (i, p) in values.as_chunks::<4>().0.iter().enumerate() {
-                let bytes = p.map(|v| (v * 255.0).round() as u8);
-                let at = ((origin[1] as usize + i / size[0] as usize) * width as usize
-                    + origin[0] as usize
-                    + i % size[0] as usize)
-                    * 4;
-                rgba[at..at + 4].copy_from_slice(if bytes[3] == 0 { &[0; 4] } else { &bytes });
-            }
-            Ok(())
-        })?;
-        return Ok(Rasterized {
-            width,
-            height,
-            rgba,
-        });
+        return tiled_region(&prepared, [0, 0, width, height]);
     }
     rasterize_final(
         document,
@@ -1414,6 +1398,87 @@ pub fn rasterize_controlled(
         crate::render_quality::Plan::finish,
         (false, control),
     )
+}
+/// Focused pixels retain the full composition coordinate system. Whole
+/// evaluation keeps its existing full-surface behavior and admission checks.
+pub(crate) fn rasterize_region_controlled(
+    document: &Document,
+    scale: u32,
+    asset_root: Option<&Path>,
+    font_root: Option<&Path>,
+    options: &crate::render_quality::Options,
+    control: &crate::control::Control,
+    crop: [u32; 4],
+) -> Result<Rasterized, Error> {
+    if options.evaluation == crate::render_quality::Evaluation::Tiled {
+        let prepared = prepared::Prepared::new(
+            document,
+            scale,
+            asset_root,
+            font_root,
+            Some(options),
+            false,
+            control,
+        )?;
+        return tiled_region(&prepared, crop);
+    }
+    let full = rasterize_controlled(
+        document,
+        scale,
+        asset_root,
+        font_root,
+        Some(options),
+        control,
+    )?;
+    if crop == [0, 0, full.width, full.height] {
+        return Ok(full);
+    }
+    let [width, height] = [crop[2] - crop[0], crop[3] - crop[1]];
+    let mut rgba = Vec::with_capacity(width as usize * height as usize * 4);
+    for y in crop[1]..crop[3] {
+        control.check()?;
+        let offset = (y as usize * full.width as usize + crop[0] as usize) * 4;
+        rgba.extend_from_slice(&full.rgba[offset..offset + width as usize * 4]);
+    }
+    Ok(Rasterized {
+        width,
+        height,
+        rgba,
+    })
+}
+fn tiled_region(prepared: &prepared::Prepared, crop: [u32; 4]) -> Result<Rasterized, Error> {
+    let [width, height] = [crop[2] - crop[0], crop[3] - crop[1]];
+    let mut rgba = vec![0; width as usize * height as usize * 4];
+    let mut consume = |origin: [u32; 2], size: [u32; 2], values: &[f64]| {
+        for y in origin[1].max(crop[1])..(origin[1] + size[1]).min(crop[3]) {
+            for x in origin[0].max(crop[0])..(origin[0] + size[0]).min(crop[2]) {
+                let i =
+                    ((y - origin[1]) as usize * size[0] as usize + (x - origin[0]) as usize) * 4;
+                let p: &[f64; 4] = values[i..i + 4].try_into().unwrap();
+                let bytes = p.map(|v| (v * 255.0).round() as u8);
+                let at = ((y - crop[1]) as usize * width as usize + (x - crop[0]) as usize) * 4;
+                rgba[at..at + 4].copy_from_slice(if bytes[3] == 0 { &[0; 4] } else { &bytes });
+            }
+        }
+        Ok(())
+    };
+    if crop
+        == [
+            0,
+            0,
+            prepared.sampling.output[0],
+            prepared.sampling.output[1],
+        ]
+    {
+        prepared.visit(&mut consume)?;
+    } else {
+        prepared.visit_region(crop, &mut consume)?;
+    }
+    Ok(Rasterized {
+        width,
+        height,
+        rgba,
+    })
 }
 /// Straight normalized samples before display-byte quantization.
 pub struct SampleRaster {

@@ -25,7 +25,10 @@ than a shell wrapper. The harness hashes the launcher and declared driver files;
 the adapter additionally checks the client's reported version. It accepts exactly
 `reasoning_effort` in model settings and refuses unknown settings rather than
 silently ignoring them. Supported values depend on the chosen model/client.
-An unavailable model or client failure remains a failed attempt.
+An unavailable model or client failure remains a failed attempt. Fixture and
+engine identities are hashed as streams. Ordinary fixtures retain their 128 MiB
+bound; only `original.tiff` in B10 `photo-50mp-v1` admits its fixed RGBA16
+payload plus 1 MiB of TIFF structure. Metadata bounds remain unchanged.
 
 For an evaluation authorized to execute the supplied local engine unattended,
 add `--mcp-approval-mode approve` to this adapter's external `argv` in both arms.

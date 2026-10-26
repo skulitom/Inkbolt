@@ -44,8 +44,8 @@ class FocusedPreviewTests(unittest.TestCase):
     def test_region_preserves_full_scene_filters_and_exact_grid(self):
         d=self.document([rect(x=-1,y=1,w=8,h=7,color=[30,100,210,128],effects=[effect('shadow','shadow',[200,40,10,173],sigma=.75,offset=[2.5,1.25])]),rect('foreground',x=4,y=3,w=3,h=2,color=[240,20,10,255])])
         before=copy.deepcopy(d)
-        for scale,aa,keep in itertools.product([1,2],['none','coverage','supersample2'],[False,True]):
-            quality=dict(antialias=aa,padding=2,crop_to_canvas=not keep)
+        for scale,aa,keep,evaluation in itertools.product([1,2],['none','coverage','supersample2'],[False,True],['whole','tiled']):
+            quality=dict(antialias=aa,padding=2,crop_to_canvas=not keep,evaluation=evaluation)
             full=self.cli('document.export',document=d,format='png',scale=scale,render_options=quality)
             fw,fh,raw,_=png_pixels(base64.b64decode(full['data']))
             result=self.view(d,dict(type='region',bounds=[2.2,1.8,9.3,7.6]),scale,quality)
@@ -62,6 +62,33 @@ class FocusedPreviewTests(unittest.TestCase):
             self.assertEqual(result['full_render']['output_dimensions'],[fw,fh])
             self.assertFalse(result['clipped_to_render'])
         self.assertEqual(d,before);self.assertEqual(self.files(),{})
+
+    def test_tiled_focus_keeps_filter_halos_and_real_canvas_borders(self):
+        group=dict(id='parent',content=dict(type='group',isolated=True),
+                   filters=[dict(id='outer',operator=dict(type='gaussian',sigma=.5),border='reflect')])
+        item=rect('source',x=123,y=60,w=14,h=18,color=[210,30,70,177],parent='parent')
+        item['filters']=[dict(id='inner',operator=dict(type='box',radius=2),border='clamp')]
+        d=self.document([group,item,rect('edge',x=0,y=1,w=3,h=8)],width=263,height=141)
+        for aa,padding,clip in [('coverage',0,True),('supersample2',3,True),('coverage',3,False)]:
+            options=dict(antialias=aa,padding=padding,crop_to_canvas=clip)
+            full=self.view(d,render_options=options);fw,fh,pixels=self.pixels(full)
+            for bounds in [[121.5,58.5,139.5,79.5],[-2,-1,6,10],[259,137,270,150]]:
+                focused=self.view(d,dict(type='region',bounds=bounds),render_options=dict(options,evaluation='tiled'))
+                x,y,right,bottom=focused['crop_pixels'];w,h,actual=self.pixels(focused)
+                self.assertEqual(actual,crop(pixels,fw,x,y,w,h))
+                self.assertEqual(focused['full_render']['output_dimensions'],[fw,fh])
+
+    def test_tiled_focus_verifies_native_dependencies_outside_the_crop(self):
+        import test_stored_samples as native
+        d=native.StoredSampleTests.imported(self,257,193,storage=dict(storage_version=2))
+        focus=dict(type='region',bounds=[1,1,4,3]);options=dict(evaluation='tiled')
+        w,h,actual=self.pixels(self.view(d,focus,render_options=options))
+        self.assertEqual(actual,bytes(round(v*255/65535) for y in range(1,3) for x in range(1,4) for v in native.pixel(x,y)))
+        grid=d['items'][0]['content']['grid']['base']
+        outside=grid['tiles'][-1]
+        path=self.root/'.inkbolt/assets'/f'{outside}.native-tile'
+        data=path.read_bytes();path.write_bytes(data[:-1]+bytes([data[-1]^1]))
+        self.view(d,focus,render_options=options,error='SAMPLE_TILE_CORRUPT')
 
     def test_items_keep_context_and_geometry_contract_with_clipping(self):
         d=self.document([rect('target',x=2,y=3,w=3,h=2),rect('overlay',x=3,y=3,w=1,h=1,color=[200,20,40,255]),rect('hidden',x=-2,y=-1,w=1,h=1,visible=False)])

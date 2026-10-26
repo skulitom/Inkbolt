@@ -6,7 +6,7 @@ import subprocess
 import sys
 import traceback
 
-from benchmark_tasks import SUITE, TASKS, CHECKS
+from benchmark_tasks import SUITE, TASKS, CHECKS, VARIANTS
 from benchmark_adapters import ADAPTERS
 from benchmark_runtime import Trial
 from benchmark_recovery_runtime import RecoveryTrial
@@ -17,7 +17,9 @@ from measure_workloads import (ROOT, candidate_identity, release_build, save_jso
 import measurement_host
 
 
-def run_task(executable, root, task, repetition, transport, consumer_tools=None):
+def run_task(executable, root, task, repetition, transport, consumer_tools=None, *, variant='standard'):
+    if variant not in VARIANTS or (variant!='standard' and task!='B10'):
+        raise ValueError('The photo-50mp-v1 variant selects only B10')
     if task not in ADAPTERS:
         root.mkdir()
         row=dict(task=task,repetition=repetition,transport=transport,status='not_implemented',
@@ -28,8 +30,12 @@ def run_task(executable, root, task, repetition, transport, consumer_tools=None)
     factory=RecoveryTrial if task=='B19' else HandoffTrial if task=='B20' else Trial
     options=dict(consumer_tools=consumer_tools) if task=='B20' else {}
     trial=factory(executable,root,task,repetition,transport,CHECKS[task],**options)
+    trial.benchmark_variant=variant
     try:
-        ADAPTERS[task](trial)
+        if variant=='photo-50mp-v1':
+            from benchmark_photo_large import photograph
+            photograph(trial)
+        else:ADAPTERS[task](trial)
     except Exception as error:
         trial.error=f'{type(error).__name__}: {error}'
         (root/'failure.txt').write_text(traceback.format_exc(),encoding='utf-8')
@@ -75,12 +81,16 @@ def main(argv=None):
     parser.add_argument('--prepare-only',action='store_true',help='Write external-client requests and fixtures without launching a client')
     parser.add_argument('--baseline-tools',type=Path,help='External pinned resvg and Pillow Python executable paths')
     parser.add_argument('--task',action='append',choices=list(TASKS),dest='tasks')
+    parser.add_argument('--variant',choices=VARIANTS,default='standard',help='Separate fixed photo scale; original tasks remain the default')
     for name in ('cutbolt','ffmpeg','ffprobe'):
         parser.add_argument('--'+name,type=Path,help='Explicit local consumer executable for B20')
     args=parser.parse_args(argv)
     if sys.flags.optimize: parser.error('Independent oracles require assertions; do not use -O')
     if not args.conditions.strip() or len(args.conditions)>4096: parser.error('Provide bounded nonempty conditions')
     if args.tasks and len(set(args.tasks))!=len(args.tasks): parser.error('Task selections must be distinct')
+    if args.variant!='standard':
+        if args.tasks and args.tasks!=['B10']:parser.error('The photo-50mp-v1 variant selects only B10')
+        args.tasks=['B10']
     external_options=args.driver_config or args.import_root or args.prepare_only or args.baseline_tools
     if args.arm=='reference' and external_options: parser.error('External driver options require --arm model or baseline')
     if args.arm!='reference' and not args.driver_config: parser.error('External arms require --driver-config')
@@ -101,7 +111,7 @@ def main(argv=None):
     environment=measurement_host.identity()
     executable,build=release_build(output)
     selected=tuple(args.tasks or TASKS)
-    provenance=dict(schema_version=1,suite=SUITE,transport=args.transport,
+    provenance=dict(schema_version=1,suite=SUITE,transport=args.transport,benchmark_variant=args.variant,
         selected_tasks=list(selected),repetitions=args.repetitions,
         candidate_files=candidates,candidate_sha256=sha(json.dumps(candidates,sort_keys=True,separators=(',',':')).encode()),
         build=build,environment=environment,conditions=args.conditions,consumer_tools=consumer_identity,
@@ -117,7 +127,7 @@ def main(argv=None):
     for repetition in range(1,args.repetitions+1):
         offset=(repetition-1)%len(selected)
         for task in selected[offset:]+selected[:offset]:
-            row=run_task(executable,output/f'{repetition:02d}-{task}',task,repetition,args.transport,consumer_tools)
+            row=run_task(executable,output/f'{repetition:02d}-{task}',task,repetition,args.transport,consumer_tools,variant=args.variant)
             rows.append(row)
             print(json.dumps(dict(task=task,repetition=repetition,status=row['status'],
                 commands=row.get('engine_commands'),seconds=row.get('engine_roundtrip_seconds'))),flush=True)
@@ -128,7 +138,7 @@ def main(argv=None):
     successful=all(row['status']=='passed' for row in rows)
     status='all_tasks_passed' if full and successful else 'selected_tasks_passed' if successful else 'incomplete_or_failed'
     if not unchanged: status='invalid_inputs_changed'
-    report=dict(schema_version=2,suite=SUITE,transport=args.transport,model_trials=False,
+    report=dict(schema_version=2,suite=SUITE,transport=args.transport,model_trials=False,benchmark_variant=args.variant,
         selected_tasks=list(selected),all_tasks=list(TASKS),full_selection=full,
         implemented_tasks=list(ADAPTERS),repetitions=args.repetitions,
         complete_scripted_suite=full and successful and unchanged,

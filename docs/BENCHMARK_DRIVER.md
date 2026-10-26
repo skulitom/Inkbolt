@@ -291,6 +291,34 @@ Linux runs retain their artifact/history results but fail the memory-budget chec
 explicitly because this commit-memory observation is unavailable. They are not
 reported as complete B10 passes.
 
+A separate `--variant photo-50mp-v1` selects only B10, using a fixed
+8192 x 6144 RGBA16 synthetic studio image and a 20 x 16 exact clone repair
+crossing four native blocks. Its [prompt](../tools/benchmark_prompts/B10-photo-50mp-v1.md)
+and original fixture hashes are retained in each request. A standalone original
+Rust fixture generator streams rows into a native TIFF; its compiler, source and
+executable identities are retained outside the repository. Fixture generation and
+independent judging are excluded from solver measurements. No model is selected
+by the variant; use the same external driver configuration for both arms.
+
+The large variant has a separate 512 MiB peak-commit criterion. It keeps all B10
+artifact/history checks, unchanged 90-second reference command deadlines and
+full-channel verification. Native TIFFs are delivered and freshly rejudged through
+files, avoiding an inline base64 copy. The baseline retains an editable TIFF and
+the same exact native samples and preview. Linux commit evidence remains
+unavailable and fails that check explicitly. The original B10 fixture and
+256 MiB criterion remain unchanged. Variant identity is bound into capture
+contracts, reports and comparisons: standard and large runs cannot be paired,
+and the large variant cannot count as a complete original twenty-task suite.
+Reduced fixtures exist only for harness unit checks and cannot produce an
+external evaluation contract.
+
+Example (replace paths and conditions with the actual evaluation setup):
+
+```text
+python tools/agent_benchmark.py --variant photo-50mp-v1 --arm model --driver-config C:/Work/client.json --repetitions 5 --output-root C:/Work/photo-large-model --conditions "Actual machine and load conditions"
+python tools/agent_benchmark.py --variant photo-50mp-v1 --arm baseline --driver-config C:/Work/client.json --baseline-tools C:/Work/baseline-tools.json --repetitions 5 --output-root C:/Work/photo-large-baseline --conditions "Same machine and load conditions"
+```
+
 B11's [shared prompt](../tools/benchmark_prompts/B11.md) retains the original
 32 by 24 image under an isolated masked vector group. Only the shadow offset
 changes. The judge reopens both snapshots, checks the complete composition and
