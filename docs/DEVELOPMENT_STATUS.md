@@ -5,6 +5,51 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W5.2: essentials catalog implementation and evaluation gate
+
+The recorded B03/B16 token ratios (4.62x/5.20x the baseline) and the separate
+large-B10 pilot motivate reducing repeated discovery context. The latter used
+CLI commands in its retained client transcript; an MCP-only recorder would not
+recover its missing complete engine traffic. No missing metrics are inferred.
+
+The new explicit `mcp --tools essentials` selects ten existing tools, including
+focused lookup and the complete dispatcher. Its 24 KiB tool-array budget applies
+with and without a workspace. Larger action, review and delivery option trees
+carry executable lookup selectors; complete input-reference alternatives,
+defaults and runtime validation remain. Shared workspace path guidance appears
+once per tool. Existing core/full modes and the no-option default retain their
+contracts. This is discovery work, with no new edit wrapper or engine credit.
+
+Remeasure catalog bytes, direct/routed parity, historical/retry behavior and
+fresh Windows/Linux acceptance. Then compare at least five matched attempts
+using the same explicitly configured client/model/settings and prompts. Stop
+expanding catalog deferral if extra lookups erase the token/call benefit or
+correctness falls. Smaller catalog bytes alone cannot establish W5 completion.
+Fresh full Windows/Linux acceptance passed all 273 stages per platform on
+26 October 2026, with no reuse, failure, pending check or omitted module:
+
+| Platform | Rust passed | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 312 | 2,819 | 24 | 956.1 |
+| Linux / WSL | 278 | 2,792 | 51 | 674.2 |
+
+The last focused feedback took 100.0 seconds on Windows and 56.1 on Linux.
+Catalog measurements match across both platforms: core is 72,158 tool-array
+bytes and essentials is 23,516 (about 67% smaller). With a workspace, essentials
+is 24,351 bytes versus core's 85,969. Existing core/full tool definitions match
+the preceding build in both workspace modes. These are discovery-byte results,
+not model-token, latency or task-success results.
+
+The retained source archive, complete logs, executable copies and discovery
+reports are bound by source fingerprint
+`04d2f819f11a361aacdc810b6a77c5d487ab3403805beb757cf1ba7473401d23`
+and audit `6ec212297cadf7672c974f667f4358bd326d3fc10b2de15b24525478eeee8410`.
+The Windows executable is `493e8d588cff826782882fe836039737d0cedc1ec955ac49f7472ca6ec94ec18`;
+Linux is `1646a0dcc5442bc5f924e5ce3514b53cd1ebdcf26ccd9ca9cb7e70bdb9372ba1`.
+Only subsequent acceptance notes differ from that tested candidate. Comparative
+model remeasurement, missing traffic metrics and complete W5 acceptance remain
+open. No original checkpoint or overall-goal completion is awarded.
+
 ## W4.6: larger native brush and retouch windows verified
 
 [The window contract](LARGE_EDIT_WINDOWS.md) admits 262,144-pixel brush windows

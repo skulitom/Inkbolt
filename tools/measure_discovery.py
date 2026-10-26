@@ -78,7 +78,7 @@ def main():
     executable = args.executable.resolve(strict=True)
     source_before = source_identity()
     executable_before = hashlib.sha256(executable.read_bytes()).hexdigest()
-    catalogs = [inspect_catalog(executable, mode) for mode in ['full', 'core']]
+    catalogs = [inspect_catalog(executable, mode) for mode in ['full', 'core', 'essentials']]
     lookups = []
     for lookup in [dict(name='index'), dict(name='document'), dict(name='operation', select='transform')]:
         request = dict(command='schema.lookup', **lookup)

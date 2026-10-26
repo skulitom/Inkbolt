@@ -2,7 +2,7 @@
   "mcpServers": {
     "inkbolt": {
       "command": "inkbolt",
-      "args": ["mcp", "--tools", "core"]
+      "args": ["mcp", "--tools", "essentials"]
     }
   }
 }

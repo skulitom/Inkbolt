@@ -1,5 +1,10 @@
 # Architecture
 
+The optional [essentials MCP catalog](AGENT_DISCOVERY.md) reuses existing commands
+and the complete dispatcher. It defers large action/review/delivery option trees
+to executable schema selectors and shares workspace path guidance per tool.
+Runtime request validation and execution are independent of catalog selection.
+
 Tiled [focused previews](FOCUSED_PREVIEWS.md) retain complete scene preparation
 and resource verification, then visit only intersecting original-grid tiles.
 They share tile evaluation with codec bands, preserving global coordinates,

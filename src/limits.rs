@@ -891,6 +891,10 @@ pub mod mcp {
     pub const MAX_REQUEST_IDS: usize = 4096;
     /// Core catalog bytes (mcp).
     pub const CORE_CATALOG_BYTES: usize = 96 * 1024;
+    /// Maximum serialized tool-array bytes in the essentials catalog.
+    pub const ESSENTIALS_CATALOG_BYTES: usize = 24 * 1024;
+    /// Maximum direct tools, including the dispatcher, in the essentials catalog.
+    pub const ESSENTIALS_TOOLS: usize = 10;
 }
 
 /// Limits for `src/mcp_preview.rs`.

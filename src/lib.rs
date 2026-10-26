@@ -2117,6 +2117,10 @@ fn capability_report() -> Value {
         "mcp_compact_arguments":["mcp","--tools","core"],
         "mcp_compact_budget_bytes":mcp::CORE_CATALOG_BYTES,
         "mcp_compact_first_tools":mcp::CORE_ENTRY_POINTS,
+        "mcp_essentials_arguments":["mcp","--tools","essentials"],
+        "mcp_essentials_budget_bytes":mcp::ESSENTIALS_CATALOG_BYTES,
+        "mcp_essentials_max_tools":mcp::ESSENTIALS_TOOLS,
+        "mcp_essentials_first_tools":mcp::CORE_ENTRY_POINTS,
         "mcp_dispatcher":"inkbolt_run", "execution_validation":"complete_typed_request"
     });
     capabilities["request_diagnostics"] = json!({"code":"INVALID_REQUEST","scope":"typed_JSON_request_rejection","missing_fields":"schema_confirmed_names;not_JSON_instance_paths","schema_lookup":"details.schema_lookup","expected":"optional_compact_schema_fields_when_unambiguous","maximum_error_bytes":limits::request::MAX_DIAGNOSTIC_BYTES,"request_values_echoed":false,"execution_validation":"unchanged;hints_generated_only_after_rejection"});

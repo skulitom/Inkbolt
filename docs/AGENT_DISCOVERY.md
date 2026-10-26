@@ -2,9 +2,33 @@
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
-Use `inkbolt mcp --tools core` for new agent connections. It lists twenty-one everyday tools plus `inkbolt_run`, within a tested 96 KiB catalog budget. `inkbolt mcp` and `inkbolt mcp --tools full` retain the full per-command catalog for existing clients. Both modes use the same typed executor, editing semantics, output envelopes, images, cancellation and session receipts. Catalog mode changes discovery only. Use the separate [response mode](AGENT_RESPONSES.md) to shorten durable session replies and [paged inspection/preview format](AGENT_INSPECTION.md) for focused reads and image delivery.
+Current source builds offer `inkbolt mcp --tools essentials` for new agent
+connections: ten tools within a 24 KiB tool-array budget, including focused
+lookup and the complete dispatcher. The v0.82.0 release uses `--tools core`,
+which lists twenty-one everyday tools plus `inkbolt_run` within 96 KiB.
+`inkbolt mcp` and `--tools full` retain the full per-command catalog. All modes
+use the same typed executor, editing semantics, output envelopes, images,
+cancellation and session receipts. Catalog mode changes discovery only. Use the
+separate [response mode](AGENT_RESPONSES.md) to shorten durable session replies
+and [paged inspection/preview format](AGENT_INSPECTION.md) for focused reads.
 
-The everyday tools cover document creation, inspection, object queries, edits and previews; session creation, reads, edits, dry runs, checked proposals, receipts, history, comparisons and publication; image/font import; and focused schema lookup. Specialist commands remain available through `inkbolt_run`:
+Essentials directly lists `session.create`, `session.apply`,
+`document.inspect.page`, `document.preview`, `document.check`, `session.publish`,
+`asset.import`, `font.import`, `schema.lookup` and `inkbolt_run`. Create a blank
+document, choose a preset or import artwork through the dispatcher before saving
+it as a session. Other operations, including dry runs, receipts and history,
+remain reachable through that same dispatcher.
+
+Essentials defers larger `action`, `options` and `output` trees. Their
+`x-inkbolt-schema` supplies a command name and working `select`; use those exact
+values with `schema.lookup`. Required top-level fields, scalar choices, defaults
+and full pinned-document/file alternatives remain visible. Generated titles and
+repeated dialect annotations are omitted; the [MCP tool specification](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool)
+defaults these schemas to JSON Schema 2020-12. Workspace path rules
+appear once per tool. Smaller discovery is not yet a measured model-efficiency
+claim; see the [evaluation gate](DEVELOPMENT_STATUS.md#w52-essentials-catalog-implementation-and-evaluation-gate).
+
+The core catalog covers document creation, inspection, object queries, edits and previews; session creation, reads, edits, dry runs, checked proposals, receipts, history, comparisons and publication; image/font import; and focused schema lookup. Specialist commands remain available through `inkbolt_run`:
 
 ```json
 {"name":"inkbolt_run","arguments":{"command":"document.export","arguments":{"document":"<snapshot object>","format":"svg"}}}
@@ -12,14 +36,15 @@ The everyday tools cover document creation, inspection, object queries, edits an
 
 The inner arguments are ordinary engine fields without `command`. Optional `response_format` belongs to the outer arguments. The dispatcher is conservatively annotated as potentially mutating; individual commands retain their actual effects. Unknown commands, recursive dispatch, unexpected fields and malformed nested arguments fail before execution. It cannot bypass revision checks, resource validation, locks, retries or create-only publication.
 
-Both catalogs retain deterministic eight-tool pagination. The compact catalog
-starts with `inkbolt_schema_lookup` and `inkbolt_run`, so its first page provides
+All catalogs retain deterministic eight-tool pagination. The smaller catalogs
+start with `inkbolt_schema_lookup` and `inkbolt_run`, so their first page provides
 access to every command and its arguments. Remaining compact tools and the full
 catalog use alphabetical name order. Capabilities report the compact entry
 points in `agent_discovery.mcp_compact_first_tools`.
 
 Cursors belong to their catalog mode and order version. Compact cursors now use
-`inkbolt-tools-core-v2:`; old compact cursors fail explicitly rather than resuming
+`inkbolt-tools-core-v2:`; essentials uses `inkbolt-tools-essentials-v1:`.
+Cross-mode and old compact cursors fail explicitly rather than resuming
 at a different tool. Full-catalog cursors are unchanged. Treat cursors as opaque
 and begin discovery without one on a new connection. Discovery mode and order
 are fixed for the lifetime of the process; no environment variable silently

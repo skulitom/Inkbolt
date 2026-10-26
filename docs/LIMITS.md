@@ -348,6 +348,8 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `masks.NATIVE_FILTER_CACHE_ROWS` | `u64` | 2 | `2` |
 | `masks.NATIVE_SOURCE_CACHE_ROWS` | `u64` | 4 | `4` |
 | `mcp.CORE_CATALOG_BYTES` | `usize` | 98304 | `96 * 1024` |
+| `mcp.ESSENTIALS_CATALOG_BYTES` | `usize` | 24576 | `24 * 1024` |
+| `mcp.ESSENTIALS_TOOLS` | `usize` | 10 | `10` |
 | `mcp.MAX_ID_BYTES` | `usize` | 256 | `256` |
 | `mcp.MAX_MESSAGE_BYTES` | `usize` | 16793600 | `super::request::MAX_REQUEST_BYTES as usize + 16384` |
 | `mcp.MAX_PENDING` | `usize` | 8 | `8` |

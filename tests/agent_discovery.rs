@@ -45,6 +45,58 @@ fn compact_catalog_budget_and_every_command_reachable() {
 }
 
 #[test]
+fn essentials_catalog_budget_routes_and_deferred_schemas() {
+    let full = mcp::catalog();
+    for workspace in [false, true] {
+        let tools = mcp::catalog_in_workspace(mcp::CatalogMode::Essentials, workspace);
+        assert_eq!(tools.len(), 10);
+        assert!(tools.len() <= mcp::ESSENTIALS_TOOLS);
+        let bytes = serde_json::to_vec(&tools.values().map(|(_, t)| t).collect::<Vec<_>>())
+            .unwrap()
+            .len();
+        assert!(
+            bytes <= mcp::ESSENTIALS_CATALOG_BYTES,
+            "essentials is {bytes} bytes"
+        );
+        let routed = tools["inkbolt_run"].1["inputSchema"]["properties"]["command"]["enum"]
+            .as_array()
+            .unwrap();
+        for (command, _) in full.values() {
+            assert!(routed.contains(&json!(command)));
+        }
+        for (command, tool) in tools.values() {
+            let schema = &tool["inputSchema"];
+            check_refs(schema, schema);
+            if command == "run" {
+                continue;
+            }
+            // Every new deferred tree has a working command-relative selector,
+            // including generated definition names, and is actually an object.
+            for property in schema["properties"].as_object().unwrap().values() {
+                let route = &property["x-inkbolt-schema"];
+                if let Some(select) = route["select"].as_str() {
+                    assert_eq!(route["name"], *command);
+                    let exact = schema::lookup(command, Some(select), true).unwrap();
+                    assert!(
+                        exact["schema"]["type"] == "object"
+                            || exact["schema"]["oneOf"]
+                                .as_array()
+                                .is_some_and(|variants| variants
+                                    .iter()
+                                    .all(|variant| variant["type"] == "object"))
+                    );
+                    check_refs(&exact["schema"], &exact["schema"]);
+                }
+            }
+            assert_eq!(
+                tool["annotations"],
+                full[tool["name"].as_str().unwrap()].1["annotations"]
+            );
+        }
+    }
+}
+
+#[test]
 fn focused_schemas_are_complete_and_outlines_are_explicit() {
     let index = schema::lookup("index", None, false).unwrap();
     for name in index["types"]

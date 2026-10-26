@@ -55,10 +55,11 @@ For an MCP client, use this launch command with the path to an existing folder
 where you want to work:
 
 ```text
-inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools core
+inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools essentials
 ```
 
-The core catalog keeps initial tool discovery compact. Agents can request more
+Source builds offer the ten-tool essentials catalog for compact discovery; use
+`--tools core` with the v0.82.0 release. Agents can request more
 operations and their schemas when needed.
 
 ## Documentation

@@ -134,6 +134,69 @@ pub fn arguments(command: &str, compact: bool) -> Option<Value> {
     Some(complete(value, compact))
 }
 
+/// Keep command fields and small scalar choices visible while moving the
+/// larger action/review/delivery trees behind an executable schema selector.
+/// This changes discovery only; execution still uses the complete Request.
+pub(crate) fn essential_arguments(command: &str) -> Option<Value> {
+    let mut value = arguments(command, true)?;
+    for field in ["action", "options", "output"] {
+        let Some(property) = value["properties"].get_mut(field) else {
+            continue;
+        };
+        let Some(definition) = property
+            .get("$ref")
+            .and_then(Value::as_str)
+            .and_then(|reference| reference.strip_prefix("#/$defs/"))
+        else {
+            continue;
+        };
+        let mut deferred = json!({"type":"object", "description":format!(
+            "Fields: schema.lookup name {command:?}, select {definition:?}. Select a listed variant if outlined. Full runtime validation applies."
+        ), "x-inkbolt-schema":{"name":command,"select":definition}});
+        if let Some(default) = property.get("default") {
+            deferred["default"] = default.clone();
+        }
+        *property = deferred;
+    }
+    Some(complete(value, true))
+}
+
+/// MCP already identifies the schema dialect; generated titles and repeated
+/// dialect annotations add no validation information. Retain defaults and all
+/// structural constraints, including the complete reference alternatives.
+pub(crate) fn strip_catalog_metadata(value: &mut Value) {
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    object.remove("$schema");
+    object.remove("title");
+    for (key, child) in object {
+        match key.as_str() {
+            "properties" | "patternProperties" | "$defs" | "dependentSchemas" => {
+                if let Some(schemas) = child.as_object_mut() {
+                    schemas.values_mut().for_each(strip_catalog_metadata);
+                }
+            }
+            "oneOf" | "anyOf" | "allOf" | "prefixItems" => {
+                if let Some(schemas) = child.as_array_mut() {
+                    schemas.iter_mut().for_each(strip_catalog_metadata);
+                }
+            }
+            "items"
+            | "additionalProperties"
+            | "not"
+            | "if"
+            | "then"
+            | "else"
+            | "contains"
+            | "propertyNames"
+            | "unevaluatedProperties"
+            | "unevaluatedItems" => strip_catalog_metadata(child),
+            _ => {}
+        }
+    }
+}
+
 fn variants(value: &Value) -> Vec<(&str, &str, &Value)> {
     value
         .get("oneOf")
@@ -301,4 +364,25 @@ pub(crate) fn lookup_in_workspace(
         "definitions":value.get("$defs").and_then(Value::as_object).map(|m| m.keys().collect::<Vec<_>>()).unwrap_or_default(),
         "usage":"This is an outline, not a validation schema. Keep name and use a variant's select value or a listed definition name. Select components separated by / follow nested variants/definitions. Repeat this lookup with full:true for the complete schema."}),
     )
+}
+
+#[cfg(test)]
+mod essentials_tests {
+    use super::*;
+
+    #[test]
+    fn essentials_metadata_keeps_named_fields_and_literal_values() {
+        let mut schema = json!({"title":"schema title","$schema":"dialect","type":"object",
+            "properties":{"title":{"type":"string","title":"property title"},
+                "$schema":{"type":"string"}},"required":["title","$schema"],
+            "default":{"title":"authored","$schema":"retained"},
+            "const":{"title":"literal"},"enum":[{"title":"choice"}]});
+        let before = schema.clone();
+        strip_catalog_metadata(&mut schema);
+        assert_eq!(schema["properties"]["title"], json!({"type":"string"}));
+        assert_eq!(schema["properties"]["$schema"], json!({"type":"string"}));
+        for key in ["default", "const", "enum", "required"] {
+            assert_eq!(schema[key], before[key]);
+        }
+    }
 }

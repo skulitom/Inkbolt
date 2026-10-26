@@ -104,7 +104,8 @@ def bridge_directory(request, workspace):
     return channel
 
 
-def prepare(request, executable, mcp_approval_mode=None):
+def prepare(request, executable, mcp_approval_mode=None, mcp_tools='core'):
+    require(mcp_tools in ('core', 'essentials'), 'Unknown MCP catalog')
     require(mcp_approval_mode is None or mcp_approval_mode in MCP_APPROVAL_MODES,
             'Unknown MCP approval mode')
     contract = request['contract']
@@ -163,7 +164,10 @@ def prepare(request, executable, mcp_approval_mode=None):
                 args=['--workspace', str(workspace), 'mcp', '--tools', 'core']), 'Unexpected MCP configuration')
         require(file_digest(server['command'], 512*1024*1024) == contract['engine_sha256'],
                 'Engine executable identity differs')
-        for key, value in dict(command=server['command'], args=server['args'], required=True).items():
+        # The harness always supplies the pinned core launch. An explicit
+        # evaluation setting changes discovery only, after identity validation.
+        server_args = [*server['args'][:-1], mcp_tools]
+        for key, value in dict(command=server['command'], args=server_args, required=True).items():
             argv += ['--config', 'mcp_servers.inkbolt.' + key + '=' + json.dumps(value)]
         if mcp_approval_mode is not None:
             argv += ['--config', 'mcp_servers.inkbolt.default_tools_approval_mode=' + json.dumps(mcp_approval_mode)]
@@ -194,9 +198,9 @@ def observed_usage(events):
     return result or None
 
 
-def run(request_path, executable, mcp_approval_mode=None):
+def run(request_path, executable, mcp_approval_mode=None, mcp_tools='core'):
     request = strict_json(regular(request_path)); contract = request['contract']
-    argv, prompt, workspace = prepare(request, executable, mcp_approval_mode)
+    argv, prompt, workspace = prepare(request, executable, mcp_approval_mode, mcp_tools)
     options = dict(creationflags=subprocess.CREATE_NO_WINDOW) if os.name == 'nt' else {}
     version = subprocess.run([str(executable), '--version'], stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL, timeout=15, check=True, **options).stdout.decode('utf-8').strip()
@@ -247,10 +251,12 @@ def main(argv=None):
     parser.add_argument('--client-executable', required=True, type=Path)
     parser.add_argument('--mcp-approval-mode', choices=MCP_APPROVAL_MODES,
                         help='Explicit approval policy for the supplied Inkbolt server only; omitted keeps client defaults')
+    parser.add_argument('--mcp-tools', choices=('core', 'essentials'), default='core',
+                        help='Explicit evaluation catalog; both arms must use the same driver configuration')
     parser.add_argument('request', type=Path)
     args = parser.parse_args(argv)
     try:
-        run(args.request, args.client_executable, args.mcp_approval_mode)
+        run(args.request, args.client_executable, args.mcp_approval_mode, args.mcp_tools)
     except (ValueError, KeyError, TypeError, OSError, subprocess.SubprocessError) as error:
         print(type(error).__name__ + ': ' + str(error), file=sys.stderr)
         return 2

@@ -244,6 +244,17 @@ pub(crate) fn normalize(
 }
 
 pub(crate) fn describe(schema: &mut Value) {
+    describe_paths(schema, true);
+}
+
+pub(crate) fn describe_essentials(schema: &mut Value) {
+    describe_paths(schema, false);
+    schema["description"] = json!(
+        "Paths: workspace-relative or contained absolute. Omitted roots default; null stays optional."
+    );
+}
+
+fn describe_paths(schema: &mut Value, inline_help: bool) {
     match schema {
         Value::Object(object) => {
             if let Some(Value::Array(required)) = object.get_mut("required") {
@@ -262,7 +273,8 @@ pub(crate) fn describe(schema: &mut Value) {
             }
             if let Some(Value::Object(properties)) = object.get_mut("properties") {
                 for (field, definition) in properties {
-                    if PATH_FIELDS.contains(&field.as_str())
+                    if inline_help
+                        && PATH_FIELDS.contains(&field.as_str())
                         && let Some(d) = definition.as_object_mut()
                     {
                         d.insert("description".into(), json!("Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."));
@@ -270,10 +282,12 @@ pub(crate) fn describe(schema: &mut Value) {
                 }
             }
             for child in object.values_mut() {
-                describe(child);
+                describe_paths(child, inline_help);
             }
         }
-        Value::Array(values) => values.iter_mut().for_each(describe),
+        Value::Array(values) => values
+            .iter_mut()
+            .for_each(|child| describe_paths(child, inline_help)),
         _ => {}
     }
 }

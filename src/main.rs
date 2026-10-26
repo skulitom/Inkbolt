@@ -24,14 +24,14 @@ fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error>
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] < request.json",
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] request.json",
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] capabilities|schema|implementation.status",
-                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] mcp [--tools core|full]",
+                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] mcp [--tools essentials|core|full]",
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] --help|-h"
                 ],
                 "requests":"One JSON request on stdin or in one UTF-8 request file. No arguments reads stdin.",
                 "workspace":"Optional existing absolute directory; selects default stores and resolves request paths within it.",
                 "responses":{"success":"One JSON line with ok:true and result; exit code 0.",
                     "failure":"One JSON line with ok:false and error containing code and message; exit code 1.",
-                    "mcp":"MCP stdio protocol instead of CLI envelopes; use --tools core for compact discovery."},
+                    "mcp":"MCP stdio protocol instead of CLI envelopes; use --tools essentials for the smallest catalog, core for more direct tools."},
                 "discovery":"Use schema.lookup for command arguments or one operation. Full schema and capabilities are larger responses.",
                 "examples":[
                     {"command":"schema.lookup","name":"index"},
@@ -113,6 +113,9 @@ fn start() -> Result<Option<Value>, Error> {
         }
         [arg, flag, mode] if arg == "mcp" && flag == "--tools" && mode == "core" => {
             Some(inkbolt::mcp::CatalogMode::Core)
+        }
+        [arg, flag, mode] if arg == "mcp" && flag == "--tools" && mode == "essentials" => {
+            Some(inkbolt::mcp::CatalogMode::Essentials)
         }
         _ => None,
     };

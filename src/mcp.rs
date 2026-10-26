@@ -24,7 +24,19 @@ pub use crate::limits::mcp::MAX_RESPONSE_BYTES;
 use crate::limits::mcp::PAGE;
 
 pub use crate::limits::mcp::CORE_CATALOG_BYTES;
+pub use crate::limits::mcp::{ESSENTIALS_CATALOG_BYTES, ESSENTIALS_TOOLS};
 pub const CORE_ENTRY_POINTS: &[&str] = &["inkbolt_schema_lookup", "inkbolt_run"];
+const ESSENTIALS: &[&str] = &[
+    "schema.lookup",
+    "session.create",
+    "session.apply",
+    "document.inspect.page",
+    "document.preview",
+    "document.check",
+    "session.publish",
+    "asset.import",
+    "font.import",
+];
 const CORE: &[&str] = &[
     "schema.lookup",
     "document.create",
@@ -53,6 +65,7 @@ const CORE: &[&str] = &[
 pub enum CatalogMode {
     Full,
     Core,
+    Essentials,
 }
 
 impl CatalogMode {
@@ -60,6 +73,7 @@ impl CatalogMode {
         match self {
             Self::Full => "inkbolt-tools-v1:",
             Self::Core => "inkbolt-tools-core-v2:",
+            Self::Essentials => "inkbolt-tools-essentials-v1:",
         }
     }
 }
@@ -450,11 +464,28 @@ pub fn catalog_in_workspace(
         if mode == CatalogMode::Core && !CORE.contains(&command) {
             continue;
         }
-        let mut input = crate::schema::arguments(command, mode == CatalogMode::Core).unwrap();
+        if mode == CatalogMode::Essentials && !ESSENTIALS.contains(&command) {
+            continue;
+        }
+        let mut input = if mode == CatalogMode::Essentials {
+            crate::schema::essential_arguments(command).unwrap()
+        } else {
+            crate::schema::arguments(command, mode == CatalogMode::Core).unwrap()
+        };
         if workspace {
-            crate::workspace::describe(&mut input);
+            if mode == CatalogMode::Essentials {
+                crate::workspace::describe_essentials(&mut input);
+            } else {
+                crate::workspace::describe(&mut input);
+            }
         }
         input["properties"]["response_format"] = json!({"type":"string","enum":["json","markdown","structured","preview"],"default":"json","description":"JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references."});
+        if mode == CatalogMode::Essentials {
+            input["properties"]["response_format"]["description"] = json!(
+                "JSON/Markdown: envelope text. Structured/preview: summary. PNG bytes sent once."
+            );
+            crate::schema::strip_catalog_metadata(&mut input);
+        }
         portable_schema(&mut input);
         let name = format!("inkbolt_{}", command.replace('.', "_"));
         let mutable = matches!(
@@ -483,7 +514,7 @@ pub fn catalog_in_workspace(
         let tool = json!({"name":name,"description":description(command),"inputSchema":input,"outputSchema":{"type":"object","properties":{"ok":{"type":"boolean"},"result":{"type":"object","additionalProperties":true},"error":{"type":"object"}},"required":["ok"],"additionalProperties":false},"annotations":{"readOnlyHint":!mutable,"destructiveHint":matches!(command,"session.apply"|"session.apply_proposal"),"idempotentHint":command!="job.resume","openWorldHint":false},"execution":{"taskSupport":"forbidden"}});
         tools.insert(name, (command.to_owned(), tool));
     }
-    if mode == CatalogMode::Core {
+    if mode != CatalogMode::Full {
         let tool = json!({
             "name":"inkbolt_run",
             "description":"Run any engine command through the same validated executor. Discover names and arguments with inkbolt_schema_lookup. Arguments omit command. Editing retains revision checks and durable retry receipts; source files and existing outputs are preserved.",
@@ -684,7 +715,7 @@ pub fn run_in_workspace(
     });
     let tools = catalog_in_workspace(mode, workspace.is_some());
     let mut listed_tools: Vec<_> = tools.values().map(|(_, tool)| tool).collect();
-    if mode == CatalogMode::Core {
+    if mode != CatalogMode::Full {
         // Stable sorting preserves alphabetical order after the entry points.
         // Even a client inspecting one page can discover and run every command.
         listed_tools.sort_by_key(|tool| {
@@ -824,7 +855,7 @@ pub fn run_in_workspace(
                 initialized = true;
                 send(
                     &output,
-                    &json!({"jsonrpc":"2.0","id":id,"result":{"protocolVersion":PROTOCOL,"capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"inkbolt","version":env!("CARGO_PKG_VERSION")},"instructions":format!("Local graphics engine. Use schema.lookup with name index to discover commands; request one command or type and select a listed variant/definition. Large schemas are outlined unless full:true. {} Preserve source files. Use durable session request IDs and expected revisions for safe edits. Export publication is create-only. Read tool errors and unsupported semantics. Stdio has no network listener; paths run with the launching user's permissions.", if mode == CatalogMode::Core { "This compact catalog defers shared types; inkbolt_run reaches every engine command with unchanged arguments and validation." } else { "Every engine command has a direct tool. A compact catalog is available with mcp --tools core." })}}),
+                    &json!({"jsonrpc":"2.0","id":id,"result":{"protocolVersion":PROTOCOL,"capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"inkbolt","version":env!("CARGO_PKG_VERSION")},"instructions":format!("Local graphics engine. Use schema.lookup with name index to discover commands; request one command or type and select a listed variant/definition. Large schemas are outlined unless full:true. {} Preserve source files. Use durable session request IDs and expected revisions for safe edits. Export publication is create-only. Read tool errors and unsupported semantics. Stdio has no network listener; paths run with the launching user's permissions.", if mode != CatalogMode::Full { "This compact catalog defers shared types; inkbolt_run reaches every engine command with unchanged arguments and validation." } else { "Every engine command has a direct tool. Smaller catalogs are available with mcp --tools essentials or core." })}}),
                 )?;
                 continue;
             }

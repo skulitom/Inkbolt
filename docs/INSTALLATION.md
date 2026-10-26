@@ -41,7 +41,8 @@ system. The macOS binary isn't notarized: after a browser download, run
 
 See the [Windows](../examples/mcp-config.windows.json) and
 [Unix](../examples/mcp-config.unix.json) MCP configuration examples for other
-stdio clients.
+stdio clients. The examples target current source builds with `essentials`;
+use `core` with the v0.82.0 release.
 
 ## Build from source
 
@@ -53,7 +54,7 @@ toolchain and dependencies.
 ```powershell
 cargo build --locked
 .\target\debug\inkbolt.exe examples/add-svg.json
-.\target\debug\inkbolt.exe mcp --tools core
+.\target\debug\inkbolt.exe mcp --tools essentials
 ```
 
 ### Linux and macOS
@@ -61,7 +62,7 @@ cargo build --locked
 ```bash
 cargo build --locked
 ./target/debug/inkbolt examples/add-svg.json
-./target/debug/inkbolt mcp --tools core
+./target/debug/inkbolt mcp --tools essentials
 ```
 
 The example returns editable artwork as JSON. The final command starts the MCP

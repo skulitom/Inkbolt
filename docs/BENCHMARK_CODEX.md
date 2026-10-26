@@ -6,6 +6,14 @@ Inkbolt itself has no model dependency. All model IDs and reasoning settings
 come from external per-run configuration. There is no default model, model list
 or automatic fallback. Use exactly the same configuration for both arms.
 
+For current source builds, an external adapter configuration may add
+`--mcp-tools essentials` to evaluate the smaller discovery catalog. Omission
+retains `core` for existing experiments. The adapter first validates the supplied
+server and exact engine hash, then changes only its catalog argument. Both arms
+must retain the same driver configuration; the baseline still receives no
+engine. The submitted launch arguments remain in the captured transcript. This
+is an experimental condition, not a model choice or permission change.
+
 An external driver configuration uses the existing version-1 contract:
 
 ```json

@@ -23,6 +23,37 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_essentials_has_bounded_discovery_and_mode_bound_cursors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for workspace in (None, directory):
+                with closing(Client(('--tools', 'essentials'), workspace=workspace)) as client:
+                    client.initialize()
+                    first = client.rpc('tools/list')['result']
+                    self.assertEqual([t['name'] for t in first['tools'][:2]],
+                                     ['inkbolt_schema_lookup', 'inkbolt_run'])
+                    self.assertEqual(first['nextCursor'], 'inkbolt-tools-essentials-v1:8')
+                    self.assertEqual(first, client.rpc('tools/list')['result'])
+                    tools = catalog(client)
+                    self.assertEqual(len(tools), 10)
+                    self.assertLessEqual(len(json.dumps(tools, separators=(',', ':')).encode()), 24 * 1024)
+                    caps = client.tool('run', command='capabilities', arguments={})['structuredContent']['result']
+                    self.assertEqual(caps['agent_discovery']['mcp_default'], 'full')
+                    self.assertEqual(caps['agent_discovery']['mcp_essentials_max_tools'], len(tools))
+                    self.assertEqual(caps['agent_discovery']['mcp_essentials_budget_bytes'], 24 * 1024)
+                    for cursor in ('inkbolt-tools-core-v2:8', 'inkbolt-tools-v1:8'):
+                        self.assertEqual(client.rpc('tools/list', dict(cursor=cursor))['error']['code'], -32602)
+                    # Unlisted direct tools remain undiscoverable; the shared dispatcher reaches them.
+                    self.assertEqual(client.rpc('tools/call', dict(name='inkbolt_document_create', arguments={}))['error']['code'], -32602)
+                    created = client.tool('run', command='document.create', arguments=dict(
+                        id='essentials', kind='vector', width=8, height=8))['structuredContent']
+                    self.assertTrue(created['ok'])
+                    for tool in tools:
+                        for prop in tool['inputSchema']['properties'].values():
+                            query = prop.get('x-inkbolt-schema', {})
+                            if 'select' in query:
+                                found = client.success('schema.lookup', **query, full=True)
+                                self.assertEqual(found['detail'], 'full')
+
     def test_nested_schema_routes_and_error_recovery_match_cli_mcp(self):
         with tempfile.TemporaryDirectory() as directory:
             for workspace in (None, directory):
@@ -179,7 +210,7 @@ class AgentDiscoveryTests(unittest.TestCase):
             self.assertEqual(schema, full.success('schema'))
 
     def test_routed_edit_render_retry_conflict_and_undo_match_direct_execution(self):
-        with closing(Client(('--tools', 'core'))) as c, tempfile.TemporaryDirectory() as directory:
+        with closing(Client(('--tools', 'essentials'))) as c, tempfile.TemporaryDirectory() as directory:
             c.initialize()
             def run(command, **arguments):
                 r = c.tool('run', command=command, arguments=arguments)
@@ -189,17 +220,17 @@ class AgentDiscoveryTests(unittest.TestCase):
             item = dict(id='square', content=dict(type='vector', geometry=dict(shape='rect', x=1, y=2, width=3, height=4), fill=[20,60,180,255]))
             edited = run('document.edit', document=doc, expected_revision=0, operations=[dict(op='add', item=item)])
             self.assertEqual(edited, invoke(dict(command='document.edit', document=doc, expected_revision=0, operations=[dict(op='add', item=item)]))['result'])
-            self.assertEqual(run('document.render', document=edited['document']), c.success('document.render', document=edited['document']))
+            self.assertEqual(run('document.render', document=edited['document']), invoke(dict(command='document.render', document=edited['document']))['result'])
             s = dict(session_root=directory, session_id='compact')
-            run('session.create', **s, request_id='create', document=doc)
+            c.success('session.create', **s, request_id='create', document=doc)
             request = dict(**s, request_id='add', expected_revision=0, action=dict(type='edit', operations=[dict(op='add', item=item)]))
-            first = run('session.apply', **request)
+            first = c.success('session.apply', **request)
             repeated = run('session.apply', **request)
             self.assertTrue(repeated['replayed']); self.assertEqual(first['receipt'], repeated['receipt'])
             conflict = c.tool('run', command='session.apply', arguments={**request, 'request_id': 'stale'})
             self.assertEqual(conflict['structuredContent']['error']['code'], 'REVISION_CONFLICT')
             output = dict(output_root=directory, file_name='compact.png', format='png')
-            published = run('session.publish', **s, expected_revision=1, output=output)
+            published = c.success('session.publish', **s, expected_revision=1, output=output)
             before = Path(published['path']).read_bytes()
             self.assertEqual(c.tool('run', command='session.publish', arguments=dict(**s, expected_revision=1, output=output))['structuredContent']['error']['code'], 'OUTPUT_EXISTS')
             self.assertEqual(Path(published['path']).read_bytes(), before)

@@ -591,6 +591,8 @@ BINDINGS = {
     'durable_publication/maximum_history_bytes': 'sessions.MAX_DATABASE_BYTES',
     'agent_discovery/large_schema_outline_bytes': 'schema.OUTLINE_BYTES',
     'agent_discovery/mcp_compact_budget_bytes': 'mcp.CORE_CATALOG_BYTES',
+    'agent_discovery/mcp_essentials_budget_bytes': 'mcp.ESSENTIALS_CATALOG_BYTES',
+    'agent_discovery/mcp_essentials_max_tools': 'mcp.ESSENTIALS_TOOLS',
     'paged_inspection/maximum_records': 'inspection.MAX_PAGE_ITEMS',
     'paged_inspection/maximum_result_bytes': 'inspection.MAX_PAGE_BYTES',
     'metadata/record_bytes': 'metadata.MAX_RECORD_BYTES',

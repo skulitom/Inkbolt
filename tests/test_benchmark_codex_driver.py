@@ -110,6 +110,8 @@ class CodexDriverTests(unittest.TestCase):
         self.assertNotIn('engine_executable', prompt)
         approved, _, _ = driver.prepare(self.request, Path(sys.executable), 'approve')
         self.assertEqual(approved, argv)  # Identical paired configuration grants no baseline engine.
+        self.assertEqual(driver.prepare(self.request, Path(sys.executable), 'approve', 'essentials'),
+                         driver.prepare(self.request, Path(sys.executable), 'approve'))
         if sys.platform == 'win32': self.assertIn('windows.sandbox="elevated"',argv)
         for field in ('mcp_config', 'engine_executable'):
             bad = dict(self.request, **{field:'unexpected'})
@@ -133,6 +135,13 @@ class CodexDriverTests(unittest.TestCase):
         self.assertIn('workspace-write', approved)
         self.assertEqual(prompt, driver.prepare(self.request, engine)[1])
         self.assertEqual(set(approved)-set(argv), {'mcp_servers.inkbolt.default_tools_approval_mode="approve"'})
+        smaller, same_prompt, _ = driver.prepare(self.request, engine, 'approve', 'essentials')
+        changed = 'mcp_servers.inkbolt.args=' + json.dumps([*mcp['mcpServers']['inkbolt']['args'][:-1], 'essentials'])
+        self.assertIn(changed, smaller)
+        self.assertEqual(same_prompt, prompt)
+        self.assertEqual(set(smaller)-set(approved), {changed})
+        with self.assertRaisesRegex(ValueError, 'Unknown MCP catalog'):
+            driver.prepare(self.request, engine, 'approve', 'full')
         self.contract['engine_sha256'] = '0'*64; self.bind()
         with self.assertRaisesRegex(ValueError,'Engine executable identity'):
             driver.prepare(self.request, engine, 'approve')
@@ -144,7 +153,7 @@ class CodexDriverTests(unittest.TestCase):
         with patch.object(driver, 'run') as run:
             self.assertEqual(driver.main(['--client-executable', sys.executable,
                 '--mcp-approval-mode', 'approve', str(self.request_path)]), 0)
-            run.assert_called_once_with(self.request_path, Path(sys.executable), 'approve')
+            run.assert_called_once_with(self.request_path, Path(sys.executable), 'approve', 'core')
         with self.assertRaisesRegex(ValueError,'Unknown MCP approval mode'):
             driver.prepare(self.request, Path(sys.executable), 'unexpected')
 
