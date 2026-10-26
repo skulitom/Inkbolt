@@ -135,7 +135,7 @@ See [session contracts](../docs/SESSIONS.md) for direct JSON calls, named snapsh
 
 `python examples/simplify_workflow.py C:/absolute/new-directory` reduces an original eight-segment diagram connector, retains its exact deviation certificate, publishes PNG/SVG/snapshots and restores the original commands and exports with session undo. See [curve simplification](../docs/SIMPLIFICATION.md).
 
-`python examples/boolean_workflow.py C:/absolute/new-directory` subtracts an opening and notch from an original frame rectangle, stores the exact area/geometry report, adds the result while keeping hidden source rectangles, exports PNG/SVG/snapshots and undoes the edit. See [geometry combinations](../docs/BOOLEANS.md).
+`python examples/boolean_workflow.py C:/absolute/new-directory` subtracts an opening and notch from an original frame rectangle in one atomic edit. It keeps hidden source rectangles, stores the edit response with numerical evidence, exports PNG/SVG/snapshots and undoes the edit. See [geometry combinations](../docs/BOOLEANS.md).
 
 `work-path.json` creates an editable cubic work path, derives a grayscale selection and masks a colored fill. See [reusable paths](../docs/WORK_PATHS.md).
 

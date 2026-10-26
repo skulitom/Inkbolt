@@ -69,7 +69,7 @@ class AgentDiscoveryTests(unittest.TestCase):
     def test_advertised_examples_execute_preserve_artwork_and_review_without_writes(self):
         queries = invoke(dict(command='schema.lookup', name='index'))['result']['example_queries']
         examples = {(q['name'], q.get('select')): invoke(q)['result']['example']['value'] for q in queries}
-        self.assertEqual(len(examples), 7)  # Extend executable coverage whenever the index grows.
+        self.assertEqual(len(examples), 8)  # Boolean execution is covered by test_boolean_edit_cli.
         for transport in ('cli', 'mcp'):
             with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)

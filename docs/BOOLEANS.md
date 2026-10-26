@@ -11,11 +11,45 @@ See the generated [limit reference](LIMITS.md) for centralized resource ceilings
 existing accepted range and default from the same constants as validation. These
 discovery fields do not change the exact topology requirement or admit new curves.
 
-`document.boolean` computes `union`, `intersection`, `difference` or `xor` from 2..16 distinct vector item `ids` in a supplied `document`. It returns an editable root-coordinate polygonal `geometry` and `fill_rule:nonzero`. An empty region returns `geometry:null` and `empty:true`. The command is read-only: agents can inspect its numerical evidence, then add a nonempty result with the existing atomic edit command and explicitly choose its paint and source visibility. Original geometry is retained.
+`document.boolean` computes `union`, `intersection`, `difference` or `xor` from 2..16 distinct vector or work-path item `ids` in a supplied `document`. It returns an editable root-coordinate polygonal `geometry` and `fill_rule:nonzero`. An empty region returns `geometry:null` and `empty:true`. This command remains read-only. The `boolean` edit operation computes and adds the result in one atomic edit, with explicit paint and source handling.
 
 Difference means the first operand minus the union of every remaining operand. Intersection requires membership in every operand; xor uses odd membership across operands. Each operand's own nonzero/even-odd rule determines its filled region. Open contours close for this geometric operation. Zero-area spikes and retraced edges contribute no filled region. Item and ancestor transforms place operands in document coordinates; the result is suitable for a root item with identity transform. Results added beneath a transformed parent need an explicit coordinate conversion.
 
 This command combines geometry. Paint, stroke width, visibility, locks, opacity, clips, masks, filters and ancestor appearance do not define its operands. It can inspect locked or hidden source geometry because it does not mutate it. Materializing a result or changing source properties uses the normal edit and lock rules. There is no appearance flattening or live reference to the source items. Results and original operands can coexist in snapshots and sessions; undo of the materializing edit restores the previous document.
+
+## Atomic editing
+
+Submit this operation through `document.edit` or a session edit action:
+
+```json
+{"op":"boolean","ids":["outer","opening"],"new_id":"frame","mode":"difference","fill":[35,100,180,255],"sources":"hide","curve_tolerance":0}
+```
+
+`new_id` must be valid and unused, even when the result is empty. `fill` is
+required. A nonempty result is an ordinary vector item with identity transform,
+nonzero fill rule and no stroke, added after existing root siblings. Geometry is
+in document coordinates; source appearance and metadata are not copied. The
+ordinary item, paint/resource and scene validation rules apply.
+
+`sources` defaults to `keep`, which can read locked sources. `hide` changes only
+their visibility; `remove` deletes the selected operands and clears a removed
+background assignment. Both mutation policies check source, ancestor and normal
+shared-resource dependent locks. Removal that leaves an invalid reference fails
+the entire batch. Other changes caused by explicit source handling, such as a
+hidden shared component child, follow the ordinary scene rules.
+
+Empty results add no item; the source policy still applies and a successful edit
+advances the revision. Change details report `created`, nullable `result_id`,
+`sources` and the same numerical certificates, bounds and losses as the read-only
+command, without repeating the geometry. It remains in the resulting document.
+The operation reuses the same solver and refusals, including unsupported analytic
+ellipses and unresolved curve topology. It does not expand geometric support.
+
+Normal atomic batches, revision checks, session proposals, retry receipts and
+undo/redo apply. A failure in this or a later operation leaves the saved document
+and revision unchanged. One accepted batch creates one undo point. Discover the
+complete schema and an executable fragment with
+`schema.lookup {name:"operation",select:"boolean"}`.
 
 ## Numerical model
 
@@ -77,6 +111,16 @@ Contact polynomial arithmetic additionally allows degree at most 18 during elimi
 
 Retained quadratic discriminants, parameters and control coefficients also have a 4,096-bit numerator/denominator limit. Dyadic parameter-cut search allows at most 4,096 fractional bits, using 32 extra root-bound bits when needed to suggest a candidate. Exact field operations and predicates consume the existing work budget; the source, evaluated-arc and geometric-depth limits remain unchanged.
 
-For a nonempty result, add `{id,content:{type:"vector",geometry:result.geometry,fill_rule:result.fill_rule,fill:chosen_paint}}`. Include explicit `properties` operations to hide sources in the same batch if desired. Keep the supplied revision for conflict checks. For an empty result, handle `geometry:null` explicitly; no dummy path or invisible object is synthesized.
+Use the atomic `boolean` operation to combine and materialize in one request. For
+read-only inspection, `document.boolean` still returns geometry and numerical
+evidence without changing the document. Clients that materialize that response
+manually must preserve its revision, handle `geometry:null` explicitly and choose
+paint/source edits themselves.
 
 `python examples/boolean_workflow.py C:/absolute/new-directory` constructs an original frame icon, subtracts a rectangular opening and notch, adds the editable result while retaining hidden source rectangles, publishes snapshots/PNG/SVG, and reverses that edit through durable session undo. Independent checks verify analytic area, every output pixel, contour structure and unchanged source geometry.
+
+The atomic operation has [fresh Windows/Linux acceptance](DEVELOPMENT_STATUS.md#atomic-edit-acceptance):
+all 274 stages per platform, including independent geometry, source policies,
+locks, failure rollback and CLI/MCP history checks. The scripted example uses one
+combination/materialization request instead of two. Broader model efficiency and
+the advanced curved-geometry checkpoint remain separate, open requirements.

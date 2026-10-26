@@ -5,6 +5,67 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W3c.5: atomic boolean edit hypothesis
+
+The original frame-icon example computes a boolean result, transfers its geometry
+through the client, then submits another edit to add it and hide the sources.
+W3c.5 requires one operation for that workflow. Implement a typed `boolean` edit
+with explicit paint, a new root item ID and `keep`, `hide` or `remove` source
+handling. It must reuse the existing exact solver and its explicit refusals;
+empty results create no dummy item. Locks, atomic batches, proposals, revision
+checks, receipts and undo/redo retain their normal contracts.
+
+The expected improvement is one combination/materialization request instead of
+two, without transferring the intermediate geometry. Verify independent area
+and pixel occupancy, transforms, unrelated state, empty results, failures,
+CLI/MCP parity and a complete session workflow. Record the request-count scope
+separately from model efficiency: the existing B01/B02 prompts do not prove use
+of this operation and remain unchanged. Any geometry, source, lock or history
+discrepancy blocks acceptance. Fresh Windows/Linux thorough checks are required;
+this increment does not close curved topology, full W3c or an engine checkpoint.
+
+### Atomic edit acceptance
+
+The typed operation now computes and materializes on the private edit candidate,
+with explicit paint, source handling and ordinary history. Operand-count admission
+precedes lock/dependency traversal. An eighth focused schema example executes
+through both CLI and MCP. The geometric solver and its refusals remain unchanged.
+
+Eight focused tests independently check all four modes with exact area and every
+pixel, root placement under transforms, source/ancestor/component locks, work
+paths, curved-area convergence and certificates, empty results, invalid references,
+whole-batch rollback, revision conflicts, read-only proposals, retry receipts and
+undo/redo. The original frame-icon workflow now needs one combination/materialization
+request instead of two. Its 304-unit area and all 768 pixels match the independent
+oracle. Original/combined/restored PNGs match the preceding workflow; documents
+and PNGs also match byte-for-byte across Windows and Linux. The new result uses
+the default empty item name; source items retain their original data.
+
+Final focused feedback passed in 71.0 seconds on Windows and 50.1 seconds on Linux.
+Fresh full acceptance on the same 996-file candidate passed every stage:
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 274 | 312 | 2,829 | 24 | 1284.0 |
+| Linux / WSL | 274 | 278 | 2,802 | 51 | 757.8 |
+
+The earlier overlapping Linux run retained an image-import timeout and a temporary
+busy response in a concurrent-history check. Both passed an unchanged-source
+focused retry in 26.8 seconds, followed by the complete fresh Linux pass above
+without the Windows suite running. Original checks and timeouts remain intact.
+Initial fixture/audit errors and the interrupted run preceding the operand-bound
+correction are also retained, with no acceptance credit.
+
+Evidence under `boolean-edit-01` includes both builds, the source archive, complete
+reports, all 548 successful stage logs, earlier failures and workflow captures.
+Source fingerprint:
+`43b50c7c9aac22646cbbe82be69d9b28eb9ca025c54c8db0522fb8ef7cff5fab`.
+Acceptance-audit SHA-256:
+`59c92f53eedfa82d7f1f4b58e8fae03b4939047d192c825d0d2959eb2c3cb2f3`.
+W3c.5 is complete within this contract. The measured request reduction is for the
+scripted example; model efficiency, wider curve support, full W3c and the original
+advanced checkpoint remain open.
+
 ## W5.4: focused CLI examples hypothesis
 
 The frozen `81e8830` B03/B16 evaluation shows mixed catalog results and repeated

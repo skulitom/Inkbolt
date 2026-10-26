@@ -1317,6 +1317,7 @@ fn capability_report() -> Value {
     capabilities["work_paths"]["compound_operations"] = json!(
         "retained_union_intersection_difference_xor;membership_before_coverage;independent_source_copies"
     );
+    capabilities["booleans"]["edit"] = json!({"operation":"boolean","result":"new_root_item_or_no_item_when_empty","paint":"explicit_fill","sources":["keep","hide","remove"],"default_sources":"keep","geometry_solver":"same_as_document.boolean","locks":"source_mutations_check_ancestors_and_dependents","atomic":true,"history":"normal_edit_proposals_receipts_undo_redo","details":"numerical_evidence_without_duplicate_geometry"});
     capabilities["work_paths"]["compound"] = json!({"combine":"work_path_combine","edit":"path_component","geometry":"compound","max_leaves":work_paths::MAX_COMPONENTS,"max_depth":work_paths::MAX_COMPONENT_DEPTH,"operands_per_operation":[2,limits::work_paths::MAX_OPERANDS],"bounds":"union_of_operand_geometry_not_tight_filled_result","vector_mask_coverage":"shared_f64_region_scanlines_gray8","clip_pixel_limit":selections::MAX_PIXELS,"flattened_boolean":"separate_document.boolean_contract","unsupported":["painted_compound_vector_content","implicit_polygonal_expansion","direct_svg_pdf_active_compound_clips"]});
     capabilities["sample_profiles"]["builtin_definition_revision"] =
         json!("0.73_D50_media_white_Bradford_D65_to_D50");
@@ -2108,7 +2109,7 @@ fn capability_report() -> Value {
     capabilities["agent_discovery"] = json!({
         "cli_help_arguments":["--help","-h"],
         "cli_help_workspace_defaults":"workspace_defaults;relative_to_explicit_workspace_only",
-        "schema_examples":{"index_field":"example_queries","result_field":"example","maximum_bytes":limits::schema::EXAMPLE_BYTES,"fields":["kind","value","requires","usage"],"coverage":"focused_font_session_document_text_transform;not_every_operation","executes_during_discovery":false},
+        "schema_examples":{"index_field":"example_queries","result_field":"example","maximum_bytes":limits::schema::EXAMPLE_BYTES,"fields":["kind","value","requires","usage"],"coverage":"focused_font_session_document_text_transform_boolean;not_every_operation","executes_during_discovery":false},
         "lookup":"schema.lookup", "index":"index",
         "large_schema_outline_bytes":schema::OUTLINE_BYTES,
         "schema_selector_separator":"/",

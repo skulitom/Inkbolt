@@ -16,6 +16,8 @@ particular AI model is required.
 ## What you can do
 
 - **Compose graphics** with vector shapes, text, images, layers and artboards.
+- **[Combine shapes](docs/BOOLEANS.md)** into editable paths in one undoable edit, with explicit
+  control over whether the source shapes are kept, hidden or removed.
 - **Import artwork** from SVG, PNG, JPEG and TIFF. Supported SVG content stays
   editable, including styles, reusable symbols, placed images and positioned text.
 - **Select and mask** image regions with feathered edges or foreground/background

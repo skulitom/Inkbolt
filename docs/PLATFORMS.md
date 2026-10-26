@@ -7,44 +7,42 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 
-The newer [focused-example increment](DEVELOPMENT_STATUS.md#implementation-and-retained-checks-26-october-2026)
-has fresh 273-stage Windows and Linux passes. The final Linux run at `d18ac62`
-executed 278 Rust and 2,794 Python tests, with 51 explicit skips, in 812.7 seconds.
-The retained Windows pass has identical engine sources and precedes only a
-Linux-specific test correction and acceptance notes. Earlier Linux timeout/race
-failures and retries remain retained. These results do not extend platform or
-memory claims.
+The latest [atomic boolean edit acceptance](DEVELOPMENT_STATUS.md#atomic-edit-acceptance)
+passes all 274 stages fresh on the same Windows/Linux candidate. Windows executed
+312 Rust and 2,829 Python tests (24 explicit skips); Linux executed 278 Rust and
+2,802 Python tests (51 skips). The Linux pass follows retained import-timeout and
+concurrent-history busy failures, an unchanged-source focused retry and a complete
+fresh run without the Windows suite running. The original checks and deadlines
+remain intact. Both builds, source archive, reports and all 548 successful stage
+logs are retained under `boolean-edit-01`; the acceptance audit is linked above.
+This adds no Unix jobs or new memory/platform claims.
 
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/40363643550)
-is `81e8830`, including the essentials catalog, larger layered-input admission,
-focused large-image previews and the separate full-size B10 adapter. All stages
-ran fresh, all three minimum-compiler checks passed and source inputs remained
-unchanged:
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/40381375286)
+is `d18ac62`, including focused schema examples and CLI workspace guidance. This
+precedes the atomic boolean operation. All stages ran fresh, all three minimum-
+compiler checks passed and source inputs remained unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 273 | 312 | 2,823 | 20 | 4289.930 |
-| Ubuntu 24.04 | 273 | 278 | 2,792 | 51 | 1664.727 |
-| macOS 15 ARM64 | 273 | 278 | 2,781 | 62 | 2797.973 |
+| Windows 2025 | 273 | 312 | 2,825 | 20 | 4389.589 |
+| Ubuntu 24.04 | 273 | 278 | 2,794 | 51 | 1657.151 |
+| macOS 15 ARM64 | 273 | 278 | 2,783 | 62 | 3187.511 |
 
-Reports, all 819 stage logs, run metadata and the 991-file source archive are
-retained in `cli-examples-evaluation-01/ci-essentials-81e8830`. The archive matches every report's
+Reports, all 819 stage logs, run metadata and the 993-file source archive are
+retained in `boolean-edit-01/ci-parent-d18ac62`. The archive matches every report's
 source fingerprint. Audit SHA-256:
-`d5c6c7e91239f69846142c947344ce2d3fb84a7ff4301070643baca5093e06fb`;
+`ecbf9458cb5e8ed3c6eea1166e860e240f1ec517aa509b317b174a6082ee2c2b`;
 shared hosted source fingerprint:
-`d5d4ae22d5b6ce7961f4b177f6e3f650d9d74826f464a443f86170bb11d6670f`.
+`8623949dc8cd61af659933227ec64e463ac7fbf62e0497314a591f9574cd190d`.
 Hosted checks evaluate the public structural guard; local private-policy checks
 remain separate. Unix background jobs remain unsupported.
 
-The preceding `f06d546` matrix remains retained under
-`essentials-evaluation-01/ci-parent-f06d546`. The newer focused-example candidate
-`d18ac62` has separate local acceptance above. Its
-[hosted matrix](https://github.com/skulitom/Inkbolt/actions/runs/40381375286)
-has passed Ubuntu while Windows and macOS remain in progress at this recording;
-it is not included in the completed matrix above. The local milestones below
-retain their original target-size and memory scopes; a hosted suite pass does
-not extend those claims.
+The preceding `81e8830` matrix remains retained under
+`cli-examples-evaluation-01/ci-essentials-81e8830`, and `f06d546` under
+`essentials-evaluation-01/ci-parent-f06d546`. The local milestones below retain
+their original target-size and memory scopes; a hosted suite pass does not extend
+those claims.
 
 The [larger native edit windows](LARGE_EDIT_WINDOWS.md) passed all
 268 full stages fresh on Windows and Linux, with matching unchanged source

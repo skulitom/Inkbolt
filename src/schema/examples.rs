@@ -10,7 +10,8 @@ pub(super) fn queries() -> Value {
         {"command":"schema.lookup","name":"document"},
         {"command":"schema.lookup","name":"content","select":"text"},
         {"command":"schema.lookup","name":"operation","select":"text"},
-        {"command":"schema.lookup","name":"operation","select":"transform"}
+        {"command":"schema.lookup","name":"operation","select":"transform"},
+        {"command":"schema.lookup","name":"operation","select":"boolean"}
     ])
 }
 
@@ -44,6 +45,18 @@ pub(super) fn for_schema(name: &str, selected: Option<&str>, schema: &Value) -> 
                     "A document font named face",
                 ],
                 text_usage,
+            ));
+        }
+        Some("boolean") => {
+            return Some(example(
+                "operation",
+                json!({"op":"boolean","ids":["outer","opening"],"new_id":"frame",
+                    "mode":"difference","fill":[35,100,180,255],"sources":"hide"}),
+                &[
+                    "Two unlocked vector items named outer and opening",
+                    "Unused item ID frame",
+                ],
+                "Combine filled geometry and add the explicitly painted result at the document root in one edit. Hide the sources atomically. Empty results create no item. Existing curve/topology limits still apply; this does not flatten source appearance.",
             ));
         }
         Some("transform") => {

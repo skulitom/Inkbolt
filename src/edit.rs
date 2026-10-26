@@ -3,6 +3,8 @@ use scene::index;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
+mod boolean;
+pub use boolean::Sources as BooleanSources;
 
 fn isolated() -> bool {
     true
@@ -256,6 +258,17 @@ pub enum Operation {
         ids: Vec<String>,
         new_id: String,
         mode: crate::booleans::Mode,
+    },
+    /// Compute a filled combination and add its explicitly painted result at the root.
+    Boolean {
+        ids: Vec<String>,
+        new_id: String,
+        mode: crate::booleans::Mode,
+        fill: Paint,
+        #[serde(default = "crate::booleans::default_tolerance")]
+        curve_tolerance: f64,
+        #[serde(default)]
+        sources: BooleanSources,
     },
     PathComponent {
         id: String,
@@ -1170,6 +1183,25 @@ fn apply_one(
                 serde_json::json!({"source_ids":ids,"source_changed":false,"geometry":"retained_compound_region","coordinates":"root","mode":mode}),
             );
             Ok((new_id.clone(), "work_path_combined"))
+        }
+        Operation::Boolean {
+            ids,
+            new_id,
+            mode,
+            fill,
+            curve_tolerance,
+            sources,
+        } => {
+            *details = Some(boolean::apply(
+                document,
+                ids,
+                new_id,
+                *mode,
+                fill,
+                *curve_tolerance,
+                *sources,
+            )?);
+            Ok((new_id.clone(), "boolean"))
         }
         Operation::PathComponent {
             id,
