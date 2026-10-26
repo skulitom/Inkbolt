@@ -7,27 +7,33 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/39940601570)
-is `c35dc81`, including native-region and whole-image proxy/refine selection,
-native repair, masks and shared patch preparation. All stages ran fresh, all three
+The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/40357949929)
+is `f06d546`, including larger layered-input admission, focused large-image
+previews and the separate full-size B10 adapter. All stages ran fresh, all three
 minimum-compiler checks passed and source inputs remained unchanged:
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 267 | 307 | 2,787 | 9 | 4453.820 |
-| Ubuntu 24.04 | 267 | 273 | 2,745 | 51 | 1551.216 |
-| macOS 15 ARM64 | 267 | 273 | 2,745 | 51 | 3037.650 |
+| Windows 2025 | 273 | 310 | 2,822 | 20 | 4684.448 |
+| Ubuntu 24.04 | 273 | 276 | 2,791 | 51 | 1717.068 |
+| macOS 15 ARM64 | 273 | 276 | 2,780 | 62 | 2774.444 |
 
-Reports, all 801 stage logs, run metadata and the 966-file source archive are
-retained in `readme-ci-c35dc81`. The archive matches every report's
+Reports, all 819 stage logs, run metadata and the 991-file source archive are
+retained in `essentials-evaluation-01/ci-parent-f06d546`. The archive matches every report's
 source fingerprint. Audit SHA-256:
-`20f0d3e253b7ffaca4b44c4a2fc6e3441e2602c8f52f748e1c8c5d3587e107ea`;
+`ef57fd63be66bf3cf56208dc242ed0d1aab1449106b51bb9ddb697591fa559b9`;
 shared hosted source fingerprint:
-`c78a15885ee892a3e41e0476ecaa8125360e27e34f7f040c9f9e68a519cf4549`.
+`b5b9e77558dcbebb329045ef04ab8ad316404fa8d67682c648390585bb478c70`.
 Hosted checks evaluate the public structural guard; local private-policy checks
 remain separate. Unix background jobs remain unsupported.
 
-The subsequent [larger native edit windows](LARGE_EDIT_WINDOWS.md) passed all
+The newer essentials candidate `81e8830` has separate fresh full local
+Windows/Linux acceptance. Its [hosted matrix](https://github.com/skulitom/Inkbolt/actions/runs/40363643550)
+was still running when this evidence was recorded; it is not included in the
+completed matrix above. The local milestones below retain their original
+target-size and memory scopes; a hosted suite pass does not extend those claims.
+
+The [larger native edit windows](LARGE_EDIT_WINDOWS.md) passed all
 268 full stages fresh on Windows and Linux, with matching unchanged source
 inputs and independent 50 MP brush/clone/history/TIFF checks. This does not add
 macOS target-image or Unix process-memory acceptance.

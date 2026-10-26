@@ -5,7 +5,7 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
-## W5.2: essentials catalog implementation and evaluation gate
+## W5.2: essentials catalog verified; model results mixed
 
 The recorded B03/B16 token ratios (4.62x/5.20x the baseline) and the separate
 large-B10 pilot motivate reducing repeated discovery context. The latter used
@@ -20,11 +20,11 @@ defaults and runtime validation remain. Shared workspace path guidance appears
 once per tool. Existing core/full modes and the no-option default retain their
 contracts. This is discovery work, with no new edit wrapper or engine credit.
 
-Remeasure catalog bytes, direct/routed parity, historical/retry behavior and
-fresh Windows/Linux acceptance. Then compare at least five matched attempts
-using the same explicitly configured client/model/settings and prompts. Stop
-expanding catalog deferral if extra lookups erase the token/call benefit or
-correctness falls. Smaller catalog bytes alone cannot establish W5 completion.
+The acceptance gate requires catalog bytes, direct/routed parity,
+historical/retry behavior and fresh Windows/Linux checks, followed by at least
+five matched attempts with the same configured client/model/settings and
+prompts. Stop expanding catalog deferral if extra lookups erase the token/call
+benefit or correctness falls. Smaller bytes alone cannot establish W5 completion.
 Fresh full Windows/Linux acceptance passed all 273 stages per platform on
 26 October 2026, with no reuse, failure, pending check or omitted module:
 
@@ -46,9 +46,21 @@ reports are bound by source fingerprint
 and audit `6ec212297cadf7672c974f667f4358bd326d3fc10b2de15b24525478eeee8410`.
 The Windows executable is `493e8d588cff826782882fe836039737d0cedc1ec955ac49f7472ca6ec94ec18`;
 Linux is `1646a0dcc5442bc5f924e5ce3514b53cd1ebdcf26ccd9ca9cb7e70bdb9372ba1`.
-Only subsequent acceptance notes differ from that tested candidate. Comparative
-model remeasurement, missing traffic metrics and complete W5 acceptance remain
-open. No original checkpoint or overall-goal completion is awarded.
+Only subsequent acceptance notes differ from that tested candidate.
+
+The [completed B03/B16 evaluation](BENCHMARK_ESSENTIALS.md) at `81e8830` retains
+30 repeated genuine attempts plus four separate pilots. Essentials, core and
+baseline each pass 5/5 applicable checks per task. Against core, essentials uses
+12.8% fewer median tokens for layout editing but 13.3% more for text repair.
+It still uses 4.28x/4.54x baseline tokens. All repeated engine attempts chose the
+CLI, so the result does not isolate MCP transport or initial catalog exposure.
+
+Pause further schema deferral. Investigate the repeated CLI schema/default
+lookups in B16, with a bounded examples/focused-information hypothesis and a
+new matched remeasurement before expanding it. The optional catalog and its
+byte budget remain verified. General efficiency, missing traffic/call metrics
+and complete W5 acceptance remain open; no original checkpoint or overall-goal
+completion is awarded.
 
 ## W4.6: larger native brush and retouch windows verified
 
