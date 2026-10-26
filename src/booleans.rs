@@ -10,6 +10,9 @@ use std::{
     collections::{BTreeMap, BTreeSet},
 };
 mod curves;
+mod ellipses;
+mod evaluation;
+mod tolerance;
 mod topology;
 
 pub use crate::limits::booleans::MAX_ATOMS;
@@ -27,14 +30,43 @@ pub enum Mode {
     Difference,
     Xor,
 }
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Precision {
+    Exact,
+    #[default]
+    Auto,
+    Tolerance,
+}
+impl Precision {
+    pub fn is_auto(&self) -> bool {
+        *self == Self::Auto
+    }
+}
+#[derive(Clone, Copy, Debug)]
+pub struct Options {
+    pub precision: Precision,
+    pub curve_tolerance: f64,
+}
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            precision: Precision::Auto,
+            curve_tolerance: default_tolerance(),
+        }
+    }
+}
 type P = [R; 2];
 type Segment = [P; 2];
 type Cubic = [P; 4];
+#[derive(Clone)]
 struct Operand {
     edges: Vec<Segment>,
     cubics: Vec<Cubic>,
     rule: FillRule,
     maximum: R,
+    snapping: R,
+    conversion: Option<Value>,
 }
 fn r(x: f64) -> R {
     R::from_float(x).expect("validated finite coordinates")
@@ -73,14 +105,22 @@ fn split(c: &Cubic) -> (Cubic, Cubic) {
     let g = lerp(&e, &f, &t);
     ([c[0].clone(), a, e, g.clone()], [g, f, d, c[3].clone()])
 }
-#[derive(Default)]
 struct Budget {
     used: usize,
+    maximum: usize,
+}
+impl Default for Budget {
+    fn default() -> Self {
+        Self {
+            used: 0,
+            maximum: MAX_WORK,
+        }
+    }
 }
 impl Budget {
     fn spend(&mut self, v: usize) -> Result<(), Error> {
         self.used = self.used.saturating_add(v);
-        if self.used > MAX_WORK {
+        if self.used > self.maximum {
             Err(limit("Boolean arrangement exceeds its exact-work budget"))
         } else {
             Ok(())
@@ -98,7 +138,7 @@ fn emit_edge(edges: &mut Vec<Segment>, a: P, b: P) -> Result<(), Error> {
     }
     Ok(())
 }
-fn input(document: &Document, index: usize) -> Result<Operand, Error> {
+fn input(document: &Document, index: usize, precision: Precision) -> Result<Operand, Error> {
     let (Content::Vector {
         geometry,
         fill_rule,
@@ -137,9 +177,11 @@ fn input(document: &Document, index: usize) -> Result<Operand, Error> {
             cubics: vec![],
             rule: *fill_rule,
             maximum: R::zero(),
+            snapping: R::zero(),
+            conversion: None,
         });
     }
-    if matches!(geometry, Geometry::Ellipse { .. }) {
+    if precision == Precision::Exact && matches!(geometry, Geometry::Ellipse { .. }) {
         return Err(Error::new(
             "UNSUPPORTED",
             "Convert analytic ellipses explicitly to paths before combining; quarter-cubic conversion has its own disclosed error",
@@ -171,11 +213,14 @@ fn input(document: &Document, index: usize) -> Result<Operand, Error> {
         let end = c.edges.last().unwrap().to;
         emit_edge(&mut out, mapped(end, m), mapped(c.start, m))?;
     }
+    let conversion = ellipses::certificate(geometry, m, &cubics);
     Ok(Operand {
         edges: out,
         cubics,
         rule: *fill_rule,
         maximum: R::zero(),
+        snapping: R::zero(),
+        conversion,
     })
 }
 fn unit(t: &R) -> bool {
@@ -483,46 +528,12 @@ fn rounding(loops: &[Vec<P>], budget: &mut Budget) -> Result<(Vec<Vec<Point>>, R
     }
     Ok((result, largest))
 }
-pub fn compute(
-    document: &Document,
-    ids: &[String],
-    mode: Mode,
-    curve_tolerance: f64,
-) -> Result<Value, Error> {
-    crate::validate(document)?;
-    if !(2..=MAX_INPUTS).contains(&ids.len())
-        || !curve_tolerance.is_finite()
-        || !(0.0..=f64::from(crate::limits::booleans::MAX_CURVE_TOLERANCE))
-            .contains(&curve_tolerance)
-    {
-        return Err(Error::new(
-            "INVALID_REQUEST",
-            format!(
-                "Boolean requires 2..={MAX_INPUTS} distinct vector IDs and curve_tolerance in 0..={}",
-                crate::limits::booleans::MAX_CURVE_TOLERANCE
-            ),
-        ));
-    }
-    let mut unique = BTreeSet::new();
-    let mut inputs = Vec::new();
-    let mut summaries = Vec::new();
-    let mut budget = Budget::default();
-    let tol = r(curve_tolerance);
-    let tol2 = &tol * &tol;
-    for id in ids {
-        if !unique.insert(id) {
-            return Err(Error::new(
-                "INVALID_REQUEST",
-                "Boolean source IDs must be distinct",
-            ));
-        }
-        let index = scene::index(document, id)?;
-        inputs.push(input(document, index)?);
-    }
-    let curves = curves::evaluate(&mut inputs, &tol2, &mut budget)?;
-    for (id, input) in ids.iter().zip(&inputs) {
-        summaries.push(json!({"id":id,"flattened_edges":input.edges.len(),"flattening_deviation_squared":input.maximum.to_string(),"fill_rule":input.rule}));
-    }
+struct Arrangement {
+    loops: Vec<Vec<P>>,
+    atoms: usize,
+    boundary: usize,
+}
+fn arrange(inputs: &[Operand], mode: Mode, budget: &mut Budget) -> Result<Arrangement, Error> {
     let raw: Vec<_> = inputs.iter().flat_map(|v| v.edges.clone()).collect();
     if raw.len() > MAX_EDGES {
         return Err(limit(&format!(
@@ -566,18 +577,18 @@ pub fn compute(
         if weights.iter().all(|v| *v == 0) {
             continue;
         }
-        let sample = left_sample(&edge, &raw, &mut budget)?;
+        let sample = left_sample(&edge, &raw, budget)?;
         budget.spend(raw.len())?;
         let left: Vec<_> = inputs.iter().map(|v| winding(&sample, &v.edges)).collect();
         let a: Vec<_> = left
             .iter()
-            .zip(&inputs)
+            .zip(inputs)
             .map(|(&w, input)| inside(w, input.rule))
             .collect();
         let b: Vec<_> = left
             .iter()
             .zip(&weights)
-            .zip(&inputs)
+            .zip(inputs)
             .map(|((&w, &delta), input)| inside(w - delta, input.rule))
             .collect();
         let a = truth(&a, mode);
@@ -590,23 +601,77 @@ pub fn compute(
             });
         }
     }
-    let loops = trace(&boundary, &mut budget)?;
-    let exact_area: R = loops.iter().map(|p| area(p)).sum();
-    let (rounded, rounding) = rounding(&loops, &mut budget)?;
-    let mut commands = Vec::new();
-    for points in &rounded {
-        commands.push(PathCommand::Move { to: points[0] });
-        commands.extend(points[1..].iter().map(|p| PathCommand::Line { to: *p }));
-        commands.push(PathCommand::Close {});
-    }
-    let geometry = if commands.is_empty() {
-        None
-    } else {
-        let g = Geometry::Path { commands };
-        crate::geometry::validate_geometry(&g)?;
-        Some(g)
-    };
-    Ok(
-        json!({"document_id":document.id,"revision":document.revision,"source_ids":ids,"mode":mode,"geometry":geometry,"fill_rule":"nonzero","coordinates":"document_root","empty":loops.is_empty(),"area_exact":exact_area.to_string(),"area":exact_area.to_f64(),"positive_contours":loops.iter().filter(|p|area(p)>R::zero()).count(),"negative_contours":loops.iter().filter(|p|area(p)<R::zero()).count(),"input_model":"world_space_closed_geometry_with_exact_certified_cubic_flattening","curve_tolerance":curve_tolerance,"inputs":summaries,"curves":curves,"rounding_deviation_squared":rounding.to_string(),"atomic_edges":atom_count,"boundary_edges":boundary.len(),"work_units":budget.used,"losses":["This is a geometry-only result. Paint, strokes, masks, clips, filters, visibility and opacity do not define operands. Sources are unchanged.","Curved boundaries become chords only after an exact simultaneous-deformation certificate. Tolerance bounds each input arc, not movement of intersection vertices or the final boolean boundary. Collinear retracing is reduced by exact filled winding; source strokes and zero-area traces are not retained.","Output vertices are rounded to f64 with explicit planarity, winding, nesting and adjacency checks. Exact area refers to the rational arrangement before this rounding."]}),
+    let loops = trace(&boundary, budget)?;
+    Ok(Arrangement {
+        loops,
+        atoms: atom_count,
+        boundary: boundary.len(),
+    })
+}
+pub fn compute(
+    document: &Document,
+    ids: &[String],
+    mode: Mode,
+    curve_tolerance: f64,
+) -> Result<Value, Error> {
+    compute_with_options(
+        document,
+        ids,
+        mode,
+        Options {
+            curve_tolerance,
+            ..Options::default()
+        },
     )
+}
+pub fn compute_with_options(
+    document: &Document,
+    ids: &[String],
+    mode: Mode,
+    options: Options,
+) -> Result<Value, Error> {
+    let curve_tolerance = options.curve_tolerance;
+    crate::validate(document)?;
+    if !(2..=MAX_INPUTS).contains(&ids.len())
+        || !curve_tolerance.is_finite()
+        || !(0.0..=f64::from(crate::limits::booleans::MAX_CURVE_TOLERANCE))
+            .contains(&curve_tolerance)
+    {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            format!(
+                "Boolean requires 2..={MAX_INPUTS} distinct vector IDs and curve_tolerance in 0..={}",
+                crate::limits::booleans::MAX_CURVE_TOLERANCE
+            ),
+        ));
+    }
+    let mut unique = BTreeSet::new();
+    let mut inputs = Vec::new();
+    for id in ids {
+        if !unique.insert(id) {
+            return Err(Error::new(
+                "INVALID_REQUEST",
+                "Boolean source IDs must be distinct",
+            ));
+        }
+        let index = scene::index(document, id)?;
+        inputs.push(input(document, index, options.precision)?);
+    }
+    if inputs
+        .iter()
+        .map(|v| v.edges.len() + v.cubics.len())
+        .sum::<usize>()
+        > MAX_EDGES
+    {
+        return Err(limit(&format!(
+            "Boolean inputs exceed {MAX_EDGES} aggregate source edges"
+        )));
+    }
+    if options.precision == Precision::Tolerance && curve_tolerance == 0.0 {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            "Tolerance precision requires a positive curve_tolerance",
+        ));
+    }
+    evaluation::compute(document, ids, mode, options, inputs)
 }

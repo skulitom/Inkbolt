@@ -40,6 +40,7 @@ class BooleanTests(unittest.TestCase):
         items=[dict(id='s'+str(i),transform=(transforms[i] if transforms else [1,0,0,1,0,0]),content=dict(type='vector',geometry=g,fill=[30,90,180,255],fill_rule=rules[i] if rules else 'nonzero')) for i,g in enumerate(geometries)]
         return self.invoke(dict(command='document.edit',document=d,expected_revision=0,operations=[dict(op='add',item=i) for i in items]))['document']
     def combine(self,d,mode='union',expected=0,**kw):
+        kw.setdefault('precision','exact')
         return self.invoke(dict(command='document.boolean',document=d,ids=['s'+str(i) for i in range(len(d['items']))],mode=mode,**kw),expected)
     def rendered(self,result):
         d=self.invoke(dict(command='document.create',id='boolean-output',kind='vector',width=32,height=24))
@@ -75,7 +76,7 @@ class BooleanTests(unittest.TestCase):
                 expected=sum((x1-x0)*(y1-y0) for x0,x1 in zip(xs,xs[1:]) for y0,y1 in zip(ys,ys[1:]) if truth([contains(g,(x0+x1)/2,(y0+y1)/2) for g in boxes],mode))
                 result=self.combine(d,mode,curve_tolerance=0);self.check_area(result,expected)
                 if mode!='difference':
-                    reversed_result=self.invoke(dict(command='document.boolean',document=d,ids=['s2','s1','s0'],mode=mode,curve_tolerance=0))
+                    reversed_result=self.invoke(dict(command='document.boolean',document=d,ids=['s2','s1','s0'],mode=mode,precision='exact',curve_tolerance=0))
                     self.assertEqual(result['geometry'],reversed_result['geometry'])
 
     def test_rational_rectangle_area_does_not_round_endpoint_sums(self):

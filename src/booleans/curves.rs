@@ -73,6 +73,20 @@ pub(super) fn evaluate(
     tolerance: &R,
     budget: &mut Budget,
 ) -> Result<Value, Error> {
+    let (arcs, mut summary) = prepare(inputs, budget)?;
+    let arcs = arcs
+        .into_iter()
+        .map(|(c, weights)| topology::Arc::curved(c, weights))
+        .collect();
+    summary["topology"] = topology::evaluate(inputs, arcs, tolerance, budget)?;
+    Ok(summary)
+}
+
+type WeightedCubic = (Cubic, Vec<i32>);
+pub(super) fn prepare(
+    inputs: &mut [Operand],
+    budget: &mut Budget,
+) -> Result<(Vec<WeightedCubic>, Value), Error> {
     if inputs
         .iter()
         .map(|v| v.edges.len() + v.cubics.len())
@@ -128,19 +142,20 @@ pub(super) fn evaluate(
             }
             shared_runs += 1;
             let c = restricted(&p, &pair[0].0, &pair[1].0);
-            arcs.push(topology::Arc::curved(c, weights.clone()));
+            arcs.push((c, weights.clone()));
         }
     }
-    let topology = topology::evaluate(inputs, arcs, tolerance, budget)?;
-    Ok(json!({
-        "source_cubics": source_cubics,
-        "canonical_groups": canonical_groups,
-        "collinear_cubics": collinear_cubics,
-        "removed_parameter_knots": removed_knots,
-        "shared_runs": shared_runs,
-        "topology": topology,
-        "collinear_model": "exact_filled_winding_endpoint_reduction",
-        "coincidence": "exact_polynomial_coefficients_under_affine_parameter_changes",
-        "subdivision": "per_operand_signed_multiplicity_events_then_shared_chords"
-    }))
+    Ok((
+        arcs,
+        json!({
+            "source_cubics": source_cubics,
+            "canonical_groups": canonical_groups,
+            "collinear_cubics": collinear_cubics,
+            "removed_parameter_knots": removed_knots,
+            "shared_runs": shared_runs,
+            "collinear_model": "exact_filled_winding_endpoint_reduction",
+            "coincidence": "exact_polynomial_coefficients_under_affine_parameter_changes",
+            "subdivision": "per_operand_signed_multiplicity_events_then_shared_chords"
+        }),
+    ))
 }

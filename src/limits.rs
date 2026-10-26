@@ -151,7 +151,7 @@ pub mod booleans {
     pub const CANONICAL_CUBIC_WORK: usize = 128;
     /// Maximum requested curve-flattening deviation in root document units.
     pub const MAX_CURVE_TOLERANCE: u32 = 64;
-    /// Default requested curve-flattening deviation; topology certification remains mandatory.
+    /// Default requested curve tolerance; exact and snapped models report separate certificates.
     pub const DEFAULT_CURVE_TOLERANCE: f64 = 0.125;
     /// Maximum geometric subdivision depth shared by topology refinement and exact contact synchronization.
     pub const MAX_TOPOLOGY_DEPTH: usize = 20;
@@ -163,6 +163,10 @@ pub mod booleans {
     pub const MAX_ATOMS: usize = 4096;
     /// Max work (booleans).
     pub const MAX_WORK: usize = 2_000_000;
+    /// Maximum work spent on the automatic exact curve attempt, within the total budget.
+    pub const AUTO_CURVE_WORK: usize = 500_000;
+    /// Maximum dyadic output snapping and nonzero-union repairs before explicit refusal.
+    pub const MAX_OUTPUT_SNAP_PASSES: usize = 3;
 }
 
 /// Limits for `src/channels.rs`.

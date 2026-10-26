@@ -5,6 +5,75 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W3c.1-2: ellipse admission and tolerance fallback hypothesis
+
+Original probes at `c0f1730` show that ellipse conversion alone is insufficient:
+16 of 20 contained, overlapping, nested, disjoint and tangent combinations fail
+at the existing contact-polynomial budget after explicit path conversion. The
+four disjoint cases pass. W3c.1 and W3c.2 must therefore deliver ellipse admission
+together with the owner's accepted automatic precision policy.
+
+Keep explicit `exact` behavior and add `auto` and `tolerance`. Reuse canonical
+curve normalization, shared multiplicities and rational winding. Bound chord
+error, snap to a documented dyadic grid and certify the final editable output;
+report topology changes and ellipse-conversion error explicitly. Preserve the
+total work/geometry limits and historical default edit-request fingerprints.
+Independent analytic area, dense membership, numerical bounds, pathological
+contacts, repeatability and session checks are required before acceptance.
+Any understated bound, source mutation or uncertified output blocks the claim.
+Full W3c still requires its performance and retained-curve output work; no
+original checkpoint credit is attached to this increment.
+
+### Ellipse and precision acceptance
+
+W3c.1-2 now admit analytic ellipses in automatic/tolerance mode, with a separate
+world-space quarter-cubic conversion bound. Automatic precision is the default;
+explicit exact precision retains the previous strict behavior. The fallback
+normalizes shared curves, bounds rational chord subdivision, snaps to one dyadic
+grid and checks the resulting exact line arrangement and editable f64 output.
+It declares possible topology changes and separate displacement bounds. The
+aggregate source/edge/atom/depth ceilings and shared total work budget remain in
+force; compound operands still fail explicitly. See [the contract](BOOLEANS.md).
+
+Independent checks cover all twenty original contained, overlapping, nested,
+disjoint and tangent combinations, analytic ellipse/lens areas and dense sampled
+membership outside the reported input-error bands. Rational Green integrals check
+cubic-area convergence. Tests also cover equivalent subdivisions and reversals,
+fill multiplicities, irrational tangencies, transformed/nested placement, explicit
+small-region collapse, resource refusals, proposals, retries and undo/redo. Strict
+legacy curve/contact/topology tests retain their original oracles.
+
+Seven retained fixtures repeat identically on each platform, and all
+29 captured responses match between Windows and Linux. These include
+an output-rounding refusal in strict mode and a declared empty approximation in
+automatic mode. A real session created by the preceding build replays under the
+new build with the identical historical receipt and document; the default new
+precision field does not change the old request fingerprint.
+
+Fresh full acceptance uses the same 1,001-file source candidate:
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 276 | 316 | 2,836 | 24 | 1272.6 |
+| Linux / WSL | 276 | 282 | 2,809 | 51 | 869.1 |
+
+The first Windows full attempt stopped after an existing source-edge test caught
+a changed diagnostic phrase. The original message was restored without changing
+the test; focused feedback passed in 79.1 seconds, followed by the fresh complete
+runs above. Earlier quick runs kept unfinished checks pending at the 180-second
+budget and resumed them separately. Both platforms retain all failures, skips
+and successful reports; these are scripted engine checks, not new model trials.
+
+Evidence under `boolean-ellipses-01` includes both builds, the complete source
+archive, all 552 successful stage logs, repeatability captures, the historical
+replay and the earlier failures/interrupted run. Source fingerprint:
+`41828204a727bde729f966890a28b7db7c741bf69217690ed84e52a2a5c6dc22`.
+Acceptance-audit SHA-256:
+`7ed1672f194e12bcc8fa86c24ec858cff4e8608c4013cfb4e790aac0a79344d0`.
+W3c.1-2 are complete within this declared contract. W3c performance work, retained
+curve output, broader model efficiency and the original advanced checkpoint
+remain open; the unchanged registry stays at 163/167.
+
 ## W3c.5: atomic boolean edit hypothesis
 
 The original frame-icon example computes a boolean result, transfers its geometry
@@ -29,7 +98,8 @@ this increment does not close curved topology, full W3c or an engine checkpoint.
 The typed operation now computes and materializes on the private edit candidate,
 with explicit paint, source handling and ordinary history. Operand-count admission
 precedes lock/dependency traversal. An eighth focused schema example executes
-through both CLI and MCP. The geometric solver and its refusals remain unchanged.
+through both CLI and MCP. At that milestone the geometric solver and its refusals remained unchanged; the
+subsequent ellipse/precision increment above extends the shared solver.
 
 Eight focused tests independently check all four modes with exact area and every
 pixel, root placement under transforms, source/ancestor/component locks, work

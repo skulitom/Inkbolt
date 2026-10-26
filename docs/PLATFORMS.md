@@ -7,14 +7,15 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 
-The latest [atomic boolean edit acceptance](DEVELOPMENT_STATUS.md#atomic-edit-acceptance)
-passes all 274 stages fresh on the same Windows/Linux candidate. Windows executed
-312 Rust and 2,829 Python tests (24 explicit skips); Linux executed 278 Rust and
-2,802 Python tests (51 skips). The Linux pass follows retained import-timeout and
-concurrent-history busy failures, an unchanged-source focused retry and a complete
-fresh run without the Windows suite running. The original checks and deadlines
-remain intact. Both builds, source archive, reports and all 548 successful stage
-logs are retained under `boolean-edit-01`; the acceptance audit is linked above.
+The latest [ellipse and precision acceptance](DEVELOPMENT_STATUS.md#ellipse-and-precision-acceptance)
+passes all 276 stages fresh on the same Windows/Linux candidate. Windows executed
+316 Rust and 2,836 Python tests (24 explicit skips); Linux executed 282 Rust and
+2,809 Python tests (51 skips). Full platform runs were sequential. Seven
+repeated original fixtures produce identical responses across both systems,
+including declared approximation and strict refusal behavior. Both builds, the
+source archive, reports and all 552 successful stage logs are retained under
+`boolean-ellipses-01`; the linked acceptance records their audit and earlier
+failures. The preceding atomic-edit evidence remains under `boolean-edit-01`.
 This adds no Unix jobs or new memory/platform claims.
 
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.

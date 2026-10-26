@@ -377,6 +377,8 @@ BINDINGS = {
     'filters/creative_limits/value_octaves/1': 'creative_filters.MAX_OCTAVES',
     'booleans/curve_tolerance/1': 'booleans.MAX_CURVE_TOLERANCE',
     'booleans/default_curve_tolerance': 'booleans.DEFAULT_CURVE_TOLERANCE',
+    'booleans/auto_curve_work': 'booleans.AUTO_CURVE_WORK',
+    'booleans/maximum_output_snap_passes': 'booleans.MAX_OUTPUT_SNAP_PASSES',
     'warps/perspective_weights/1': 'warps.MAX_PERSPECTIVE_WEIGHT',
     'warps/tolerance/0': 'warps.MIN_TOLERANCE',
     'warps/tolerance/1': 'warps.MAX_TOLERANCE',

@@ -1,5 +1,13 @@
 # Architecture
 
+Filled combinations share exact input normalization and a rational line
+arrangement across their precision modes. Automatic evaluation attempts strict
+curve certification before the declared bounded fallback; tolerance evaluation
+flattens canonical curves, snaps to a dyadic grid and checks output topology.
+Ellipse conversion has a separate world-space error certificate. Default
+precision stays omitted from serialized edits to preserve historical retry
+identities. See [the boolean contract](BOOLEANS.md).
+
 Focused schema examples are additive response metadata, separate from validation
 schemas and MCP catalogs. Their bounded JSON includes explicit prerequisites;
 discovery performs no I/O. CLI help and workspace execution share the same

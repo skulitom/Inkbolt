@@ -16,8 +16,9 @@ particular AI model is required.
 ## What you can do
 
 - **Compose graphics** with vector shapes, text, images, layers and artboards.
-- **[Combine shapes](docs/BOOLEANS.md)** into editable paths in one undoable edit, with explicit
-  control over whether the source shapes are kept, hidden or removed.
+- **[Combine shapes](docs/BOOLEANS.md)**, including circles and ellipses, into
+  editable paths in one undoable edit. Precision and conversion losses are
+  reported; source shapes can be kept, hidden or removed.
 - **Import artwork** from SVG, PNG, JPEG and TIFF. Supported SVG content stays
   editable, including styles, reusable symbols, placed images and positioned text.
 - **Select and mask** image regions with feathered edges or foreground/background
@@ -51,7 +52,7 @@ build from source for the newer features below. Follow the
 | Version | What to expect |
 | --- | --- |
 | [v0.82.0 release](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0) | Windows x64, Linux x64 and macOS Apple silicon archives, plus a Windows desktop extension bundle. Release notes describe the included features. |
-| Build from `main` | Adds larger image editing, native JPEG import, guided selections and masks, patch repair, editable layered imports, focused previews for large images, and lower-memory exports. The large-image workflows described below require this newer source build. |
+| Build from `main` | Adds larger image editing, native JPEG import, guided selections and masks, patch repair, editable layered imports, focused previews for large images, lower-memory exports, and atomic shape combinations with reported curve precision. The large-image workflows described below require this newer source build. |
 
 For an MCP client, use this launch command with the path to an existing folder
 where you want to work:

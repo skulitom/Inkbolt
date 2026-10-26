@@ -160,7 +160,7 @@ class BooleanEditTests(unittest.TestCase):
                 self.call('session.create',**args,request_id='create',document=doc)
                 before=self.call('session.read',**args)
                 bad=invoke(dict(command='session.apply',**args,request_id='combine',expected_revision=0,
-                    action=dict(type='edit',operations=[self.operation(ids=[i['id'] for i in source],sources='remove')])))
+                    action=dict(type='edit',operations=[self.operation(ids=[i['id'] for i in source],sources='remove',precision='exact')])))
                 self.assertFalse(bad['ok']);self.assertEqual(bad['error']['code'],code)
                 self.assertEqual(self.call('session.read',**args),before)
 

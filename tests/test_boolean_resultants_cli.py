@@ -80,7 +80,7 @@ class ResultantContactTests(unittest.TestCase):
             before=self.combine(base,'xor');after=self.combine(divided,'xor')
             self.assertEqual(before['geometry'],after['geometry'])
             self.assertEqual(before['area_exact'],after['area_exact'])
-            swapped=self.invoke(dict(command='document.boolean',document=base,ids=['s1','s0'],mode='xor'))
+            swapped=self.invoke(dict(command='document.boolean',precision='exact',document=base,ids=['s1','s0'],mode='xor'))
             self.assertEqual(before['geometry'],swapped['geometry'])
 
     def test_non_dyadic_cusp_and_node_retain_area_and_junctions(self):

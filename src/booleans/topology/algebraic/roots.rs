@@ -245,7 +245,10 @@ mod tests {
                 .is_empty()
         );
         assert!(in_unit_interval(&[n(1)], &mut budget).unwrap().is_empty());
-        let mut exhausted = Budget { used: MAX_WORK };
+        let mut exhausted = Budget {
+            used: MAX_WORK,
+            ..Budget::default()
+        };
         assert_eq!(
             in_unit_interval(&[n(-1), n(0), n(0), n(2)], &mut exhausted)
                 .unwrap_err()

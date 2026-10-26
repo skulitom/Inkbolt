@@ -1,4 +1,4 @@
-//! Atomic materialization; the geometric solver and its certificates are unchanged.
+//! Atomic materialization with the shared solver's selected precision and certificates.
 use crate::{Error, booleans, model::*, scene};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ pub(super) fn apply(
     new_id: &str,
     mode: booleans::Mode,
     fill: &Paint,
-    curve_tolerance: f64,
+    options: booleans::Options,
     sources: Sources,
 ) -> Result<Value, Error> {
     if !(2..=booleans::MAX_INPUTS).contains(&ids.len()) {
@@ -40,7 +40,7 @@ pub(super) fn apply(
             super::unlocked(document, scene::index(document, id)?)?;
         }
     }
-    let mut receipt = booleans::compute(document, ids, mode, curve_tolerance)?;
+    let mut receipt = booleans::compute_with_options(document, ids, mode, options)?;
     let geometry: Option<Geometry> = serde_json::from_value(receipt["geometry"].take())
         .map_err(|_| invalid("Boolean solver returned invalid result geometry"))?;
     receipt.as_object_mut().unwrap().remove("geometry");
@@ -106,4 +106,23 @@ pub(super) fn apply(
         "This is a geometry-only result. Paint, strokes, masks, clips, filters, visibility and opacity do not define operands. Result paint and source handling are explicit."
     );
     Ok(receipt)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn default_precision_preserves_the_historical_operation_identity() {
+        let historical = json!({"op":"boolean","ids":["a","b"],"new_id":"result",
+            "mode":"difference","fill":[30,90,180,255],"curve_tolerance":0.125,"sources":"keep"});
+        let operation: crate::edit::Operation = serde_json::from_value(historical.clone()).unwrap();
+        assert_eq!(serde_json::to_value(operation).unwrap(), historical);
+        let mut explicit = historical.clone();
+        explicit["precision"] = json!("auto");
+        let operation: crate::edit::Operation = serde_json::from_value(explicit.clone()).unwrap();
+        assert_eq!(serde_json::to_value(operation).unwrap(), historical);
+        explicit["precision"] = json!("exact");
+        let operation: crate::edit::Operation = serde_json::from_value(explicit.clone()).unwrap();
+        assert_eq!(serde_json::to_value(operation).unwrap(), explicit);
+    }
 }

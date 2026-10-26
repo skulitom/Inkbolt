@@ -101,7 +101,7 @@ class QuadraticContactTests(unittest.TestCase):
         before=self.combine(base,'xor');after=self.combine(split,'xor')
         self.assertEqual(before['geometry'],after['geometry']);self.assertEqual(before['area_exact'],after['area_exact'])
         self.assertIn((F(22),F(17)),{p for poly in polygons(after['geometry']) for p in poly})
-        swapped=self.invoke(dict(command='document.boolean',document=base,ids=['s1','s0'],mode='xor'))
+        swapped=self.invoke(dict(command='document.boolean',precision='exact',document=base,ids=['s1','s0'],mode='xor'))
         self.assertEqual(before['geometry'],swapped['geometry'])
 
     def test_tiny_irrational_node_keeps_two_lobes_at_loose_tolerance(self):

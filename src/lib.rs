@@ -874,6 +874,8 @@ pub enum Request {
         mode: booleans::Mode,
         #[serde(default = "booleans::default_tolerance")]
         curve_tolerance: f64,
+        #[serde(default, skip_serializing_if = "crate::booleans::Precision::is_auto")]
+        precision: crate::booleans::Precision,
     },
     #[serde(rename = "document.select")]
     Select {
@@ -1284,7 +1286,7 @@ fn capability_report() -> Value {
         "measurements":{"source":"scale_one_rgba8_composite","histogram_bins":256,"weight_denominator":65025,"selection":true,"alpha_policies":["ignore","exclude_transparent","weight"]},
         "work_paths":{"document_kinds":["vector","raster"],"printing":false,"coverage":"f64_monotone_cubic_roots_256_subrows_gray8","vector_mask_coverage":"tiny_skia_f32_gray8","selection":"copied_world_geometry","vector_mask":"independent_item_local_clip_copy","source_appearance":"ignored_including_ancestor_effects","compound_operations":"document.boolean_with_existing_curve_certificate_limits","snapshot_persistence":true},
         "paths":{"indexing":"revision_scoped_command_indices","split":"de_casteljau_exact_up_to_f64_roundoff","join":["exact_coincident","explicit_bridge"],"reverse":"selected_contours_preserve_closed_seam","simplify":true,"primitive_corners":"normalized_quarter_cubics","ellipse_conversion":"four_cubic_approximation"},
-        "booleans":{"command":"document.boolean","modes":["union","intersection","difference","xor"],"output":"root_coordinate_nonzero_polygon_or_null","arithmetic":"exact_rational_arrangement_then_checked_f64_vertices","curve_model":"bounded_chords_with_exact_topology_certificate","curve_tolerance":[0,limits::booleans::MAX_CURVE_TOLERANCE],"default_curve_tolerance":limits::booleans::DEFAULT_CURVE_TOLERANCE,"curve_coincidence":"exact_noncollinear_polynomial_affine_parameter_normalization","curve_subdivision":"invariant_within_operand_for_exact_encoded_polynomials","curve_topology":"certified_simultaneous_deformation_or_explicit_failure","curve_contacts":"verified_rational_resultants_and_quadratic_parameter_nodes_with_rational_junctions","curve_contact_root_search_depth":limits::booleans_topology_algebraic_roots::MAX_ROOT_DEPTH,"curve_contact_polynomial_coefficient_bits":limits::booleans_topology_algebraic_roots::MAX_COEFFICIENT_BITS,"curve_quadratic_predicates":"exact_signs_across_two_real_quadratic_fields","curve_contacts_remaining":"non_rational_fixed_world_junctions_and_uncertified_deformations_remain_explicit_failures","analytic_ellipses":"explicit_path_conversion_required","source_mutation":false},
+        "booleans":{},
         "curve_simplification":{"space":["local","world"],"deviation":"exact_rational_bernstein_control_bound","topology":"monotone_swept_hulls_disjoint_except_fixed_shared_endpoints","scope":"compound_path_including_fill_closure","unproven_candidates":"retained_with_reasons","receipt":"per_reduction_exact_bound_and_parameter_map"},
         "channels":{"storage":"canvas_gray8","nonprinting":true,"roles":["alpha","spot"],"components":["red","green","blue","alpha","luma"],"calculations":["copy","add","subtract","difference","multiply","screen","minimum","maximum","average"],"spot_identity":"unique_ink_id_with_alternate_srgb_and_exact_tint_coverage","export":"gray_or_alternate_ink_preview_png_with_metadata"},
         "selection_analysis":{"source":"scale_one_rgba8_composite","distance":"maximum_absolute_component_difference","components":["rgb","rgba"],"methods":["color_range","connected","edge"],"connectivity":["four","eight"],"edge":"color_gated_triangular_integer_weights_then_levels"},
@@ -1293,6 +1295,7 @@ fn capability_report() -> Value {
         "session_contract":{"storage_version":sessions::STORE_VERSION,"supported_storage_versions":sessions::SUPPORTED_STORE_VERSIONS,"backend":"sqlite_rollback_full_sync","parent_directory_aliases":true,"database_symlinks":false,"conflicts":"expected_revision","retry":"original_receipt_and_document","history":"immutable_states_no_eviction","resources":"external_explicit_roots","cancellation":"cooperative_precommit","export":"read_document_then_export_returned_snapshot"},
         "unsupported":unsupported,
     });
+    capabilities["booleans"] = json!({"command":"document.boolean","modes":["union","intersection","difference","xor"],"output":"root_coordinate_nonzero_polygon_or_null","arithmetic":"exact_rational_arrangement_then_checked_f64_vertices","curve_model":"exact_certified_chords_or_declared_tolerance_snap","curve_tolerance":[0,limits::booleans::MAX_CURVE_TOLERANCE],"default_curve_tolerance":limits::booleans::DEFAULT_CURVE_TOLERANCE,"curve_coincidence":"exact_noncollinear_polynomial_affine_parameter_normalization","curve_subdivision":"invariant_within_operand_for_exact_encoded_polynomials","curve_topology":"exact_mode_certified_simultaneous_deformation;tolerance_mode_snapped_arrangement","curve_contacts":"verified_rational_resultants_and_quadratic_parameter_nodes_with_rational_junctions","curve_contact_root_search_depth":limits::booleans_topology_algebraic_roots::MAX_ROOT_DEPTH,"curve_contact_polynomial_coefficient_bits":limits::booleans_topology_algebraic_roots::MAX_COEFFICIENT_BITS,"curve_quadratic_predicates":"exact_signs_across_two_real_quadratic_fields","curve_contacts_remaining":"non_rational_fixed_world_junctions_and_uncertified_deformations_require_tolerance_or_fail","analytic_ellipses":"auto_and_tolerance_expand_four_cubics_with_separate_world_error;exact_requires_explicit_conversion","precision":["exact","auto","tolerance"],"default_precision":"auto","tolerance_model":"canonical_rational_flattening_then_dyadic_snapping_and_exact_arrangement","tolerance_source_topology_preserved":false,"auto_curve_work":limits::booleans::AUTO_CURVE_WORK,"maximum_output_snap_passes":limits::booleans::MAX_OUTPUT_SNAP_PASSES,"source_mutation":false});
     capabilities["filters"].as_object_mut().unwrap().extend(json!({
         "trajectory_samples_default": limits::filters::DEFAULT_TRAJECTORY_SAMPLES,
         "directional_angle_degrees": [-i64::from(limits::filters::MAX_ANGLE_DEGREES), limits::filters::MAX_ANGLE_DEGREES],
@@ -3159,7 +3162,16 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             ids,
             mode,
             curve_tolerance,
-        } => booleans::compute(&document, &ids, mode, curve_tolerance),
+            precision,
+        } => booleans::compute_with_options(
+            &document,
+            &ids,
+            mode,
+            booleans::Options {
+                precision,
+                curve_tolerance,
+            },
+        ),
         Request::Select { document, ids } => {
             model::validate_controlled(&document, context)?;
             let indices = scene::selection(&document, &ids, false)?;

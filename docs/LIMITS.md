@@ -59,6 +59,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `boards.MAX_BLEED` | `u32` | 4096 | `4096` |
 | `boards.MAX_FRAME_GUIDES` | `usize` | 64 | `64` |
 | `boards.MAX_GUIDES` | `usize` | 512 | `512` |
+| `booleans.AUTO_CURVE_WORK` | `usize` | 500000 | `500_000` |
 | `booleans.CANONICAL_CUBIC_WORK` | `usize` | 128 | `128` |
 | `booleans.DEFAULT_CURVE_TOLERANCE` | `f64` | 0.125 | `0.125` |
 | `booleans.JUNCTION_NEIGHBOR_WORK` | `usize` | 8 | `8` |
@@ -66,6 +67,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `booleans.MAX_CURVE_TOLERANCE` | `u32` | 64 | `64` |
 | `booleans.MAX_EDGES` | `usize` | 512 | `512` |
 | `booleans.MAX_INPUTS` | `usize` | 16 | `16` |
+| `booleans.MAX_OUTPUT_SNAP_PASSES` | `usize` | 3 | `3` |
 | `booleans.MAX_TOPOLOGY_DEPTH` | `usize` | 20 | `20` |
 | `booleans.MAX_WORK` | `usize` | 2000000 | `2_000_000` |
 | `booleans_quadratic_contacts.MONIC_COEFFICIENT_WORK` | `usize` | 16 | `16` |

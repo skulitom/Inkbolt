@@ -60,7 +60,7 @@ class CurveBooleanTests(unittest.TestCase):
             for key in ('geometry','area_exact','positive_contours','negative_contours','inputs'):
                 self.assertEqual(before[key],after[key],key)
             if mode!='difference':
-                swapped=self.invoke(dict(command='document.boolean',document=b,ids=['s1','s0'],mode=mode))
+                swapped=self.invoke(dict(command='document.boolean',precision='exact',document=b,ids=['s1','s0'],mode=mode))
                 self.assertEqual(after['geometry'],swapped['geometry'])
 
     def test_exact_coincidence_survives_world_affine_mapping(self):

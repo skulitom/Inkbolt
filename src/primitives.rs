@@ -110,13 +110,16 @@ fn polygon(points: Vec<Point>) -> Vec<PathCommand> {
         .chain(std::iter::once(PathCommand::Close {}))
         .collect()
 }
+pub(crate) fn circular_tangent() -> f64 {
+    4.0 * (2.0_f64.sqrt() - 1.0) / 3.0
+}
 /// Includes legacy rectangles/ellipses for explicit path conversion. Circular arcs use four cubics.
 pub fn expand(g: &Geometry) -> Result<Geometry, Error> {
     validate(g)?;
     if !parametric(g) {
         crate::geometry::validate_geometry(g)?;
     }
-    let k = 4.0 * (2.0_f64.sqrt() - 1.0) / 3.0;
+    let k = circular_tangent();
     let commands = match g {
         Geometry::Compound { .. } => {
             return Err(Error::new(
