@@ -66,6 +66,15 @@ Source builds offer the ten-tool essentials catalog for compact discovery; use
 operations and their schemas when needed. Source builds also provide focused
 request examples and workspace guidance through discovery.
 
+In Claude Code, the Inkbolt plugin sets this up for you, with your project folder
+as the workspace, and adds a skill that tells Claude when to use Inkbolt. Put the
+release's `inkbolt` binary on your PATH, then run:
+
+```text
+claude plugin marketplace add skulitom/Inkbolt
+claude plugin install inkbolt@inkbolt
+```
+
 ## Documentation
 
 | Start here | Details |

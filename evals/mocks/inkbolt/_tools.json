@@ -1,0 +1,5122 @@
+{
+ "tools": [
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Discover command arguments and shared graphics types. Use name index for available names. Large schemas return an outline; select a listed variant or definition, or use full:true for all reachable definitions. Read-only. The original schema command still returns the entire engine schema.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "full": {
+      "default": false,
+      "description": "Return the complete schema even when it exceeds the outline budget.",
+      "type": "boolean"
+     },
+     "name": {
+      "description": "Command name, shared type alias, or index to discover available names.",
+      "type": "string"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "select": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "A listed variant/definition, or nested components separated by /; use an outline variant's select value."
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_schema_lookup",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false
+   },
+   "description": "Run any engine command through the same validated executor. Discover names and arguments with inkbolt_schema_lookup. Arguments omit command. Editing retains revision checks and durable retry receipts; source files and existing outputs are preserved.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "arguments": {
+      "additionalProperties": true,
+      "description": "Command fields from schema.lookup, without command or response_format.",
+      "type": "object"
+     },
+     "command": {
+      "enum": [
+       "preset.list",
+       "preset.create",
+       "handoff.export",
+       "handoff.inspect",
+       "layered.import",
+       "assist.segment",
+       "assist.layout",
+       "volume.inspect",
+       "appearance.inspect",
+       "sequence.import",
+       "sequence.export",
+       "sequence.inspect",
+       "sequence.open",
+       "object.import",
+       "object.open",
+       "object.status",
+       "sample.measure",
+       "sample.import",
+       "raw.develop",
+       "raw.retain",
+       "raw.reopen",
+       "raw.recipe",
+       "swatch.inspect",
+       "geometry.measure",
+       "pixel_warp.inspect",
+       "warp.inspect",
+       "repeat.inspect",
+       "interpolation.inspect",
+       "brush.inspect",
+       "image.trace",
+       "mesh.inspect",
+       "svg.import",
+       "vector.import",
+       "capabilities",
+       "schema",
+       "schema.lookup",
+       "implementation.status",
+       "document.publish",
+       "session.publish",
+       "publication.receipt",
+       "publication.recover",
+       "job.start",
+       "job.status",
+       "job.list",
+       "job.result",
+       "job.wait",
+       "job.cancel",
+       "job.resume",
+       "document.diff",
+       "document.diff.preview",
+       "session.diff.preview",
+       "session.diff",
+       "session.create",
+       "session.read",
+       "session.apply",
+       "session.dry_run",
+       "session.apply_proposal",
+       "session.receipt",
+       "session.history",
+       "session.verify",
+       "session.backup",
+       "session.recover",
+       "session.migrate",
+       "session.continue",
+       "artboard.export",
+       "font.import",
+       "font.verify",
+       "font.inspect",
+       "text.inspect",
+       "text.directions",
+       "text.hyphenate",
+       "story.inspect",
+       "asset.import",
+       "asset.verify",
+       "asset.embed",
+       "document.create",
+       "document.validate",
+       "document.check",
+       "document.preflight",
+       "document.inspect",
+       "document.inspect.page",
+       "document.preview",
+       "document.contact_sheet",
+       "document.query",
+       "document.measure",
+       "channel.export",
+       "document.boolean",
+       "document.select",
+       "document.edit",
+       "document.render",
+       "document.proof",
+       "document.prepress",
+       "document.separations",
+       "color.convert",
+       "profile.gamut",
+       "document.export"
+      ],
+      "type": "string"
+     },
+     "response_format": {
+      "default": "json",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "command",
+     "arguments"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_run",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false
+   },
+   "description": "Read an explicit local PNG, JPEG, TIFF, BMP, TGA or single-frame GIF into an immutable image store. Explicit convert_srgb supports embedded or declared RGB ICC input profiles, retaining source/profile hashes and alpha. Untagged samples require an explicit policy. Sources and existing stored bytes remain unchanged. Unsupported semantics fail explicitly.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Builtin": {
+      "enum": [
+       "srgb",
+       "linear_srgb",
+       "display_p3"
+      ],
+      "type": "string"
+     },
+     "ColorPolicy": {
+      "enum": [
+       "require_srgb",
+       "assume_srgb",
+       "convert_srgb"
+      ],
+      "type": "string"
+     },
+     "Profile": {
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "$ref": "#/$defs/Builtin"
+         },
+         "type": {
+          "const": "builtin",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "data": {
+          "type": "string"
+         },
+         "type": {
+          "const": "icc",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "data"
+        ],
+        "type": "object"
+       }
+      ]
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "color_policy": {
+      "$ref": "#/$defs/ColorPolicy",
+      "default": "require_srgb"
+     },
+     "input_profile": {
+      "anyOf": [
+       {
+        "$ref": "#/$defs/Profile"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "source_path": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     },
+     "store_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source_path"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_asset_import",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Check retained structure, pinned resources and authored text/story overflow, including nested snapshots and overrides. Returns bounded located diagnostics with repair guidance, checked counts and explicit incomplete/skipped status. Read-only; use document.preflight to prepare a specific export.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Options14": {
+      "additionalProperties": false,
+      "properties": {
+       "issue_limit": {
+        "default": 64,
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "resources": {
+        "default": true,
+        "type": "boolean"
+       },
+       "typography": {
+        "default": true,
+        "type": "boolean"
+       }
+      },
+      "type": "object"
+     },
+     "Resources": {
+      "additionalProperties": false,
+      "properties": {
+       "asset_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "font_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       }
+      },
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "document": {
+      "anyOf": [
+       {
+        "description": "Deferred document schema. Call schema.lookup with name \"document\"; use select for one variant or definition. Runtime validates the complete type.",
+        "type": "object",
+        "x-inkbolt-schema": {
+         "name": "document"
+        }
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "revision": {
+          "description": "Exact immutable session revision; no implicit moving head.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "session_id": {
+          "type": "string"
+         },
+         "session_root": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "session_id",
+         "revision"
+        ],
+        "title": "SavedDocument",
+        "type": "object"
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "file_path": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         },
+         "sha256": {
+          "description": "SHA-256 of the exact file bytes, from a publication receipt or independent hash.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+         }
+        },
+        "required": [
+         "file_path",
+         "sha256"
+        ],
+        "title": "DocumentFile",
+        "type": "object"
+       }
+      ],
+      "description": "Inline snapshot, exact saved session revision, or snapshot file pinned by SHA-256. Saved session resource bindings are inherited unless overridden; files use explicit or workspace roots."
+     },
+     "options": {
+      "$ref": "#/$defs/Options14",
+      "default": {
+       "issue_limit": 64,
+       "resources": true,
+       "typography": true
+      }
+     },
+     "resources": {
+      "$ref": "#/$defs/Resources",
+      "default": {
+       "asset_root": null,
+       "font_root": null
+      }
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "document"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_document_check",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Create an empty editable vector or raster sRGB document. Returns a snapshot; does not save a file.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "DocumentKind": {
+      "enum": [
+       "vector",
+       "raster"
+      ],
+      "type": "string"
+     },
+     "ResourceProfile": {
+      "description": "Persisted opt-in storage budgets. Algorithm-specific work limits are independent.",
+      "enum": [
+       "standard",
+       "large_vector",
+       "large_raster"
+      ],
+      "type": "string"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "height": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "id": {
+      "type": "string"
+     },
+     "kind": {
+      "$ref": "#/$defs/DocumentKind"
+     },
+     "resolution_ppi": {
+      "default": 96.0,
+      "format": "double",
+      "type": "number"
+     },
+     "resource_profile": {
+      "$ref": "#/$defs/ResourceProfile",
+      "default": "standard"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "width": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "kind",
+     "width",
+     "height"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_document_create",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Apply 1..64 typed operations atomically to a snapshot at expected_revision. Use add_svg to insert editable SVG fragments or documents. Discover supported operations with schema.lookup name operation and select a variant for its fields. Returns an editable snapshot and ordered changes; validates locks, resources and the complete batch. Leaves files unchanged.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "asset_root": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+     },
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "document": {
+      "anyOf": [
+       {
+        "description": "Deferred document schema. Call schema.lookup with name \"document\"; use select for one variant or definition. Runtime validates the complete type.",
+        "type": "object",
+        "x-inkbolt-schema": {
+         "name": "document"
+        }
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "revision": {
+          "description": "Exact immutable session revision; no implicit moving head.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "session_id": {
+          "type": "string"
+         },
+         "session_root": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "session_id",
+         "revision"
+        ],
+        "title": "SavedDocument",
+        "type": "object"
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "file_path": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         },
+         "sha256": {
+          "description": "SHA-256 of the exact file bytes, from a publication receipt or independent hash.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+         }
+        },
+        "required": [
+         "file_path",
+         "sha256"
+        ],
+        "title": "DocumentFile",
+        "type": "object"
+       }
+      ],
+      "description": "Inline snapshot, exact saved session revision, or snapshot file pinned by SHA-256. Saved session resource bindings are inherited unless overridden; files use explicit or workspace roots."
+     },
+     "expected_revision": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "font_root": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+     },
+     "operations": {
+      "items": {
+       "description": "Deferred operation schema. Call schema.lookup with name \"operation\"; use select for one variant or definition. Runtime validates the complete type.",
+       "type": "object",
+       "x-inkbolt-schema": {
+        "name": "operation"
+       }
+      },
+      "type": "array"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "document",
+     "expected_revision",
+     "operations"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_document_edit",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Inspect stable item IDs, hierarchy, visibility, locks, world transforms, unclipped geometry bounds and resource inventories.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "document": {
+      "anyOf": [
+       {
+        "description": "Deferred document schema. Call schema.lookup with name \"document\"; use select for one variant or definition. Runtime validates the complete type.",
+        "type": "object",
+        "x-inkbolt-schema": {
+         "name": "document"
+        }
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "revision": {
+          "description": "Exact immutable session revision; no implicit moving head.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "session_id": {
+          "type": "string"
+         },
+         "session_root": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "session_id",
+         "revision"
+        ],
+        "title": "SavedDocument",
+        "type": "object"
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "file_path": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         },
+         "sha256": {
+          "description": "SHA-256 of the exact file bytes, from a publication receipt or independent hash.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+         }
+        },
+        "required": [
+         "file_path",
+         "sha256"
+        ],
+        "title": "DocumentFile",
+        "type": "object"
+       }
+      ],
+      "description": "Inline snapshot, exact saved session revision, or snapshot file pinned by SHA-256. Saved session resource bindings are inherited unless overridden; files use explicit or workspace roots."
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "document"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_document_inspect",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Read bounded pages of selected item fields, asset/font inventories or path anchors. Cursor binds exact document content, view and page limit. Hidden/locked items are included; resources are structural inventories. Use pinned saved references to avoid resending documents.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Field2": {
+      "enum": [
+       "name",
+       "content_type",
+       "hierarchy",
+       "visibility",
+       "locks",
+       "transform",
+       "bounds",
+       "geometry",
+       "style",
+       "metadata"
+      ],
+      "type": "string"
+     },
+     "ItemType": {
+      "enum": [
+       "raw",
+       "volume",
+       "appearance",
+       "object",
+       "warp",
+       "repeat",
+       "interpolation",
+       "component_source",
+       "instance",
+       "work_path",
+       "mask_source",
+       "adjustment",
+       "vector",
+       "samples",
+       "raster",
+       "image",
+       "fill",
+       "text",
+       "group",
+       "frame"
+      ],
+      "type": "string"
+     },
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Options15": {
+      "additionalProperties": false,
+      "properties": {
+       "cursor": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "limit": {
+        "default": 32,
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "view": {
+        "$ref": "#/$defs/View2",
+        "default": {
+         "collection": "items",
+         "fields": [
+          "name",
+          "content_type",
+          "hierarchy",
+          "visibility",
+          "locks",
+          "bounds"
+         ],
+         "ids": [],
+         "types": []
+        }
+       }
+      },
+      "type": "object"
+     },
+     "View2": {
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "collection": {
+          "const": "items",
+          "type": "string"
+         },
+         "fields": {
+          "default": [
+           "name",
+           "content_type",
+           "hierarchy",
+           "visibility",
+           "locks",
+           "bounds"
+          ],
+          "items": {
+           "$ref": "#/$defs/Field2"
+          },
+          "type": "array"
+         },
+         "ids": {
+          "default": [],
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "types": {
+          "default": [],
+          "items": {
+           "$ref": "#/$defs/ItemType"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "collection"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "collection": {
+          "const": "assets",
+          "type": "string"
+         },
+         "ids": {
+          "default": [],
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "collection"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "collection": {
+          "const": "fonts",
+          "type": "string"
+         },
+         "ids": {
+          "default": [],
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         }
+        },
+        "required": [
+         "collection"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "collection": {
+          "const": "anchors",
+          "type": "string"
+         },
+         "id": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "collection",
+         "id"
+        ],
+        "type": "object"
+       }
+      ]
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "document": {
+      "anyOf": [
+       {
+        "description": "Deferred document schema. Call schema.lookup with name \"document\"; use select for one variant or definition. Runtime validates the complete type.",
+        "type": "object",
+        "x-inkbolt-schema": {
+         "name": "document"
+        }
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "revision": {
+          "description": "Exact immutable session revision; no implicit moving head.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "session_id": {
+          "type": "string"
+         },
+         "session_root": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "session_id",
+         "revision"
+        ],
+        "title": "SavedDocument",
+        "type": "object"
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "file_path": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         },
+         "sha256": {
+          "description": "SHA-256 of the exact file bytes, from a publication receipt or independent hash.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+         }
+        },
+        "required": [
+         "file_path",
+         "sha256"
+        ],
+        "title": "DocumentFile",
+        "type": "object"
+       }
+      ],
+      "description": "Inline snapshot, exact saved session revision, or snapshot file pinned by SHA-256. Saved session resource bindings are inherited unless overridden; files use explicit or workspace roots."
+     },
+     "options": {
+      "$ref": "#/$defs/Options15",
+      "default": {
+       "cursor": null,
+       "limit": 32,
+       "view": {
+        "collection": "items",
+        "fields": [
+         "name",
+         "content_type",
+         "hierarchy",
+         "visibility",
+         "locks",
+         "bounds"
+        ],
+        "ids": [],
+        "types": []
+       }
+      }
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "document"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_document_inspect_page",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Review a canvas, document region, selected objects or standalone artboard as PNG. Returns explicit world/pixel matrices and exact document identity. Region/object views crop the full composition, preserving render semantics and limits. Use response_format structured or preview for summary text.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Antialias": {
+      "enum": [
+       "none",
+       "coverage",
+       "supersample2",
+       "supersample4"
+      ],
+      "type": "string"
+     },
+     "AveragingSpace": {
+      "enum": [
+       "encoded_srgb",
+       "linear_srgb"
+      ],
+      "type": "string"
+     },
+     "Evaluation": {
+      "enum": [
+       "whole",
+       "tiled"
+      ],
+      "type": "string"
+     },
+     "Focus": {
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "type": {
+          "const": "canvas",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "bounds": {
+          "description": "Document coordinates: min x, min y, max x, max y.",
+          "items": {
+           "format": "double",
+           "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+         },
+         "type": {
+          "const": "region",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "bounds"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "margin": {
+          "default": 0.0,
+          "description": "Expand unclipped geometry bounds in document units; includes other artwork.",
+          "format": "double",
+          "type": "number"
+         },
+         "type": {
+          "const": "items",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "ids"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "include_bleed": {
+          "default": false,
+          "type": "boolean"
+         },
+         "type": {
+          "const": "artboard",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "id"
+        ],
+        "type": "object"
+       }
+      ]
+     },
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Options16": {
+      "additionalProperties": false,
+      "properties": {
+       "focus": {
+        "$ref": "#/$defs/Focus",
+        "default": {
+         "type": "canvas"
+        }
+       },
+       "max_size": {
+        "anyOf": [
+         {
+          "type": "array"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "description": "Optional bounded full-canvas overview; never enlarges the source.",
+        "items": {
+         "format": "uint32",
+         "minimum": 0,
+         "type": "integer"
+        },
+        "maxItems": 2,
+        "minItems": 2
+       },
+       "render_options": {
+        "$ref": "#/$defs/Options2",
+        "default": {
+         "antialias": "coverage",
+         "averaging_space": "encoded_srgb",
+         "crop_to_canvas": true,
+         "padding": 0
+        }
+       },
+       "scale": {
+        "default": 1,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       }
+      },
+      "type": "object"
+     },
+     "Options2": {
+      "additionalProperties": false,
+      "properties": {
+       "antialias": {
+        "$ref": "#/$defs/Antialias",
+        "default": "coverage"
+       },
+       "averaging_space": {
+        "$ref": "#/$defs/AveragingSpace",
+        "default": "encoded_srgb"
+       },
+       "crop_to_canvas": {
+        "default": true,
+        "type": "boolean"
+       },
+       "evaluation": {
+        "$ref": "#/$defs/Evaluation"
+       },
+       "padding": {
+        "default": 0,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "view": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/View"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "type": "object"
+     },
+     "ToneMap": {
+      "enum": [
+       "clip",
+       "reinhard"
+      ],
+      "type": "string"
+     },
+     "View": {
+      "additionalProperties": false,
+      "properties": {
+       "exposure": {
+        "default": 0.0,
+        "format": "double",
+        "type": "number"
+       },
+       "tone_map": {
+        "$ref": "#/$defs/ToneMap"
+       }
+      },
+      "required": [
+       "tone_map"
+      ],
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "asset_root": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+     },
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "document": {
+      "anyOf": [
+       {
+        "description": "Deferred document schema. Call schema.lookup with name \"document\"; use select for one variant or definition. Runtime validates the complete type.",
+        "type": "object",
+        "x-inkbolt-schema": {
+         "name": "document"
+        }
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "revision": {
+          "description": "Exact immutable session revision; no implicit moving head.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "session_id": {
+          "type": "string"
+         },
+         "session_root": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "session_id",
+         "revision"
+        ],
+        "title": "SavedDocument",
+        "type": "object"
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "file_path": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         },
+         "sha256": {
+          "description": "SHA-256 of the exact file bytes, from a publication receipt or independent hash.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+         }
+        },
+        "required": [
+         "file_path",
+         "sha256"
+        ],
+        "title": "DocumentFile",
+        "type": "object"
+       }
+      ],
+      "description": "Inline snapshot, exact saved session revision, or snapshot file pinned by SHA-256. Saved session resource bindings are inherited unless overridden; files use explicit or workspace roots."
+     },
+     "font_root": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+     },
+     "options": {
+      "$ref": "#/$defs/Options16",
+      "default": {
+       "focus": {
+        "type": "canvas"
+       },
+       "render_options": {
+        "antialias": "coverage",
+        "averaging_space": "encoded_srgb",
+        "crop_to_canvas": true,
+        "padding": 0
+       },
+       "scale": 1
+      }
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "document"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_document_preview",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Discover editable item IDs by content type, shape and inclusive geometry bounds; optionally inspect path anchors in local/world coordinates. Defaults to visible, unlocked items. Returned command indices address this document revision.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "ItemType": {
+      "enum": [
+       "raw",
+       "volume",
+       "appearance",
+       "object",
+       "warp",
+       "repeat",
+       "interpolation",
+       "component_source",
+       "instance",
+       "work_path",
+       "mask_source",
+       "adjustment",
+       "vector",
+       "samples",
+       "raster",
+       "image",
+       "fill",
+       "text",
+       "group",
+       "frame"
+      ],
+      "type": "string"
+     },
+     "Query": {
+      "additionalProperties": false,
+      "properties": {
+       "anchor_bounds": {
+        "anyOf": [
+         {
+          "type": "array"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "items": {
+         "format": "double",
+         "type": "number"
+        },
+        "maxItems": 4,
+        "minItems": 4
+       },
+       "include_anchors": {
+        "default": false,
+        "type": "boolean"
+       },
+       "include_locked": {
+        "default": false,
+        "type": "boolean"
+       },
+       "region": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Region3"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "shapes": {
+        "default": [],
+        "items": {
+         "$ref": "#/$defs/Shape"
+        },
+        "type": "array"
+       },
+       "types": {
+        "default": [],
+        "items": {
+         "$ref": "#/$defs/ItemType"
+        },
+        "type": "array"
+       },
+       "visible_only": {
+        "default": true,
+        "type": "boolean"
+       }
+      },
+      "type": "object"
+     },
+     "Region3": {
+      "additionalProperties": false,
+      "properties": {
+       "bounds": {
+        "items": {
+         "format": "double",
+         "type": "number"
+        },
+        "maxItems": 4,
+        "minItems": 4,
+        "type": "array"
+       },
+       "relation": {
+        "$ref": "#/$defs/Relation",
+        "default": "intersects"
+       }
+      },
+      "required": [
+       "bounds"
+      ],
+      "type": "object"
+     },
+     "Relation": {
+      "enum": [
+       "intersects",
+       "contains"
+      ],
+      "type": "string"
+     },
+     "Shape": {
+      "enum": [
+       "compound",
+       "rect",
+       "ellipse",
+       "path",
+       "rounded_rect",
+       "polygon",
+       "regular_polygon",
+       "star"
+      ],
+      "type": "string"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "document": {
+      "anyOf": [
+       {
+        "description": "Deferred document schema. Call schema.lookup with name \"document\"; use select for one variant or definition. Runtime validates the complete type.",
+        "type": "object",
+        "x-inkbolt-schema": {
+         "name": "document"
+        }
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "revision": {
+          "description": "Exact immutable session revision; no implicit moving head.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "session_id": {
+          "type": "string"
+         },
+         "session_root": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "session_id",
+         "revision"
+        ],
+        "title": "SavedDocument",
+        "type": "object"
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "file_path": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         },
+         "sha256": {
+          "description": "SHA-256 of the exact file bytes, from a publication receipt or independent hash.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+         }
+        },
+        "required": [
+         "file_path",
+         "sha256"
+        ],
+        "title": "DocumentFile",
+        "type": "object"
+       }
+      ],
+      "description": "Inline snapshot, exact saved session revision, or snapshot file pinned by SHA-256. Saved session resource bindings are inherited unless overridden; files use explicit or workspace roots."
+     },
+     "query": {
+      "$ref": "#/$defs/Query"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "document",
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_document_query",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Render a bounded snapshot into straight RGBA8 hex pixels. Supply asset_root and font_root when stored resources are referenced.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Antialias": {
+      "enum": [
+       "none",
+       "coverage",
+       "supersample2",
+       "supersample4"
+      ],
+      "type": "string"
+     },
+     "AveragingSpace": {
+      "enum": [
+       "encoded_srgb",
+       "linear_srgb"
+      ],
+      "type": "string"
+     },
+     "Evaluation": {
+      "enum": [
+       "whole",
+       "tiled"
+      ],
+      "type": "string"
+     },
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Options2": {
+      "additionalProperties": false,
+      "properties": {
+       "antialias": {
+        "$ref": "#/$defs/Antialias",
+        "default": "coverage"
+       },
+       "averaging_space": {
+        "$ref": "#/$defs/AveragingSpace",
+        "default": "encoded_srgb"
+       },
+       "crop_to_canvas": {
+        "default": true,
+        "type": "boolean"
+       },
+       "evaluation": {
+        "$ref": "#/$defs/Evaluation"
+       },
+       "padding": {
+        "default": 0,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "view": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/View"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "type": "object"
+     },
+     "ToneMap": {
+      "enum": [
+       "clip",
+       "reinhard"
+      ],
+      "type": "string"
+     },
+     "View": {
+      "additionalProperties": false,
+      "properties": {
+       "exposure": {
+        "default": 0.0,
+        "format": "double",
+        "type": "number"
+       },
+       "tone_map": {
+        "$ref": "#/$defs/ToneMap"
+       }
+      },
+      "required": [
+       "tone_map"
+      ],
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "asset_root": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+     },
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "document": {
+      "anyOf": [
+       {
+        "description": "Deferred document schema. Call schema.lookup with name \"document\"; use select for one variant or definition. Runtime validates the complete type.",
+        "type": "object",
+        "x-inkbolt-schema": {
+         "name": "document"
+        }
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "revision": {
+          "description": "Exact immutable session revision; no implicit moving head.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "session_id": {
+          "type": "string"
+         },
+         "session_root": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "session_id",
+         "revision"
+        ],
+        "title": "SavedDocument",
+        "type": "object"
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "file_path": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         },
+         "sha256": {
+          "description": "SHA-256 of the exact file bytes, from a publication receipt or independent hash.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+         }
+        },
+        "required": [
+         "file_path",
+         "sha256"
+        ],
+        "title": "DocumentFile",
+        "type": "object"
+       }
+      ],
+      "description": "Inline snapshot, exact saved session revision, or snapshot file pinned by SHA-256. Saved session resource bindings are inherited unless overridden; files use explicit or workspace roots."
+     },
+     "font_root": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+     },
+     "render_options": {
+      "anyOf": [
+       {
+        "$ref": "#/$defs/Options2"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "scale": {
+      "default": 1,
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "document"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_document_render",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false
+   },
+   "description": "Read a permitted local outline font and its UTF-8 license. Publish immutable byte and license copies to an explicit store; returns a pinned descriptor.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "face_index": {
+      "default": 0,
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "license_path": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "source_path": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     },
+     "store_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source_path",
+     "license_path"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_font_import",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false
+   },
+   "description": "Commit one atomic edit, undo/redo, named snapshot action or resource-binding change. Requires expected_revision and a unique request_id; same-payload retries return the original receipt without reapplying.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Action": {
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "label": {
+          "default": "",
+          "type": "string"
+         },
+         "operations": {
+          "items": {
+           "description": "Deferred operation schema. Call schema.lookup with name \"operation\"; use select for one variant or definition. Runtime validates the complete type.",
+           "type": "object",
+           "x-inkbolt-schema": {
+            "name": "operation"
+           }
+          },
+          "type": "array"
+         },
+         "type": {
+          "const": "edit",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "operations"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "steps": {
+          "default": 1,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "type": {
+          "const": "undo",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "steps": {
+          "default": 1,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "type": {
+          "const": "redo",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "type": {
+          "const": "snapshot",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "type": {
+          "const": "restore",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "type": {
+          "const": "remove_snapshot",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "resources": {
+          "$ref": "#/$defs/Resources"
+         },
+         "type": {
+          "const": "resources",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "resources"
+        ],
+        "type": "object"
+       }
+      ]
+     },
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Resources": {
+      "additionalProperties": false,
+      "properties": {
+       "asset_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "font_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       }
+      },
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "action": {
+      "$ref": "#/$defs/Action"
+     },
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "expected_revision": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "response_mode": {
+      "default": "full",
+      "description": "Compact returns pinned document/receipt references and summaries, omitting snapshot pixels, receipt changes and the snapshot list. Full preserves the original response. Presentation does not change durable retry identity.",
+      "enum": [
+       "full",
+       "compact"
+      ],
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "session_id",
+     "request_id",
+     "expected_revision",
+     "action"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_apply",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false
+   },
+   "description": "Commit a reviewed dry-run proposal only if revision, action and before/after content still match. Preserves atomic history, resource checks and durable retry receipts; no source or output is overwritten.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Action": {
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "label": {
+          "default": "",
+          "type": "string"
+         },
+         "operations": {
+          "items": {
+           "description": "Deferred operation schema. Call schema.lookup with name \"operation\"; use select for one variant or definition. Runtime validates the complete type.",
+           "type": "object",
+           "x-inkbolt-schema": {
+            "name": "operation"
+           }
+          },
+          "type": "array"
+         },
+         "type": {
+          "const": "edit",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "operations"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "steps": {
+          "default": 1,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "type": {
+          "const": "undo",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "steps": {
+          "default": 1,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "type": {
+          "const": "redo",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "type": {
+          "const": "snapshot",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "type": {
+          "const": "restore",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "type": {
+          "const": "remove_snapshot",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "resources": {
+          "$ref": "#/$defs/Resources"
+         },
+         "type": {
+          "const": "resources",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "resources"
+        ],
+        "type": "object"
+       }
+      ]
+     },
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Proposal": {
+      "additionalProperties": false,
+      "properties": {
+       "base_state_sha256": {
+        "type": "string"
+       },
+       "expected_revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "request_fingerprint": {
+        "type": "string"
+       },
+       "request_id": {
+        "type": "string"
+       },
+       "result_state_sha256": {
+        "type": "string"
+       },
+       "session_id": {
+        "type": "string"
+       },
+       "version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       }
+      },
+      "required": [
+       "version",
+       "session_id",
+       "request_id",
+       "expected_revision",
+       "request_fingerprint",
+       "base_state_sha256",
+       "result_state_sha256"
+      ],
+      "type": "object"
+     },
+     "Resources": {
+      "additionalProperties": false,
+      "properties": {
+       "asset_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "font_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       }
+      },
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "action": {
+      "$ref": "#/$defs/Action"
+     },
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "proposal": {
+      "$ref": "#/$defs/Proposal"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "response_mode": {
+      "default": "full",
+      "description": "Compact returns pinned document/receipt references and summaries, omitting snapshot pixels, receipt changes and the snapshot list. Full preserves the original response. Presentation does not change durable retry identity.",
+      "enum": [
+       "full",
+       "compact"
+      ],
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "proposal",
+     "action"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_apply_proposal",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false
+   },
+   "description": "Create a durable local editing session from a snapshot and resource roots. Starts session revision zero; use the same request_id for safe retries. Never overwrites another session.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Resources": {
+      "additionalProperties": false,
+      "properties": {
+       "asset_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "font_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       }
+      },
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "document": {
+      "anyOf": [
+       {
+        "description": "Deferred document schema. Call schema.lookup with name \"document\"; use select for one variant or definition. Runtime validates the complete type.",
+        "type": "object",
+        "x-inkbolt-schema": {
+         "name": "document"
+        }
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "revision": {
+          "description": "Exact immutable session revision; no implicit moving head.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "session_id": {
+          "type": "string"
+         },
+         "session_root": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "session_id",
+         "revision"
+        ],
+        "title": "SavedDocument",
+        "type": "object"
+       },
+       {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+         "file_path": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         },
+         "sha256": {
+          "description": "SHA-256 of the exact file bytes, from a publication receipt or independent hash.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+         }
+        },
+        "required": [
+         "file_path",
+         "sha256"
+        ],
+        "title": "DocumentFile",
+        "type": "object"
+       }
+      ],
+      "description": "Inline snapshot, exact saved session revision, or snapshot file pinned by SHA-256. Saved session resource bindings are inherited unless overridden; files use explicit or workspace roots."
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "resources": {
+      "$ref": "#/$defs/Resources",
+      "default": {
+       "asset_root": null,
+       "font_root": null
+      }
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "response_mode": {
+      "default": "full",
+      "description": "Compact returns pinned document/receipt references and summaries, omitting snapshot pixels, receipt changes and the snapshot list. Full preserves the original response. Presentation does not change durable retry identity.",
+      "enum": [
+       "full",
+       "compact"
+      ],
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "session_id",
+     "request_id",
+     "document"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_create",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Compare two committed session revisions including saved resource bindings. Rendering uses immutable captured states, releasing the database read lock first.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "compare_pixels": {
+      "default": false,
+      "type": "boolean"
+     },
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "from_revision": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     },
+     "to_revision": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "session_id",
+     "from_revision",
+     "to_revision"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_diff",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Review immutable revisions with aligned before/after PNGs, a change mask, exact and thresholded RGBA8 deltas, source hashes, structural differences and per-side world coordinate maps. Common sRGB display view; output ICC profiles are recorded but not applied. Supports canvas, region, union-of-items and standalone artboard focus. Rejects fractional grid shifts rather than resampling. Read-only; session form captures both saved revisions in one transaction.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Antialias": {
+      "enum": [
+       "none",
+       "coverage",
+       "supersample2",
+       "supersample4"
+      ],
+      "type": "string"
+     },
+     "AveragingSpace": {
+      "enum": [
+       "encoded_srgb",
+       "linear_srgb"
+      ],
+      "type": "string"
+     },
+     "Evaluation": {
+      "enum": [
+       "whole",
+       "tiled"
+      ],
+      "type": "string"
+     },
+     "Focus": {
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "type": {
+          "const": "canvas",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "bounds": {
+          "description": "Document coordinates: min x, min y, max x, max y.",
+          "items": {
+           "format": "double",
+           "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+         },
+         "type": {
+          "const": "region",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "bounds"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "margin": {
+          "default": 0.0,
+          "description": "Expand unclipped geometry bounds in document units; includes other artwork.",
+          "format": "double",
+          "type": "number"
+         },
+         "type": {
+          "const": "items",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "ids"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "include_bleed": {
+          "default": false,
+          "type": "boolean"
+         },
+         "type": {
+          "const": "artboard",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "id"
+        ],
+        "type": "object"
+       }
+      ]
+     },
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Options10": {
+      "additionalProperties": false,
+      "properties": {
+       "after_render_options": {
+        "$ref": "#/$defs/Options2",
+        "default": {
+         "antialias": "coverage",
+         "averaging_space": "encoded_srgb",
+         "crop_to_canvas": true,
+         "padding": 0
+        }
+       },
+       "before_render_options": {
+        "$ref": "#/$defs/Options2",
+        "default": {
+         "antialias": "coverage",
+         "averaging_space": "encoded_srgb",
+         "crop_to_canvas": true,
+         "padding": 0
+        }
+       },
+       "focus": {
+        "$ref": "#/$defs/Focus",
+        "default": {
+         "type": "canvas"
+        }
+       },
+       "include_structural": {
+        "default": true,
+        "type": "boolean"
+       },
+       "scale": {
+        "default": 1,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "threshold": {
+        "default": 0,
+        "description": "Highlight pixels whose largest RGBA8 channel delta is strictly greater.",
+        "format": "uint8",
+        "maximum": 255,
+        "minimum": 0,
+        "type": "integer"
+       }
+      },
+      "type": "object"
+     },
+     "Options2": {
+      "additionalProperties": false,
+      "properties": {
+       "antialias": {
+        "$ref": "#/$defs/Antialias",
+        "default": "coverage"
+       },
+       "averaging_space": {
+        "$ref": "#/$defs/AveragingSpace",
+        "default": "encoded_srgb"
+       },
+       "crop_to_canvas": {
+        "default": true,
+        "type": "boolean"
+       },
+       "evaluation": {
+        "$ref": "#/$defs/Evaluation"
+       },
+       "padding": {
+        "default": 0,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "view": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/View"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "type": "object"
+     },
+     "ToneMap": {
+      "enum": [
+       "clip",
+       "reinhard"
+      ],
+      "type": "string"
+     },
+     "View": {
+      "additionalProperties": false,
+      "properties": {
+       "exposure": {
+        "default": 0.0,
+        "format": "double",
+        "type": "number"
+       },
+       "tone_map": {
+        "$ref": "#/$defs/ToneMap"
+       }
+      },
+      "required": [
+       "tone_map"
+      ],
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "from_revision": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "options": {
+      "$ref": "#/$defs/Options10",
+      "default": {
+       "after_render_options": {
+        "antialias": "coverage",
+        "averaging_space": "encoded_srgb",
+        "crop_to_canvas": true,
+        "padding": 0
+       },
+       "before_render_options": {
+        "antialias": "coverage",
+        "averaging_space": "encoded_srgb",
+        "crop_to_canvas": true,
+        "padding": 0
+       },
+       "focus": {
+        "type": "canvas"
+       },
+       "include_structural": true,
+       "scale": 1,
+       "threshold": 0
+      }
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     },
+     "to_revision": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+     }
+    },
+    "required": [
+     "session_id",
+     "from_revision",
+     "to_revision"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_diff_preview",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Evaluate any session action on the expected head without changing the database. Returns a content-bound proposal, predicted receipt, structural differences and optional PNG/pixel comparison. Use session.apply_proposal with the same action to commit after review.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Action": {
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "label": {
+          "default": "",
+          "type": "string"
+         },
+         "operations": {
+          "items": {
+           "description": "Deferred operation schema. Call schema.lookup with name \"operation\"; use select for one variant or definition. Runtime validates the complete type.",
+           "type": "object",
+           "x-inkbolt-schema": {
+            "name": "operation"
+           }
+          },
+          "type": "array"
+         },
+         "type": {
+          "const": "edit",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "operations"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "steps": {
+          "default": 1,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "type": {
+          "const": "undo",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "steps": {
+          "default": 1,
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "type": {
+          "const": "redo",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "type": {
+          "const": "snapshot",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "type": {
+          "const": "restore",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "type": {
+          "const": "remove_snapshot",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "resources": {
+          "$ref": "#/$defs/Resources"
+         },
+         "type": {
+          "const": "resources",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "resources"
+        ],
+        "type": "object"
+       }
+      ]
+     },
+     "DryRunOptions": {
+      "additionalProperties": false,
+      "properties": {
+       "compare_pixels": {
+        "default": false,
+        "type": "boolean"
+       },
+       "include_document": {
+        "default": false,
+        "type": "boolean"
+       },
+       "preview": {
+        "default": false,
+        "type": "boolean"
+       }
+      },
+      "type": "object"
+     },
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Resources": {
+      "additionalProperties": false,
+      "properties": {
+       "asset_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "font_root": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       }
+      },
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "action": {
+      "$ref": "#/$defs/Action"
+     },
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "expected_revision": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "options": {
+      "$ref": "#/$defs/DryRunOptions",
+      "default": {
+       "compare_pixels": false,
+       "include_document": false,
+       "preview": false
+      }
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "session_id",
+     "request_id",
+     "expected_revision",
+     "action"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_dry_run",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Page committed history receipts in revision order. Set limit 1..128 and pass next_after_revision as after_revision for the next page.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "after_revision": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "format": "uint64",
+      "minimum": 0
+     },
+     "limit": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "session_id",
+     "limit"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_history",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false
+   },
+   "description": "Capture the expected current revision and publish its document or artboard create-only without adding an undo step. Optional receipt:{receipt_root,request_id} saves prepared output for recovery and returns the original result on retry even after the source session advances or disappears. New exports retain exact-head checks. Durable receipt backend currently requires Windows.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$defs": {
+     "Alpha": {
+      "enum": [
+       "unassociated",
+       "associated"
+      ],
+      "type": "string"
+     },
+     "Antialias": {
+      "enum": [
+       "none",
+       "coverage",
+       "supersample2",
+       "supersample4"
+      ],
+      "type": "string"
+     },
+     "AveragingSpace": {
+      "enum": [
+       "encoded_srgb",
+       "linear_srgb"
+      ],
+      "type": "string"
+     },
+     "Builtin": {
+      "enum": [
+       "srgb",
+       "linear_srgb",
+       "display_p3"
+      ],
+      "type": "string"
+     },
+     "Channels": {
+      "enum": [
+       "rgba",
+       "gray_alpha"
+      ],
+      "type": "string"
+     },
+     "Chroma": {
+      "enum": [
+       "full",
+       "half"
+      ],
+      "type": "string"
+     },
+     "ColorDelivery": {
+      "enum": [
+       "display",
+       "native_inks"
+      ],
+      "type": "string"
+     },
+     "Compression": {
+      "enum": [
+       "none",
+       "lzw",
+       "deflate"
+      ],
+      "type": "string"
+     },
+     "Depth": {
+      "enum": [
+       "u8",
+       "u16",
+       "f32"
+      ],
+      "type": "string"
+     },
+     "Evaluation": {
+      "enum": [
+       "whole",
+       "tiled"
+      ],
+      "type": "string"
+     },
+     "ExportFormat": {
+      "enum": [
+       "native_vector",
+       "layered",
+       "layered_large",
+       "gif",
+       "bmp",
+       "tga",
+       "pdf",
+       "apng",
+       "snapshot",
+       "svg",
+       "png",
+       "jpeg",
+       "tiff"
+      ],
+      "type": "string"
+     },
+     "ExportOptions": {
+      "additionalProperties": false,
+      "properties": {
+       "embedded_objects": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/ObjectDelivery"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "text": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/TextDelivery"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "type": "object"
+     },
+     "InkBinding": {
+      "additionalProperties": false,
+      "properties": {
+       "object_path": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "source_spot": {
+        "type": "string"
+       },
+       "target_spot": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "object_path",
+       "source_spot",
+       "target_spot"
+      ],
+      "type": "object"
+     },
+     "InkOptions": {
+      "additionalProperties": false,
+      "properties": {
+       "raster_scale": {
+        "default": 1,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       }
+      },
+      "type": "object"
+     },
+     "Intent": {
+      "enum": [
+       "relative_colorimetric",
+       "absolute_colorimetric",
+       "perceptual",
+       "saturation"
+      ],
+      "type": "string"
+     },
+     "Marks": {
+      "additionalProperties": false,
+      "properties": {
+       "crop": {
+        "default": true,
+        "type": "boolean"
+       },
+       "gap_pt": {
+        "default": 3.0,
+        "format": "double",
+        "type": "number"
+       },
+       "length_pt": {
+        "default": 6.0,
+        "format": "double",
+        "type": "number"
+       },
+       "line_width_pt": {
+        "default": 0.25,
+        "format": "double",
+        "type": "number"
+       },
+       "registration": {
+        "default": true,
+        "type": "boolean"
+       },
+       "registration_radius_pt": {
+        "default": 3.0,
+        "format": "double",
+        "type": "number"
+       }
+      },
+      "type": "object"
+     },
+     "Mode4": {
+      "enum": [
+       "public",
+       "strip"
+      ],
+      "type": "string"
+     },
+     "ObjectDelivery": {
+      "description": "Explicit acceptance of reconstruction differences in the receiving consumer.",
+      "enum": [
+       "native_reconstruction"
+      ],
+      "type": "string"
+     },
+     "Options": {
+      "additionalProperties": false,
+      "properties": {
+       "cancel_file": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics."
+       },
+       "timeout_ms": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null,
+        "format": "uint64",
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Options2": {
+      "additionalProperties": false,
+      "properties": {
+       "antialias": {
+        "$ref": "#/$defs/Antialias",
+        "default": "coverage"
+       },
+       "averaging_space": {
+        "$ref": "#/$defs/AveragingSpace",
+        "default": "encoded_srgb"
+       },
+       "crop_to_canvas": {
+        "default": true,
+        "type": "boolean"
+       },
+       "evaluation": {
+        "$ref": "#/$defs/Evaluation"
+       },
+       "padding": {
+        "default": 0,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "view": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/View"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "type": "object"
+     },
+     "Options6": {
+      "additionalProperties": false,
+      "properties": {
+       "artboard_id": {
+        "anyOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "file_name": {
+        "type": "string"
+       },
+       "format": {
+        "$ref": "#/$defs/ExportFormat"
+       },
+       "image_options": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Options7"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "include_bleed": {
+        "default": false,
+        "type": "boolean"
+       },
+       "layered_options": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/ExportOptions"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "metadata_policy": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Policy"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "output_root": {
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+        "type": "string"
+       },
+       "pdf_options": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Options8"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "render_options": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Options2"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "scale": {
+        "default": 1,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       }
+      },
+      "required": [
+       "file_name",
+       "format"
+      ],
+      "type": "object"
+     },
+     "Options7": {
+      "additionalProperties": false,
+      "properties": {
+       "alpha": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Alpha"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "channels": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Channels"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "chroma": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Chroma"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "compression": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Compression"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "depth": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Depth"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "matte": {
+        "anyOf": [
+         {
+          "type": "array"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "items": {
+         "format": "uint8",
+         "maximum": 255,
+         "minimum": 0,
+         "type": "integer"
+        },
+        "maxItems": 3,
+        "minItems": 3
+       },
+       "quality": {
+        "anyOf": [
+         {
+          "type": "integer"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "format": "uint8",
+        "maximum": 255,
+        "minimum": 0
+       }
+      },
+      "type": "object"
+     },
+     "Options8": {
+      "additionalProperties": false,
+      "properties": {
+       "artboards": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Selection2"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "color": {
+        "$ref": "#/$defs/ColorDelivery",
+        "default": "display"
+       },
+       "include_bleed": {
+        "default": false,
+        "type": "boolean"
+       },
+       "ink_recipe": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/InkOptions"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "prepress": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/PrepressOptions"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "print": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/PrintOptions"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "type": "object"
+     },
+     "Policy": {
+      "additionalProperties": false,
+      "properties": {
+       "manifest": {
+        "default": false,
+        "type": "boolean"
+       },
+       "mode": {
+        "$ref": "#/$defs/Mode4",
+        "default": "public"
+       },
+       "provenance": {
+        "default": false,
+        "type": "boolean"
+       }
+      },
+      "type": "object"
+     },
+     "Policy3": {
+      "enum": [
+       "profiled_process_preserve_spots"
+      ],
+      "type": "string"
+     },
+     "PrepressOptions": {
+      "additionalProperties": false,
+      "properties": {
+       "adjustment_policy": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Policy3"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "antialias": {
+        "$ref": "#/$defs/Antialias",
+        "default": "coverage"
+       },
+       "ink_bindings": {
+        "items": {
+         "$ref": "#/$defs/InkBinding"
+        },
+        "type": "array"
+       },
+       "intent": {
+        "$ref": "#/$defs/Intent",
+        "default": "relative_colorimetric"
+       },
+       "marks": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Marks"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "profile": {
+        "$ref": "#/$defs/Source4"
+       },
+       "raster_scale": {
+        "default": 1,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "spot_fallback": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/SpotFallback"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "required": [
+       "profile"
+      ],
+      "type": "object"
+     },
+     "PrintOptions": {
+      "additionalProperties": false,
+      "properties": {
+       "intent": {
+        "$ref": "#/$defs/Intent",
+        "default": "relative_colorimetric"
+       },
+       "matte": {
+        "items": {
+         "format": "uint8",
+         "maximum": 255,
+         "minimum": 0,
+         "type": "integer"
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array"
+       },
+       "named_inks": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/ProcessMix"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "profile": {
+        "$ref": "#/$defs/Source4"
+       },
+       "raster_scale": {
+        "default": 1,
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+       },
+       "render_options": {
+        "anyOf": [
+         {
+          "$ref": "#/$defs/Options2"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "required": [
+       "profile",
+       "matte"
+      ],
+      "type": "object"
+     },
+     "ProcessMix": {
+      "description": "Explicit supplied process-colour approximation for printing named inks with\ncalibrated process artwork. This is separate from the recipe-only preview.",
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "alternate_cmyk": {
+          "additionalProperties": {
+           "items": {
+            "format": "double",
+            "type": "number"
+           },
+           "maxItems": 4,
+           "minItems": 4,
+           "type": "array"
+          },
+          "type": "object"
+         },
+         "model": {
+          "const": "multiplicative_cmyk",
+          "type": "string"
+         }
+        },
+        "required": [
+         "model",
+         "alternate_cmyk"
+        ],
+        "type": "object"
+       }
+      ]
+     },
+     "ReceiptTarget": {
+      "additionalProperties": false,
+      "properties": {
+       "receipt_root": {
+        "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+        "type": "string"
+       },
+       "request_id": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "request_id"
+      ],
+      "type": "object"
+     },
+     "Selection2": {
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "type": {
+          "const": "all",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "ids": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "type": {
+          "const": "ids",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "ids"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "end": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "start": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+         },
+         "type": {
+          "const": "range",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "start",
+         "end"
+        ],
+        "type": "object"
+       }
+      ]
+     },
+     "Source4": {
+      "oneOf": [
+       {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "$ref": "#/$defs/Builtin"
+         },
+         "type": {
+          "const": "builtin",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "name"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "data": {
+          "type": "string"
+         },
+         "type": {
+          "const": "icc",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "data"
+        ],
+        "type": "object"
+       },
+       {
+        "additionalProperties": false,
+        "properties": {
+         "sha256": {
+          "type": "string"
+         },
+         "source_path": {
+          "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+          "type": "string"
+         },
+         "type": {
+          "const": "file",
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "source_path",
+         "sha256"
+        ],
+        "type": "object"
+       }
+      ]
+     },
+     "SpotFallback": {
+      "enum": [
+       "multiplicative_declared"
+      ],
+      "type": "string"
+     },
+     "TextDelivery": {
+      "additionalProperties": false,
+      "properties": {
+       "reconstruction": {
+        "$ref": "#/$defs/TextReconstruction"
+       },
+       "shape_owner": {
+        "description": "Consumer's geometry-extension identifier, supplied explicitly as data.",
+        "type": "string"
+       }
+      },
+      "required": [
+       "reconstruction",
+       "shape_owner"
+      ],
+      "type": "object"
+     },
+     "TextReconstruction": {
+      "enum": [
+       "native_layout"
+      ],
+      "type": "string"
+     },
+     "ToneMap": {
+      "enum": [
+       "clip",
+       "reinhard"
+      ],
+      "type": "string"
+     },
+     "View": {
+      "additionalProperties": false,
+      "properties": {
+       "exposure": {
+        "default": 0.0,
+        "format": "double",
+        "type": "number"
+       },
+       "tone_map": {
+        "$ref": "#/$defs/ToneMap"
+       }
+      },
+      "required": [
+       "tone_map"
+      ],
+      "type": "object"
+     }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "control": {
+      "$ref": "#/$defs/Options",
+      "default": {
+       "cancel_file": null,
+       "timeout_ms": null
+      }
+     },
+     "expected_revision": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+     },
+     "output": {
+      "$ref": "#/$defs/Options6"
+     },
+     "receipt": {
+      "anyOf": [
+       {
+        "$ref": "#/$defs/ReceiptTarget"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Optional durable receipt; retries do not recapture an advanced session."
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "session_id",
+     "expected_revision",
+     "output"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_publish",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Read the current session or a named snapshot, including document, resource roots, current revision and history depths.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "response_mode": {
+      "default": "full",
+      "description": "Compact returns pinned document/receipt references and summaries, omitting snapshot pixels, receipt changes and the snapshot list. Full preserves the original response. Presentation does not change durable retry identity.",
+      "enum": [
+       "full",
+       "compact"
+      ],
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     },
+     "snapshot": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "session_id"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_read",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  },
+  {
+   "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+   },
+   "description": "Recover the original committed document and receipt by request_id after a lost response. Current head fields are separate from the historical result.",
+   "execution": {
+    "taskSupport": "forbidden"
+   },
+   "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+     "request_id": {
+      "type": "string"
+     },
+     "response_format": {
+      "default": "json",
+      "description": "JSON/Markdown include a metadata envelope in text. Structured/preview use summary text. All formats send PNG bytes once with payload references.",
+      "enum": [
+       "json",
+       "markdown",
+       "structured",
+       "preview"
+      ],
+      "type": "string"
+     },
+     "response_mode": {
+      "default": "full",
+      "description": "Compact returns pinned document/receipt references and summaries, omitting snapshot pixels, receipt changes and the snapshot list. Full preserves the original response. Presentation does not change durable retry identity.",
+      "enum": [
+       "full",
+       "compact"
+      ],
+      "type": "string"
+     },
+     "session_id": {
+      "type": "string"
+     },
+     "session_root": {
+      "description": "Runtime path relative to the selected workspace, or an absolute path inside it. Omitted session, receipt, job, image/font store and output roots use documented workspace defaults; explicit null retains optional-root semantics.",
+      "type": "string"
+     }
+    },
+    "required": [
+     "session_id",
+     "request_id"
+    ],
+    "type": "object"
+   },
+   "name": "inkbolt_session_receipt",
+   "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+     "error": {
+      "type": "object"
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object"
+     }
+    },
+    "required": [
+     "ok"
+    ],
+    "type": "object"
+   }
+  }
+ ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "inkbolt",
+  "owner": {"name": "skulitom", "url": "https://github.com/skulitom"},
+  "metadata": {"description": "Inkbolt's Claude Code plugin: a graphics skill and the local stdio MCP configuration for the Inkbolt engine."},
+  "plugins": [
+    {
+      "name": "inkbolt",
+      "source": "./",
+      "description": "Local vector and raster editing with the external Inkbolt engine.",
+      "version": "0.1.0"
+    }
+  ]
+}

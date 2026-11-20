@@ -1,0 +1,16 @@
+{
+  "name": "inkbolt",
+  "version": "0.1.0",
+  "description": "Local vector and raster editing for agents: create, edit and export icons, diagrams, illustrations and images through Inkbolt's stdio MCP engine.",
+  "author": {"name": "skulitom", "url": "https://github.com/skulitom"},
+  "homepage": "https://github.com/skulitom/Inkbolt#readme",
+  "repository": "https://github.com/skulitom/Inkbolt",
+  "license": "MIT",
+  "keywords": ["vector", "raster", "svg", "png", "graphics", "image-editing", "mcp"],
+  "mcpServers": {
+    "inkbolt": {
+      "command": "inkbolt",
+      "args": ["--workspace", "${CLAUDE_PROJECT_DIR}", "mcp", "--tools", "core"]
+    }
+  }
+}
