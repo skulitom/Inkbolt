@@ -2,7 +2,7 @@
 
 Quick runs have a 180-second wall-clock budget, reuse only identical passing
 inputs, and report unfinished checks with exit 2. They never award feature credit.
-Use --only test_name or --rust module::tests for focused implementation feedback.
+Use --only for Python modules or individual methods, and --rust for a Rust filter.
 """
 import argparse
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
@@ -24,6 +24,7 @@ import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from verify_inputs import digest, environment_identity, fingerprints, snapshot
 from verify_process import run
+from verify_case import case_module
 
 ROOT = Path(__file__).resolve().parents[1]
 PY = [sys.executable, '-X', 'utf8']
@@ -115,16 +116,20 @@ def python_counts(modules):
 
 def select(args, modules, history):
     available = set(modules) | {'rust', 'fmt', 'clippy', 'build', 'guard'}
+    def known(name):
+        return name in available or case_module(name) in available
     if args.last_failed:
         names = {n for n, row in history.items() if row.get('status') == 'failed'}
         if not names:
             raise ValueError('No unresolved failures; run the default check to resume pending work')
-        unknown = {n for n in names if n not in available and not n.startswith('rust:')}
+        unknown = {n for n in names if not known(n) and not n.startswith('rust:')}
         if unknown:
             raise ValueError('Failed checks no longer exist: ' + ', '.join(sorted(unknown)))
+        # A fresh module pass also resolves older failed methods in that module.
+        names = {n for n in names if case_module(n) not in names}
     elif args.only:
         names = {n.strip().removesuffix('.py') for n in args.only.split(',') if n.strip()}
-        unknown = names - available
+        unknown = {n for n in names if not known(n)}
         if unknown or not names:
             raise ValueError('Unknown or empty checks: ' + ', '.join(sorted(unknown)))
     elif args.rust:
@@ -134,6 +139,19 @@ def select(args, modules, history):
     if args.rust:
         names.add('rust:' + args.rust)
     return names
+
+
+def parent_check(name):
+    return 'rust' if name.startswith('rust:') else case_module(name)
+
+
+def test_key(keys, name, binary):
+    if name == 'rust' or name.startswith('rust:'):
+        return digest([keys['rust'], name])
+    module = case_module(name)
+    if module:
+        return digest([keys[module], binary, name])
+    return digest([keys[name], binary])
 
 
 def positive_seconds(value):
@@ -164,7 +182,7 @@ def schedule(names, worker, jobs, deadline, previous, changed):
     """Start long checks early; don't spend a quick window on a known overrun."""
     def priority(name):
         old = previous.get(name, {})
-        direct = name.startswith('test_') and f'tests/{name}.py' in changed
+        direct = name.startswith('test_') and f'tests/{case_module(name) or name}.py' in changed
         seconds = duration_hint(old) or (90 if name == 'rust' or name.startswith('rust:') or name == 'test_jobs' else 5)
         return (-seconds, old.get('status') != 'failed', not direct, name)
     pending = sorted(names, key=priority)
@@ -218,9 +236,15 @@ def execute(args):
     state = state_directory(ROOT)
     state.mkdir(exist_ok=True)
     lease = Lease(state / 'lock')
+    # Codex supplies a different correlation ID for each shell call. Remove it
+    # before discovery and subprocess launch so identical runs see identical
+    # inputs. Keep the other environment checks in place.
+    call_id = os.environ.pop('CODEX_TOOL_CALL_ID', None)
     try:
         return verify(args, state, started, deadline)
     finally:
+        if call_id is not None:
+            os.environ['CODEX_TOOL_CALL_ID'] = call_id
         lease.close()
 
 
@@ -252,10 +276,8 @@ def verify(args, state, started, deadline):
     if args.list:
         for name in sorted(selected):
             fingerprint = keys.get(name, keys['rust'])
-            if name.startswith('test_'):
-                fingerprint = digest([fingerprint, before_exe])
-            if name == 'rust' or name.startswith('rust:'):
-                fingerprint = digest([keys['rust'], name])
+            if name.startswith(('test_', 'rust')):
+                fingerprint = test_key(keys, name, before_exe)
             old = history.get(name, {})
             status = 'reusable' if not (args.thorough or args.force) and name != 'guard' and reusable(old, fingerprint) else 'run'
             print(f'{status}: {name}')
@@ -302,19 +324,22 @@ def verify(args, state, started, deadline):
         env['INKBOLT_EXE'] = str(engine_copy)
         counts = python_counts(modules)
         def worker(name):
+            fingerprint = test_key(keys, name, binary)
             if name == 'rust' or name.startswith('rust:'):
                 argv = ['cargo', 'test', '--locked']
                 if name.startswith('rust:'):
                     argv.append(name[5:])
-                return command(name, argv, digest([keys['rust'], name]), rust=True)
+                return command(name, argv, fingerprint, rust=True)
+            if case_module(name):
+                return command(name, PY + ['tools/verify_case.py', name], fingerprint, expected=1)
             return command(name, PY + ['-m', 'unittest', 'discover', '-s', 'tests', '-p', name + '.py', '-v'],
-                           digest([keys[name], binary]), expected=counts[name])
+                           fingerprint, expected=counts[name])
         work = names - {'guard', 'fmt', 'clippy', 'build'}
         # Reuse before scheduling: an expired budget must never turn a valid
         # unchanged pass into a deferred check and erase its reusable evidence.
         if not (args.thorough or args.force):
             for name in sorted(work):
-                fingerprint = digest([keys['rust'], name]) if name == 'rust' or name.startswith('rust:') else digest([keys[name], binary])
+                fingerprint = test_key(keys, name, binary)
                 if reusable(history.get(name, {}), fingerprint):
                     rows[name] = dict(history[name], status='reused', seconds=0)
             reused_count = len(work & rows.keys())
@@ -337,15 +362,13 @@ def verify(args, state, started, deadline):
         if row['status'] != 'reused':
             retain_duration(row, history.get(name, {}))
     stable = snapshot(ROOT) == baseline and file_hash(EXE) == binary and environment_identity(ROOT) == environment
-    # A fresh unfiltered Rust pass covers the current Rust suite. Retire older
-    # failed selectors from the retry queue, without manufacturing filtered passes
-    # or discarding their logs. A selector explicitly run now still stands alone.
-    broad_rust = rows.get('rust', {})
+    # Only a fresh covering suite retires an older failed selector. Retain its
+    # original log and record which suite superseded it.
+    fresh_suites = {name for name, row in rows.items()
+                    if stable and row['status'] == 'passed' and row.get('tests', 0) > 0}
     superseded = sorted(name for name, row in history.items()
-                        if stable and broad_rust.get('status') == 'passed'
-                        and broad_rust.get('tests', 0) > 0
-                        and name.startswith('rust:') and name not in rows
-                        and row.get('status') == 'failed')
+                        if name not in rows and row.get('status') == 'failed'
+                        and parent_check(name) in fresh_suites)
     failures = sorted(n for n, row in rows.items() if row['status'] == 'failed')
     deferred = sorted(n for n, row in rows.items() if row['status'] == 'deferred')
     code = 1 if failures or not stable else 2 if deferred else 0
@@ -354,7 +377,8 @@ def verify(args, state, started, deadline):
                   budget_seconds=None if args.thorough else args.budget, inputs_unchanged=stable,
                   input_fingerprint=digest(baseline), environment=environment, executable=binary,
                   checks=rows, failed=failures, deferred=deferred, outside_scope=excluded,
-                  superseded_rust_filters=superseded,
+                  superseded_rust_filters=[n for n in superseded if n.startswith('rust:')],
+                  superseded_python_cases=[n for n in superseded if case_module(n)],
                   retained_engine_copy=retained_engine,
                   python_modules_discovered=len(modules), python_tests_discovered=sum(counts.values()) if counts else None,
                   python_tests_executed=sum(row.get('tests', 0) - row.get('skipped', 0) for name, row in rows.items() if name.startswith('test_') and row['status'] == 'passed'),
@@ -371,16 +395,27 @@ def verify(args, state, started, deadline):
     # Completed independent stages survive another stage exhausting its budget.
     if stable:
         for name in superseded:
+            parent = parent_check(name)
             history[name] = dict(history[name], status='superseded', previous_status='failed',
-                                 superseded_by=dict(check='rust', fingerprint=broad_rust['fingerprint'],
-                                                    log=broad_rust['log']))
+                                 superseded_by=dict(check=parent, fingerprint=rows[parent]['fingerprint'],
+                                                    log=rows[parent]['log']))
         for name, row in rows.items():
             if row['status'] != 'reused':
                 # A failure survives a deferral until the check actually passes.
                 if row['status'] != 'deferred' or history.get(name, {}).get('status') != 'failed':
                     history[name] = row
-                if name.startswith('rust:') and row['status'] == 'failed':
-                    history.pop('rust', None)  # A narrower failure invalidates an older broad pass.
+        for name in failures:
+            parent = parent_check(name)
+            if parent and history.get(parent, {}).get('status') == 'passed':
+                del history[parent]
+        # A failed module can invalidate an earlier passing case. A case that
+        # also passed freshly in this run has its own independent evidence.
+        failed_modules = set(failures).intersection(modules)
+        if failed_modules:
+            for case, old in list(history.items()):
+                if (case_module(case) in failed_modules and old.get('status') == 'passed'
+                        and rows.get(case, {}).get('status') != 'passed'):
+                    del history[case]
     else:
         history = {}
     updated = dict(version=1, files=baseline if stable else {}, checks=history, executable=binary,
@@ -408,7 +443,7 @@ def parse_args(argv=None):
     parser.add_argument('--public', action='store_true', help='Use the explicit public structural guard for clones/CI; private policy is not evaluated')
     parser.add_argument('--jobs', type=int, default=min(4, os.cpu_count() or 2), choices=range(1, 9), help='Concurrent stages (default: up to 4; maximum: 8)')
     parser.add_argument('--budget', type=float, default=180, help='Total quick-run seconds, including builds (default: 180)')
-    parser.add_argument('--only', help='Comma-separated Python test module names (test_ prefix, no path), or rust')
+    parser.add_argument('--only', help='Comma-separated Python modules, module.TestClass.test_method selectors, or rust')
     parser.add_argument('--rust', help='Run a focused Rust test filter; can combine with --only Python modules')
     parser.add_argument('--last-failed', action='store_true', help='Rerun unresolved failures, preserving unrelated pending checks')
     parser.add_argument('--force', action='store_true', help='Rerun selected quick checks even with identical passing inputs')

@@ -346,6 +346,71 @@ class VerificationTests(unittest.TestCase):
             started = time.monotonic()
             return verify.verify(verify.parse_args(args), state, started, deadline)
 
+    def test_shell_call_ids_leave_child_inputs_and_cache_keys_identical(self):
+        def observe(*args):
+            values = subprocess.check_output(
+                [sys.executable, '-c', 'import os,json; print(json.dumps([os.getenv("CODEX_TOOL_CALL_ID"),os.getenv("INKBOLT_TEST_INPUT")]))'],
+                text=True)
+            self.assertEqual(json.loads(values), [None, os.environ['INKBOLT_TEST_INPUT']])
+            with patch.object(inputs.subprocess, 'check_output', return_value=b'fixture toolchain'):
+                return inputs.environment_identity(self.root)
+        keys = []
+        with patch.object(verify, 'state_directory', return_value=self.root/'state'), patch.object(verify, 'verify', side_effect=observe):
+            for call_id, setting in [('first', 'a'), ('second', 'a'), ('third', 'b')]:
+                with patch.dict(os.environ, CODEX_TOOL_CALL_ID=call_id, INKBOLT_TEST_INPUT=setting):
+                    keys.append(verify.execute(verify.parse_args(['--list'])))
+                    self.assertEqual(os.environ['CODEX_TOOL_CALL_ID'], call_id)
+        self.assertEqual(keys[0], keys[1])
+        self.assertNotEqual(keys[0], keys[2])
+
+    def test_python_case_cache_and_retry_keep_module_evidence_separate(self):
+        for name in ('one', 'two'):
+            self.write(f'tests/test_{name}.py', 'value=1')
+        self.write('engine.exe', 'test-binary')
+        state = self.root / 'state'
+        state.mkdir()
+        case = 'test_one.Drawing.test_cut'
+        bad = set()
+        def fake(argv, *args):
+            name = ''
+            if 'tools/verify_case.py' in argv:
+                name = argv[-1]
+            elif '-p' in argv:
+                name = argv[argv.index('-p') + 1][:-3]
+            failed = name in bad
+            return dict(status='failed' if failed else 'passed', exit_code=int(failed),
+                        seconds=.01, output='Ran 1 test in 0.01s\nOK\n')
+        def run(args, code=0):
+            self.assertEqual(self.mini_run(args, fake, state), code)
+            saved = verify.load_state(state / 'state.json')
+            return saved['checks'], json.loads(Path(saved['latest_report']).read_bytes())
+
+        history, report = run(['--only', case])
+        self.assertEqual(report['python_tests_executed'], 1)
+        self.assertIn('test_one', report['outside_scope'])
+        self.assertNotIn('test_one', history)
+        _, report = run(['--only', case])
+        self.assertEqual(report['checks'][case]['status'], 'reused')
+        history, report = run(['--only', 'test_one'])
+        self.assertEqual(report['checks']['test_one']['status'], 'passed')
+        bad.add(case)
+        history, _ = run(['--only', case, '--force'], 1)
+        self.assertNotIn('test_one', history)
+        _, report = run(['--last-failed'], 1)
+        self.assertEqual(report['failed'], [case])
+        history, report = run(['--only', 'test_one'])
+        self.assertEqual(report['superseded_python_cases'], [case])
+        self.assertEqual(history[case]['superseded_by']['check'], 'test_one')
+        self.assertEqual(history[case]['status'], 'superseded')
+        bad.clear()
+        run(['--only', case])
+        bad.add('test_one')
+        history, _ = run(['--only', 'test_one', '--force'], 1)
+        self.assertNotIn(case, history)
+        history, report = run(['--only', case])
+        self.assertEqual(report['checks'][case]['status'], 'passed')
+        self.assertEqual(history['test_one']['status'], 'failed')
+
     def test_forecast_deferral_keeps_unresolved_failure_and_force_refreshes_timing(self):
         for name in ('one', 'two'): self.write(f'tests/test_{name}.py', 'value=1')
         self.write('engine.exe', 'test-binary')

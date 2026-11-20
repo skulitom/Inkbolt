@@ -13,6 +13,7 @@ count as Linux feature passes.
 | --- | --- |
 | Default change-aware check | `python tools/verify.py` |
 | Selected Python modules | `python tools/verify.py --only test_session_proposals,test_session_backups` |
+| One Python test | `python tools/verify.py --only test_benchmark_screen.ScreenBenchmarkTests.test_bounded_svg_rejects_changed_paint_metadata_paths_and_dimensions` |
 | Selected Rust tests | `python tools/verify.py --rust sample_store::tests` |
 | Both targeted boundaries | Combine `--only` and `--rust` |
 | Fix unresolved failures | `python tools/verify.py --last-failed` |
@@ -67,6 +68,18 @@ On Windows, a waiting launcher joins an owned kill-on-close Job Object before it
 | 0 | Every selected check passed or reused an identical pass |
 | 1 | A check/harness failed or inputs changed during execution |
 | 2 | Checks remain pending because of the quick budget/prerequisites |
+
+A dotted `--only` selector runs one discovered Python test method. Its report
+records the method name, timing and any platform skip. The full module stays
+outside the scope of that run. A failed method enters `--last-failed` and
+invalidates an earlier passing module result. A fresh passing module can
+resolve a previous method failure while preserving its original log. WSL
+accepts the same selectors.
+
+The verifier removes Codex's per-command `CODEX_TOOL_CALL_ID` before discovery
+and subprocess launch. This lets unchanged checks reuse a pass across separate
+shell commands. Toolchain versions, source inputs and the remaining environment
+continue to participate in cache validation.
 
 Invalid arguments also use the standard argument-parser exit 2 with an explicit diagnostic. A successful `--only`/`--rust` run proves only its listed scope. A quick run, even when every check is covered, is development feedback and does not award engine points or claim current full acceptance. No-match Rust filters and missing/incorrect Python test counts fail instead of reporting green.
 

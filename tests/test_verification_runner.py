@@ -7,6 +7,34 @@ import unittest
 
 
 class VerificationRunnerTests(unittest.TestCase):
+    def test_method_selector_runs_only_the_exact_discovered_test(self):
+        runner = Path(__file__).resolve().parents[1] / 'tools/verify_case.py'
+        with tempfile.TemporaryDirectory() as directory:
+            tests = Path(directory) / 'tests'
+            tests.mkdir()
+            fixture = tests / 'test_original.py'
+            fixture.write_text('import unittest\n'
+                               'class Drawing(unittest.TestCase):\n'
+                               '    def test_cut(self): pass\n'
+                               '    def test_cut_extra(self): self.fail("unexpected sibling")\n'
+                               '    @unittest.skip("original skip")\n'
+                               '    def test_closed(self): pass\n', encoding='utf-8')
+            def invoke(method):
+                return subprocess.run([sys.executable, '-B', str(runner), 'test_original.Drawing.' + method],
+                                      cwd=directory, capture_output=True, text=True, timeout=15)
+            passed = invoke('test_cut')
+            self.assertEqual(passed.returncode, 0, passed.stderr)
+            self.assertIn('Ran 1 test', passed.stderr)
+            self.assertNotIn('test_cut_extra', passed.stderr)
+            self.assertIn('skipped=1', invoke('test_closed').stderr)
+            self.assertNotEqual(invoke('test_cut_extra').returncode, 0)
+            self.assertNotEqual(invoke('test_missing').returncode, 0)
+            # A module's custom loader can ignore the name pattern.
+            with fixture.open('a', encoding='utf-8') as f:
+                f.write('def load_tests(loader, tests, pattern):\n'
+                        '    return unittest.TestSuite([Drawing("test_cut")])\n')
+            self.assertNotEqual(invoke('test_missing').returncode, 0)
+
     def test_parallel_runner_requires_every_worker_and_exact_discovery_count(self):
         runner=Path(__file__).resolve().parents[1]/'tools/verify.py'
         script='''import importlib.util,sys
