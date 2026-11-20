@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing version tag to release, in the form vX.Y.Z'
-        required: true
+        description: 'Existing vX.Y.Z tag to publish, or leave blank to test archives on the selected revision'
+        required: false
         type: string
   pull_request:
     paths:
@@ -16,6 +16,7 @@ on:
       - 'mcpb/**'
       - 'server.json'
       - 'rust-toolchain.toml'
+      - 'tools/verify_release_install.py'
 
 permissions:
   contents: read
@@ -39,7 +40,7 @@ jobs:
           - { os: macos-15, target: aarch64-apple-darwin, binary: inkbolt }
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+      DRY_RUN: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && !inputs.tag) }}
       BUILD_TARGET: ${{ matrix.target }}
     defaults:
       run:
@@ -47,14 +48,14 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.sha || format('refs/tags/{0}', inputs.tag || github.ref_name) }}
+          ref: ${{ env.DRY_RUN == 'true' && github.sha || format('refs/tags/{0}', inputs.tag || github.ref_name) }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Validate release version (PRs use Cargo version)
+      - name: Validate release version (dry runs use Cargo version)
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
@@ -93,6 +94,21 @@ jobs:
           fi
       - name: Smoke-test CLI and package native archive
         run: node mcpb/archive.mjs --target "$BUILD_TARGET" --binary target/release/${{ matrix.binary }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13.16'
+      - name: Test the extracted native installation
+        run: |
+          set -euo pipefail
+          installation="$RUNNER_TEMP/inkbolt-native-installation"
+          mkdir "$installation"
+          archive="target/dist/release/inkbolt-${RELEASE_TAG}-${BUILD_TARGET}"
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            unzip -q "$archive.zip" -d "$installation"
+          else
+            tar -xzf "$archive.tar.gz" -C "$installation"
+          fi
+          python -B tools/verify_release_install.py "$installation" --built-binary target/release/${{ matrix.binary }}
       - name: Build and verify Windows bundle
         if: runner.os == 'Windows'
         run: |
@@ -122,7 +138,7 @@ jobs:
           overwrite: true # Workflow artifacts may be refreshed; release assets never are.
 
   release:
-    if: github.repository == 'skulitom/Inkbolt' && github.event_name != 'pull_request'
+    if: github.repository == 'skulitom/Inkbolt' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tag != ''))
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -9,8 +9,9 @@ import subprocess
 import tempfile
 import unittest
 
-from test_cli import EXE
+from test_cli import EXE, ROOT
 from test_agent_discovery import catalog
+from test_editing_cli import png_pixels
 from test_images_cli import png
 from test_mcp import Client
 from synthetic_font import geometric_font
@@ -42,6 +43,27 @@ class AgentWorkspaceTests(unittest.TestCase):
 
     def ref(self, revision=0):
         return dict(session_id='work', revision=revision)
+
+    def test_readme_first_png_from_an_empty_workspace(self):
+        request = self.root / 'first-png.json'
+        source = (ROOT / 'examples' / request.name).read_bytes()
+        request.write_bytes(source)
+        command = [str(EXE), '--workspace', str(self.root), request.name]
+        first = subprocess.run(command, cwd=self.root, capture_output=True, check=True, timeout=20)
+        self.assertTrue(json.loads(first.stdout)['ok'])
+        output = self.root / 'postcard.png'
+        original = output.read_bytes()
+        width, height, pixels, _ = png_pixels(original)
+        self.assertEqual((width, height), (240, 144))
+        for x, y, color in [(5, 5, (251, 225, 179)), (168, 54, (232, 109, 78)),
+                            (64, 62, (85, 133, 126)), (60, 129, (34, 73, 79))]:
+            offset = 4 * (y * width + x)
+            self.assertEqual(pixels[offset:offset+4], bytes((*color, 255)))
+        retry = subprocess.run(command, cwd=self.root, capture_output=True, timeout=20)
+        self.assertEqual(retry.returncode, 1)
+        self.assertEqual(json.loads(retry.stdout)['error']['code'], 'OUTPUT_EXISTS')
+        self.assertEqual(output.read_bytes(), original)
+        self.assertEqual(request.read_bytes(), source)
 
     def test_defaults_catalog_and_read_only_initialization(self):
         self.assertEqual(list(self.root.iterdir()), [])

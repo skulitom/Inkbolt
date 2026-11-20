@@ -1,8 +1,8 @@
 # Publishing Inkbolt
 
-Pushing a version tag runs **Release**: locked builds with the Rust toolchain pinned in `rust-toolchain.toml` for Windows x64 (C runtime linked statically, so no Visual C++ Redistributable is needed), Linux x64 and macOS arm64, a CLI startup check, native archives, the Windows MCPB smoke test, Node tests and MCPB 2.1.2 validation. After every build succeeds, it attests the archives and bundle and creates the GitHub release with checksums. `inkbolt-mcpb` retains the bundle, its checksum and `server.registry.json` as a workflow artifact. Reruns skip identical release assets and fail on different bytes; they never replace assets. Only the highest stable tag becomes Latest.
+Pushing a version tag runs **Release**: locked builds with the Rust toolchain pinned in `rust-toolchain.toml` for Windows x64 (C runtime linked statically, so no Visual C++ Redistributable is needed), Linux x64 and macOS arm64, a CLI startup check, tests against each extracted native archive, the Windows MCPB smoke test, Node tests and MCPB 2.1.2 validation. After every build succeeds, it attests the archives and bundle and creates the GitHub release with checksums. `inkbolt-mcpb` retains the bundle, its checksum and `server.registry.json` as a workflow artifact. Reruns skip identical release assets and fail on different bytes; they never replace assets. Only the highest stable tag becomes Latest.
 
-Pull requests touching the distribution workflows, `mcpb/` or `server.json` run the builds and Windows checks as a dry run, without attestation or release. Branch pushes do not trigger Release. Registry publication is always a separate manual dispatch after testing. It uses GitHub OIDC and skips versions already listed.
+Pull requests touching the distribution workflows, packaging scripts, installation checker, toolchain or server metadata run the builds and installation checks as a dry run. Branch pushes do not trigger Release. Registry publication is always a separate manual dispatch after testing. It uses GitHub OIDC and skips versions already listed.
 
 **Published registry versions are immutable. Publishing metadata-only permanently prevents that version from ever getting its bundle.** The `metadata_only` dispatch checkbox is an explicit fallback only when the release has no bundle; an attached bundle takes precedence.
 
@@ -15,7 +15,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-The tag must be `v` plus Cargo.toml's `[package] version`, a stable `X.Y.Z`. A manual Release run also requires an existing tag. Never reuse a tag for changed bytes. The manifest template has no version: the builder inserts Cargo's version. `server.json` stays metadata-only and may retain an older version on main. The entry writer stamps the release version into its generated copy, checks the bundle's version and SHA-256, and never edits the source metadata. Metadata-only publication also stamps the release version.
+The tag must be `v` plus Cargo.toml's `[package] version`, a stable `X.Y.Z`. A manual run that publishes downloads requires an existing tag. Never reuse a tag for changed bytes. The manifest template has no version: the builder inserts Cargo's version. `server.json` stays metadata-only and may retain an older version on main. The entry writer stamps the release version into its generated copy, checks the bundle's version and SHA-256, and never edits the source metadata. Metadata-only publication also stamps the release version.
 
 The builder discovers every page of the binary's core tool catalog and logs added or dropped names; `mcpb/manifest.json` keeps curated descriptions as display overrides, not a fixed tool inventory. New tools use the first sentence of the server description, shortened to at most 160 characters on a word boundary.
 
@@ -40,6 +40,22 @@ gh workflow run publish-registry.yml -R skulitom/Inkbolt -f tag=vX.Y.Z
 Publication requires the release, verifies the bundle's attestation from the Release workflow, validates the generated entry with checksum-pinned mcp-publisher 1.8.1 and reads back the published `fileSha256`. Tagged Cargo.toml and server.json supply release metadata; publishing helpers come from the workflow commit. Read the step summary and [registry listing](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.skulitom/inkbolt).
 
 ## Local distribution checks
+
+The release workflow extracts each native archive on its target OS, compares
+the executable with the locked release build, and checks the packaged notices
+and version. It then runs eight CLI and MCP tests with the extracted
+executable. They cover the README postcard, discovery, workspace permissions,
+saved revisions, publication, retries, undo and editable curve output. To repeat the check
+against the matching source revision and an extracted archive, run:
+
+```sh
+python -B tools/verify_release_install.py PATH_TO_EXTRACTED_FOLDER
+```
+
+For a hosted dry run, dispatch **Release** on the desired revision with the
+tag field empty. All target builds and installation checks run. The archives
+are available as workflow artifacts. Supplying an existing version tag selects
+the publishing path.
 
 Run these checks on their own, without builds, verification runs or edits in the
 same checkout. The bundle verifier inventories repository files, including build
