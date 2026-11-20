@@ -3,6 +3,7 @@ from contextlib import closing
 import base64
 import copy
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -230,6 +231,53 @@ class AgentDiscoveryTests(unittest.TestCase):
                 self.assertEqual(len(reply.stdout.splitlines()), 1)
                 self.assertEqual(json.loads(reply.stdout), dict(ok=True, result=server))
             self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_doctor_reports_actual_store_paths_and_access_without_writing(self):
+        caps = invoke(dict(command='capabilities'))['result']
+        flag = caps['agent_discovery']['cli_diagnostics_argument']
+        self.assertEqual(flag, 'doctor')
+        def inspect(*args):
+            reply = subprocess.run([str(EXE), *args, flag], capture_output=True, check=True, timeout=20)
+            self.assertEqual(reply.stderr, b'')
+            return json.loads(reply.stdout)['result']
+        plain = inspect()
+        self.assertEqual(plain['platform'], caps['platform'])
+        self.assertEqual(plain['version'], caps['version'])
+        self.assertEqual(plain['platform']['background_jobs'], caps['jobs']['supported_here'])
+        self.assertEqual(plain['platform']['publication_receipts'], caps['durable_publication']['supported_here'])
+        self.assertIsNone(plain['workspace'])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            opts = ['--workspace', directory]
+            report = inspect(*opts)
+            self.assertEqual(list(root.iterdir()), [])
+            self.assertTrue(root.samefile(report['workspace']['root']))
+            for role, relative in report['workspace_defaults'].items():
+                check = report['workspace']['roots'][role]
+                self.assertEqual(check['state'], 'directory' if relative == '.' else 'missing')
+                self.assertTrue(root.samefile(check['checked_directory']))
+                self.assertEqual(check['permissions'], dict(list=True, create_file=True, create_directory=True))
+            fonts = root / report['workspace_defaults']['font_root']
+            fonts.mkdir(parents=True)
+            blocked = root / report['workspace_defaults']['asset_root']
+            blocked.write_bytes(b'keep this file')
+            if os.name == 'posix':
+                fonts.chmod(0o555)
+            try:
+                checks = inspect(*opts)['workspace']['roots']
+                self.assertEqual(checks['asset_root']['state'], 'not_directory')
+                self.assertEqual(checks['asset_root'], checks['image_store_root'])
+                self.assertEqual(checks['font_root']['state'], 'directory')
+                self.assertTrue(fonts.samefile(checks['font_root']['checked_directory']))
+                self.assertTrue(fonts.parent.samefile(checks['session_root']['checked_directory']))
+                if os.name == 'posix':
+                    self.assertEqual(checks['font_root']['permissions']['create_file'], os.access(fonts, os.W_OK))
+                self.assertEqual(blocked.read_bytes(), b'keep this file')
+                self.assertEqual(set(fonts.parent.iterdir()), {blocked, fonts})
+                self.assertEqual(list(fonts.iterdir()), [])
+            finally:
+                if os.name == 'posix':
+                    fonts.chmod(0o755)
 
     def test_cli_help_is_compact_json_with_working_examples_and_no_input_effects(self):
         flags = invoke(dict(command='capabilities'))['result']['agent_discovery']['cli_help_arguments']

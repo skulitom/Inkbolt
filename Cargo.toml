@@ -32,6 +32,9 @@ jpeg-decoder = { version = "=0.3.2", default-features = false, features = ["plat
 tiff = { version = "=0.11.3", default-features = false, features = ["deflate", "lzw"] }
 moxcms = { version = "=0.9.1", default-features = false, features = ["lut", "extended_range", "options"] }
 
+[target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
+libc = "=0.2.190"
+
 # Development jobs repeatedly verify the entire pinned worker executable.
 # Keep those content checks while avoiding unoptimized hash compression in tests.
 [profile.dev.package.sha2]

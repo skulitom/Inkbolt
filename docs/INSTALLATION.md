@@ -8,6 +8,17 @@ On `main`, run `inkbolt --version` to print the package name and version in
 one JSON response. The same version appears in the MCP handshake. For the
 v0.83.0 download, use the `version` field from `inkbolt capabilities`.
 
+### Check a local installation
+
+On `main`, run `inkbolt doctor` for the platform tier and available job and
+publication-receipt backends. To inspect the workspace your agent will use,
+run `inkbolt --workspace PATH_TO_EXISTING_FOLDER doctor`. Each default store,
+including the font store, reports whether its directory exists and whether the
+current process can list it, create files and create subdirectories. For a
+missing store, `checked_directory` identifies the existing parent whose
+permissions were checked. A null permission means the OS could not determine
+it. Both commands leave the workspace untouched.
+
 ## Use a release
 
 Download the archive for your system from

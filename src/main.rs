@@ -1,3 +1,4 @@
+mod doctor;
 use inkbolt::{Error, MAX_REQUEST_BYTES, control::Control, workspace::Workspace};
 use serde_json::{Value, json};
 use std::{
@@ -18,6 +19,7 @@ fn read_request(reader: impl Read) -> Result<Value, Error> {
 fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error> {
     let request = match args {
         [] => read_request(std::io::stdin().lock())?,
+        [arg] if arg == "doctor" => return doctor::report(workspace),
         [arg] if arg == "--version" => {
             return Ok(json!({"name":env!("CARGO_PKG_NAME"), "version":env!("CARGO_PKG_VERSION")}));
         }
@@ -26,7 +28,7 @@ fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error>
                 "usage":[
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] < request.json",
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] request.json",
-                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] capabilities|schema|implementation.status",
+                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] capabilities|schema|implementation.status|doctor",
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] mcp [--tools essentials|core|full]",
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] --help|-h|--version"
                 ],

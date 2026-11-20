@@ -223,6 +223,7 @@ dependencies = [
  "flate2",
  "jpeg-decoder",
  "jpeg-encoder",
+ "libc",
  "moxcms",
  "num-rational",
  "num-traits",

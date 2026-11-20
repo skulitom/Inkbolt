@@ -2118,6 +2118,7 @@ fn capability_report() -> Value {
     capabilities["agent_discovery"] = json!({
         "cli_help_arguments":["--help","-h"],
         "cli_version_argument":"--version",
+        "cli_diagnostics_argument":"doctor",
         "cli_help_workspace_defaults":"workspace_defaults;relative_to_explicit_workspace_only",
         "schema_examples":{"index_field":"example_queries","result_field":"example","maximum_bytes":limits::schema::EXAMPLE_BYTES,"fields":["kind","value","requires","usage"],"coverage":"focused_font_session_document_text_transform_boolean;not_every_operation","executes_during_discovery":false},
         "lookup":"schema.lookup", "index":"index",
@@ -2216,6 +2217,16 @@ fn capability_report() -> Value {
     capabilities["meshes"]["maximum_svg_coverage_coordinate"] =
         json!(limits::svg::MAX_MESH_COVERAGE_COORDINATE);
     capabilities["svg_import"]["validation_limits"] = json!({"canvas_extent":[limits::vector_canvas::MIN_LOGICAL_SIZE,model::MAX_DIMENSION],"stroke_width":[0,limits::strokes::MAX_WIDTH],"miter_limit":[limits::strokes::MIN_MITER_LIMIT,limits::strokes::MAX_MITER_LIMIT],"font_size":[limits::text::MIN_FONT_SIZE,limits::text::MAX_FONT_SIZE]});
+    capabilities["platform"] = json!({
+        "os":std::env::consts::OS, "arch":std::env::consts::ARCH,
+        "tier":match (std::env::consts::OS, std::env::consts::ARCH) {
+            ("windows", "x86_64") => "core_and_background_jobs",
+            ("linux", "x86_64") | ("macos", "aarch64") => "core",
+            _ => "unverified_target",
+        },
+        "background_jobs":capabilities["jobs"]["supported_here"],
+        "publication_receipts":capabilities["durable_publication"]["supported_here"]
+    });
     capabilities
 }
 pub fn execute(request: Request) -> Result<Value, Error> {
