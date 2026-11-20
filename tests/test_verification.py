@@ -143,6 +143,8 @@ class VerificationTests(unittest.TestCase):
     def test_selection_errors_thorough_conflicts_and_zero_test_runs_fail(self):
         with redirect_stderr(io.StringIO()):
             for args in (['--thorough', '--only', 'test_one'], ['--thorough', '--rust', 'missing'],
+                         ['--thorough', '--rust-lib', 'unit'], ['--last-failed', '--rust-lib', 'unit'],
+                         ['--rust-lib', 'unit', '--rust', 'unit'], ['--rust-lib=--help'], ['--rust-lib', ''],
                          ['--budget', 'nan'], ['--budget', '0'], ['--last-failed', '--only', 'test_one']):
                 with self.assertRaises(SystemExit): verify.parse_args(args)
         args = verify.parse_args(['--only', 'test_typo'])
@@ -513,6 +515,38 @@ class VerificationTests(unittest.TestCase):
         record = json.loads(Path(verify.load_state(state/'state.json')['latest_report']).read_text())
         self.assertTrue(record['complete_suite'])
         self.assertTrue(all(r['status'] == 'passed' for r in record['checks'].values()))
+
+    def test_library_rust_filter_limits_cargo_target_and_retains_scope_on_retries(self):
+        self.write('tests/test_one.py', 'value=1')
+        self.write('src/lib.rs', 'original')
+        self.write('engine.exe', 'test-binary')
+        state = self.root / 'state'
+        state.mkdir()
+        launched = []
+        def fake(argv, *args):
+            if argv[:2] == ['cargo', 'test']:
+                launched.append(argv)
+                # Only an integration test matches the second filter.
+                count = int(argv[-1] != 'integration_only' or '--lib' not in argv)
+                output = f'test result: ok. {count} passed; 0 failed;'
+            else:
+                output = 'Ran 1 test in 0.01s\nOK\n'
+            return dict(status='passed', seconds=.01, exit_code=0, output=output)
+        library = ['cargo', 'test', '--locked', '--lib']
+        all_targets = ['cargo', 'test', '--locked']
+        for flag, prefix in [('--rust-lib', library), ('--rust', all_targets)]:
+            self.assertEqual(self.mini_run([flag, 'module::unit', '--only', 'test_one'], fake, state), 0)
+            self.assertEqual(launched.pop(), prefix + ['module::unit'])
+            self.assertEqual(self.mini_run([flag, 'module::unit'], fake, state), 0)
+            self.assertEqual(launched, [])
+        self.assertEqual(self.mini_run(['--rust-lib', 'integration_only'], fake, state), 1)
+        self.assertEqual(self.mini_run(['--rust', 'integration_only'], fake, state), 0)
+        self.assertEqual(self.mini_run(['--last-failed'], fake, state), 1)
+        self.assertEqual(launched[-1], library + ['integration_only'])
+        self.assertEqual(self.mini_run(['--thorough'], fake, state), 0)
+        report = json.loads(Path(verify.load_state(state/'state.json')['latest_report']).read_text())
+        self.assertEqual(report['superseded_rust_filters'], ['rust-lib:integration_only'])
+        self.assertEqual(launched[-1], all_targets)
 
     def test_fresh_unfiltered_rust_pass_retires_stale_retry_filters_without_claiming_they_passed(self):
         for name in ('one', 'two'): self.write(f'tests/test_{name}.py', 'value=1')

@@ -14,8 +14,9 @@ count as Linux feature passes.
 | Default change-aware check | `python tools/verify.py` |
 | Selected Python modules | `python tools/verify.py --only test_session_proposals,test_session_backups` |
 | One Python test | `python tools/verify.py --only test_benchmark_screen.ScreenBenchmarkTests.test_bounded_svg_rejects_changed_paint_metadata_paths_and_dimensions` |
-| Selected Rust tests | `python tools/verify.py --rust sample_store::tests` |
-| Both targeted boundaries | Combine `--only` and `--rust` |
+| Library unit tests | `python tools/verify.py --rust-lib sample_store::tests` |
+| Rust tests across targets | `python tools/verify.py --rust nested_transformed_clips` |
+| Python and Rust together | Combine `--only` with either Rust selector |
 | Fix unresolved failures | `python tools/verify.py --last-failed` |
 | Explain current selection | `python tools/verify.py --list` |
 | Force a focused rerun | Add `--force` to a quick command |
@@ -26,6 +27,11 @@ count as Linux feature passes.
 When adding test modules or changing helper imports, include `test_verification`
 in the focused selection. Its dependency-boundary checks catch stale expected
 consumer lists before a full CI run.
+
+For a unit test inside `src/lib.rs` or one of its modules, `--rust-lib` runs
+`cargo test --locked --lib FILTER`. Cargo can skip linking the integration-test
+binaries for this check. A library-only pass has its own cache entry. Use
+`--rust` when the filter also needs to cover tests under `tests/`.
 
 The checked-in toolchain pins Rust 1.98.1, rustfmt and Clippy. Rust 1.89 is the
 verified compiler minimum for the locked dependency graph and current sources;

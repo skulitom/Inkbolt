@@ -2,7 +2,8 @@
 
 Quick runs have a 180-second wall-clock budget, reuse only identical passing
 inputs, and report unfinished checks with exit 2. They never award feature credit.
-Use --only for Python modules or individual methods, and --rust for a Rust filter.
+Use --only for Python modules or methods, --rust for a Rust filter across
+targets, or --rust-lib for a library unit test filter.
 """
 import argparse
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
@@ -29,6 +30,7 @@ from verify_case import case_module
 ROOT = Path(__file__).resolve().parents[1]
 PY = [sys.executable, '-X', 'utf8']
 EXE = ROOT / 'target/debug' / ('inkbolt.exe' if os.name == 'nt' else 'inkbolt')
+RUST_FILTER_PREFIXES = ('rust:', 'rust-lib:')
 
 
 def file_hash(path):
@@ -122,7 +124,7 @@ def select(args, modules, history):
         names = {n for n, row in history.items() if row.get('status') == 'failed'}
         if not names:
             raise ValueError('No unresolved failures; run the default check to resume pending work')
-        unknown = {n for n in names if not known(n) and not n.startswith('rust:')}
+        unknown = {n for n in names if not known(n) and not n.startswith(RUST_FILTER_PREFIXES)}
         if unknown:
             raise ValueError('Failed checks no longer exist: ' + ', '.join(sorted(unknown)))
         # A fresh module pass also resolves older failed methods in that module.
@@ -132,21 +134,27 @@ def select(args, modules, history):
         unknown = {n for n in names if not known(n)}
         if unknown or not names:
             raise ValueError('Unknown or empty checks: ' + ', '.join(sorted(unknown)))
-    elif args.rust:
+    elif args.rust or args.rust_lib:
         names = set()
     else:
         names = set(modules) | {'rust'}
     if args.rust:
         names.add('rust:' + args.rust)
+    if args.rust_lib:
+        names.add('rust-lib:' + args.rust_lib)
     return names
 
 
 def parent_check(name):
-    return 'rust' if name.startswith('rust:') else case_module(name)
+    return 'rust' if name.startswith(RUST_FILTER_PREFIXES) else case_module(name)
+
+
+def is_rust_check(name):
+    return name == 'rust' or name.startswith(RUST_FILTER_PREFIXES)
 
 
 def test_key(keys, name, binary):
-    if name == 'rust' or name.startswith('rust:'):
+    if is_rust_check(name):
         return digest([keys['rust'], name])
     module = case_module(name)
     if module:
@@ -183,7 +191,7 @@ def schedule(names, worker, jobs, deadline, previous, changed):
     def priority(name):
         old = previous.get(name, {})
         direct = name.startswith('test_') and f'tests/{case_module(name) or name}.py' in changed
-        seconds = duration_hint(old) or (90 if name == 'rust' or name.startswith('rust:') or name == 'test_jobs' else 5)
+        seconds = duration_hint(old) or (90 if is_rust_check(name) or name == 'test_jobs' else 5)
         return (-seconds, old.get('status') != 'failed', not direct, name)
     pending = sorted(names, key=priority)
     result = {}
@@ -325,10 +333,13 @@ def verify(args, state, started, deadline):
         counts = python_counts(modules)
         def worker(name):
             fingerprint = test_key(keys, name, binary)
-            if name == 'rust' or name.startswith('rust:'):
+            if is_rust_check(name):
                 argv = ['cargo', 'test', '--locked']
-                if name.startswith('rust:'):
-                    argv.append(name[5:])
+                target, _, selector = name.partition(':')
+                if target == 'rust-lib':
+                    argv.append('--lib')
+                if selector:
+                    argv.append(selector)
                 return command(name, argv, fingerprint, rust=True)
             if case_module(name):
                 return command(name, PY + ['tools/verify_case.py', name], fingerprint, expected=1)
@@ -377,7 +388,7 @@ def verify(args, state, started, deadline):
                   budget_seconds=None if args.thorough else args.budget, inputs_unchanged=stable,
                   input_fingerprint=digest(baseline), environment=environment, executable=binary,
                   checks=rows, failed=failures, deferred=deferred, outside_scope=excluded,
-                  superseded_rust_filters=[n for n in superseded if n.startswith('rust:')],
+                  superseded_rust_filters=[n for n in superseded if n.startswith(RUST_FILTER_PREFIXES)],
                   superseded_python_cases=[n for n in superseded if case_module(n)],
                   retained_engine_copy=retained_engine,
                   python_modules_discovered=len(modules), python_tests_discovered=sum(counts.values()) if counts else None,
@@ -444,7 +455,9 @@ def parse_args(argv=None):
     parser.add_argument('--jobs', type=int, default=min(4, os.cpu_count() or 2), choices=range(1, 9), help='Concurrent stages (default: up to 4; maximum: 8)')
     parser.add_argument('--budget', type=float, default=180, help='Total quick-run seconds, including builds (default: 180)')
     parser.add_argument('--only', help='Comma-separated Python modules, module.TestClass.test_method selectors, or rust')
-    parser.add_argument('--rust', help='Run a focused Rust test filter; can combine with --only Python modules')
+    rust = parser.add_mutually_exclusive_group()
+    rust.add_argument('--rust', help='Run a Rust test filter across targets')
+    rust.add_argument('--rust-lib', help='Run a Rust test filter in the library unit-test target')
     parser.add_argument('--last-failed', action='store_true', help='Rerun unresolved failures, preserving unrelated pending checks')
     parser.add_argument('--force', action='store_true', help='Rerun selected quick checks even with identical passing inputs')
     parser.add_argument('--list', action='store_true', help='Explain selection/reuse without executing checks')
@@ -452,12 +465,13 @@ def parse_args(argv=None):
     args = parser.parse_args(argv)
     if args.budget <= 0 or not args.budget < float('inf'):
         parser.error('--budget must be finite and positive')
-    if args.thorough and (args.only or args.rust or args.last_failed or args.force or args.budget != 180):
+    rust_filter = args.rust if args.rust is not None else args.rust_lib
+    if rust_filter is not None and (not rust_filter.strip() or rust_filter.startswith('-')):
+        parser.error('Rust selectors require a non-option test filter')
+    if args.thorough and (args.only or rust_filter or args.last_failed or args.force or args.budget != 180):
         parser.error('--thorough always runs every check; selection/cache/budget options are quick-only')
-    if args.last_failed and (args.only or args.rust):
+    if args.last_failed and (args.only or rust_filter):
         parser.error('--last-failed cannot be combined with another selector')
-    if args.rust and (not args.rust.strip() or args.rust.startswith('-')):
-        parser.error('--rust requires a non-option test filter')
     return args
 
 
