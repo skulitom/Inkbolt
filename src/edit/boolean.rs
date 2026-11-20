@@ -118,7 +118,7 @@ pub(super) fn apply(
 mod tests {
     use super::*;
     #[test]
-    fn default_precision_preserves_the_historical_operation_identity() {
+    fn edit_roundtrip_keeps_explicit_output_and_omitted_precision() {
         let historical = json!({"op":"boolean","ids":["a","b"],"new_id":"result",
             "mode":"difference","fill":[30,90,180,255],"curve_tolerance":0.125,"sources":"keep"});
         let operation: crate::edit::Operation = serde_json::from_value(historical.clone()).unwrap();
@@ -126,7 +126,7 @@ mod tests {
         let mut explicit = historical.clone();
         explicit["output"] = json!("polygon");
         let operation: crate::edit::Operation = serde_json::from_value(explicit.clone()).unwrap();
-        assert_eq!(serde_json::to_value(operation).unwrap(), historical);
+        assert_eq!(serde_json::to_value(operation).unwrap(), explicit);
         explicit.as_object_mut().unwrap().remove("output");
         explicit["precision"] = json!("auto");
         let operation: crate::edit::Operation = serde_json::from_value(explicit.clone()).unwrap();

@@ -12,7 +12,7 @@ accepted range and default from the same constants as validation. The shared
 `precision` option selects `auto` (default), `exact` or `tolerance` for both the
 read-only command and the atomic edit.
 
-`document.boolean` computes `union`, `intersection`, `difference` or `xor` from 2..16 distinct vector or work-path item `ids` in a supplied `document`. By default it returns an editable root-coordinate polygonal `geometry` and `fill_rule:nonzero`. An empty region returns `geometry:null` and `empty:true`. This command remains read-only. The `boolean` edit operation computes and adds the result in one atomic edit, with explicit paint and source handling.
+`document.boolean` computes `union`, `intersection`, `difference` or `xor` from 2..16 distinct vector or work-path item `ids` in a supplied `document`. It returns editable root-coordinate `geometry` and `fill_rule:nonzero`. An empty region returns `geometry:null` and `empty:true`. This command is read-only. The `boolean` edit operation computes and adds the result in one atomic edit, with explicit paint and source handling.
 
 Difference means the first operand minus the union of every remaining operand. Intersection requires membership in every operand; xor uses odd membership across operands. Each operand's own nonzero/even-odd rule determines its filled region. Open contours close for this geometric operation. Zero-area spikes and retraced edges contribute no filled region. Item and ancestor transforms place operands in document coordinates; the result is suitable for a root item with identity transform. Results added beneath a transformed parent need an explicit coordinate conversion.
 
@@ -20,11 +20,18 @@ This command combines geometry. Paint, stroke width, visibility, locks, opacity,
 
 ## Editable curve output
 
-Pass `"output":"curves"` to `document.boolean` or the atomic `boolean`
-edit to keep cubic handles on the selected boundary. An arch clipped at a
-rational parameter returns the surviving part of the arch as editable cubic
-segments. `"output":"polygon"` is the default and is omitted from serialized
-edit identities for historical session replay.
+New source builds default to `"output":"curves"` for `document.boolean` and the
+atomic `boolean` edit. A clipped arch retains the surviving part of its cubic
+boundary as editable handles. Set `"output":"polygon"` to request the straight
+reference boundary. In the v0.83.0 release, polygon is the default and curves
+require an explicit request. Agents can check `capabilities.booleans.output_formats.default`.
+
+A saved session interprets a repeated request ID or a pending proposal using
+its original output default. In a v0.83.0 edit, omission and explicit polygon
+remain equivalent. In a new edit, omission and explicit curves are equivalent.
+Each operation in a batch keeps its own choice. A changed choice fails even
+when both formats would draw the same shape. Applying a historical proposal
+preserves the reviewed geometry and receipt for subsequent retries.
 
 The strict solver retains the certified source subcurves and follows them in
 the direction of the traced boundary. For quadratic-algebraic source controls,
@@ -116,10 +123,9 @@ the final boolean boundary: nearly parallel intersections can amplify small
 input displacements. No analytic-ellipse or original-curve topology guarantee is
 implied by an exact arrangement of snapped chords.
 
-The default precision is omitted from serialized edit operations, retaining the
-historical request identity for saved session retries. Explicit strict or tolerance
-operations have their own identities. Existing strict geometry tests specify
-`precision:"exact"`; default behavior is tested separately.
+Omitted precision and explicit `"auto"` share an edit identity. The other
+precision choices have distinct identities. Existing strict geometry tests
+specify `precision:"exact"`.
 
 ## Atomic editing
 

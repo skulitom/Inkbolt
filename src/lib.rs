@@ -876,7 +876,7 @@ pub enum Request {
         curve_tolerance: f64,
         #[serde(default, skip_serializing_if = "crate::booleans::Precision::is_auto")]
         precision: crate::booleans::Precision,
-        #[serde(default, skip_serializing_if = "crate::booleans::Output::is_polygon")]
+        #[serde(default)]
         output: crate::booleans::Output,
     },
     #[serde(rename = "document.select")]
@@ -1322,7 +1322,7 @@ fn capability_report() -> Value {
     capabilities["work_paths"]["compound_operations"] = json!(
         "retained_union_intersection_difference_xor;membership_before_coverage;independent_source_copies"
     );
-    capabilities["booleans"]["output_formats"] = json!({"default":"polygon","choices":["polygon","curves"],"curves":"source_subcurves_with_certified_rounded_topology_and_reported_deviation","curve_area":"curve_output.signed_area_exact","transverse_junctions":"bounded_source_parameter_enclosures_with_shared_correctly_rounded_vertex","unresolved":"explicit_refusal"});
+    capabilities["booleans"]["output_formats"] = json!({"default":booleans::Output::default(),"choices":["polygon","curves"],"curves":"source_subcurves_with_certified_rounded_topology_and_reported_deviation","curve_area":"curve_output.signed_area_exact","transverse_junctions":"bounded_source_parameter_enclosures_with_shared_correctly_rounded_vertex","unresolved":"explicit_refusal","historical_session_default":"polygon"});
     capabilities["booleans"]["spatial_evaluation"] = json!({"bounds":"exact_rational_closed_boxes_in_balanced_tree","candidates":"curve_contacts_line_intersections_face_rays_winding_and_output_certification","work":"index_build_comparisons_node_visits_and_exact_predicates_share_total_budget","dense_inputs":"remain_subject_to_atom_and_work_limits"});
     capabilities["booleans"]["maximum_quadratic_directions"] =
         json!(limits::booleans_topology_algebraic::MAX_QUADRATIC_DIRECTIONS);

@@ -1177,9 +1177,47 @@ fn persist_action(db: &Connection, prepared: &PreparedAction) -> Result<(), Erro
 }
 fn action_fingerprint(expected_revision: u64, action: &Action) -> Result<String, Error> {
     crate::finite::check(action)?;
-    Ok(assets::sha256(&encode(
-        &json!({"expected_revision":expected_revision,"action":action}),
-    )?))
+    let mut payload = json!({"expected_revision":expected_revision,"action":action});
+    if has_boolean(action) {
+        // Separate the two meanings of omission even when the old request named curves.
+        payload["boolean_output_version"] = json!(2);
+        for op in payload["action"]["operations"].as_array_mut().unwrap() {
+            if op["op"] == "boolean" && op.get("output").is_none() {
+                op["output"] = json!(crate::booleans::Output::default());
+            }
+        }
+    }
+    Ok(assets::sha256(&encode(&payload)?))
+}
+fn has_boolean(action: &Action) -> bool {
+    matches!(action, Action::Edit { operations, .. }
+        if operations.iter().any(|op| matches!(op, edit::Operation::Boolean { .. })))
+}
+fn bind_proposal_output(
+    action: &Action,
+    default: crate::booleans::Output,
+) -> std::borrow::Cow<'_, Action> {
+    let Action::Edit { operations, label } = action else {
+        return std::borrow::Cow::Borrowed(action);
+    };
+    if !operations
+        .iter()
+        .any(|op| matches!(op, edit::Operation::Boolean { output, .. } if output.is_unspecified()))
+    {
+        return std::borrow::Cow::Borrowed(action);
+    }
+    let mut operations = operations.clone();
+    for op in &mut operations {
+        if let edit::Operation::Boolean { output, .. } = op
+            && output.is_unspecified()
+        {
+            *output = default;
+        }
+    }
+    std::borrow::Cow::Owned(Action::Edit {
+        operations,
+        label: label.clone(),
+    })
 }
 fn matches_action_fingerprint(
     expected_revision: u64,
@@ -1193,6 +1231,17 @@ fn matches_action_fingerprint(
     let Action::Edit { operations, .. } = action else {
         return Ok(false);
     };
+    if has_boolean(action) {
+        // The released serializer omitted polygon for every Boolean in the batch.
+        // All other fields, including explicit curves and the then-current SVG options, stay bound.
+        let mut historical = json!({"expected_revision":expected_revision,"action":action});
+        for op in historical["action"]["operations"].as_array_mut().unwrap() {
+            if op["op"] == "boolean" && op["output"] == "polygon" {
+                op.as_object_mut().unwrap().remove("output");
+            }
+        }
+        return Ok(assets::sha256(&encode(&historical)?) == saved);
+    }
     let mut has_svg = false;
     for operation in operations {
         if let edit::Operation::AddSvg { unsupported, .. } = operation {
@@ -1314,7 +1363,12 @@ fn mutate_checked(
     )?;
     persist_action(&tx, &prepared)?;
     let receipt = prepared.receipt;
-    save_request(&tx, &fingerprint, &receipt)?;
+    // A pending historical Boolean proposal commits under its reviewed interpretation
+    // of omission. A subsequent direct retry must recover that same receipt.
+    let saved_fingerprint = proposal
+        .filter(|_| has_boolean(action))
+        .map_or(fingerprint.as_str(), |p| p.request_fingerprint.as_str());
+    save_request(&tx, saved_fingerprint, &receipt)?;
     #[cfg(test)]
     fault_point("before_commit");
     #[cfg(test)]
@@ -1364,12 +1418,18 @@ pub fn apply_proposal(
             "Action or expected revision differs from the reviewed proposal",
         ));
     }
+    let reviewed_default = if fingerprint == proposal.request_fingerprint {
+        crate::booleans::Output::default()
+    } else {
+        crate::booleans::Output::Polygon
+    };
+    let action = bind_proposal_output(action, reviewed_default);
     mutate_checked(
         root,
         &proposal.session_id,
         &proposal.request_id,
         proposal.expected_revision,
-        action,
+        &action,
         Some(proposal),
         control,
     )

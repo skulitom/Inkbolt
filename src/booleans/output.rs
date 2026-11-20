@@ -8,11 +8,22 @@ use num_traits::Signed;
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "BooleanOutput")]
 pub enum Output {
-    #[default]
     Polygon,
+    #[default]
     Curves,
+    /// Omit the option on an edit. New edits use curves, while historical retries
+    /// and pending proposals follow the default that applied to the original request.
+    #[serde(skip_deserializing, rename(serialize = "curves"))]
+    #[schemars(skip)]
+    Unspecified,
 }
 impl Output {
+    pub(crate) fn unspecified() -> Self {
+        Self::Unspecified
+    }
+    pub(crate) fn is_unspecified(&self) -> bool {
+        *self == Self::Unspecified
+    }
     pub fn is_polygon(&self) -> bool {
         *self == Self::Polygon
     }

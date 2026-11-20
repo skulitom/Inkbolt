@@ -72,7 +72,18 @@ class CurveBooleanTests(unittest.TestCase):
             empty = self.combine(same,mode,output='curves')
             self.assertIsNone(empty['geometry'])
             self.assertEqual(empty['curve_output']['cubic_segments'],0)
-        self.assertEqual(self.combine(doc), self.combine(doc,output='polygon'))
+        request = dict(command='document.boolean', document=doc, ids=['s0','s1'], mode='difference')
+        default = self.invoke(request)
+        self.assertEqual(default, self.invoke(dict(request,output='curves')))
+        self.assertEqual(F(default['curve_output']['signed_area_exact']), 192-48)
+        polygon = self.invoke(dict(request,output='polygon'))
+        self.assertNotEqual(polygon['geometry'], default['geometry'])
+        self.assertNotIn('curve_output', polygon)
+        for invalid in (None,'unspecified'):
+            self.assertEqual(self.invoke(dict(request,output=invalid),1)['code'],'INVALID_REQUEST')
+        self.assertEqual(self.invoke(dict(command='capabilities'))['booleans']['output_formats']['default'],'curves')
+        operation = self.invoke(dict(command='schema.lookup',name='operation',select='boolean'))['schema']
+        self.assertEqual(operation['properties']['output']['default'],'curves')
 
     def test_snapped_coincident_curves_refuse_ambiguous_handles(self):
         def arch(delta):
@@ -165,7 +176,7 @@ class CurveBooleanTests(unittest.TestCase):
             for key in ('geometry','area_exact','positive_contours','negative_contours','inputs'):
                 self.assertEqual(before[key],after[key],key)
             if mode!='difference':
-                swapped=self.invoke(dict(command='document.boolean',precision='exact',document=b,ids=['s1','s0'],mode=mode))
+                swapped=self.invoke(dict(command='document.boolean',precision='exact',output='polygon',document=b,ids=['s1','s0'],mode=mode))
                 self.assertEqual(after['geometry'],swapped['geometry'])
 
     def test_exact_coincidence_survives_world_affine_mapping(self):

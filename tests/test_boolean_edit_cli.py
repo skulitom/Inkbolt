@@ -105,8 +105,9 @@ class BooleanEditTests(unittest.TestCase):
             dict(verb='move',to=[0,0]),dict(verb='cubic',control1=[4,8],control2=[8,8],to=[12,0]),
             dict(verb='close')])
         doc = self.document([arch,item('opening',6,-2,10,12)])
-        op = self.operation(output='curves', precision='exact', sources='keep', curve_tolerance=0.125)
+        op = self.operation(precision='exact', sources='keep', curve_tolerance=0.125)
         result = self.apply(doc,op)
+        self.assertEqual(result,self.apply(doc,dict(op,output='curves')))
         after = result['document']['items']
         self.assertEqual(after[:-1],doc['items'])
         self.assertTrue(any(c['verb']=='cubic' for c in after[-1]['content']['geometry']['commands']))
@@ -126,6 +127,46 @@ class BooleanEditTests(unittest.TestCase):
             self.assertEqual(first['document']['items'],after)
             restored = client.success('session.apply',**args,request_id='undo',expected_revision=1,action=dict(type='undo'))
             self.assertEqual(restored['document']['items'],doc['items'])
+
+    def test_reviewed_output_default_remains_bound_even_when_geometry_is_identical(self):
+        # Fingerprint returned by v0.83.0 for this exact omitted-output edit at revision zero.
+        historical = '5bf3b1cf74a8ed2852b044a563ad27b8b7823f1fe6f8888a843f5a5e412cb21a'
+        op = dict(op='boolean',ids=['s0','s1'],new_id='piece',mode='intersection',
+                  fill=[40,70,140,255],sources='hide')
+        implicit = dict(type='edit',operations=[op])
+        explicit = {fmt:dict(type='edit',operations=[dict(op,output=fmt)])
+                    for fmt in ('curves','polygon')}
+        doc = self.document([item('s0',0,0,20,16),item('s1',2,3,6,4)])
+        with tempfile.TemporaryDirectory() as directory:
+            for original, changed in [('curves','polygon'),('polygon','curves')]:
+                scope = dict(session_root=directory,session_id=original)
+                self.call('session.create',**scope,request_id='create',document=doc)
+                request = dict(scope,request_id='combine',expected_revision=0)
+                reviews = {fmt:self.call('session.dry_run',**request,action=action)
+                           for fmt,action in explicit.items()}
+                now = self.call('session.dry_run',**request,action=implicit)['proposal']
+                self.assertEqual(now,reviews['curves']['proposal'])
+                self.assertEqual(now['result_state_sha256'],reviews['polygon']['proposal']['result_state_sha256'])
+                self.assertEqual(len({historical,now['request_fingerprint'],
+                                      reviews['polygon']['proposal']['request_fingerprint']}),3)
+                legacy = dict(reviews['polygon']['proposal'],request_fingerprint=historical)
+                proposals = dict(curves=now,polygon=legacy)
+                args = dict(session_root=directory,proposal=proposals[original])
+                wrong = invoke(dict(command='session.apply_proposal',**args,action=explicit[changed]))
+                self.assertEqual(wrong['error']['code'],'PROPOSAL_MISMATCH')
+                applied = self.call('session.apply_proposal',**args,action=implicit)
+                self.assertFalse(applied['replayed'])
+                self.assertEqual(applied['receipt'],reviews[original]['predicted_receipt'])
+                for alias in (implicit,explicit[original]):
+                    replay = self.call('session.apply',**request,action=alias)
+                    self.assertTrue(replay['replayed'])
+                    self.assertEqual(replay['receipt'],applied['receipt'])
+                wrong = invoke(dict(command='session.apply',**request,action=explicit[changed]))
+                self.assertEqual(wrong['error']['code'],'REQUEST_ID_REUSED')
+                wrong = invoke(dict(command='session.apply_proposal',session_root=directory,
+                                    proposal=proposals[changed],action=implicit))
+                self.assertEqual(wrong['error']['code'],'REQUEST_ID_REUSED')
+                self.assertEqual(self.call('session.verify',**scope)['revision'],1)
 
     def test_failures_leave_session_and_whole_batch_unchanged(self):
         doc=self.document()

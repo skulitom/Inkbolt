@@ -5,8 +5,9 @@ arrangement across their precision modes. Automatic evaluation attempts strict
 curve certification before the declared bounded fallback; tolerance evaluation
 flattens canonical curves, snaps to a dyadic grid and checks output topology.
 Ellipse conversion has a separate world-space error certificate. Default
-precision stays omitted from serialized edits to preserve historical retry
-identities. See [the boolean contract](BOOLEANS.md).
+precision stays omitted from serialized edits. New Boolean request fingerprints bind
+the effective output for each operation. Historical requests and proposals resolve
+omitted output to polygon before replay or commit. See [the boolean contract](BOOLEANS.md).
 
 Boolean spatial evaluation builds deterministic balanced trees over closed
 rational boxes. Exact curve control hulls and outward quadratic enclosures

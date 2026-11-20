@@ -269,7 +269,11 @@ pub enum Operation {
         curve_tolerance: f64,
         #[serde(default, skip_serializing_if = "crate::booleans::Precision::is_auto")]
         precision: crate::booleans::Precision,
-        #[serde(default, skip_serializing_if = "crate::booleans::Output::is_polygon")]
+        #[serde(
+            default = "crate::booleans::Output::unspecified",
+            skip_serializing_if = "crate::booleans::Output::is_unspecified"
+        )]
+        #[schemars(extend("default" = crate::booleans::Output::default()))]
         output: crate::booleans::Output,
         #[serde(default)]
         sources: BooleanSources,

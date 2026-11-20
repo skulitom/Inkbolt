@@ -41,6 +41,8 @@ class BooleanTests(unittest.TestCase):
         return self.invoke(dict(command='document.edit',document=d,expected_revision=0,operations=[dict(op='add',item=i) for i in items]))['document']
     def combine(self,d,mode='union',expected=0,**kw):
         kw.setdefault('precision','exact')
+        # The winding and rational-area oracles below consume the straight reference boundary.
+        kw.setdefault('output','polygon')
         return self.invoke(dict(command='document.boolean',document=d,ids=['s'+str(i) for i in range(len(d['items']))],mode=mode,**kw),expected)
     def rendered(self,result):
         d=self.invoke(dict(command='document.create',id='boolean-output',kind='vector',width=32,height=24))
@@ -76,8 +78,13 @@ class BooleanTests(unittest.TestCase):
                 expected=sum((x1-x0)*(y1-y0) for x0,x1 in zip(xs,xs[1:]) for y0,y1 in zip(ys,ys[1:]) if truth([contains(g,(x0+x1)/2,(y0+y1)/2) for g in boxes],mode))
                 result=self.combine(d,mode,curve_tolerance=0);self.check_area(result,expected)
                 if mode!='difference':
-                    reversed_result=self.invoke(dict(command='document.boolean',document=d,ids=['s2','s1','s0'],mode=mode,precision='exact',curve_tolerance=0))
-                    self.assertEqual(result['geometry'],reversed_result['geometry'])
+                    request = dict(command='document.boolean',document=d,ids=['s2','s1','s0'],
+                                   mode=mode,precision='exact',curve_tolerance=0)
+                    self.assertEqual(result['geometry'],self.invoke(dict(request,output='polygon'))['geometry'])
+                    default = self.invoke(request)
+                    self.check_area(default,expected)
+                    forward = self.invoke(dict(request,ids=['s0','s1','s2']))
+                    self.assertEqual(default['geometry'],forward['geometry'])
 
     def test_rational_rectangle_area_does_not_round_endpoint_sums(self):
         box=rect(.1,.2,.3,.7);d=self.document([box,box])

@@ -733,7 +733,7 @@ pub fn compute_with_options(
     mode: Mode,
     options: Options,
 ) -> Result<Value, Error> {
-    compute_with_output(document, ids, mode, options, Output::Polygon)
+    compute_with_output(document, ids, mode, options, Output::default())
 }
 pub fn compute_with_output(
     document: &Document,
@@ -785,5 +785,10 @@ pub fn compute_with_output(
             "Tolerance precision requires a positive curve_tolerance",
         ));
     }
+    let output = if output.is_unspecified() {
+        Output::default()
+    } else {
+        output
+    };
     evaluation::compute(document, ids, mode, options, output, inputs)
 }
