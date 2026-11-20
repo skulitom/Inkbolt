@@ -13,15 +13,15 @@ an account, network service, telemetry or a particular AI model.
 
 [Download the release for your system](https://github.com/skulitom/Inkbolt/releases/latest)
 and extract it. Create a workspace folder, then configure your MCP client to
-launch the extracted binary with that folder's absolute path. For **v0.82.0**,
-use:
+launch the extracted binary with that folder's absolute path. This command also
+works with v0.82.0.
 
 ```text
 inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools core
 ```
 
 The release includes Windows x64, Linux x64 and macOS Apple silicon binaries
-and a Windows desktop extension bundle. Current source builds also support
+and a Windows desktop extension bundle. Builds after v0.82.0 also support
 `--tools essentials`, a ten-tool catalog that lets agents discover individual
 commands as needed. See the [installation and client setup guide](docs/INSTALLATION.md).
 
@@ -34,17 +34,19 @@ inkbolt examples/edit-vector.json
 
 ## What you can make
 
+These workflows describe the current source tree. The release notes list what shipped in each build.
+
 | Task | How Inkbolt helps |
 | --- | --- |
 | Draw a diagram or illustration | Arrange shapes, text, images and artboards. Import editable SVG artwork, including reusable symbols and positioned text. [SVG import](docs/SVG_IMPORT.md) |
-| Cut or join shapes | On `main`, combine filled paths, circles and ellipses in one undoable edit. Request `output: "curves"` to keep supported boundaries editable as Bézier curves. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
-| Retouch an image | Select a region, feather a mask or repair a patch. Current source builds support 16-bit edits and share unchanged image data across revisions. [Selections](docs/NATIVE_SELECTIONS.md) · [Image repair](docs/NATIVE_REPAIR.md) |
+| Cut or join shapes | Combine filled paths, circles and ellipses in one undoable edit. Request `"output":"curves"` to keep supported boundaries editable as Bézier curves. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
+| Retouch an image | Select a region, feather a mask or repair a patch. Builds after v0.82.0 support 16-bit edits and share unchanged image data across revisions. [Selections](docs/NATIVE_SELECTIONS.md) · [Image repair](docs/NATIVE_REPAIR.md) |
 | Review and deliver artwork | Compare revisions, undo a change, and preflight the output before writing a new PNG, JPEG, TIFF, SVG or PDF within the supported workflows. [Sessions](docs/AGENT_WORKSPACE.md) · [Runnable examples](examples/README.md) |
 
 ## Builds and platform support
 
-The [v0.82.0 release notes](https://github.com/skulitom/Inkbolt/releases/tag/v0.82.0)
-describe the packaged build. Later work on `main` includes shape combinations,
+See the [latest release notes](https://github.com/skulitom/Inkbolt/releases/latest)
+for the packaged build. Work since v0.82.0 includes shape combinations,
 native JPEG import, larger image edits and lower-memory exports. Windows and
 Linux checks cover a 24 MP JPEG import, a 50 MP 16-bit edit through undo and TIFF
 export, A2 delivery at 300 ppi and an 8192 × 8192 PNG render.

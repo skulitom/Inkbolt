@@ -1,29 +1,21 @@
-Inkbolt is a local vector and raster editing engine for agents, with a JSON CLI and MCP over stdio. It requires no network listener or account at runtime. Editing and interchange retain the documented bounds.
+Inkbolt 0.83.0 brings shape combinations, larger image workflows and a smaller MCP catalog to the local vector and raster editor.
 
-This release expands editable SVG import with embedded styles, reusable symbols,
-nested viewports, placed PNG/JPEG images and positioned text spans. Optional
-omission reports identify unsupported content; strict import remains the default.
-Agents also receive focused guidance for missing request fields.
+## Editing
 
-Native image imports now default to immutable block storage, allowing edits to
-reuse unchanged image data while preserving saved revisions. Shared store limits
-bound growth across concurrent publishers. PNG/TIFF imports prepare source bytes
-and pixels in private temporary storage, reducing retained memory while preserving
-exact samples. Existing image-size limits remain unchanged. The README provides a shorter
-product overview and direct links to downloads and supported workflows.
+- Combine filled shapes with union, intersection, difference or xor in one undoable edit. Circles and ellipses are supported. Polygon output is the default. Request `"output":"curves"` to retain supported cubic spans and receive their integrated area and error bounds. [Shape combinations](https://github.com/skulitom/Inkbolt/blob/v0.83.0/docs/BOOLEANS.md)
+- Import baseline and progressive JPEGs into native image storage. Work with editable RGB8 layered imports, feathered masks, guided selections, brushes and patch repair. Focused previews can render the selected region of a large image. [Image import](https://github.com/skulitom/Inkbolt/blob/v0.83.0/docs/NATIVE_JPEG_IMPORT.md) · [Layered import](https://github.com/skulitom/Inkbolt/blob/v0.83.0/docs/LAYERED_NATIVE_IMPORT.md) · [Image repair](https://github.com/skulitom/Inkbolt/blob/v0.83.0/docs/NATIVE_REPAIR.md)
+- Checked Windows and Linux workflows include 24 MP JPEG import, a 50 MP 16-bit edit with history and TIFF export, A2 delivery at 300 ppi, and an 8192 × 8192 PNG render. Each workflow has its own input and memory limits. [Measured workflows](https://github.com/skulitom/Inkbolt/blob/v0.83.0/docs/SCALE_WORKLOADS.md)
 
-Large-image scale targets and broader interchange support remain in development.
-Background export jobs are Windows-only; Linux and macOS support the core engine,
-CLI/MCP and durable receipts. See the [documented limits](https://github.com/skulitom/Inkbolt/blob/main/docs/LIMITS.md).
+## Using Inkbolt with an agent
 
-The Windows x64 ZIP, Linux x64 tar.gz and macOS arm64 tar.gz contain the native binary, README, MIT license and dependency notices. Extract the archive for your system and select an existing workspace. `inkbolt-windows-x64.mcpb` contains the Windows x64 binary and compact MCP catalog for Claude Desktop: double-click it, or use Settings > Extensions > Advanced settings > Install Extension.
+Use `inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools essentials` for ten initial tools. An agent can request more schemas and focused request examples as it works. Existing `core` and `full` clients continue to work. [Agent discovery](https://github.com/skulitom/Inkbolt/blob/v0.83.0/docs/AGENT_DISCOVERY.md)
 
-Check native archives and the bundle against `SHA256SUMS`. The bundle also has `inkbolt-windows-x64.mcpb.sha256`. On PowerShell, compare `(Get-FileHash inkbolt-windows-x64.mcpb -Algorithm SHA256).Hash` with that file. On systems with sha256sum, use `sha256sum --check SHA256SUMS` after downloading all listed assets.
+## Downloads
 
-Verify build provenance (substitute an archive filename to verify another asset):
+Choose the Windows x64 ZIP, Linux x64 tar.gz or macOS Apple silicon tar.gz. Each contains the binary, README, license and dependency notices. The Windows desktop extension is also available as `inkbolt-windows-x64.mcpb`. Background export jobs require Windows. [Installation](https://github.com/skulitom/Inkbolt/blob/v0.83.0/docs/INSTALLATION.md) · [Platform support](https://github.com/skulitom/Inkbolt/blob/v0.83.0/docs/PLATFORMS.md)
+
+Compare your download's SHA-256 digest with its entry in `SHA256SUMS`. The Windows bundle also has a separate `.sha256` file. To check the GitHub build attestation, substitute the name of your downloaded asset in this command.
 
 ```sh
 gh attestation verify inkbolt-windows-x64.mcpb --repo skulitom/Inkbolt --signer-workflow skulitom/Inkbolt/.github/workflows/release.yml
 ```
-
-The bundle is available immediately with the release. MCP Registry publication is a separate manual step after testing; see [Publishing](https://github.com/skulitom/Inkbolt/blob/main/mcpb/PUBLISHING.md).
