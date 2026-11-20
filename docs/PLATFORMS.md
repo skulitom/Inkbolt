@@ -7,42 +7,52 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 
-The latest [spatial-evaluation acceptance](DEVELOPMENT_STATUS.md#spatial-evaluation-acceptance)
-passes all 277 stages fresh on the same Windows/Linux candidate. Windows executed
-318 Rust and 2,841 Python tests (24 explicit skips); Linux executed 284 Rust and
-2,814 Python tests (51 skips). Full platform runs were sequential with two
-workers. Thirty repeated geometry responses and five capacity responses match
-exactly across both systems. Both measured builds, the source archive, reports
-and all 554 successful stage logs are retained under `boolean-spatial-01`.
-The linked acceptance records hashes, the earlier Windows rendering timeout,
-unchanged focused recovery and the complete successful runs. Windows completed
-on 26 October 2026; Linux completed on 20 November after exact-source revalidation.
-The preceding precision and atomic-edit evidence remains under
-`boolean-ellipses-01` and `boolean-edit-01`. This adds no Unix jobs, macOS geometry
-performance acceptance or new memory claims.
+## v0.83.0 platform checks
 
-The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
-The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/40381375286)
-is `d18ac62`, including focused schema examples and CLI workspace guidance. This
-precedes the atomic boolean operation. All stages ran fresh, all three minimum-
-compiler checks passed and source inputs remained unchanged:
+The [hosted Windows, Linux and macOS run](https://github.com/skulitom/Inkbolt/actions/runs/44780380192)
+tested the exact v0.83.0 commit, `01adf72`, on 20 November 2026. All 277 stages
+ran fresh on each platform. Each runner also built the locked project with the
+minimum supported Rust compiler.
 
 | Hosted runner | Stages | Rust tests | Python executed | Explicit skips | Seconds |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Windows 2025 | 273 | 312 | 2,825 | 20 | 4389.589 |
-| Ubuntu 24.04 | 273 | 278 | 2,794 | 51 | 1657.151 |
-| macOS 15 ARM64 | 273 | 278 | 2,783 | 62 | 3187.511 |
+| Windows 2025 | 277 | 318 | 2,852 | 20 | 3594.692 |
+| Ubuntu 24.04 | 277 | 284 | 2,821 | 51 | 1135.096 |
+| macOS 15 ARM64 | 277 | 284 | 2,810 | 62 | 2504.862 |
 
-Reports, all 819 stage logs, run metadata and the 993-file source archive are
-retained in `boolean-edit-01/ci-parent-d18ac62`. The archive matches every report's
-source fingerprint. Audit SHA-256:
-`ecbf9458cb5e8ed3c6eea1166e860e240f1ec517aa509b317b174a6082ee2c2b`;
-shared hosted source fingerprint:
-`8623949dc8cd61af659933227ec64e463ac7fbf62e0497314a591f9574cd190d`.
-Hosted checks evaluate the public structural guard; local private-policy checks
-remain separate. Unix background jobs remain unsupported.
+The retained reports and 831 logs match the 1,006-file source archive. Its
+fingerprint is `b467ba310eb8fdd870c6ceb66a7728eda8f70a3f350daeb1c03d6f53d7c311b4`.
+The audit in `release-0.83.0/hosted-01adf72` has SHA-256
+`d111864b20aa8c79b0c100178a2c80b7b57a726336b8aef69979d88667df4919`.
+Hosted runs use the public structural guard. Local runs use the private policy.
 
-The preceding `81e8830` matrix remains retained under
+The [release workflow](https://github.com/skulitom/Inkbolt/actions/runs/44794508519)
+built and started the CLI on each native host. All six [v0.83.0 downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.83.0)
+matched their published SHA-256 digests. The three native archives and the Windows
+extension passed build-attestation checks bound to the release tag and commit.
+The Windows archive and extension contain the same executable. The downloaded
+extension opened an MCP session and created a vector document.
+
+The downloaded Windows and Linux binaries each passed 83 tests across 11 CLI
+and MCP modules, including JPEG import, layered input and editable curves. Both
+replayed an edit saved by v0.82.0 with its original receipt and completed undo
+and redo. Both rendered identical pixels from the [postcard example](../examples/first-png.json).
+The Linux regression run used Python 3.11 under WSL2. A first attempt with
+Python 3.10 encountered three fixture errors because its standard library lacks
+`hashlib.file_digest`. macOS coverage consists of the hosted suite, native
+release startup and archive verification. The retained download acceptance
+record has SHA-256 `ad15fe5791c45a96cbcf5b1004c977659941f1a980d5ff7d41c03fc93abe549f`.
+
+The [editable-curve acceptance](DEVELOPMENT_STATUS.md#opt-in-curve-output-acceptance)
+also passed 277 fresh stages on Windows and Ubuntu 22.04 under WSL2. Independent
+geometry checks cover curve crossings, areas and filled regions. The preceding
+[spatial-evaluation acceptance](DEVELOPMENT_STATUS.md#spatial-evaluation-acceptance)
+records repeated capacity and geometry checks on both platforms.
+
+## Earlier platform measurements
+
+The earlier [`d18ac62` hosted matrix](https://github.com/skulitom/Inkbolt/actions/runs/40381375286)
+is retained under `boolean-edit-01/ci-parent-d18ac62`. The `81e8830` matrix is under
 `cli-examples-evaluation-01/ci-essentials-81e8830`, and `f06d546` under
 `essentials-evaluation-01/ci-parent-f06d546`. The local milestones below retain
 their original target-size and memory scopes; a hosted suite pass does not extend

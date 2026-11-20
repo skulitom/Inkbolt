@@ -14,7 +14,7 @@ workspace folder first.
 ### Claude Code
 
 ```powershell
-claude mcp add inkbolt -- C:\Tools\Inkbolt\inkbolt.exe --workspace C:\Work\Graphics mcp --tools core
+claude mcp add inkbolt -- C:\Tools\Inkbolt\inkbolt.exe --workspace C:\Work\Graphics mcp --tools essentials
 ```
 
 ### Codex
@@ -24,7 +24,7 @@ Add this entry to `~/.codex/config.toml`, using your binary and workspace paths:
 ```toml
 [mcp_servers.inkbolt]
 command = 'C:\Tools\Inkbolt\inkbolt.exe'
-args = ['--workspace', 'C:\Work\Graphics', 'mcp', '--tools', 'core']
+args = ['--workspace', 'C:\Work\Graphics', 'mcp', '--tools', 'essentials']
 ```
 
 ### Claude Desktop on Windows
@@ -41,8 +41,8 @@ system. The macOS binary isn't notarized: after a browser download, run
 
 See the [Windows](../examples/mcp-config.windows.json) and
 [Unix](../examples/mcp-config.unix.json) MCP configuration examples for other
-stdio clients. The examples target current source builds with `essentials`;
-use `core` with the v0.82.0 release.
+stdio clients. The v0.83.0 `essentials` catalog starts with ten tools and
+supports on-demand command discovery. For a v0.82.0 installation, use `core`.
 
 ## Install the CLI with Cargo
 
