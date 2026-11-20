@@ -161,7 +161,7 @@ class BooleanTests(unittest.TestCase):
         self.assertTrue(self.combine(d,'intersection')['empty'])
         ellipse=dict(shape='ellipse',cx=10,cy=10,rx=4,ry=3)
         self.assertEqual(self.combine(self.document([ellipse,rect(0,0,20,20)]),expected=1)['code'],'UNSUPPORTED')
-        many=self.document([dict(shape='regular_polygon',cx=10,cy=10,radius=8,sides=256) for _ in range(3)])
+        many=self.document([dict(shape='regular_polygon',cx=10,cy=10,radius=8,sides=256) for _ in range(capabilities()['limits']['boolean_source_edges']//256+1)])
         self.assertEqual(self.combine(many,expected=1)['code'],'RESOURCE_LIMIT')
         curve=dict(shape='path',commands=[dict(verb='move',to=[0,0]),dict(verb='cubic',control1=[4,8],control2=[8,8],to=[12,0]),dict(verb='close')])
         curved=self.document([curve,rect(0,0,20,20)])

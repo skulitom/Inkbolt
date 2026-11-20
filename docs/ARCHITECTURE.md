@@ -8,6 +8,12 @@ Ellipse conversion has a separate world-space error certificate. Default
 precision stays omitted from serialized edits to preserve historical retry
 identities. See [the boolean contract](BOOLEANS.md).
 
+Boolean spatial evaluation builds deterministic balanced trees over closed
+rational boxes. Exact curve control hulls and outward quadratic enclosures
+conservatively select contact candidates; the same structure selects line,
+face-ray, winding and rounded-output candidates. Surviving candidates use the
+existing exact predicates. Index work shares the total evaluation budget.
+
 Focused schema examples are additive response metadata, separate from validation
 schemas and MCP catalogs. Their bounded JSON includes explicit prerequisites;
 discovery performs no I/O. CLI help and workspace execution share the same

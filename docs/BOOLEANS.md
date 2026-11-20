@@ -69,7 +69,7 @@ The usual output planarity, winding, nesting and adjacency checks still apply.
 If f64 rounding cannot retain the arrangement, up to three repairs snap the
 computed contour vertices to the same grid and evaluate their nonzero self-union.
 Every repair's actual squared displacement is reported, and the final rounding
-must stay within `tolerance/8`. The total work, 512-edge, 4,096-atom and depth-20
+must stay within `tolerance/8`. The total work, 1,024-edge, 4,096-atom and depth-20
 limits remain enforced; an uncertifiable result still fails without partial
 geometry. `area_exact` refers to the final rational arrangement before f64 rounding.
 
@@ -173,11 +173,30 @@ For example, take `A(s)=(s,s^2)` and `B(u)=(u+h,u^2+2*u*h)`, with `h=u^2-1/8`. T
 
 ## Bounds and agent workflow
 
-Inputs allow at most 512 aggregate source edges (cubics plus nonzero lines, including implicit closure), 512 evaluated topology arcs and aggregate nonzero emitted edges, an arrangement of at most 4,096 atomic edges and 2,000,000 charged exact-work units. The source limit applies before merging equivalent curve pieces. The ordinary document/input/output coordinate and path-command limits apply, along with the subdivision depth. Unrecoverable work/size limits return `RESOURCE_LIMIT`; exact mode refuses unresolved topology at maximum depth with `CURVE_TOPOLOGY_UNRESOLVED`. Automatic mode may recover eligible curve-stage failures through its declared fallback. Failed operations return no partial geometry. Work charges curve normalization, subdivision, exact topology predicates and multiplicity expansion, edge-pair intersection checks, face sampling/winding, traversal and output topology checks.
+Inputs allow at most 1,024 aggregate source edges (cubics plus nonzero lines, including implicit closure), 1,024 evaluated topology arcs and aggregate nonzero emitted edges, an arrangement of at most 4,096 atomic edges and 2,000,000 charged exact-work units. The source limit applies before merging equivalent curve pieces. The ordinary document/input/output coordinate and path-command limits apply, along with the subdivision depth. Unrecoverable work/size limits return `RESOURCE_LIMIT`; exact mode refuses unresolved topology at maximum depth with `CURVE_TOPOLOGY_UNRESOLVED`. Automatic mode may recover eligible curve-stage failures through its declared fallback. Failed operations return no partial geometry. Work charges curve normalization, subdivision, exact topology predicates and multiplicity expansion, edge-pair intersection checks, face sampling/winding, traversal and output topology checks.
 
 Contact polynomial arithmetic additionally allows degree at most 18 during elimination products, 4,096 bits per coefficient numerator or denominator, and 512 retained quadratic projection directions. These are bounded discovery resources, not expanded document limits. Exceeding them refuses exact evaluation with `RESOURCE_LIMIT`; automatic mode may select the tolerance fallback. Strict curve certificates remain mandatory in exact mode; tolerance mode reports its separate snapped model. Output-rounding checks remain mandatory in both.
 
-Retained quadratic discriminants, parameters and control coefficients also have a 4,096-bit numerator/denominator limit. Dyadic parameter-cut search allows at most 4,096 fractional bits, using 32 extra root-bound bits when needed to suggest a candidate. Exact field operations and predicates consume the existing work budget; the source, evaluated-arc and geometric-depth limits remain unchanged.
+Balanced trees of closed rational bounding boxes select candidates for curve
+contacts, line intersections, normal-ray events, winding and output certification.
+Rational cubic control hulls enclose their complete curves; quadratic controls
+use outward rational enclosures. Touching boxes remain candidates. No
+floating-point box or epsilon can discard a geometric contact. Index construction,
+sorting comparisons, visited nodes and retained exact predicates share the work
+budget. Dense overlap still reaches the atom/work ceilings; spatial selection
+does not promise subquadratic worst-case behavior or bypass a certificate.
+Face sampling only needs the first positive normal-ray event before parameter
+two; if none exists, parameter one lies safely before any event. Winding uses
+the shorter global box direction, with matching half-open crossing conventions
+for horizontal and vertical rays. These choices change the selected sample and
+work performed, while retaining the same exact filled-region classification.
+
+The 1,024-edge implementation passes the measured W3c.3 contract and all 277
+fresh full stages per platform; see [the performance report](BOOLEAN_PERFORMANCE.md)
+and [acceptance evidence](DEVELOPMENT_STATUS.md#spatial-evaluation-acceptance).
+The earlier full acceptance below covers the preceding 512-edge implementation.
+
+Retained quadratic discriminants, parameters and control coefficients also have a 4,096-bit numerator/denominator limit. Dyadic parameter-cut search allows at most 4,096 fractional bits, using 32 extra root-bound bits when needed to suggest a candidate. Exact field operations and predicates consume the existing work budget; the same advertised source, evaluated-arc and geometric-depth limits apply to these spans.
 
 Use the atomic `boolean` operation to combine and materialize in one request. For
 read-only inspection, `document.boolean` still returns geometry and numerical
@@ -201,5 +220,6 @@ python tools/verify.py --only test_boolean_precision_cli,test_boolean_curves_cli
 ```
 
 Add `test_boolean_ellipses_cli` when changing ellipse admission or its bound, and
-use the appropriate `--rust` filter for internal arithmetic. Complete milestone
-acceptance uses fresh `--thorough` runs on Windows and Linux.
+use the appropriate `--rust` filter for internal arithmetic. Include
+`test_boolean_spatial_cli` when changing candidate selection or admission limits.
+Complete milestone acceptance uses fresh `--thorough` runs on Windows and Linux.

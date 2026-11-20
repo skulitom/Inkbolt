@@ -11,6 +11,7 @@ from external_workspace import files
 from test_editing_cli import png_pixels
 from test_mcp import Client
 from test_sessions_cli import invoke
+from advertised_limits import capabilities
 
 
 def item(name, x, y, width, height, **extra):
@@ -150,7 +151,7 @@ class BooleanEditTests(unittest.TestCase):
             dict(verb='cubic',control1=[4,8],control2=[8,8],to=[12,0]),dict(verb='close')])
         cases=[([dict(shape='ellipse',cx=10,cy=10,rx=4,ry=3)],'UNSUPPORTED'),
                ([curve],'UNSUPPORTED'),
-               ([dict(shape='regular_polygon',cx=10,cy=10,radius=8,sides=256)]*3,'RESOURCE_LIMIT')]
+               ([dict(shape='regular_polygon',cx=10,cy=10,radius=8,sides=256)]*(capabilities()['limits']['boolean_source_edges']//256+1),'RESOURCE_LIMIT')]
         for geometries,code in cases:
             source=[item(f's{n}',0,0,1,1) for n in range(len(geometries))]
             for i,g in zip(source,geometries):i['content']['geometry']=g

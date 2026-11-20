@@ -1320,6 +1320,9 @@ fn capability_report() -> Value {
     capabilities["work_paths"]["compound_operations"] = json!(
         "retained_union_intersection_difference_xor;membership_before_coverage;independent_source_copies"
     );
+    capabilities["booleans"]["spatial_evaluation"] = json!({"bounds":"exact_rational_closed_boxes_in_balanced_tree","candidates":"curve_contacts_line_intersections_face_rays_winding_and_output_certification","work":"index_build_comparisons_node_visits_and_exact_predicates_share_total_budget","dense_inputs":"remain_subject_to_atom_and_work_limits"});
+    capabilities["booleans"]["maximum_quadratic_directions"] =
+        json!(limits::booleans_topology_algebraic::MAX_QUADRATIC_DIRECTIONS);
     capabilities["booleans"]["edit"] = json!({"operation":"boolean","result":"new_root_item_or_no_item_when_empty","paint":"explicit_fill","sources":["keep","hide","remove"],"default_sources":"keep","geometry_solver":"same_as_document.boolean","locks":"source_mutations_check_ancestors_and_dependents","atomic":true,"history":"normal_edit_proposals_receipts_undo_redo","details":"numerical_evidence_without_duplicate_geometry"});
     capabilities["work_paths"]["compound"] = json!({"combine":"work_path_combine","edit":"path_component","geometry":"compound","max_leaves":work_paths::MAX_COMPONENTS,"max_depth":work_paths::MAX_COMPONENT_DEPTH,"operands_per_operation":[2,limits::work_paths::MAX_OPERANDS],"bounds":"union_of_operand_geometry_not_tight_filled_result","vector_mask_coverage":"shared_f64_region_scanlines_gray8","clip_pixel_limit":selections::MAX_PIXELS,"flattened_boolean":"separate_document.boolean_contract","unsupported":["painted_compound_vector_content","implicit_polygonal_expansion","direct_svg_pdf_active_compound_clips"]});
     capabilities["sample_profiles"]["builtin_definition_revision"] =

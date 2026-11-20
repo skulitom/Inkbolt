@@ -114,7 +114,7 @@ class BooleanPrecisionTests(unittest.TestCase):
         approximate=self.combine(doc,'intersection',precision='tolerance',curve_tolerance=64)
         self.assertTrue(approximate['empty']);self.bounds(approximate,64)
         self.assertIn('Source topology is not preserved',' '.join(approximate['losses']))
-        excessive=self.document([dict(shape='regular_polygon',cx=10,cy=10,radius=8,sides=256)]*3)
+        excessive=self.document([dict(shape='regular_polygon',cx=10,cy=10,radius=8,sides=256)]*(booleans.capabilities()['limits']['boolean_source_edges']//256+1))
         for precision in ['auto','exact','tolerance']:
             error=self.combine(excessive,precision=precision,expected=1)
             self.assertEqual(error['code'],'RESOURCE_LIMIT');self.assertNotIn('geometry',error)

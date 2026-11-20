@@ -7,16 +7,19 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 
-The latest [ellipse and precision acceptance](DEVELOPMENT_STATUS.md#ellipse-and-precision-acceptance)
-passes all 276 stages fresh on the same Windows/Linux candidate. Windows executed
-316 Rust and 2,836 Python tests (24 explicit skips); Linux executed 282 Rust and
-2,809 Python tests (51 skips). Full platform runs were sequential. Seven
-repeated original fixtures produce identical responses across both systems,
-including declared approximation and strict refusal behavior. Both builds, the
-source archive, reports and all 552 successful stage logs are retained under
-`boolean-ellipses-01`; the linked acceptance records their audit and earlier
-failures. The preceding atomic-edit evidence remains under `boolean-edit-01`.
-This adds no Unix jobs or new memory/platform claims.
+The latest [spatial-evaluation acceptance](DEVELOPMENT_STATUS.md#spatial-evaluation-acceptance)
+passes all 277 stages fresh on the same Windows/Linux candidate. Windows executed
+318 Rust and 2,841 Python tests (24 explicit skips); Linux executed 284 Rust and
+2,814 Python tests (51 skips). Full platform runs were sequential with two
+workers. Thirty repeated geometry responses and five capacity responses match
+exactly across both systems. Both measured builds, the source archive, reports
+and all 554 successful stage logs are retained under `boolean-spatial-01`.
+The linked acceptance records hashes, the earlier Windows rendering timeout,
+unchanged focused recovery and the complete successful runs. Windows completed
+on 26 October 2026; Linux completed on 20 November after exact-source revalidation.
+The preceding precision and atomic-edit evidence remains under
+`boolean-ellipses-01` and `boolean-edit-01`. This adds no Unix jobs, macOS geometry
+performance acceptance or new memory claims.
 
 The shared Unix core/receipt tier also passed hosted macOS 15 ARM64 acceptance.
 The latest retained successful [hosted Windows/Linux/macOS matrix](https://github.com/skulitom/Inkbolt/actions/runs/40381375286)

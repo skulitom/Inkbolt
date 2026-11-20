@@ -124,7 +124,8 @@ class CurveBooleanTests(unittest.TestCase):
 
     def test_source_edge_budget_is_explicit_even_for_mergeable_subdivision(self):
         control=[[0,0],[4,8],[8,8],[12,0]]
-        many=curve(control,tuple(F(i,512) for i in range(513)))
+        ceiling=booleans.capabilities()['limits']['boolean_source_edges']
+        many=curve(control,tuple(F(i,ceiling) for i in range(ceiling+1)))
         d=self.document([many,rect(0,0,16,16)]);saved=copy.deepcopy(d)
         result=self.combine(d,expected=1)
         self.assertEqual(result['code'],'RESOURCE_LIMIT');self.assertIn('source edges',result['message'])

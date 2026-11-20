@@ -65,7 +65,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `booleans.JUNCTION_NEIGHBOR_WORK` | `usize` | 8 | `8` |
 | `booleans.MAX_ATOMS` | `usize` | 4096 | `4096` |
 | `booleans.MAX_CURVE_TOLERANCE` | `u32` | 64 | `64` |
-| `booleans.MAX_EDGES` | `usize` | 512 | `512` |
+| `booleans.MAX_EDGES` | `usize` | 1024 | `1024` |
 | `booleans.MAX_INPUTS` | `usize` | 16 | `16` |
 | `booleans.MAX_OUTPUT_SNAP_PASSES` | `usize` | 3 | `3` |
 | `booleans.MAX_TOPOLOGY_DEPTH` | `usize` | 20 | `20` |
@@ -86,6 +86,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `booleans_topology_algebraic.ARC_PAIR_WORK` | `usize` | 8 | `8` |
 | `booleans_topology_algebraic.CONTACT_ARC_WORK` | `usize` | 32 | `32` |
 | `booleans_topology_algebraic.LINEAR_SYNC_WORK` | `usize` | 64 | `64` |
+| `booleans_topology_algebraic.MAX_QUADRATIC_DIRECTIONS` | `usize` | 512 | `512` |
 | `booleans_topology_algebraic.QUADRATIC_DIRECTION_WORK` | `usize` | 32 | `32` |
 | `booleans_topology_algebraic.QUADRATIC_SYNC_WORK` | `usize` | 64 | `64` |
 | `booleans_topology_algebraic.RATIONAL_ROOTS_WORK` | `usize` | 32 | `32` |

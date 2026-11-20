@@ -12,6 +12,7 @@ use std::{
 mod curves;
 mod ellipses;
 mod evaluation;
+mod spatial;
 mod tolerance;
 mod topology;
 
@@ -258,14 +259,24 @@ fn intersections(a: &Segment, b: &Segment) -> Vec<(R, R)> {
     out.into_iter().collect()
 }
 fn winding(point: &P, edges: &[Segment]) -> i32 {
+    winding_axis(point, edges, 1)
+}
+fn winding_axis(point: &P, edges: &[Segment], axis: usize) -> i32 {
     let mut value = 0;
+    let direction = if axis == 1 { 1 } else { -1 };
     for e in edges {
-        let side = cross(&sub(&e[1], &e[0]), &sub(point, &e[0]));
-        if e[0][1] <= point[1] && point[1] < e[1][1] && side > R::zero() {
-            value += 1;
+        let forward = e[0][axis] <= point[axis] && point[axis] < e[1][axis];
+        let reverse = e[1][axis] <= point[axis] && point[axis] < e[0][axis];
+        if !forward && !reverse {
+            continue;
         }
-        if e[1][1] <= point[1] && point[1] < e[0][1] && side < R::zero() {
-            value -= 1;
+        let side = cross(&sub(&e[1], &e[0]), &sub(point, &e[0]));
+        let side = if axis == 1 { side } else { -side };
+        if forward && side > R::zero() {
+            value += direction;
+        }
+        if reverse && side < R::zero() {
+            value -= direction;
         }
     }
     value
@@ -285,13 +296,22 @@ fn truth(states: &[bool], mode: Mode) -> bool {
     }
 }
 // Pick a rational point strictly in the edge's left face, before the nearest normal-ray event.
-fn left_sample(edge: &Segment, raw: &[Segment], budget: &mut Budget) -> Result<P, Error> {
+fn left_sample(
+    edge: &Segment,
+    raw: &[Segment],
+    index: &spatial::Index,
+    budget: &mut Budget,
+) -> Result<P, Error> {
     let mid = lerp(&edge[0], &edge[1], &R::new(1.into(), 2.into()));
     let d = sub(&edge[1], &edge[0]);
     let normal = [-d[1].clone(), d[0].clone()];
     let square = dot(&normal, &normal);
-    let mut nearest: Option<R> = None;
-    for other in raw {
+    // A point at parameter one is sufficient when no positive event occurs
+    // before two. Restricting the search avoids traversing distant contours.
+    let maximum = n(2);
+    let mut nearest = maximum.clone();
+    for i in index.query(|b| b.ray(&mid, &normal, Some(&maximum)), budget)? {
+        let other = &raw[i];
         budget.spend(1)?;
         let v = sub(&other[1], &other[0]);
         let offset = sub(&other[0], &mid);
@@ -311,12 +331,12 @@ fn left_sample(edge: &Segment, raw: &[Segment], budget: &mut Budget) -> Result<P
             if unit(&s) { vec![t] } else { vec![] }
         };
         for t in candidates {
-            if t > R::zero() && nearest.as_ref().is_none_or(|v| t < *v) {
-                nearest = Some(t);
+            if t > R::zero() && t < nearest {
+                nearest = t;
             }
         }
     }
-    let step = nearest.map_or(n(1), |v| v / n(2));
+    let step = nearest / n(2);
     Ok([&mid[0] + &normal[0] * &step, &mid[1] + &normal[1] * step])
 }
 fn half(p: &P) -> bool {
@@ -473,8 +493,19 @@ fn rounding(loops: &[Vec<P>], budget: &mut Budget) -> Result<(Vec<Vec<Point>>, R
     }
     let old_edges: Vec<_> = loops.iter().flat_map(|p| loop_edges(p)).collect();
     let new_edges: Vec<_> = exact.iter().flat_map(|p| loop_edges(p)).collect();
+    let index = spatial::Index::new(
+        new_edges
+            .iter()
+            .map(|e| spatial::Bounds::points(e))
+            .collect(),
+        budget,
+    )?;
     for i in 0..new_edges.len() {
-        for j in i + 1..new_edges.len() {
+        for j in index
+            .query(|b| b.overlaps(index.bounds(i)), budget)?
+            .into_iter()
+            .filter(|&j| j > i)
+        {
             budget.spend(1)?;
             let intersections = intersections(&new_edges[i], &new_edges[j]);
             if intersections.len() > 1 {
@@ -511,16 +542,26 @@ fn rounding(loops: &[Vec<P>], budget: &mut Budget) -> Result<(Vec<Vec<Point>>, R
             return Err(error());
         }
     }
+    let old_loops: Vec<_> = loops.iter().map(|p| loop_edges(p)).collect();
+    let new_loops: Vec<_> = exact.iter().map(|p| loop_edges(p)).collect();
+    let index = spatial::Index::new(
+        loops
+            .iter()
+            .zip(&exact)
+            .map(|(a, b)| spatial::Bounds::points(a).union(&spatial::Bounds::points(b)))
+            .collect(),
+        budget,
+    )?;
     for i in 0..loops.len() {
-        for j in 0..loops.len() {
+        for j in index.query(|b| b.overlaps(index.bounds(i)), budget)? {
             if i == j {
                 continue;
             }
-            let a = loop_edges(&loops[j]);
-            let b = loop_edges(&exact[j]);
+            let a = &old_loops[j];
+            let b = &new_loops[j];
             budget.spend(a.len() * loops[i].len())?;
-            if let Some(k) = loops[i].iter().position(|p| !on_boundary(p, &a))
-                && winding(&loops[i][k], &a) != winding(&exact[i][k], &b)
+            if let Some(k) = loops[i].iter().position(|p| !on_boundary(p, a))
+                && winding(&loops[i][k], a) != winding(&exact[i][k], b)
             {
                 return Err(error());
             }
@@ -541,8 +582,16 @@ fn arrange(inputs: &[Operand], mode: Mode, budget: &mut Budget) -> Result<Arrang
         )));
     }
     let mut cuts = vec![BTreeSet::from([R::zero(), n(1)]); raw.len()];
+    let index = spatial::Index::new(
+        raw.iter().map(|e| spatial::Bounds::points(e)).collect(),
+        budget,
+    )?;
     for i in 0..raw.len() {
-        for j in i + 1..raw.len() {
+        for j in index
+            .query(|b| b.overlaps(index.bounds(i)), budget)?
+            .into_iter()
+            .filter(|&j| j > i)
+        {
             budget.spend(1)?;
             for (a, b) in intersections(&raw[i], &raw[j]) {
                 cuts[i].insert(a);
@@ -551,11 +600,19 @@ fn arrange(inputs: &[Operand], mode: Mode, budget: &mut Budget) -> Result<Arrang
         }
     }
     let mut atoms: BTreeMap<Segment, Vec<i32>> = BTreeMap::new();
-    let mut index = 0;
+    let mut edge_index = 0;
+    let owners: Vec<_> = inputs
+        .iter()
+        .enumerate()
+        .flat_map(|(i, input)| std::iter::repeat_n(i, input.edges.len()))
+        .collect();
     for (source, input) in inputs.iter().enumerate() {
         for e in &input.edges {
-            let points: Vec<_> = cuts[index].iter().map(|t| lerp(&e[0], &e[1], t)).collect();
-            index += 1;
+            let points: Vec<_> = cuts[edge_index]
+                .iter()
+                .map(|t| lerp(&e[0], &e[1], t))
+                .collect();
+            edge_index += 1;
             for pair in points.windows(2) {
                 let (key, sign) = if pair[0] < pair[1] {
                     ([pair[0].clone(), pair[1].clone()], 1)
@@ -577,9 +634,13 @@ fn arrange(inputs: &[Operand], mode: Mode, budget: &mut Budget) -> Result<Arrang
         if weights.iter().all(|v| *v == 0) {
             continue;
         }
-        let sample = left_sample(&edge, &raw, budget)?;
-        budget.spend(raw.len())?;
-        let left: Vec<_> = inputs.iter().map(|v| winding(&sample, &v.edges)).collect();
+        let sample = left_sample(&edge, &raw, &index, budget)?;
+        let mut left = vec![0; inputs.len()];
+        let axis = index.winding_axis();
+        for i in index.query(|b| b.winding_ray(&sample, axis), budget)? {
+            budget.spend(1)?;
+            left[owners[i]] += winding_axis(&sample, std::slice::from_ref(&raw[i]), axis);
+        }
         let a: Vec<_> = left
             .iter()
             .zip(inputs)

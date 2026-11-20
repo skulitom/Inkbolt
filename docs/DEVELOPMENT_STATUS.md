@@ -5,6 +5,69 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W3c.3: spatial evaluation hypothesis
+
+The required curve-combination and multi-region workloads still pay for distant
+edge pairs, normal-ray events and winding tests. Original probes of `415771d`
+take 14.68 seconds for 480 separated line edges and 7.53 seconds for four
+separated ellipses in tolerance mode on the Windows development build. The
+smaller 32/128/256-edge cases take 0.08/0.99/4.17 seconds. These are scripted
+measurements, not evidence of an agent-efficiency advantage.
+
+Use conservative rational bounding boxes to select potential intersections,
+normal-ray events and winding contributors. Keep exact predicates, closed-box
+contacts, deterministic geometry, rounding certificates and total work charging.
+Remeasure the same source requests against the retained preceding executable,
+including dense overlap, touching boundaries and curved input. Any geometry,
+area, membership or strict-refusal regression blocks acceptance. Measure both
+platforms and adversarial cases before re-deriving admission/work limits; a fast
+sparse case alone cannot justify raising them. Evidence is retained under
+`boolean-spatial-01`. Full W3c and original checkpoint credit remain open.
+
+The [matched measurements](BOOLEAN_PERFORMANCE.md) now pass five repetitions per
+build and workload on Windows and Linux, with every non-work response field
+identical to the preceding implementation. Independent capacity tests admit
+1,024 source/evaluated edges and sixteen ellipses while dense fixtures still
+refuse the unchanged atom/work ceilings. Both focused platform selections pass
+within the routine budget. Fresh full acceptance and the source/evidence audit
+now pass as recorded below.
+
+### Spatial evaluation acceptance
+
+W3c.3 is complete within the [measured contract](BOOLEAN_PERFORMANCE.md).
+Both platforms pass the complete suite fresh on the same 1,004-file candidate:
+
+| Platform | Fresh stages | Rust tests | Python executed | Explicit skips | Seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows | 277 | 318 | 2,841 | 24 | 1982.2 |
+| Linux / WSL | 277 | 284 | 2,814 | 51 | 1357.8 |
+
+All 554 successful stage logs, both measured binaries, the source archive and
+the original measurement requests/responses are retained under
+`boolean-spatial-01`. Thirty repeated responses and five capacity responses
+match exactly between Windows and Linux, including charged work. The independent
+region, analytic ellipse and parabola checks pass alongside the unchanged
+precision, topology and durable-history tests. Scripted timings do not establish
+actual-model efficiency or a universal speedup.
+
+The first Windows full attempt used four workers and hit an existing 20-second
+tiled-PNG export deadline. Its completed logs are retained. The unchanged
+nine-test rendering module passed in isolation in 99.8 seconds overall; the
+successful full run then used two workers. Linux full acceptance also uses two
+workers, with platform runs sequential. No deadline or acceptance criterion was
+relaxed. Windows completed on 26 October 2026; Linux completed on 20 November
+after the unchanged source and measured executables were revalidated. Earlier
+focused and measurement-setup failures remain retained in the same evidence root.
+
+Source fingerprint:
+`6d650921270640d0097c428c50a6cfff3410bf5e6c5db470db8d05a6756aa8af`.
+Acceptance-audit SHA-256:
+`73c93ac032804d1d090f0e48c449dafcc16a28356909134141cb5d6f725171d1`.
+Only publication documentation is finalized after this snapshot; code, tests,
+limits and binaries retain the accepted content. Retained curve output (W3c.4),
+full W3c, model efficiency and the original advanced checkpoint remain open.
+The unchanged registry stays at 163/167.
+
 ## W3c.1-2: ellipse admission and tolerance fallback hypothesis
 
 Original probes at `c0f1730` show that ellipse conversion alone is insufficient:
@@ -70,9 +133,9 @@ replay and the earlier failures/interrupted run. Source fingerprint:
 `41828204a727bde729f966890a28b7db7c741bf69217690ed84e52a2a5c6dc22`.
 Acceptance-audit SHA-256:
 `7ed1672f194e12bcc8fa86c24ec858cff4e8608c4013cfb4e790aac0a79344d0`.
-W3c.1-2 are complete within this declared contract. W3c performance work, retained
-curve output, broader model efficiency and the original advanced checkpoint
-remain open; the unchanged registry stays at 163/167.
+W3c.1-2 are complete within this declared contract; their performance follow-up
+is recorded above. Retained curve output, broader model efficiency and the
+original advanced checkpoint remain open; the unchanged registry stays at 163/167.
 
 ## W3c.5: atomic boolean edit hypothesis
 

@@ -84,6 +84,16 @@ fn geometry(source: Cubic, from: Q, to: Q, d: R, depth: usize) -> Result<Curve, 
 }
 
 impl Span {
+    pub(super) fn bounds(&self) -> spatial::Bounds {
+        let mut points = Vec::new();
+        for p in &self.controls {
+            let x = p[0].enclosure(&self.root);
+            let y = p[1].enclosure(&self.root);
+            points.push([x.0, y.0]);
+            points.push([x.1, y.1]);
+        }
+        spatial::Bounds::points(&points)
+    }
     pub fn chord(&self) -> Segment {
         self.endpoints.clone()
     }

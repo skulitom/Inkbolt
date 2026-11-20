@@ -15,6 +15,12 @@ pub(super) struct Arc {
     curved: bool,
 }
 impl Arc {
+    fn bounds(&self) -> spatial::Bounds {
+        match &self.curve {
+            Curve::Rational(c) => spatial::Bounds::points(c.as_ref()),
+            Curve::Quadratic(span) => span.bounds(),
+        }
+    }
     pub(super) fn curved(c: Cubic, weights: Vec<i32>) -> Self {
         Self {
             curve: Curve::Rational(Box::new(c)),
@@ -256,8 +262,18 @@ fn lines(inputs: &mut [Operand], budget: &mut Budget) -> Result<Vec<Arc>, Error>
         })
         .collect();
     let mut cuts = vec![BTreeSet::from([n(0), n(1)]); raw.len()];
+    let index = spatial::Index::new(
+        raw.iter()
+            .map(|(_, e)| spatial::Bounds::points(e))
+            .collect(),
+        budget,
+    )?;
     for i in 0..raw.len() {
-        for j in i + 1..raw.len() {
+        for j in index
+            .query(|b| b.overlaps(index.bounds(i)), budget)?
+            .into_iter()
+            .filter(|&j| j > i)
+        {
             budget.spend(1)?;
             for (a, b) in intersections(&raw[i].1, &raw[j].1) {
                 cuts[i].insert(a);
@@ -422,16 +438,24 @@ pub(super) fn evaluate(
             )));
         }
         let mut crossings = vec![0usize; arcs.len()];
-        let mut separated_pairs = 0;
+        let lines = arcs.iter().filter(|a| !a.curved).count();
+        let mut separated_pairs =
+            arcs.len() * arcs.len().saturating_sub(1) / 2 - lines * lines.saturating_sub(1) / 2;
         let mut paired_coordinates = 0;
         let mut transverse_pairs = 0;
+        let index = spatial::Index::new(arcs.iter().map(Arc::bounds).collect(), budget)?;
         for i in 0..arcs.len() {
-            for j in i + 1..arcs.len() {
+            for j in index
+                .query(|b| b.overlaps(index.bounds(i)), budget)?
+                .into_iter()
+                .filter(|&j| j > i)
+            {
                 let a = &arcs[i];
                 let b = &arcs[j];
                 if !a.curved && !b.curved {
                     continue;
                 }
+                separated_pairs -= 1;
                 let certificate = if let (Some(a), Some(b)) = (a.rational(), b.rational()) {
                     if separated(a, b, budget)? {
                         Some(quadratic::Pair::Separated)

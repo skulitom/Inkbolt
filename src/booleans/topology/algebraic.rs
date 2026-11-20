@@ -326,8 +326,13 @@ pub(super) fn prepare(
     }
     points.extend(self_points.iter().cloned());
     points.extend(stationary_points.iter().cloned());
+    let index = spatial::Index::new(arcs.iter().map(Arc::bounds).collect(), budget)?;
     for i in 0..arcs.len() {
-        for j in i + 1..arcs.len() {
+        for j in index
+            .query(|b| b.overlaps(index.bounds(i)), budget)?
+            .into_iter()
+            .filter(|&j| j > i)
+        {
             let a = &arcs[i];
             let b = &arcs[j];
             let (Some(ac), Some(bc)) = (a.rational(), b.rational()) else {
@@ -368,9 +373,11 @@ pub(super) fn prepare(
                     let axis = usize::from(direction[0].is_zero());
                     let scale = direction[axis].clone();
                     quadratic_directions.insert(direction.map(|v| v / &scale));
-                    if quadratic_directions.len() > MAX_EDGES {
+                    let maximum =
+                        crate::limits::booleans_topology_algebraic::MAX_QUADRATIC_DIRECTIONS;
+                    if quadratic_directions.len() > maximum {
                         return Err(limit(&format!(
-                            "Quadratic contact synchronization exceeds {MAX_EDGES} projections"
+                            "Quadratic contact synchronization exceeds {maximum} projections"
                         )));
                     }
                 }
@@ -400,8 +407,13 @@ pub(super) fn synchronize(
     budget: &mut Budget,
 ) -> Result<Vec<Arc>, Error> {
     let mut cuts = vec![BTreeSet::from([n(0), n(1)]); arcs.len()];
+    let index = spatial::Index::new(arcs.iter().map(Arc::bounds).collect(), budget)?;
     for i in 0..arcs.len() {
-        for j in i + 1..arcs.len() {
+        for j in index
+            .query(|b| b.overlaps(index.bounds(i)), budget)?
+            .into_iter()
+            .filter(|&j| j > i)
+        {
             let a = &arcs[i];
             let b = &arcs[j];
             let (Some(ac), Some(bc)) = (a.rational(), b.rational()) else {

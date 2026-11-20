@@ -157,8 +157,8 @@ pub mod booleans {
     pub const MAX_TOPOLOGY_DEPTH: usize = 20;
     /// Max inputs (booleans).
     pub const MAX_INPUTS: usize = 16;
-    /// Max edges (booleans).
-    pub const MAX_EDGES: usize = 512;
+    /// Maximum aggregate source/evaluated edges; spatial candidates retain separate atom/work ceilings.
+    pub const MAX_EDGES: usize = 1024;
     /// Max atoms (booleans).
     pub const MAX_ATOMS: usize = 4096;
     /// Max work (booleans).
@@ -257,6 +257,8 @@ pub mod booleans_topology {
 
 /// Exact geometry work policies for `booleans_topology_algebraic`.
 pub mod booleans_topology_algebraic {
+    /// Maximum retained quadratic projection directions; independent of geometric edge admission.
+    pub const MAX_QUADRATIC_DIRECTIONS: usize = 512;
     /// Setup work charge for bounded rational contact roots.
     pub const RATIONAL_ROOTS_WORK: usize = 32;
     /// Work charge per direction when matching quadratic coordinates.
