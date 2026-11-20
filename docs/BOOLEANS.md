@@ -231,7 +231,7 @@ The distance tolerance bounds individual input arcs. It does not bound movement 
 
 Rational repeated contacts include general cubic pairs with different nonlinear parameterizations, quadratic-projection tangencies, non-dyadic nodes and cusps. Quadratic-parameter nodes now retain their rational world junctions. Exact contact discovery still does not guarantee that the subsequent simultaneous deformation can be certified, and general non-rational fixed world junctions remain unsupported by exact certification. Automatic mode can instead use the declared tolerance model.
 
-For example, take `A(s)=(s,s^2)` and `B(u)=(u+h,u^2+2*u*h)`, with `h=u^2-1/8`. The identity `B_y-B_x^2=-h^2` gives two tangencies at irrational world x coordinates. A supported exact detector verifies a repeated quadratic resultant factor, both source parameters, the common point and parallel nonzero derivatives before returning `CURVE_TOPOLOGY_UNRESOLVED`. With default precision and output, all four operations return editable curves for this fixture. Difference and xor use the handle adjustment. Independent tests check the emitted areas and compare the filled regions with the two original operands away from their boundaries. Other strict unresolved arrangements still refine or fail at their declared limits. The full advanced boolean checkpoint stays **in progress and uncredited**.
+For example, take `A(s)=(s,s^2)` and `B(u)=(u+h,u^2+2*u*h)`, with `h=u^2-1/8`. The identity `B_y-B_x^2=-h^2` gives two tangencies at irrational world x coordinates. A supported exact detector verifies a repeated quadratic resultant factor, both source parameters, the common point and parallel nonzero derivatives before returning `CURVE_TOPOLOGY_UNRESOLVED`. With default precision and output, all four operations return editable curves for this fixture. Difference and xor use the handle adjustment. Independent tests check the emitted areas and compare the filled regions with the two original operands away from their boundaries. Other strict unresolved arrangements still refine or fail at their declared limits. The [advanced Boolean checkpoint evidence](DEVELOPMENT_STATUS.md#curved-boolean-checkpoint-evidence) covers all four operations under the declared precision policy, including the tighter xor cases.
 
 ## Bounds and agent workflow
 
@@ -272,8 +272,9 @@ Ellipse admission and precision selection have [fresh Windows/Linux acceptance](
 all 276 stages per platform, independent area/membership checks for twenty original
 combinations, repeated cross-platform results, strict refusals and durable history.
 The original frame-icon example still uses one combination/materialization request
-instead of two. Broader model efficiency, retained curve output and the advanced
-curved-geometry checkpoint remain separate, open requirements.
+instead of two. The [editable curve checks](DEVELOPMENT_STATUS.md#curved-boolean-checkpoint-evidence)
+cover the resulting control handles, signed area and fill. Model efficiency is
+tracked through [matched task trials](BENCHMARK_RESULTS.md).
 
 For routine precision changes, use focused feedback:
 

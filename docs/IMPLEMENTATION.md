@@ -1,19 +1,18 @@
 # Inkbolt implementation report
 
-**163/167 verified (97.60%).**
+**164/167 verified (98.20%).**
 
 Scope: agent-generated diagrams, icons, layouts, image edits and exports, followed by the full vector and raster capability set. All 167 original checkpoints remain required. The percentage counts complete, independently verified checkpoints; it does not estimate remaining effort or award partial work.
 
 | Lane | Verified | Total | Completion |
 | --- | ---: | ---: | ---: |
-| Vector | 84 | 87 | 96.55% |
+| Vector | 85 | 87 | 97.70% |
 | Raster | 79 | 80 | 98.75% |
 
-## Remaining work (4 checkpoints)
+## Remaining work (3 checkpoints)
 
 | ID | Status | Original acceptance |
 | --- | --- | --- |
-| vector.booleans.extended | in_progress | Handle curves, coincident edges, self-intersections and disjoint regions with deterministic tolerance and topology. |
 | vector.interchange.extended | planned | Preserve supported complex text/effects/links, diagnose version losses and malformed files, and preserve input bytes. |
 | vector.pages.extended | planned | Handle fonts, transparency, spots, bleed, a bounded encapsulated-page subset and editable reimport with explicit losses. |
 | raster.interchange.extended | in_progress | Support large-document structures, masks, text, groups and embedded objects with explicit loss diagnostics. |
@@ -51,7 +50,7 @@ A verified checkpoint has complete acceptance coverage and named executable evid
 | vector.groups.basic | verified | Group multiple objects, transform the group and preserve child geometry and hierarchy. | `tests/layout.rs::nested_groups_transform_ungroup_regroup_and_identity` |
 | vector.groups.extended | verified | Support nested transforms, ungroup/regroup, stacking, isolation and identity preservation. | `tests/layout.rs::nested_groups_transform_ungroup_regroup_and_identity`; `tests/layout.rs::group_isolation_opacity_and_appearance_loss_rejection`; `tests/layout.rs::reparent_and_duplicate_subtrees_keep_world_geometry_and_independent_ids`; `tests/layout.rs::world_transforms_center_spacing_group_opacity_and_resource_limits` |
 | vector.booleans.basic | verified | Compute rectangle union, intersection and difference; verify analytic area and occupancy. | `tests/test_booleans_cli.py::test_rectangle_operations_exact_area_and_every_pixel`; `tests/test_booleans_cli.py::test_random_fractional_multisource_rectangles_match_exact_cell_partition`; `tests/test_booleans_cli.py::test_rational_rectangle_area_does_not_round_endpoint_sums`; `tests/test_booleans_cli.py::test_coincident_reversed_edges_self_crossings_and_fill_rules`; `tests/test_booleans_cli.py::test_nested_holes_disconnected_regions_and_shared_vertices`; `tests/test_booleans_cli.py::test_transformed_geometry_uses_world_coordinates_and_returns_editable_path`; `tests/test_booleans_cli.py::test_explicit_empty_errors_and_input_resource_limits_preserve_sources`; `tests/test_booleans_cli.py::test_mcp_materialization_snapshots_and_session_undo_preserve_operands` |
-| vector.booleans.extended | in_progress | Handle curves, coincident edges, self-intersections and disjoint regions with deterministic tolerance and topology. | Pending |
+| vector.booleans.extended | verified | Handle curves, coincident edges, self-intersections and disjoint regions with deterministic tolerance and topology. | `tests/test_boolean_curves_cli.py::test_editable_clipped_arch_has_original_controls_area_and_coverage`; `tests/test_boolean_curves_cli.py::test_partially_coincident_curves_share_runs_and_converge_to_analytic_area`; `tests/test_boolean_topology_cli.py::test_curve_curve_crossings_match_independent_analytic_region_samples`; `tests/test_boolean_quadratic_cli.py::test_editable_lobes_share_exact_node_and_integrate_radical_area`; `tests/test_boolean_precision_cli.py::test_irrational_tangencies_fallback_and_independent_cubic_winding`; `tests/test_boolean_precision_cli.py::test_tight_xor_subdivides_local_chords_and_scales_to_default_tolerance`; `tests/test_boolean_spatial_cli.py::test_sixteen_ellipses_keep_analytic_interiors_and_declared_precision`; `tests/test_boolean_ellipses_cli.py::test_all_modes_containment_overlap_nesting_disjoint_and_tangent`; `tests/test_boolean_edit_cli.py::test_work_paths_are_materialized_and_solver_refusals_stay_explicit` |
 | vector.clips.basic | verified | Clip solid artwork by a rectangle with independently verified interior and transparent exterior. | `tests/layout.rs::nested_transformed_clips_match_every_pixel_and_release_preserves_source` |
 | vector.clips.extended | verified | Support nested, compound and transformed clips, release and snapshot/SVG persistence. | `tests/layout.rs::nested_transformed_clips_match_every_pixel_and_release_preserves_source`; `tests/layout.rs::compound_clip_hole_and_disabled_clip_settings_survive_snapshot`; `tests/test_layout_cli.py::test_nested_compound_clip_svg_matches_independent_coverage_and_png` |
 | vector.blending.basic | verified | Verify half-opacity source-over, multiply and screen against independently calculated solid-color samples. | `tests/editing.rs::opacity_and_blending_match_known_swatches` |

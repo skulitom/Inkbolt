@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope_version": "agent-graphics-implementation-v1",
   "target": 167,
-  "verified": 163,
-  "percent": 97.60479041916167,
+  "verified": 164,
+  "percent": 98.20359281437125,
   "counting": "A whole checkpoint counts only after implemented behavior, full acceptance and independent verification. Partial work receives no fractional credit. Audit evidence is not engine implementation evidence. Scope may change only by explicit versioned user direction.",
   "features": [
     {
@@ -360,8 +360,18 @@
       "area": "Boolean path operations",
       "checkpoint": "extended",
       "acceptance": "Handle curves, coincident edges, self-intersections and disjoint regions with deterministic tolerance and topology.",
-      "status": "in_progress",
-      "evidence": []
+      "status": "verified",
+      "evidence": [
+        "tests/test_boolean_curves_cli.py::test_editable_clipped_arch_has_original_controls_area_and_coverage",
+        "tests/test_boolean_curves_cli.py::test_partially_coincident_curves_share_runs_and_converge_to_analytic_area",
+        "tests/test_boolean_topology_cli.py::test_curve_curve_crossings_match_independent_analytic_region_samples",
+        "tests/test_boolean_quadratic_cli.py::test_editable_lobes_share_exact_node_and_integrate_radical_area",
+        "tests/test_boolean_precision_cli.py::test_irrational_tangencies_fallback_and_independent_cubic_winding",
+        "tests/test_boolean_precision_cli.py::test_tight_xor_subdivides_local_chords_and_scales_to_default_tolerance",
+        "tests/test_boolean_spatial_cli.py::test_sixteen_ellipses_keep_analytic_interiors_and_declared_precision",
+        "tests/test_boolean_ellipses_cli.py::test_all_modes_containment_overlap_nesting_disjoint_and_tangent",
+        "tests/test_boolean_edit_cli.py::test_work_paths_are_materialized_and_solver_refusals_stay_explicit"
+      ]
     },
     {
       "id": "vector.clips.basic",

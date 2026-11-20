@@ -4,7 +4,7 @@
 over all earlier plans, including this roadmap. Use the notes below as supporting
 scope and implementation history; resolve planning conflicts in favor of FIX_PLAN.md.
 
-**Current engine scope: 163/167 verified (97.60%); four checkpoints remain.**
+**The engine registry has verified 164 of 167 checkpoints (98.20%).**
 
 Large vector canvases now support bounded overview images without full-size
 pixel allocations. Original 10,000/20,000-point square cases, a 5,000-object
@@ -19,10 +19,11 @@ native save/reopen and reimport, with exact structure and every pixel checked
 against the original fixture and an independent calculation. See
 [the acceptance audit](NATIVE_VECTOR_ACCEPTANCE.md).
 
-The remaining original checkpoints cover extended curve combinations, extended
-native vector interchange, page interchange and extended layered raster
-interchange. All 167 original acceptance
-criteria remain unchanged. The separate [agent-readiness plan](AGENT_READINESS.md)
+The [curved Boolean checkpoint](DEVELOPMENT_STATUS.md#curved-boolean-checkpoint-evidence)
+now covers editable curves, shared edges, self-intersections and disconnected
+regions under the declared precision policy. The three remaining checkpoints
+cover native vector interchange, page interchange and layered raster interchange.
+All 167 original acceptance criteria remain unchanged. The separate [agent-readiness plan](AGENT_READINESS.md)
 still requires its remaining scale, model-trial, comparison and final workflow
 evidence; the engine percentage does not measure completion of that goal.
 

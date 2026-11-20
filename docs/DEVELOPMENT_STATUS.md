@@ -83,6 +83,36 @@ evidence includes both source archives, all 554 stage logs for this commit,
 and the independent geometry and session results. The audit SHA-256 is
 `fc03608acf52482a38fae98ba57a948f4143d0c9ff1e4eea88e812ffcaaf6044`.
 
+### Curved Boolean checkpoint evidence
+
+At `8b81bf5`, xor succeeds at both previously refused tolerances and on the
+same shapes enlarged 32× and 64× at default tolerance. The solver inserts two
+or three knots on the affected chords. Strict precision still reports the
+unresolved irrational contacts. [Editable curve contract](BOOLEANS.md#editable-curve-output)
+
+| Independent check on Windows and WSL Linux | Result on each platform |
+| --- | --- |
+| Two irrational tangencies | 185,542 point comparisons with the original filled regions and 185,542 with the reference polygons matched. The normalized xor area differed from the analytic area by less than 0.000075 square units. |
+| Editable handles | Reconstructing the selected source intervals reproduced all 746 emitted cubic spans across the four repaired cases and all reported displacement and rounding bounds. |
+| Coincidence, self-intersection and disconnected regions | Twenty shared, reversed, identical, disjoint and self-crossing cases matched analytic areas and 205,236 point checks. Eight partially overlapping subarch cases matched all four analytic areas across source subdivision and reversal. |
+| Additional arrangements | All 48 mixed two-operand and 16 three-operand cases matched their original operands' fill rules at 727,516 points outside the boundary band. |
+| SVG artwork | Twelve edits combined an imported rounded rectangle with circular SVG arcs. All 85,808 sampled pixels outside the boundary band matched the original analytic shapes. |
+| Agent delivery and compatibility | MCP proposal, restart, commit, retry, undo and redo produced matching SVG and tiled PNG files on both systems. All 17,028 sampled pixels matched the analytic fill. Each system reproduced 96 earlier Boolean responses and replayed eight v0.83.0 session stores. |
+
+The original advanced Boolean criterion is verified at `8b81bf5`. Each local
+full suite passed all 277 stages on the same source.
+Windows ran 321 Rust and 2,854 Python tests, with 24 explicit Python skips.
+WSL Linux ran 287 Rust and 2,827 Python tests, with 51 explicit Python skips.
+The retained audit binds both binaries, the source archive, 554 stage logs
+and the independent geometry checks.
+Audit SHA-256 `d1bb7ca11bdf1325f6822c40734d3515b299fa29b2b4391bac9bca6a57794495`.
+
+The independent geometry records match across both platforms. The
+[cross-platform regression run](https://github.com/skulitom/Inkbolt/actions/runs/44810182386)
+at `a1daf65` also checks the fixed path coordinates and source area on
+Windows, Linux and macOS. Model efficiency is tracked in the
+[benchmark results](BENCHMARK_RESULTS.md).
+
 ## W3c.3: spatial evaluation hypothesis
 
 The required curve-combination and multi-region workloads still pay for distant

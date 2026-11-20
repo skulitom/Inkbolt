@@ -273,7 +273,7 @@ class BlendingTests(unittest.TestCase):
         features={f['id']:f for f in status['features']}
         self.assertEqual(features['vector.blending.extended']['status'],'verified')
         self.assertEqual(features['raster.effects.extended']['status'],'verified')
-        self.assertNotEqual(features['vector.booleans.extended']['status'],'verified')
+        self.assertEqual(status['verified'], sum(f['status'] == 'verified' for f in features.values()))
 
 
 if __name__=='__main__':unittest.main()
