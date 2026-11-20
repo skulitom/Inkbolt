@@ -49,8 +49,39 @@ The `curve-output-01` evidence retains the source archive, both reports, all
 554 stage logs, comparison outputs and a historical polygon-session replay.
 The audit SHA-256 is
 `af255a66e1fe169ec95b6984562661556bd0f63f8fc6b0ab01ae13c9de6de875`.
-Polygon output is still the default. Changing it requires proving that
-existing committed requests and pending proposals keep their reviewed geometry.
+The opt-in milestone shipped in v0.83.0 with polygon output as its default.
+
+### Editable curves by default
+
+At `696dbf4`, new Boolean requests return editable curves by default. Both
+Windows and Linux reproduced 96 previously audited geometry and certificate
+responses. Each platform replayed eight original v0.83.0 session stores,
+including pending proposals with mixed output choices. The stored shapes and
+receipts matched their originals. A retry that changed the reviewed format
+was rejected.
+
+On the [fixture with two irrational tangencies](BOOLEANS.md#remaining-curved-path-work),
+the default produces eight cubic spans for difference and 34 for xor. Through
+MCP, both could be proposed, applied after restarting the client, exported,
+undone and redone. The PNG and SVG bytes matched across Windows and Linux.
+
+Independent winding checks matched at 199,516 points across all four operations
+on the original fixture and four variations. Another 205,236 points covered
+partly shared, reversed, identical, disjoint and self-crossing boundaries.
+The latter fixtures also matched analytic areas and the reported deviation
+bounds. Across ten explicit tolerances, difference succeeded at every setting.
+Xor succeeded down to 1/128 and refused at 1/256 and 1/512. The same limit
+appeared at default tolerance when the input coordinates grew by factors of
+32 and 64. Strict precision continues to refuse the irrational world contacts
+on this fixture.
+
+Fresh full verification at `696dbf4` passed all 277 stages on each platform.
+Windows ran 319 Rust and 2,852 Python tests, with 24 explicit Python skips.
+Linux under WSL ran 285 Rust and 2,825 Python tests, with 51 explicit skips.
+Rust 1.89 also checked all targets on both systems. The `curve-default-01`
+evidence includes both source archives, all 554 stage logs for this commit,
+and the independent geometry and session results. The audit SHA-256 is
+`fc03608acf52482a38fae98ba57a948f4143d0c9ff1e4eea88e812ffcaaf6044`.
 
 ## W3c.3: spatial evaluation hypothesis
 

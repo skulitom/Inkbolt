@@ -39,7 +39,7 @@ change a fill in the JSON and give the output a new filename.
 | Task | How Inkbolt helps |
 | --- | --- |
 | Draw a diagram or illustration | Arrange shapes, text, images and artboards. Import editable SVG artwork, including reusable symbols and positioned text. [SVG import](docs/SVG_IMPORT.md) |
-| Cut or join shapes | Combine filled paths, circles and ellipses in one undoable edit. Request `"output":"curves"` to keep supported boundaries editable as Bézier curves. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
+| Cut or join shapes | Combine filled paths, circles and ellipses in one undoable edit. On `main`, curved boundaries keep their editable Bézier handles by default. In v0.83.0, request `"output":"curves"`. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
 | Retouch an image | Select a region, feather a mask or repair a patch. Keep 16-bit samples and share unchanged image data across revisions. [Selections](docs/NATIVE_SELECTIONS.md) · [Image repair](docs/NATIVE_REPAIR.md) |
 | Review and deliver artwork | Compare revisions, undo a change, and preflight the output before writing a new PNG, JPEG, TIFF, SVG or PDF within the supported workflows. [Sessions](docs/AGENT_WORKSPACE.md) · [Runnable examples](examples/README.md) |
 
