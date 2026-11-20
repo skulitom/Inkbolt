@@ -4,6 +4,7 @@ from contextlib import closing
 from fractions import Fraction as F
 import hashlib
 import json
+from math import sqrt
 from pathlib import Path
 import tempfile
 import unittest
@@ -141,7 +142,16 @@ class BooleanPrecisionTests(unittest.TestCase):
         self.assertEqual(doc,saved)
 
     def test_tight_xor_subdivides_local_chords_and_scales_to_default_tolerance(self):
-        for scale in (32, 64):
+        # The two source areas are 24 and 116847/5120. Vertical slices of
+        # their overlap integrate to 243/32 + 45*sqrt(15)/16.
+        source_area = 161967/5120 - 45*sqrt(15)/8
+        # Each digest covers only the ordered path commands and coordinates.
+        # The two paths were independently reconstructed from the source cubics.
+        paths = {
+            32: '309caa5c2b488932a2f2b857c9599214adf62a0a09addf8890183878f5b770f3',
+            64: 'a6ebf5f75875d279b878b0269292797d168f96d844479e70c1044c2002987949',
+        }
+        for scale, digest in paths.items():
             tolerance = .125 / scale
             doc = self.document([curve(c) for c in TANGENT_CONTROLS])
             query = dict(command='document.boolean', document=doc, ids=['s0','s1'], mode='xor')
@@ -174,6 +184,9 @@ class BooleanPrecisionTests(unittest.TestCase):
                     if key in c:
                         c[key] = [v*scale for v in c[key]]
             self.assertEqual(area, F(report['signed_area_exact']))
+            self.assertLess(abs(float(area) - source_area), .0001)
+            geometry = json.dumps(result['geometry'], sort_keys=True, separators=(',', ':'))
+            self.assertEqual(hashlib.sha256(geometry.encode()).hexdigest(), digest)
             self.assertEqual(larger['geometry'], expected)
             self.assertEqual(F(larger['curve_output']['signed_area_exact']), area*scale**2)
             self.assertEqual(larger['curve_output']['chord_subdivision'], report['chord_subdivision'])

@@ -192,11 +192,17 @@ class CurveBooleanTests(unittest.TestCase):
     def test_partially_coincident_curves_share_runs_and_converge_to_analytic_area(self):
         control=[[0,0],[4,8],[8,8],[12,0]]
         a=[curve(control,(F(0),F(3,4))),curve(control,(F(1,4),F(1)))]
-        b=[curve(control,(F(0),F(1,8),F(1,2),F(3,4))),curve(control,(F(1,4),F(3,8),F(7,8),F(1)))]
+        knots = [(F(0), F(1,8), F(1,2), F(3,4)), (F(1,4), F(3,8), F(7,8), F(1))]
+        b = [curve(control, interval) for interval in knots]
         da=self.document(a);db=self.document(b)
         # Integrating y=24t(1-t), x=12t above the closing chords gives these areas.
         exact={'union':F(30),'intersection':F(21,2),'difference':F(39,4),'xor':F(39,2)}
+        reversed_doc = self.document([curve(control, interval, reverse=True) for interval in knots])
         for mode,expected in exact.items():
+            request = dict(command='document.boolean', document=da, ids=['s0','s1'], mode=mode)
+            editable = self.invoke(request)
+            self.assertEqual(F(editable['curve_output']['signed_area_exact']), expected)
+            self.assertEqual(self.invoke(dict(request, document=reversed_doc))['geometry'], editable['geometry'])
             previous=None
             for tolerance in (.25,.0625):
                 result=self.combine(da,mode,curve_tolerance=tolerance)
