@@ -3,6 +3,7 @@ use super::*;
 
 struct Solution {
     inputs: Vec<Operand>,
+    emitted: Option<output::Path>,
     curves: Value,
     arrangement: Arrangement,
     rounded: Vec<Vec<Point>>,
@@ -16,18 +17,26 @@ fn exact(
     tolerance: &R,
     budget: &mut Budget,
     reduced: bool,
+    output: Output,
 ) -> Result<Solution, (Box<Error>, &'static str)> {
     if reduced {
         budget.maximum = crate::limits::booleans::AUTO_CURVE_WORK;
     }
-    let curves = curves::evaluate(&mut inputs, &(tolerance * tolerance), budget);
+    let mut sources = output.sources();
+    let curves = curves::evaluate(&mut inputs, &(tolerance * tolerance), &mut sources, budget);
     budget.maximum = MAX_WORK;
     let curves = curves.map_err(|e| (Box::new(e), "curves"))?;
-    let arrangement = arrange(&inputs, mode, budget).map_err(|e| (Box::new(e), "arrangement"))?;
+    let arrangement =
+        arrange(&inputs, mode, &sources, true, budget).map_err(|e| (Box::new(e), "arrangement"))?;
     let (rounded, rounding) =
         rounding(&arrangement.loops, budget).map_err(|e| (Box::new(e), "output"))?;
+    let emitted = (output == Output::Curves)
+        .then(|| output::materialize(&arrangement, &rounded, tolerance, true, budget))
+        .transpose()
+        .map_err(|e| (Box::new(e), "output"))?;
     Ok(Solution {
         inputs,
+        emitted,
         curves,
         arrangement,
         rounded,
@@ -40,12 +49,14 @@ fn approximate(
     mut inputs: Vec<Operand>,
     mode: Mode,
     requested: f64,
+    output: Output,
     budget: &mut Budget,
 ) -> Result<Solution, Error> {
     let tolerance = r(requested);
     let grid = tolerance::grid(requested);
-    let curves = tolerance::evaluate(&mut inputs, &tolerance, &grid, budget)?;
-    let mut arrangement = arrange(&inputs, mode, budget)?;
+    let mut sources = output.sources();
+    let curves = tolerance::evaluate(&mut inputs, &tolerance, &grid, &mut sources, budget)?;
+    let mut arrangement = arrange(&inputs, mode, &sources, false, budget)?;
     let mut output_snaps = Vec::new();
     loop {
         match rounding(&arrangement.loops, budget) {
@@ -56,8 +67,12 @@ fn approximate(
                         "Boolean output rounding exceeds its tolerance budget",
                     ));
                 }
+                let emitted = (output == Output::Curves)
+                    .then(|| output::materialize(&arrangement, &rounded, &tolerance, false, budget))
+                    .transpose()?;
                 return Ok(Solution {
                     inputs,
+                    emitted,
                     curves,
                     arrangement,
                     rounded,
@@ -83,13 +98,14 @@ pub(super) fn compute(
     ids: &[String],
     mode: Mode,
     options: Options,
+    output: Output,
     inputs: Vec<Operand>,
 ) -> Result<Value, Error> {
     let mut budget = Budget::default();
     let mut fallback = None;
     let (solution, certificate) = if options.precision == Precision::Tolerance {
         (
-            approximate(inputs, mode, options.curve_tolerance, &mut budget)?,
+            approximate(inputs, mode, options.curve_tolerance, output, &mut budget)?,
             "tolerance_snap",
         )
     } else {
@@ -99,6 +115,7 @@ pub(super) fn compute(
             &r(options.curve_tolerance),
             &mut budget,
             options.precision == Precision::Auto,
+            output,
         ) {
             Ok(solution) => (solution, "exact"),
             Err((e, stage)) => {
@@ -115,7 +132,7 @@ pub(super) fn compute(
                 fallback = Some(json!({"stage":stage,"code":e.code,"message":e.message,
                     "attempt_work_units":budget.used}));
                 (
-                    approximate(inputs, mode, options.curve_tolerance, &mut budget)?,
+                    approximate(inputs, mode, options.curve_tolerance, output, &mut budget)?,
                     "tolerance_snap",
                 )
             }
@@ -123,6 +140,7 @@ pub(super) fn compute(
     };
     let Solution {
         inputs,
+        emitted,
         curves,
         arrangement,
         rounded,
@@ -144,11 +162,17 @@ pub(super) fn compute(
             value
         })
         .collect();
-    let mut commands = Vec::new();
-    for points in &rounded {
-        commands.push(PathCommand::Move { to: points[0] });
-        commands.extend(points[1..].iter().map(|p| PathCommand::Line { to: *p }));
-        commands.push(PathCommand::Close {});
+    let (mut commands, curve_report) = if let Some(path) = emitted {
+        (path.commands, Some(path.report))
+    } else {
+        (Vec::new(), None)
+    };
+    if curve_report.is_none() {
+        for points in &rounded {
+            commands.push(PathCommand::Move { to: points[0] });
+            commands.extend(points[1..].iter().map(|p| PathCommand::Line { to: *p }));
+            commands.push(PathCommand::Close {});
+        }
     }
     let geometry = if commands.is_empty() {
         None
@@ -187,6 +211,22 @@ pub(super) fn compute(
         "rounding_deviation_squared":rounding.to_string(),"atomic_edges":arrangement.atoms,
         "boundary_edges":arrangement.boundary,"work_units":budget.used,"losses":losses
     });
+    if let Some(report) = curve_report {
+        result["output"] = json!("curves");
+        result["curve_output"] = report;
+        result["losses"][1] = if approximate {
+            json!(
+                "Curves follow source intervals selected by the snapped polygon arrangement. Their endpoint handles follow the snapped junctions. Small regions and contacts can change during input flattening and snapping."
+            )
+        } else {
+            json!(
+                "The exact certified arrangement selects source subcurves. Editable control coordinates are rounded to binary64 with a reported deviation bound."
+            )
+        };
+        result["losses"][2] = json!(
+            "area_exact measures the reference polygon. curve_output.signed_area_exact integrates the emitted line and cubic contours."
+        );
+    }
     if let Some(fallback) = fallback {
         result["fallback"] = fallback;
     }

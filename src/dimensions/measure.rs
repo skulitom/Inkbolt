@@ -51,7 +51,7 @@ fn split(c: &C) -> (C, C) {
     let g = half(&e, &f);
     ([c[0].clone(), a, e, g.clone()], [g, f, d, c[3].clone()])
 }
-fn area(c: &C) -> R {
+pub(crate) fn area(c: &C) -> R {
     let power = |axis: usize| {
         [
             &c[0][axis] + n(0),

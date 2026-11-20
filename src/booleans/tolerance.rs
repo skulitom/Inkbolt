@@ -32,9 +32,19 @@ pub(super) fn evaluate(
     inputs: &mut [Operand],
     tolerance: &R,
     grid: &R,
+    sources: &mut output::Sources,
     budget: &mut Budget,
 ) -> Result<Value, Error> {
     let (arcs, mut summary) = curves::prepare(inputs, budget)?;
+    if let Some(sources) = sources {
+        for edge in inputs.iter().flat_map(|i| &i.edges) {
+            output::record(
+                sources,
+                edge.each_ref().map(|p| snap(p, grid)),
+                output::Origin::Line,
+            );
+        }
+    }
     let bound = tolerance * tolerance / n(4);
     let mut count: usize = inputs.iter().map(|input| input.edges.len()).sum();
     let mut flattened = 0;
@@ -59,6 +69,13 @@ pub(super) fn evaluate(
                 return Err(limit(
                     "Boolean tolerance flattening exceeds evaluated arc limit",
                 ));
+            }
+            if let Some(sources) = sources {
+                output::record(
+                    sources,
+                    [snap(&c[0], grid), snap(&c[3], grid)],
+                    output::Origin::cubic(&c),
+                );
             }
             for (input, weight) in inputs.iter_mut().zip(&weights) {
                 if *weight == 0 {
@@ -137,7 +154,10 @@ pub(super) fn repair(
             emit_edge(&mut input.edges, a, b)?;
         }
     }
-    Ok((arrange(&[input], Mode::Union, budget)?, maximum))
+    Ok((
+        arrange(&[input], Mode::Union, &None, false, budget)?,
+        maximum,
+    ))
 }
 
 #[cfg(test)]

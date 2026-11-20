@@ -68,7 +68,7 @@ impl Arc {
         }
     }
 }
-fn bound(c: &Cubic) -> R {
+pub(super) fn bound(c: &Cubic) -> R {
     (0..4)
         .map(|i| {
             let d = sub(&c[i], &lerp(&c[0], &c[3], &R::new(i.into(), 3.into())));
@@ -77,7 +77,7 @@ fn bound(c: &Cubic) -> R {
         .max()
         .unwrap()
 }
-fn monotone(c: &Cubic, direction: &P) -> bool {
+pub(super) fn monotone(c: &Cubic, direction: &P) -> bool {
     dot(&sub(&c[3], &c[0]), direction) > R::zero()
         && c.windows(2)
             .all(|p| dot(&sub(&p[1], &p[0]), direction) >= R::zero())
@@ -89,7 +89,7 @@ fn endpoints(c: &Cubic) -> [&P; 2] {
 // Exact separating-axis checks enclose every intermediate curve in its control
 // hull. On a touching plane, a monotone curve/chord family can only reach the
 // interval between the endpoints on that plane, not arbitrary control points.
-fn separated(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
+pub(super) fn separated(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
     let mut normals = vec![[n(1), n(0)], [n(0), n(1)]];
     for c in [a, b] {
         for i in 0..4 {
@@ -154,7 +154,7 @@ fn separated(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
 // Curves sharing one strictly monotone coordinate have the same parameter at
 // a possible intersection. A fixed sign of the other coordinate's difference,
 // including its endpoint chord, excludes interior intersections throughout.
-fn paired_coordinate(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
+pub(super) fn paired_coordinate(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
     for reverse in [false, true] {
         let b: Cubic = std::array::from_fn(|i| b[if reverse { 3 - i } else { i }].clone());
         let mut directions = vec![[n(1), n(0)], [n(0), n(1)]];
@@ -213,7 +213,7 @@ fn outside(p: &P, c: &Cubic, budget: &mut Budget) -> Result<bool, Error> {
 // nonzero Jacobian in the parameter-square interior for the whole homotopy.
 // Endpoints outside the opposite control hull keep its boundary away from zero.
 // The chord boundary degree therefore counts exactly zero or one intersection.
-fn transverse(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<Option<bool>, Error> {
+pub(super) fn transverse(a: &Cubic, b: &Cubic, budget: &mut Budget) -> Result<Option<bool>, Error> {
     budget.spend(crate::limits::booleans_topology::TRANSVERSE_WORK)?;
     let values: Vec<_> = a
         .windows(2)
@@ -391,9 +391,16 @@ pub(super) fn evaluate(
     inputs: &mut [Operand],
     mut arcs: Vec<Arc>,
     tolerance: &R,
+    sources: &mut output::Sources,
     budget: &mut Budget,
 ) -> Result<Value, Error> {
     if arcs.is_empty() {
+        if let Some(sources) = sources {
+            for edge in inputs.iter().flat_map(|input| &input.edges) {
+                budget.spend(1)?;
+                output::record(sources, edge.clone(), output::Origin::Line);
+            }
+        }
         return Ok(json!({"certificate":"exact_polygon_winding","curve_arcs":0}));
     }
     let mut base = lines(inputs, budget)?;
@@ -509,6 +516,17 @@ pub(super) fn evaluate(
                 R::zero()
             };
             let chord = arc.chord();
+            if let Some(sources) = sources {
+                let origin = if arc.curved {
+                    match &arc.curve {
+                        Curve::Rational(c) => output::Origin::cubic(c),
+                        Curve::Quadratic(span) => span.output_source(),
+                    }
+                } else {
+                    output::Origin::Line
+                };
+                output::record(sources, chord.clone(), origin);
+            }
             for (input, &weight) in inputs.iter_mut().zip(&arc.weights) {
                 if weight == 0 {
                     continue;

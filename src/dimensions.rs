@@ -8,6 +8,7 @@ use serde_json::{Value, json};
 mod measure;
 use crate::limits::dimensions as bounds;
 pub use crate::limits::dimensions::MAX_WORK;
+pub(crate) use measure::area as cubic_signed_area;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]

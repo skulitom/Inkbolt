@@ -79,6 +79,22 @@ class QuadraticContactTests(unittest.TestCase):
             self.assertIn((F(12),F(8)),{p for poly in polygons(result['geometry']) for p in poly})
             self.samples(result,mode,True)
 
+    def test_editable_lobes_share_exact_node_and_integrate_radical_area(self):
+        d = self.document([curve(NODE),rect(0,-10,32,32)])
+        result = self.combine(d,'intersection',output='curves',precision='exact')
+        self.assertEqual(result['positive_contours'],2)
+        report = result['curve_output']
+        self.assertGreater(report['cubic_segments'],2)
+        commands = result['geometry']['commands']
+        self.assertGreaterEqual(sum(c.get('to') == [12,8] for c in commands),2)
+        with localcontext() as ctx:
+            ctx.prec = 70
+            a = D(1)/8
+            primitive = lambda u: u**5/5-a*u**3/3
+            expected = 18432*(primitive(D(1)/2)-2*primitive(a.sqrt()))
+            self.assertLess(abs(decimal(F(report['signed_area_exact']))-expected),D('1e-12'))
+        self.assertLess(F(report['source_curve_deviation_squared']),F(1,10**25))
+
     def test_analytic_lobe_area_converges_and_both_contours_keep_the_node(self):
         d=self.document([curve(NODE),rect(0,-10,32,32)])
         with localcontext() as context:

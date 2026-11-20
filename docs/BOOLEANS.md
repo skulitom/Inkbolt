@@ -12,11 +12,38 @@ accepted range and default from the same constants as validation. The shared
 `precision` option selects `auto` (default), `exact` or `tolerance` for both the
 read-only command and the atomic edit.
 
-`document.boolean` computes `union`, `intersection`, `difference` or `xor` from 2..16 distinct vector or work-path item `ids` in a supplied `document`. It returns an editable root-coordinate polygonal `geometry` and `fill_rule:nonzero`. An empty region returns `geometry:null` and `empty:true`. This command remains read-only. The `boolean` edit operation computes and adds the result in one atomic edit, with explicit paint and source handling.
+`document.boolean` computes `union`, `intersection`, `difference` or `xor` from 2..16 distinct vector or work-path item `ids` in a supplied `document`. By default it returns an editable root-coordinate polygonal `geometry` and `fill_rule:nonzero`. An empty region returns `geometry:null` and `empty:true`. This command remains read-only. The `boolean` edit operation computes and adds the result in one atomic edit, with explicit paint and source handling.
 
 Difference means the first operand minus the union of every remaining operand. Intersection requires membership in every operand; xor uses odd membership across operands. Each operand's own nonzero/even-odd rule determines its filled region. Open contours close for this geometric operation. Zero-area spikes and retraced edges contribute no filled region. Item and ancestor transforms place operands in document coordinates; the result is suitable for a root item with identity transform. Results added beneath a transformed parent need an explicit coordinate conversion.
 
 This command combines geometry. Paint, stroke width, visibility, locks, opacity, clips, masks, filters and ancestor appearance do not define its operands. It can inspect locked or hidden source geometry because it does not mutate it. Materializing a result or changing source properties uses the normal edit and lock rules. There is no appearance flattening or live reference to the source items. Results and original operands can coexist in snapshots and sessions; undo of the materializing edit restores the previous document.
+
+## Editable curve output
+
+Pass `"output":"curves"` to `document.boolean` or the atomic `boolean`
+edit to keep cubic handles on the selected boundary. An arch clipped at a
+rational parameter returns the surviving part of the arch as editable cubic
+segments. `"output":"polygon"` is the default and is omitted from serialized
+edit identities for historical session replay.
+
+The strict solver retains the certified source subcurves and follows them in
+the direction of the traced boundary. For quadratic-algebraic source controls,
+outward rational enclosures bound the displacement when emitting binary64
+handles. A crossing still needing an unresolved
+true curve parameter can trigger the automatic tolerance fallback. Tolerance
+mode restricts each source cubic at the parameters of its snapped chord and
+moves the endpoint handles with their new junctions. Both modes check the
+emitted control points after conversion to document coordinates. A convex-hull
+bound covers every point of each segment against its reference chord. Exact
+predicates verify that moving the emitted curves onto their rounded chords
+preserves the boundary topology. Ambiguous coincident sources, uncertified
+contacts and unavailable provenance after snap repair fail explicitly.
+
+The `curve_output` receipt reports the number of cubics and the maximum squared
+deviations from the reference polygon and selected source subcurves. For
+tolerance mode, source deviation uses the chosen chord-parameter intervals.
+`curve_output.signed_area_exact` integrates the emitted path including holes.
+The existing `area_exact` continues to measure the rational polygon arrangement.
 
 ## Precision and ellipse conversion
 

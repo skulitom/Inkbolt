@@ -287,7 +287,7 @@ fn description(command: &str) -> String {
             "Export a saved scalar channel as grayscale PNG or a named-ink alternate-color preview, retaining channel identity in structured metadata. Does not change the artwork."
         }
         "document.boolean" => {
-            "Combine the filled geometry of explicit vector IDs with union, intersection, difference or xor. Returns a new editable path or an explicit empty result, exact polygon area, tolerance and topology diagnostics. Sources stay unchanged; styles/effects do not define the operands."
+            "Combine the filled geometry of explicit vector IDs with union, intersection, difference or xor. Returns an editable polygon by default. Request output curves to retain cubic handles and obtain the integrated curve area. Empty results and precision limits are explicit. Sources stay unchanged; styles/effects do not define the operands."
         }
         "document.measure" => {
             "Measure exact RGBA8 composite histograms, statistics and pixel samples; optionally weight by selection and alpha. Returns structured numerical evidence without changing the document."

@@ -30,6 +30,86 @@ class CurveBooleanTests(unittest.TestCase):
     combine=booleans.BooleanTests.combine
     check_area=booleans.BooleanTests.check_area
 
+    def test_editable_clipped_arch_has_original_controls_area_and_coverage(self):
+        # x=12t, y=24t(1-t). A cut at x=6 divides its area of 48 equally.
+        controls = [[0,0],[4,8],[8,8],[12,0]]
+        doc = self.document([curve(controls), rect(6,-2,10,12)])
+        for precision in ('exact', 'tolerance', 'auto'):
+            for mode, expected_area in [('union',144), ('intersection',24),
+                                        ('difference',24), ('xor',120)]:
+                with self.subTest(precision=precision, mode=mode):
+                    result = self.combine(doc, mode, precision=precision, output='curves')
+                    self.assertEqual(F(result['curve_output']['signed_area_exact']), expected_area)
+                    self.assertEqual(F(result['curve_output']['source_curve_deviation_squared']), 0)
+                    self.assertGreater(result['curve_output']['cubic_segments'], 0)
+                    tolerance = F(result['curve_tolerance'])
+                    bound = F(result['curve_output']['polygon_deviation_squared'])
+                    self.assertLessEqual(bound, tolerance**2)
+                    for command in result['geometry']['commands']:
+                        if command['verb'] == 'cubic':
+                            end = tuple(map(F, command['to']))
+                            a, b = start[0]/12, end[0]/12
+                            self.assertEqual(blossom(controls,[a,a,b]),tuple(map(F, command['control1'])))
+                            self.assertEqual(blossom(controls,[a,b,b]),tuple(map(F, command['control2'])))
+                            for i in range(9):
+                                u = F(i,8)
+                                p = blossom(controls, [a+(b-a)*u]*3)
+                                q = [(1-u)*x+u*y for x,y in zip(start,end)]
+                                self.assertLessEqual(sum((x-y)**2 for x,y in zip(p,q)), bound)
+                        if 'to' in command:
+                            start = tuple(map(F, command['to']))
+
+    def test_curved_hole_and_cancelled_coincident_sources(self):
+        controls = [[0,0],[4,8],[8,8],[12,0]]
+        inner = curve(controls)
+        doc = self.document([rect(-2,-2,16,12),inner])
+        result = self.combine(doc, 'difference', output='curves')
+        self.assertEqual(result['negative_contours'], 1)
+        self.assertEqual(F(result['curve_output']['signed_area_exact']), 192-48)
+        same = self.document([inner,curve(controls, (F(0),F(3,8),F(1)), reverse=True)])
+        for mode in ('xor','difference'):
+            empty = self.combine(same,mode,output='curves')
+            self.assertIsNone(empty['geometry'])
+            self.assertEqual(empty['curve_output']['cubic_segments'],0)
+        self.assertEqual(self.combine(doc), self.combine(doc,output='polygon'))
+
+    def test_snapped_coincident_curves_refuse_ambiguous_handles(self):
+        def arch(delta):
+            return curve([[0,0],[4,8+delta],[8,8+delta],[12,0]])
+        doc = self.document([arch(0),arch(F(1,1024))])
+        error = self.combine(doc, precision='tolerance', output='curves', expected=1)
+        self.assertEqual(error['code'],'CURVE_TOPOLOGY_UNRESOLVED')
+        self.assertNotIn('geometry',error)
+        self.assertFalse(self.combine(doc,precision='tolerance',output='polygon')['empty'])
+        # A requested curved path can legitimately contain only straight edges.
+        lines = self.document([rect(0,0,8,8),rect(4,4,8,8)])
+        result = self.combine(lines,'intersection',output='curves')
+        self.assertEqual(result['curve_output']['signed_area_exact'],'16')
+        self.assertEqual(result['curve_output']['cubic_segments'],0)
+
+    def test_irrational_clip_reflattens_inside_the_declared_band(self):
+        # y=3 intersects the arch at x=6 +/- 3*sqrt(2).
+        doc = self.document([curve([[0,0],[4,8],[8,8],[12,0]]),rect(0,3,12,6)])
+        result = self.combine(doc,'intersection',precision='tolerance',output='curves')
+        report = result['curve_output']
+        self.assertGreater(report['cubic_segments'],0)
+        self.assertGreater(F(report['source_curve_deviation_squared']),0)
+        self.assertLessEqual(F(report['source_curve_deviation_squared']),F(1,8)**2)
+        vertices = []
+        for cmd in result['geometry']['commands']:
+            if cmd['verb'] == 'cubic':
+                points = [vertices[-1],cmd['control1'],cmd['control2'],cmd['to']]
+                vertices.extend(blossom(points,[F(i,16)]*3) for i in range(1,17))
+            elif 'to' in cmd:
+                vertices.append(tuple(map(F,cmd['to'])))
+        # Dense independent coverage check away from either analytic boundary.
+        for x in (F(i,4) for i in range(1,48)):
+            top = 2*x-x*x/6
+            for y in (F(i,4) for i in range(1,28)):
+                if min(abs(y-3),abs(y-top)) <= F(1,2):
+                    continue
+                self.assertEqual(bool(booleans.winding(vertices,x,y)),3 < y < top,(x,y))
+
     def test_coincident_subdivisions_and_reversals_have_exactly_empty_difference(self):
         controls=[[[0,0],[4,8],[8,8],[12,0]],[[2,2],[4,15],[12,-3],[18,8]],[[2,2],[2,2],[5,2],[11,11]]]
         for control in controls:

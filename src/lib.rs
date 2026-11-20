@@ -876,6 +876,8 @@ pub enum Request {
         curve_tolerance: f64,
         #[serde(default, skip_serializing_if = "crate::booleans::Precision::is_auto")]
         precision: crate::booleans::Precision,
+        #[serde(default, skip_serializing_if = "crate::booleans::Output::is_polygon")]
+        output: crate::booleans::Output,
     },
     #[serde(rename = "document.select")]
     Select {
@@ -1295,7 +1297,7 @@ fn capability_report() -> Value {
         "session_contract":{"storage_version":sessions::STORE_VERSION,"supported_storage_versions":sessions::SUPPORTED_STORE_VERSIONS,"backend":"sqlite_rollback_full_sync","parent_directory_aliases":true,"database_symlinks":false,"conflicts":"expected_revision","retry":"original_receipt_and_document","history":"immutable_states_no_eviction","resources":"external_explicit_roots","cancellation":"cooperative_precommit","export":"read_document_then_export_returned_snapshot"},
         "unsupported":unsupported,
     });
-    capabilities["booleans"] = json!({"command":"document.boolean","modes":["union","intersection","difference","xor"],"output":"root_coordinate_nonzero_polygon_or_null","arithmetic":"exact_rational_arrangement_then_checked_f64_vertices","curve_model":"exact_certified_chords_or_declared_tolerance_snap","curve_tolerance":[0,limits::booleans::MAX_CURVE_TOLERANCE],"default_curve_tolerance":limits::booleans::DEFAULT_CURVE_TOLERANCE,"curve_coincidence":"exact_noncollinear_polynomial_affine_parameter_normalization","curve_subdivision":"invariant_within_operand_for_exact_encoded_polynomials","curve_topology":"exact_mode_certified_simultaneous_deformation;tolerance_mode_snapped_arrangement","curve_contacts":"verified_rational_resultants_and_quadratic_parameter_nodes_with_rational_junctions","curve_contact_root_search_depth":limits::booleans_topology_algebraic_roots::MAX_ROOT_DEPTH,"curve_contact_polynomial_coefficient_bits":limits::booleans_topology_algebraic_roots::MAX_COEFFICIENT_BITS,"curve_quadratic_predicates":"exact_signs_across_two_real_quadratic_fields","curve_contacts_remaining":"non_rational_fixed_world_junctions_and_uncertified_deformations_require_tolerance_or_fail","analytic_ellipses":"auto_and_tolerance_expand_four_cubics_with_separate_world_error;exact_requires_explicit_conversion","precision":["exact","auto","tolerance"],"default_precision":"auto","tolerance_model":"canonical_rational_flattening_then_dyadic_snapping_and_exact_arrangement","tolerance_source_topology_preserved":false,"auto_curve_work":limits::booleans::AUTO_CURVE_WORK,"maximum_output_snap_passes":limits::booleans::MAX_OUTPUT_SNAP_PASSES,"source_mutation":false});
+    capabilities["booleans"] = json!({"command":"document.boolean","modes":["union","intersection","difference","xor"],"output":"root_coordinate_nonzero_path_or_null","arithmetic":"exact_rational_arrangement_then_checked_f64_vertices","curve_model":"exact_certified_chords_or_declared_tolerance_snap","curve_tolerance":[0,limits::booleans::MAX_CURVE_TOLERANCE],"default_curve_tolerance":limits::booleans::DEFAULT_CURVE_TOLERANCE,"curve_coincidence":"exact_noncollinear_polynomial_affine_parameter_normalization","curve_subdivision":"invariant_within_operand_for_exact_encoded_polynomials","curve_topology":"exact_mode_certified_simultaneous_deformation;tolerance_mode_snapped_arrangement","curve_contacts":"verified_rational_resultants_and_quadratic_parameter_nodes_with_rational_junctions","curve_contact_root_search_depth":limits::booleans_topology_algebraic_roots::MAX_ROOT_DEPTH,"curve_contact_polynomial_coefficient_bits":limits::booleans_topology_algebraic_roots::MAX_COEFFICIENT_BITS,"curve_quadratic_predicates":"exact_signs_across_two_real_quadratic_fields","curve_contacts_remaining":"non_rational_fixed_world_junctions_and_uncertified_deformations_require_tolerance_or_fail","analytic_ellipses":"auto_and_tolerance_expand_four_cubics_with_separate_world_error;exact_requires_explicit_conversion","precision":["exact","auto","tolerance"],"default_precision":"auto","tolerance_model":"canonical_rational_flattening_then_dyadic_snapping_and_exact_arrangement","tolerance_source_topology_preserved":false,"auto_curve_work":limits::booleans::AUTO_CURVE_WORK,"maximum_output_snap_passes":limits::booleans::MAX_OUTPUT_SNAP_PASSES,"source_mutation":false});
     capabilities["filters"].as_object_mut().unwrap().extend(json!({
         "trajectory_samples_default": limits::filters::DEFAULT_TRAJECTORY_SAMPLES,
         "directional_angle_degrees": [-i64::from(limits::filters::MAX_ANGLE_DEGREES), limits::filters::MAX_ANGLE_DEGREES],
@@ -1320,6 +1322,7 @@ fn capability_report() -> Value {
     capabilities["work_paths"]["compound_operations"] = json!(
         "retained_union_intersection_difference_xor;membership_before_coverage;independent_source_copies"
     );
+    capabilities["booleans"]["output_formats"] = json!({"default":"polygon","choices":["polygon","curves"],"curves":"source_subcurves_with_certified_rounded_topology_and_reported_deviation","curve_area":"curve_output.signed_area_exact","unresolved":"explicit_refusal"});
     capabilities["booleans"]["spatial_evaluation"] = json!({"bounds":"exact_rational_closed_boxes_in_balanced_tree","candidates":"curve_contacts_line_intersections_face_rays_winding_and_output_certification","work":"index_build_comparisons_node_visits_and_exact_predicates_share_total_budget","dense_inputs":"remain_subject_to_atom_and_work_limits"});
     capabilities["booleans"]["maximum_quadratic_directions"] =
         json!(limits::booleans_topology_algebraic::MAX_QUADRATIC_DIRECTIONS);
@@ -3166,7 +3169,8 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             mode,
             curve_tolerance,
             precision,
-        } => booleans::compute_with_options(
+            output,
+        } => booleans::compute_with_output(
             &document,
             &ids,
             mode,
@@ -3174,6 +3178,7 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
                 precision,
                 curve_tolerance,
             },
+            output,
         ),
         Request::Select { document, ids } => {
             model::validate_controlled(&document, context)?;

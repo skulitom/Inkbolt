@@ -5,6 +5,32 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## W3c.4: editable curve output
+
+At `b0eff3e`, combining a cubic arch with a clipping rectangle produced only line
+commands. An agent editing its curvature must reconstruct the handles. Track
+the source curve of each boundary edge through intersection, selection and
+tracing, then emit editable cubics. Check clipped and reversed arcs against
+independent polynomial controls, area and filled coverage. An unsupported
+junction, ambiguous source or unverified error bound must prevent publication
+of that curve result. Polygon requests remain available for existing workflows.
+
+The opt-in implementation now retains source spans through the atomic edges of
+the arrangement. The baseline cut arch returned five line commands and a polygon
+area of 23.625. In exact curve mode the clipped boundary includes four cubic
+segments with integrated area 24 and zero displacement from their source.
+Independent tests reconstruct the expected control handles in both traversal
+directions, sample a cut with irrational intersections, and integrate a two-lobe
+curve whose node has irrational parameters. MCP session tests cover applying the
+edit, replaying its receipt and restoring the operands with undo.
+
+Strict output currently needs each emitted cubic junction to have a resolved
+source parameter. When that fails, automatic precision can return source
+subcurves fitted to the snapped intersection with a measured displacement.
+The remaining W3c.4 work includes locating general transverse junctions on the
+true curves and full acceptance before switching the default. The original
+advanced checkpoint remains in progress.
+
 ## W3c.3: spatial evaluation hypothesis
 
 The required curve-combination and multi-region workloads still pay for distant

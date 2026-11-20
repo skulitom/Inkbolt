@@ -71,6 +71,7 @@ pub(super) fn restricted(p: &Polynomial, a: &R, b: &R) -> Cubic {
 pub(super) fn evaluate(
     inputs: &mut [Operand],
     tolerance: &R,
+    sources: &mut output::Sources,
     budget: &mut Budget,
 ) -> Result<Value, Error> {
     let (arcs, mut summary) = prepare(inputs, budget)?;
@@ -78,7 +79,7 @@ pub(super) fn evaluate(
         .into_iter()
         .map(|(c, weights)| topology::Arc::curved(c, weights))
         .collect();
-    summary["topology"] = topology::evaluate(inputs, arcs, tolerance, budget)?;
+    summary["topology"] = topology::evaluate(inputs, arcs, tolerance, sources, budget)?;
     Ok(summary)
 }
 

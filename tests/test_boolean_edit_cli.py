@@ -99,6 +99,34 @@ class BooleanEditTests(unittest.TestCase):
             elif policy=='hide':self.assertTrue(all(not i['visible'] for i in result['document']['items']))
             else:self.assertEqual(result['document']['items'],[])
 
+    def test_atomic_curve_output_has_editable_handles_and_preserves_operands(self):
+        arch = item('outer',0,0,12,6)
+        arch['content']['geometry'] = dict(shape='path', commands=[
+            dict(verb='move',to=[0,0]),dict(verb='cubic',control1=[4,8],control2=[8,8],to=[12,0]),
+            dict(verb='close')])
+        doc = self.document([arch,item('opening',6,-2,10,12)])
+        op = self.operation(output='curves', precision='exact', sources='keep', curve_tolerance=0.125)
+        result = self.apply(doc,op)
+        after = result['document']['items']
+        self.assertEqual(after[:-1],doc['items'])
+        self.assertTrue(any(c['verb']=='cubic' for c in after[-1]['content']['geometry']['commands']))
+        details = result['changes'][0]['details']
+        self.assertEqual(Fraction(details['curve_output']['signed_area_exact']),24)
+        self.assertNotIn('geometry',details)
+        with tempfile.TemporaryDirectory() as directory, closing(Client()) as client:
+            client.initialize()
+            args = dict(session_root=directory,session_id='curve-edit')
+            client.success('session.create',**args,request_id='create',document=doc)
+            action = dict(type='edit',operations=[op])
+            request = dict(args,request_id='clipped-arch',expected_revision=0,action=action)
+            first = client.success('session.apply',**request)
+            replay = client.success('session.apply',**request)
+            self.assertEqual(replay['receipt'],first['receipt'])
+            self.assertTrue(replay['replayed'])
+            self.assertEqual(first['document']['items'],after)
+            restored = client.success('session.apply',**args,request_id='undo',expected_revision=1,action=dict(type='undo'))
+            self.assertEqual(restored['document']['items'],doc['items'])
+
     def test_failures_leave_session_and_whole_batch_unchanged(self):
         doc=self.document()
         with tempfile.TemporaryDirectory() as directory:

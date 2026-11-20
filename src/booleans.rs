@@ -10,6 +10,8 @@ use std::{
     collections::{BTreeMap, BTreeSet},
 };
 mod curves;
+mod output;
+pub use output::Output;
 mod ellipses;
 mod evaluation;
 mod spatial;
@@ -359,7 +361,11 @@ fn area(points: &[P]) -> R {
 fn topology(message: &str) -> Error {
     Error::new("TOPOLOGY_ERROR", message)
 }
-fn trace(boundary: &[Segment], budget: &mut Budget) -> Result<Vec<Vec<P>>, Error> {
+fn trace(
+    boundary: &[Segment],
+    preserve_knots: bool,
+    budget: &mut Budget,
+) -> Result<Vec<Vec<P>>, Error> {
     let mut outgoing: BTreeMap<P, Vec<usize>> = BTreeMap::new();
     let mut degree: BTreeMap<P, usize> = BTreeMap::new();
     for (i, e) in boundary.iter().enumerate() {
@@ -411,19 +417,21 @@ fn trace(boundary: &[Segment], budget: &mut Budget) -> Result<Vec<Vec<P>>, Error
             points.push(boundary[i][0].clone());
             i = next[i];
         }
-        loop {
-            let remove = (0..points.len()).find(|&i| {
-                let prev = &points[(i + points.len() - 1) % points.len()];
-                let p = &points[i];
-                let next = &points[(i + 1) % points.len()];
-                let a = sub(p, prev);
-                let b = sub(next, p);
-                degree[p] == 2 && cross(&a, &b).is_zero() && dot(&a, &b) > R::zero()
-            });
-            if let Some(i) = remove {
-                points.remove(i);
-            } else {
-                break;
+        if !preserve_knots {
+            loop {
+                let remove = (0..points.len()).find(|&i| {
+                    let prev = &points[(i + points.len() - 1) % points.len()];
+                    let p = &points[i];
+                    let next = &points[(i + 1) % points.len()];
+                    let a = sub(p, prev);
+                    let b = sub(next, p);
+                    degree[p] == 2 && cross(&a, &b).is_zero() && dot(&a, &b) > R::zero()
+                });
+                if let Some(i) = remove {
+                    points.remove(i);
+                } else {
+                    break;
+                }
             }
         }
         if points.len() < 3 || area(&points).is_zero() {
@@ -573,8 +581,15 @@ struct Arrangement {
     loops: Vec<Vec<P>>,
     atoms: usize,
     boundary: usize,
+    sources: output::Sources,
 }
-fn arrange(inputs: &[Operand], mode: Mode, budget: &mut Budget) -> Result<Arrangement, Error> {
+fn arrange(
+    inputs: &[Operand],
+    mode: Mode,
+    sources: &output::Sources,
+    strict: bool,
+    budget: &mut Budget,
+) -> Result<Arrangement, Error> {
     let raw: Vec<_> = inputs.iter().flat_map(|v| v.edges.clone()).collect();
     if raw.len() > MAX_EDGES {
         return Err(limit(&format!(
@@ -600,6 +615,7 @@ fn arrange(inputs: &[Operand], mode: Mode, budget: &mut Budget) -> Result<Arrang
         }
     }
     let mut atoms: BTreeMap<Segment, Vec<i32>> = BTreeMap::new();
+    let mut atom_sources = sources.as_ref().map(|_| BTreeMap::new());
     let mut edge_index = 0;
     let owners: Vec<_> = inputs
         .iter()
@@ -612,6 +628,9 @@ fn arrange(inputs: &[Operand], mode: Mode, budget: &mut Budget) -> Result<Arrang
                 .iter()
                 .map(|t| lerp(&e[0], &e[1], t))
                 .collect();
+            if let (Some(raw), Some(atoms)) = (sources, &mut atom_sources) {
+                output::split_source(raw, atoms, e, &cuts[edge_index], &points, strict, budget)?;
+            }
             edge_index += 1;
             for pair in points.windows(2) {
                 let (key, sign) = if pair[0] < pair[1] {
@@ -662,11 +681,12 @@ fn arrange(inputs: &[Operand], mode: Mode, budget: &mut Budget) -> Result<Arrang
             });
         }
     }
-    let loops = trace(&boundary, budget)?;
+    let loops = trace(&boundary, atom_sources.is_some(), budget)?;
     Ok(Arrangement {
         loops,
         atoms: atom_count,
         boundary: boundary.len(),
+        sources: atom_sources,
     })
 }
 pub fn compute(
@@ -690,6 +710,15 @@ pub fn compute_with_options(
     ids: &[String],
     mode: Mode,
     options: Options,
+) -> Result<Value, Error> {
+    compute_with_output(document, ids, mode, options, Output::Polygon)
+}
+pub fn compute_with_output(
+    document: &Document,
+    ids: &[String],
+    mode: Mode,
+    options: Options,
+    output: Output,
 ) -> Result<Value, Error> {
     let curve_tolerance = options.curve_tolerance;
     crate::validate(document)?;
@@ -734,5 +763,5 @@ pub fn compute_with_options(
             "Tolerance precision requires a positive curve_tolerance",
         ));
     }
-    evaluation::compute(document, ids, mode, options, inputs)
+    evaluation::compute(document, ids, mode, options, output, inputs)
 }

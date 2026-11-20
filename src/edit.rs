@@ -269,6 +269,8 @@ pub enum Operation {
         curve_tolerance: f64,
         #[serde(default, skip_serializing_if = "crate::booleans::Precision::is_auto")]
         precision: crate::booleans::Precision,
+        #[serde(default, skip_serializing_if = "crate::booleans::Output::is_polygon")]
+        output: crate::booleans::Output,
         #[serde(default)]
         sources: BooleanSources,
     },
@@ -1193,6 +1195,7 @@ fn apply_one(
             fill,
             curve_tolerance,
             precision,
+            output,
             sources,
         } => {
             *details = Some(boolean::apply(
@@ -1205,7 +1208,10 @@ fn apply_one(
                     precision: *precision,
                     curve_tolerance: *curve_tolerance,
                 },
-                *sources,
+                boolean::Materialization {
+                    sources: *sources,
+                    output: *output,
+                },
             )?);
             Ok((new_id.clone(), "boolean"))
         }

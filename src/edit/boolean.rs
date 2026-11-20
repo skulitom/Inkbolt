@@ -13,6 +13,11 @@ pub enum Sources {
     Remove,
 }
 
+pub(super) struct Materialization {
+    pub sources: Sources,
+    pub output: booleans::Output,
+}
+
 pub(super) fn apply(
     document: &mut Document,
     ids: &[String],
@@ -20,8 +25,9 @@ pub(super) fn apply(
     mode: booleans::Mode,
     fill: &Paint,
     options: booleans::Options,
-    sources: Sources,
+    settings: Materialization,
 ) -> Result<Value, Error> {
+    let sources = settings.sources;
     if !(2..=booleans::MAX_INPUTS).contains(&ids.len()) {
         return Err(Error::new(
             "INVALID_REQUEST",
@@ -40,7 +46,7 @@ pub(super) fn apply(
             super::unlocked(document, scene::index(document, id)?)?;
         }
     }
-    let mut receipt = booleans::compute_with_options(document, ids, mode, options)?;
+    let mut receipt = booleans::compute_with_output(document, ids, mode, options, settings.output)?;
     let geometry: Option<Geometry> = serde_json::from_value(receipt["geometry"].take())
         .map_err(|_| invalid("Boolean solver returned invalid result geometry"))?;
     receipt.as_object_mut().unwrap().remove("geometry");
@@ -118,6 +124,10 @@ mod tests {
         let operation: crate::edit::Operation = serde_json::from_value(historical.clone()).unwrap();
         assert_eq!(serde_json::to_value(operation).unwrap(), historical);
         let mut explicit = historical.clone();
+        explicit["output"] = json!("polygon");
+        let operation: crate::edit::Operation = serde_json::from_value(explicit.clone()).unwrap();
+        assert_eq!(serde_json::to_value(operation).unwrap(), historical);
+        explicit.as_object_mut().unwrap().remove("output");
         explicit["precision"] = json!("auto");
         let operation: crate::edit::Operation = serde_json::from_value(explicit.clone()).unwrap();
         assert_eq!(serde_json::to_value(operation).unwrap(), historical);

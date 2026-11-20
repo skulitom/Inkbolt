@@ -84,6 +84,18 @@ fn geometry(source: Cubic, from: Q, to: Q, d: R, depth: usize) -> Result<Curve, 
 }
 
 impl Span {
+    pub(super) fn output_source(&self) -> output::Origin {
+        let mut radius = R::zero();
+        let controls = self.controls.each_ref().map(|p| {
+            p.each_ref().map(|v| {
+                let (lo, hi) = v.enclosure(&self.root);
+                let half_width = (&hi - &lo) / n(2);
+                radius = radius.clone().max(half_width.clone());
+                lo + half_width
+            })
+        });
+        output::Origin::Cubic(Box::new(output::SourceCubic { controls, radius }))
+    }
     pub(super) fn bounds(&self) -> spatial::Bounds {
         let mut points = Vec::new();
         for p in &self.controls {
