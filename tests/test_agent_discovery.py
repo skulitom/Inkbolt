@@ -215,6 +215,22 @@ class AgentDiscoveryTests(unittest.TestCase):
                     self.assertLess(len(json.dumps(outline, separators=(',', ':')).encode()), 12 * 1024)
                     self.assertEqual(list(Path(directory).iterdir()), [])
 
+    def test_cli_version_matches_the_installed_engine_and_mcp(self):
+        caps = invoke(dict(command='capabilities'))['result']
+        flag = caps['agent_discovery']['cli_version_argument']
+        self.assertEqual(flag, '--version')
+        with closing(Client()) as client:
+            server = client.initialize()['serverInfo']
+        self.assertEqual(server, dict(name=caps['name'], version=caps['version']))
+        with tempfile.TemporaryDirectory() as directory:
+            for prefix in ([], ['--workspace', directory]):
+                reply = subprocess.run([str(EXE), *prefix, flag], input=b'ignored stdin',
+                                       cwd=directory, capture_output=True, timeout=20, check=True)
+                self.assertEqual(reply.stderr, b'')
+                self.assertEqual(len(reply.stdout.splitlines()), 1)
+                self.assertEqual(json.loads(reply.stdout), dict(ok=True, result=server))
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
     def test_cli_help_is_compact_json_with_working_examples_and_no_input_effects(self):
         flags = invoke(dict(command='capabilities'))['result']['agent_discovery']['cli_help_arguments']
         self.assertEqual(flags, ['--help', '-h'])

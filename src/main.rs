@@ -18,6 +18,9 @@ fn read_request(reader: impl Read) -> Result<Value, Error> {
 fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error> {
     let request = match args {
         [] => read_request(std::io::stdin().lock())?,
+        [arg] if arg == "--version" => {
+            return Ok(json!({"name":env!("CARGO_PKG_NAME"), "version":env!("CARGO_PKG_VERSION")}));
+        }
         [arg] if arg == "--help" || arg == "-h" => {
             return Ok(json!({
                 "usage":[
@@ -25,7 +28,7 @@ fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error>
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] request.json",
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] capabilities|schema|implementation.status",
                     "inkbolt [--workspace ABSOLUTE_DIRECTORY] mcp [--tools essentials|core|full]",
-                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] --help|-h"
+                    "inkbolt [--workspace ABSOLUTE_DIRECTORY] --help|-h|--version"
                 ],
                 "requests":"One JSON request on stdin or in one UTF-8 request file. No arguments reads stdin.",
                 "workspace":"Optional existing absolute directory; selects default stores and resolves request paths within it.",

@@ -4,6 +4,10 @@ Use a release for an existing build, or build from source with the pinned Rust
 toolchain. See [platform support](PLATFORMS.md) for verified coverage and current
 limitations.
 
+On `main`, run `inkbolt --version` to print the package name and version in
+one JSON response. The same version appears in the MCP handshake. For the
+v0.83.0 download, use the `version` field from `inkbolt capabilities`.
+
 ## Use a release
 
 Download the archive for your system from
