@@ -29,8 +29,15 @@ edit identities for historical session replay.
 The strict solver retains the certified source subcurves and follows them in
 the direction of the traced boundary. For quadratic-algebraic source controls,
 outward rational enclosures bound the displacement when emitting binary64
-handles. A crossing still needing an unresolved
-true curve parameter can trigger the automatic tolerance fallback. Tolerance
+handles. At a certified interior transverse crossing, the solver bisects both
+source spans and discards pairs whose closed control boxes are disjoint. It
+retains all possible contact cells until their combined coordinate enclosure
+rounds to one binary64 point. Both branches use that vertex. The source
+parameter intervals also bound the error of each emitted handle. Crossing
+order, contour orientation, adjacency and nesting are checked after moving
+the vertex. The existing root-depth, atom and work ceilings bound this search.
+If a junction cannot be certified, automatic precision can use its tolerance
+fallback. Tolerance
 mode restricts each source cubic at the parameters of its snapped chord and
 moves the endpoint handles with their new junctions. Both modes check the
 emitted control points after conversion to document coordinates. A convex-hull
@@ -43,7 +50,10 @@ The `curve_output` receipt reports the number of cubics and the maximum squared
 deviations from the reference polygon and selected source subcurves. For
 tolerance mode, source deviation uses the chosen chord-parameter intervals.
 `curve_output.signed_area_exact` integrates the emitted path including holes.
-The existing `area_exact` continues to measure the rational polygon arrangement.
+The existing `area_exact` measures the reference rational polygon arrangement.
+For strict curve output, `rounding_deviation_squared` includes movement from
+a reference chord junction to the emitted vertex on the true crossing. The
+receipt counts isolated crossings in `curve_output.resolved_transverse_junctions`.
 
 ## Precision and ellipse conversion
 

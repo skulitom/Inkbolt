@@ -28,8 +28,12 @@ fn exact(
     let curves = curves.map_err(|e| (Box::new(e), "curves"))?;
     let arrangement =
         arrange(&inputs, mode, &sources, true, budget).map_err(|e| (Box::new(e), "arrangement"))?;
-    let (rounded, rounding) =
-        rounding(&arrangement.loops, budget).map_err(|e| (Box::new(e), "output"))?;
+    let (rounded, rounding) = round_junctions(
+        &arrangement.loops,
+        sources.as_ref().map(|_| &arrangement.junctions.positions),
+        budget,
+    )
+    .map_err(|e| (Box::new(e), "output"))?;
     let emitted = (output == Output::Curves)
         .then(|| output::materialize(&arrangement, &rounded, tolerance, true, budget))
         .transpose()
@@ -214,6 +218,8 @@ pub(super) fn compute(
     if let Some(report) = curve_report {
         result["output"] = json!("curves");
         result["curve_output"] = report;
+        result["curve_output"]["resolved_transverse_junctions"] =
+            json!(arrangement.junctions.positions.len());
         result["losses"][1] = if approximate {
             json!(
                 "Curves follow source intervals selected by the snapped polygon arrangement. Their endpoint handles follow the snapped junctions. Small regions and contacts can change during input flattening and snapping."

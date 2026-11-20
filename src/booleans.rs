@@ -458,6 +458,13 @@ fn on_boundary(p: &P, edges: &[Segment]) -> bool {
         .any(|e| cross(&sub(&e[1], &e[0]), &sub(p, &e[0])).is_zero() && unit(&parameter(p, e)))
 }
 fn rounding(loops: &[Vec<P>], budget: &mut Budget) -> Result<(Vec<Vec<Point>>, R), Error> {
+    round_junctions(loops, None, budget)
+}
+fn round_junctions(
+    loops: &[Vec<P>],
+    positions: Option<&BTreeMap<P, P>>,
+    budget: &mut Budget,
+) -> Result<(Vec<Vec<Point>>, R), Error> {
     let error = || {
         Error::new(
             "PRECISION_LOSS",
@@ -473,9 +480,10 @@ fn rounding(loops: &[Vec<P>], budget: &mut Budget) -> Result<(Vec<Vec<Point>>, R
         let mut output = Vec::new();
         let mut rational = Vec::new();
         for p in points {
+            let target = positions.and_then(|m| m.get(p)).unwrap_or(p);
             let q = [
-                p[0].to_f64().ok_or_else(error)?,
-                p[1].to_f64().ok_or_else(error)?,
+                target[0].to_f64().ok_or_else(error)?,
+                target[1].to_f64().ok_or_else(error)?,
             ];
             if q.iter().any(|v| !v.is_finite() || v.abs() > MAX_COORDINATE) {
                 return Err(invalid(
@@ -582,6 +590,7 @@ struct Arrangement {
     atoms: usize,
     boundary: usize,
     sources: output::Sources,
+    junctions: output::Junctions,
 }
 fn arrange(
     inputs: &[Operand],
@@ -596,6 +605,7 @@ fn arrange(
             "Boolean inputs exceed {MAX_EDGES} aggregate flattened edges"
         )));
     }
+    let mut junctions = output::Junctions::default();
     let mut cuts = vec![BTreeSet::from([R::zero(), n(1)]); raw.len()];
     let index = spatial::Index::new(
         raw.iter().map(|e| spatial::Bounds::points(e)).collect(),
@@ -609,6 +619,9 @@ fn arrange(
         {
             budget.spend(1)?;
             for (a, b) in intersections(&raw[i], &raw[j]) {
+                if strict && let Some(raw_sources) = sources {
+                    junctions.resolve(raw_sources, &raw[i], &raw[j], &a, &b, budget)?;
+                }
                 cuts[i].insert(a);
                 cuts[j].insert(b);
             }
@@ -629,7 +642,15 @@ fn arrange(
                 .map(|t| lerp(&e[0], &e[1], t))
                 .collect();
             if let (Some(raw), Some(atoms)) = (sources, &mut atom_sources) {
-                output::split_source(raw, atoms, e, &cuts[edge_index], &points, strict, budget)?;
+                output::split_source(
+                    raw,
+                    atoms,
+                    e,
+                    &cuts[edge_index],
+                    &points,
+                    strict.then_some(&junctions),
+                    budget,
+                )?;
             }
             edge_index += 1;
             for pair in points.windows(2) {
@@ -687,6 +708,7 @@ fn arrange(
         atoms: atom_count,
         boundary: boundary.len(),
         sources: atom_sources,
+        junctions,
     })
 }
 pub fn compute(

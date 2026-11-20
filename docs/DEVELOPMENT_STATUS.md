@@ -24,12 +24,13 @@ directions, sample a cut with irrational intersections, and integrate a two-lobe
 curve whose node has irrational parameters. MCP session tests cover applying the
 edit, replaying its receipt and restoring the operands with undo.
 
-Strict output currently needs each emitted cubic junction to have a resolved
-source parameter. When that fails, automatic precision can return source
-subcurves fitted to the snapped intersection with a measured displacement.
-The remaining W3c.4 work includes locating general transverse junctions on the
-true curves and full acceptance before switching the default. The original
-advanced checkpoint remains in progress.
+The next increment isolates the true intersection of certified transverse spans.
+The first curve-output implementation refused a strict horizontal clip of the
+arch. The independent intersections are at `x = 6 ± 3√2`, with enclosed area
+`12√2`. A second fixture intersects two opposing curved arches at
+`x = 6 ± 2√3`, with area `32√3/3`. Both require the same rounded intersection
+from either operand order and an independent integral error below `1e-13`.
+Full W3c.4 acceptance and the transition to default curve output remain open.
 
 ## W3c.3: spatial evaluation hypothesis
 

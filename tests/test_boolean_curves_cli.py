@@ -1,5 +1,6 @@
 """Curve identities from independent rational blossoms, filled areas and invariants."""
 import copy
+from decimal import Decimal, localcontext
 from fractions import Fraction as F
 import unittest
 import test_booleans_cli as booleans
@@ -109,6 +110,30 @@ class CurveBooleanTests(unittest.TestCase):
                 if min(abs(y-3),abs(y-top)) <= F(1,2):
                     continue
                 self.assertEqual(bool(booleans.winding(vertices,x,y)),3 < y < top,(x,y))
+
+    def test_exact_transverse_junctions_match_radical_vertices_and_integrals(self):
+        arch = curve([[0,0],[4,8],[8,8],[12,0]])
+        opposing = curve([[0,8],[4,0],[8,0],[12,8]])
+        with localcontext() as ctx:
+            ctx.prec = 80
+            for other, y, radius, area in [
+                (rect(0,3,12,6),3,3*Decimal(2).sqrt(),12*Decimal(2).sqrt()),
+                (opposing,4,2*Decimal(3).sqrt(),32*Decimal(3).sqrt()/3),
+            ]:
+                doc = self.document([arch,other])
+                result = self.combine(doc,'intersection',precision='exact',output='curves')
+                self.assertEqual(result['certificate'],'exact')
+                proof = result['curve_output']
+                self.assertEqual(proof['resolved_transverse_junctions'],2)
+                endpoints = {tuple(c['to']) for c in result['geometry']['commands'] if 'to' in c}
+                for x in [6-radius,6+radius]:
+                    self.assertIn((float(x),y),endpoints)
+                measured = F(proof['signed_area_exact'])
+                self.assertLess(abs(Decimal(measured.numerator)/Decimal(measured.denominator)-area),Decimal('1e-13'))
+                self.assertLess(F(proof['source_curve_deviation_squared']),F(1,10**27))
+                swapped = self.invoke(dict(command='document.boolean',document=doc,ids=['s1','s0'],
+                    mode='intersection',precision='exact',output='curves'))
+                self.assertEqual(result['geometry'],swapped['geometry'])
 
     def test_coincident_subdivisions_and_reversals_have_exactly_empty_difference(self):
         controls=[[[0,0],[4,8],[8,8],[12,0]],[[2,2],[4,15],[12,-3],[18,8]],[[2,2],[2,2],[5,2],[11,11]]]

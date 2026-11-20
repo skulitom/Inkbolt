@@ -1,5 +1,7 @@
 //! Retain the source of each oriented boundary atom and certify the emitted path.
 use super::*;
+mod junctions;
+pub(super) use junctions::Junctions;
 use num_traits::Signed;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
@@ -86,27 +88,55 @@ pub(super) fn split_source(
     edge: &Segment,
     cuts: &BTreeSet<R>,
     points: &[P],
-    strict: bool,
+    junctions: Option<&Junctions>,
     budget: &mut Budget,
 ) -> Result<(), Error> {
     let origin = lookup(raw, edge)?;
+    let intervals = junctions
+        .map(|j| j.parameters(edge, cuts, points))
+        .transpose()?;
     let polynomial = match &origin {
-        Origin::Cubic(c) if cuts.len() > 2 => Some((curves::coefficients(&c.controls), &c.radius)),
+        Origin::Cubic(c) if cuts.len() > 2 => {
+            let max_derivative = c
+                .controls
+                .windows(2)
+                .flat_map(|w| sub(&w[0], &w[1]))
+                .map(|d| d.abs() * n(3))
+                .max()
+                .unwrap();
+            Some((curves::coefficients(&c.controls), &c.radius, max_derivative))
+        }
         _ => None,
     };
-    for ((a, b), endpoints) in cuts.iter().zip(cuts.iter().skip(1)).zip(points.windows(2)) {
+    for (i, ((a, b), endpoints)) in cuts
+        .iter()
+        .zip(cuts.iter().skip(1))
+        .zip(points.windows(2))
+        .enumerate()
+    {
         budget.spend(1)?;
-        let origin = if let Some((p, radius)) = &polynomial {
-            let piece = curves::restricted(p, a, b);
-            if strict && (!radius.is_zero() || piece[0] != endpoints[0] || piece[3] != endpoints[1])
+        let origin = if let Some((poly, radius, speed)) = &polynomial {
+            let (piece, uncertainty) = if let Some((junctions, intervals)) =
+                junctions.zip(intervals.as_ref())
             {
-                return Err(unresolved(
-                    "A certified chord crossing still needs a true curve junction for exact curve output",
-                ));
-            }
+                let (start, end) = (&intervals[i], &intervals[i + 1]);
+                let piece = curves::restricted(poly, &start.mid(), &end.mid());
+                for (source, chord) in [(&piece[0], &endpoints[0]), (&piece[3], &endpoints[1])] {
+                    if source != chord && !junctions.positions.contains_key(chord) {
+                        return Err(unresolved(
+                            "A certified chord crossing still needs a true curve junction for exact curve output",
+                        ));
+                    }
+                }
+                // Each restricted control is a blossom at three endpoint parameters.
+                // Its change per argument is bounded by the largest first difference.
+                (piece, speed * start.radius().max(end.radius()))
+            } else {
+                (curves::restricted(poly, a, b), n(0))
+            };
             Origin::Cubic(Box::new(SourceCubic {
                 controls: piece,
-                radius: (*radius).clone(),
+                radius: *radius + uncertainty,
             }))
         } else {
             origin.clone()
