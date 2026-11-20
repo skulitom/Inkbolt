@@ -15,6 +15,9 @@ from test_mcp import Client
 from external_workspace import files
 
 
+TANGENT_CONTROLS = [[[10,11],[14,7],[18,7],[22,11]], [[11.5,9.5],[11.5,10.5],[15.5,3.5],[23.5,12.5]]]
+
+
 class BooleanPrecisionTests(unittest.TestCase):
     invoke=booleans.BooleanTests.invoke
     document=booleans.BooleanTests.document
@@ -81,7 +84,7 @@ class BooleanPrecisionTests(unittest.TestCase):
             self.assertEqual(result['empty'],empty)
 
     def test_irrational_tangencies_fallback_and_independent_cubic_winding(self):
-        controls=[[[10,11],[14,7],[18,7],[22,11]],[[11.5,9.5],[11.5,10.5],[15.5,3.5],[23.5,12.5]]]
+        controls=TANGENT_CONTROLS
         doc=self.document([curve(c) for c in controls]);saved=copy.deepcopy(doc)
         # Independent fine Bernstein sampling for the two source regions. Samples
         # less than .3 units from these segments are excluded from the oracle.
@@ -136,6 +139,44 @@ class BooleanPrecisionTests(unittest.TestCase):
             for p,states in samples:
                 self.assertEqual(inside_output(contours,*p),booleans.truth(states,mode),(mode,p))
         self.assertEqual(doc,saved)
+
+    def test_tight_xor_subdivides_local_chords_and_scales_to_default_tolerance(self):
+        for scale in (32, 64):
+            tolerance = .125 / scale
+            doc = self.document([curve(c) for c in TANGENT_CONTROLS])
+            query = dict(command='document.boolean', document=doc, ids=['s0','s1'], mode='xor')
+            result = self.invoke(dict(query, curve_tolerance=tolerance))
+            polygon = self.invoke(dict(query, curve_tolerance=tolerance, output='polygon'))
+            self.bounds(result,tolerance)
+            for key in ('area_exact','boundary_edges','positive_contours','negative_contours'):
+                self.assertEqual(result[key], polygon[key])
+            report = result['curve_output']
+            knots = report['chord_subdivision']['inserted_knots']
+            self.assertGreater(knots, 0)
+            self.assertLess(knots, result['boundary_edges']//10)
+            for key in ('polygon_deviation_squared','source_curve_deviation_squared'):
+                self.assertLessEqual(F(report[key]), F(tolerance)**2)
+            scaled = self.document([curve([[scale*x,scale*y] for x,y in c]) for c in TANGENT_CONTROLS])
+            larger = self.invoke(dict(query, document=scaled))
+            expected = copy.deepcopy(result['geometry'])
+            area = F(0)
+            for c in expected['commands']:
+                if c['verb']=='move':
+                    start = last = tuple(map(F,c['to']))
+                else:
+                    end = start if c['verb']=='close' else tuple(map(F,c['to']))
+                    if c['verb']=='cubic':
+                        area += integrated_area([last,c['control1'],c['control2'],end],close=False)
+                    else:
+                        area += (last[0]*end[1]-last[1]*end[0])/2
+                    last = end
+                for key in ('to','control1','control2'):
+                    if key in c:
+                        c[key] = [v*scale for v in c[key]]
+            self.assertEqual(area, F(report['signed_area_exact']))
+            self.assertEqual(larger['geometry'], expected)
+            self.assertEqual(F(larger['curve_output']['signed_area_exact']), area*scale**2)
+            self.assertEqual(larger['curve_output']['chord_subdivision'], report['chord_subdivision'])
 
     def test_loose_tolerance_declares_collapsed_small_regions_and_limits(self):
         doc=self.document([closed_loop(10,10,F(1,4096)),booleans.rect(0,0,32,24)])

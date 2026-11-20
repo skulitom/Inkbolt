@@ -64,7 +64,7 @@ fn approximate(
     let mut output_snaps = Vec::new();
     loop {
         match rounding(&arrangement.loops, budget) {
-            Ok((rounded, rounding)) => {
+            Ok((rounded, mut rounding)) => {
                 if rounding > &tolerance * &tolerance / n(64) {
                     return Err(Error::new(
                         "PRECISION_LOSS",
@@ -74,6 +74,9 @@ fn approximate(
                 let emitted = (output == Output::Curves)
                     .then(|| output::materialize(&arrangement, &rounded, &tolerance, false, budget))
                     .transpose()?;
+                if let Some(knots) = emitted.as_ref().and_then(|p| p.knot_rounding.as_ref()) {
+                    rounding = rounding.max(knots.clone());
+                }
                 return Ok(Solution {
                     inputs,
                     emitted,
@@ -200,6 +203,12 @@ pub(super) fn compute(
     }
     if inputs.iter().any(|input| input.conversion.is_some()) {
         losses.push("Analytic ellipses expand to four tangent cubics. Each input reports its affine world-space conversion error separately from curve tolerance. Curve certificates do not certify analytic ellipse contacts; source primitives remain unchanged.");
+    }
+    if curve_report
+        .as_ref()
+        .is_some_and(|r| r.get("chord_subdivision").is_some())
+    {
+        losses.push("Conflicting source cubics were subdivided. New knots lie on the reference chords before coordinate rounding. Tangents can change at these knots.");
     }
     let exact_area: R = arrangement.loops.iter().map(|p| area(p)).sum();
     let mut result = json!({

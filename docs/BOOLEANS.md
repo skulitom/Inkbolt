@@ -61,6 +61,17 @@ spans stay apart throughout the deformation. The existing depth and work
 limits also apply to this proof. Ambiguous coincident sources, uncertified
 contacts and unavailable provenance after snap repair fail explicitly.
 
+If rounded cubics still threaten a contact, tolerance mode can bisect the
+affected source intervals and their reference chords at the same parameter.
+Before handle rounding, each new segment retains the restricted source cubic's
+displacement from its own chord at every parameter. Its new junction follows
+the reference chord, which can change the tangent at a new knot. Other spans keep their existing
+controls. The engine checks vertex identity, winding, adjacency and nesting
+again after rounding the enlarged set of vertices. Every curve must pass the
+distance and deformation checks within the original tolerance and work budget.
+The receipt records passes and inserted knots in `curve_output.chord_subdivision`.
+`rounding_deviation_squared` includes the new vertices.
+
 The `curve_output` receipt reports the number of cubics and the maximum squared
 deviations from the reference polygon and selected source subcurves. For
 tolerance mode, source deviation uses the chosen chord-parameter intervals.

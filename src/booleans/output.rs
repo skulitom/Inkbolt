@@ -2,6 +2,7 @@
 use super::*;
 mod deformation;
 mod junctions;
+mod refinement;
 pub(super) use junctions::Junctions;
 use num_traits::Signed;
 
@@ -164,6 +165,7 @@ pub(super) fn split_source(
 pub(super) struct Path {
     pub commands: Vec<PathCommand>,
     pub report: Value,
+    pub knot_rounding: Option<R>,
 }
 fn distance_squared(a: &P, b: &P) -> R {
     let delta = sub(a, b);
@@ -192,25 +194,42 @@ pub(super) fn materialize(
     strict: bool,
     budget: &mut Budget,
 ) -> Result<Path, Error> {
+    let sources = arrangement
+        .sources
+        .as_ref()
+        .ok_or_else(|| unresolved("Curve provenance is unavailable after output snap repair"))?;
     let placement = if strict {
         Placement::Source
     } else {
         Placement::EndpointTangents
     };
-    let first = candidate(arrangement, rounded, tolerance, placement, budget)?;
-    match first.finish(false, budget) {
-        Ok(path) => return Ok(path),
+    let first = candidate(
+        &arrangement.loops,
+        sources,
+        rounded,
+        tolerance,
+        placement,
+        budget,
+    )?;
+    match certify(&first.spans, false, budget) {
+        Ok(_) => return Ok(first.path),
         Err(e) if !strict && e.code == "CURVE_TOPOLOGY_UNRESOLVED" => {}
         Err(e) => return Err(e),
     }
     let retry = candidate(
-        arrangement,
+        &arrangement.loops,
+        sources,
         rounded,
         tolerance,
         Placement::LinearOffsets,
         budget,
     )?;
-    let mut path = retry.finish(true, budget)?;
+    let conflicts = certify(&retry.spans, true, budget)?;
+    let mut path = if conflicts.is_empty() {
+        retry.path
+    } else {
+        refinement::recover(&arrangement.loops, sources, conflicts, tolerance, budget)?
+    };
     path.report["handle_adjustment"] = json!("linear_interpolation_of_snapped_endpoint_offsets");
     Ok(path)
 }
@@ -226,32 +245,21 @@ struct Candidate {
     path: Path,
     spans: Vec<(Cubic, bool)>,
 }
-impl Candidate {
-    fn finish(self, refine: bool, budget: &mut Budget) -> Result<Path, Error> {
-        if self.spans.iter().any(|(_, curved)| *curved) {
-            certify(&self.spans, refine, budget)?;
-        }
-        Ok(self.path)
-    }
-}
 fn candidate(
-    arrangement: &Arrangement,
+    loops: &[Vec<P>],
+    sources: &Map,
     rounded: &[Vec<Point>],
     tolerance: &R,
     placement: Placement,
     budget: &mut Budget,
 ) -> Result<Candidate, Error> {
-    let sources = arrangement
-        .sources
-        .as_ref()
-        .ok_or_else(|| unresolved("Curve provenance is unavailable after output snap repair"))?;
     let mut spans = Vec::new();
     let mut commands = Vec::new();
     let mut signed_area = R::zero();
     let mut maximum = R::zero();
     let mut source_shift = R::zero();
     let mut count = 0;
-    for (contour, vertices) in arrangement.loops.iter().zip(rounded) {
+    for (contour, vertices) in loops.iter().zip(rounded) {
         commands.push(PathCommand::Move { to: vertices[0] });
         for (i, edge) in loop_edges(contour).into_iter().enumerate() {
             budget.spend(1)?;
@@ -327,6 +335,7 @@ fn candidate(
         spans,
         path: Path {
             commands,
+            knot_rounding: None,
             report: json!({
                 "cubic_segments":count,"signed_area_exact":signed_area.to_string(),
                 "polygon_deviation_squared":maximum.to_string(),"source_curve_deviation_squared":source_shift.to_string(),
@@ -336,7 +345,15 @@ fn candidate(
     })
 }
 
-fn certify(spans: &[(Cubic, bool)], refine: bool, budget: &mut Budget) -> Result<(), Error> {
+fn certify(
+    spans: &[(Cubic, bool)],
+    refine: bool,
+    budget: &mut Budget,
+) -> Result<BTreeSet<usize>, Error> {
+    let mut conflicts = BTreeSet::new();
+    if !spans.iter().any(|(_, curved)| *curved) {
+        return Ok(conflicts);
+    }
     let index = spatial::Index::new(
         spans
             .iter()
@@ -363,11 +380,17 @@ fn certify(spans: &[(Cubic, bool)], refine: bool, budget: &mut Budget) -> Result
                 && topology::transverse(a, b, budget)? != Some(false)
                 && (!refine || !deformation::separated(a, b, budget)?)
             {
-                return Err(unresolved(
-                    "Curve output could introduce a contact along its rounded boundary",
-                ));
+                if !refine {
+                    return Err(unresolved(
+                        "Curve output could introduce a contact along its rounded boundary",
+                    ));
+                }
+                conflicts.insert(i);
+                if *other_curved {
+                    conflicts.insert(j);
+                }
             }
         }
     }
-    Ok(())
+    Ok(conflicts)
 }
