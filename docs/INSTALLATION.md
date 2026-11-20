@@ -44,6 +44,20 @@ See the [Windows](../examples/mcp-config.windows.json) and
 stdio clients. The examples target current source builds with `essentials`;
 use `core` with the v0.82.0 release.
 
+## Install the CLI with Cargo
+
+To install directly from GitHub, use Rust, Cargo, Git and a C compiler for
+your target. The repository lists the [tested Rust toolchain](../rust-toolchain.toml).
+
+```sh
+cargo install --git https://github.com/skulitom/Inkbolt --locked
+```
+
+This installs the current default branch. Add `--rev COMMIT` to install a
+specific revision. Cargo normally places the executable in its `bin` directory.
+Run `inkbolt --help` from your shell, or give your MCP client the full
+path to the installed executable.
+
 ## Build from source
 
 Install Rust with rustup, then build from the repository root using the pinned
