@@ -24,13 +24,33 @@ directions, sample a cut with irrational intersections, and integrate a two-lobe
 curve whose node has irrational parameters. MCP session tests cover applying the
 edit, replaying its receipt and restoring the operands with undo.
 
-The next increment isolates the true intersection of certified transverse spans.
-The first curve-output implementation refused a strict horizontal clip of the
-arch. The independent intersections are at `x = 6 ± 3√2`, with enclosed area
-`12√2`. A second fixture intersects two opposing curved arches at
-`x = 6 ± 2√3`, with area `32√3/3`. Both require the same rounded intersection
-from either operand order and an independent integral error below `1e-13`.
-Full W3c.4 acceptance and the transition to default curve output remain open.
+### Opt-in curve output acceptance
+
+At `83bb235`, the strict solver locates transverse intersections on the source
+curves. A horizontal clip that previously failed now meets its arch at
+`x = 6 ± 3√2`, enclosing area `12√2`. Two opposing arches intersect at
+`x = 6 ± 2√3`, enclosing area `32√3/3`. Both fixtures reproduce the expected
+rounded vertices from either operand order, with integral error below `1e-13`.
+
+Windows and Linux returned identical results for 16 crossing cases in two orientations
+and 20 ellipse combinations. Re-flattening the ellipse results gave zero
+mismatches in 103,854 off-boundary membership checks per platform. A separate
+set of 20 contact cases covered tangencies, self-intersections and algebraic
+nodes. Independent integration of the emitted paths matched all 20 area receipts exactly. The emitted
+curves and the polygon reference agreed at all 143,144 points sampled outside
+the declared error band per platform.
+
+| Fresh thorough verification | Stages passed | Rust tests | Python tests executed | Explicit skips |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 277 | 318 | 2,848 | 24 |
+| Linux under WSL | 277 | 284 | 2,821 | 51 |
+
+The `curve-output-01` evidence retains the source archive, both reports, all
+554 stage logs, comparison outputs and a historical polygon-session replay.
+The audit SHA-256 is
+`af255a66e1fe169ec95b6984562661556bd0f63f8fc6b0ab01ae13c9de6de875`.
+Polygon output is still the default. Changing it requires proving that
+existing committed requests and pending proposals keep their reviewed geometry.
 
 ## W3c.3: spatial evaluation hypothesis
 
