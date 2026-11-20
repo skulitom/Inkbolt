@@ -1,5 +1,10 @@
 # Original graphics examples
 
+Save [first-png.json](first-png.json) in an empty folder and run
+`inkbolt --workspace "$PWD" first-png.json` there in PowerShell or a Unix shell.
+It writes a 240 × 144 mountain postcard. The sky, sun and two ridges are editable
+in the request. Choose a fresh output filename for each variation.
+
 Run `inkbolt examples/add-svg.json` to insert an original rounded badge and mark
 through an atomic edit. The result includes editable items, generated IDs and
 the corner approximation receipt. See [SVG insertion](../docs/SVG_IMPORT.md#insert-into-an-existing-document).

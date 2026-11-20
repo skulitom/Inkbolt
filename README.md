@@ -25,12 +25,16 @@ and a Windows desktop extension bundle. Builds after v0.82.0 also support
 `--tools essentials`, a ten-tool catalog that lets agents discover individual
 commands as needed. See the [installation and client setup guide](docs/INSTALLATION.md).
 
-To try an edit directly from a checkout, run the following with the binary on
-your path. It returns the edited vector document as JSON.
+To make your first PNG, save the [postcard example](examples/first-png.json) as
+`first-png.json` in an empty folder. Open PowerShell or a Unix shell there and
+run this command with the extracted binary on your path.
 
 ```text
-inkbolt examples/edit-vector.json
+inkbolt --workspace "$PWD" first-png.json
 ```
+
+Open `postcard.png` to see the four vector shapes. To try a different palette,
+change a fill in the JSON and give the output a new filename.
 
 ## What you can make
 

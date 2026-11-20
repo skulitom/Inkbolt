@@ -1,0 +1,47 @@
+{
+  "command": "document.publish",
+  "document": {
+    "schema_version": 2,
+    "id": "alpine-postcard",
+    "kind": "vector",
+    "width": 240,
+    "height": 144,
+    "color_space": "srgb",
+    "revision": 0,
+    "items": [
+      {
+        "id": "sky",
+        "content": {
+          "type": "vector",
+          "geometry": {"shape": "rect", "x": 0, "y": 0, "width": 240, "height": 144},
+          "fill": [251, 225, 179, 255]
+        }
+      },
+      {
+        "id": "sun",
+        "content": {
+          "type": "vector",
+          "geometry": {"shape": "ellipse", "cx": 168, "cy": 54, "rx": 28, "ry": 28},
+          "fill": [232, 109, 78, 255]
+        }
+      },
+      {
+        "id": "far-ridge",
+        "content": {
+          "type": "vector",
+          "geometry": {"shape": "polygon", "points": [[0, 102], [64, 44], [115, 92], [146, 68], [240, 130], [240, 144], [0, 144]]},
+          "fill": [85, 133, 126, 255]
+        }
+      },
+      {
+        "id": "near-ridge",
+        "content": {
+          "type": "vector",
+          "geometry": {"shape": "polygon", "points": [[0, 92], [72, 118], [126, 96], [157, 102], [240, 62], [240, 144], [0, 144]]},
+          "fill": [34, 73, 79, 255]
+        }
+      }
+    ]
+  },
+  "output": {"file_name": "postcard.png", "format": "png"}
+}
