@@ -1,5 +1,6 @@
 //! Retain the source of each oriented boundary atom and certify the emitted path.
 use super::*;
+mod deformation;
 mod junctions;
 pub(super) use junctions::Junctions;
 use num_traits::Signed;
@@ -191,6 +192,55 @@ pub(super) fn materialize(
     strict: bool,
     budget: &mut Budget,
 ) -> Result<Path, Error> {
+    let placement = if strict {
+        Placement::Source
+    } else {
+        Placement::EndpointTangents
+    };
+    let first = candidate(arrangement, rounded, tolerance, placement, budget)?;
+    match first.finish(false, budget) {
+        Ok(path) => return Ok(path),
+        Err(e) if !strict && e.code == "CURVE_TOPOLOGY_UNRESOLVED" => {}
+        Err(e) => return Err(e),
+    }
+    let retry = candidate(
+        arrangement,
+        rounded,
+        tolerance,
+        Placement::LinearOffsets,
+        budget,
+    )?;
+    let mut path = retry.finish(true, budget)?;
+    path.report["handle_adjustment"] = json!("linear_interpolation_of_snapped_endpoint_offsets");
+    Ok(path)
+}
+
+#[derive(Clone, Copy)]
+enum Placement {
+    Source,
+    EndpointTangents,
+    LinearOffsets,
+}
+
+struct Candidate {
+    path: Path,
+    spans: Vec<(Cubic, bool)>,
+}
+impl Candidate {
+    fn finish(self, refine: bool, budget: &mut Budget) -> Result<Path, Error> {
+        if self.spans.iter().any(|(_, curved)| *curved) {
+            certify(&self.spans, refine, budget)?;
+        }
+        Ok(self.path)
+    }
+}
+fn candidate(
+    arrangement: &Arrangement,
+    rounded: &[Vec<Point>],
+    tolerance: &R,
+    placement: Placement,
+    budget: &mut Budget,
+) -> Result<Candidate, Error> {
     let sources = arrangement
         .sources
         .as_ref()
@@ -226,16 +276,20 @@ pub(super) fn materialize(
                         controls: source,
                         radius,
                     } = *source;
-                    // Use the true subcurve in strict mode. In the snapped model,
-                    // translate each handle with its endpoint to keep its tangent.
                     let handle =
                         |index: usize, anchor: usize, target: &P| -> Result<Point, Error> {
-                            if strict {
-                                return to_point(&source[index]);
-                            }
-                            to_point(&std::array::from_fn(|j| {
-                                &source[index][j] + &target[j] - &source[anchor][j]
-                            }))
+                            let shift = match placement {
+                                Placement::Source => return to_point(&source[index]),
+                                Placement::EndpointTangents => sub(target, &source[anchor]),
+                                // Adding a linear offset to the source polynomial keeps its
+                                // displacement from its own chord at every parameter.
+                                Placement::LinearOffsets => lerp(
+                                    &sub(&start, &source[0]),
+                                    &sub(&end, &source[3]),
+                                    &(n(index as i32) / n(3)),
+                                ),
+                            };
+                            to_point(&std::array::from_fn(|j| &source[index][j] + &shift[j]))
                         };
                     let control1 = handle(1, 0, &start)?;
                     let control2 = handle(2, 3, &end)?;
@@ -263,26 +317,26 @@ pub(super) fn materialize(
         }
         commands.push(PathCommand::Close {});
     }
-    if count > 0 {
-        if maximum > tolerance * tolerance || source_shift > tolerance * tolerance {
-            return Err(Error::new(
-                "PRECISION_LOSS",
-                "Emitted Boolean curves exceed the requested tolerance",
-            ));
-        }
-        certify(&spans, budget)?;
+    if count > 0 && (maximum > tolerance * tolerance || source_shift > tolerance * tolerance) {
+        return Err(Error::new(
+            "PRECISION_LOSS",
+            "Emitted Boolean curves exceed the requested tolerance",
+        ));
     }
-    Ok(Path {
-        commands,
-        report: json!({
-            "cubic_segments":count,"signed_area_exact":signed_area.to_string(),
-            "polygon_deviation_squared":maximum.to_string(),"source_curve_deviation_squared":source_shift.to_string(),
-            "topology":"rounded_boundary_certified_through_curve_to_chord_deformation"
-        }),
+    Ok(Candidate {
+        spans,
+        path: Path {
+            commands,
+            report: json!({
+                "cubic_segments":count,"signed_area_exact":signed_area.to_string(),
+                "polygon_deviation_squared":maximum.to_string(),"source_curve_deviation_squared":source_shift.to_string(),
+                "topology":"rounded_boundary_certified_through_curve_to_chord_deformation"
+            }),
+        },
     })
 }
 
-fn certify(spans: &[(Cubic, bool)], budget: &mut Budget) -> Result<(), Error> {
+fn certify(spans: &[(Cubic, bool)], refine: bool, budget: &mut Budget) -> Result<(), Error> {
     let index = spatial::Index::new(
         spans
             .iter()
@@ -307,6 +361,7 @@ fn certify(spans: &[(Cubic, bool)], budget: &mut Budget) -> Result<(), Error> {
             if !topology::separated(a, b, budget)?
                 && !topology::paired_coordinate(a, b, budget)?
                 && topology::transverse(a, b, budget)? != Some(false)
+                && (!refine || !deformation::separated(a, b, budget)?)
             {
                 return Err(unresolved(
                     "Curve output could introduce a contact along its rounded boundary",

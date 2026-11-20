@@ -105,6 +105,36 @@ class BooleanPrecisionTests(unittest.TestCase):
             output=[[tuple(map(float,p)) for p in poly] for poly in booleans.polygons(result['geometry'])]
             for p,states in samples:
                 self.assertEqual(inside_output(output,*p),booleans.truth(states,mode),(mode,p))
+            curved = self.invoke(dict(command='document.boolean',document=doc,ids=['s0','s1'],mode=mode))
+            self.bounds(curved,.125)
+            report = curved['curve_output']
+            if mode in ('difference','xor'):
+                self.assertEqual(report['handle_adjustment'],'linear_interpolation_of_snapped_endpoint_offsets')
+            self.assertGreater(report['cubic_segments'],0)
+            for key in ('source_curve_deviation_squared','polygon_deviation_squared'):
+                self.assertLessEqual(F(report[key]),F(1,8)**2)
+            contours = []
+            signed_area = F(0)
+            for cmd in curved['geometry']['commands']:
+                if cmd['verb']=='move':
+                    start = last = cmd['to']
+                    contours.append([start])
+                    continue
+                end = start if cmd['verb']=='close' else cmd['to']
+                if cmd['verb']=='cubic':
+                    controls = [last,cmd['control1'],cmd['control2'],end]
+                    signed_area += integrated_area(controls,close=False)
+                    for i in range(1,33):
+                        t = i/32
+                        contours[-1].append([(1-t)**3*a+3*t*(1-t)**2*b+3*t*t*(1-t)*c+t**3*d
+                                             for a,b,c,d in zip(*controls)])
+                else:
+                    signed_area += (F(last[0])*F(end[1])-F(last[1])*F(end[0]))/2
+                    contours[-1].append(end)
+                last = end
+            self.assertEqual(signed_area,F(report['signed_area_exact']))
+            for p,states in samples:
+                self.assertEqual(inside_output(contours,*p),booleans.truth(states,mode),(mode,p))
         self.assertEqual(doc,saved)
 
     def test_loose_tolerance_declares_collapsed_small_regions_and_limits(self):

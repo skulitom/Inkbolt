@@ -44,13 +44,21 @@ parameter intervals also bound the error of each emitted handle. Crossing
 order, contour orientation, adjacency and nesting are checked after moving
 the vertex. The existing root-depth, atom and work ceilings bound this search.
 If a junction cannot be certified, automatic precision can use its tolerance
-fallback. Tolerance
-mode restricts each source cubic at the parameters of its snapped chord and
-moves the endpoint handles with their new junctions. Both modes check the
+fallback. Tolerance mode restricts each source cubic at the parameters of its
+snapped chord and moves its handles with their respective junctions. If those
+handles fail the boundary topology check, the engine retries with the same
+endpoints and source intervals. It interpolates the two endpoint offsets along
+each cubic, preserving the source curve's displacement from its chord before
+rounding. A successful retry reports
+`curve_output.handle_adjustment:"linear_interpolation_of_snapped_endpoint_offsets"`.
+Both modes check the
 emitted control points after conversion to document coordinates. A convex-hull
 bound covers every point of each segment against its reference chord. Exact
 predicates verify that moving the emitted curves onto their rounded chords
-preserves the boundary topology. Ambiguous coincident sources, uncertified
+preserves the boundary topology. During a retry, the engine can subdivide
+both curve parameters and the shared deformation time to prove that nearby
+spans stay apart throughout the deformation. The existing depth and work
+limits also apply to this proof. Ambiguous coincident sources, uncertified
 contacts and unavailable provenance after snap repair fail explicitly.
 
 The `curve_output` receipt reports the number of cubics and the maximum squared
@@ -212,7 +220,7 @@ The distance tolerance bounds individual input arcs. It does not bound movement 
 
 Rational repeated contacts include general cubic pairs with different nonlinear parameterizations, quadratic-projection tangencies, non-dyadic nodes and cusps. Quadratic-parameter nodes now retain their rational world junctions. Exact contact discovery still does not guarantee that the subsequent simultaneous deformation can be certified, and general non-rational fixed world junctions remain unsupported by exact certification. Automatic mode can instead use the declared tolerance model.
 
-For example, take `A(s)=(s,s^2)` and `B(u)=(u+h,u^2+2*u*h)`, with `h=u^2-1/8`. The identity `B_y-B_x^2=-h^2` gives two tangencies at irrational world x coordinates. A supported exact detector verifies a repeated quadratic resultant factor, both source parameters, the common point and parallel nonzero derivatives before promptly returning `CURVE_TOPOLOGY_UNRESOLVED`. It does not mistake an unverified resultant root for a real contact. This original fixture now also passes the independent tolerance-mode membership checks. Other strict unresolved arrangements still refine or fail at their declared limits. The full advanced boolean checkpoint therefore stays **in progress and uncredited**.
+For example, take `A(s)=(s,s^2)` and `B(u)=(u+h,u^2+2*u*h)`, with `h=u^2-1/8`. The identity `B_y-B_x^2=-h^2` gives two tangencies at irrational world x coordinates. A supported exact detector verifies a repeated quadratic resultant factor, both source parameters, the common point and parallel nonzero derivatives before returning `CURVE_TOPOLOGY_UNRESOLVED`. With default precision and output, all four operations return editable curves for this fixture. Difference and xor use the handle adjustment. Independent tests check the emitted areas and compare the filled regions with the two original operands away from their boundaries. Other strict unresolved arrangements still refine or fail at their declared limits. The full advanced boolean checkpoint stays **in progress and uncredited**.
 
 ## Bounds and agent workflow
 
