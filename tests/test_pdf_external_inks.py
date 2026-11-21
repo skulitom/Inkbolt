@@ -53,6 +53,7 @@ class ExternalInkTests(unittest.TestCase):
     check_plates = native.NativePdfKnockoutTests.check_plates
 
     def test_process_spot_and_zero_ink_overprints_keep_the_external_plates(self):
+        native.require_plate_reader()
         for owner, swatch, policy in [(1,'a','preserve'),(.75,'a','preserve_nonzero'),
                 (1,'mix','preserve'),(.75,'mix','preserve_nonzero'),(.75,'empty','preserve_nonzero')]:
             with self.subTest(owner=owner,swatch=swatch,policy=policy):

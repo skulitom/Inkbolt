@@ -52,6 +52,15 @@ def process_sheet():
     return doc
 
 
+def require_plate_reader():
+    if not (shutil.which('gs') or shutil.which('gswin64c')):
+        raise unittest.SkipTest('Independent plate rendering requires Ghostscript')
+    try:
+        from PIL import Image
+    except ImportError:
+        raise unittest.SkipTest('Independent TIFF plate reading requires Pillow')
+
+
 def separations(data, directory):
     from PIL import Image
     gs = shutil.which('gs') or shutil.which('gswin64c')
@@ -77,12 +86,7 @@ class NativePdfKnockoutTests(unittest.TestCase):
         return self.cli('document.prepress',document=doc,options=dict(profile=embedded(cmyk_profile()),antialias='none'))
 
     def check_plates(self, doc, tolerance=3, **options):
-        if not (shutil.which('gs') or shutil.which('gswin64c')):
-            self.skipTest('Independent plate rendering requires Ghostscript')
-        try:
-            from PIL import Image
-        except ImportError:
-            self.skipTest('Independent TIFF plate reading requires Pillow')
+        require_plate_reader()
         artifact = self.export(doc, **options)
         pdf = Pdf(artifact)
         self.assertEqual(pdf.pages[0]['Group']['CS'],'DeviceCMYK')
