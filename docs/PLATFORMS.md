@@ -11,7 +11,48 @@ The release workflow on `main` builds separate native macOS archives for
 Apple silicon and Intel. Each runner verifies its Rust host target and tests
 the extracted executable. Maintainers can select `macos_intel_only` in the
 Verify workflow to run the full source suite on Intel without repeating the
-three regular CI jobs. The v0.83.0 macOS download is for Apple silicon.
+three regular CI jobs. The v0.84.0 release provides downloads for both Mac architectures.
+
+## v0.84.0 platform checks
+
+All four native downloads passed eight installation checks and the full suite
+of 273 Python modules against their extracted executables. Each source run
+below also passed all 278 verification stages and the minimum-compiler check.
+The Intel source run used the linked precursor with the same Rust engine
+sources. Every installed-suite result used the tagged release commit
+`63a78d2`. Counts after the slash are explicit platform or environment skips.
+[Release workflow](https://github.com/skulitom/Inkbolt/actions/runs/44856581222)
+
+| Native runner | Source commit and log | Rust tests | Source Python run / skipped | Installed Python run / skipped |
+| --- | --- | ---: | ---: | ---: |
+| Windows x64 | [63a78d2](https://github.com/skulitom/Inkbolt/actions/runs/44848081671/job/136672628375) | 321 | 2,864 / 20 | [2,864 / 20](https://github.com/skulitom/Inkbolt/actions/runs/44856581222/job/136700104299) |
+| Linux x64 | [63a78d2](https://github.com/skulitom/Inkbolt/actions/runs/44848081671/job/136672627953) | 287 | 2,833 / 51 | [2,833 / 51](https://github.com/skulitom/Inkbolt/actions/runs/44856581222/job/136700103954) |
+| macOS, Apple silicon | [63a78d2](https://github.com/skulitom/Inkbolt/actions/runs/44848081671/job/136672628412) | 287 | 2,822 / 62 | [2,822 / 62](https://github.com/skulitom/Inkbolt/actions/runs/44856581222/job/136700104225) |
+| macOS, Intel | [7b844c9](https://github.com/skulitom/Inkbolt/actions/runs/44847372116/job/136670304149) | 287 | 2,822 / 62 | [2,822 / 62](https://github.com/skulitom/Inkbolt/actions/runs/44856581222/job/136700104235) |
+
+The four archives include the postcard example and an executable-bound
+CycloneDX inventory. All eleven public downloads matched their GitHub digests.
+The four archives, four standalone inventories and Windows extension also
+passed attestation checks bound to the tag, commit and release workflow.
+[Downloads and checksums](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0)
+
+The public Windows and Linux binaries each produced the same 240 × 144 postcard
+from an empty workspace, replayed a v0.83 edit, and completed undo and redo.
+Both also reopened eight previously saved Boolean request or proposal databases.
+The Windows extension opened an MCP session and created an editable vector
+document. Locked Cargo installations from the exact commit passed eight
+installation checks on Windows and Ubuntu 22.04 under WSL2.
+
+From an extracted archive, the one-command README example wrote the postcard
+in 0.83 seconds in Windows PowerShell, 0.84 seconds in PowerShell 7 and 0.02 seconds in Bash under WSL2.
+These local timings include shell startup and exclude download and extraction.
+Repeating the command preserved the original PNG in each shell.
+
+Local Windows and WSL2 source verification at `7b844c9` passed 278 stages
+per platform with the private repository guard. The public hosted runs used
+the public structural guard. Background job support remains Windows-only.
+The retained release and downloaded-artifact audit has SHA-256
+`6147e8110d721971a340a1331db7a48994e1521cfc4930293710f948ff4f168b`.
 
 ## v0.83.0 platform checks
 
