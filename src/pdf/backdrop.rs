@@ -121,7 +121,7 @@ fn member(
     let clip_commands = writer.commands - commands_before;
     let mut clip_emitted = false;
     let mut body = stream(writer);
-    item_paint(writer, &mut body, item, world, res)?;
+    item_paint(writer, &mut body, doc, item, world, res)?;
     let mut wrap = |w: &mut Writer, f: usize| -> Result<usize, Error> {
         let f = if clipping.content.is_empty() {
             f

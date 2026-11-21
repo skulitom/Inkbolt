@@ -51,6 +51,8 @@ Cargo.lock records exact versions and checksums. Packages remain in Cargo's exte
 | sha2 0.10.9 | Image/font content and source-byte identities | MIT OR Apache-2.0 |
 | crc32fast 1.5.2 | Validate every input PNG chunk checksum | MIT OR Apache-2.0 |
 | rustybuzz 0.20.1 | Pinned-font run shaping and ttf-parser 0.25.1 outline access | MIT |
+| subsetter 0.2.6 | Build static TrueType and CFF font subsets for searchable PDF export | MIT OR Apache-2.0 |
+| write-fonts 0.48.0 | Preserve embedding permissions in subset font directories and read CFF collection identifiers | MIT OR Apache-2.0 |
 | unicode-segmentation 1.12.0 | Grapheme boundaries for text edits and wrapping | MIT OR Apache-2.0 |
 | unicode-script 0.5.8 | Unicode script and script-extension itemization | MIT OR Apache-2.0 |
 | unicode-bidi 0.3.18 | Unicode 16 paragraph levels and line reordering | MIT OR Apache-2.0 |
@@ -131,6 +133,6 @@ Structured vector brushes add no dependency. Original rigid motif placement and 
 
 Mixed-direction paragraphs add only external unicode-bidi 0.3.18 (MIT OR Apache-2.0), pinned with its default std/Unicode-data features. All 82 previous package versions, sources and licenses remain unchanged; the graph contains 83 external packages. Both supplied license files are retained in THIRD_PARTY_NOTICES.md. Inkbolt owns original paragraph/line integration, logical-index inspection, script/style/font itemization and synthetic glyph fixtures. Complete official Unicode 16 bidi tests remain external private development evidence; no conformance data or dependency implementation is vendored. See [BIDI_TEXT.md](BIDI_TEXT.md).
 
-PDF delivery adds no dependency. Inkbolt owns the original bounded object/stream/xref writer and scene integration, based on public ISO format semantics. The locked graph remains 83 external packages with unchanged versions, sources, licenses and notices. Existing external pypdf and Poppler consumers are used only for private verification and are not shipped.
+Inkbolt owns its PDF object, stream, xref and scene writer. Searchable text adds the pinned subsetter and write-fonts crates listed above. Cargo.lock records twelve new external packages for these two dependencies and their build graph. Distributed licenses, including subsetter’s attribution notice and euclid’s copyright file, are retained in [third-party notices](../THIRD_PARTY_NOTICES.md). Independent PDF readers are development tools and are not shipped.
 
 Source-profile editing uses the existing pinned moxcms extended-range feature for floating matrix/TRC transforms. It adds no package; see [SAMPLE_PROFILES.md](SAMPLE_PROFILES.md) for explicit intent selection and source preservation.

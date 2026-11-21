@@ -61,8 +61,9 @@ Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
 Building from `main` also lets you cut a window through a group and keep the
-surrounding paths and text outlines in the PDF. Inkbolt compresses drawing
-commands to reduce file size. For print work, you can preserve spot inks on
+surrounding paths in the PDF. You can also export searchable labels with
+embedded static fonts, including ligatures that copy as their original text.
+For print work, you can preserve spot inks on
 separate plates or add crop and registration marks to RGB artwork on a chosen
 paper color. [PDF export](docs/PDF.md) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 

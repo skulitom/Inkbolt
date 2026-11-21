@@ -536,6 +536,9 @@ pub fn layout(story: &Story, d: &Document, cache: &fonts::Cache) -> Result<Repor
                 &mut commands,
             )?;
             let glyph_end = target.glyphs.len();
+            for glyph in &mut target.glyphs[glyph_start..glyph_end] {
+                glyph.paragraph = Some(paragraph);
+            }
             let hyphen = selected.and_then(|v| v.hyphen);
             if hyphen.is_some() {
                 for glyph in &mut target.glyphs[glyph_start..glyph_end] {

@@ -425,6 +425,10 @@ pub enum Generated {
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct Glyph {
+    #[serde(skip)]
+    pub(crate) em_size: Point,
+    #[serde(skip)]
+    pub(crate) paragraph: Option<usize>,
     pub glyph_id: u16,
     pub font_id: String,
     pub script: String,
@@ -744,6 +748,8 @@ fn append_glyphs(
             None
         };
         result.glyphs.push(Glyph {
+            em_size: [s.size * s.horizontal_scale, s.size * s.vertical_scale],
+            paragraph: None,
             glyph_id: g.id,
             variations: s.coordinates(&g.font_id),
             features: s.shaping_features(),
@@ -852,6 +858,8 @@ fn path_layout(
             }
         }
         result.glyphs.push(Glyph {
+            em_size: [s.size * s.horizontal_scale, s.size * s.vertical_scale],
+            paragraph: None,
             glyph_id: g.id,
             variations: s.coordinates(&g.font_id),
             features: s.shaping_features(),

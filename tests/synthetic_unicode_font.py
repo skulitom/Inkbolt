@@ -35,9 +35,9 @@ def rectangle(gid):
     return (50, 0, 150 + gid * 10, 400 + gid * 5)
 
 
-def sfnt(tables):
+def sfnt(tables, flavor=0x10000):
     n = len(tables); power = 2 ** (n.bit_length() - 1)
-    header = pack('IHHHH', 0x10000, n, power*16, power.bit_length()-1, n*16-power*16)
+    header = pack('IHHHH', flavor, n, power*16, power.bit_length()-1, n*16-power*16)
     offset = 12 + 16*n; directory = b''; payload = b''; head_offset = None
     for tag, data in sorted(tables.items()):
         directory += tag + pack('III', checksum(data), offset, len(data))

@@ -22,10 +22,12 @@ mod paper;
 mod prepress;
 mod print;
 mod recipe;
+mod searchable;
 pub use marks::Marks;
 pub use prepress::{PrepressOptions, SpotFallback};
 pub use print::PrintOptions;
 pub use recipe::InkOptions;
+pub use searchable::TextDelivery;
 
 pub use crate::limits::pdf::MAX_COMMANDS;
 pub use crate::limits::pdf::MAX_IMAGE_PIXELS;
@@ -37,6 +39,9 @@ pub struct Options {
     pub artboards: Option<boards::Selection>,
     pub include_bleed: bool,
     pub color: ColorDelivery,
+    /// Deliver searchable text with embedded fonts or retain the historical outlines.
+    #[serde(skip_serializing_if = "TextDelivery::is_outlines")]
+    pub text: TextDelivery,
     /// Physical crop and registration marks for vector page delivery.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub marks: Option<Marks>,
@@ -91,6 +96,7 @@ fn xml(value: &str) -> String {
 
 #[derive(Default)]
 struct Writer {
+    text: searchable::Registry,
     control: crate::control::Control,
     objects: Vec<Vec<u8>>,
     bytes: usize,
@@ -659,6 +665,33 @@ fn gradient_shading(
     writer.add(format!("<< /ShadingType {kind} /ColorSpace /{space} /Domain [0 2] /Coords [{coords}] /Function {function} 0 R /Extend [true true] >>"))
 }
 
+fn flat_paint(writer: &mut Writer, stream: &mut Stream, paint: &Paint) -> Result<(), Error> {
+    match paint {
+        Paint::Solid(color) => {
+            graphics_state(writer, stream, color[3] as f64 / 255.0, BlendMode::Normal)?;
+            let [r, g, b, _] = *color;
+            if writer.page_uses_blends && !stream.scalar_artwork {
+                // A reader truncating a decimal RGB operand by one byte level
+                // can turn a near-neutral hue gray or reverse a dodge result.
+                // A single-entry Indexed space carries the source bytes exactly.
+                let rgb = format!("{r:02x}{g:02x}{b:02x}");
+                stream.content.push_str(&format!("/C{rgb} cs 0 scn\n"));
+                stream.rgb8_solids.insert(rgb);
+            } else {
+                stream.solid_color([r, g, b].map(|v| f64::from(v) / 255.0))?;
+            }
+        }
+        Paint::Precise(color) => {
+            graphics_state(writer, stream, color.rgba[3], BlendMode::Normal)?;
+            let [r, g, b, _] = color.rgba;
+            stream.solid_color([r, g, b])?;
+        }
+        Paint::Named(reference) => inks::paint(writer, stream, reference)?,
+        Paint::Field(_) => return Err(unsupported("A PDF text paint requires a uniform fill")),
+    }
+    Ok(())
+}
+
 fn paint(
     writer: &mut Writer,
     stream: &mut Stream,
@@ -677,51 +710,17 @@ fn paint(
         entry.invalidate();
     }
     stream.content.push_str("q\n");
-    match paint {
-        Paint::Solid(color) => {
-            graphics_state(writer, stream, color[3] as f64 / 255.0, BlendMode::Normal)?;
-            let [r, g, b, _] = *color;
-            if writer.page_uses_blends && !stream.scalar_artwork {
-                // A reader truncating a decimal RGB operand by one byte level
-                // can turn a near-neutral hue gray or reverse a dodge result.
-                // A single-entry Indexed space carries the source bytes exactly.
-                let rgb = format!("{r:02x}{g:02x}{b:02x}");
-                stream.content.push_str(&format!("/C{rgb} cs 0 scn\n"));
-                stream.rgb8_solids.insert(rgb);
-            } else {
-                stream.solid_color([r, g, b].map(|v| f64::from(v) / 255.0))?;
-            }
-            stream.path(writer, shape, shape_matrix)?;
-            stream.content.push_str(if rule == FillRule::EvenOdd {
-                "f*\n"
-            } else {
-                "f\n"
-            });
-        }
-        Paint::Field(field) => {
-            clip(writer, stream, shape, shape_matrix, rule)?;
-            gradient(writer, stream, field, paint_matrix)?;
-        }
-        Paint::Precise(color) => {
-            graphics_state(writer, stream, color.rgba[3], BlendMode::Normal)?;
-            let [r, g, b, _] = color.rgba;
-            stream.solid_color([r, g, b])?;
-            stream.path(writer, shape, shape_matrix)?;
-            stream.content.push_str(if rule == FillRule::EvenOdd {
-                "f*\n"
-            } else {
-                "f\n"
-            });
-        }
-        Paint::Named(reference) => {
-            inks::paint(writer, stream, reference)?;
-            stream.path(writer, shape, shape_matrix)?;
-            stream.content.push_str(if rule == FillRule::EvenOdd {
-                "f*\n"
-            } else {
-                "f\n"
-            });
-        }
+    if let Paint::Field(field) = paint {
+        clip(writer, stream, shape, shape_matrix, rule)?;
+        gradient(writer, stream, field, paint_matrix)?;
+    } else {
+        flat_paint(writer, stream, paint)?;
+        stream.path(writer, shape, shape_matrix)?;
+        stream.content.push_str(if rule == FillRule::EvenOdd {
+            "f*\n"
+        } else {
+            "f\n"
+        });
     }
     stream.content.push_str("Q\n");
     Ok(())
@@ -856,6 +855,8 @@ fn preflight(document: &Document, display_blends: bool, native_cmyk: bool) -> Re
 
 #[derive(Default)]
 struct PageResources {
+    fonts: crate::fonts::Cache,
+    text: TextDelivery,
     pixels: BTreeMap<String, assets::Pixels>,
     layouts: BTreeMap<String, crate::text::Layout>,
     masks: crate::masks::PreparedDocument,
@@ -902,6 +903,7 @@ fn item_clip(
 fn item_paint(
     writer: &mut Writer,
     stream: &mut Stream,
+    document: &Document,
     item: &Item,
     world: Matrix,
     resources: &PageResources,
@@ -912,6 +914,11 @@ fn item_paint(
                 crate::text::clip_geometry(&item.content, &resources.layouts[&item.id])
             {
                 clip(writer, stream, &geometry, world, FillRule::Nonzero)?;
+            }
+            if !resources.text.is_outlines()
+                && searchable::paint_text(writer, stream, document, item, world, resources)?
+            {
+                return Ok(());
             }
             for path in &resources.layouts[&item.id].paths {
                 paint(
@@ -1069,7 +1076,8 @@ fn items(
         };
         stream.ink_entry = item_entry.map(ink_backdrop::Entry::new);
         item_clip(writer, &mut stream, item, world)?;
-        item_paint(writer, &mut stream, item, world, resources).map_err(|e| e.at_item(&item.id))?;
+        item_paint(writer, &mut stream, document, item, world, resources)
+            .map_err(|e| e.at_item(&item.id))?;
         // Both streams start with the same geometric clip and frame background.
         // Their children share paint resources even when coverage and color differ.
         let mut child_union = None;
@@ -1247,6 +1255,14 @@ pub fn export_controlled(
             "pdf_options.marks requires vector page delivery. For native flattened plates use prepress.marks.",
         ));
     }
+    if !options.text.is_outlines()
+        && (options.print.is_some() || options.prepress.is_some() || options.ink_recipe.is_some())
+    {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            "Searchable PDF text requires vector page delivery",
+        ));
+    }
     if let Some(prepress) = &options.prepress {
         return prepress::export(
             document,
@@ -1407,6 +1423,8 @@ pub fn export_controlled(
         let artwork_masks =
             artwork::prepare(&mut writer, page, &fonts, &footprint_unions, external)?;
         let page_resources = PageResources {
+            fonts,
+            text: options.text,
             pixels,
             layouts,
             masks,
@@ -1619,6 +1637,7 @@ pub fn export_controlled(
         };
         let content = writer.content_stream("", stream.content.as_bytes())?;
         let id=writer.add(format!("<< /Type /Page /Parent {tree} 0 R /MediaBox [{}] /CropBox [{}] /BleedBox [{}] /TrimBox [{}] /UserUnit {} /Resources {} /Contents {content} 0 R{page_group} >>",numbers(&media)?,numbers(&media)?,numbers(&bounds)?,numbers(&trim)?,number(user_unit)?,stream.dictionary(mark_space)))?;
+        searchable::finish_page(&mut writer, page, &page_resources.fonts)?;
         references.push(format!("{id} 0 R"));
         let artboard_id = selection.map(|i| &document.items[i].id);
         let mut receipt = json!({"index":receipts.len(),"artboard_id":artboard_id,"logical_size":logical,"physical_points":[logical[0]*physical,logical[1]*physical],"resolution_ppi":ppi,"media_box":media,"trim_box":trim,"user_unit":user_unit,"coordinates":"pdf_bottom_left_in_user_units"});
@@ -1689,9 +1708,17 @@ pub fn export_controlled(
     let blend_modes = writer.non_normal_modes.clone();
     let gradient_opacity_masks = writer.gradient_opacity_masks;
     let external_overprints = writer.external_overprints;
+    let text_receipt = writer.text.receipt(options.text);
     let bytes = writer.finish(catalog, info)?;
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
+    if let Some((delivered, receipt)) = text_receipt {
+        result["pdf"]["text"] = json!(delivered);
+        result["pdf"]["text_delivery"] = receipt;
+        result["losses"][0] = json!(
+            "Searchable text retains positioned glyphs and Unicode mappings. The text delivery receipt counts any outlined items and their reasons. Keep the snapshot and pinned fonts for editing."
+        );
+    }
     result["pdf"]["version"] = json!(version);
     if external_overprints != 0 {
         result["pdf"]["external_overprint_paints"] = json!(external_overprints);

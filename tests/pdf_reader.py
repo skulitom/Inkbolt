@@ -103,6 +103,42 @@ class Pdf:
 
     def get(self,ref):assert isinstance(ref,Ref);return self.objects[ref]
 
+    def text_glyphs(self,page=0):
+        """Resolve painted text through the page's actual forms, fonts and ToUnicode maps."""
+        p=self.pages[page]
+        result=[]
+        mappings={}
+        def visit(ref,resources,matrix,active):
+            assert ref not in active
+            args=[]; stack=[]; font=None; tm=None
+            for token in self.streams[ref].split():
+                if re.fullmatch(rb'[+-]?(?:\d+(?:\.\d*)?|\.\d+)',token):
+                    args.append(float(token));continue
+                if token.startswith(b'/') or re.fullmatch(rb'<[0-9A-Fa-f]+>',token):
+                    args.append(token);continue
+                if token==b'q':stack.append(matrix[:])
+                elif token==b'Q':matrix=stack.pop()
+                elif token==b'cm':matrix=multiply(matrix,args)
+                elif token==b'Do':
+                    child=resources['XObject'][args[-1][1:].decode()]
+                    obj=self.get(child)
+                    if obj['Subtype']=='Form':
+                        visit(child,obj['Resources'],multiply(matrix,obj.get('Matrix',[1,0,0,1,0,0])),active|{ref})
+                elif token==b'Tf':
+                    font=resources['Font'][args[-2][1:].decode()]
+                elif token==b'Tm':tm=multiply(matrix,args)
+                elif token==b'Tj':
+                    if font not in mappings:
+                        data=self.streams[self.get(font)['ToUnicode']]
+                        pairs=[]
+                        for group in re.findall(rb'\bbeginbfchar\b(.*?)\bendbfchar\b',data,re.S):
+                            pairs.extend(re.findall(rb'<([0-9A-F]+)>\s*<([0-9A-F]+)>',group))
+                        mappings[font]={code:bytes.fromhex(value.decode()).decode('utf-16be') for code,value in pairs}
+                    result.append((mappings[font][args[-1][1:-1]],tm))
+                args=[]
+        visit(p['Contents'],p['Resources'],[1,0,0,1,0,0],set())
+        return result
+
     def paths(self,page=0):
         """Flatten invoked forms to painted paths in top-left logical coordinates."""
         p=self.pages[page];media=p['MediaBox'];height=media[3]

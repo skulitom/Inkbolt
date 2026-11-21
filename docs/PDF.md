@@ -86,6 +86,36 @@ page scale. For flattened native plates, use the existing
 Rust callers using a full `pdf::Options` struct literal can use `marks: None` and
 `matte: None` for the default display output, or `..Default::default()`.
 
+## Searchable text
+
+Set `pdf_options.text` on a vector PDF export, preflight or publication.
+
+| Mode | What the reader receives |
+| --- | --- |
+| `outlines` (default) | Positioned vector outlines. Existing requests produce the same PDF bytes. |
+| `searchable` | Embedded text where supported. Other text items keep their outlines and the receipt counts the reason for each fallback. |
+| `require_searchable` | Embedded text for every drawn text item or an error identifying the item and reason before publication. |
+
+Inkbolt uses the pinned static TrueType or CFF font and positions each glyph
+from the document layout. A ligature drawn with one glyph can copy as several
+source characters, such as `fi`. Installable and editable embedding permissions
+are supported. If the font forbids subsetting, Inkbolt embeds the complete
+standalone font. Restricted, preview-and-print-only and bitmap-only permissions
+fall back to outlines. Supply fonts you have the right to distribute.
+
+This mode covers left-to-right runs, solid fills and one drawn glyph per source
+cluster. Variable fonts, right-to-left runs, clusters drawn with several glyphs,
+generated glyphs, gradient text, and text on knockout pages use the fallback.
+Flattened print, prepress and ink-recipe exports reject the searchable option.
+The PDF carries positioned text. Paragraph structure, accessibility tags and
+editable layout remain outside this contract.
+
+Read `pdf.text` for the delivered representation and `pdf.text_delivery` for
+the requested mode, embedded glyph and font-program counts, and outlined items
+by reason. Counts accumulate across the selected pages. Items on one page
+share their embedded font program. The snapshot retains the original text,
+styles and linked stories.
+
 ## Appearance contract
 
 - Paths retain line/cubic controls, transforms, compound winding and geometric
@@ -94,9 +124,9 @@ Rust callers using a full `pdf::Options` struct literal can use `marks: None` an
   tolerance, dashes, variable widths, arrowheads, brushes and scaling space.
 - Text uses the same pinned font instances, feature selection, Unicode shaping,
   bidi resolution, marks and path placement as rendering and outlined SVG.
-  Each positioned glyph remains a vector path. No font files, searchable text,
-  semantic tags or editable text objects are embedded. Keep the original snapshot
-  and licensed resource store to retain source text, font controls and editability.
+  The default export draws each glyph as an outline. To let readers search and
+  copy the text, request [searchable text](#searchable-text). Keep the snapshot
+  and pinned fonts to edit the source.
 - Solid RGBA, isolated/pass-through groups and item/fill opacity are supported.
   Axial and radial pad gradients retain encoded-sRGB color and per-stop opacity.
   Shapes with fill and stroke composite before item opacity is applied.
@@ -328,8 +358,8 @@ PDF parsing and rendering against original geometry/image oracles. Source
 snapshots remain unchanged. The basic page and extended vector typography
 criteria cover these declared contracts. Native spot output is covered by
 [INK_DELIVERY.md](INK_DELIVERY.md); combined trim/bleed/ink preparation is covered
-by [PREPRESS.md](PREPRESS.md). Font embedding, encapsulated page input and editable
-PDF reimport remain required by the separate extended page criterion.
+by [PREPRESS.md](PREPRESS.md). Broader searchable typography, encapsulated page
+input and editable PDF reimport remain open under the extended page criterion.
 
 Public format reference: [ISO 32000-1 entry](https://committee.iso.org/standard/51502.html)
 and [PDF specification archive](https://pdfa.org/resource/pdf-specification-archive/).
