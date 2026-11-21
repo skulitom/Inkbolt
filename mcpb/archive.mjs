@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { cargoVersion, root, textFile, writeUnchangedOrNew } from './build.mjs';
+import { cargoVersion, checkSbom, root, textFile, writeUnchangedOrNew } from './build.mjs';
 import { writeZip } from './zip.mjs';
 
 export const TARGETS = {
@@ -13,7 +13,7 @@ export const TARGETS = {
   'aarch64-apple-darwin': { platform: 'darwin', arch: 'arm64', binary: 'inkbolt', extension: 'tar.gz' }
 };
 
-// Four short root-level names fit the ustar name field; preserve the executable bit.
+// Root-level names fit the ustar name field; preserve the executable bit.
 export function writeTarGz(files, executable) {
   const blocks = [], octal = (value, length) => value.toString(8).padStart(length - 1, '0') + '\0';
   for (const [name, data] of [...files].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
@@ -32,7 +32,7 @@ export function writeTarGz(files, executable) {
   return bytes;
 }
 
-export async function archive({ target, binary, base = root, out = path.join(root, 'target/dist/release'), smoke = true }) {
+export async function archive({ target, binary, sbom, base = root, out = path.join(root, 'target/dist/release'), smoke = true }) {
   const spec = TARGETS[target];
   if (!spec) throw new Error(`Unsupported release target: ${target}`);
   if (!binary) throw new Error('--binary is required.');
@@ -43,9 +43,11 @@ export async function archive({ target, binary, base = root, out = path.join(roo
     if (result.status !== 0 || JSON.parse(result.stdout).ok !== true) throw new Error(`CLI capabilities smoke test failed: ${result.stderr}`);
   }
   const files = new Map([[spec.binary, await readFile(binary)]]);
+  const version = await cargoVersion(base);
+  if (sbom) files.set('sbom.cdx.json', checkSbom(await readFile(sbom), files.get(spec.binary), target, version));
   for (const name of ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']) files.set(name, await textFile(path.join(base, name)));
   const bytes = spec.extension === 'zip' ? writeZip(files) : writeTarGz(files, spec.binary);
-  const file = path.resolve(out, `inkbolt-v${await cargoVersion(base)}-${target}.${spec.extension}`);
+  const file = path.resolve(out, `inkbolt-v${version}-${target}.${spec.extension}`);
   await writeUnchangedOrNew(file, bytes);
   return { file, bytes };
 }
@@ -54,7 +56,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   Promise.resolve().then(async () => {
     const options = {}, args = process.argv.slice(2);
     for (let i = 0; i < args.length; i += 2) {
-      if (!['--target', '--binary', '--out'].includes(args[i]) || !args[i + 1] || args[i + 1].startsWith('--') || Object.hasOwn(options, args[i].slice(2))) throw new Error(`Unknown or incomplete option: ${args[i]}`);
+      if (!['--target', '--binary', '--out', '--sbom'].includes(args[i]) || !args[i + 1] || args[i + 1].startsWith('--') || Object.hasOwn(options, args[i].slice(2))) throw new Error(`Unknown or incomplete option: ${args[i]}`);
       options[args[i].slice(2)] = args[i + 1];
     }
     const result = await archive(options); console.log(`${result.file}: ${result.bytes.length} bytes; CLI capabilities passed.`);

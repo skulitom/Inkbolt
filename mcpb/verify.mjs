@@ -4,7 +4,7 @@ import { readdirSync, lstatSync } from 'node:fs';
 import { readFile, writeFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { root, cargoVersion, VERSION } from './build.mjs';
+import { root, cargoVersion, checkSbom, VERSION } from './build.mjs';
 import { readZip, sha256 } from './zip.mjs';
 
 import { inside, mcpFolders, startMcp } from './mcp-client.mjs';
@@ -59,8 +59,13 @@ export async function verifyMcpb(bundle, { allowSkip = false } = {}) {
     throw new Error('Windows only: this bundle contains a Windows x64 executable. Use --allow-skip to skip explicitly.');
   }
   const entries = readZip(await readFile(bundle));
-  assert.deepEqual([...entries.keys()].sort(), ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'manifest.json', 'server/inkbolt.exe'], 'Unexpected or missing bundle entries');
+  const expected = ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'manifest.json', 'server/inkbolt.exe'];
+  if (entries.has('sbom.cdx.json')) expected.push('sbom.cdx.json');
+  assert.deepEqual([...entries.keys()].sort(), expected.sort(), 'Unexpected or missing bundle entries');
   const manifest = JSON.parse(entries.get('manifest.json').read());
+  if (entries.has('sbom.cdx.json')) {
+    checkSbom(entries.get('sbom.cdx.json').read(), entries.get('server/inkbolt.exe').read(), 'x86_64-pc-windows-msvc', manifest.version);
+  }
   checkManifest(manifest, await cargoVersion());
   const tempRoot = path.join(root, 'target');
   await mkdir(tempRoot, { recursive: true });

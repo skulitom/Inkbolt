@@ -26,6 +26,11 @@ Download the archive for your system from
 `SHA256SUMS`, and extract it, for example to `C:\Tools\Inkbolt`. Create your
 workspace folder first.
 
+Release builds from `main` include a software bill of materials in
+`sbom.cdx.json`. Its application SHA-256 identifies the executable inside the
+archive. Individual component entries identify the locked dependencies and
+bundled SQLite. [Inventory contents](../mcpb/PUBLISHING.md#software-bill-of-materials)
+
 ### Claude Code
 
 ```powershell

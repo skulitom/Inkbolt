@@ -82,6 +82,32 @@ tag field empty. All target builds and installation checks run. The archives
 are available as workflow artifacts. Supplying an existing version tag selects
 the publishing path.
 
+### Software bill of materials
+
+The release workflow writes a CycloneDX 1.6 JSON inventory for each target.
+The native archive carries `sbom.cdx.json`. The Windows extension carries the
+same inventory as the Windows archive. Each inventory is also a separate
+`.cdx.json` release asset covered by the checksums and build attestation.
+
+The inventory identifies the packaged executable by SHA-256 and lists the
+Cargo packages used to build it, including build dependencies and procedural
+macros. It records the resolved dependency relationships, package licenses and
+the locked SHA-256 of each source distribution. Bundled SQLite has its own
+entry with the version and SHA-256 of the C amalgamation. The target and Rust
+compiler are recorded with the application. The inventory covers these build
+inputs. Operating-system libraries and the contents of the compiler's standard
+library fall outside its scope.
+
+To generate it locally, run the locked native release build with
+`--message-format=json-render-diagnostics` and save standard output. From the
+same Cargo workspace, pass that file to `python tools/release_sbom.py` with
+`--build-log`, `--target`, `--binary` and `--out`. The generator uses the
+local Cargo cache. Pass the output file to the packaging scripts with `--sbom`.
+The packagers check its target, version and executable digest before embedding it.
+[CycloneDX JSON specification](https://cyclonedx.org/docs/1.6/json/)
+
+### Check the Windows extension
+
 Run these checks on their own, without builds, verification runs or edits in the
 same checkout. The bundle verifier inventories repository files, including build
 outputs and Git metadata, to detect unexpected writes. Concurrent work can change

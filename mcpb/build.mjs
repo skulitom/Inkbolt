@@ -11,6 +11,19 @@ export const BUNDLE_NAME = 'inkbolt-windows-x64.mcpb';
 export const json = value => Buffer.from(JSON.stringify(value, null, 2) + '\n');
 export const textFile = async file => Buffer.from((await readFile(file, 'utf8')).replace(/\r\n?/g, '\n'));
 
+export function checkSbom(bytes, executable, target, version) {
+  const bom = JSON.parse(bytes);
+  const app = bom.metadata?.component;
+  const targets = app?.properties?.filter(p => p.name === 'inkbolt:target') ?? [];
+  const hashes = app?.hashes?.filter(h => h.alg === 'SHA-256') ?? [];
+  if (bom.bomFormat !== 'CycloneDX' || bom.specVersion !== '1.6' || app?.type !== 'application' ||
+      app.name !== 'inkbolt' || app.version !== version || targets.length !== 1 || targets[0].value !== target ||
+      hashes.length !== 1 || hashes[0].content !== sha256(executable)) {
+    throw new Error('SBOM does not identify the packaged executable, target and version.');
+  }
+  return bytes;
+}
+
 export async function cargoVersion(base = root) {
   const cargo = await readFile(path.join(base, 'Cargo.toml'), 'utf8');
   const section = /^\[package\][ \t]*\r?\n([\s\S]*?)(?=^\[|$(?![\s\S]))/m.exec(cargo)?.[1];
@@ -72,7 +85,7 @@ export async function discoverTools({ manifest, binary, base = root }) {
   }
 }
 
-export async function assembleMcpb({ base = root, binary } = {}, discover = discoverTools) {
+export async function assembleMcpb({ base = root, binary, sbom } = {}, discover = discoverTools) {
   const template = JSON.parse(await readFile(path.join(base, 'mcpb/manifest.json'), 'utf8'));
   if (Object.hasOwn(template, 'version')) throw new Error('mcpb/manifest.json must not contain version; Cargo.toml supplies it.');
   const manifest = { ...template, version: await cargoVersion(base) };
@@ -89,12 +102,13 @@ export async function assembleMcpb({ base = root, binary } = {}, discover = disc
     ['LICENSE', await textFile(path.join(base, 'LICENSE'))],
     ['THIRD_PARTY_NOTICES.md', await textFile(path.join(base, 'THIRD_PARTY_NOTICES.md'))]
   ]);
+  if (sbom) files.set('sbom.cdx.json', checkSbom(await readFile(sbom), binaryBytes, 'x86_64-pc-windows-msvc', manifest.version));
   const bytes = writeZip(files);
   return { bytes, manifest, files: files.size, hash: sha256(bytes), added: catalog.added, dropped: catalog.dropped };
 }
 
-export async function buildMcpb({ base = root, binary, out = path.join(root, 'target/dist/mcpb') } = {}, discover = discoverTools) {
-  const build = await assembleMcpb({ base, binary }, discover);
+export async function buildMcpb({ base = root, binary, sbom, out = path.join(root, 'target/dist/mcpb') } = {}, discover = discoverTools) {
+  const build = await assembleMcpb({ base, binary, sbom }, discover);
   const bundle = path.resolve(out, BUNDLE_NAME);
   await writeUnchangedOrNew(bundle, build.bytes);
   await writeUnchangedOrNew(`${bundle}.sha256`, Buffer.from(`${build.hash}  ${BUNDLE_NAME}\n`));
@@ -146,11 +160,11 @@ async function main(argv) {
     const key = argv[i].slice(2);
     if (Object.hasOwn(options, key)) throw new Error(`Repeated option: ${argv[i]}`);
     if (argv[i] === '--registry-entry') options[key] = true;
-    else if (['--binary', '--out', '--tag', '--bundle'].includes(argv[i]) && argv[i + 1] && !argv[i + 1].startsWith('--')) options[key] = argv[++i];
+    else if (['--binary', '--out', '--tag', '--bundle', '--sbom'].includes(argv[i]) && argv[i + 1] && !argv[i + 1].startsWith('--')) options[key] = argv[++i];
     else throw new Error(`Unknown or incomplete option: ${argv[i]}`);
   }
   if (options['registry-entry']) {
-    if (options.binary) throw new Error('--binary is only for bundle builds.');
+    if (options.binary || options.sbom) throw new Error('--binary and --sbom are only for bundle builds.');
     const entry = await registryEntry(options);
     console.log(`Registry entry: ${entry.name} ${entry.version}, SHA-256 ${entry.packages[0].fileSha256}`);
   } else {

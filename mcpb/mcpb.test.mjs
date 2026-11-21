@@ -187,6 +187,25 @@ test('native archives are deterministic and carry the binary, readme and license
   }
 });
 
+test('the archive and extension carry the same inventory for their exact executable', async () => {
+  const target = 'x86_64-pc-windows-msvc', sbom = path.join(temp, 'fixture.cdx.json');
+  const component = { type: 'application', name: 'inkbolt', version,
+    hashes: [{ alg: 'SHA-256', content: sha256(await readFile(binary)) }],
+    properties: [{ name: 'inkbolt:target', value: target }] };
+  const bom = { bomFormat: 'CycloneDX', specVersion: '1.6', version: 1, metadata: { component } };
+  await writeJSON(sbom, bom);
+  const opts = { base, binary, sbom, target, smoke: false, out: path.join(temp, 'with-inventory') };
+  const packed = await archive(opts), bundled = await assembleFixture(opts);
+  for (const bytes of [packed.bytes, bundled.bytes]) {
+    assert.deepEqual(readZip(bytes).get('sbom.cdx.json').read(), await readFile(sbom));
+  }
+  await assert.rejects(archive({ ...opts, target: 'x86_64-unknown-linux-gnu' }), /SBOM does not identify/);
+  for (const changes of [{ version: '0.0.0' }, { hashes: [{ alg: 'SHA-256', content: '0'.repeat(64) }] }]) {
+    await writeJSON(sbom, { ...bom, metadata: { component: { ...component, ...changes } } });
+    await assert.rejects(assembleFixture(opts), /SBOM does not identify/);
+  }
+});
+
 test('registry entry stamps Cargo version despite stale metadata and preserves inputs', async () => {
   const out = path.join(temp, 'server.registry.json'), before = await readFile(path.join(base, 'server.json'));
   const entry = await registryEntry({ base, tag: `v${version}`, bundle: build.bundle, out });
