@@ -44,7 +44,8 @@ module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 module.ROOT=Path(sys.argv[2]);module.python_checks(2)
 '''
         for body,success in [('self.assertEqual(2+3,5)',True),('self.fail("seeded fixture failure")',False),
-                             ('print("Ran 999 tests in 0.0s")',False)]:
+                             ('print("ordinary test output", flush=True)',True),
+                             ('print("Ran 999 tests in 0.0s", flush=True)',False)]:
             with self.subTest(body=body), tempfile.TemporaryDirectory() as directory:
                 root=Path(directory);(root/'tests').mkdir()
                 (root/'tests/test_original_a.py').write_text('import unittest\nclass A(unittest.TestCase):\n def test_one(self): self.assertTrue(True)\n',encoding='utf-8')

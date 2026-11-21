@@ -1,5 +1,6 @@
 """Run one verification command in an owned process tree with a deadline."""
 import ctypes
+from contextlib import ExitStack
 import json
 import os
 from pathlib import Path
@@ -146,7 +147,7 @@ class WindowsJob:
         return memory if observe_memory else None
 
 
-def run(argv, root, timeout=None, env=None, observe_memory=False):
+def run(argv, root, timeout=None, env=None, observe_memory=False, *, separate_stderr=False):
     """Return captured output/status; timeout never grants a passing result.
 
     Close the entire owned tree even on ordinary completion (fixtures must clean
@@ -163,11 +164,13 @@ def run(argv, root, timeout=None, env=None, observe_memory=False):
     job = WindowsJob() if os.name == 'nt' else None
     memory = unavailable_memory('Owned process tree commit peaks are unavailable on this platform')
     process = None
-    with tempfile.TemporaryFile() as output:
+    with ExitStack() as files:
+        output = files.enter_context(tempfile.TemporaryFile())
+        error = files.enter_context(tempfile.TemporaryFile()) if separate_stderr else subprocess.STDOUT
         try:
             process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), '--child'],
                                        cwd=root, env=env, stdin=subprocess.PIPE, stdout=output,
-                                       stderr=subprocess.STDOUT, start_new_session=os.name != 'nt',
+                                       stderr=error, start_new_session=os.name != 'nt',
                                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
             if job:
                 job.assign(process)
@@ -192,9 +195,16 @@ def run(argv, root, timeout=None, env=None, observe_memory=False):
                 process.wait(timeout=5)
                 if process.stdin and not process.stdin.closed:
                     process.stdin.close()
-        output.seek(0)
+        # unittest writes its verbose status and count on stderr. A test can
+        # print between those writes. Keep complete lines from both streams.
+        parts = []
+        for captured in ([error, output] if separate_stderr else [output]):
+            captured.seek(0)
+            data = captured.read().decode('utf-8', 'replace')
+            if data:
+                parts.append(data)
         result = dict(status=status, exit_code=code, seconds=time.monotonic() - started,
-                      output=output.read().decode('utf-8', 'replace'))
+                      output='\n'.join(parts))
         if observe_memory:
             result['memory'] = memory
         return result

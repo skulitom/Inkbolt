@@ -228,7 +228,8 @@ def python_checks(jobs, log_dir=None):
     if log_dir is not None:
         log_dir.mkdir(parents=True, exist_ok=False)
     def worker(name):
-        row = checked_result(run(PY + ['-m', 'unittest', 'discover', '-s', 'tests', '-p', name + '.py', '-v'], ROOT), counts[name])
+        argv = PY + ['-m', 'unittest', 'discover', '-s', 'tests', '-p', name + '.py', '-v']
+        row = checked_result(run(argv, ROOT, separate_stderr=True), counts[name])
         if log_dir is not None:
             (log_dir / (name + '.log')).write_text(row.pop('output'), encoding='utf8')
         return row
@@ -312,7 +313,7 @@ def verify(args, state, started, deadline):
             return dict(old, status='reused', seconds=0)
         timeout = None if deadline is None else deadline - time.monotonic()
         try:
-            row = checked_result(run(argv, ROOT, timeout, env), expected, rust)
+            row = checked_result(run(argv, ROOT, timeout, env, separate_stderr=expected is not None), expected, rust)
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
             row = dict(status='failed', seconds=0, exit_code=None, output=str(error), reason='Check launcher failed')
         log = directory / (re.sub(r'[^a-zA-Z0-9_.-]', '_', name)[:80] + '-' + digest(name)[:8] + '.log')

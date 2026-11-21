@@ -367,11 +367,15 @@ class VerificationTests(unittest.TestCase):
         again.close()
 
     def mini_run(self, args, fake, state, stdout=None, deadline=None):
+        def launch(argv, root, timeout, env, *, separate_stderr):
+            self.assertEqual(separate_stderr, '-m' in argv or 'tools/verify_case.py' in argv)
+            return fake(argv, root, timeout, env)
+
         with patch.object(verify, 'ROOT', self.root), patch.object(verify, 'EXE', self.root/'engine.exe'), \
              patch.object(verify, 'environment_identity', return_value='test-environment'), \
              patch.object(verify, 'snapshot', side_effect=lambda r: {p:v for p,v in self.files().items() if not p.startswith('state/')}), \
              patch.object(verify, 'python_counts', return_value={'test_one': 1, 'test_two': 1}), \
-             patch.object(verify, 'run', side_effect=fake), redirect_stdout(stdout if stdout is not None else io.StringIO()):
+             patch.object(verify, 'run', side_effect=launch), redirect_stdout(stdout if stdout is not None else io.StringIO()):
             started = time.monotonic()
             return verify.verify(verify.parse_args(args), state, started, deadline)
 
