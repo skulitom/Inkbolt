@@ -2,7 +2,9 @@
 import base64
 import binascii
 import json
+import os
 from pathlib import Path
+import shutil
 import struct
 import subprocess
 import tempfile
@@ -172,16 +174,26 @@ class EditingCliTests(unittest.TestCase):
     def test_example_client_exports_and_rejects_existing_destination(self):
         import sys
         with tempfile.TemporaryDirectory() as directory:
-            output=Path(directory)/"created"
-            command=[sys.executable,str(ROOT/"examples/render_example.py"),"--output-dir",str(output)]
-            first=subprocess.run(command,capture_output=True,timeout=30)
-            self.assertEqual(first.returncode,0,first.stderr.decode())
-            original={p.name:p.read_bytes() for p in output.iterdir()}
-            self.assertEqual(png_pixels(original["vector.png"])[:2],(480,240))
-            self.assertEqual(png_pixels(original["raster.png"])[:2],(32,32))
-            second=subprocess.run(command,capture_output=True,timeout=30)
-            self.assertNotEqual(second.returncode,0)
-            self.assertEqual({p.name:p.read_bytes() for p in output.iterdir()},original)
+            root = Path(directory)
+            examples = root / 'examples'
+            examples.mkdir()
+            for name in ('inkbolt_binary.py', 'render_example.py', 'edit-vector.json', 'edit-raster.json'):
+                shutil.copyfile(ROOT / 'examples' / name, examples / name)
+            by_path = dict(os.environ)
+            by_path.pop('INKBOLT_EXE', None)
+            by_path['PATH'] = str(EXE.parent) + os.pathsep + by_path.get('PATH', '')
+            for mode, env in [('selected', dict(os.environ, INKBOLT_EXE=str(EXE))), ('path', by_path)]:
+                with self.subTest(mode=mode):
+                    output = root / mode
+                    command = [sys.executable, str(examples / 'render_example.py'), '--output-dir', str(output)]
+                    first = subprocess.run(command, env=env, cwd=root, capture_output=True, timeout=30)
+                    self.assertEqual(first.returncode, 0, first.stderr.decode())
+                    original = {p.name: p.read_bytes() for p in output.iterdir()}
+                    self.assertEqual(png_pixels(original['vector.png'])[:2], (480, 240))
+                    self.assertEqual(png_pixels(original['raster.png'])[:2], (32, 32))
+                    retry = subprocess.run(command, env=env, cwd=root, capture_output=True, timeout=30)
+                    self.assertNotEqual(retry.returncode, 0)
+                    self.assertEqual({p.name: p.read_bytes() for p in output.iterdir()}, original)
 
 
 if __name__ == "__main__":

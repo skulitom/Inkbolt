@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 import subprocess
 
-ROOT = Path(__file__).resolve().parents[1]
-EXE = ROOT/'target/debug/inkbolt.exe'
+from inkbolt_binary import default_binary
+
+EXE = default_binary()
 
 
 def call(command, **arguments):

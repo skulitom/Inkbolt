@@ -3,10 +3,11 @@ import argparse
 import base64
 import hashlib
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
+
+from inkbolt_binary import default_binary
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,7 +25,7 @@ def main():
         profile = original_profile(modern=True)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    exe = ROOT/'target/debug'/('inkbolt.exe' if os.name == 'nt' else 'inkbolt')
+    exe = default_binary()
 
     def call(command, **kw):
         p = subprocess.run([str(exe)], input=json.dumps(dict(command=command, **kw)),

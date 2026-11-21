@@ -5,6 +5,11 @@ Save [first-png.json](first-png.json) in an empty folder and run
 It writes a 240 × 144 mountain postcard. The sky, sun and two ridges are editable
 in the request. Choose a fresh output filename for each variation.
 
+The Python workflow examples use the checkout's native development build when
+available and otherwise look for `inkbolt` on your shell's path. Set
+`INKBOLT_EXE` to the full path of a specific installation to use it throughout
+a workflow. Scripts with a binary argument give that argument priority.
+
 Run `inkbolt examples/add-svg.json` to insert an original rounded badge and mark
 through an atomic edit. The result includes editable items, generated IDs and
 the corner approximation receipt. See [SVG insertion](../docs/SVG_IMPORT.md#insert-into-an-existing-document).

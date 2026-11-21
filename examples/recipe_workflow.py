@@ -2,11 +2,11 @@
 import argparse
 import base64
 import json
-import os
 from pathlib import Path
 import subprocess
 
-ROOT = Path(__file__).resolve().parents[1]
+from inkbolt_binary import default_binary
+
 
 
 def main():
@@ -15,7 +15,7 @@ def main():
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    exe = ROOT / 'target/debug' / ('inkbolt.exe' if os.name == 'nt' else 'inkbolt')
+    exe = default_binary()
 
     def call(command, **kw):
         p = subprocess.run([str(exe)], input=json.dumps(dict(command=command, **kw)),

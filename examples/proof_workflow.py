@@ -3,10 +3,11 @@ import argparse
 import base64
 import hashlib
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
+
+from inkbolt_binary import default_binary
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -22,7 +23,7 @@ def main():
         from cmyk_fixtures import proof_profile
         profile=proof_profile(pcs='Lab ',modern=True,white=(.8,.9,.7))
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
-    exe=ROOT/'target/debug'/('inkbolt.exe' if os.name=='nt' else 'inkbolt')
+    exe=default_binary()
     def call(request):
         p=subprocess.run([str(exe)],input=json.dumps(request),capture_output=True,text=True,check=True)
         response=json.loads(p.stdout);assert response['ok'],response;return response['result']

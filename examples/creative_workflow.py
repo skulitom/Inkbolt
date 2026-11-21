@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import subprocess
 
+from inkbolt_binary import default_binary
+
 
 OPERATORS = {
     'twist': dict(type='twist', center=[32,24], radius=29, angle=190),
@@ -22,7 +24,7 @@ OPERATORS = {
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output',type=Path)
-    parser.add_argument('--binary',type=Path,default=Path(__file__).resolve().parents[1]/'target/debug/inkbolt.exe')
+    parser.add_argument('--binary',type=Path,default=default_binary())
     args=parser.parse_args(); args.output.mkdir(parents=True,exist_ok=False)
     def call(name,request):
         path=args.output/(name+'-request.json'); path.write_text(json.dumps(request,indent=2)+'\n')

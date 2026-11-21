@@ -8,8 +8,9 @@ from pathlib import Path
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
-EXE = ROOT/'target/debug/inkbolt.exe'
+from inkbolt_binary import default_binary
+
+EXE = default_binary()
 
 
 def invoke(command, **args):

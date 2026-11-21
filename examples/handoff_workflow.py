@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import subprocess
 
+from inkbolt_binary import default_binary
+
 
 def write_bundle(bundle, root):
     """New directory, create-only files, manifest last; no overwrite or implicit reuse."""
@@ -30,7 +32,7 @@ def write_bundle(bundle, root):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,required=True)
-    parser.add_argument('--inkbolt',type=Path,default=Path(__file__).resolve().parents[1]/'target/debug/inkbolt.exe')
+    parser.add_argument('--inkbolt',type=Path,default=default_binary())
     parser.add_argument('--cutbolt',type=Path,help='Optional local executable for real inspection and rendering')
     args=parser.parse_args()
     root=args.output

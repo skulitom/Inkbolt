@@ -3,9 +3,10 @@ import argparse
 import base64
 import hashlib
 import json
-import os
 from pathlib import Path
 import subprocess
+
+from inkbolt_binary import default_binary
 
 
 def main():
@@ -21,7 +22,7 @@ def main():
     document = json.loads(original)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    exe = Path(__file__).resolve().parents[1] / 'target/debug' / ('inkbolt.exe' if os.name == 'nt' else 'inkbolt')
+    exe = default_binary()
     resources = {name: str(path.resolve()) for name, path in [('asset_root', args.asset_root), ('font_root', args.font_root)] if path}
     session = dict(session_root=str(output/'sessions'), session_id='example')
 

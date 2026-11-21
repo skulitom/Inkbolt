@@ -6,13 +6,15 @@ from pathlib import Path
 import subprocess
 from xml.sax.saxutils import escape
 
+from inkbolt_binary import default_binary
+
 
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--font',required=True,type=Path);parser.add_argument('--license',required=True,type=Path)
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--label',default='Agent graphic');parser.add_argument('--replacement',default='Ready to export')
-    args=parser.parse_args();root=Path(__file__).resolve().parents[1];exe=root/'target/debug/inkbolt.exe'
+    args=parser.parse_args();exe=default_binary()
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     def call(**q):
         p=subprocess.run([str(exe)],input=json.dumps(q).encode(),capture_output=True,check=False)

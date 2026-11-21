@@ -5,10 +5,12 @@ import json
 from pathlib import Path
 import subprocess
 
+from inkbolt_binary import default_binary
+
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--font',type=Path,required=True);p.add_argument('--license',type=Path,required=True);p.add_argument('--output',type=Path,required=True);args=p.parse_args()
-    root=Path(__file__).resolve().parents[1];exe=root/'target/debug/inkbolt.exe'
+    exe=default_binary()
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     def call(**request):
         process=subprocess.run([str(exe)],input=json.dumps(request).encode(),capture_output=True,check=False)

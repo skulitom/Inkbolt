@@ -6,13 +6,14 @@ import json
 from pathlib import Path
 import subprocess
 
-ROOT=Path(__file__).resolve().parents[1]
+from inkbolt_binary import default_binary
+
 
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,required=True);args=parser.parse_args()
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
-    exe=ROOT/'target/debug'/('inkbolt.exe' if __import__('os').name=='nt' else 'inkbolt')
+    exe=default_binary()
     def call(request):
         p=subprocess.run([str(exe)],input=json.dumps(request),text=True,capture_output=True,check=True)
         response=json.loads(p.stdout);assert response['ok'],response;return response['result']

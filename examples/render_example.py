@@ -2,12 +2,13 @@
 import argparse
 import base64
 import json
-import os
 from pathlib import Path
 import subprocess
 
+from inkbolt_binary import default_binary
+
 ROOT = Path(__file__).resolve().parents[1]
-EXE = ROOT / 'target/debug' / ('inkbolt.exe' if os.name == 'nt' else 'inkbolt')
+EXE = default_binary()
 
 
 def invoke(request):

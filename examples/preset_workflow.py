@@ -5,12 +5,14 @@ import json
 from pathlib import Path
 import subprocess
 
+from inkbolt_binary import default_binary
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--inkbolt', type=Path,
-                        default=Path(__file__).resolve().parents[1]/'target/debug/inkbolt.exe')
+                        default=default_binary())
     args = parser.parse_args()
     root = args.output
     if not root.is_absolute():
