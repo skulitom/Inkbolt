@@ -8,7 +8,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 from benchmark_diagram import FONT_FAMILY, delivered, expected_picture
-from benchmark_graphics import png_check
+from benchmark_graphics import compose_affine, png_check
 from benchmark_runtime import require
 
 RESVG_VERSION = '0.47.0'
@@ -52,11 +52,6 @@ def _numbers(text):
     return values
 
 
-def _multiply(a,b):
-    return (a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],
-            a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5])
-
-
 def _transform(text):
     matrix = (1,0,0,1,0,0)
     while text.strip():
@@ -69,9 +64,9 @@ def _transform(text):
         elif name == 'rotate' and len(v) in (1,3):
             c,s = math.cos(math.radians(v[0])),math.sin(math.radians(v[0]))
             local = (c,s,-s,c,0,0)
-            if len(v)==3: local = _multiply(_multiply((1,0,0,1,v[1],v[2]),local),(1,0,0,1,-v[1],-v[2]))
+            if len(v)==3: local = compose_affine(compose_affine((1,0,0,1,v[1],v[2]),local),(1,0,0,1,-v[1],-v[2]))
         else: raise ValueError('Invalid transform arguments')
-        matrix = _multiply(matrix,local)
+        matrix = compose_affine(matrix,local)
     return matrix
 
 
@@ -102,7 +97,7 @@ def svg_diagram(raw):
                 key,value = item.split(':',1)
                 require(key.strip() in ('fill','font-size','font-family','stroke','stroke-width','opacity'), 'Unsupported inline style in B01')
                 style[key.strip()] = value.strip()
-        matrix = _multiply(matrix,_transform(node.get('transform','')))
+        matrix = compose_affine(matrix,_transform(node.get('transform','')))
         require(all(math.isfinite(v) for v in matrix), 'Nonfinite SVG transform')
         if tag in ('rect','text'): objects.append((tag,node,matrix,style))
         for child in node:

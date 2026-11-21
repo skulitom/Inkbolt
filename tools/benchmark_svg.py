@@ -6,9 +6,9 @@ from pathlib import Path
 import re
 import xml.etree.ElementTree as ET
 
-from benchmark_baseline import _numbers, _transform, _multiply
+from benchmark_baseline import _numbers, _transform
 from benchmark_diagram import delivered
-from benchmark_graphics import BLUE, pixels, png_check, store, apply, source_snapshot
+from benchmark_graphics import BLUE, compose_affine, pixels, png_check, store, apply, source_snapshot
 from benchmark_runtime import require, strict_json
 from workload_cases import save, save_json, sha
 
@@ -89,7 +89,7 @@ def svg_artifact(raw, mapping):
         require(not (node.text or '').strip(), 'Unexpected text content')
         require(_numbers(node.get('opacity','1'))==[1], 'Original opacity changed')
         require(node.get('style','').replace(' ','').strip(';') in ('','isolation:isolate'), 'Unexpected style')
-        local=_transform(node.get('transform',''));world=_multiply(matrix,local)
+        local=_transform(node.get('transform',''));world=compose_affine(matrix,local)
         require(all(math.isfinite(v) for v in world), 'Invalid SVG transform')
         ident=node.get('id')
         if ident:

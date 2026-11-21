@@ -556,6 +556,16 @@ The matched comparison has SHA-256
 The five independent child-edit checks have SHA-256
 `279c4e8c345dc78b06816c385412638e5e535498e0edc6a9efd68bec67221f75`.
 
+The corrected B01 judge counts drawing objects inside groups and checks their
+positions after applying parent transforms. We rejudged all twenty saved
+deliveries from these Sol and Luna comparisons with the original engine
+executable, renderer, fonts and transcripts. The grouped Luna drawing was
+the only result that changed. Luna scored **4/5 with Inkbolt and 2/5 with the
+baseline** on rejudgment. The malformed snapshot still failed. Sol retained
+5/5 in both arms. The original reports and token counts are preserved. The
+capture rejudgment report SHA-256 is
+`9607e0f93360ddd474f478a337fa97961941fb195a8b9ad371f0240d61ef870d`.
+
 ### Testing a snapshot publication example with Luna
 
 At [`3fdf09d`](https://github.com/skulitom/Inkbolt/commit/3fdf09d), a

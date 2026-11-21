@@ -67,7 +67,10 @@ the versioned [prompt](../tools/benchmark_prompts/B01.md), reference solving and
 judging. The judge reads `editable.json` and `preview.png`, accepts solver-chosen
 document/object/font-binding IDs, validates the snapshot and independently checks
 both delivered pixels and a fresh rendering against authored geometry. Prompt and
-source hashes must remain unchanged. Tests alter names, geometry, visibility,
+source hashes must remain unchanged. The structure check counts the three editable
+rectangles and two labels inside native groups and checks their positions in
+document coordinates. The five objects and their ancestors must be visible and
+unlocked. Tests alter names, geometry, visibility,
 fonts, images and inputs. Its named font adds an optional public OpenType name
 table so the same original outlines work in the pinned SVG baseline renderer;
 older unnamed fixtures retain their exact bytes. Prompt version 2 describes both

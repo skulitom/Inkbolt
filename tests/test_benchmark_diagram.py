@@ -7,7 +7,7 @@ import unittest
 
 from test_cli import EXE, ROOT
 sys.path.insert(0, str(ROOT/'tools'))
-from benchmark_diagram import fixture, solve, judge, PROMPT
+from benchmark_diagram import editable_diagram_objects, fixture, solve, judge, PROMPT
 from benchmark_runtime import Trial, TaskFailure
 from benchmark_tasks import CHECKS
 from workload_cases import sha
@@ -45,6 +45,35 @@ class BenchmarkDiagramTests(unittest.TestCase):
             self.assertEqual(row['prompt_sha256'], sha((trial.root/'task.txt').read_bytes()))
             self.assertFalse(row['model_trials'])
             self.assertIsNone(row['token_usage'])
+
+    def test_judge_accepts_five_separately_editable_objects_in_transformed_groups(self):
+        with tempfile.TemporaryDirectory() as directory:
+            trial = self.prepare(Path(directory)/'grouped')
+            path = trial.root/'editable.json'
+            doc = json.loads(path.read_bytes())
+            items = doc['items']
+            group = dict(items[0], id='outer', content=dict(type='group', isolated=True, role='group'),
+                         transform=[2, 0, 0, 2, 0, 0])
+            inner = dict(group, id='inner', parent='outer', transform=[1, 0, 0, 1, 3, 4])
+            for item in items:
+                a, b, c, d, x, y = item['transform']
+                item.update(parent='inner', transform=[a/2, b/2, c/2, d/2, x/2-3, y/2-4])
+            doc['items'] = [group, inner, *items]
+            path.write_text(json.dumps(doc), encoding='utf-8')
+            trial.begin_judging()
+            judge(trial)
+            self.assertEqual(trial.finish()['status'], 'passed')
+
+            invalid = {
+                'locked ancestor': [dict(group, locked=True), inner, *items],
+                'locked object': [group, inner, dict(items[0], locked=True), *items[1:]],
+                'extra drawing': [group, inner, *items, dict(items[0], id='extra')],
+                'cycle': [dict(group, parent='inner'), inner, *items],
+                'missing group': [group, *items],
+            }
+            for reason, artwork in invalid.items():
+                with self.subTest(reason=reason), self.assertRaises(TaskFailure):
+                    editable_diagram_objects(artwork)
 
     def test_altered_artifacts_and_font_bindings_fail_even_with_good_solver_responses(self):
         for alteration in ['geometry', 'font', 'png', 'visibility', 'source', 'prompt']:

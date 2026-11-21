@@ -12,6 +12,12 @@ GREEN = [30, 150, 70, 255]
 ORANGE = [220, 90, 30, 255]
 
 
+def compose_affine(parent, local):
+    a, b, c, d, x, y = parent
+    e, f, g, h, u, v = local
+    return (a*e+c*f, b*e+d*f, a*g+c*h, b*g+d*h, a*u+c*v+x, b*u+d*v+y)
+
+
 def pixels(width, height, rectangles):
     """Independent integer rectangle oracle; fixtures deliberately avoid overlap blending."""
     out = bytearray(width*height*4)

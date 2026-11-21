@@ -2,7 +2,7 @@
 import base64
 from pathlib import Path
 
-from benchmark_graphics import BLUE, GREEN, pixels, png_check, store, source_snapshot
+from benchmark_graphics import BLUE, GREEN, compose_affine, pixels, png_check, store, source_snapshot
 from benchmark_runtime import require, strict_json
 from synthetic_font import geometric_font
 from workload_cases import rectangle, save, sha
@@ -54,6 +54,28 @@ def rectangle_corners(item):
     return {(round(a*px+c*py+e,8),round(b*px+d*py+f,8)) for px,py in ((x,y),(x+w,y),(x,y+h),(x+w,y+h))}
 
 
+def editable_diagram_objects(items):
+    groups = {item['id']: item for item in items if item['content']['type'] == 'group'}
+    objects = [item for item in items if item['content']['type'] != 'group']
+    require(len(objects) == 5, 'The diagram must retain five editable objects')
+    placed = []
+    for item in objects:
+        world = item['transform']
+        current = item
+        visited = set()
+        while True:
+            require(current['visible'] and not current['locked'], 'Diagram objects must be visible and editable')
+            parent = current.get('parent')
+            if parent is None:
+                break
+            require(parent in groups and parent not in visited, 'Invalid diagram group hierarchy')
+            visited.add(parent)
+            current = groups[parent]
+            world = compose_affine(current['transform'], world)
+        placed.append(dict(item, transform=list(world)))
+    return placed
+
+
 def retained_font_store(case):
     """Find the pinned imported font/license pair without assuming the agent's store name."""
     root = case.root.resolve()
@@ -82,8 +104,7 @@ def judge(case):
     actual = strict_json(raw)
 
     def structure():
-        items = actual['items']
-        require(len(items) == 5, 'The diagram must retain five editable objects')
+        items = editable_diagram_objects(actual['items'])
         vectors = [item for item in items if item['content']['type'] == 'vector']
         texts = [item for item in items if item['content']['type'] == 'text']
         require(len(vectors) == 3 and len(texts) == 2, 'Diagram content changed kind')
