@@ -5,8 +5,8 @@
 For photo editing, mixed composition and linked-graphic revision, the model
 completed three of five attempts per task with Inkbolt. It completed all five
 per task with the no-engine baseline. Across the 17 tasks with a baseline, Inkbolt
-matched its artifact
-success count on 11, scored higher on three and lower on three. Median recorded
+matched its artifact success count on 12, scored higher on two and lower on
+three. Median recorded
 token use was higher with Inkbolt on all 17.
 
 Each row uses the latest documented five-attempt batch for the standard task.
@@ -18,7 +18,7 @@ the separate comparison with Cutbolt remain open.
 
 | Task | Inkbolt artifact | Inkbolt workflow | Baseline passes | Median tokens, Inkbolt / baseline | Evidence |
 | --- | ---: | ---: | ---: | ---: | --- |
-| B01 Labelled diagram | 5/5 | 5/5 | 0/5 | 299,232 / 71,327 | [8bc8982](#b01b03-at-8bc8982-five-matched-pairs) |
+| B01 Labelled diagram | 5/5 | 5/5 | 5/5 | 284,237 / 42,600 | [c5d9e13](#b01-at-c5d9e13-font-delivery) |
 | B02 Aligned icon sheet | 5/5 | 5/5 | 5/5 | 313,114 / 57,582 | [8586e82](#b02-at-8586e82-cli-help-and-sibling-index-guidance) |
 | B03 Edit a 5,000-object layout | 5/5 | 5/5 | 5/5 | 296,450 / 69,288 | [81e8830](BENCHMARK_ESSENTIALS.md) |
 | B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 206,924 / 57,528 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
@@ -50,13 +50,15 @@ give wide uncertainty. For example, five successes give a 95% Wilson interval
 of 56.6%–100%. Full model-call counts, engine-only model-trial memory and time
 to the first verified preview remain open. [Comparison policy](BENCHMARK_COMPARISON.md)
 
-Two outcomes depend on what the judge accepts. In B01, all five delivered
-baseline PNGs passed a later pixel check. The original judge rejected how the
-SVG retained its font and frame metadata. A later [source-rendering check](#b01-source-rendering-check)
-also reproduced all five images from the original SVGs. In B07, both arms rendered the
-expected pixels. The baseline failed the ordering check for a base glyph and
-its mark inside one cluster. In B14, Inkbolt produced all five requested print
-artifacts but selected the wrong publication receipt twice.
+In B01, both arms delivered five accepted editable diagrams once the prompt
+specified how to supply the font and position the labels. The earlier baseline
+scored 0/5 on source-format checks despite producing the requested pixels.
+[Original diagrams and rendering check](#b01-source-rendering-check)
+
+In B07, both arms rendered the expected pixels. The baseline failed the
+ordering check for a base glyph and its mark inside one cluster. In B14,
+Inkbolt produced all five requested print artifacts but selected the wrong
+publication receipt twice.
 
 The [50 MP photo pilot](B10_LARGE.md), [smaller-model pilots](#b01b03-breadth-pilots-and-capture-rejudgment)
 and [earlier evaluations](#b02-at-c7d9f30-initial-five-matched-icon-sheet-trials)
@@ -471,9 +473,49 @@ original source-format contract. The report SHA-256 is
 
 Version 3 of the [diagram prompt](../tools/benchmark_prompts/B01.md) specifies
 how to deliver the supplied font beside the SVG and position the labels with
-standard SVG attributes. The next batch uses five fresh attempts per arm with
-the same inputs and judges. Its primary outcome is the number of accepted
-editable diagrams. Each failure stays in its batch.
+standard SVG attributes. The follow-up kept the fixtures and judges fixed and
+specified five fresh attempts per arm before collecting results.
+
+## B01 at c5d9e13 font delivery
+
+Both arms delivered the requested 128 × 56 diagram in all five attempts.
+Every delivery passed the structure, font identity, pixel and source-preservation
+checks. All five Inkbolt snapshots passed the native editability check. Each
+baseline SVG retained the labels as text and shipped with the original font
+and license.
+
+| Measurement | Inkbolt | No-engine baseline |
+| --- | ---: | ---: |
+| Accepted artifacts and complete applicable workflows | 5/5 | 5/5 |
+| Median input + output tokens | 284,237 | 42,600 |
+| Token range, all attempts | 235,654–304,518 | 42,447–72,617 |
+| Median client execution, seconds | 54.0 | 28.0 |
+
+Three Inkbolt attempts created and published the diagram through the CLI.
+The other two used MCP for that work. Of their 21 and 20 recorded MCP calls,
+16 and 15 respectively were schema lookups. Each also imported the font,
+created a session, checked the document and published the snapshot and PNG.
+All five baseline attempts used the pinned renderer. For this task, the
+remaining measurable gap is the work required to discover and express the
+same diagram. The captures support measuring discovery calls in a follow-up.
+They do not isolate the share of token usage attributable to those calls.
+
+The baseline ran first on the shared Windows host. Both arms used Codex CLI
+0.160.0, externally selected `gpt-6.1-sol` with medium reasoning, the same
+prompt, fixtures and 600-second limit. The baseline used resvg 0.47.0 and
+Pillow 12.3.0. Each of the five pairs matched on fixture bytes, prompt and
+host. The diagram and baseline judges were unchanged from `8bc8982`. All
+ten attempts reported token usage and elapsed time. The ratio of median token
+counts was 6.67. Model-call counts and time to first verified preview remain
+unknown. Five successes give a 95% Wilson interval of 56.6%–100% in each arm.
+
+| Retained evidence | SHA-256 |
+| --- | --- |
+| Shared source fingerprint | `3e9c8fb47c724c4377d1c9b7d5b8044530b2b57959a26e03f1591ab602f435d8` |
+| Evaluated Windows executable | `a65136303002bffec6a55e966c89036b517cd70113539ec0586fc670b10be5d6` |
+| Inkbolt report | `0d6a54abb772c43eeb14566f87977ecb4b4316e1a7dd0310a4f39b78d8eef47b` |
+| Baseline report | `092c1d3dba59cc11edcef4cdfc0b59dc43f899ee4adf44fb2ca6dd07c68e6d5f` |
+| Matched comparison | `78c983039b7f6d64b96e4cf0121a63ca190358db504d464620854c6ea4e849d8` |
 
 ## B04/B05 at dabe447: five matched pairs
 
