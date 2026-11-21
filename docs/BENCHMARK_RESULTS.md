@@ -62,7 +62,7 @@ Inkbolt produced all five requested print artifacts but selected the wrong
 publication receipt twice.
 
 The [five-pair smaller-model diagram evaluation](#b01-with-luna),
-[two five-pair 50 MP photo evaluations](B10_LARGE.md#five-matched-windows-trials) and [earlier evaluations](#b02-at-c7d9f30-initial-five-matched-icon-sheet-trials)
+[three five-pair 50 MP photo evaluations](B10_LARGE.md#five-matched-windows-trials) and [earlier evaluations](#b02-at-c7d9f30-initial-five-matched-icon-sheet-trials)
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)

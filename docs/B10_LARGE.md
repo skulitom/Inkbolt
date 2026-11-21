@@ -132,6 +132,29 @@ ordinary command lookups grouped in the fourth trial grew from 25,527 to
 30,203 bytes in total. These measurements cover engine output. The clients
 filtered some shell output before presenting it to the model.
 
+Five new Windows trials per arm used the same prompt, client, model settings
+and judges. Both arms passed all five deliveries. All five Inkbolt agents read
+the new input forms. Four used field selectors, and none fetched the entire
+publication schema. All five saved the ordinary dry-run reply themselves.
+
+| Median per attempt | Inkbolt | No-engine baseline |
+| --- | ---: | ---: |
+| Input + output tokens, cached input counted once | 691,252 | 78,336 |
+| Agent time | 186.4 s | 67.8 s |
+| Shell calls | 15 | 4 |
+
+Shell calls containing `schema.lookup` fell from a median of five to four.
+One shell call can run several lookups. Inkbolt's total shell calls held at
+15 and its median tokens were within 0.5% of the previous batch. Its cost in
+tokens was 8.82 times this batch's baseline. This closes the B10 field-discovery
+experiment. End-to-end interaction cost remains open.
+
+All ten transcripts, original inputs and matched settings were checked. The
+comparison report SHA-256 is
+`4d36efec37c2aa4e91c1155b0eb9f0a2bcba28787a4dbc1b465e0280cde999d6`.
+The same source passed all 278 verification stages on Windows and WSL Linux.
+[Measured source revision](https://github.com/skulitom/Inkbolt/commit/7b991c17fa6c52b91e89a176194f7186cd2e5795)
+
 ## Linux address-space experiment
 
 Run the original 50 MP reference task with a 512 MiB limit on each Inkbolt
