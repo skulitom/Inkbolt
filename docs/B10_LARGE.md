@@ -51,6 +51,22 @@ MCP run also reads the kernel's `VmPeak`. This measures peak virtual address
 space through the observed edit and judge work. The enforced limit continues
 through shutdown. [Linux process status fields](https://www.kernel.org/doc/html/latest/filesystems/proc.html)
 
+At [the measured revision](https://github.com/skulitom/Inkbolt/commit/e4529266b79a07b89dd5f5a7f1711da2dd366a16),
+both transports passed the bounded experiment on WSL2. They completed the same
+14 solve and nine judge commands on the original 8192 × 6144 RGBA16 TIFF.
+
+| Transport | Engine processes | Highest lifetime RSS | Peak virtual size before MCP shutdown |
+| --- | ---: | ---: | ---: |
+| MCP stdio | 1 | 53.83 MiB | 158.49 MiB |
+| JSON CLI | 23 | 48.75 MiB | — |
+
+Every process retained both its soft and hard 512 MiB limits through exit.
+The original TIFF, preview, edited and historical TIFFs, and both independent
+judge deliveries matched the earlier unrestricted Linux and Windows references
+byte for byte. Both rows passed all ten artifact, history and source checks.
+The eleventh check requires peak commit, which remains unmeasured on Linux.
+The retained runs are `b10-reference-limit-mcp-01` and `b10-reference-limit-cli-01`.
+
 ## Focused rendering
 
 The first fixed-size diagnostic completed import and repair but its 20 x 16
