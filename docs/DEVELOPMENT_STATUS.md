@@ -96,8 +96,43 @@ Additional checks cover two nested knockout boundaries with distinct fields,
 a multiply-blended descendant inside a masked pass-through group, and a
 revision-pinned knockout edit to imported SVG artwork. Rendering the same
 masked raster layer in the paint and the footprint uses one copy of its
-source pixels. Non-normal blends that depend on a knockout group's external
-backdrop and native-ink knockout delivery remain open.
+source pixels.
+
+### Blending against the artwork behind a knockout group
+
+At `3445b5b` the vector PDF writer refused a pass-through knockout group
+whose children used Multiply, Screen or another non-normal blend against the
+surrounding artwork. The exporter now saves the visible artwork at group
+entry, including a document matte, in page coordinates. Each child draws
+independently against that same entry. With entry `B`, prior sibling
+composite `D`, the child alone on the entry `C`, and intrinsic footprint
+`F`, the result in premultiplied RGBA is `C + (1-F)*(D-B)`. The writer
+combines contiguous ranges of siblings in a balanced tree. PDF paths,
+gradients and source image samples stay in their original form.
+
+Sixteen 84 × 36 sheets exercise opaque, partially transparent and clear
+backdrops, four paint alphas and three owner opacities. Each sheet includes
+thirteen children. Across 48,384 logical pixels the native PNGs agreed with
+the independent RGBA calculation to within 0.70 of an 8-bit level. Windows
+and WSL Linux produced identical PDF bytes. The table gives the maximum
+RGB difference from the calculation after rendering each PDF over white at
+288 dpi and sampling the center region of each logical pixel.
+
+| Reader | Modes | Greatest difference in 8-bit levels |
+| --- | --- | ---: |
+| MuPDF 1.26.12 on Windows and Linux | All sixteen | 5 |
+| Poppler 26.07.0 on Windows | All sixteen | 2 |
+| Poppler 22.02.0 on Ubuntu | Fourteen modes | 2 |
+| Poppler 22.02.0 on Ubuntu | Hue / Saturation | 6 / 25 |
+
+On the same Ubuntu reader, ordinary blends without knockout reached 4 for
+Hue and 25 for Saturation. Additional regression cases compare associated
+RGBA on transparent pages, an explicit sRGB profile, masked frames, nested
+groups, a non-default physical scale, saved revisions and immutable file
+publication. A dense pair of groups and a deep stack exercise separate
+reference-work and nesting limits. Native-ink knockout, marked RGB
+transparency and the wider page-exchange checkpoint remain open.
+[Regression fixtures](../tests/test_pdf_knockout.py) · [PDF delivery contract](PDF.md#knockout-groups)
 
 ## Artwork masks in vector PDF
 

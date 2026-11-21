@@ -1117,6 +1117,8 @@ pub mod pdf {
     pub const MAX_KNOCKOUT_DEPTH: usize = 24;
     /// Maximum emitted form and soft-mask reference depth on a knockout PDF page.
     pub const MAX_KNOCKOUT_FORM_DEPTH: usize = 32;
+    /// Expanded form invocations and state references per externally blended page.
+    pub const MAX_BACKDROP_FORM_VISITS: usize = 65_536;
     /// Existing page-coordinate span used to select a per-page UserUnit.
     pub const MAX_PAGE_COORDINATE: f64 = 14400.0;
     /// Existing upper bound on the per-page UserUnit multiplier.

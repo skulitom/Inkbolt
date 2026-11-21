@@ -13,7 +13,7 @@ Explicit `pdf_options.print` instead produces flattened calibrated CMYK image pa
 
 `document.export` accepts `format:"pdf"`. It returns a deterministic PDF 1.7 file (PDF 2.0 for explicit managed colours, a calibrated page profile, color burn or color dodge)
 as base64, a `pages` receipt and explicit fidelity losses. Nested knockout
-artwork that needs independent shape and paint masks also uses PDF 2.0. `document.publish` and
+artwork that needs independent shape and paint masks or blends against surrounding artwork also uses PDF 2.0. `document.publish` and
 `session.publish` deliver the same bytes to a new `.pdf` file. Existing files are
 never replaced. No external application, converter or additional dependency is
 needed by the engine.
@@ -124,16 +124,23 @@ cutout. Group masks and clips apply to both the visible paint and the cutout.
 When painted alpha and footprint vary independently, the PDF carries both
 fields. `pdf.knockout_field_masks` counts the masks that combine them to
 attenuate earlier siblings. These masks use a grayscale PDF 2.0 blend.
-Isolated knockout groups blend their direct
-children against transparent. Pass-through knockout groups require normal
-blends for children that see the surrounding artwork. An isolated subgroup
-can contain standard non-normal blends.
+In an isolated knockout group, each direct child blends against transparent.
+In a pass-through knockout group, each child blends against the artwork
+visible at group entry. For example, a Multiply shape above a red sibling
+can multiply the blue artwork behind the group. The sibling survives only
+outside the incoming shape's footprint. All sixteen standard RGB modes are
+supported. The receipt counts groups composed against a saved backdrop in
+`pdf.knockout_backdrop_groups`. It reports authored blend modes separately.
+Reader precision can affect colors, especially Hue and Saturation in older
+readers. [Measured reader differences](DEVELOPMENT_STATUS.md#blending-against-the-artwork-behind-a-knockout-group)
 
-The writer counts successive attenuations of earlier siblings plus the
-group's scene ancestry, up to 24 levels. It also follows the forms and soft
-masks referenced by each branch on the page, up to a depth of 32. Separate
-siblings can reuse the same depth allowance. Exceeding either limit returns
-`RESOURCE_LIMIT` before publication. An unsupported descendant or native-ink delivery returns
+For the writer that successively attenuates earlier siblings, the limit is
+24 attenuations including scene ancestry. Every knockout page has a limit
+of 32 nested form and soft-mask references. On a page that saves external
+backdrops, the writer additionally counts expanded resource visits,
+including repeated references to the same form or graphics state. The
+limit is 65,536 per page. Any exceeded limit returns `RESOURCE_LIMIT`
+before publication. An unsupported descendant or native-ink delivery returns
 `UNSUPPORTED`. Use an unmarked page with the default working space or its
 explicit sRGB profile. A marked page containing a painted knockout group
 requires flattened prepress delivery. Keep the snapshot for editable group

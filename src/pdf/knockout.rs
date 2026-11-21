@@ -3,36 +3,12 @@ use super::*;
 /// A knockout child blends against the backdrop at group entry. Within an
 /// isolated group that backdrop is transparent. Normal pass-through children
 /// admit the same group contribution over an arbitrary external backdrop.
-pub(super) fn preflight(document: &Document, group: &Item, working_rgb: bool) -> Result<(), Error> {
+pub(super) fn preflight(group: &Item, working_rgb: bool) -> Result<(), Error> {
     if !working_rgb {
         return Err(
             unsupported("Vector PDF knockout groups require working-RGB display delivery")
                 .at_item(&group.id),
         );
-    }
-    if group.content.is_isolated() {
-        return Ok(());
-    }
-    check_backdrop_blends(document, group)
-}
-
-fn check_backdrop_blends(document: &Document, parent: &Item) -> Result<(), Error> {
-    for index in scene::children(document, Some(&parent.id)) {
-        let child = &document.items[index];
-        if !child.visible
-            || matches!(
-                child.content,
-                Content::WorkPath { .. } | Content::MaskSource {} | Content::ComponentSource { .. }
-            )
-        {
-            continue;
-        }
-        if child.blend != BlendMode::Normal {
-            return Err(unsupported("Pass-through PDF knockout groups require normal blends wherever a child sees the group entry backdrop").at_item(&child.id));
-        }
-        if child.content.is_container() && !child.content.is_isolated() {
-            check_backdrop_blends(document, child)?;
-        }
     }
     Ok(())
 }

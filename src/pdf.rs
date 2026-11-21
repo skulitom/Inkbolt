@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod artwork;
+mod backdrop;
 mod combined;
 mod inks;
 mod knockout;
@@ -95,6 +96,9 @@ struct Writer {
     artwork_luminance_masks: usize,
     knockout_groups: usize,
     knockout_field_masks: usize,
+    backdrop_groups: usize,
+    uses_backdrop_division: bool,
+    form_visits: Option<BTreeMap<usize, usize>>,
     // On knockout pages, record the longest form/mask dependency chain for
     // each reusable resource. Siblings on separate branches do not add depth.
     form_depths: Option<BTreeMap<usize, usize>>,
@@ -124,7 +128,14 @@ impl Writer {
     }
     fn form(&mut self, dictionary: &str, stream: &Stream) -> Result<usize, Error> {
         let id = self.stream(dictionary, stream.content.as_bytes())?;
-        self.record_form_depth(id, stream.resources.values().flatten())
+        self.record_form_depth(
+            id,
+            stream
+                .resources
+                .values()
+                .flatten()
+                .chain(&stream.repeated_uses),
+        )
     }
     fn mask_state(&mut self, dictionary: String, form: usize) -> Result<usize, Error> {
         let id = self.add(dictionary)?;
@@ -133,8 +144,19 @@ impl Writer {
     fn record_form_depth<'a>(
         &mut self,
         id: usize,
-        references: impl Iterator<Item = &'a usize>,
+        references: impl Iterator<Item = &'a usize> + Clone,
     ) -> Result<usize, Error> {
+        if let Some(visits) = &mut self.form_visits {
+            let count = references.clone().try_fold(1usize, |n, child| {
+                let total = n + visits.get(child).copied().unwrap_or(1);
+                (total <= crate::limits::pdf::MAX_BACKDROP_FORM_VISITS)
+                    .then_some(total)
+                    .ok_or_else(|| {
+                        limit("PDF backdrop composition exceeds the expanded form reference budget")
+                    })
+            })?;
+            visits.insert(id, count);
+        }
         if let Some(depths) = &mut self.form_depths {
             let depth = 1 + references
                 .filter_map(|child| depths.get(child))
@@ -234,6 +256,8 @@ impl Writer {
     fn version(&self) -> &'static str {
         if self.explicit_black_point
             || self.corrected_blend_endpoints()
+            || self.uses_backdrop_division
+            || self.backdrop_groups > 0
             || self.knockout_field_masks > 0
         {
             "2.0"
@@ -275,6 +299,7 @@ impl Writer {
 struct Stream {
     content: String,
     resources: BTreeMap<&'static str, BTreeSet<usize>>,
+    repeated_uses: Vec<usize>,
     rgb8_solids: BTreeSet<String>,
     default_rgb: Option<usize>,
     artwork_blend_space: Option<String>,
@@ -293,7 +318,11 @@ impl Stream {
     }
 
     fn use_resource(&mut self, category: &'static str, id: usize, op: &str) {
-        self.resources.entry(category).or_default().insert(id);
+        if !self.resources.entry(category).or_default().insert(id)
+            && matches!(category, "XObject" | "ExtGState")
+        {
+            self.repeated_uses.push(id);
+        }
         self.content.push_str(&format!("/R{id} {op}\n"));
     }
     fn dictionary(&self, marks: Option<usize>) -> String {
@@ -685,7 +714,7 @@ fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
             return Err(unsupported("Non-normal vector PDF blending requires display color with the working RGB blending space").at_item(&item.id));
         }
         if item.content.is_knockout() {
-            knockout::preflight(document, item, display_blends)?;
+            knockout::preflight(item, display_blends)?;
         }
         if !item.effects.is_empty()
             || !item.filters.is_empty()
@@ -778,6 +807,149 @@ fn checked_layouts(
     Ok(layouts)
 }
 
+fn item_clip(
+    writer: &mut Writer,
+    stream: &mut Stream,
+    item: &Item,
+    world: Matrix,
+) -> Result<(), Error> {
+    if let Some(c) = item.clip.as_ref().filter(|c| c.enabled) {
+        clip(
+            writer,
+            stream,
+            &c.geometry,
+            geometry::multiply(world, c.transform),
+            c.fill_rule,
+        )?;
+    }
+    if let Content::Frame { frame } = &item.content {
+        clip(writer, stream, &frame.geometry(), world, FillRule::Nonzero)?;
+    }
+    Ok(())
+}
+
+fn item_paint(
+    writer: &mut Writer,
+    stream: &mut Stream,
+    item: &Item,
+    world: Matrix,
+    resources: &PageResources,
+) -> Result<(), Error> {
+    match &item.content {
+        Content::Text { .. } | Content::StoryFrame { .. } => {
+            if let Some(geometry) =
+                crate::text::clip_geometry(&item.content, &resources.layouts[&item.id])
+            {
+                clip(writer, stream, &geometry, world, FillRule::Nonzero)?;
+            }
+            for path in &resources.layouts[&item.id].paths {
+                paint(
+                    writer,
+                    stream,
+                    &path.geometry,
+                    world,
+                    &path.fill,
+                    world,
+                    FillRule::Nonzero,
+                )?;
+            }
+        }
+        Content::Group { .. } => {}
+        Content::Frame { frame } => {
+            if let Some(color) = frame.background {
+                paint(
+                    writer,
+                    stream,
+                    &frame.geometry(),
+                    world,
+                    &Paint::Solid(color),
+                    world,
+                    FillRule::Nonzero,
+                )?;
+            }
+        }
+        Content::Vector {
+            geometry,
+            fill,
+            stroke,
+            fill_rule,
+        } => {
+            if let Some(fill) = fill {
+                paint(writer, stream, geometry, world, fill, world, *fill_rule)?;
+            }
+            if let Some(stroke) = stroke
+                && let Some(outline) = crate::strokes::generate_placed(geometry, stroke, world)?
+            {
+                paint(
+                    writer,
+                    stream,
+                    &outline,
+                    stroke.scaling.matrix(world),
+                    &stroke.color,
+                    world,
+                    FillRule::Nonzero,
+                )?;
+            }
+        }
+        Content::Image {
+            asset_id,
+            width,
+            height,
+            crop,
+            ..
+        } => {
+            let pixels = &resources.pixels[asset_id];
+            let crop = assets::crop(pixels.width, pixels.height, *crop)?;
+            image(
+                writer,
+                stream,
+                [crop.width, crop.height],
+                &pixels.cropped(crop),
+                [*width, *height],
+                world,
+            )?;
+        }
+        Content::Raster {
+            width,
+            height,
+            rgba_hex,
+            ..
+        } => image(
+            writer,
+            stream,
+            [*width, *height],
+            &crate::render::unhex(rgba_hex),
+            [*width as f64, *height as f64],
+            world,
+        )?,
+        Content::Fill {
+            width,
+            height,
+            paint: fill,
+            ..
+        } => paint(
+            writer,
+            stream,
+            &Geometry::Rect {
+                x: 0.0,
+                y: 0.0,
+                width: *width as f64,
+                height: *height as f64,
+            },
+            world,
+            fill,
+            world,
+            FillRule::Nonzero,
+        )?,
+        _ => {
+            return Err(
+                unsupported("PDF encountered unevaluated or unsupported content").at_item(&item.id),
+            );
+        }
+    }
+    Ok(())
+}
+
 fn items(
     writer: &mut Writer,
     output: &mut Stream,
@@ -810,143 +982,8 @@ fn items(
             scalar_artwork: output.scalar_artwork,
             ..Stream::default()
         };
-        if let Some(c) = item.clip.as_ref().filter(|c| c.enabled) {
-            clip(
-                writer,
-                &mut stream,
-                &c.geometry,
-                geometry::multiply(world, c.transform),
-                c.fill_rule,
-            )?;
-        }
-        match &item.content {
-            Content::Text { .. } | Content::StoryFrame { .. } => {
-                if let Some(geometry) =
-                    crate::text::clip_geometry(&item.content, &resources.layouts[&item.id])
-                {
-                    clip(writer, &mut stream, &geometry, world, FillRule::Nonzero)?;
-                }
-                for path in &resources.layouts[&item.id].paths {
-                    paint(
-                        writer,
-                        &mut stream,
-                        &path.geometry,
-                        world,
-                        &path.fill,
-                        world,
-                        FillRule::Nonzero,
-                    )?;
-                }
-            }
-            Content::Group { .. } => {}
-            Content::Frame { frame } => {
-                clip(
-                    writer,
-                    &mut stream,
-                    &frame.geometry(),
-                    world,
-                    FillRule::Nonzero,
-                )?;
-                if let Some(color) = frame.background {
-                    paint(
-                        writer,
-                        &mut stream,
-                        &frame.geometry(),
-                        world,
-                        &Paint::Solid(color),
-                        world,
-                        FillRule::Nonzero,
-                    )?;
-                }
-            }
-            Content::Vector {
-                geometry,
-                fill,
-                stroke,
-                fill_rule,
-            } => {
-                if let Some(fill) = fill {
-                    paint(
-                        writer,
-                        &mut stream,
-                        geometry,
-                        world,
-                        fill,
-                        world,
-                        *fill_rule,
-                    )?;
-                }
-                if let Some(stroke) = stroke
-                    && let Some(outline) = crate::strokes::generate_placed(geometry, stroke, world)?
-                {
-                    paint(
-                        writer,
-                        &mut stream,
-                        &outline,
-                        stroke.scaling.matrix(world),
-                        &stroke.color,
-                        world,
-                        FillRule::Nonzero,
-                    )?;
-                }
-            }
-            Content::Image {
-                asset_id,
-                width,
-                height,
-                crop,
-                ..
-            } => {
-                let pixels = &resources.pixels[asset_id];
-                let crop = assets::crop(pixels.width, pixels.height, *crop)?;
-                image(
-                    writer,
-                    &mut stream,
-                    [crop.width, crop.height],
-                    &pixels.cropped(crop),
-                    [*width, *height],
-                    world,
-                )?;
-            }
-            Content::Raster {
-                width,
-                height,
-                rgba_hex,
-                ..
-            } => image(
-                writer,
-                &mut stream,
-                [*width, *height],
-                &crate::render::unhex(rgba_hex),
-                [*width as f64, *height as f64],
-                world,
-            )?,
-            Content::Fill {
-                width,
-                height,
-                paint: fill,
-                ..
-            } => paint(
-                writer,
-                &mut stream,
-                &Geometry::Rect {
-                    x: 0.0,
-                    y: 0.0,
-                    width: *width as f64,
-                    height: *height as f64,
-                },
-                world,
-                fill,
-                world,
-                FillRule::Nonzero,
-            )?,
-            _ => {
-                return Err(
-                    unsupported("PDF encountered unevaluated or unsupported content")
-                        .at_item(&item.id),
-                );
-            }
-        }
+        item_clip(writer, &mut stream, item, world)?;
+        item_paint(writer, &mut stream, item, world, resources)?;
         // Both streams start with the same geometric clip and frame background.
         // Their children share paint resources even when coverage and color differ.
         let mut child_union = None;
@@ -1235,6 +1272,8 @@ pub fn export_controlled(
             .transpose()?;
         let page = viewport.as_ref().unwrap_or(page);
         preflight(page, !native_inks && working_blend_space)?;
+        let external = backdrop::needed(page)?;
+        writer.form_visits = external.then(BTreeMap::new);
         writer.form_depths = page
             .items
             .iter()
@@ -1254,7 +1293,8 @@ pub fn export_controlled(
         let masks =
             crate::masks::prepare_document(page, resources.asset_root.as_deref(), &writer.control)?;
         let footprint_unions = knockout::footprint_unions(page, &writer.control)?;
-        let artwork_masks = artwork::prepare(&mut writer, page, &fonts, &footprint_unions)?;
+        let artwork_masks =
+            artwork::prepare(&mut writer, page, &fonts, &footprint_unions, external)?;
         let page_resources = PageResources {
             pixels,
             layouts,
@@ -1311,10 +1351,19 @@ pub fn export_controlled(
         }
         writer.page_has_spot_paint = false;
         writer.page_requires_backdrop = false;
+        let mut logical_art = Stream {
+            default_rgb: writer.default_rgb,
+            ..Stream::default()
+        };
+        let artwork = if external {
+            &mut logical_art
+        } else {
+            &mut stream
+        };
         if let Some([r, g, b]) = crate::backgrounds::visible_matte(page) {
             paint(
                 &mut writer,
-                &mut stream,
+                artwork,
                 &Geometry::Rect {
                     x: 0.0,
                     y: 0.0,
@@ -1327,7 +1376,13 @@ pub fn export_controlled(
                 FillRule::Nonzero,
             )?;
         }
-        items(&mut writer, &mut stream, page, None, &page_resources, None)?;
+        if external {
+            backdrop::render(&mut writer, artwork, page, &page_resources)?;
+            let id = writer.isolated_rgb_form(artwork)?;
+            stream.use_resource("XObject", id, "Do");
+        } else {
+            items(&mut writer, artwork, page, None, &page_resources, None)?;
+        }
         stream.content.push_str("Q\n");
         let mut page_group = format!(
             " /Group << /Type /Group /S /Transparency /CS {} /I true /K false >>",
@@ -1445,6 +1500,7 @@ pub fn export_controlled(
     let grid_masks = writer.grid_masks;
     let artwork_alpha_masks = writer.artwork_alpha_masks;
     let artwork_luminance_masks = writer.artwork_luminance_masks;
+    let backdrop_groups = writer.backdrop_groups;
     let knockout_groups = writer.knockout_groups;
     let knockout_field_masks = writer.knockout_field_masks;
     let grid_mask_samples = writer.grid_mask_samples;
@@ -1457,6 +1513,10 @@ pub fn export_controlled(
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
     result["pdf"]["version"] = json!(version);
+    if backdrop_groups > 0 {
+        result["pdf"]["knockout_backdrop_groups"] = json!(backdrop_groups);
+        result["losses"].as_array_mut().unwrap().push(json!("Backdrop-dependent knockout blends use PDF 2.0 transparency fields. Reader blending and intermediate mask precision can affect delivered colors."));
+    }
     if knockout_field_masks > 0 {
         result["pdf"]["knockout_field_masks"] = json!(knockout_field_masks);
         result["losses"].as_array_mut().unwrap().push(json!("Independently faded knockout members use a PDF 2.0 grayscale blend to combine footprint and paint alpha. Readers can differ in mask rounding."));

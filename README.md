@@ -60,9 +60,10 @@ The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
-Building from `main` also lets you export a masked SVG illustration as a PDF
-with vector paths, including masks drawn with shapes, gradients or text.
-[PDF mask support](docs/PDF.md#masks-made-from-editable-artwork)
+Building from `main` also lets you keep paths and text outlines in an unmarked
+RGB PDF when artwork uses a mask or a knockout group. For example, a shape
+can cut a window through its group to reveal the artwork behind it.
+[PDF masks](docs/PDF.md#masks-made-from-editable-artwork) · [Knockout groups](docs/PDF.md#knockout-groups)
 
 ## Explore the project
 

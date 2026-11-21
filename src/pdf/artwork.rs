@@ -6,6 +6,7 @@ pub(super) fn prepare(
     document: &Document,
     fonts: &crate::fonts::Cache,
     unions: &BTreeSet<usize>,
+    unweighted: bool,
 ) -> Result<BTreeMap<String, opacity::States>, Error> {
     let mut states = BTreeMap::new();
     for (i, owner) in document.items.iter().enumerate() {
@@ -63,7 +64,7 @@ pub(super) fn prepare(
         let field = opacity::field(writer, stream, mask.mode, 0.0)?;
         let mask_states = field.states(
             writer,
-            if knockout_child {
+            if knockout_child || unweighted {
                 1.0
             } else {
                 owner.opacity * owner.fill_opacity

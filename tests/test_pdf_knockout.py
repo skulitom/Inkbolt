@@ -1,5 +1,7 @@
 """Check PDF knockout colors and alpha against independent sibling-footprint math."""
 from contextlib import closing
+from fractions import Fraction
+from functools import lru_cache
 import base64
 import math
 import shutil
@@ -13,7 +15,7 @@ from test_editing_cli import png_pixels
 from test_layer_clipping_cli import layer, over, premul
 from test_mcp import Client
 from test_pdf_artwork_masks import paper, read_mupdf
-from test_pdf_blends_cli import poppler_rgb, pymupdf
+from test_pdf_blends_cli import MODES, over as standard_over, poppler_rgb, pymupdf
 from test_profiles_cli import builtin
 
 
@@ -250,8 +252,7 @@ class PdfKnockoutTests(unittest.TestCase):
                                              (reader, x, white))
                 if kind == 'through' and not isolated:
                     items[-2]['blend'] = 'multiply'
-                    error = self.cli('document.export', document=doc, format='pdf', error='UNSUPPORTED')
-                    self.assertEqual(error['item_id'], 'upper')
+                    self.match_preview(doc)
 
     def test_raster_member_reuses_intrinsic_alpha_without_copying_pixels(self):
         values = [0, 64, 128, 255]
@@ -330,7 +331,7 @@ class PdfKnockoutTests(unittest.TestCase):
                      error='UNSUPPORTED')
         self.cli('document.export',document=dict(doc,output_profile=builtin('linear_srgb')),format='pdf',error='UNSUPPORTED')
         through = sheet(False)
-        through['items'][3]['blend'] = 'screen'
+        through['items'][3]['blend'] = 'linear_burn'
         self.assertEqual(self.cli('document.export',document=through,format='pdf',error='UNSUPPORTED')['item_id'],'ramp')
         depth = self.cli('capabilities')['pdf']['knockout_groups']['max_attenuation_depth_including_ancestors']
         g = dict(id='k',content=dict(type='group',knockout=True))
@@ -349,8 +350,178 @@ class PdfKnockoutTests(unittest.TestCase):
         self.assertEqual(error['item_id'],'overflow')
         self.assertFalse((self.root/'bad.pdf').exists())
 
+    def match_preview(self, doc, tolerance=7):
+        out = self.export(doc)
+        self.assertGreater(out['pdf']['knockout_backdrop_groups'], 0)
+        pdf = Pdf(out)
+        self.assertEqual(out['pdf']['version'], '2.0')
+        w,h,rgba,_ = png_pixels(base64.b64decode(self.cli('document.export', document=doc, format='png')['data']))
+        for reader, pixels in reader_samples(pdf.data, w, h):
+            for y in range(h):
+                for x in range(w):
+                    i = 4*(y*w+x)
+                    a = rgba[i+3]
+                    white = [round(255-a+c*a/255) for c in rgba[i:i+3]]
+                    error = max(abs(b-c) for b,c in zip(white_pixel(pixels,w,x,y),white))
+                    self.assertLessEqual(error, tolerance, (reader,x,y,white))
+        if pymupdf:
+            with pymupdf.open(stream=pdf.data, filetype='pdf') as pages:
+                pix = pages[0].get_pixmap(dpi=288,alpha=True)
+                for y in range(h):
+                    for x in range(w):
+                        i = 4*(y*w+x)
+                        a = rgba[i+3]
+                        expected = [c*a/255 for c in rgba[i:i+3]] + [a]
+                        actual = pix.pixel(4*x+2,4*y+2)
+                        self.assertLessEqual(max(abs(b-c) for b,c in zip(actual,expected)), tolerance,
+                                             ('associated RGBA',x,y,expected,actual))
+        return out
+
+    def test_external_modes_use_the_page_at_group_entry(self):
+        # Thirteen children. Each patch replaces the same lower sibling at an
+        # independently chosen paint alpha and owner opacity in three backdrop bands.
+        w,h = 84,36
+        for mode in MODES:
+            with self.subTest(mode=mode):
+                back,prior,ink = [42,175,110], [200,62,90], [40,80,220]
+                items = [rect('left',w=28,h=h,color=back+[255]),
+                         rect('middle',x=28,w=28,h=h,color=back+[102]),
+                         dict(id='k',content=dict(type='group',isolated=False,knockout=True)),
+                         rect('prior',x=3,y=2,w=76,h=32,parent='k',color=prior+[255],opacity=.64)]
+                alphas, weights = (0,74,184,255), (0,36,100)
+                for j,p in enumerate(weights):
+                    for i,f in enumerate(alphas):
+                        items.append(rect(f'ink-{i}-{j}',x=21*i,y=12*j,w=21,h=12,parent='k',
+                                          color=ink+[f],opacity=p/100,blend=mode))
+                doc = paper(w,h,items)
+                out = self.export(doc)
+                self.assertEqual(out['pdf']['image_pixels'],0)
+                if mode != 'normal':
+                    self.assertEqual(out['pdf']['blend_modes'], [''.join(s.title() for s in mode.split('_'))])
+                rgba = png_pixels(base64.b64decode(self.cli('document.export',document=doc,format='png')['data']))[2]
+                # Evaluate straight blend modes with the independent rational
+                # oracle, then replace the prior sibling only inside the footprint.
+                @lru_cache(maxsize=None)
+                def expected(b,f,p,inside):
+                    base = premul(back+[b])
+                    lower = over(base,premul(prior+[255]),Fraction(64,100)) if inside else base
+                    single = standard_over(base,premul(ink+[f]),Fraction(p,100),mode)
+                    associated = [float(s + (1-Fraction(f,255))*(d-a))
+                                  for s,d,a in zip(single,lower,base)]
+                    return associated,[round(255*(s+1-associated[3])) for s in associated[:3]]
+                samples = []
+                for y in range(h):
+                    for x in range(w):
+                        args = ((255,102,0)[x//28],alphas[x//21],weights[y//12])
+                        inside = 3<=x<79 and 2<=y<34
+                        color,want = expected(*args,inside)
+                        i = 4*(y*w+x)
+                        a = rgba[i+3]
+                        actual = [c*a/255 for c in rgba[i:i+3]]+[a]
+                        self.assertLessEqual(max(abs(c-255*v) for c,v in zip(actual,color)),1)
+                        samples.append((x,y,want,expected(*args,False)[1]))
+                rendered = dict(reader_samples(Pdf(out).data,w,h))
+                # Pair with this reader's ordinary blend to distinguish known
+                # Hue/Saturation operator differences from knockout arithmetic.
+                control = paper(w,h,items[:2]+[dict(q,parent=None) for q in items[4:]])
+                for reader,pixels in reader_samples(Pdf(self.export(control)).data,w,h):
+                    for x,y,want,alone in samples:
+                        actual = white_pixel(rendered[reader],w,x,y)
+                        direct = white_pixel(pixels,w,x,y)
+                        for c,v,baseline,reference in zip(actual,want,direct,alone):
+                            allowance = abs(baseline-reference) if mode in ('hue','saturation') else 0
+                            self.assertLessEqual(abs(c-v),5+allowance,(reader,mode,x,y))
+
+    def test_external_backdrop_masks_frames_profiles_and_grid_alpha(self):
+        for profile in (None, builtin('srgb')):
+            grid = dict(width=2,height=1,gray_hex='80ff',transform=[5,0,0,4,0,0])
+            items = [source(),rect('mask-ink',w=9,h=4,parent='source',color=[0,255,0,180]),
+                     rect('entry',w=7,h=4,color=BACK),
+                     dict(id='outer',opacity=.8,clip=box(1,0,9,4),artwork_mask=mask(mode='alpha'),
+                          content=dict(type='group',isolated=False)),
+                     rect('under',w=12,h=4,parent='outer',color=BLUE),
+                     dict(id='k',parent='outer',content=dict(type='group',isolated=False,knockout=True)),
+                     rect('first',w=12,h=4,parent='k',color=RED,opacity=.65),
+                     dict(id='card',parent='k',blend='multiply',mask=grid,opacity=.7,
+                          content=dict(type='frame',frame=dict(role='frame',width=8,height=4,background=BACK))),
+                     rect('face',w=5,h=4,parent='card',color=BLUE,fill_opacity=.4)]
+            doc = paper(12,4,items)
+            if profile:
+                doc['output_profile'] = profile
+            out = self.match_preview(doc)
+            self.assertEqual(out['pdf']['image_pixels'],0)
+            self.assertEqual(out['pdf']['knockout_backdrop_groups'],1)
+
+    def test_external_backdrop_reuses_raster_members_and_keeps_zero_opacity_footprints(self):
+        def band(key, color, width=12, x=0, **controls):
+            return layer(key, [color], transform=[width,0,0,4,x,0], **controls)
+        items = [band('entry',BACK),
+                 dict(id='k',content=dict(type='group',isolated=False,knockout=True)),
+                 band('first',RED,parent='k',blend='screen'),
+                 layer('pixels',[[35,70,210,80],[210,70,30,200]],parent='k',
+                       transform=[4,0,0,4,0,0],opacity=.5,blend='multiply'),
+                 band('clear',BLUE,width=4,x=4,parent='k',opacity=0)]
+        doc = dict(paper(12,4,items),kind='raster')
+        self.match_preview(dict(doc,background=dict(item_id='entry',matte=[23,41,120])))
+        out = self.match_preview(doc)
+        images = [v for v in Pdf(out).objects.values() if isinstance(v,dict) and v.get('Subtype')=='Image']
+        self.assertEqual((len(images),out['pdf']['image_pixels']), (8,5))
+
+    def test_child_knockout_group_and_clipped_ramp_blend_against_the_original_page(self):
+        doc = sheet(False)
+        doc['items'][3]['blend'] = 'screen'
+        self.match_preview(doc)
+        items = [rect('back',w=8,h=4,color=BACK),
+                 dict(id='outer',content=dict(type='group',isolated=False,knockout=True)),
+                 rect('red',w=12,h=4,parent='outer',color=RED),
+                 dict(id='inner',parent='outer',opacity=.7,content=dict(type='group',isolated=False,knockout=True)),
+                 rect('one',w=9,h=4,parent='inner',color=BLUE,blend='multiply'),
+                 rect('two',x=4,w=8,h=4,parent='inner',color=RED,opacity=.4,blend='screen')]
+        self.assertEqual(self.match_preview(paper(12,4,items))['pdf']['knockout_backdrop_groups'],2)
+
+    def test_two_external_groups_reuse_the_completed_backdrop_within_the_work_budget(self):
+        def stacked(widths):
+            items = [rect('entry',w=12,h=4,color=BACK)]
+            for j,count in enumerate(widths):
+                key = f'group-{j}'
+                items.append(dict(id=key,content=dict(type='group',isolated=False,knockout=True)))
+                for i in range(count):
+                    items.append(rect(f'c-{j}-{i}',w=12,h=4,parent=key,color=(RED,BLUE)[i%2],
+                                      opacity=.65,blend='multiply' if i%2 else 'normal'))
+            return paper(12,4,items)
+        self.assertEqual(self.match_preview(stacked([2,2]))['pdf']['knockout_backdrop_groups'],2)
+        for widths, reason in (([16,16],'expanded form reference budget'),([2,2,2,2],'reference depth')):
+            output = dict(format='pdf',file_name='oversized.pdf')
+            doc = stacked(widths)
+            self.assertFalse(self.cli('document.preflight',document=doc,output=output)['ready'])
+            error = self.cli('document.publish',document=doc,output=output,error='RESOURCE_LIMIT')
+            self.assertIn(reason,error['message'])
+            self.assertFalse((self.root/'oversized.pdf').exists())
+
+    def test_selected_artboard_applies_physical_scale_once_to_the_group_entry(self):
+        board = dict(id='board',transform=[1,0,0,1,20,3],
+                     content=dict(type='frame',frame=dict(role='artboard',width=12,height=6,
+                                                         bleed=dict(left=2,top=2))))
+        items = [board,rect('page',parent='board',w=7,h=6,color=BACK),
+                 dict(id='k',parent='board',content=dict(type='group',isolated=False,knockout=True)),
+                 rect('under',w=10,h=4,x=1,y=1,color=RED,parent='k'),
+                 rect('over',w=5,h=4,x=4,y=1,color=BLUE,parent='k',blend='screen',opacity=.5)]
+        doc = dict(paper(40,12,items),resolution_ppi=144)
+        output = self.export(doc,artboards=dict(type='ids',ids=['board']),include_bleed=True)
+        self.assertEqual(output['pages'][0]['physical_points'],[7,4])
+        want = png_pixels(base64.b64decode(self.cli('document.export',document=doc,format='png')['data']))[2]
+        # The 288 dpi reader produces two physical pixels per document unit.
+        for reader, rendered in reader_samples(Pdf(output).data,7,4):
+            for x in range(12):
+                pos = 4*(5*40+x+20)
+                a = want[pos+3]
+                expected = [round(255-a+c*a/255) for c in want[pos:pos+3]]
+                offset = 3*((2*(2+2)+1)*28+2*(2+x)+1)
+                self.assertLessEqual(max(abs(r-e) for r,e in zip(rendered[offset:offset+3],expected)),6,(reader,x))
+
     def test_pinned_mcp_publication_survives_a_knockout_edit_and_retry(self):
-        doc = sheet(True)
+        doc = sheet(False)
+        doc['items'][3]['blend'] = 'screen'
         with closing(Client(('--tools','essentials'),workspace=self.root)) as client:
             client.initialize()
             def run(cmd,**args):
