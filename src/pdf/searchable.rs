@@ -149,6 +149,13 @@ fn drawn(glyph: &Glyph) -> bool {
     glyph.path.as_ref().is_none_or(|p| p.drawn)
 }
 
+/// Map one font em (y up) into document-local coordinates (y down).
+fn glyph_matrix(g: &Glyph) -> Matrix {
+    let [x, y] = g.path.as_ref().map_or([1.0, 0.0], |p| p.tangent);
+    let [w, h] = g.em_size;
+    [x * w, y * w, y * h, -x * h, g.origin[0], g.origin[1]]
+}
+
 pub(super) fn paint_text(
     writer: &mut Writer,
     stream: &mut Stream,
@@ -256,22 +263,7 @@ pub(super) fn paint_text(
             .iter()
             .find_map(|p| p.paint)
             .unwrap_or(&Paint::Solid([0, 0, 0, 255]));
-        let local = g
-            .path
-            .as_ref()
-            .map(|p| p.transform)
-            .unwrap_or_else(identity);
-        let m = geometry::multiply(
-            world,
-            [
-                local[0] * g.em_size[0],
-                local[1] * g.em_size[0],
-                -local[2] * g.em_size[1],
-                -local[3] * g.em_size[1],
-                g.origin[0],
-                g.origin[1],
-            ],
-        );
+        let m = geometry::multiply(world, glyph_matrix(g));
         stream.content.push_str("q\n");
         flat_paint(writer, stream, paint)?;
         stream.content.push_str("BT\n");

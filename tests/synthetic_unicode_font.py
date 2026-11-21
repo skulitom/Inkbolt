@@ -80,7 +80,7 @@ def layout_table(scripts, features, lookups, languages=None):
     return pack('IHHH', 0x10000, 10, 10+len(script_list), 10+len(script_list)+len(feature_list)) + script_list + feature_list + lookup_list
 
 
-def unicode_font(coverage_set='all', *, ascent=1000, advance_scale=1, ligature_advance=500, additional_mapping=None):
+def unicode_font(coverage_set='all', *, ascent=1000, advance_scale=1, ligature_advance=500, additional_mapping=None, mark_anchor=(300, 750)):
     codes = SETS[coverage_set] if isinstance(coverage_set, str) else set(coverage_set)
     count = len(ADVANCES); glyf = b''; loca = [0]
     for gid in range(count):
@@ -115,10 +115,10 @@ def unicode_font(coverage_set='all', *, ascent=1000, advance_scale=1, ligature_a
     gsub = layout_table({b'arab': [0, 1, 2, 5], b'dev2': [], b'latn': [3]},
         {b'fina':[0], b'init':[1], b'isol':[2], b'liga':[3], b'locl':[5], b'medi':[4]},
         lookups, languages={b'latn':{b'TRK ':[3,4]}})
-    # GPOS mark-to-base: acute anchor(0,0) to base anchor(300,750).
+    # GPOS mark-to-base: acute anchor (0,0) to the supplied base anchor.
     mc = coverage([6]); bc = coverage([2, 3, 4])
     ma = pack('HHH', 1, 0, 6) + pack('Hhh', 1, 0, 0)
-    ba = pack('HHHH', 3, 8, 14, 20) + pack('Hhh', 1, 300, 750)*3
+    ba = pack('HHHH', 3, 8, 14, 20) + pack('Hhh', 1, *mark_anchor)*3
     sub = pack('HHHHHH', 1, 12, 12+len(mc), 1, 12+len(mc)+len(bc),
         12+len(mc)+len(bc)+len(ma)) + mc + bc + ma + ba
     gpos = layout_table({b'latn': [0]}, {b'mark': [0]}, [(4, sub)])

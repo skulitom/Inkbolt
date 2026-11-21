@@ -4,18 +4,16 @@ use super::*;
 use std::fmt::Write;
 
 pub(super) fn admit(group: &[PaintedGlyph<'_>]) -> Result<(), &'static str> {
-    let first = group[0].glyph;
-    if group
-        .iter()
-        .any(|p| p.glyph.path.is_some() || p.glyph.em_size != first.em_size)
-    {
-        return Err("cluster_baseline_or_scale");
-    }
     let mut colors = group.iter().filter_map(|p| p.paint);
-    if let Some(color) = colors.next()
-        && (!matches!(color, Paint::Solid([_, _, _, 255])) || colors.any(|p| p != color))
-    {
-        return Err("cluster_paint");
+    if let Some(color) = colors.next() {
+        let opaque = match color {
+            Paint::Solid(rgba) => rgba[3] == 255,
+            Paint::Precise(color) => color.rgba[3] == 1.0,
+            _ => false,
+        };
+        if !opaque || colors.any(|p| p != color) {
+            return Err("cluster_paint");
+        }
     }
     Ok(())
 }
@@ -27,21 +25,29 @@ pub(super) fn font(
     kinds: &BTreeMap<&str, Kind>,
 ) -> Result<usize, Error> {
     let base = group[0].glyph;
-    let x_scale = 1000.0 / base.em_size[0];
-    let y_scale = 1000.0 / base.em_size[1];
-    let width = number(group.iter().map(|p| p.glyph.advance).sum::<f64>() * x_scale)?;
-    let extent = group
+    let [w, h] = base.em_size;
+    let [x, y] = base.path.as_ref().map_or([1.0, 0.0], |p| p.tangent);
+    // Project onto the first glyph's tangent and normal, then undo its em scales.
+    // Subtract its origin separately so placement on the page cancels out.
+    let to_em = [x / w, y / h, y / w, -x / h, 0.0, 0.0];
+    let to_units = to_em.map(|v| v * 1000.0);
+    let offset = |point: Point| {
+        geometry::map(
+            to_units,
+            [point[0] - base.origin[0], point[1] - base.origin[1]],
+        )
+    };
+    let width = number(group.iter().map(|p| p.glyph.advance).sum::<f64>() * (1000.0 / w))?;
+    let bounds = group
         .iter()
         .filter_map(|p| p.glyph.ink_bounds)
-        .reduce(crate::scene::union);
-    let bounds = extent.map_or([0.0; 4], |[left, top, right, bottom]| {
-        [
-            (left - base.origin[0]) * x_scale,
-            (base.origin[1] - bottom) * y_scale,
-            (right - base.origin[0]) * x_scale,
-            (base.origin[1] - top) * y_scale,
-        ]
-    });
+        .flat_map(|[l, t, r, b]| [[l, t], [l, b], [r, t], [r, b]])
+        .map(|corner| {
+            let [x, y] = offset(corner);
+            [x, y, x, y]
+        })
+        .reduce(scene::union)
+        .unwrap_or([0.0; 4]);
     let bbox = numbers(&bounds)?;
     let mut body = format!("{width} 0 {bbox} d1\nBT\n");
     let mut fonts = BTreeSet::new();
@@ -49,9 +55,14 @@ pub(super) fn font(
         let glyph = p.glyph;
         let (font, code) = register(writer, glyph, source, kinds[glyph.font_id.as_str()])?;
         fonts.insert(font);
-        let x = number((glyph.origin[0] - base.origin[0]) * x_scale)?;
-        let y = number((base.origin[1] - glyph.origin[1]) * y_scale)?;
-        writeln!(body, "/R{font} 1000 Tf\n1 0 0 1 {x} {y} Tm <{code}> Tj").unwrap();
+        let mut local = geometry::multiply(to_em, glyph_matrix(glyph));
+        [local[4], local[5]] = offset(glyph.origin);
+        writeln!(
+            body,
+            "/R{font} 1000 Tf\n{} Tm <{code}> Tj",
+            numbers(&local)?
+        )
+        .unwrap();
     }
     body.push_str("ET\n");
     let key = (body, source.to_owned());

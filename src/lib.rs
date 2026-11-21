@@ -1345,7 +1345,7 @@ fn capability_report() -> Value {
         "option":"pdf_options.text","default":"outlines","modes":["outlines","searchable","require_searchable"],
         "scope":"vector_pages","embedded":["static_truetype","static_cff"],
         "mapping":"positioned_left_to_right_glyphs_with_source_unicode_including_ligatures",
-        "multiple_glyphs_per_cluster":"one_searchable_character_draws_positioned_embedded_glyphs;straight_baseline_uniform_opaque_solid_paint_and_matching_em_scales",
+        "multiple_glyphs_per_cluster":"one_searchable_character_draws_positioned_embedded_glyphs;straight_or_curved_baseline;uniform_opaque_rgb8_or_precise_rgba",
         "permissions":"installable_or_editable;subset_when_permitted_otherwise_complete_standalone_font",
         "fallback":"searchable_outlines_unadmitted_text_items_and_counts_reasons;require_searchable_fails_before_publication",
         "receipt":"pdf.text_delivery","editable_source":"snapshot_and_pinned_fonts"

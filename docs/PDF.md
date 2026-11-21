@@ -105,9 +105,10 @@ fall back to outlines. Supply fonts you have the right to distribute.
 
 Left-to-right runs support both ligatures and clusters made of several glyphs.
 For example, a base letter and a separately positioned accent copy together as
-the original Unicode sequence. The cluster draws each embedded glyph at its
-shaped offset and inherits the text color. Multi-glyph clusters require a
-straight baseline, matching character scales and one opaque solid fill.
+the original Unicode sequence. On a curved baseline, the letter and accent
+can follow different tangents. Inkbolt preserves each glyph's position, scale
+and rotation. All visible glyphs in the cluster must share one opaque RGB fill,
+supplied as byte channels or a precise `rgba` value.
 Variable fonts, right-to-left runs, generated glyphs, gradient text and text
 on knockout pages use the fallback.
 Flattened print, prepress and ink-recipe exports reject the searchable option.

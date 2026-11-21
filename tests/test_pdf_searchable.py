@@ -1,5 +1,6 @@
 """Original static fonts, text extraction, embedding restrictions and page placement."""
 import copy
+import re
 import shutil
 import struct
 import subprocess
@@ -7,13 +8,13 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from pdf_reader import Pdf
+from pdf_reader import Pdf, multiply
 from synthetic_font import pack, checksum
 from synthetic_unicode_font import ADVANCES, rectangle, sfnt, unicode_font
 from synthetic_variable_font import tables, variable_font
 import test_text_cli as text_cli
 import test_boards_cli as boards
-from test_path_text_cli import line
+from test_path_text_cli import curved, line
 from test_pdf_blends_cli import pymupdf
 import test_story_cli as story_cli
 
@@ -91,8 +92,8 @@ def cff_table():
     )
 
 
-def font_bytes(cff=False, permissions=8):
-    data = tables(unicode_font())
+def font_bytes(cff=False, permissions=8, *, mark_anchor=(300, 750)):
+    data = tables(unicode_font(mark_anchor=mark_anchor))
     variable = tables(variable_font())
     rights = bytearray(variable[b"OS/2"])
     struct.pack_into(">H", rights, 8, permissions)
@@ -320,43 +321,49 @@ class SearchablePdfTests(unittest.TestCase):
         ) as r:
             a = f[0].get_pixmap(dpi=288, alpha=True)
             b = r[0].get_pixmap(dpi=288, alpha=True)
-            self.assertEqual(a.irect, b.irect)
-            rgba, reference = a.samples, b.samples
-            alpha, coverage = rgba[3::4], reference[3::4]
-            # Reader antialiasing can shift an edge within one device pixel.
-            # A displaced mark, missing component or incorrect solid fill fails.
-            self.assertLess(abs(sum(alpha) - sum(coverage)) / sum(coverage), 0.001)
-            for i, (v, w) in enumerate(zip(alpha, coverage)):
-                if v == w == 255:
-                    self.assertEqual(
-                        rgba[4 * i : 4 * i + 3], reference[4 * i : 4 * i + 3]
-                    )
-                elif v != w:
-                    x, y = i % a.width, i // a.width
-                    around = [
-                        coverage[yy * a.width + xx]
-                        for yy in range(max(0, y - 1), min(a.height, y + 2))
-                        for xx in range(max(0, x - 1), min(a.width, x + 2))
-                    ]
-                    self.assertLessEqual(min(around), v)
-                    self.assertGreaterEqual(max(around), v)
+            self.assert_cluster_raster(a, b, 0.001)
+
+    def assert_cluster_raster(self, actual, reference, max_area_error):
+        self.assertEqual(actual.irect, reference.irect)
+        rgba, ref = actual.samples, reference.samples
+        alpha, coverage = rgba[3::4], ref[3::4]
+        self.assertGreater(sum(coverage), 0)
+        self.assertLess(abs(sum(alpha) - sum(coverage)) / sum(coverage), max_area_error)
+        # Glyph and outline scan conversion can place an edge one device pixel apart.
+        for i, (v, w) in enumerate(zip(alpha, coverage)):
+            if v == w == 255:
+                self.assertEqual(rgba[4 * i : 4 * i + 3], ref[4 * i : 4 * i + 3])
+            elif v != w:
+                x, y = i % actual.width, i // actual.width
+                neighbors = [
+                    yy * actual.width + xx
+                    for yy in range(max(0, y - 1), min(actual.height, y + 2))
+                    for xx in range(max(0, x - 1), min(actual.width, x + 2))
+                ]
+                for value, other in ((v, coverage), (w, alpha)):
+                    around = [other[j] for j in neighbors]
+                    self.assertLessEqual(min(around), value)
+                    self.assertGreaterEqual(max(around), value)
 
     def test_translucent_mark_cluster_keeps_per_glyph_paint(self):
         self.install(font_bytes())
-        doc = self.document(
-            text="A\u0301",
-            wrap=False,
-            style=dict(font_id="geometry", size=12, fill=[10, 80, 150, 128]),
-        )
-        result = self.export(doc, "searchable")
-        self.assertEqual(
-            result["pdf"]["text_delivery"]["outlined_items_by_reason"],
-            {"cluster_paint": 1},
-        )
-        self.assertEqual(Pdf(result).data, Pdf(self.export(doc)).data)
-        self.assertIn(
-            "cluster_paint", self.export(doc, "require_searchable", 1)["message"]
-        )
+        for fill in ([10, 80, 150, 128], {"rgba": [0.12, 0.38, 0.78, 0.9999]}):
+            with self.subTest(fill=fill):
+                doc = self.document(
+                    text="A\u0301",
+                    wrap=False,
+                    style=dict(font_id="geometry", size=12, fill=fill),
+                )
+                result = self.export(doc, "searchable")
+                self.assertEqual(
+                    result["pdf"]["text_delivery"]["outlined_items_by_reason"],
+                    {"cluster_paint": 1},
+                )
+                self.assertEqual(Pdf(result).data, Pdf(self.export(doc)).data)
+                self.assertIn(
+                    "cluster_paint",
+                    self.export(doc, "require_searchable", 1)["message"],
+                )
 
     def test_linked_story_uses_each_paragraphs_source(self):
         self.install(font_bytes())
@@ -431,6 +438,70 @@ class SearchablePdfTests(unittest.TestCase):
             expected = [18 * a, -18 * b, -9 * c, 9 * d, x, doc["height"] - y]
             for actual, target in zip(matrix, expected):
                 self.assertAlmostEqual(actual, target, places=5)
+
+    def test_curved_combining_cluster_retains_each_tangent_and_copies_once(self):
+        source = "A\u0301"
+        for cff in (False, True):
+            with self.subTest(cff=cff):
+                # An off-center attachment samples a different tangent on the curve.
+                self.install(font_bytes(cff, mark_anchor=(600, 750)))
+                doc = self.document(
+                    text=source,
+                    wrap=False,
+                    path=curved(start_offset=14),
+                    style=dict(
+                        font_id="geometry",
+                        size=16,
+                        horizontal_scale=1.25,
+                        vertical_scale=0.75,
+                        fill={"rgba": [0.1254, 0.3951, 0.7788, 1.0]},
+                    ),
+                )
+                doc["resolution_ppi"] = 72
+                glyphs = self.inspect(doc)["layout"]["glyphs"]
+                self.assertEqual(len(glyphs), 2)
+                self.assertNotAlmostEqual(
+                    glyphs[0]["path"]["tangent"][0],
+                    glyphs[1]["path"]["tangent"][0],
+                    places=3,
+                )
+                pdf = Pdf(self.export(doc, "require_searchable"))
+                self.assertTrue(
+                    any(b"0.1254 0.3951 0.7788 rg" in s for s in pdf.streams.values())
+                )
+                [(text, outer)] = pdf.text_glyphs()
+                self.assertEqual(text, source)
+                cluster = next(
+                    v
+                    for v in pdf.objects.values()
+                    if isinstance(v, dict) and v.get("Subtype") == "Type3"
+                )
+                proc = pdf.streams[cluster["CharProcs"]["Cluster"]].decode()
+                matrices = re.findall(r"^([-0-9. ]+) Tm", proc, re.MULTILINE)
+                self.assertEqual(len(matrices), 2)
+                for g, row in zip(glyphs, matrices):
+                    matrix = list(map(float, row.split()))
+                    matrix[4:] = [v / 1000 for v in matrix[4:]]
+                    actual = multiply(outer, matrix)
+                    x, y = g["origin"]
+                    tx, ty = g["path"]["tangent"]
+                    style = doc["items"][0]["content"]["frame"]["style"]
+                    w = style["size"] * style["horizontal_scale"]
+                    h = style["size"] * style["vertical_scale"]
+                    expected = [tx * w, -ty * w, ty * h, tx * h, x, doc["height"] - y]
+                    for value, target in zip(actual, expected):
+                        self.assertAlmostEqual(value, target, places=6)
+                if shutil.which("pdftotext"):
+                    self.assertEqual(extracted_text(pdf.data), source)
+                if pymupdf:
+                    outline = Pdf(self.export(doc))
+                    with pymupdf.open(
+                        stream=pdf.data, filetype="pdf"
+                    ) as f, pymupdf.open(stream=outline.data, filetype="pdf") as ref:
+                        self.assertEqual(f[0].get_text().rstrip("\r\n"), source)
+                        actual = f[0].get_pixmap(dpi=288, alpha=True)
+                        reference = ref[0].get_pixmap(dpi=288, alpha=True)
+                        self.assert_cluster_raster(actual, reference, 0.005)
 
     @unittest.skipUnless(
         pymupdf, "MuPDF renders the embedded font and extracts source text"
