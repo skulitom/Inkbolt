@@ -187,12 +187,15 @@ def retain_duration(row, previous):
 
 
 def schedule(names, worker, jobs, deadline, previous, changed):
-    """Start long checks early; don't spend a quick window on a known overrun."""
+    """Give quick feedback on changed fixtures and reserve time for long checks."""
     def priority(name):
         old = previous.get(name, {})
         direct = name.startswith('test_') and f'tests/{case_module(name) or name}.py' in changed
         seconds = duration_hint(old) or (90 if is_rust_check(name) or name == 'test_jobs' else 5)
-        return (-seconds, old.get('status') != 'failed', not direct, name)
+        failed = old.get('status') == 'failed'
+        if deadline is not None:
+            return (not failed, not direct, -seconds, name)
+        return (-seconds, not failed, not direct, name)
     pending = sorted(names, key=priority)
     result = {}
     with ThreadPoolExecutor(max_workers=jobs) as pool:

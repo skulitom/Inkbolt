@@ -293,17 +293,28 @@ class VerificationTests(unittest.TestCase):
             result = verify.schedule(['one', 'two'], lambda n: self.fail(n), 2, time.monotonic() - 1, {}, set())
         self.assertEqual({v['status'] for v in result.values()}, {'deferred'})
 
-    def test_scheduler_reserves_long_checks_before_edited_short_fixtures(self):
-        launched = []
-        def worker(name):
-            launched.append(name)
-            return dict(status='passed', seconds=1)
+    def test_quick_window_reports_failures_and_edited_fixtures_before_unrelated_work(self):
         previous = dict(test_long=dict(status='passed', seconds=100),
-                        test_edited=dict(status='passed', seconds=2))
-        with patch.object(verify.time, 'monotonic', return_value=100), redirect_stdout(io.StringIO()):
-            rows = verify.schedule(previous, worker, 1, 300, previous, {'tests/test_edited.py'})
-        self.assertEqual(launched, ['test_long', 'test_edited'])
-        self.assertTrue(all(row['status'] == 'passed' for row in rows.values()))
+                        test_edited=dict(status='passed', seconds=9),
+                        test_retry=dict(status='failed', duration_hint_seconds=3))
+        for deadline, expected in (
+            (214, ['test_retry', 'test_edited']),
+            (None, ['test_long', 'test_edited', 'test_retry']),
+        ):
+            with self.subTest(deadline=deadline):
+                clock = [100]
+                launched = []
+                def worker(name):
+                    launched.append(name)
+                    seconds = verify.duration_hint(previous[name])
+                    clock[0] += seconds
+                    return dict(status='passed', seconds=seconds)
+                with patch.object(verify.time, 'monotonic', side_effect=lambda: clock[0]), redirect_stdout(io.StringIO()):
+                    rows = verify.schedule(previous, worker, 1, deadline, previous, {'tests/test_edited.py'})
+                self.assertEqual(launched, expected)
+                self.assertTrue(all(rows[name]['status'] == 'passed' for name in expected))
+                if deadline is not None:
+                    self.assertEqual(rows['test_long']['status'], 'deferred')
 
     def test_scheduler_skips_known_overrun_but_runs_fitting_and_unknown_checks(self):
         launched = []
