@@ -1,18 +1,5 @@
 use super::*;
 
-/// A knockout child blends against the backdrop at group entry. Within an
-/// isolated group that backdrop is transparent. Normal pass-through children
-/// admit the same group contribution over an arbitrary external backdrop.
-pub(super) fn preflight(group: &Item, working_rgb: bool) -> Result<(), Error> {
-    if !working_rgb {
-        return Err(
-            unsupported("Vector PDF knockout groups require working-RGB display delivery")
-                .at_item(&group.id),
-        );
-    }
-    Ok(())
-}
-
 /// A faded item needs an independent footprint through every ancestor up to
 /// the last one that can cut out earlier siblings. A first member's ordinary
 /// paint is sufficient unless an enclosing group needs its footprint.
@@ -97,7 +84,7 @@ pub(super) fn masked_form(
         masked.use_resource("ExtGState", state, "gs");
     }
     masked.use_resource("XObject", form, "Do");
-    writer.isolated_rgb_form(&masked)
+    writer.isolated_form(&masked)
 }
 
 fn alpha_mask(writer: &mut Writer, form: usize) -> Result<usize, Error> {
@@ -191,7 +178,7 @@ impl Group {
             } else {
                 uniform_survival_mask(writer, shape.unwrap_or(form), opacity)?
             };
-            let prefix = writer.isolated_rgb_form(&self.prior)?;
+            let prefix = writer.isolated_form(&self.prior)?;
             self.prior = Stream {
                 default_rgb: writer.default_rgb,
                 ..Stream::default()
@@ -208,7 +195,7 @@ impl Group {
     }
 
     pub(super) fn finish(self, writer: &mut Writer, output: &mut Stream) -> Result<(), Error> {
-        let form = writer.isolated_rgb_form(&self.prior)?;
+        let form = writer.isolated_form(&self.prior)?;
         output.use_resource("XObject", form, "Do");
         writer.knockout_groups += 1;
         writer.page_requires_backdrop = true;

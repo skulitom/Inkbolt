@@ -52,6 +52,72 @@ fn alternate(writer: &mut Writer, color: &Process) -> Result<(String, Vec<f64>, 
     })
 }
 
+/// Name the process plates explicitly inside knockout page forms. Converting
+/// a DeviceCMYK paint into the group's color space can otherwise erase a spot
+/// even when overprint is set. DeviceN addresses exactly the listed plates.
+fn overprint_process(
+    writer: &mut Writer,
+    stream: &mut Stream,
+    values: &[f64],
+    policy: Overprint,
+) -> Result<(), Error> {
+    let mut mask = 0u8;
+    let mut names = Vec::new();
+    let mut tints = Vec::new();
+    for (i, (&name, &v)) in ["/Cyan", "/Magenta", "/Yellow", "/Black"]
+        .iter()
+        .zip(values)
+        .enumerate()
+    {
+        if v != 0.0 || policy != Overprint::PreserveNonzero {
+            mask |= 1 << i;
+            names.push(name);
+            tints.push(v);
+        }
+    }
+    if mask == 0 {
+        names.push("/None");
+        tints.push(0.0);
+    }
+    let space = if let Some(&id) = writer.process_overprint_spaces.get(&mask) {
+        id
+    } else {
+        // The alternate inserts a zero at each omitted CMYK component, from
+        // the last component backwards so the supplied tints keep their order.
+        let mut program = String::from("{ ");
+        if mask == 0 {
+            program.push_str("pop ");
+        }
+        for i in (0..4).rev() {
+            if mask & (1 << i) == 0 {
+                program.push_str("0 ");
+                if i < 3 {
+                    program.push_str(&format!("{} 1 roll ", 4 - i));
+                }
+            }
+        }
+        program.push('}');
+        let function = writer.stream(
+            &format!(
+                "/FunctionType 4 /Domain [{}] /Range [0 1 0 1 0 1 0 1]",
+                vec!["0 1"; names.len()].join(" ")
+            ),
+            program.as_bytes(),
+        )?;
+        let id = writer.add(format!(
+            "[/DeviceN [{}] /DeviceCMYK {function} 0 R]",
+            names.join(" ")
+        ))?;
+        writer.process_overprint_spaces.insert(mask, id);
+        id
+    };
+    stream.use_resource("ColorSpace", space, "cs");
+    stream
+        .content
+        .push_str(&format!("{} scn\n", numbers(&tints)?));
+    Ok(())
+}
+
 pub(super) fn paint(
     writer: &mut Writer,
     stream: &mut Stream,
@@ -77,6 +143,7 @@ pub(super) fn paint(
         ));
     }
     let overprint = !p.overprint.is_knockout();
+    stream.overprints |= overprint;
     writer.page_requires_backdrop |= p.opacity != 1.0 || overprint;
     let mode = usize::from(p.overprint == Overprint::PreserveNonzero);
     let intent = match &p.color {
@@ -134,6 +201,9 @@ pub(super) fn paint(
             Process::Srgb { .. } | Process::Gray { .. } => stream
                 .content
                 .push_str(&format!("{} rg\n", numbers(&values)?)),
+            Process::Cmyk { .. } if overprint && writer.form_depths.is_some() => {
+                overprint_process(writer, stream, &values, p.overprint)?;
+            }
             Process::Cmyk { .. } => stream
                 .content
                 .push_str(&format!("{} k\n", numbers(&values)?)),

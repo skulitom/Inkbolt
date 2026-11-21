@@ -105,6 +105,7 @@ struct Writer {
     native_inks: bool,
     swatches: BTreeMap<String, crate::swatches::Swatch>,
     ink_spaces: BTreeMap<String, usize>,
+    process_overprint_spaces: BTreeMap<u8, usize>,
     page_has_spot_paint: bool,
     page_requires_backdrop: bool,
     page_bbox: String,
@@ -117,7 +118,7 @@ struct Writer {
     explicit_black_point: bool,
 }
 impl Writer {
-    fn isolated_rgb_form(&mut self, stream: &Stream) -> Result<usize, Error> {
+    fn isolated_form(&mut self, stream: &Stream) -> Result<usize, Error> {
         let dictionary = format!(
             "/Type /XObject /Subtype /Form /BBox [{}] /Group << /S /Transparency /I true /CS {} >> /Resources {}",
             self.page_bbox,
@@ -304,6 +305,7 @@ struct Stream {
     default_rgb: Option<usize>,
     artwork_blend_space: Option<String>,
     scalar_artwork: bool,
+    overprints: bool,
 }
 impl Stream {
     fn solid_color(&mut self, rgb: [f64; 3]) -> Result<(), Error> {
@@ -701,7 +703,7 @@ fn image(
     Ok(())
 }
 
-fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
+fn preflight(document: &Document, display_blends: bool, native_cmyk: bool) -> Result<(), Error> {
     let mut stroke_commands = 0;
     // Validate each page's inputs here, including hidden items. The writer
     // charges only painted copies to the cumulative delivery budget.
@@ -713,8 +715,8 @@ fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
         if item.blend != BlendMode::Normal && !display_blends {
             return Err(unsupported("Non-normal vector PDF blending requires display color with the working RGB blending space").at_item(&item.id));
         }
-        if item.content.is_knockout() {
-            knockout::preflight(item, display_blends)?;
+        if item.content.is_knockout() && !(display_blends || native_cmyk) {
+            return Err(unsupported("Vector PDF knockout groups require working-RGB display or native CMYK page blending").at_item(&item.id));
         }
         if !item.effects.is_empty()
             || !item.filters.is_empty()
@@ -984,6 +986,16 @@ fn items(
         };
         item_clip(writer, &mut stream, item, world)?;
         item_paint(writer, &mut stream, item, world, resources)?;
+        if stream.overprints
+            && writer.form_depths.is_some()
+            && scene::ancestors(document, i)?
+                .iter()
+                .map(|&p| &document.items[p])
+                .take_while(|p| !p.content.is_isolated())
+                .any(|p| p.content.is_knockout())
+        {
+            return Err(unsupported("A pass-through native-ink knockout group cannot preserve overprint against its external backdrop in vector PDF").at_item(&item.id));
+        }
         // Both streams start with the same geometric clip and frame background.
         // Their children share paint resources even when coverage and color differ.
         let mut child_union = None;
@@ -1036,8 +1048,10 @@ fn items(
                 ..
             }
         );
-        let native_ink_leaf =
-            writer.native_inks && !stream.scalar_artwork && !item.content.is_container();
+        let native_ink_leaf = writer.native_inks
+            && !stream.scalar_artwork
+            && !item.content.is_container()
+            && knockout_group.is_none();
         let group = if stream.scalar_artwork {
             "/I true /CS /DeviceGray".into()
         } else if native_ink_leaf {
@@ -1068,17 +1082,19 @@ fn items(
             .map_err(|e| e.at_item(&item.id))?;
         let separate = child_union
             .as_ref()
-            .map(|s| writer.isolated_rgb_form(s))
+            .map(|s| writer.isolated_form(s))
             .transpose()?;
         let intrinsic_mask = mask_state.map(|state| state.shape);
         if let Some(coverage) = union.as_deref_mut() {
-            knockout::draw(
-                writer,
-                coverage,
-                separate.unwrap_or(id),
-                mask_scalar,
-                intrinsic_mask,
-            )?;
+            let footprint = separate.unwrap_or(id);
+            if writer.native_inks && intrinsic_mask.is_some() {
+                // A nested spot or process field can itself change the soft
+                // mask. Close that invocation before accumulating its shape.
+                let masked = knockout::masked_form(writer, footprint, mask_scalar, intrinsic_mask)?;
+                knockout::draw(writer, coverage, masked, 1.0, None)?;
+            } else {
+                knockout::draw(writer, coverage, footprint, mask_scalar, intrinsic_mask)?;
+            }
         }
         if let Some(group) = &mut knockout_group {
             let paint = knockout::masked_form(writer, id, mask_scalar, intrinsic_mask)?;
@@ -1271,7 +1287,11 @@ pub fn export_controlled(
             .map(|c| crate::vector_canvas::translated(page, c.origin_px.map(|v| -v)))
             .transpose()?;
         let page = viewport.as_ref().unwrap_or(page);
-        preflight(page, !native_inks && working_blend_space)?;
+        preflight(
+            page,
+            !native_inks && working_blend_space,
+            native_inks && writer.blend_space.is_none(),
+        )?;
         let external = backdrop::needed(page)?;
         writer.form_visits = external.then(BTreeMap::new);
         writer.form_depths = page
@@ -1378,7 +1398,7 @@ pub fn export_controlled(
         }
         if external {
             backdrop::render(&mut writer, artwork, page, &page_resources)?;
-            let id = writer.isolated_rgb_form(artwork)?;
+            let id = writer.isolated_form(artwork)?;
             stream.use_resource("XObject", id, "Do");
         } else {
             items(&mut writer, artwork, page, None, &page_resources, None)?;

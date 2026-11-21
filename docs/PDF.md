@@ -106,8 +106,8 @@ including off-view resources and unsupported items.
 ### Knockout groups
 
 In a source build after v0.84.0, a visible shape with zero item opacity can
-cut a hole in earlier siblings in an unmarked working-RGB PDF. Set
-`content.knockout:true` on the enclosing group. Paint alpha controls how
+cut a hole in earlier siblings in an unmarked working-RGB PDF or on a
+native CMYK page. Set `content.knockout:true` on the enclosing group. Paint alpha controls how
 much of the earlier artwork is removed. Item and fill opacity control how
 much of the incoming shape is painted. A half-transparent paint with item
 opacity zero therefore removes half of the earlier artwork in its footprint.
@@ -136,16 +136,25 @@ groups composed against a saved backdrop in
 Reader precision can affect colors, especially Hue and Saturation in older
 readers. [Measured reader differences](DEVELOPMENT_STATUS.md#blending-against-the-artwork-behind-a-knockout-group)
 
+For print, set `pdf_options.color` to `native_inks` and leave the document's
+RGB output profile unset. Both group modes retain native CMYK and named spot
+plates with normal blending. Crop and registration marks can be added on
+these pages. An overprinting child can preserve other inks inside an
+isolated group. If its overprint reaches the entry of a pass-through
+knockout group, preflight locates the paint and publication returns
+`UNSUPPORTED`. Use flattened prepress delivery for that combination.
+[Ink controls](INK_DELIVERY.md#explicit-pdf-ink-mode) · [Plate measurements](DEVELOPMENT_STATUS.md#native-cmyk-and-spot-knockout)
+
 For the writer that successively attenuates earlier siblings, the limit is
 24 attenuations including scene ancestry. Every knockout page has a limit
 of 32 nested form and soft-mask references. On a page that saves external
 backdrops, the writer additionally counts expanded resource visits,
 including repeated references to the same form or graphics state. The
 limit is 65,536 per page. Any exceeded limit returns `RESOURCE_LIMIT`
-before publication. An unsupported descendant or native-ink delivery returns
-`UNSUPPORTED`. Use an unmarked page with the default working space or its
-explicit sRGB profile. A marked page containing a painted knockout group
-requires flattened prepress delivery. Keep the snapshot for editable group
+before publication. RGB display delivery requires an unmarked page with the
+default working space or its explicit sRGB profile. A marked RGB page
+containing a painted knockout group requires flattened prepress delivery.
+Keep the snapshot for editable group
 controls. [Footprint equations](KNOCKOUT.md#pixel-equations) · [Reader measurements](DEVELOPMENT_STATUS.md#knockout-groups-in-vector-pdf)
 
 ### Opacity masks on shapes and groups

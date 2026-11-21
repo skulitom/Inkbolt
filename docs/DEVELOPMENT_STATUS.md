@@ -139,9 +139,35 @@ existing depth and work limits. They include ordinary and knockout children,
 independent opacity, clipped parents and an explicit sRGB profile. At the
 sampled centers MuPDF differed from the native preview over white by at most
 6.33 levels, and by at most 6 levels in premultiplied RGBA. Poppler differed
-by at most 4.48 levels over white. Native-ink knockout, marked RGB
-transparency and the wider page-exchange checkpoint remain open.
+by at most 4.48 levels over white. The native-ink results follow below.
 [Regression fixtures](../tests/test_pdf_knockout.py) · [PDF delivery contract](PDF.md#knockout-groups)
+
+### Native CMYK and spot knockout
+
+At `76f3bb4`, vector PDF export refused native-ink pages with a knockout
+group. The writer now retains the process and named spot inks on marked or
+unmarked pages with a DeviceCMYK blending space. The native prepress renderer
+provides a per-plate reference. Ghostscript 9.55.0 independently separated
+the vector PDFs at 288 dpi. Each comparison sampled the center region of
+all 1,728 logical pixels on one 48 × 36 sheet.
+
+| Sheets | What the plate comparison covered | Largest difference in 8-bit ink levels |
+| ---: | --- | ---: |
+| 2 | Isolated and pass-through groups over opaque, translucent and clear backdrops | 1 |
+| 1 | Nested group with clipping, a grayscale grid, a vector artwork mask and a zero-opacity cutout | 1 |
+| 4 | Local spot and mixed process overprint with both preservation policies | 1 |
+| 1 | All 16 subsets of process plates, including zero effective ink | 1 |
+| 1 | Crop and registration marks around the pass-through sheet | 1 |
+
+All nine sheets used four process and two distinct spot plates. Adding marks
+preserved every interior plate pixel at output resolution and produced
+identical margins on all six plates. A separate test evaluates each DeviceN
+alternate tint function. Publication tests cover a saved revision after an
+edit, repeat requests, an existing destination and located preflight errors.
+Overprint that depends on the external backdrop of a pass-through knockout,
+native-ink knockout with a calibrated RGB page, marked RGB transparency and
+the wider page-exchange checkpoint remain open.
+[Regression fixtures](../tests/test_pdf_knockout_inks.py) · [PDF delivery contract](PDF.md#knockout-groups)
 
 ## Artwork masks in vector PDF
 

@@ -60,9 +60,9 @@ The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
-Building from `main` also lets you keep paths and text outlines in an unmarked
-RGB PDF when artwork uses a mask or a knockout group. For example, a shape
-can cut a window through its group to reveal the artwork behind it.
+Building from `main` also lets you cut a window through a group and keep the
+surrounding paths and text outlines in the PDF. For print work, a native CMYK
+PDF can keep spot inks on separate plates and add crop and registration marks.
 [PDF masks](docs/PDF.md#masks-made-from-editable-artwork) · [Knockout groups](docs/PDF.md#knockout-groups)
 
 ## Explore the project

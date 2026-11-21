@@ -129,12 +129,12 @@ fn member(
             clip_emitted = true;
             let mut clipped = clipping.clone();
             clipped.use_resource("XObject", f, "Do");
-            w.isolated_rgb_form(&clipped)?
+            w.isolated_form(&clipped)?
         };
         knockout::masked_form(w, f, scalar, mask)
     };
     let (paint, shape) = if !item.content.is_container() {
-        let form = writer.isolated_rgb_form(&body)?;
+        let form = writer.isolated_form(&body)?;
         let form = wrap(writer, form)?;
         (Artwork::Isolated(form), need_shape.then_some(form))
     } else {
@@ -142,7 +142,7 @@ fn member(
         let children = prepare(writer, doc, Some(&item.id), res, need_shape || knockout)?;
         // Share the frame background with its color and coverage forms.
         if !body.content.is_empty() {
-            let background = writer.isolated_rgb_form(&body)?;
+            let background = writer.isolated_form(&body)?;
             body = placed(writer, background);
         }
         let shape = if need_shape {
@@ -150,7 +150,7 @@ fn member(
             for child in &children {
                 coverage.use_resource("XObject", child.footprint(), "Do");
             }
-            let form = writer.isolated_rgb_form(&coverage)?;
+            let form = writer.isolated_form(&coverage)?;
             Some(wrap(writer, form)?)
         } else {
             None
@@ -165,7 +165,7 @@ fn member(
                         Artwork::Through { .. } => {
                             let mut single = stream(writer);
                             child.draw_through(writer, &mut single, 1.)?;
-                            writer.isolated_rgb_form(&single)?
+                            writer.isolated_form(&single)?
                         }
                     };
                     group.add(
@@ -179,7 +179,7 @@ fn member(
             } else {
                 draw_all(writer, &mut body, &children)?;
             }
-            let form = writer.isolated_rgb_form(&body)?;
+            let form = writer.isolated_form(&body)?;
             Artwork::Isolated(wrap(writer, form)?)
         } else {
             let boundary = if clipping.content.is_empty() && mask.is_none() && scalar == 1. {
@@ -187,7 +187,7 @@ fn member(
             } else {
                 let mut full = stream(writer);
                 full.content = format!("1 g {} re f\n", writer.page_bbox);
-                let white = writer.isolated_rgb_form(&full)?;
+                let white = writer.isolated_form(&full)?;
                 Some(wrap(writer, white)?)
             };
             Artwork::Through {
@@ -263,7 +263,7 @@ impl Member {
         if !knockout && opacity == 1. && boundary.is_none() {
             return draw_all(writer, out, children);
         }
-        let entry = writer.isolated_rgb_form(out)?;
+        let entry = writer.isolated_form(out)?;
         let completed = self.on_entry(writer, entry, opacity)?.form(writer)?;
         *out = placed(writer, completed);
         Ok(())
@@ -282,7 +282,7 @@ impl Member {
             Artwork::Isolated(form) => {
                 let mut alone = placed(writer, entry);
                 self.draw_form(writer, &mut alone, *form, opacity)?;
-                return Ok(Composite::Form(writer.isolated_rgb_form(&alone)?));
+                return Ok(Composite::Form(writer.isolated_form(&alone)?));
             }
             Artwork::Through {
                 children,
@@ -301,7 +301,7 @@ impl Member {
         } else {
             let mut all = placed(writer, entry);
             draw_all(writer, &mut all, children)?;
-            Composite::Form(writer.isolated_rgb_form(&all)?)
+            Composite::Form(writer.isolated_form(&all)?)
         };
         if opacity == 1. && boundary.is_none() {
             Ok(candidate)
@@ -313,7 +313,7 @@ impl Member {
                 None => {
                     let mut full = stream(writer);
                     full.content = format!("1 g {} re f\n", writer.page_bbox);
-                    writer.isolated_rgb_form(&full)?
+                    writer.isolated_form(&full)?
                 }
             };
             let weight = knockout::masked_form(writer, field, opacity, None)?;
@@ -368,7 +368,7 @@ fn opaque(writer: &mut Writer, form: usize) -> Result<Fields, Error> {
     gray.content
         .push_str(&format!("1 g {} re f\n", writer.page_bbox));
     Ok(Fields {
-        rgb: writer.isolated_rgb_form(&rgb)?,
+        rgb: writer.isolated_form(&rgb)?,
         alpha: opacity::gray_form(writer, &gray)?,
     })
 }
@@ -384,7 +384,7 @@ impl Fields {
             if gray {
                 opacity::gray_form(w, &output)
             } else {
-                w.isolated_rgb_form(&output)
+                w.isolated_form(&output)
             }
         };
         Ok(Self {
@@ -428,7 +428,7 @@ impl Fields {
             if gray {
                 opacity::gray_form(writer, &out)
             } else {
-                writer.isolated_rgb_form(&out)
+                writer.isolated_form(&out)
             }
         };
         Ok(Fields {
@@ -453,12 +453,12 @@ impl Fields {
         inv.use_resource("ExtGState", alpha, "gs");
         inv.content
             .push_str(&format!("0 0 0 rg {} re f\n", writer.page_bbox));
-        let inverse = writer.isolated_rgb_form(&inv)?;
+        let inverse = writer.isolated_form(&inv)?;
         let dodge = writer.add("<< /Type /ExtGState /BM /ColorDodge >>")?;
         let mut straight = placed(writer, self.rgb);
         straight.use_resource("ExtGState", dodge, "gs");
         straight.use_resource("XObject", inverse, "Do");
-        let straight = writer.isolated_rgb_form(&straight)?;
+        let straight = writer.isolated_form(&straight)?;
         knockout::masked_form(writer, straight, 1., Some(alpha))
     }
 }
@@ -527,7 +527,7 @@ fn composite(writer: &mut Writer, entry: usize, children: &[Member]) -> Result<C
                 shape.use_resource("XObject", right.shape, "Do");
                 next.push(Range {
                     fields,
-                    shape: writer.isolated_rgb_form(&shape)?,
+                    shape: writer.isolated_form(&shape)?,
                 });
             } else {
                 next.push(left);

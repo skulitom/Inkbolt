@@ -68,6 +68,13 @@ are not its internal backdrop. Paint alpha, item opacity and group opacity are
 separate controls. Native ink vector delivery rejects non-normal blend modes.
 Unmarked display pages support the [standard RGB blend modes](PDF.md#rgb-blend-modes).
 
+On native CMYK pages with knockout groups, process overprint names the
+addressed process plates explicitly in a PDF DeviceN color space. A cyan
+overprint can therefore preserve a spot underneath it inside an isolated
+group. With `preserve_nonzero`, a process component with zero effective tint
+is omitted from the addressed set. See the [knockout delivery
+contract](PDF.md#knockout-groups) for isolation, marks and profile support.
+
 This follows the public PDF overprint and transparency model; see the
 [PDF Association's overprint explanation](https://pdfa.org/understanding-overprint/).
 Print-ready profile conversion, proofing, plate raster generation and broader
