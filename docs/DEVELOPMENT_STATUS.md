@@ -30,6 +30,41 @@ space through the final judge response. Both transports delivered the same
 TIFFs and PNG as the earlier unrestricted Linux and Windows references.
 The benchmark retains its separate peak-commit verdict.
 
+## Artwork masks in vector PDF
+
+At `b39a5b9`, Inkbolt could preview a shared vector mask in alpha and
+luminance modes, but PDF export refused the first masked shape. Source builds
+now place the mask as vector artwork. A colored overlap exposed a difference
+in the two PDF readers' RGB-to-luminance conversions. Projecting the source
+colors into the mask's grayscale space preserves Inkbolt's declared weights.
+
+The three original sheets cover two placements of semitransparent overlapping
+shapes and clipped axial and radial gradients with varying color and opacity.
+Across all 4,800 logical pixel centers, the PNG alpha matched an independent
+source-over calculation. The table gives the greatest difference in 8-bit
+levels between that reference on white and the mean of the four central PDF
+subsamples at four-times resolution.
+
+| Sheet | MuPDF | Poppler |
+| --- | ---: | ---: |
+| Shared source, two mask modes | 4 | 0 |
+| Axial gradient | 3 | 1 |
+| Radial gradient | 3 | 1 |
+
+Windows and WSL Linux produced identical PDF and PNG bytes for all three
+sheets. Seventeen PDFs from the earlier gradient and grayscale-mask fixtures
+also retained their exact bytes. Additional checks cover outlined glyphs,
+a masked raster layer, native cyan overprinting black, selected artboard
+bleed and revision-pinned publication of an imported SVG. Combining a
+half-opaque owner and a mask initially produced a 45-level error in MuPDF.
+Scaling the completed mask by the owner's opacity reduced the maximum
+difference to three levels and retained the backdrop for multiply-blended
+children of a pass-through group on both Poppler versions. Poppler matched all 2,240 centers
+on this additional sheet. The same grouping fixes partially opaque owners
+with grayscale grid masks. Knockout groups
+remain open in the extended page-exchange checkpoint.
+[Regression fixtures](../tests/test_pdf_artwork_masks.py) · [PDF contract](PDF.md#masks-made-from-editable-artwork)
+
 ## Grayscale masks in vector PDF
 
 At `66a6446`, exporting a feathered grayscale mask to PDF returned

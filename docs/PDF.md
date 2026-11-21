@@ -96,7 +96,7 @@ for unmarked pages. Callers using `..Default::default()` already get that value.
 The default display mode uses DeviceRGB with encoded working samples. Explicit `pdf_options.color:"native_inks"` retains named inks and overprint under the [native ink contract](INK_DELIVERY.md). Consumer color management,
 antialiasing and image reconstruction may differ from engine previews. Exact
 consumer pixels and print-profile fidelity are not promised. Knockout, effects, filters, dissolve, pixel warps, layer
-clipping, active artwork-source masks, adjustment layers, ordered dither and
+clipping, adjustment layers, ordered dither and
 other paint/sampling semantics return explicit errors. Hidden referenced fonts
 and resources are still validated. Unsupported items outside selected owned
 subtrees do not enter those exports. A scene view prepares all shared artwork,
@@ -130,6 +130,29 @@ overprint-capable separation preview to inspect masked inks. An opaque field
 can pass the marked RGB page check. A field with partial coverage needs an
 unmarked page or flattened prepress delivery.
 [Mask coordinates and feathering](MASKS.md#numerical-contract) · [Measured reader differences](DEVELOPMENT_STATUS.md#grayscale-masks-in-vector-pdf)
+
+### Masks made from editable artwork
+
+In source builds after v0.84.0, `document.export` and publication preserve
+an enabled `artwork_mask` as a PDF vector soft mask. For example, two icons
+can reference the same gradient, one using its opacity and one using its
+brightness. Each icon gets its own mask placement and region clip in the PDF.
+Keep the Inkbolt snapshot to edit their shared source after delivery.
+
+Alpha mode uses the combined source opacity. Luminance mode paints each
+source color into an isolated grayscale group using Inkbolt's encoded-sRGB
+weights. Both modes preserve source order, opacity, geometric clips and
+pinned-font outlines. The resulting mask applies once to the completed owner,
+including overlapping fill and stroke or a group's children. A named paint
+inside a mask needs a resolvable display color. In native-ink mode the owner's
+ink and overprint still reach the page.
+
+`pdf.artwork_masks.alpha` and `pdf.artwork_masks.luminance` count painted
+references across the selected pages. Placed mask paths consume the PDF path
+and object budgets. They generate no image samples. Unmarked RGB and native
+CMYK pages can carry these masks. A marked page that needs RGB transparency
+returns a preflight issue. Readers can differ in edge sampling and rounding.
+[Source and placement rules](ARTWORK_MASKS.md) · [Reader measurements](DEVELOPMENT_STATUS.md#artwork-masks-in-vector-pdf)
 
 ### Gradients that fade to transparent
 
@@ -226,4 +249,4 @@ PDF reimport remain required by the separate extended page criterion.
 Public format reference: [ISO 32000-1 entry](https://committee.iso.org/standard/51502.html)
 and [PDF specification archive](https://pdfa.org/resource/pdf-specification-archive/).
 
-Raster background roles deliver the explicit canvas matte beneath retained source artwork within the supported page blending space. Hidden backgrounds suppress the matte. Other restrictions, including artwork-source masks, effects, adjustments and clipping groups, remain explicit. See [BACKGROUNDS.md](BACKGROUNDS.md).
+Raster background roles deliver the explicit canvas matte beneath retained source artwork within the supported page blending space. Hidden backgrounds suppress the matte. Effects, adjustments and layer clipping still require a different delivery path. [Raster backgrounds](BACKGROUNDS.md)

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
+mod artwork;
 mod combined;
 mod inks;
 mod marks;
@@ -89,6 +90,8 @@ struct Writer {
     pixels: u64,
     grid_mask_samples: u64,
     grid_masks: usize,
+    artwork_alpha_masks: usize,
+    artwork_luminance_masks: usize,
     native_inks: bool,
     swatches: BTreeMap<String, crate::swatches::Swatch>,
     ink_spaces: BTreeMap<String, usize>,
@@ -229,8 +232,20 @@ struct Stream {
     rgb8_solids: BTreeSet<String>,
     default_rgb: Option<usize>,
     artwork_blend_space: Option<String>,
+    scalar_artwork: bool,
 }
 impl Stream {
+    fn solid_color(&mut self, rgb: [f64; 3]) -> Result<(), Error> {
+        if self.scalar_artwork {
+            let [r, g, b] = rgb;
+            let gray = crate::artwork_masks::encoded_luminance(r, g, b);
+            self.content.push_str(&format!("{} g\n", number(gray)?));
+        } else {
+            self.content.push_str(&format!("{} rg\n", numbers(&rgb)?));
+        }
+        Ok(())
+    }
+
     fn use_resource(&mut self, category: &'static str, id: usize, op: &str) {
         self.resources.entry(category).or_default().insert(id);
         self.content.push_str(&format!("/R{id} {op}\n"));
@@ -415,12 +430,24 @@ fn gradient(
     positions.push(2.0);
     let coords = numbers(&coordinates)?;
     let transform = numbers(&geometry::multiply(paint_matrix, field.transform()))?;
-    let color = gradient_shading(writer, kind, &coords, stops, &positions, false)?;
+    let channels = if stream.scalar_artwork {
+        ShadingChannels::Luminance
+    } else {
+        ShadingChannels::Rgb
+    };
+    let color = gradient_shading(writer, kind, &coords, stops, &positions, channels)?;
     let alpha = stops[0].color[3];
     if stops.iter().all(|s| s.color[3] == alpha) {
         graphics_state(writer, stream, f64::from(alpha) / 255.0, BlendMode::Normal)?;
     } else {
-        let opacity = gradient_shading(writer, kind, &coords, stops, &positions, true)?;
+        let opacity = gradient_shading(
+            writer,
+            kind,
+            &coords,
+            stops,
+            &positions,
+            ShadingChannels::Alpha,
+        )?;
         // The mask is established in the item's page coordinates. Apply the
         // paint transform inside the mask, just as for the color shading below.
         let mut mask_stream = Stream {
@@ -429,7 +456,13 @@ fn gradient(
             ..Stream::default()
         };
         mask_stream.use_resource("Shading", opacity, "sh");
-        let dictionary = opacity::luminosity_dictionary(writer, mask_stream, 0.0)?;
+        let dictionary = opacity::mask_dictionary(
+            writer,
+            mask_stream,
+            crate::artwork_masks::Mode::Luminance,
+            0.0,
+            1.0,
+        )?;
         graphics_state(writer, stream, 1.0, BlendMode::Normal)?;
         let state = writer.add(dictionary)?;
         stream.use_resource("ExtGState", state, "gs");
@@ -441,20 +474,32 @@ fn gradient(
     Ok(())
 }
 
+enum ShadingChannels {
+    Rgb,
+    Luminance,
+    Alpha,
+}
+
 fn gradient_shading(
     writer: &mut Writer,
     kind: u8,
     coords: &str,
     stops: &[crate::paint::Stop],
     positions: &[f64],
-    alpha: bool,
+    channels: ShadingChannels,
 ) -> Result<usize, Error> {
-    let (space, channels) = if alpha {
-        ("DeviceGray", 3..4)
-    } else {
-        ("DeviceRGB", 0..3)
+    let space = match channels {
+        ShadingChannels::Rgb => "DeviceRGB",
+        _ => "DeviceGray",
     };
-    let components = |color: Color| numbers(&color.map(|v| f64::from(v) / 255.0)[channels.clone()]);
+    let components = |color: Color| {
+        let [r, g, b, a] = color.map(|v| f64::from(v) / 255.0);
+        match channels {
+            ShadingChannels::Rgb => numbers(&[r, g, b]),
+            ShadingChannels::Luminance => number(crate::artwork_masks::encoded_luminance(r, g, b)),
+            ShadingChannels::Alpha => number(a),
+        }
+    };
     let mut functions = Vec::new();
     for interval in positions.windows(2) {
         let lo = stops
@@ -496,7 +541,7 @@ fn paint(
         Paint::Solid(color) => {
             graphics_state(writer, stream, color[3] as f64 / 255.0, BlendMode::Normal)?;
             let [r, g, b, _] = *color;
-            if writer.page_uses_blends {
+            if writer.page_uses_blends && !stream.scalar_artwork {
                 // A reader truncating a decimal RGB operand by one byte level
                 // can turn a near-neutral hue gray or reverse a dodge result.
                 // A single-entry Indexed space carries the source bytes exactly.
@@ -504,10 +549,7 @@ fn paint(
                 stream.content.push_str(&format!("/C{rgb} cs 0 scn\n"));
                 stream.rgb8_solids.insert(rgb);
             } else {
-                let components = [r, g, b].map(|v| f64::from(v) / 255.0);
-                stream
-                    .content
-                    .push_str(&format!("{} rg\n", numbers(&components)?));
+                stream.solid_color([r, g, b].map(|v| f64::from(v) / 255.0))?;
             }
             writer.path(&mut stream.content, shape, shape_matrix)?;
             stream.content.push_str(if rule == FillRule::EvenOdd {
@@ -522,9 +564,8 @@ fn paint(
         }
         Paint::Precise(color) => {
             graphics_state(writer, stream, color.rgba[3], BlendMode::Normal)?;
-            stream
-                .content
-                .push_str(&format!("{} rg\n", numbers(&color.rgba[..3])?));
+            let [r, g, b, _] = color.rgba;
+            stream.solid_color([r, g, b])?;
             writer.path(&mut stream.content, shape, shape_matrix)?;
             stream.content.push_str(if rule == FillRule::EvenOdd {
                 "f*\n"
@@ -604,9 +645,8 @@ fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
             || !item.coverage.is_smooth()
             || item.pixel_warp.is_some()
             || item.clip_to.is_some()
-            || item.artwork_mask.as_ref().is_some_and(|m| m.enabled)
         {
-            return Err(unsupported("PDF does not preserve knockout, effects, filters, dissolve, pixel warps, layer clipping or active artwork-source masks").at_item(&item.id));
+            return Err(unsupported("PDF does not preserve knockout, effects, filters, dissolve, pixel warps or layer clipping").at_item(&item.id));
         }
         if let Some(mask) = item
             .mask
@@ -665,14 +705,34 @@ fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
     Ok(())
 }
 
+#[derive(Default)]
+struct PageResources {
+    pixels: BTreeMap<String, assets::Pixels>,
+    layouts: BTreeMap<String, crate::text::Layout>,
+    masks: crate::masks::PreparedDocument,
+    artwork_masks: BTreeMap<String, usize>,
+}
+
+fn checked_layouts(
+    document: &Document,
+    fonts: &crate::fonts::Cache,
+) -> Result<BTreeMap<String, crate::text::Layout>, Error> {
+    let layouts = crate::text::prepare(document, fonts)?;
+    for (id, layout) in &layouts {
+        let world = scene::world_transform(document, scene::index(document, id)?)?;
+        for path in &layout.paths {
+            validate_world_geometry(&path.geometry, world)?;
+        }
+    }
+    Ok(layouts)
+}
+
 fn items(
     writer: &mut Writer,
     output: &mut Stream,
     document: &Document,
     parent: Option<&str>,
-    pixels: &BTreeMap<String, assets::Pixels>,
-    layouts: &BTreeMap<String, crate::text::Layout>,
-    masks: &crate::masks::PreparedDocument,
+    resources: &PageResources,
 ) -> Result<(), Error> {
     for i in scene::children(document, parent) {
         writer.control.check()?;
@@ -688,6 +748,7 @@ fn items(
         let world = scene::world_transform(document, i)?;
         let mut stream = Stream {
             default_rgb: writer.default_rgb,
+            scalar_artwork: output.scalar_artwork,
             ..Stream::default()
         };
         if let Some(c) = item.clip.as_ref().filter(|c| c.enabled) {
@@ -702,11 +763,11 @@ fn items(
         match &item.content {
             Content::Text { .. } | Content::StoryFrame { .. } => {
                 if let Some(geometry) =
-                    crate::text::clip_geometry(&item.content, &layouts[&item.id])
+                    crate::text::clip_geometry(&item.content, &resources.layouts[&item.id])
                 {
                     clip(writer, &mut stream, &geometry, world, FillRule::Nonzero)?;
                 }
-                for path in &layouts[&item.id].paths {
+                for path in &resources.layouts[&item.id].paths {
                     paint(
                         writer,
                         &mut stream,
@@ -718,15 +779,9 @@ fn items(
                     )?;
                 }
             }
-            Content::Group { .. } => items(
-                writer,
-                &mut stream,
-                document,
-                Some(&item.id),
-                pixels,
-                layouts,
-                masks,
-            )?,
+            Content::Group { .. } => {
+                items(writer, &mut stream, document, Some(&item.id), resources)?
+            }
             Content::Frame { frame } => {
                 clip(
                     writer,
@@ -746,15 +801,7 @@ fn items(
                         FillRule::Nonzero,
                     )?;
                 }
-                items(
-                    writer,
-                    &mut stream,
-                    document,
-                    Some(&item.id),
-                    pixels,
-                    layouts,
-                    masks,
-                )?;
+                items(writer, &mut stream, document, Some(&item.id), resources)?;
             }
             Content::Vector {
                 geometry,
@@ -794,7 +841,7 @@ fn items(
                 crop,
                 ..
             } => {
-                let pixels = &pixels[asset_id];
+                let pixels = &resources.pixels[asset_id];
                 let crop = assets::crop(pixels.width, pixels.height, *crop)?;
                 image(
                     writer,
@@ -845,15 +892,18 @@ fn items(
             }
         }
         let mut opacity = item.opacity * item.fill_opacity;
-        let mut mask_state = None;
-        if let Some(prepared) = masks.items.get(&item.id) {
+        let mut mask_state = resources.artwork_masks.get(&item.id).copied();
+        if let Some(prepared) = resources.masks.items.get(&item.id) {
             let mask = item.mask.as_deref().expect("prepared item mask");
             writer.grid_masks += 1;
-            mask_state = opacity::grid_state(writer, mask, prepared, world)
+            mask_state = opacity::grid_state(writer, mask, prepared, world, opacity)
                 .map_err(|e| e.at_item(&item.id))?;
             if mask_state.is_none() {
                 opacity *= prepared.outside;
             }
+        }
+        if mask_state.is_some() {
+            opacity = 1.0;
         }
         let isolated = !matches!(
             item.content,
@@ -862,7 +912,11 @@ fn items(
                 ..
             }
         );
-        let group = if writer.native_inks && !item.content.is_container() {
+        let native_ink_leaf =
+            writer.native_inks && !stream.scalar_artwork && !item.content.is_container();
+        let group = if stream.scalar_artwork {
+            "/I true /CS /DeviceGray".into()
+        } else if native_ink_leaf {
             "/I false".into()
         } else if isolated {
             format!("/I true /CS {}", writer.group_space())
@@ -873,11 +927,7 @@ fn items(
         // artificial isolated leaf group would erase overprint interaction.
         // Real containers retain their declared isolation; item opacity still
         // applies once to a composed fill/stroke through a transparency group.
-        let group = if writer.native_inks
-            && !item.content.is_container()
-            && opacity == 1.0
-            && mask_state.is_none()
-        {
+        let group = if native_ink_leaf && opacity == 1.0 && mask_state.is_none() {
             String::new()
         } else {
             format!("/Group << /S /Transparency {group} /K false >>")
@@ -976,7 +1026,7 @@ pub fn export_controlled(
     let colors = if native_inks {
         None
     } else {
-        crate::swatches::vector_export(document)?;
+        crate::swatches::vector_export(document, ExportFormat::Pdf)?;
         crate::swatches::evaluate(document)?
     };
     let document = colors.as_ref().unwrap_or(document);
@@ -1075,19 +1125,18 @@ pub fn export_controlled(
             ink_pages.push(crate::swatches::ink_diagnostics(page)?);
         }
         let fonts = crate::fonts::resolve(page, resources.font_root.as_deref())?;
-        let layouts = crate::text::prepare(page, &fonts)?;
+        let layouts = checked_layouts(page, &fonts)?;
         glyphs += layouts.values().map(|l| l.glyphs.len()).sum::<usize>();
-        // Glyph paths are an evaluated delivery surface, not editable vector
-        // items inserted into a raster snapshot. Keep the source scene intact.
-        for (id, layout) in &layouts {
-            let world = scene::world_transform(page, scene::index(page, id)?)?;
-            for path in &layout.paths {
-                crate::model::validate_world_geometry(&path.geometry, world)?;
-            }
-        }
         let pixels = assets::resolve(page, resources.asset_root.as_deref())?;
         let masks =
             crate::masks::prepare_document(page, resources.asset_root.as_deref(), &writer.control)?;
+        let artwork_masks = artwork::prepare(&mut writer, page, &fonts)?;
+        let page_resources = PageResources {
+            pixels,
+            layouts,
+            masks,
+            artwork_masks,
+        };
         let ppi = page.resolution_ppi;
         let physical = 72.0 / ppi;
         let bleed = if options.include_bleed {
@@ -1153,15 +1202,7 @@ pub fn export_controlled(
                 FillRule::Nonzero,
             )?;
         }
-        items(
-            &mut writer,
-            &mut stream,
-            page,
-            None,
-            &pixels,
-            &layouts,
-            &masks,
-        )?;
+        items(&mut writer, &mut stream, page, None, &page_resources)?;
         stream.content.push_str("Q\n");
         let mut page_group = format!(
             " /Group << /Type /Group /S /Transparency /CS {} /I true /K false >>",
@@ -1277,6 +1318,8 @@ pub fn export_controlled(
     let commands = writer.commands;
     let image_pixels = writer.pixels;
     let grid_masks = writer.grid_masks;
+    let artwork_alpha_masks = writer.artwork_alpha_masks;
+    let artwork_luminance_masks = writer.artwork_luminance_masks;
     let grid_mask_samples = writer.grid_mask_samples;
     let version = writer.version();
     let black_point = writer.explicit_black_point;
@@ -1287,6 +1330,11 @@ pub fn export_controlled(
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
     result["pdf"]["version"] = json!(version);
+    if artwork_alpha_masks + artwork_luminance_masks > 0 {
+        result["pdf"]["artwork_masks"] =
+            json!({"alpha":artwork_alpha_masks,"luminance":artwork_luminance_masks});
+        result["losses"].as_array_mut().unwrap().push(json!("Artwork mask sources are delivered as placed vector soft masks. Keep the snapshot to edit a shared source or change its links. Reader antialiasing can differ from the PNG proof."));
+    }
     if grid_masks != 0 {
         result["pdf"]["grid_masks"] = json!(grid_masks);
         result["pdf"]["grid_mask_samples"] = json!(grid_mask_samples);
@@ -1362,13 +1410,13 @@ mod tests {
             ..Writer::default()
         };
         assert!(
-            opacity::grid_state(&mut writer, &mask, &plane, identity())
+            opacity::grid_state(&mut writer, &mask, &plane, identity(), 1.0)
                 .unwrap()
                 .is_some()
         );
         assert_eq!(writer.grid_mask_samples, 9);
         assert_eq!(
-            opacity::grid_state(&mut writer, &mask, &plane, identity())
+            opacity::grid_state(&mut writer, &mask, &plane, identity(), 1.0)
                 .unwrap_err()
                 .code,
             "RESOURCE_LIMIT"

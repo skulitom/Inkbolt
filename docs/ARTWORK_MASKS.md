@@ -36,6 +36,12 @@ Standalone artboard export retains referenced source subtrees, rebases owned unl
 
 SVG export creates vector mask content per enabled reference, with unique IDs, explicit user-space coordinates, alpha/luminance mode, sRGB interpretation and a transformed rectangular region clip. A padded bounding rectangle avoids clipping the same antialiased region twice. Unbounded references export with no region attributes and an explicit SVG 2.0 version. Text becomes glyph outlines under the existing SVG contract. The receipt discloses loss of shared editing identity, linked state, unused sources and disabled settings. Keep the native snapshot for these properties. [SVG import](SVG_IMPORT.md) now constructs these editable sources and references, including separate content/region units and explicit versioned defaults. Supported source paints also remain subject to the existing SVG paint subset.
 
+PDF places each enabled reference as a vector soft mask. Source shapes, gradient
+fields and pinned-font outlines stay vector. The reference region and scalar
+mode follow the same placement rules as preview, including the selected
+artboard's bleed. Keep the snapshot to retain shared editing identity.
+[PDF mask contract](PDF.md#masks-made-from-editable-artwork)
+
 ## Limits and verification
 
 Documents allow 32 references, including disabled ones. Source items, geometry, paints, text and fonts share ordinary document limits. Active references together retain at most 1,048,576 output coverage samples. Compositing accounts for one f64 scalar per reference per viewport pixel, with three additional full RGBA buffers for source preparation beyond the ordinary group/text depth estimate. Aggregate repeated instance rendering and paint work are checked before allocating viewport buffers; repeated glyph outlines are capped at 131,072 commands. Transformed instance geometry is validated at render time, so an otherwise valid stored reference can fail when its transformed source exceeds world limits. Hidden sources and owners retain validation and budgeting.

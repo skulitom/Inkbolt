@@ -405,7 +405,7 @@ pub fn export_controlled(
     validate_controlled(document, control)?;
     crate::hdr::reject_page(document)?;
     crate::vector_canvas::reject_rgb_page(document)?;
-    crate::swatches::vector_export(document)?;
+    crate::swatches::vector_export(document, crate::ExportFormat::Svg)?;
     let source = document;
     let colors = crate::swatches::evaluate(document)?;
     let document = colors.as_ref().unwrap_or(document);

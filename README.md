@@ -60,6 +60,10 @@ The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
+Building from `main` also lets you export a masked SVG illustration as a PDF
+with vector paths, including masks drawn with shapes, gradients or text.
+[PDF mask support](docs/PDF.md#masks-made-from-editable-artwork)
+
 ## Explore the project
 
 - [Agent interface](docs/AGENT_INTERFACE.md) and [tool discovery](docs/AGENT_DISCOVERY.md) cover requests, schemas and receipts.

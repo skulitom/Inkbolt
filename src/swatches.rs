@@ -502,19 +502,33 @@ fn used(d: &Document) -> Result<BTreeSet<String>, Error> {
     }
     closure(&d.swatches, &result)
 }
-pub(crate) fn vector_export(d: &Document) -> Result<(), Error> {
-    for item in &d.items {
+pub(crate) fn vector_export(d: &Document, format: crate::ExportFormat) -> Result<(), Error> {
+    let mut scalar_items = BTreeSet::new();
+    if matches!(format, crate::ExportFormat::Pdf) && !d.swatches.is_empty() {
+        for (i, item) in d.items.iter().enumerate() {
+            if matches!(item.content, Content::MaskSource {}) {
+                scalar_items.extend(scene::subtree(d, i));
+            }
+        }
+    }
+    let mut inks = BTreeSet::new();
+    for (i, item) in d.items.iter().enumerate() {
         walk_bound(d, item, &mut |paint| {
-            if matches!(paint, Paint::Named(r) if !r.overprint.is_knockout()) {
-                return Err(Error::new(
-                    "UNSUPPORTED",
-                    "Display vector delivery cannot preserve overprint; use native-ink PDF or explicitly bake a display copy",
-                ));
+            if let Paint::Named(r) = paint {
+                if !r.overprint.is_knockout() {
+                    return Err(Error::new(
+                        "UNSUPPORTED",
+                        "Display vector delivery cannot preserve overprint; use native-ink PDF or explicitly bake a display copy",
+                    ).at_item(&item.id));
+                }
+                if !scalar_items.contains(&i) {
+                    inks.insert(r.swatch.clone());
+                }
             }
             Ok(())
         })?;
     }
-    for id in used(d)? {
+    for id in closure(&d.swatches, &inks)? {
         let r = resolve(&d.swatches, &id)?;
         if r.spot_id.is_some() || r.requires_color_conversion {
             return Err(Error::new(

@@ -17,6 +17,9 @@ pub enum Mode {
     Alpha,
     Luminance,
 }
+pub(crate) fn encoded_luminance(r: f64, g: f64, b: f64) -> f64 {
+    r * 0.2125 + g * 0.7154 + b * 0.0721
+}
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Mask {
@@ -58,7 +61,7 @@ impl Mask {
             Mode::Alpha => premultiplied[3],
             // Linear combination commutes with premultiplication. Encoded sRGB.
             Mode::Luminance => {
-                premultiplied[0] * 0.2125 + premultiplied[1] * 0.7154 + premultiplied[2] * 0.0721
+                encoded_luminance(premultiplied[0], premultiplied[1], premultiplied[2])
             }
         }
         .clamp(0.0, 1.0)

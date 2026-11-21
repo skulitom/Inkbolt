@@ -6,19 +6,36 @@ use crate::{
     model::{Matrix, limit},
 };
 
-pub(super) fn luminosity_dictionary(
+pub(super) fn mask_dictionary(
     writer: &mut Writer,
     stream: Stream,
+    mode: crate::artwork_masks::Mode,
     outside: f64,
+    owner_opacity: f64,
 ) -> Result<String, Error> {
     let form = writer.stream(
         &format!("/Type /XObject /Subtype /Form /BBox [{}] /Group << /S /Transparency /CS /DeviceGray /I true >> /Resources {}",
             writer.page_bbox, stream.dictionary(None)),
         stream.content.as_bytes(),
     )?;
+    use crate::artwork_masks::Mode;
+    let entries = match mode {
+        Mode::Alpha => format!("/S /Alpha /G {form} 0 R"),
+        Mode::Luminance => format!("/S /Luminosity /G {form} 0 R /BC [{}]", number(outside)?),
+    };
+    // Apply owner opacity to the completed field. Setting /ca on the same
+    // group invocation can apply opacity twice in readers, and wrapping a
+    // pass-through group can change the backdrop seen by its children.
+    let transfer = if owner_opacity == 1.0 {
+        String::new()
+    } else {
+        format!(
+            " /TR << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [{}] /N 1 >>",
+            number(owner_opacity)?
+        )
+    };
     Ok(format!(
-        "<< /Type /ExtGState /SMask << /S /Luminosity /G {form} 0 R /BC [{}] >> >>",
-        number(outside)?
+        "<< /Type /ExtGState /SMask << {entries}{transfer} >> >>"
     ))
 }
 
@@ -28,6 +45,7 @@ pub(super) fn grid_state(
     mask: &masks::Mask,
     prepared: &masks::Prepared,
     world: Matrix,
+    owner_opacity: f64,
 ) -> Result<Option<usize>, Error> {
     if mask.constant || mask.density == 0.0 {
         return Ok(None);
@@ -99,7 +117,13 @@ pub(super) fn grid_state(
         }
         _ => unreachable!("validated scalar mask sampling"),
     }
-    let dictionary = luminosity_dictionary(writer, stream, prepared.outside)?;
+    let dictionary = mask_dictionary(
+        writer,
+        stream,
+        crate::artwork_masks::Mode::Luminance,
+        prepared.outside,
+        owner_opacity,
+    )?;
     writer.add(dictionary).map(Some)
 }
 
