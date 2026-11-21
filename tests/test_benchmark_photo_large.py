@@ -29,7 +29,8 @@ class LargePhotoTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             hashes=[]
             for transport in ('cli','mcp'):
-                case=Trial(EXE,Path(directory)/transport,'B10',1,transport,CHECKS['B10'])
+                trial_type = photo.LinuxBudgetTrial if sys.platform == 'linux' else Trial
+                case=trial_type(EXE,Path(directory)/transport,'B10',1,transport,CHECKS['B10'])
                 case.photo_test_profile=SMALL;case.benchmark_variant=fixture.VARIANT
                 case.judge_root=Path(directory)/(transport+'-judge');case.judge_root.mkdir()
                 try:photo.photograph(case)
@@ -46,6 +47,34 @@ class LargePhotoTests(unittest.TestCase):
                 self.assertEqual(row['benchmark_variant'],fixture.VARIANT)
                 self.assertFalse(json.loads((case.root/'fixture-profile.json').read_text())['fixed_fixture'])
                 self.assertFalse(row['model_trials'])
+                if sys.platform == 'linux':
+                    self.assertEqual(row['linux_address_space_workflow']['status'], 'failed')
+                    self.assertIn('Reduced', row['linux_address_space_workflow']['reason'])
+                    observations = [c['memory'] for c in row['calls'] if transport == 'cli' or 'judge_workspace' in c]
+                    if transport == 'mcp':
+                        observations.append(row['server_memory'])
+                        snapshot = row['linux_address_space_workflow']['server_before_eof']
+                        self.assertTrue(snapshot['available'], snapshot)
+                        self.assertTrue(0 < snapshot['peak_virtual_bytes'] <= fixture.MAX_PEAK_COMMIT_BYTES)
+                    self.assertEqual(len(observations), 23 if transport == 'cli' else 3)
+                    for observed in observations:
+                        self.assertEqual(observed['address_space_limit']['hard_bytes'], fixture.MAX_PEAK_COMMIT_BYTES)
+                        self.assertEqual(observed['address_space_limit']['soft_bytes'], fixture.MAX_PEAK_COMMIT_BYTES)
+                    # The persisted reduced result above must fail. Isolate the
+                    # process/outcome checks using its real transport records.
+                    with patch.object(photo, 'contract_fields'), \
+                         patch.dict(case.sources, {'original.tiff': photo.ORIGINAL_TIFF_SHA256}):
+                        self.assertEqual(case.bounded_workflow()['engine_processes'],len(observations))
+                        for observed in (observations[0], observations[-1]):
+                            with patch.dict(observed, {'address_space_limit': None}):
+                                with self.assertRaisesRegex(TaskFailure, 'enforced limit'):
+                                    case.bounded_workflow()
+                        with patch.dict(case.checks[-1], {'status':'fail'}):
+                            with self.assertRaisesRegex(TaskFailure, 'artifact, history or source'):
+                                case.bounded_workflow()
+                        with patch.dict(case.calls[-1], {'response_observed':False}):
+                            with self.assertRaisesRegex(TaskFailure, 'workflow'):
+                                case.bounded_workflow()
                 self.assertGreater(row['first_verified_preview_seconds'],0)
                 hashes.append(row['sources']['original.tiff'])
                 with fixture.Rows(case.root/'original.tiff',*SMALL) as rows:
@@ -78,6 +107,17 @@ class LargePhotoTests(unittest.TestCase):
         with self.assertRaises(TaskFailure):check_memory(observation)
         check_memory(observation,fixture.MAX_PEAK_COMMIT_BYTES)
         with self.assertRaises(TaskFailure):check_memory([dict(available=False)],fixture.MAX_PEAK_COMMIT_BYTES)
+
+    def test_requested_linux_experiment_rejects_an_external_arm_or_wrong_variant_before_setup(self):
+        from agent_benchmark import main, run_task
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)/'unused'
+            with self.assertRaisesRegex(ValueError, 'full-size B10'):
+                run_task(EXE, root, 'B10', 1, 'cli', linux_address_space_budget=True)
+            with self.assertRaises(SystemExit):
+                main(['--variant', fixture.VARIANT, '--arm', 'baseline', '--linux-address-space-budget',
+                      '--output-root', str(root), '--conditions', 'test'])
+            self.assertFalse(root.exists())
         self.assertIs(migration('B10',fixture.VARIANT)[0],photo)
         with self.assertRaises(TaskFailure):migration('B01',fixture.VARIANT)
         with self.assertRaises(TaskFailure):migration('B10','unknown')

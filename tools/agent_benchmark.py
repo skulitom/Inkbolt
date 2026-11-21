@@ -17,9 +17,12 @@ from measure_workloads import (ROOT, candidate_identity, release_build, save_jso
 import measurement_host
 
 
-def run_task(executable, root, task, repetition, transport, consumer_tools=None, *, variant='standard'):
+def run_task(executable, root, task, repetition, transport, consumer_tools=None, *, variant='standard',
+             linux_address_space_budget=False):
     if variant not in VARIANTS or (variant!='standard' and task!='B10'):
         raise ValueError('The photo-50mp-v1 variant selects only B10')
+    if linux_address_space_budget and (sys.platform != 'linux' or variant != 'photo-50mp-v1'):
+        raise ValueError('The Linux address-space experiment requires the full-size B10 reference variant')
     if task not in ADAPTERS:
         root.mkdir()
         row=dict(task=task,repetition=repetition,transport=transport,status='not_implemented',
@@ -28,6 +31,9 @@ def run_task(executable, root, task, repetition, transport, consumer_tools=None,
         save_json(root/'result.json',row)
         return row
     factory=RecoveryTrial if task=='B19' else HandoffTrial if task=='B20' else Trial
+    if linux_address_space_budget:
+        from benchmark_photo_large import LinuxBudgetTrial
+        factory = LinuxBudgetTrial
     options=dict(consumer_tools=consumer_tools) if task=='B20' else {}
     trial=factory(executable,root,task,repetition,transport,CHECKS[task],**options)
     trial.benchmark_variant=variant
@@ -82,6 +88,8 @@ def main(argv=None):
     parser.add_argument('--baseline-tools',type=Path,help='External pinned resvg and Pillow Python executable paths')
     parser.add_argument('--task',action='append',choices=list(TASKS),dest='tasks')
     parser.add_argument('--variant',choices=VARIANTS,default='standard',help='Separate fixed photo scale; original tasks remain the default')
+    parser.add_argument('--linux-address-space-budget', action='store_true',
+                        help='Check the 50 MP reference workflow under a 512 MiB per-process Linux address-space limit')
     for name in ('cutbolt','ffmpeg','ffprobe'):
         parser.add_argument('--'+name,type=Path,help='Explicit local consumer executable for B20')
     args=parser.parse_args(argv)
@@ -91,6 +99,9 @@ def main(argv=None):
     if args.variant!='standard':
         if args.tasks and args.tasks!=['B10']:parser.error('The photo-50mp-v1 variant selects only B10')
         args.tasks=['B10']
+    if args.linux_address_space_budget and (sys.platform != 'linux' or args.arm != 'reference'
+                                           or args.variant != 'photo-50mp-v1'):
+        parser.error('--linux-address-space-budget requires a Linux reference run with --variant photo-50mp-v1')
     external_options=args.driver_config or args.import_root or args.prepare_only or args.baseline_tools
     if args.arm=='reference' and external_options: parser.error('External driver options require --arm model or baseline')
     if args.arm!='reference' and not args.driver_config: parser.error('External arms require --driver-config')
@@ -120,6 +131,8 @@ def main(argv=None):
         toolchain=subprocess.check_output(['rustc','--version'],text=True).strip())
     # Preserve the exact starting state even if the driver is interrupted before
     # it can write an aggregate report. Completed trial files are already durable.
+    if args.linux_address_space_budget:
+        provenance['linux_address_space_budget'] = True
     save_json(output/'inputs.json',provenance)
     save_json(output/'tasks.json',dict(suite=SUITE,tasks=[dict(id=task,title=title,outcome=outcome,
         implemented=task in ADAPTERS,required_checks=list(CHECKS.get(task,()))) for task,(title,outcome) in TASKS.items()]))
@@ -127,10 +140,14 @@ def main(argv=None):
     for repetition in range(1,args.repetitions+1):
         offset=(repetition-1)%len(selected)
         for task in selected[offset:]+selected[:offset]:
-            row=run_task(executable,output/f'{repetition:02d}-{task}',task,repetition,args.transport,consumer_tools,variant=args.variant)
+            row=run_task(executable,output/f'{repetition:02d}-{task}',task,repetition,args.transport,consumer_tools,
+                         variant=args.variant,linux_address_space_budget=args.linux_address_space_budget)
             rows.append(row)
-            print(json.dumps(dict(task=task,repetition=repetition,status=row['status'],
-                commands=row.get('engine_commands'),seconds=row.get('engine_roundtrip_seconds'))),flush=True)
+            progress=dict(task=task,repetition=repetition,status=row['status'],
+                          commands=row.get('engine_commands'),seconds=row.get('engine_roundtrip_seconds'))
+            if args.linux_address_space_budget:
+                progress['linux_address_space_workflow'] = row['linux_address_space_workflow']
+            print(json.dumps(progress),flush=True)
     unchanged=(candidates==candidate_identity() and sha(executable.read_bytes())==build['executable_sha256']
                and environment==measurement_host.identity()
                and (not consumer_tools or consumer_identity==tool_identities(consumer_tools)))
@@ -157,6 +174,12 @@ def main(argv=None):
             'Not-implemented tasks remain in the fixed twenty-task inventory and prevent full-suite acceptance.',
             'No claim of greater readiness than Cutbolt, production-scale acceptance, matched performance or added engine checkpoint credit.',
             'Reports are evidence records, not authenticated attestations; retain trusted raw files and review the independent oracles.'])
+    if args.linux_address_space_budget:
+        report['peak_commit_workflow_outcome'] = report['outcome']
+        successful = all(row['linux_address_space_workflow']['status'] == 'passed' for row in rows)
+        report['linux_address_space_budget'] = True
+        if unchanged:
+            report['outcome'] = 'linux_address_space_workflows_passed' if successful else 'linux_address_space_workflows_failed'
     save_json(output/'report.json',report)
     print(str(output/'report.json'))
     return 0 if successful and unchanged else 2

@@ -6,11 +6,12 @@ import subprocess
 import shutil
 
 import benchmark_photo_large_fixture as fixture_data
+import linux_process_memory
 from benchmark_diagram import delivered
 from benchmark_graphics import store,source_snapshot,png_check
 from benchmark_large_layout import retained_session_store
 from benchmark_photo import check_review,judge_memory,tiff_output
-from benchmark_runtime import require,safe_name,strict_json
+from benchmark_runtime import Trial,TaskFailure,require,safe_name,strict_json
 from benchmark_tasks import ENGINE_CHECKS
 from scale_oracles import check_native,check_tiff,file_hash
 from workload_cases import document,save,save_json
@@ -18,6 +19,77 @@ from workload_cases import document,save,save_json
 VARIANT=fixture_data.VARIANT
 PROMPT=Path(__file__).with_name('benchmark_prompts')/'B10-photo-50mp-v1.md'
 PREVIEW_FILES={'photo-preview':'preview.png'}
+ORIGINAL_TIFF_SHA256 = 'ad7b22173189ea6dd25cad6ce3f4e775242e536e6ee000ef0e2fc63f57e6e793'
+
+
+class LinuxBudgetTrial(Trial):
+    """An additional full-size reference experiment. The B10 judge stays the same."""
+
+    def execute(self, argv, payload):
+        return linux_process_memory.run(argv, payload, self.timeout,
+                                        address_space_limit=fixture_data.MAX_PEAK_COMMIT_BYTES)
+
+    def spawn(self, argv, **options):
+        return linux_process_memory.Process(argv, address_space_limit=fixture_data.MAX_PEAK_COMMIT_BYTES,
+                                            **options)
+
+    def close(self):
+        if self.server is not None and not self.server.closed and self.phase == 'judge':
+            try:
+                self.before_eof = dict(available=True, peak_virtual_bytes=self.server.process.virtual_peak_bytes())
+            except (KeyError, ValueError, OSError, RuntimeError) as error:
+                self.before_eof = dict(available=False, reason=str(error))
+        super().close()
+
+    def bounded_workflow(self):
+        contract_fields(self)
+        require(self.sources.get('original.tiff') == ORIGINAL_TIFF_SHA256,
+                'The original 50 MP TIFF is required for a bounded workflow result')
+        require(self.error is None and self.arm == 'reference' and self.benchmark_variant == VARIANT,
+                'Requires a clean full-size reference workflow')
+        statuses = {check['name']: check['status'] for check in self.checks}
+        require(set(statuses) == set(self.required_checks) and len(statuses) == len(self.checks)
+                and all(statuses[name] == 'pass' for name in self.required_checks if name != 'memory-budget'),
+                'An original artifact, history or source check is missing or failed')
+        solve = ('import', 'save', 'before', 'review', 'commit', 'edited', 'preview', 'edited-tiff',
+                 'historical-tiff', 'undo', 'undo-source', 'redo', 'editable', 'verify-history')
+        judge = ('judge-original-shape', 'judge-create-receipt', 'judge-edit-receipt', 'judge-undo-receipt',
+                 'judge-redo-receipt', 'judge-preview', 'judge-edited', 'judge-historical', 'judge-history')
+        require([(row['phase'], row['step']) for row in self.calls] ==
+                [('task', step) for step in solve] + [('judge', step) for step in judge]
+                and all(row['status'] == 'success' and row['response_observed'] and row['retry_of'] is None
+                        for row in self.calls), 'Incomplete, unsuccessful or retried workflow')
+        cli = [row for row in self.calls if self.transport == 'cli' or 'judge_workspace' in row]
+        require(all(row['exit_code'] == 0 and row['timed_out'] is False for row in cli),
+                'A CLI process failed or timed out')
+        observations = [row['memory'] for row in cli]
+        if self.transport == 'mcp':
+            require(self.server is not None and self.server.closed, 'MCP server lifetime is incomplete')
+            observations.append(self.server_memory)
+        rss = linux_process_memory.resident_summary(observations)
+        require(rss['resident_memory_complete'] and rss['resident_supervisor_sha256'] ==
+                file_hash(Path(linux_process_memory.__file__)), 'Missing lifetime RSS or supervisor identity')
+        cap = fixture_data.MAX_PEAK_COMMIT_BYTES
+        expected = dict(method=linux_process_memory.LIMIT_METHOD, soft_bytes=cap, hard_bytes=cap)
+        require(all(m.get('address_space_limit') == expected for m in observations),
+                'Missing the enforced limit on an engine process')
+        before_eof = getattr(self, 'before_eof', None)
+        if before_eof and before_eof['available']:
+            require(before_eof['peak_virtual_bytes'] <= cap, 'Server VmPeak exceeds the enforced limit')
+        if statuses['memory-budget'] != 'pass':
+            require(statuses['memory-budget'] == 'fail' and all(m['available'] is False
+                    and m.get('peak_commit_bytes') is None for m in observations),
+                    'A measured peak-commit failure cannot qualify for the bounded workflow')
+        return dict(status='passed', engine_processes=len(observations), peak_resident_bytes=rss['peak_resident_bytes'])
+
+    def extra_results(self):
+        try:
+            evidence = self.bounded_workflow()
+        except (TaskFailure, KeyError, TypeError, ValueError, OSError) as error:
+            evidence = dict(status='failed', reason=str(error))
+        if self.transport == 'mcp':
+            evidence['server_before_eof'] = getattr(self, 'before_eof', None)
+        return dict(linux_address_space_workflow=dict(maximum_bytes=fixture_data.MAX_PEAK_COMMIT_BYTES, **evidence))
 
 
 def profile(case):

@@ -23,6 +23,14 @@ SCOPE = 'command_lifetime_including_pre_exec_and_reaped_descendant_maximum'
 LIMIT_METHOD = 'linux_rlimit_as_before_exec_verified_at_exit_v1'
 
 
+def _limit_arguments(limit):
+    if limit is None:
+        return []
+    if type(limit) is not int or limit <= 0:
+        raise ValueError('Address-space limit must be a positive integer number of bytes')
+    return ['--address-space-limit', str(limit)]
+
+
 def _parent_death(expected_parent):
     # Linux prctl(2), PR_SET_PDEATHSIG. Check after arming to close the race
     # where the parent disappeared before this process reached prctl.
@@ -163,9 +171,11 @@ class Process:
     pipe requests termination without destroying the supervisor's wait4 record.
     The pipe works even before the supervisor has finished starting.
     """
-    def __init__(self, argv, *, stdin, stdout, stderr, creationflags=0):
+    def __init__(self, argv, *, stdin, stdout, stderr, creationflags=0, address_space_limit=None):
         if sys.platform != 'linux' or creationflags or not argv:
             raise ValueError('Expected a Linux command without Windows creation flags')
+        limit_args = _limit_arguments(address_space_limit)
+        self.address_space_limit = address_space_limit
         script = Path(__file__).resolve()
         self.source_hash = hashlib.sha256(script.read_bytes()).hexdigest()
         self.directory = tempfile.TemporaryDirectory(prefix='inkbolt-mcp-rss-')
@@ -177,7 +187,7 @@ class Process:
         read_fd = None
         try:
             read_fd, self.control = os.pipe2(os.O_CLOEXEC)
-            self.process = subprocess.Popen([sys.executable, '-I', '-S', str(script),
+            self.process = subprocess.Popen([sys.executable, '-I', '-S', str(script), *limit_args,
                 '--persistent', str(self.report), str(os.getpid()), str(read_fd), *map(os.fspath, argv)],
                 stdin=stdin, stdout=stdout, stderr=stderr, pass_fds=(read_fd,))
         except BaseException:
@@ -198,13 +208,35 @@ class Process:
     def wait(self, timeout=None):
         self.process.wait(timeout=timeout)
         if self.result is None:
-            self.result = _result(self.report, self.process, self.source_hash)
+            self.result = _result(self.report, self.process, self.source_hash, self.address_space_limit)
         return self.returncode
 
     def memory(self):
         if self.result is None:
             raise RuntimeError('Wait for the complete server lifetime before reading RSS')
         return self.result['memory']
+
+    def virtual_peak_bytes(self):
+        """Read the kernel high-water mark while the owned server still awaits stdin."""
+        parent = self.process.pid
+        if self.closed or self.process.poll() is not None:
+            raise RuntimeError('Server supervisor already exited')
+        children = Path(f'/proc/{parent}/task/{parent}/children').read_bytes().split()
+        if len(children) != 1:
+            raise RuntimeError('Expected one live server under its supervisor')
+        pid = int(children[0])
+        fields = {}
+        for line in Path(f'/proc/{pid}/status').read_bytes().splitlines():
+            name, _, value = line.partition(b':')
+            fields[name] = value.strip()
+        # An unreaped supervisor cannot have its PID reused and only ever forks
+        # one child. Validate the parent in the same status read as the peak.
+        if self.process.poll() is not None or int(fields[b'PPid']) != parent or int(fields[b'Pid']) != pid:
+            raise RuntimeError('Server identity changed before reading virtual memory')
+        amount, unit = fields[b'VmPeak'].split()
+        if unit != b'kB' or int(amount) <= 0:
+            raise ValueError('Invalid Linux VmPeak')
+        return int(amount) * 1024
 
     def kill(self):
         if not self.closed and not self.stop_requested:
@@ -256,14 +288,12 @@ def run(argv, payload, timeout, *, address_space_limit=None):
         raise RuntimeError('The RSS supervisor is Linux-only')
     if not argv or not math.isfinite(timeout) or timeout <= 0:
         raise ValueError('A command and positive finite deadline are required')
-    if address_space_limit is not None and (type(address_space_limit) is not int or address_space_limit <= 0):
-        raise ValueError('Address-space limit must be a positive integer number of bytes')
+    limit_args = _limit_arguments(address_space_limit)
     script = Path(__file__).resolve()
     source_hash = hashlib.sha256(script.read_bytes()).hexdigest()
     start = time.perf_counter()
     with tempfile.TemporaryDirectory(prefix='inkbolt-rss-') as directory:
         report = Path(directory) / 'result.json'
-        limit_args = [] if address_space_limit is None else ['--address-space-limit', str(address_space_limit)]
         command = [sys.executable, '-I', '-S', str(script), *limit_args, str(report),
                    str(os.getpid()), str(timeout), *map(os.fspath, argv)]
         with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -283,10 +313,12 @@ def run(argv, payload, timeout, *, address_space_limit=None):
 
 
 if __name__ == '__main__':
-    if sys.argv[1] == '--persistent':
-        _supervise(sys.argv[2], int(sys.argv[3]), None, sys.argv[5:], control_fd=int(sys.argv[4]))
-    elif sys.argv[1] == '--address-space-limit':
-        _supervise(sys.argv[3], int(sys.argv[4]), float(sys.argv[5]), sys.argv[6:],
-                   address_space_limit=int(sys.argv[2]))
+    args = sys.argv[1:]
+    limit = None
+    if args[0] == '--address-space-limit':
+        limit = int(args[1])
+        args = args[2:]
+    if args[0] == '--persistent':
+        _supervise(args[1], int(args[2]), None, args[4:], control_fd=int(args[3]), address_space_limit=limit)
     else:
-        _supervise(sys.argv[1], int(sys.argv[2]), float(sys.argv[3]), sys.argv[4:])
+        _supervise(args[0], int(args[1]), float(args[2]), args[3:], address_space_limit=limit)

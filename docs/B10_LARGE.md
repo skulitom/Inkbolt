@@ -24,6 +24,33 @@ keeps an editable native TIFF, the same exact samples and preview; engine-only
 checks are explicitly inapplicable. Fixtures and outputs use file streams;
 metadata and transcript bounds remain separate.
 
+## Linux address-space experiment
+
+Run the original 50 MP reference task with a 512 MiB limit on each Inkbolt
+process. The MCP transport uses one server through the edit, independent
+judge and shutdown. The CLI transport starts a process for each command.
+Use a fresh external output directory for each run.
+
+```sh
+python3.11 tools/agent_benchmark.py --variant photo-50mp-v1 --transport mcp \
+  --linux-address-space-budget --repetitions 1 --output-root "$HOME/b10-mcp-01" \
+  --conditions "Local Linux reference run"
+```
+
+Use `--transport cli` for the command-line comparison. In this mode a zero
+exit status requires the original TIFF, all edit, artifact and history checks,
+clean process exits and a verified 512 MiB limit for every engine process.
+The row's `linux_address_space_workflow` records that result. The ordinary
+peak-commit score remains in the row's `status` and the report's
+`peak_commit_workflow_outcome`. The Linux peak resident measurement is
+reported in its own field. Model and baseline arms use their original
+measurement contract.
+
+After the last judge response and before closing the server's input, the
+MCP run also reads the kernel's `VmPeak`. This measures peak virtual address
+space through the observed edit and judge work. The enforced limit continues
+through shutdown. [Linux process status fields](https://www.kernel.org/doc/html/latest/filesystems/proc.html)
+
 ## Focused rendering
 
 The first fixed-size diagnostic completed import and repair but its 20 x 16

@@ -23,6 +23,14 @@ took 12 seconds and Windows feedback took 19 seconds. The [scale-v2
 results](SCALE_WORKLOADS.md#linux-address-space-and-regression-results)
 record the fixed workloads and their memory and timing evidence.
 
+The separate 50 MP B10 reference task keeps one MCP server alive across a
+reviewed edit, preview, exports, undo, redo and independent judging. Its
+previous Linux measurement recorded resident memory. Test whether the same
+server can complete the full task under a 512 MiB address-space limit and
+close cleanly. Compare its deliveries with the original CLI and Windows
+references. Require the original fixture and artifact checks, and retain the
+original peak-commit verdict in the benchmark report.
+
 ## Marked vector print pages
 
 The B14 print benchmark already covers unmarked pages with native inks and

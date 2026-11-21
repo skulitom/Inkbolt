@@ -184,6 +184,49 @@ else:
         self.assertFalse(directory.exists())
         self.assertEqual(process.memory(), observed)
 
+    def test_stream_limit_covers_later_requests_and_is_checked_at_shutdown(self):
+        cap = 96 * 1024**2
+        script = """import errno, mmap, resource, sys
+for line in sys.stdin:
+    if line.strip() == 'reserve':
+        try:
+            mmap.mmap(-1, 128 * 1024**2).close()
+        except OSError as err:
+            if err.errno != errno.ENOMEM: raise
+            print('refused', flush=True)
+        else:
+            print('reserved', flush=True)
+    elif line.strip() == 'hold':
+        reservation = mmap.mmap(-1, 32 * 1024**2)
+        print('held', flush=True)
+    elif line.strip() == 'release':
+        reservation.close()
+        print('released', flush=True)
+    else:
+        print(resource.getrlimit(resource.RLIMIT_AS), flush=True)
+"""
+        process = memory.Process([sys.executable, '-c', script], stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, address_space_limit=cap)
+        self.addCleanup(process.close)
+        for request, expected in [('initial', str((cap, cap))), ('hold', 'held'), ('release', 'released'),
+                                  ('reserve', 'refused'), ('final', str((cap, cap)))]:
+            process.stdin.write((request+'\n').encode())
+            process.stdin.flush()
+            self.assertEqual(process.stdout.readline().decode().strip(), expected)
+            if request == 'hold':
+                held = process.virtual_peak_bytes()
+        self.assertGreater(held, 32 * 1024**2)
+        self.assertGreaterEqual(process.virtual_peak_bytes(), held)
+        self.assertLessEqual(process.virtual_peak_bytes(), cap)
+        process.stdin.close()
+        self.assertEqual(process.wait(timeout=5), 0)
+        self.assertEqual(process.memory()['address_space_limit'],
+                         dict(method=memory.LIMIT_METHOD, soft_bytes=cap, hard_bytes=cap))
+        self.assertFalse(process.memory()['available'])
+        self.assertEqual(process.stderr.read(), b'')
+        with self.assertRaises(RuntimeError):
+            process.virtual_peak_bytes()
+
     def test_stream_stop_before_startup_still_reaps_and_records_memory(self):
         for _ in range(3):
             process = self.stream('import time; time.sleep(30)')
