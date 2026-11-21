@@ -11,29 +11,28 @@ an account, network service, telemetry or a particular AI model.
 
 ## Get started
 
-[Download the release for your system](https://github.com/skulitom/Inkbolt/releases/latest)
-and extract it. Create a workspace folder, then configure your MCP client to
-launch the extracted binary with that folder's absolute path.
+[Download the archive for your system](https://github.com/skulitom/Inkbolt/releases/latest)
+and extract it into a folder you can write to. The 0.84 archive includes an
+editable [postcard](examples/first-png.json). Open PowerShell or a Unix shell
+in the extracted folder and render it with one command.
+
+```text
+./inkbolt --workspace "$PWD" examples/first-png.json
+```
+
+Open `postcard.png` next to the executable. To try another palette, change a
+fill in the JSON and give the output a new filename. For earlier downloads or
+the first launch on macOS, see [installation](docs/INSTALLATION.md#use-a-release).
+
+To connect an agent, create a folder for its artwork. Configure your MCP client
+to launch the extracted executable with that folder's absolute path.
 
 ```text
 inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools essentials
 ```
 
-This command exposes ten tools at startup. An agent can look up individual editing
-commands as it works. The release page lists archives by operating system and
-CPU, plus a desktop extension for Windows. [Installation and client setup](docs/INSTALLATION.md)
-
-To make your first PNG, copy the [postcard example](examples/first-png.json)
-into an empty workspace folder. Starting with 0.84, the example comes in the
-archive under `examples/`. Open PowerShell or a Unix shell in the workspace and
-run this command with `inkbolt` on your path.
-
-```text
-inkbolt --workspace "$PWD" first-png.json
-```
-
-Open `postcard.png` to see the four vector shapes. To try a different palette,
-change a fill in the JSON and give the output a new filename.
+The agent starts with ten tools and can look up editing commands as it works.
+A desktop extension is also available for Windows. [Installation and client setup](docs/INSTALLATION.md)
 
 ## What you can make
 

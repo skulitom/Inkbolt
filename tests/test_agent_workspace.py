@@ -45,11 +45,12 @@ class AgentWorkspaceTests(unittest.TestCase):
         return dict(session_id='work', revision=revision)
 
     def test_readme_first_png_from_an_empty_workspace(self):
-        request = self.root / 'first-png.json'
+        request = self.root / 'examples' / 'first-png.json'
+        request.parent.mkdir()
         examples = Path(os.environ.get('INKBOLT_TEST_EXAMPLES', ROOT / 'examples'))
         source = (examples / request.name).read_bytes()
         request.write_bytes(source)
-        command = [str(EXE), '--workspace', str(self.root), request.name]
+        command = [str(EXE), '--workspace', str(self.root), 'examples/first-png.json']
         first = subprocess.run(command, cwd=self.root, capture_output=True, check=True, timeout=20)
         self.assertTrue(json.loads(first.stdout)['ok'])
         output = self.root / 'postcard.png'
