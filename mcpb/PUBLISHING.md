@@ -41,6 +41,31 @@ Publication requires the release, verifies the bundle's attestation from the Rel
 
 ## Local distribution checks
 
+### Release size and startup
+
+Release builds use ThinLTO, one code generation unit and symbol stripping.
+Panic unwinding preserves the MCP and job-worker recovery paths. Ordinary
+development verification uses the development profile.
+
+At `6d91a43`, two clean locked builds on each machine used the same source,
+toolchain and packaging commands. Only the release profile differed. Each of
+the four extracted archives passed all eight installation checks.
+
+| Local x64 measurement | Windows standard → tuned | WSL Linux standard → tuned |
+| --- | ---: | ---: |
+| Executable (bytes) | 35,015,168 → 33,854,464 | 33,316,456 → 25,918,720 |
+| Download (bytes) | 11,488,957 → 11,402,598 | 11,251,511 → 10,474,457 |
+| Clean release build (seconds) | 273 → 673 | 163 → 390 |
+| CLI version, median (ms) | 9.51 → 9.37 | 1.31 → 1.17 |
+| MCP initialize, median (ms) | 18.97 → 18.20 | 12.38 → 11.50 |
+
+The startup measurements used 30 interleaved launches per binary and command
+after two warm-ups. CLI timing includes process exit. MCP timing ends when the
+first initialization response arrives. The smaller downloads cost additional
+time at release build time.
+
+### Test an extracted archive
+
 The release workflow extracts each native archive on its target OS, compares
 the executable with the locked release build, and checks the packaged notices
 and version. It then runs eight CLI and MCP tests with the extracted

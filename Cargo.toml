@@ -39,3 +39,9 @@ libc = "=0.2.190"
 # Keep those content checks while avoiding unoptimized hash compression in tests.
 [profile.dev.package.sha2]
 opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "unwind"
