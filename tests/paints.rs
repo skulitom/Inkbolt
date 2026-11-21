@@ -51,6 +51,40 @@ fn sample(paint: Value, point: [f64; 2]) -> [u8; 4] {
 }
 
 #[test]
+fn transformed_gradient_hard_stops_select_the_right_side_at_exact_pixel_centers() {
+    let before = [220, 28, 19, 40];
+    let after = [33, 80, 203, 240];
+    let stops = json!([{"offset":0,"color":before},{"offset":0.5,"color":before},
+                       {"offset":0.5,"color":after},{"offset":1,"color":after}]);
+    for transform in [
+        [1.5, 0.0, 0.0, 0.75, 14.0, 11.0],
+        [0.0, 1.5, -0.75, 0.0, 11.0, 14.0],
+    ] {
+        for direction in [[9.0, 12.0], [-9.0, 12.0], [15.0, 0.0], [-15.0, 0.0]] {
+            // The radial distance and the axial projection both hit the half
+            // stop at one direction vector from the gradient origin.
+            let [dx, dy] = direction;
+            for field in [
+                json!({"type":"radial","center":[32,38],"radius":30,"transform":transform,"stops":stops}),
+                json!({"type":"linear","start":[32,38],"end":[32.0+2.0*dx,38.0+2.0*dy],"transform":transform,"stops":stops}),
+            ] {
+                let near = 1.0 / 1_048_576.0;
+                for (factor, expected) in [(1.0 - near, before), (1.0, after), (1.0 + near, after)]
+                {
+                    let x = 32.0 + factor * dx;
+                    let y = 38.0 + factor * dy;
+                    let canvas = [
+                        transform[0] * x + transform[2] * y + transform[4],
+                        transform[1] * x + transform[3] * y + transform[5],
+                    ];
+                    assert_eq!(sample(field.clone(), canvas), expected);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn editable_linear_endpoints_and_all_monotonic_pixels() {
     for kind in ["vector", "raster"] {
         let original = create(kind, 9, 3);

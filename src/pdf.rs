@@ -91,6 +91,8 @@ struct Writer {
     ink_spaces: BTreeMap<String, usize>,
     page_has_spot_paint: bool,
     page_requires_backdrop: bool,
+    page_bbox: String,
+    gradient_opacity_masks: usize,
     page_uses_blends: bool,
     non_normal_modes: BTreeSet<&'static str>,
     device_profiles: BTreeMap<String, usize>,
@@ -334,7 +336,12 @@ fn clip(
     Ok(())
 }
 
-fn gradient(writer: &mut Writer, field: &crate::paint::Field) -> Result<(usize, u8), Error> {
+fn gradient(
+    writer: &mut Writer,
+    stream: &mut Stream,
+    field: &crate::paint::Field,
+    paint_matrix: Matrix,
+) -> Result<(), Error> {
     use crate::paint::{Field, Interpolation, Spread};
     let (kind, coordinates, stops, spread, space) = match field {
         Field::Linear {
@@ -383,12 +390,9 @@ fn gradient(writer: &mut Writer, field: &crate::paint::Field) -> Result<(usize, 
             ));
         }
     };
-    if *spread != Spread::Pad
-        || *space != Interpolation::Srgb
-        || stops.iter().any(|s| s.color[3] != stops[0].color[3])
-    {
+    if *spread != Spread::Pad || *space != Interpolation::Srgb {
         return Err(unsupported(
-            "PDF gradients require pad spread, encoded-sRGB interpolation and constant alpha",
+            "PDF gradients require pad spread and encoded-sRGB interpolation",
         ));
     }
     // Extend endpoint colors and retain duplicated-offset discontinuities by
@@ -406,6 +410,54 @@ fn gradient(writer: &mut Writer, field: &crate::paint::Field) -> Result<(usize, 
     // supplies padding even when offset 1 is a discontinuity. Doubling both the
     // shading extent and domain preserves the original gradient slope.
     positions.push(2.0);
+    let coords = numbers(&coordinates)?;
+    let transform = numbers(&geometry::multiply(paint_matrix, field.transform()))?;
+    let color = gradient_shading(writer, kind, &coords, stops, &positions, false)?;
+    let alpha = stops[0].color[3];
+    if stops.iter().all(|s| s.color[3] == alpha) {
+        graphics_state(writer, stream, f64::from(alpha) / 255.0, BlendMode::Normal)?;
+    } else {
+        let opacity = gradient_shading(writer, kind, &coords, stops, &positions, true)?;
+        // The mask is established in the item's page coordinates. Apply the
+        // paint transform inside the mask, just as for the color shading below.
+        let mut mask_stream = Stream {
+            default_rgb: writer.default_rgb,
+            content: format!("{transform} cm\n"),
+            ..Stream::default()
+        };
+        mask_stream.use_resource("Shading", opacity, "sh");
+        let mask = writer.stream(
+            &format!("/Type /XObject /Subtype /Form /BBox [{}] /Group << /S /Transparency /CS /DeviceGray /I true >> /Resources {}",
+                writer.page_bbox, mask_stream.dictionary(None)),
+            mask_stream.content.as_bytes(),
+        )?;
+        graphics_state(writer, stream, 1.0, BlendMode::Normal)?;
+        let state = writer.add(format!(
+            "<< /Type /ExtGState /SMask << /S /Luminosity /G {mask} 0 R /BC [0] >> >>"
+        ))?;
+        stream.use_resource("ExtGState", state, "gs");
+        writer.page_requires_backdrop = true;
+        writer.gradient_opacity_masks += 1;
+    }
+    stream.content.push_str(&format!("{transform} cm\n"));
+    stream.use_resource("Shading", color, "sh");
+    Ok(())
+}
+
+fn gradient_shading(
+    writer: &mut Writer,
+    kind: u8,
+    coords: &str,
+    stops: &[crate::paint::Stop],
+    positions: &[f64],
+    alpha: bool,
+) -> Result<usize, Error> {
+    let (space, channels) = if alpha {
+        ("DeviceGray", 3..4)
+    } else {
+        ("DeviceRGB", 0..3)
+    };
+    let components = |color: Color| numbers(&color.map(|v| f64::from(v) / 255.0)[channels.clone()]);
     let mut functions = Vec::new();
     for interval in positions.windows(2) {
         let lo = stops
@@ -417,18 +469,8 @@ fn gradient(writer: &mut Writer, field: &crate::paint::Field) -> Result<(usize, 
             .iter()
             .find(|s| s.offset >= interval[1])
             .unwrap_or(stops.last().unwrap());
-        let c0 = numbers(
-            &lo.color[..3]
-                .iter()
-                .map(|&v| v as f64 / 255.0)
-                .collect::<Vec<_>>(),
-        )?;
-        let c1 = numbers(
-            &hi.color[..3]
-                .iter()
-                .map(|&v| v as f64 / 255.0)
-                .collect::<Vec<_>>(),
-        )?;
+        let c0 = components(lo.color)?;
+        let c1 = components(hi.color)?;
         let f = writer.add(format!(
             "<< /FunctionType 2 /Domain [0 1] /C0 [{c0}] /C1 [{c1}] /N 1 >>"
         ))?;
@@ -440,8 +482,7 @@ fn gradient(writer: &mut Writer, field: &crate::paint::Field) -> Result<(usize, 
         functions.join(" "),
         vec!["0 1"; functions.len()].join(" ")
     ))?;
-    let shading = writer.add(format!("<< /ShadingType {kind} /ColorSpace /DeviceRGB /Domain [0 2] /Coords [{}] /Function {function} 0 R /Extend [true true] >>", numbers(&coordinates)?))?;
-    Ok((shading, stops[0].color[3]))
+    writer.add(format!("<< /ShadingType {kind} /ColorSpace /{space} /Domain [0 2] /Coords [{coords}] /Function {function} 0 R /Extend [true true] >>"))
 }
 
 fn paint(
@@ -479,14 +520,8 @@ fn paint(
             });
         }
         Paint::Field(field) => {
-            let (shading, opacity) = gradient(writer, field)?;
             clip(writer, stream, shape, shape_matrix, rule)?;
-            graphics_state(writer, stream, opacity as f64 / 255.0, BlendMode::Normal)?;
-            stream.content.push_str(&format!(
-                "{} cm\n",
-                numbers(&geometry::multiply(paint_matrix, field.transform()))?
-            ));
-            stream.use_resource("Shading", shading, "sh");
+            gradient(writer, stream, field, paint_matrix)?;
         }
         Paint::Precise(color) => {
             graphics_state(writer, stream, color.rgba[3], BlendMode::Normal)?;
@@ -824,9 +859,8 @@ fn items(
         };
         let id = writer.stream(
             &format!(
-                "/Type /XObject /Subtype /Form /FormType 1 /BBox [0 0 {} {}] /Resources {} {group}",
-                document.width,
-                document.height,
+                "/Type /XObject /Subtype /Form /FormType 1 /BBox [{}] /Resources {} {group}",
+                writer.page_bbox,
                 stream.dictionary(None)
             ),
             stream.content.as_bytes(),
@@ -997,6 +1031,7 @@ pub fn export_controlled(
         let page = scoped.as_ref().unwrap_or(document);
         let packet = metadata::packet(page, ExportFormat::Pdf, 1, policy.unwrap_or_default())?;
         let logical = crate::vector_canvas::logical_size(page);
+        writer.page_bbox = format!("0 0 {} {}", page.width, page.height);
         let viewport = page
             .vector_canvas
             .map(|c| crate::vector_canvas::translated(page, c.origin_px.map(|v| -v)))
@@ -1206,10 +1241,15 @@ pub fn export_controlled(
     let black_point = writer.explicit_black_point;
     let corrected_endpoints = writer.corrected_blend_endpoints();
     let blend_modes = writer.non_normal_modes.clone();
+    let gradient_opacity_masks = writer.gradient_opacity_masks;
     let bytes = writer.finish(catalog, info)?;
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
     result["pdf"]["version"] = json!(version);
+    if gradient_opacity_masks > 0 {
+        result["pdf"]["gradient_opacity_masks"] = json!(gradient_opacity_masks);
+        result["losses"].as_array_mut().unwrap().push(json!("Gradient opacity is retained as a vector shading. At a hard stop, a PDF reader can sample both sides of the transition within one pixel and display a different edge color from the Inkbolt preview."));
+    }
     if !blend_modes.is_empty() {
         result["pdf"]["blend_modes"] = json!(blend_modes);
         result["losses"].as_array_mut().unwrap().push(json!("The PDF reader computes the native blends. Readers can differ on translucent colors and produce visible hue or saturation shifts, especially near gray. Use a PNG proof when the exact rendered pixels matter."));

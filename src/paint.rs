@@ -315,6 +315,7 @@ pub struct Sampler<'a> {
     mesh: Option<crate::meshes::Prepared>,
     paint: &'a Paint,
     inverse: Matrix,
+    canvas_origin: Point,
     tile: Vec<u8>,
 }
 impl<'a> Sampler<'a> {
@@ -330,7 +331,21 @@ impl<'a> Sampler<'a> {
             }
             Paint::Field(f) => f.transform(),
         };
-        let inverse = geometry::inverse(geometry::multiply(world, transform))?;
+        let forward = geometry::multiply(world, transform);
+        let mut inverse = geometry::inverse(forward)?;
+        // Remove the authored translation before applying the inverse basis.
+        // A separately rounded inverse translation can move a pixel center to
+        // the wrong side of a repeated gradient stop.
+        let canvas_origin = if matches!(
+            paint,
+            Paint::Field(Field::Linear { .. } | Field::Radial { .. })
+        ) {
+            inverse[4] = 0.0;
+            inverse[5] = 0.0;
+            [forward[4], forward[5]]
+        } else {
+            [0.0, 0.0]
+        };
         let tile = match paint {
             Paint::Field(Field::Pattern { rgba_hex, .. }) => crate::render::unhex(rgba_hex),
             _ => Vec::new(),
@@ -343,11 +358,18 @@ impl<'a> Sampler<'a> {
             mesh,
             paint,
             inverse,
+            canvas_origin,
             tile,
         })
     }
     pub fn sample(&self, canvas: Point) -> [f64; 4] {
-        let p = geometry::map(self.inverse, canvas);
+        let p = geometry::map(
+            self.inverse,
+            [
+                canvas[0] - self.canvas_origin[0],
+                canvas[1] - self.canvas_origin[1],
+            ],
+        );
         match self.paint {
             Paint::Field(Field::Mesh { .. }) => self.mesh.as_ref().unwrap().sample(p),
             Paint::Solid(c) => c.map(|v| v as f64 / 255.0),

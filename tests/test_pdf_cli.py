@@ -224,10 +224,12 @@ class PdfTests(unittest.TestCase):
         for key,value in [('spread','reflect'),('space','linear_rgb')]:
             paint[key]=value;self.assertEqual(self.export(d,1)['code'],'UNSUPPORTED');paint.pop(key)
         paint['stops'][1]['color'][3]=0
-        self.assertEqual(self.export(d,1)['code'],'UNSUPPORTED')
+        self.assertEqual(self.export(d)['pdf']['gradient_opacity_masks'],1)
         paint['stops'][1]['color'][3]=255
         red['mask']=dict(width=1,height=1,gray_hex='80',enabled=False)
-        self.assertEqual(len(Pdf(self.export(d)).pages),1)
+        solid_alpha=self.export(d)
+        self.assertNotIn('gradient_opacity_masks',solid_alpha['pdf'])
+        self.assertEqual(len(Pdf(solid_alpha).pages),1)
 
     def test_document_scaled_and_object_scaled_stroke_bounds_remain_distinct(self):
         d=self.fixture();d['items']=[]

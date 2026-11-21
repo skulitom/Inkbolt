@@ -30,6 +30,35 @@ space through the final judge response. Both transports delivered the same
 TIFFs and PNG as the earlier unrestricted Linux and Windows references.
 The benchmark retains its separate peak-commit verdict.
 
+## Gradient opacity in vector PDF
+
+At `be47f9f` a two-stop fade rendered as PNG and failed PDF export. The
+exporter now preserves the color and opacity ramps as axial or radial
+shadings. Independent checks cover smooth fades, repeated interior and
+terminal stops, transform alignment, partial group opacity, strokes, artboard
+bleed and create-only publication. A white fade over native process black
+also lifted only the black plate in the measured 64-column strip.
+
+Windows and WSL Linux produced byte-identical PDFs and PNGs on eight
+128 × 88 sheets. They cover both gradient kinds, smooth and abrupt stops,
+and default or explicitly assigned working sRGB. The four-times-resolution
+reader checks compare the four central subsamples with an independently
+calculated logical pixel center. Inkbolt's PNG, composited onto white, came
+within one 8-bit channel level on all 90,112 pixels. Subtracting the gradient
+translation before applying the inverse basis fixed four distinct pixel
+centers that previously took the wrong side of a radial hard stop.
+
+| Independent reader | Largest color difference outside the hard-stop band, 88,884 pixels | Largest color difference within the band, 1,228 pixels |
+| --- | ---: | ---: |
+| MuPDF 1.26.12 on Windows and Ubuntu | 5 | 68 |
+| Poppler 26.07.0 on Windows and 22.02.0 on Ubuntu | 3 | 60 |
+
+The band covers pixels whose projected footprint can touch a repeated stop.
+The regression checks the range of colors and opacities available across
+that footprint. The PDF functions themselves retain the exact authored stops
+on either side. The eight sheets contain zero embedded image pixels.
+[Regression fixtures](../tests/test_pdf_gradient_opacity.py) · [Export contract](PDF.md#gradients-that-fade-to-transparent)
+
 ## Vector PDF blend delivery
 
 The B14 page workflow and W6a.3 require artwork to survive PDF delivery.

@@ -83,9 +83,8 @@ for unmarked pages. Callers using `..Default::default()` already get that value.
   Each positioned glyph remains a vector path. No font files, searchable text,
   semantic tags or editable text objects are embedded. Keep the original snapshot
   and licensed resource store to retain source text, font controls and editability.
-- Solid RGBA, isolated/pass-through groups, item/fill opacity,
-  axial/radial pad gradients with encoded-sRGB interpolation and constant alpha
-  are supported. Gradient duplicate-stop discontinuities retain their two sides.
+- Solid RGBA, isolated/pass-through groups and item/fill opacity are supported.
+  Axial and radial pad gradients retain encoded-sRGB color and per-stop opacity.
   Shapes with fill and stroke composite before item opacity is applied.
 - Verified placed images retain exact cropped RGB8 samples and a gray8 alpha
   soft mask, with interpolation disabled. Inline raster layers also work.
@@ -102,6 +101,33 @@ other paint/sampling semantics return explicit errors. Hidden referenced fonts
 and resources are still validated. Unsupported items outside selected owned
 subtrees do not enter those exports. A scene view prepares all shared artwork,
 including off-view resources and unsupported items.
+
+### Gradients that fade to transparent
+
+In a source build after v0.84.0, give each gradient stop an RGBA color. For
+example, this vector fill fades from opaque blue to transparent blue over
+128 document units.
+
+```json
+{
+  "type": "linear",
+  "start": [0, 0],
+  "end": [128, 0],
+  "stops": [
+    {"offset": 0, "color": [30, 100, 220, 255]},
+    {"offset": 1, "color": [30, 100, 220, 0]}
+  ]
+}
+```
+
+PDF export writes a color shading and a grayscale opacity shading with the
+same transform, stop offsets and padding. Both stay vector-based in fills and
+strokes. Equal stop opacities use one constant graphics-state opacity.
+`pdf.gradient_opacity_masks` counts the varying-opacity paints on the
+selected pages. A repeated offset makes a hard stop. At output pixels that
+touch the stop, readers can render visibly different edge colors. The receipt
+flags that behavior. Marked RGB pages still require opaque artwork.
+[Measured examples](DEVELOPMENT_STATUS.md#gradient-opacity-in-vector-pdf) · [PDF transparency specification](https://pdfa.org/resource/iso-32000-2/)
 
 ### RGB blend modes
 
@@ -137,7 +163,7 @@ white can produce white. The corrected results are white and black respectively.
 
 ## Calibrated page colour
 
-An explicit document `output_profile` embeds its exact RGB ICC bytes as the page and isolated-group blending space. The profile must support both conversion directions. Every resource scope maps otherwise untyped RGB paint and images to the fixed builtin sRGB profile through `DefaultRGB`; retained managed paints keep their source profiles and per-paint intent. No source numbers are rewritten. Physical Lab and profiled grayscale/CMYK paints retain their declared interpretation. Untagged CMYK paint and spot alternates fail in this calibrated RGB mode; assign an explicit printing condition or use the native process delivery contract. An explicit CMYK vector canvas also requires its native delivery policy.
+An explicit document `output_profile` embeds its exact RGB ICC bytes as the page and isolated artwork groups' blending space. Gradient opacity masks use DeviceGray so their values remain scalar opacity. The profile must support both conversion directions. Every resource scope maps otherwise untyped RGB paint and images to the fixed builtin sRGB profile through `DefaultRGB`; retained managed paints keep their source profiles and per-paint intent. No source numbers are rewritten. Physical Lab and profiled grayscale/CMYK paints retain their declared interpretation. Untagged CMYK paint and spot alternates fail in this calibrated RGB mode; assign an explicit printing condition or use the native process delivery contract. An explicit CMYK vector canvas also requires its native delivery policy.
 
 Managed paint and calibrated page sources explicitly disable optional black-point compensation through PDF 2.0 `UseBlackPtComp OFF`. The file header and receipt declare version 2.0. Older consumers can ignore this setting, and different lookup interpolation or legacy v2 perceptual black normalization can still change appearance. See the [PDF Association application note](https://pdfa.org/resource/pdf-2-0-application-note-001-black-point-compensation/) for the format control. Native ink delivery without a page profile retains its DeviceCMYK blending contract. Flattened print, native plate and independent ink-recipe paths retain their separate output-profile rules.
 
