@@ -3,6 +3,8 @@ import copy
 import shutil
 import struct
 import subprocess
+import tempfile
+from pathlib import Path
 import unittest
 
 from pdf_reader import Pdf
@@ -14,6 +16,20 @@ import test_boards_cli as boards
 from test_path_text_cli import line
 from test_pdf_blends_cli import pymupdf
 import test_story_cli as story_cli
+
+
+def extracted_text(data):
+    # Both Poppler and Xpdf accept filenames. Xpdf's Windows CLI requires them.
+    with tempfile.TemporaryDirectory() as directory:
+        source = Path(directory) / "artwork.pdf"
+        output = Path(directory) / "extracted.txt"
+        source.write_bytes(data)
+        subprocess.run(
+            ["pdftotext", "-enc", "UTF-8", str(source), str(output)],
+            check=True,
+            timeout=10,
+        )
+        return output.read_text(encoding="utf-8").rstrip("\r\n\f")
 
 
 def cff_index(entries):
@@ -278,12 +294,7 @@ class SearchablePdfTests(unittest.TestCase):
                                 parsed[0].get_text().rstrip("\r\n"), source
                             )
                     if shutil.which("pdftotext"):
-                        text = subprocess.check_output(
-                            ["pdftotext", "-enc", "UTF-8", "-", "-"],
-                            input=pdf.data,
-                            timeout=10,
-                        )
-                        self.assertEqual(text.decode().rstrip("\r\n\f"), source)
+                        self.assertEqual(extracted_text(pdf.data), source)
 
     @unittest.skipUnless(pymupdf, "MuPDF renders the colored combining clusters")
     def test_scaled_combining_marks_match_outline_coverage_and_fill(self):
@@ -466,9 +477,9 @@ class SearchablePdfTests(unittest.TestCase):
                         self.assertLess(error / sum(reference_alpha), 0.005)
 
     @unittest.skipUnless(
-        shutil.which("pdftotext"), "Poppler independently extracts source text"
+        shutil.which("pdftotext"), "An independent pdftotext executable is required"
     )
-    def test_poppler_extraction(self):
+    def test_pdftotext_extraction(self):
         source = "AB fi é"
         for cff in (False, True):
             for whole in (False, True):
@@ -476,9 +487,4 @@ class SearchablePdfTests(unittest.TestCase):
                     self.install(font_bytes(cff, 0x108 if whole else 8))
                     doc = self.document(text=source, wrap=False)
                     actual = Pdf(self.export(doc, "require_searchable")).data
-                    output = subprocess.check_output(
-                        ["pdftotext", "-enc", "UTF-8", "-", "-"],
-                        input=actual,
-                        timeout=10,
-                    )
-                    self.assertEqual(output.decode().rstrip("\r\n\f"), source)
+                    self.assertEqual(extracted_text(actual), source)
