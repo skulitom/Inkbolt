@@ -2156,6 +2156,7 @@ fn capability_report() -> Value {
     });
     capabilities["agent_discovery"] = json!({
         "cli_help_arguments":["--help","-h"],
+        "cli_result_only_argument":"--result-only",
         "cli_version_argument":"--version",
         "cli_diagnostics_argument":"doctor",
         "cli_help_workspace_defaults":"workspace_defaults;relative_to_explicit_workspace_only",

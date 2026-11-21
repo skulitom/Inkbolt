@@ -1,5 +1,12 @@
 # Compact session responses
 
+To save a CLI receipt or pass it to another program, add `--result-only`.
+For example, `inkbolt --workspace "$PWD" --result-only recover.json` writes the
+result of the request directly to stdout. On failure, stdout is empty and
+stderr carries the usual JSON error object. Check the exit status before
+saving the result. The option also works with requests on stdin. Set
+`response_mode` in the request to choose the compact or full result.
+
 For a dry run whose full result belongs on disk, supply `review_output`.
 The reply carries the proposal for the commit, a change summary and the
 hash of the complete review file. [Saved review example](SESSION_PROPOSALS.md#save-the-review-to-a-file)

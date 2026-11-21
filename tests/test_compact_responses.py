@@ -1,6 +1,7 @@
 """Compact results retain recoverable state and leave durable retry identity unchanged."""
 from contextlib import closing
 import json
+import subprocess
 import unittest
 
 import test_agent_workspace as workspace
@@ -59,6 +60,15 @@ class CompactResponseTests(unittest.TestCase):
             self.assertEqual(retry['receipt_summary']['change_count'], 1)
             receipt = c.tool('run', command='session.receipt', arguments=dict(**retry['receipt_ref'], response_mode='compact'))['structuredContent']['result']
             self.assertEqual(receipt, retry)
+            source = self.root / 'recover.json'
+            source.write_text(json.dumps(dict(command='session.receipt', **retry['receipt_ref'],
+                                              response_mode='compact')), encoding='utf-8')
+            flag = self.cli('capabilities')['agent_discovery']['cli_result_only_argument']
+            for args, payload in [([flag, '--workspace', str(self.root), source.name], b''),
+                                  (['--workspace', str(self.root), flag], source.read_bytes())]:
+                raw = subprocess.run([str(workspace.EXE), *args], input=payload, capture_output=True, timeout=20)
+                self.assertEqual((raw.returncode, raw.stderr), (0, b''))
+                self.assertEqual(json.loads(raw.stdout), receipt)
             self.assertEqual(c.success('document.render', document=retry['document_ref'])['data'], bytes([5, 75, 155, 255] * 4).hex())
             current = c.success('session.read', session_id='work', response_mode='compact')
             self.assertEqual(c.success('document.render', document=current['document_ref'])['data'], bytes(16).hex())
@@ -71,6 +81,25 @@ class CompactResponseTests(unittest.TestCase):
             self.assertEqual(read['snapshot_count'], 1)
             self.assertEqual(c.success('document.render', document=read['document_ref'])['data'], bytes(16).hex())
         self.assertEqual(self.cli('session.read', session_id='work')['current_revision'], 4)
+
+    def test_result_only_errors_leave_stdout_empty_and_keep_structured_details(self):
+        payload = json.dumps(dict(command='session.create', session_id='work', request_id='new',
+                                  document=self.document())).encode()
+        for args, request, code in [
+            ([], b'{', 'INVALID_REQUEST'),
+            (['missing.json'], b'', 'IO_ERROR'),
+            ([], b'{"command":"session.receipt","session_id":"work","request_id":"x"}', 'SESSION_NOT_FOUND'),
+            (['--result-only'], payload, 'INVALID_REQUEST'),
+            (['mcp', '--tools', 'core'], b'', 'INVALID_REQUEST'),
+        ]:
+            with self.subTest(args=args, code=code):
+                proc = subprocess.run([str(workspace.EXE), '--result-only', '--workspace', str(self.root), *args],
+                                      input=request, capture_output=True, timeout=20)
+                self.assertEqual((proc.returncode, proc.stdout), (1, b''))
+                failure = json.loads(proc.stderr)
+                self.assertFalse(failure['ok'])
+                self.assertEqual(failure['error']['code'], code)
+        self.assertFalse((self.root / '.inkbolt').exists())
 
     def test_invalid_or_unsupported_response_policy_fails_before_mutation(self):
         doc = self.document()
