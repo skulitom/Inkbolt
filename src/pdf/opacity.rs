@@ -6,38 +6,79 @@ use crate::{
     model::{Matrix, limit},
 };
 
-pub(super) fn mask_dictionary(
+/// Both fields reference one prepared grayscale form. A knockout subtree
+/// needs its unweighted mask as well as the ordinary, owner-weighted state.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct States {
+    pub paint: usize,
+    pub shape: usize,
+}
+
+pub(super) struct Field {
+    entries: String,
+    form: usize,
+}
+
+pub(super) fn gray_form(writer: &mut Writer, stream: &Stream) -> Result<usize, Error> {
+    let dictionary = format!(
+        "/Type /XObject /Subtype /Form /BBox [{}] /Group << /S /Transparency /CS /DeviceGray /I true >> /Resources {}",
+        writer.page_bbox,
+        stream.dictionary(None)
+    );
+    writer.form(&dictionary, stream)
+}
+
+pub(super) fn field(
     writer: &mut Writer,
     stream: Stream,
     mode: crate::artwork_masks::Mode,
     outside: f64,
-    owner_opacity: f64,
-) -> Result<(String, usize), Error> {
-    let form = writer.form(
-        &format!("/Type /XObject /Subtype /Form /BBox [{}] /Group << /S /Transparency /CS /DeviceGray /I true >> /Resources {}",
-            writer.page_bbox, stream.dictionary(None)),
-        &stream,
-    )?;
+) -> Result<Field, Error> {
+    let form = gray_form(writer, &stream)?;
     use crate::artwork_masks::Mode;
     let entries = match mode {
         Mode::Alpha => format!("/S /Alpha /G {form} 0 R"),
         Mode::Luminance => format!("/S /Luminosity /G {form} 0 R /BC [{}]", number(outside)?),
     };
+    Ok(Field { entries, form })
+}
+
+impl Field {
     // Apply owner opacity to the completed field. Setting /ca on the same
     // group invocation can apply opacity twice in readers, and wrapping a
     // pass-through group can change the backdrop seen by its children.
-    let transfer = if owner_opacity == 1.0 {
-        String::new()
-    } else {
-        format!(
-            " /TR << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [{}] /N 1 >>",
-            number(owner_opacity)?
+    pub(super) fn state(&self, writer: &mut Writer, owner_opacity: f64) -> Result<usize, Error> {
+        let transfer = if owner_opacity == 1.0 {
+            String::new()
+        } else {
+            format!(
+                " /TR << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [{}] /N 1 >>",
+                number(owner_opacity)?
+            )
+        };
+        writer.mask_state(
+            format!(
+                "<< /Type /ExtGState /SMask << {}{transfer} >> >>",
+                self.entries
+            ),
+            self.form,
         )
-    };
-    Ok((
-        format!("<< /Type /ExtGState /SMask << {entries}{transfer} >> >>"),
-        form,
-    ))
+    }
+
+    pub(super) fn states(
+        &self,
+        writer: &mut Writer,
+        opacity: f64,
+        need_shape: bool,
+    ) -> Result<States, Error> {
+        let paint = self.state(writer, opacity)?;
+        let shape = if need_shape && opacity != 1.0 {
+            self.state(writer, 1.0)?
+        } else {
+            paint
+        };
+        Ok(States { paint, shape })
+    }
 }
 
 /// Returns no state when the entire field equals its constant exterior.
@@ -47,7 +88,8 @@ pub(super) fn grid_state(
     prepared: &masks::Prepared,
     world: Matrix,
     owner_opacity: f64,
-) -> Result<Option<usize>, Error> {
+    need_shape: bool,
+) -> Result<Option<States>, Error> {
     if mask.constant || mask.density == 0.0 {
         return Ok(None);
     }
@@ -118,14 +160,14 @@ pub(super) fn grid_state(
         }
         _ => unreachable!("validated scalar mask sampling"),
     }
-    let (dictionary, form) = mask_dictionary(
+    field(
         writer,
         stream,
         crate::artwork_masks::Mode::Luminance,
         prepared.outside,
-        owner_opacity,
-    )?;
-    writer.mask_state(dictionary, form).map(Some)
+    )?
+    .states(writer, owner_opacity, need_shape)
+    .map(Some)
 }
 
 fn bilinear_grid(

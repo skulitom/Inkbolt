@@ -1,7 +1,6 @@
 """Check PDF knockout colors and alpha against independent sibling-footprint math."""
 from contextlib import closing
 import base64
-import copy
 import math
 import shutil
 import unittest
@@ -83,6 +82,59 @@ def reader_samples(data, w, h):
 def white_pixel(rgb, w, x, y):
     pos = 3*((4*y+2)*4*w+4*x+2)
     return list(rgb[pos:pos+3])
+
+
+PANEL_W, PANEL_H = 60, 24
+# The alpha ramps and owner controls vary independently in the overlap.
+PATCHES = [
+    ('horizontal', 2, 1, 46, 19, [25, 175, 90, 204], .25, .6),
+    ('vertical', 17, 4, 38, 18, [216, 80, 35, 164], .8, 1),
+    ('hole', 29, 6, 17, 9, [15, 22, 160, 255], 0, 1),
+    ('top', 34, 11, 15, 10, [70, 115, 230, 255], 1, 1),
+]
+
+
+def faded_panel(kind, opacity):
+    member = (dict(type='frame', frame=dict(role='frame', width=50, height=20, background=BLUE))
+              if kind == 'frame' else dict(type='group', isolated=kind != 'through', knockout=kind == 'knockout'))
+    items = [rect('page', w=30, h=PANEL_H, color=BACK),
+             dict(id='root', content=dict(type='group', isolated=kind != 'through', knockout=True)),
+             rect('prior', w=PANEL_W, h=PANEL_H, parent='root', color=RED, opacity=.65),
+             dict(id='panel', parent='root', content=member, opacity=opacity, clip=box(1,1,56,21))]
+    for name,x,y,w,h,rgba,weight,fill in PATCHES:
+        paint = rgba
+        if name in ('horizontal','vertical'):
+            end = [x+w,y] if name=='horizontal' else [x,y+h]
+            paint = dict(type='linear', start=[x,y], end=end, stops=[
+                dict(offset=0,color=rgba[:3]+[0]),dict(offset=1,color=rgba)])
+        items.append(rect(name,x=x,y=y,w=w,h=h,parent='panel',color=paint,opacity=weight,fill_opacity=fill))
+    return paper(PANEL_W,PANEL_H,items)
+
+
+def panel_reference(kind, opacity, px, py):
+    def contribution(rgba, a):
+        return [a*c/255 for c in rgba[:3]]+[a]
+    f = 0.
+    child = [0.]*4
+    if 1 <= px < 57 and 1 <= py < 22 and (kind != 'frame' or (px < 50 and py < 20)):
+        if kind == 'frame':
+            f = BLUE[3]/255
+            child = contribution(BLUE, f)
+        for name,x,y,w,h,rgba,weight,fill in PATCHES:
+            if x <= px < x+w and y <= py < y+h:
+                coverage = rgba[3]/255
+                if name == 'horizontal':
+                    coverage *= (px-x)/w
+                if name == 'vertical':
+                    coverage *= (py-y)/h
+                a = coverage*weight*fill
+                retain = 1-(coverage if kind=='knockout' else a)
+                child = [d*retain+s for d,s in zip(child,contribution(rgba,a))]
+                f = coverage+f*(1-coverage)
+    prior = contribution(RED, .65*RED[3]/255)
+    group = [d*(1-f)+s*opacity for d,s in zip(prior,child)]
+    backdrop = contribution(BACK, BACK[3]/255 if px<30 else 0)
+    return [c+b*(1-group[3]) for c,b in zip(group,backdrop)]
 
 
 class PdfKnockoutTests(unittest.TestCase):
@@ -277,10 +329,6 @@ class PdfKnockoutTests(unittest.TestCase):
             self.cli('document.publish',document=doc,output=dict(format='pdf',file_name='bad.pdf',pdf_options=opts),
                      error='UNSUPPORTED')
         self.cli('document.export',document=dict(doc,output_profile=builtin('linear_srgb')),format='pdf',error='UNSUPPORTED')
-        nested = copy.deepcopy(doc)
-        nested['items'].append(dict(id='inner',parent='knock',content=dict(type='group')))
-        nested['items'].append(rect('faded',parent='inner',opacity=0))
-        self.assertEqual(self.cli('document.export',document=nested,format='pdf',error='UNSUPPORTED')['item_id'],'faded')
         through = sheet(False)
         through['items'][3]['blend'] = 'screen'
         self.assertEqual(self.cli('document.export',document=through,format='pdf',error='UNSUPPORTED')['item_id'],'ramp')
@@ -320,6 +368,175 @@ class PdfKnockoutTests(unittest.TestCase):
             self.assertEqual(published,Pdf(self.export(doc)).data)
             self.assertNotEqual(published,Pdf(self.export(dict(ref,revision=1))).data)
             self.assertEqual(run('document.publish',document=ref,output=out)['error']['code'],'OUTPUT_EXISTS')
+
+    def test_separately_faded_subgroups_match_a_color_and_coverage_reference(self):
+        for kind, weight in [('isolated',.65), ('through',1), ('knockout',.75), ('frame',.5), ('isolated',0)]:
+            with self.subTest(kind=kind, weight=weight):
+                doc = faded_panel(kind,weight)
+                out = self.export(doc)
+                pdf = Pdf(out)
+                self.assertEqual(out['pdf']['image_pixels'], 0)
+                if weight:
+                    self.assertEqual(out['pdf']['knockout_field_masks'], 1)
+                    self.assertEqual(out['pdf']['version'], '2.0')
+                    self.assertIn(b'/BM /ColorDodge', pdf.data)
+                else:
+                    self.assertNotIn('knockout_field_masks',out['pdf'])
+                png = png_pixels(base64.b64decode(self.cli('document.export',document=doc,format='png')['data']))[2]
+                for y in range(PANEL_H):
+                    for x in range(PANEL_W):
+                        ref = panel_reference(kind,weight,x+.5,y+.5)
+                        i = 4*(y*PANEL_W+x)
+                        a = png[i+3]
+                        self.assertLessEqual(abs(a-255*ref[3]),1)
+                        self.assertLessEqual(max(abs(c*a/255-255*v) for c,v in zip(png[i:i+3],ref)),1)
+                for reader, rgb in reader_samples(pdf.data, PANEL_W, PANEL_H):
+                    errors = []
+                    for y in range(PANEL_H):
+                        for x in range(PANEL_W):
+                            ref = panel_reference(kind,weight,x+.625,y+.625)
+                            want = [round(255*(v+1-ref[3])) for v in ref[:3]]
+                            errors.append(max(abs(c-e) for c,e in zip(white_pixel(rgb,PANEL_W,x,y),want)))
+                    self.assertLessEqual(max(errors), 6, (reader,kind))
+                    self.assertLessEqual(sum(errors)/len(errors), 2.1, (reader,kind))
+
+    def test_nested_knockouts_propagate_the_union_through_two_boundaries(self):
+        def knockout(id, **kw):
+            return dict(id=id,content=dict(type='group',knockout=True),**kw)
+        items = [knockout('root'), rect('red',w=16,h=4,parent='root',color=[255,0,0,255]),
+                 knockout('inner',parent='root',opacity=.75),
+                 rect('green',w=16,h=4,parent='inner',color=[0,255,0,128],opacity=.5),
+                 dict(id='pair',parent='inner',content=dict(type='group'),opacity=.6),
+                 rect('blue',w=12,h=4,parent='pair',color=[0,0,255,170],fill_opacity=.4),
+                 rect('clear',x=8,w=8,h=4,parent='pair',color=[255,255,255,255],opacity=0)]
+        out = self.export(paper(16,4,items))
+        self.assertEqual(out['pdf']['knockout_field_masks'], 2)
+        for reader, rgb in reader_samples(Pdf(out).data,16,4):
+            for x in range(16):
+                blue = 170/255 if x < 12 else 0
+                pair_shape = 1 if x >= 8 else blue
+                inner_shape = pair_shape+(1-pair_shape)*128/255
+                green = .75*(1-pair_shape)*.5*128/255
+                blue_ink = .75*.6*.4*blue
+                red = 1-inner_shape
+                white = 1-red-green-blue_ink
+                want = [round(255*(v+white)) for v in [red,green,blue_ink]]
+                self.assertLessEqual(max(abs(a-b) for a,b in zip(white_pixel(rgb,16,x,2),want)), 5, (reader,x))
+
+    def test_masked_pass_through_descendant_keeps_its_internal_backdrop(self):
+        items = [source(),rect('maskpatch',w=16,h=4,parent='source',color=[255,255,255,192]),
+                 dict(id='k',content=dict(type='group',knockout=True)),
+                 rect('red',w=16,h=4,parent='k',color=RED),
+                 dict(id='panel',parent='k',content=dict(type='group'),opacity=.8),
+                 rect('lower',w=14,h=4,parent='panel',color=BACK,opacity=.75),
+                 dict(id='through',parent='panel',content=dict(type='group',isolated=False),opacity=.6,
+                      artwork_mask=dict(source='source',mode='alpha',region=[0,0,16,4])),
+                 rect('top',x=4,w=12,h=4,parent='through',color=BLUE,blend='multiply',fill_opacity=.7)]
+        out = self.export(paper(16,4,items))
+        for reader,rgb in reader_samples(Pdf(out).data,16,4):
+            for x in range(16):
+                lo = premul(BACK) if x<14 else [0]*4
+                hi = premul(BLUE) if x>=4 else [0]*4
+                base = [v*.75 for v in lo]
+                painted = over(base,hi,opacity=.7,mode='multiply')
+                member = [b+(t-b)*.6*192/255 for b,t in zip(base,painted)]
+                shape = lo[3]+(1-lo[3])*hi[3]*192/255
+                group = [s*.8+b*(1-shape) for s,b in zip(member,premul(RED))]
+                want = [round(255*(v+1-group[3])) for v in group[:3]]
+                self.assertLessEqual(max(abs(a-b) for a,b in zip(white_pixel(rgb,16,x,2),want)), 6, (reader,x))
+
+    def test_first_member_needs_no_extra_footprint_paths(self):
+        doc = faded_panel('frame',.5)
+        doc['items'] = [item for item in doc['items'] if item['id']!='prior']
+        knockout = self.export(doc)['pdf']
+        self.assertNotIn('knockout_field_masks',knockout)
+        self.assertEqual(knockout['version'],'1.7')
+        root = next(item for item in doc['items'] if item['id']=='root')
+        root['content']['knockout'] = False
+        self.assertEqual(knockout['path_commands'],self.export(doc)['pdf']['path_commands'])
+
+    def test_recursive_field_masks_charge_the_existing_reference_depth(self):
+        items = []
+        for i in range(7):
+            placement = dict(parent=f'k{i-1}',opacity=.6) if i else {}
+            items.append(dict(id=f'k{i}',content=dict(type='group',knockout=True),**placement))
+            items.append(rect(f'paint{i}',w=5,h=4,color=[0,60,180,128],parent=f'k{i}',opacity=.5))
+        doc = paper(6,4,items)
+        output = dict(format='pdf',file_name='deep.pdf')
+        self.assertFalse(self.cli('document.preflight',document=doc,output=output)['ready'])
+        error = self.cli('document.publish',document=doc,output=output,error='RESOURCE_LIMIT')
+        self.assertIn('reference depth',error['message'])
+        self.assertIn(error['item_id'],[f'k{i}' for i in range(7)])
+        self.assertFalse((self.root/'deep.pdf').exists())
+
+    def test_one_masked_pixel_source_supplies_paint_and_footprint(self):
+        mask_field = dict(width=4,height=1,gray_hex='ff8040ff',transform=[4,0,0,4,0,0],linked=False)
+        reveal = dict(source='source',mode='alpha',region=[0,0,16,4])
+        items = [source(), rect('patch',w=16,h=4,parent='source',color=[0,0,0,192]),
+                 dict(id='k',content=dict(type='group',knockout=True)),
+                 layer('prior',[[255,0,0,255]],parent='k',transform=[16,0,0,4,0,0]),
+                 dict(id='panel',parent='k',content=dict(type='group'),opacity=.6,artwork_mask=reveal),
+                 layer('pixels',[[0,0,255,a] for a in (0,128,255,160)],parent='panel',
+                       transform=[4,0,0,4,0,0],opacity=.5,mask=mask_field)]
+        doc = dict(paper(16,4,items),kind='raster')
+        for member_mask in ['grid','artwork']:
+            if member_mask == 'artwork':
+                del items[-1]['mask']
+                items[-1]['artwork_mask'] = dict(reveal,linked=False)
+            out = self.export(doc)
+            self.assertEqual(out['pdf']['image_pixels'], 5)
+            self.assertEqual(out['pdf']['artwork_masks']['alpha'], 1 if member_mask=='grid' else 2)
+            pdf = Pdf(out)
+            images = [o for o in pdf.objects.values() if isinstance(o,dict) and o.get('Subtype')=='Image']
+            self.assertEqual(len(images),4 if member_mask=='grid' else 3)
+            for reader,rgb in reader_samples(pdf.data,16,4):
+                for i, (alpha, grid) in enumerate(zip((0,128,255,160),(255,128,64,255))):
+                    f = alpha/255 * (grid if member_mask=='grid' else 192)/255 * 192/255
+                    a = f*.5*.6
+                    want = [round(255*v) for v in (1-a,f-a,f)]
+                    actual = white_pixel(rgb,16,4*i+2,2)
+                    self.assertLessEqual(max(abs(c-v) for c,v in zip(actual,want)), 5, (reader,i,member_mask))
+
+    @unittest.skipUnless(pymupdf, 'requires MuPDF')
+    def test_working_profile_retains_independent_alpha_on_a_transparent_page(self):
+        doc = dict(faded_panel('isolated',.65),output_profile=builtin('srgb'))
+        pdf = Pdf(self.export(doc))
+        self.assertIn(b'/ICCBased',pdf.data)
+        with pymupdf.open(stream=pdf.data,filetype='pdf') as pages:
+            pixels = pages[0].get_pixmap(dpi=288,alpha=True)
+            for y in range(PANEL_H):
+                for x in range(PANEL_W):
+                    expected = panel_reference('isolated',.65,x+.625,y+.625)
+                    actual = pixels.pixel(4*x+2,4*y+2)
+                    self.assertLessEqual(abs(actual[3]-round(255*expected[3])), 5, (x,y))
+
+    def test_imported_svg_with_a_faded_subgroup_can_publish_a_saved_revision(self):
+        svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="12">'
+               '<g id="stack"><rect width="20" height="12" fill="red"/>'
+               '<g id="panel"><rect width="10" height="12" opacity=".4" fill="blue"/>'
+               '<rect x="6" width="8" height="12" opacity="0" fill="black"/></g></g></svg>')
+        doc = self.cli('svg.import',id='draw',source=dict(kind='text',text=svg))['document']
+        stack, = [item['id'] for item in doc['items'] if item['name']=='stack']
+        with closing(Client(('--tools','essentials'),workspace=self.root)) as client:
+            client.initialize()
+            def run(cmd, **args):
+                return client.tool('run',command=cmd,arguments=args)['structuredContent']
+            self.assertTrue(run('session.create',session_id='art',request_id='start',document=doc)['ok'])
+            args = dict(session_id='art',expected_revision=0,request_id='cut',
+                        action=dict(type='edit',operations=[dict(op='group_options',id=stack,isolated=True,knockout=True)]))
+            self.assertTrue(run('session.apply',**args)['ok'])
+            self.assertTrue(run('session.apply',**args)['ok'])
+            self.assertTrue(run('session.apply',session_id='art',expected_revision=1,request_id='restore',
+                                action=dict(type='undo'))['ok'])
+            saved = dict(session_id='art',revision=1)
+            out = dict(format='pdf',file_name='drawing.pdf')
+            self.assertTrue(run('document.preflight',document=saved,output=out)['result']['ready'])
+            self.assertEqual(run('document.publish',document=saved,output=out)['result']['pdf']['knockout_field_masks'],1)
+            issued = (self.root/'drawing.pdf').read_bytes()
+            self.assertEqual(issued,Pdf(self.export(saved)).data)
+            self.assertEqual(Pdf(self.export(dict(saved,revision=2))).data,Pdf(self.export(doc)).data)
+            self.assertEqual(run('document.publish',document=dict(saved,revision=2),output=out)['error']['code'],'OUTPUT_EXISTS')
+            self.assertEqual((self.root/'drawing.pdf').read_bytes(),issued)
 
     def test_depth_follows_masked_descendants_and_independent_branches(self):
         items = []

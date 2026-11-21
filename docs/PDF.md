@@ -12,7 +12,8 @@ limits remain separate from document dimensions and output byte budgets.
 Explicit `pdf_options.print` instead produces flattened calibrated CMYK image pages using a supplied output profile, matte and sample density. See [PRINT_CMYK.md](PRINT_CMYK.md). The native path contracts and restrictions below apply when print settings are omitted.
 
 `document.export` accepts `format:"pdf"`. It returns a deterministic PDF 1.7 file (PDF 2.0 for explicit managed colours, a calibrated page profile, color burn or color dodge)
-as base64, a `pages` receipt and explicit fidelity losses. `document.publish` and
+as base64, a `pages` receipt and explicit fidelity losses. Nested knockout
+artwork that needs independent shape and paint masks also uses PDF 2.0. `document.publish` and
 `session.publish` deliver the same bytes to a new `.pdf` file. Existing files are
 never replaced. No external application, converter or additional dependency is
 needed by the engine.
@@ -114,10 +115,16 @@ The receipt reports the number of delivered groups in `pdf.knockout_groups`.
 
 Each child contributes its completed fill, stroke, clip and opacity mask.
 Paths and glyphs stay vector, and a raster child shares its original image
-and alpha between the paint and the cutout. Groups and frames can be direct
-children with any permitted owner opacity. Within those children, visible
-descendants must retain unit item and fill opacity. Their paints and masks
-can still be translucent. Isolated knockout groups blend their direct
+and alpha between the paint and the cutout. Inside a group or frame, each
+descendant can have its own item and fill opacity. For example, a blue shape
+at 40% item opacity can cut through a red sibling behind the whole subgroup.
+A second shape at zero item opacity still contributes its footprint to that
+cutout. Group masks and clips apply to both the visible paint and the cutout.
+
+When painted alpha and footprint vary independently, the PDF carries both
+fields. `pdf.knockout_field_masks` counts the masks that combine them to
+attenuate earlier siblings. These masks use a grayscale PDF 2.0 blend.
+Isolated knockout groups blend their direct
 children against transparent. Pass-through knockout groups require normal
 blends for children that see the surrounding artwork. An isolated subgroup
 can contain standard non-normal blends.

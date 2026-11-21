@@ -37,8 +37,9 @@ with a visible, zero-opacity child cutting a hole in its siblings. On an
 unmarked working-RGB page, the writer now shares each child's intrinsic
 artwork between its paint and a soft mask. With footprint `f` and owner
 opacity `p`, the earlier siblings must retain `1-f` after the child paints.
-The mask first scales them by `(1-f)/(1-p*f)`. Ordinary source-over then
-supplies the remaining factor. A unit-opacity child needs no such mask.
+For a child with uniform owner opacity, the mask first scales the siblings
+by `(1-f)/(1-p*f)`. Ordinary source-over supplies the remaining factor.
+When this child's opacity is one it needs no such mask.
 
 Two original 64 × 26 sheets include a translucent backdrop, a clipped,
 translated group, a gradient that changes color and alpha, a zero-opacity
@@ -64,6 +65,39 @@ over-depth branch fails before creating an output file.
 Twenty-one existing gradient and mask PDFs retained their earlier bytes on
 both platforms. The wider page-exchange checkpoint remains open.
 [Regression fixtures](../tests/test_pdf_knockout.py) · [Delivery boundaries](PDF.md#knockout-groups)
+
+### Independently faded descendants
+
+At `b08a148` a faded shape inside a subgroup could prevent the whole PDF
+from exporting. The writer now accumulates the descendant footprint union
+`F` independently of the subgroup's painted alpha `A`. The earlier siblings
+retain `1-F` after source-over. A grayscale soft mask computes the required
+factor `(1-F)/(1-A)` before painting the subgroup. The visible artwork and
+the union share the same paths, glyphs, sampled images and mask fields.
+
+Five original 60 × 24 sheets have intersecting horizontal and vertical
+opacity ramps, an opaque shape, a zero-opacity cutout and a partially
+transparent backdrop. Windows and WSL Linux produced byte-identical PNGs
+and PDFs. Across the 7,200 logical pixels the native PNGs differed from the
+premultiplied reference by at most 0.66 of an 8-bit level. The table shows
+the greatest RGB channel difference on white at the central-right/bottom
+sample of each pixel rendered at four-times resolution. The mean of these
+per-pixel maxima was at most 2.03 in MuPDF and 0.74 in Poppler.
+
+| Subgroup | Owner opacity | MuPDF | Poppler |
+| --- | ---: | ---: | ---: |
+| Isolated | 0.65 | 4 | 2 |
+| Pass-through | 1 | 6 | 2 |
+| Knockout inside knockout | 0.75 | 5 | 2 |
+| Clipped frame with background | 0.5 | 5 | 3 |
+| Fully faded subgroup | 0 | 4 | 2 |
+
+Additional checks cover two nested knockout boundaries with distinct fields,
+a multiply-blended descendant inside a masked pass-through group, and a
+revision-pinned knockout edit to imported SVG artwork. Rendering the same
+masked raster layer in the paint and the footprint uses one copy of its
+source pixels. Non-normal blends that depend on a knockout group's external
+backdrop and native-ink knockout delivery remain open.
 
 ## Artwork masks in vector PDF
 

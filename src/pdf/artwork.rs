@@ -5,7 +5,8 @@ pub(super) fn prepare(
     writer: &mut Writer,
     document: &Document,
     fonts: &crate::fonts::Cache,
-) -> Result<BTreeMap<String, usize>, Error> {
+    unions: &BTreeSet<usize>,
+) -> Result<BTreeMap<String, opacity::States>, Error> {
     let mut states = BTreeMap::new();
     for (i, owner) in document.items.iter().enumerate() {
         let Some(mask) = owner.artwork_mask.as_ref().filter(|m| m.enabled) else {
@@ -50,27 +51,26 @@ pub(super) fn prepare(
                 layouts,
                 ..PageResources::default()
             };
-            items(writer, &mut stream, &instance, None, &resources)
+            items(writer, &mut stream, &instance, None, &resources, None)
                 .map_err(|e| e.at_item(&owner.id))?;
         }
-        let knockout_child = owner
+        let parent = owner
             .parent
             .as_ref()
             .map(|id| scene::index(document, id))
-            .transpose()?
-            .is_some_and(|i| document.items[i].content.is_knockout());
-        let (dictionary, form) = opacity::mask_dictionary(
+            .transpose()?;
+        let knockout_child = parent.is_some_and(|i| document.items[i].content.is_knockout());
+        let field = opacity::field(writer, stream, mask.mode, 0.0)?;
+        let mask_states = field.states(
             writer,
-            stream,
-            mask.mode,
-            0.0,
             if knockout_child {
                 1.0
             } else {
                 owner.opacity * owner.fill_opacity
             },
+            parent.is_some_and(|i| unions.contains(&i)),
         )?;
-        states.insert(owner.id.clone(), writer.mask_state(dictionary, form)?);
+        states.insert(owner.id.clone(), mask_states);
         match mask.mode {
             Mode::Alpha => writer.artwork_alpha_masks += 1,
             Mode::Luminance => writer.artwork_luminance_masks += 1,

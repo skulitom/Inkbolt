@@ -94,6 +94,7 @@ struct Writer {
     artwork_alpha_masks: usize,
     artwork_luminance_masks: usize,
     knockout_groups: usize,
+    knockout_field_masks: usize,
     // On knockout pages, record the longest form/mask dependency chain for
     // each reusable resource. Siblings on separate branches do not add depth.
     form_depths: Option<BTreeMap<usize, usize>>,
@@ -231,7 +232,10 @@ impl Writer {
         self.non_normal_modes.contains("ColorDodge") || self.non_normal_modes.contains("ColorBurn")
     }
     fn version(&self) -> &'static str {
-        if self.explicit_black_point || self.corrected_blend_endpoints() {
+        if self.explicit_black_point
+            || self.corrected_blend_endpoints()
+            || self.knockout_field_masks > 0
+        {
             "2.0"
         } else {
             "1.7"
@@ -267,7 +271,7 @@ impl Writer {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct Stream {
     content: String,
     resources: BTreeMap<&'static str, BTreeSet<usize>>,
@@ -498,15 +502,14 @@ fn gradient(
             ..Stream::default()
         };
         mask_stream.use_resource("Shading", opacity, "sh");
-        let (dictionary, form) = opacity::mask_dictionary(
+        let field = opacity::field(
             writer,
             mask_stream,
             crate::artwork_masks::Mode::Luminance,
             0.0,
-            1.0,
         )?;
         graphics_state(writer, stream, 1.0, BlendMode::Normal)?;
-        let state = writer.mask_state(dictionary, form)?;
+        let state = field.state(writer, 1.0)?;
         stream.use_resource("ExtGState", state, "gs");
         writer.page_requires_backdrop = true;
         writer.gradient_opacity_masks += 1;
@@ -757,7 +760,8 @@ struct PageResources {
     pixels: BTreeMap<String, assets::Pixels>,
     layouts: BTreeMap<String, crate::text::Layout>,
     masks: crate::masks::PreparedDocument,
-    artwork_masks: BTreeMap<String, usize>,
+    artwork_masks: BTreeMap<String, opacity::States>,
+    footprint_unions: BTreeSet<usize>,
 }
 
 fn checked_layouts(
@@ -780,6 +784,7 @@ fn items(
     document: &Document,
     parent: Option<&Item>,
     resources: &PageResources,
+    mut union: Option<&mut Stream>,
 ) -> Result<(), Error> {
     let mut knockout_group = if let Some(group) = parent.filter(|p| p.content.is_knockout()) {
         let depth = scene::ancestors(document, scene::index(document, &group.id)?)?.len();
@@ -799,6 +804,7 @@ fn items(
             continue;
         }
         let world = scene::world_transform(document, i)?;
+        let commands_before = writer.commands;
         let mut stream = Stream {
             default_rgb: writer.default_rgb,
             scalar_artwork: output.scalar_artwork,
@@ -832,7 +838,7 @@ fn items(
                     )?;
                 }
             }
-            Content::Group { .. } => items(writer, &mut stream, document, Some(item), resources)?,
+            Content::Group { .. } => {}
             Content::Frame { frame } => {
                 clip(
                     writer,
@@ -852,7 +858,6 @@ fn items(
                         FillRule::Nonzero,
                     )?;
                 }
-                items(writer, &mut stream, document, Some(item), resources)?;
             }
             Content::Vector {
                 geometry,
@@ -942,6 +947,29 @@ fn items(
                 );
             }
         }
+        // Both streams start with the same geometric clip and frame background.
+        // Their children share paint resources even when coverage and color differ.
+        let mut child_union = None;
+        if item.content.is_container() {
+            if resources.footprint_unions.contains(&i) {
+                writer.commands += writer.commands - commands_before;
+                if writer.commands > MAX_COMMANDS {
+                    return Err(
+                        limit("PDF knockout footprint exceeds the generated-path budget")
+                            .at_item(&item.id),
+                    );
+                }
+                child_union = Some(stream.clone());
+            }
+            items(
+                writer,
+                &mut stream,
+                document,
+                Some(item),
+                resources,
+                child_union.as_mut(),
+            )?;
+        }
         let owner_opacity = item.opacity * item.fill_opacity;
         let mut opacity = if knockout_group.is_some() {
             1.0
@@ -949,13 +977,16 @@ fn items(
             owner_opacity
         };
         let mut mask_state = resources.artwork_masks.get(&item.id).copied();
+        let mut mask_scalar = 1.0;
         if let Some(prepared) = resources.masks.items.get(&item.id) {
             let mask = item.mask.as_deref().expect("prepared item mask");
             writer.grid_masks += 1;
-            mask_state = opacity::grid_state(writer, mask, prepared, world, opacity)
-                .map_err(|e| e.at_item(&item.id))?;
+            mask_state =
+                opacity::grid_state(writer, mask, prepared, world, opacity, union.is_some())
+                    .map_err(|e| e.at_item(&item.id))?;
             if mask_state.is_none() {
-                opacity *= prepared.outside;
+                mask_scalar = prepared.outside;
+                opacity *= mask_scalar;
             }
         }
         if mask_state.is_some() {
@@ -998,31 +1029,34 @@ fn items(
                 &stream,
             )
             .map_err(|e| e.at_item(&item.id))?;
+        let separate = child_union
+            .as_ref()
+            .map(|s| writer.isolated_rgb_form(s))
+            .transpose()?;
+        let intrinsic_mask = mask_state.map(|state| state.shape);
+        if let Some(coverage) = union.as_deref_mut() {
+            knockout::draw(
+                writer,
+                coverage,
+                separate.unwrap_or(id),
+                mask_scalar,
+                intrinsic_mask,
+            )?;
+        }
         if let Some(group) = &mut knockout_group {
-            // The alpha of this isolated form is the complete intrinsic
-            // footprint, including the owner's clip and opacity mask.
-            let mut footprint = id;
-            if mask_state.is_some() || opacity != 1.0 {
-                let mut masked = Stream {
-                    default_rgb: writer.default_rgb,
-                    ..Stream::default()
-                };
-                graphics_state(writer, &mut masked, opacity, BlendMode::Normal)?;
-                if let Some(state) = mask_state {
-                    masked.use_resource("ExtGState", state, "gs");
-                }
-                masked.use_resource("XObject", id, "Do");
-                footprint = writer.isolated_rgb_form(&masked)?;
-            }
+            let paint = knockout::masked_form(writer, id, mask_scalar, intrinsic_mask)?;
+            let shape = separate
+                .map(|f| knockout::masked_form(writer, f, mask_scalar, intrinsic_mask))
+                .transpose()?;
             group
-                .add(writer, footprint, owner_opacity)
+                .add(writer, paint, shape, owner_opacity)
                 .map_err(|e| e.at_item(&item.id))?;
             continue;
         }
         output.content.push_str("q\n");
         graphics_state(writer, output, opacity, item.blend)?;
         if let Some(state) = mask_state {
-            output.use_resource("ExtGState", state, "gs");
+            output.use_resource("ExtGState", state.paint, "gs");
             writer.page_requires_backdrop = true;
         }
         output.use_resource("XObject", id, "Do");
@@ -1219,12 +1253,14 @@ pub fn export_controlled(
         let pixels = assets::resolve(page, resources.asset_root.as_deref())?;
         let masks =
             crate::masks::prepare_document(page, resources.asset_root.as_deref(), &writer.control)?;
-        let artwork_masks = artwork::prepare(&mut writer, page, &fonts)?;
+        let footprint_unions = knockout::footprint_unions(page, &writer.control)?;
+        let artwork_masks = artwork::prepare(&mut writer, page, &fonts, &footprint_unions)?;
         let page_resources = PageResources {
             pixels,
             layouts,
             masks,
             artwork_masks,
+            footprint_unions,
         };
         let ppi = page.resolution_ppi;
         let physical = 72.0 / ppi;
@@ -1291,7 +1327,7 @@ pub fn export_controlled(
                 FillRule::Nonzero,
             )?;
         }
-        items(&mut writer, &mut stream, page, None, &page_resources)?;
+        items(&mut writer, &mut stream, page, None, &page_resources, None)?;
         stream.content.push_str("Q\n");
         let mut page_group = format!(
             " /Group << /Type /Group /S /Transparency /CS {} /I true /K false >>",
@@ -1410,6 +1446,7 @@ pub fn export_controlled(
     let artwork_alpha_masks = writer.artwork_alpha_masks;
     let artwork_luminance_masks = writer.artwork_luminance_masks;
     let knockout_groups = writer.knockout_groups;
+    let knockout_field_masks = writer.knockout_field_masks;
     let grid_mask_samples = writer.grid_mask_samples;
     let version = writer.version();
     let black_point = writer.explicit_black_point;
@@ -1420,6 +1457,10 @@ pub fn export_controlled(
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
     result["pdf"]["version"] = json!(version);
+    if knockout_field_masks > 0 {
+        result["pdf"]["knockout_field_masks"] = json!(knockout_field_masks);
+        result["losses"].as_array_mut().unwrap().push(json!("Independently faded knockout members use a PDF 2.0 grayscale blend to combine footprint and paint alpha. Readers can differ in mask rounding."));
+    }
     if knockout_groups > 0 {
         result["pdf"]["knockout_groups"] = json!(knockout_groups);
         result["losses"].as_array_mut().unwrap().push(json!("Knockout appearance is delivered as vector transparency forms. The snapshot retains the editable knockout group and its child footprint controls."));
@@ -1504,13 +1545,13 @@ mod tests {
             ..Writer::default()
         };
         assert!(
-            opacity::grid_state(&mut writer, &mask, &plane, identity(), 1.0)
+            opacity::grid_state(&mut writer, &mask, &plane, identity(), 1.0, false)
                 .unwrap()
                 .is_some()
         );
         assert_eq!(writer.grid_mask_samples, 9);
         assert_eq!(
-            opacity::grid_state(&mut writer, &mask, &plane, identity(), 1.0)
+            opacity::grid_state(&mut writer, &mask, &plane, identity(), 1.0, false)
                 .unwrap_err()
                 .code,
             "RESOURCE_LIMIT"
