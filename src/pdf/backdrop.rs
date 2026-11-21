@@ -224,15 +224,23 @@ impl Member {
             return Ok(());
         }
         match self.paint {
-            Artwork::Isolated(form) => {
-                out.content.push_str("q\n");
-                graphics_state(writer, out, self.opacity, self.blend)?;
-                out.use_resource("XObject", form, "Do");
-                out.content.push_str("Q\n");
-                Ok(())
-            }
+            Artwork::Isolated(form) => self.draw_form(writer, out, form, self.opacity),
             Artwork::Through { .. } => self.draw_through(writer, out, self.opacity),
         }
+    }
+
+    fn draw_form(
+        &self,
+        writer: &mut Writer,
+        out: &mut Stream,
+        form: usize,
+        opacity: f64,
+    ) -> Result<(), Error> {
+        out.content.push_str("q\n");
+        graphics_state(writer, out, opacity, self.blend)?;
+        out.use_resource("XObject", form, "Do");
+        out.content.push_str("Q\n");
+        Ok(())
     }
 
     fn draw_through(
@@ -256,6 +264,35 @@ impl Member {
             return draw_all(writer, out, children);
         }
         let entry = writer.isolated_rgb_form(out)?;
+        let completed = self.on_entry(writer, entry, opacity)?.form(writer)?;
+        *out = placed(writer, completed);
+        Ok(())
+    }
+
+    fn on_entry(
+        &self,
+        writer: &mut Writer,
+        entry: usize,
+        opacity: f64,
+    ) -> Result<Composite, Error> {
+        if opacity == 0. {
+            return Ok(Composite::Form(entry));
+        }
+        let (children, knockout, boundary) = match &self.paint {
+            Artwork::Isolated(form) => {
+                let mut alone = placed(writer, entry);
+                self.draw_form(writer, &mut alone, *form, opacity)?;
+                return Ok(Composite::Form(writer.isolated_rgb_form(&alone)?));
+            }
+            Artwork::Through {
+                children,
+                knockout,
+                boundary,
+            } => (children, knockout, boundary),
+        };
+        if children.is_empty() {
+            return Ok(Composite::Form(entry));
+        }
         let candidate = if *knockout {
             writer.knockout_groups += 1;
             writer.backdrop_groups += 1;
@@ -264,10 +301,10 @@ impl Member {
         } else {
             let mut all = placed(writer, entry);
             draw_all(writer, &mut all, children)?;
-            writer.isolated_rgb_form(&all)?
+            Composite::Form(writer.isolated_rgb_form(&all)?)
         };
         if opacity == 1. && boundary.is_none() {
-            *out = placed(writer, candidate);
+            Ok(candidate)
         } else {
             // Interpolate the completed candidate with its unchanged entry once,
             // including when both are translucent. Source-over alone doubles the entry.
@@ -282,11 +319,9 @@ impl Member {
             let weight = knockout::masked_form(writer, field, opacity, None)?;
             let state = alpha_mask(writer, weight, false)?;
             let before = opaque(writer, entry)?;
-            let after = opaque(writer, candidate)?;
-            let mixed = before.interpolate(writer, after, state)?;
-            *out = placed(writer, mixed);
+            let after = candidate.fields(writer)?;
+            Ok(Composite::Fields(before.interpolate(writer, after, state)?))
         }
-        Ok(())
     }
 }
 
@@ -339,7 +374,7 @@ fn opaque(writer: &mut Writer, form: usize) -> Result<Fields, Error> {
 }
 
 impl Fields {
-    fn interpolate(self, writer: &mut Writer, after: Self, weight: usize) -> Result<usize, Error> {
+    fn interpolate(self, writer: &mut Writer, after: Self, weight: usize) -> Result<Self, Error> {
         // Ordinary masked source-over interpolates two *opaque* associated
         // fields. Do this independently for RGB and alpha, then restore RGBA.
         let mix = |w: &mut Writer, before, after, gray| {
@@ -352,11 +387,10 @@ impl Fields {
                 w.isolated_rgb_form(&output)
             }
         };
-        let fields = Self {
+        Ok(Self {
             rgb: mix(writer, self.rgb, after.rgb, false)?,
             alpha: mix(writer, self.alpha, after.alpha, true)?,
-        };
-        fields.restore(writer)
+        })
     }
 
     fn arithmetic(
@@ -429,29 +463,48 @@ impl Fields {
     }
 }
 
+// Defer unassociation until real PDF paint needs RGBA. A parent knockout
+// or an owner fade can consume the associated fields of a child directly.
+enum Composite {
+    Form(usize),
+    Fields(Fields),
+}
+
+impl Composite {
+    fn fields(self, writer: &mut Writer) -> Result<Fields, Error> {
+        match self {
+            Self::Form(f) => opaque(writer, f),
+            Self::Fields(fields) => Ok(fields),
+        }
+    }
+    fn form(self, writer: &mut Writer) -> Result<usize, Error> {
+        match self {
+            Self::Form(f) => Ok(f),
+            Self::Fields(fields) => fields.restore(writer),
+        }
+    }
+}
+
 struct Range {
     fields: Fields,
     shape: usize,
 }
 
-fn composite(writer: &mut Writer, entry: usize, children: &[Member]) -> Result<usize, Error> {
-    let mut first = placed(writer, entry);
-    children[0].draw(writer, &mut first)?;
-    let first = writer.isolated_rgb_form(&first)?;
+fn composite(writer: &mut Writer, entry: usize, children: &[Member]) -> Result<Composite, Error> {
+    let first = children[0].on_entry(writer, entry, children[0].opacity)?;
     if children.len() == 1 {
         return Ok(first);
     }
     let diff = writer.add("<< /Type /ExtGState /BM /Difference >>")?;
     let background = opaque(writer, entry)?;
     let mut ranges = vec![Range {
-        fields: opaque(writer, first)?,
+        fields: first.fields(writer)?,
         shape: children[0].footprint(),
     }];
     for child in &children[1..] {
-        let mut alone = placed(writer, entry);
-        child.draw(writer, &mut alone)?;
-        let alone = writer.isolated_rgb_form(&alone)?;
-        let current = opaque(writer, alone)?;
+        let current = child
+            .on_entry(writer, entry, child.opacity)?
+            .fields(writer)?;
         let survival = alpha_mask(writer, child.footprint(), true)?;
         // C >= (1-F)B in every associated channel, even for darkening modes.
         let fields = background.arithmetic(writer, current, diff, false, survival)?;
@@ -482,5 +535,5 @@ fn composite(writer: &mut Writer, entry: usize, children: &[Member]) -> Result<u
         }
         ranges = next;
     }
-    ranges.pop().unwrap().fields.restore(writer)
+    Ok(Composite::Fields(ranges.pop().unwrap().fields))
 }

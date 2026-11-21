@@ -4,6 +4,7 @@ from fractions import Fraction
 from functools import lru_cache
 import base64
 import math
+import random
 import shutil
 import unittest
 
@@ -478,6 +479,30 @@ class PdfKnockoutTests(unittest.TestCase):
                  rect('one',w=9,h=4,parent='inner',color=BLUE,blend='multiply'),
                  rect('two',x=4,w=8,h=4,parent='inner',color=RED,opacity=.4,blend='screen')]
         self.assertEqual(self.match_preview(paper(12,4,items))['pdf']['knockout_backdrop_groups'],2)
+
+    def test_nested_group_opacity_fits_the_reader_budget_across_mixed_footprints(self):
+        rng = random.Random(80734)
+        modes = ['normal','multiply','screen','overlay','exclusion','difference']
+
+        def patch(key, parent=None, mode=None):
+            x, width = rng.randrange(3), rng.randrange(5,11)
+            rgba = [rng.randrange(256) for _ in range(4)]
+            return rect(key,x=x,w=width,h=4,parent=parent,color=rgba,
+                        opacity=rng.choice([0,.17,.59,.84,1]),blend=mode or rng.choice(modes))
+
+        for trial in range(36):
+            with self.subTest(trial=trial):
+                items = [patch('background',mode='normal'),
+                         dict(id='k',opacity=rng.choice([.25,.6,.9,1]),clip=box(1,0,10,4),
+                              content=dict(type='group',isolated=False,knockout=True)),
+                         patch('prior','k'),patch('ink','k','multiply'),
+                         dict(id='branch',parent='k',opacity=rng.choice([.6,1]),
+                              content=dict(type='group',isolated=bool(trial%2),knockout=bool(trial%3)))]
+                items.extend(patch(f'child-{i}','branch') for i in range(2+trial%3))
+                doc = paper(14,4,items)
+                if trial%4==0:
+                    doc['output_profile'] = builtin('srgb')
+                self.match_preview(doc)
 
     def test_two_external_groups_reuse_the_completed_backdrop_within_the_work_budget(self):
         def stacked(widths):

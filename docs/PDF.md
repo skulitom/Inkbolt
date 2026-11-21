@@ -129,7 +129,9 @@ In a pass-through knockout group, each child blends against the artwork
 visible at group entry. For example, a Multiply shape above a red sibling
 can multiply the blue artwork behind the group. The sibling survives only
 outside the incoming shape's footprint. All sixteen standard RGB modes are
-supported. The receipt counts groups composed against a saved backdrop in
+supported. Nested groups share their premultiplied color and alpha until
+the next paint operation needs the composed artwork. The receipt counts
+groups composed against a saved backdrop in
 `pdf.knockout_backdrop_groups`. It reports authored blend modes separately.
 Reader precision can affect colors, especially Hue and Saturation in older
 readers. [Measured reader differences](DEVELOPMENT_STATUS.md#blending-against-the-artwork-behind-a-knockout-group)

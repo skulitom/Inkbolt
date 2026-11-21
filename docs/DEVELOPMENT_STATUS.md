@@ -130,7 +130,16 @@ Hue and 25 for Saturation. Additional regression cases compare associated
 RGBA on transparent pages, an explicit sRGB profile, masked frames, nested
 groups, a non-default physical scale, saved revisions and immutable file
 publication. A dense pair of groups and a deep stack exercise separate
-reference-work and nesting limits. Native-ink knockout, marked RGB
+reference-work and nesting limits.
+
+At `41dab6e`, 11 of 36 small mixed-opacity compositions exceeded the form
+depth limit. Nested groups now share their premultiplied color and alpha
+through the parent knockout and owner fade. All 36 compositions fit the
+existing depth and work limits. They include ordinary and knockout children,
+independent opacity, clipped parents and an explicit sRGB profile. At the
+sampled centers MuPDF differed from the native preview over white by at most
+6.33 levels, and by at most 6 levels in premultiplied RGBA. Poppler differed
+by at most 4.48 levels over white. Native-ink knockout, marked RGB
 transparency and the wider page-exchange checkpoint remain open.
 [Regression fixtures](../tests/test_pdf_knockout.py) · [PDF delivery contract](PDF.md#knockout-groups)
 
