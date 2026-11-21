@@ -453,10 +453,7 @@ fn prepare_output(
                 ids: vec![options.artboard_id.clone().unwrap()],
             }),
             include_bleed: options.include_bleed,
-            color: crate::pdf::ColorDelivery::Display,
-            print: None,
-            ink_recipe: None,
-            prepress: None,
+            ..Default::default()
         })
     } else {
         options.pdf_options.clone()

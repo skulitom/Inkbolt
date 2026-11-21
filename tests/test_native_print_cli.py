@@ -46,7 +46,9 @@ def strokes(pdf,index=0):
         elif token==b'S':
             if path:paths.append(path)
             result.append(dict(width=width,color=color,paths=paths));path=[];paths=[]
-        else:assert token in (b'ri',b'Do',b'SCN',b'J',b'j'),token
+        # The vector writer clips the artwork to a rectangle before drawing
+        # its forms. Only the page's separate stroked mark paths are measured.
+        else:assert token in (b'ri',b'Do',b'SCN',b'J',b'j',b're',b'W',b'n',b'gs'),token
         args=[]
     assert not stack and not args and not path and not paths
     return result
@@ -167,6 +169,77 @@ class NativePrintTests(unittest.TestCase):
         s=strokes(pdf)[0];self.assertEqual(s['width'],.25)
         for path in s['paths'][:8]:self.assertAlmostEqual(math.dist(path[0][1],path[1][1]),6,places=8)
         self.assertEqual(a['pages'][0]['physical_points'],[1024*72+24.5,16*72+24.5])
+
+    def test_marked_vector_page_preserves_artwork_forms_inks_and_asymmetric_bleed(self):
+        d = self.document(1, width=128, height=96, ppi=72)
+        board = dict(role='artboard', width=128, height=96, bleed=dict(left=4, right=8, top=3, bottom=5))
+        d['items'] = [
+            dict(id='sheet', content=dict(type='frame', frame=board)),
+            rect('ink', named('s0', tint=.5), parent='sheet', box=(-12, -10, 170, 130)),
+        ]
+        options = dict(artboards=dict(type='ids', ids=['sheet']), include_bleed=True, color='native_inks')
+        request = dict(command='document.export', document=d, format='pdf')
+        plain = pdf_reader.Pdf(self.invoke(dict(request, pdf_options=options)))
+        artifact = self.invoke(dict(request, pdf_options=dict(options, marks={})))
+        marked = pdf_reader.Pdf(artifact)
+        page = marked.pages[0]
+        receipt = artifact['pages'][0]
+        self.assertEqual(page['MediaBox'], [0, 0, 164.5, 128.5])
+        self.assertEqual(page['CropBox'], page['MediaBox'])
+        self.assertEqual(page['BleedBox'], [12.25, 12.25, 152.25, 116.25])
+        self.assertEqual(page['TrimBox'], [16.25, 17.25, 144.25, 113.25])
+        self.assertEqual(receipt['physical_points'], page['MediaBox'][2:])
+        self.assertEqual(receipt['artwork_physical_points'], [140, 104])
+        self.assertEqual(receipt['bleed_box'], page['BleedBox'])
+        self.assertEqual(receipt['marks']['colorant'], 'All')
+        original_content = plain.streams[plain.pages[0]['Contents']]
+        marked_content = marked.streams[page['Contents']]
+        clip = b'q\n1 0 0 1 12.25 12.25 cm\n0 0 140 104 re W n\n'
+        self.assertTrue(marked_content.startswith(clip + original_content[2:] + b'q\n/Marks CS\n1 SCN\n'))
+        self.assertEqual(page['Resources']['XObject'], plain.pages[0]['Resources']['XObject'])
+        # Check the tint applied by each form that references the named separation.
+        spot_paints = []
+        for ref, obj in plain.objects.items():
+            if isinstance(obj, dict) and obj.get('Subtype') == 'Form':
+                self.assertEqual(marked.objects[ref], obj)
+                self.assertEqual(marked.streams[ref], plain.streams[ref])
+                for name, space_ref in obj['Resources'].get('ColorSpace', {}).items():
+                    space = marked.get(space_ref)
+                    if space[:2] == ['Separation', 'Inkbolt.s0']:
+                        self.assertEqual(space, plain.get(space_ref))
+                        self.assertEqual(marked.get(space[3]), plain.get(space[3]))
+                        spot_paints.append(f'/{name} cs\n0.5 scn\n'.encode() in marked.streams[ref])
+        self.assertEqual(spot_paints, [True])
+        self.assertNotIn(b'/Subtype /Image', marked.data)
+        stroke, = strokes(marked)
+        self.assertEqual(stroke['color'][:3], ['Separation', 'All', 'DeviceCMYK'])
+        self.assertEqual(len(stroke['paths']), 20)
+        self.assertEqual(stroke['paths'][0], [('m', [3.25, 17.25]), ('l', [9.25, 17.25])])
+
+    def test_vector_marks_keep_physical_size_when_margin_changes_user_unit(self):
+        d = self.document(0, width=200, height=16, ppi=1)
+        d['items'] = []
+        request = dict(command='document.export', document=d, format='pdf')
+        self.assertEqual(pdf_reader.Pdf(self.invoke(request)).pages[0]['UserUnit'], 1)
+        options = dict(marks=dict(registration=False))
+        marked = pdf_reader.Pdf(self.invoke(dict(request, pdf_options=options)))
+        self.assertEqual(marked.pages[0]['UserUnit'], 2)
+        stroke, = strokes(marked)
+        self.assertEqual(stroke['width'], .25)
+        self.assertEqual(len(stroke['paths']), 8)
+        for start, end in stroke['paths']:
+            self.assertAlmostEqual(math.dist(start[1], end[1]), 6)
+
+    def test_invalid_vector_marks_do_not_publish_a_partial_sheet(self):
+        d = self.invoke(dict(command='document.create', id='marks', kind='vector', width=96, height=72))
+        with tempfile.TemporaryDirectory() as root:
+            output = dict(output_root=root, file_name='sheet.pdf', format='pdf')
+            for options in [dict(marks=dict(crop=False, registration=False)),
+                            dict(marks={}, prepress=self.settings())]:
+                failure = self.invoke(dict(command='document.publish', document=d,
+                                           output=dict(output, pdf_options=options)), 1)
+                self.assertEqual(failure['code'], 'INVALID_REQUEST')
+                self.assertFalse((Path(root) / 'sheet.pdf').exists())
 
     def test_print_mark_advertised_bounds_and_defaults_are_inclusive(self):
         bounds = capabilities()['pdf']['mark_limits']; d = self.document(0, ppi=1)

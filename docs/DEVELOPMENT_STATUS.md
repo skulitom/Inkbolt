@@ -5,6 +5,39 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## Marked vector print pages
+
+The B14 print benchmark already covers unmarked pages with native inks and
+asymmetric bleed. Its published scores apply to that task. A W6a.4 follow-up
+asks for printer's marks on the same kind of vector artwork. At `f6626e9`,
+even an empty vector page rejects `pdf_options.marks`. The existing prepress
+route can add marks after sampling the page into an image.
+
+The acceptance check is a marked page whose paths and named inks survive,
+whose artwork stays inside its bleed box, and whose marks have the requested
+physical dimensions outside that box. Compare the marked and unmarked artwork
+with an independent reader and renderer. Stop if adding marks changes the
+artwork, loses an ink or moves marks when the page uses a larger UserUnit.
+
+The independent PDF reader checks asymmetric bleed, vector forms, the named
+ink and its tint, plus a sheet whose margin doubles the UserUnit. The same
+crop strokes still measure six points. Two-page publication through MCP
+retains the document revision. Focused checks passed in 22 seconds on Windows
+and 15 seconds on Linux under WSL.
+
+At 288 DPI, Poppler 26.07.0 reproduced every one of the 153,600 artwork pixels
+on each of the display RGB, calibrated RGB and native-ink sheets. All three
+unmarked PDFs matched v0.84.0 byte for byte. With vector antialiasing enabled,
+the spot sheet had 120 tinted pixels in the first pixel column outside the
+bleed edge. With antialiasing disabled, all 88,004 margin pixels matched the
+marks-only reference on each sheet.
+
+Ghostscript 9.55.0 rendered the four process plates and the named spot plate
+independently. Each marked plate matched its unmarked counterpart throughout
+the artwork, and all five plates contained the same 1,440 fully inked mark
+pixels. The spot band's 75% tint appeared on its own plate. The original
+extended page-exchange checkpoint remains open.
+
 ## W3c.4: editable curve output
 
 At `b0eff3e`, combining a cubic arch with a clipping rectangle produced only line

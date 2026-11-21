@@ -42,10 +42,28 @@ page instead; combining `artboard_id` with `pdf_options` is an error.
 Physical dimensions derive from `document.resolution_ppi`: one logical unit is
 `72 / resolution_ppi` points. PDF export requires `scale:1`. Page receipts expose
 logical dimensions, physical points, MediaBox, TrimBox and UserUnit. PDF boxes use
-bottom-left coordinates. CropBox and BleedBox equal MediaBox; TrimBox excludes
-the included bleed. UserUnit is at least one, increasing by whole units to keep
+bottom-left coordinates. On an unmarked page, CropBox and BleedBox equal MediaBox.
+TrimBox excludes the included bleed. UserUnit is at least one, increasing by whole units to keep
 the largest MediaBox coordinate at most 14400; the supported maximum is 75000.
 No output density rounding changes the requested physical dimensions.
+
+### Crop and registration marks
+
+Add `"marks": {}` inside `pdf_options` to put crop and registration marks
+around each selected vector page or the whole canvas. Use `"marks": {"crop":
+true, "registration": false}` for crop marks alone. Both display colour and
+`"color": "native_inks"` support marks. Paths and named inks keep their
+ordinary delivery semantics. The engine clips the artwork at the BleedBox
+and draws marks in the added margin using the PDF `All` separation.
+
+MediaBox and CropBox include the margin. The marked page receipt reports
+the full sheet in `physical_points`, the artwork including bleed in
+`artwork_physical_points`, and the crop segments and registration centres in
+`marks`. Gap, stroke width, length and radius use physical points at every
+page scale. For flattened native plates, use the existing
+[`pdf_options.prepress.marks` setting](VECTOR_PLATES.md).
+Rust callers using a full `pdf::Options` struct literal add `marks: None`
+for unmarked pages. Callers using `..Default::default()` already get that value.
 
 ## Appearance contract
 

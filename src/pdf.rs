@@ -30,6 +30,9 @@ pub struct Options {
     pub artboards: Option<boards::Selection>,
     pub include_bleed: bool,
     pub color: ColorDelivery,
+    /// Physical crop and registration marks for vector page delivery.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub marks: Option<Marks>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub print: Option<PrintOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -214,7 +217,7 @@ impl Stream {
         self.resources.entry(category).or_default().insert(id);
         self.content.push_str(&format!("/R{id} {op}\n"));
     }
-    fn dictionary(&self) -> String {
+    fn dictionary(&self, marks: Option<usize>) -> String {
         let mut entries: BTreeMap<_, Vec<_>> = self
             .resources
             .iter()
@@ -230,6 +233,12 @@ impl Stream {
                 .entry("ColorSpace")
                 .or_default()
                 .push(format!("/DefaultRGB {id} 0 R"));
+        }
+        if let Some(id) = marks {
+            entries
+                .entry("ColorSpace")
+                .or_default()
+                .push(format!("/Marks {id} 0 R"));
         }
         let entries = entries
             .iter()
@@ -746,7 +755,7 @@ fn items(
                 "/Type /XObject /Subtype /Form /FormType 1 /BBox [0 0 {} {}] /Resources {} {group}",
                 document.width,
                 document.height,
-                stream.dictionary()
+                stream.dictionary(None)
             ),
             stream.content.as_bytes(),
         )?;
@@ -790,6 +799,14 @@ pub fn export_controlled(
         return Err(Error::new(
             "INVALID_REQUEST",
             "Choose one PDF preparation mode: print, ink_recipe or prepress",
+        ));
+    }
+    if options.marks.is_some()
+        && (options.print.is_some() || options.ink_recipe.is_some() || options.prepress.is_some())
+    {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            "pdf_options.marks requires vector page delivery. For native flattened plates use prepress.marks.",
         ));
     }
     if let Some(prepress) = &options.prepress {
@@ -925,24 +942,57 @@ pub fn export_controlled(
         let pixels = assets::resolve(page, resources.asset_root.as_deref())?;
         let ppi = page.resolution_ppi;
         let physical = 72.0 / ppi;
-        let user_unit = (logical[0].max(logical[1]) * physical
-            / crate::limits::pdf::MAX_PAGE_COORDINATE)
-            .ceil()
-            .max(1.0);
+        let bleed = if options.include_bleed {
+            selection
+                .map(|i| {
+                    let Content::Frame { frame } = &document.items[i].content else {
+                        unreachable!()
+                    };
+                    frame.bleed
+                })
+                .unwrap_or_default()
+        } else {
+            boards::Insets::default()
+        };
+        let marked = options
+            .marks
+            .map(|settings| marks::Layout::new(logical, ppi, bleed, Some(settings)))
+            .transpose()?;
+        let user_unit = marked.as_ref().map_or_else(
+            || {
+                (logical[0].max(logical[1]) * physical / crate::limits::pdf::MAX_PAGE_COORDINATE)
+                    .ceil()
+                    .max(1.0)
+            },
+            |layout| layout.user_unit,
+        );
         if user_unit > f64::from(crate::limits::pdf::MAX_USER_UNIT) {
             return Err(limit("PDF page exceeds the supported physical size"));
         }
         let factor = physical / user_unit;
         let width = logical[0] * factor;
         let height = logical[1] * factor;
+        let mut content = String::from("q\n");
+        if let Some(layout) = &marked {
+            let [left, bottom, right, top] = layout.coordinates(layout.bleed);
+            // Enlarging the media must not expose any off-canvas paint.
+            content.push_str(&format!(
+                "1 0 0 1 {} {} cm\n0 0 {} {} re W n\n",
+                number(left)?,
+                number(bottom)?,
+                number(right - left)?,
+                number(top - bottom)?
+            ));
+        }
+        content.push_str(&format!(
+            "{} 0 0 {} 0 {} cm\n",
+            number(factor)?,
+            number(-factor)?,
+            number(height)?
+        ));
         let mut stream = Stream {
             default_rgb: writer.default_rgb,
-            content: format!(
-                "q\n{} 0 0 {} 0 {} cm\n",
-                number(factor)?,
-                number(-factor)?,
-                number(height)?
-            ),
+            content,
             ..Stream::default()
         };
         if writer.blend_space.is_some() {
@@ -968,31 +1018,43 @@ pub fn export_controlled(
         }
         items(&mut writer, &mut stream, page, None, &pixels, &layouts)?;
         stream.content.push_str("Q\n");
-        let content = writer.stream("", stream.content.as_bytes())?;
-        let bleed = if options.include_bleed {
-            selection
-                .map(|i| {
-                    let Content::Frame { frame } = &document.items[i].content else {
-                        unreachable!()
-                    };
-                    frame.bleed
-                })
-                .unwrap_or_default()
+        let mark_space = if let Some(layout) = &marked {
+            layout.emit(&mut writer, &mut stream.content)?
         } else {
-            boards::Insets::default()
+            None
         };
-        let media = [0.0, 0.0, width, height];
-        let trim = [
-            bleed.left as f64 * factor,
-            bleed.bottom as f64 * factor,
-            width - bleed.right as f64 * factor,
-            height - bleed.top as f64 * factor,
-        ];
+        let content = writer.stream("", stream.content.as_bytes())?;
+        let (media, bounds, trim) = if let Some(layout) = &marked {
+            (
+                layout.coordinates(layout.media),
+                layout.coordinates(layout.bleed),
+                layout.coordinates(layout.trim),
+            )
+        } else {
+            let media = [0.0, 0.0, width, height];
+            (
+                media,
+                media,
+                [
+                    bleed.left as f64 * factor,
+                    bleed.bottom as f64 * factor,
+                    width - bleed.right as f64 * factor,
+                    height - bleed.top as f64 * factor,
+                ],
+            )
+        };
         let group_space = writer.group_space();
-        let id=writer.add(format!("<< /Type /Page /Parent {tree} 0 R /MediaBox [{}] /CropBox [{}] /BleedBox [{}] /TrimBox [{}] /UserUnit {} /Resources {} /Contents {content} 0 R /Group << /Type /Group /S /Transparency /CS {group_space} /I true /K false >> >>",numbers(&media)?,numbers(&media)?,numbers(&media)?,numbers(&trim)?,number(user_unit)?,stream.dictionary()))?;
+        let id=writer.add(format!("<< /Type /Page /Parent {tree} 0 R /MediaBox [{}] /CropBox [{}] /BleedBox [{}] /TrimBox [{}] /UserUnit {} /Resources {} /Contents {content} 0 R /Group << /Type /Group /S /Transparency /CS {group_space} /I true /K false >> >>",numbers(&media)?,numbers(&media)?,numbers(&bounds)?,numbers(&trim)?,number(user_unit)?,stream.dictionary(mark_space)))?;
         references.push(format!("{id} 0 R"));
         let artboard_id = selection.map(|i| &document.items[i].id);
-        receipts.push(json!({"index":receipts.len(),"artboard_id":artboard_id,"logical_size":logical,"physical_points":[logical[0]*physical,logical[1]*physical],"resolution_ppi":ppi,"media_box":media,"trim_box":trim,"user_unit":user_unit,"coordinates":"pdf_bottom_left_in_user_units"}));
+        let mut receipt = json!({"index":receipts.len(),"artboard_id":artboard_id,"logical_size":logical,"physical_points":[logical[0]*physical,logical[1]*physical],"resolution_ppi":ppi,"media_box":media,"trim_box":trim,"user_unit":user_unit,"coordinates":"pdf_bottom_left_in_user_units"});
+        if let Some(layout) = &marked {
+            receipt["artwork_physical_points"] = receipt["physical_points"].clone();
+            receipt["physical_points"] = json!([layout.media[2], layout.media[3]]);
+            receipt["bleed_box"] = json!(bounds);
+            receipt["marks"] = layout.receipt();
+        }
+        receipts.push(receipt);
         envelopes.push(json!({"artboard_id":artboard_id,"packet":packet.map(|s|serde_json::from_str::<Value>(&s).unwrap())}));
     }
     let packet = if envelopes.iter().any(|v| !v["packet"].is_null()) {

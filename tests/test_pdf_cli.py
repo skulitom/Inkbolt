@@ -251,6 +251,14 @@ class PdfTests(unittest.TestCase):
             receipt=c.success('session.publish',**s,expected_revision=0,output=output)
             self.assertEqual(receipt['observed_current_revision'],0);self.assertTrue(receipt['include_bleed'])
             self.assertEqual((Path(directory)/'pages.pdf').read_bytes(),base64.b64decode(a['data']))
+            marked = dict(options, marks=dict(registration=False))
+            marked_output = dict(output, file_name='marked.pdf', pdf_options=marked)
+            receipt = c.success('session.publish', **s, expected_revision=0, output=marked_output)
+            pages = Pdf((Path(directory)/'marked.pdf').read_bytes()).pages
+            self.assertEqual([p['artboard_id'] for p in receipt['pages']], ['wide', 'tall'])
+            for page, entry in zip(pages, receipt['pages'], strict=True):
+                self.assertEqual(page['BleedBox'], entry['bleed_box'])
+                self.assertGreater(page['MediaBox'][2], page['BleedBox'][2])
             self.assertEqual(c.success('session.history',**s,limit=10),before)
             error=c.tool('session.publish',**s,expected_revision=1,output=dict(output,file_name='absent.pdf'))
             self.assertEqual(error['structuredContent']['error']['code'],'REVISION_CONFLICT')
