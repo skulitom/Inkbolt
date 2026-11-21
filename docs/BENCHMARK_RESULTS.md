@@ -61,8 +61,8 @@ ordering check for a base glyph and its mark inside one cluster. In B14,
 Inkbolt produced all five requested print artifacts but selected the wrong
 publication receipt twice.
 
-The [50 MP photo pilot](B10_LARGE.md), [smaller-model pilots](#b01b03-breadth-pilots-and-capture-rejudgment)
-and [earlier evaluations](#b02-at-c7d9f30-initial-five-matched-icon-sheet-trials)
+The [five-pair smaller-model diagram evaluation](#b01-with-luna),
+[50 MP photo pilot](B10_LARGE.md) and [earlier evaluations](#b02-at-c7d9f30-initial-five-matched-icon-sheet-trials)
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
@@ -517,6 +517,44 @@ unknown. Five successes give a 95% Wilson interval of 56.6%–100% in each arm.
 | Inkbolt report | `0d6a54abb772c43eeb14566f87977ecb4b4316e1a7dd0310a4f39b78d8eef47b` |
 | Baseline report | `092c1d3dba59cc11edcef4cdfc0b59dc43f899ee4adf44fb2ca6dd07c68e6d5f` |
 | Matched comparison | `78c983039b7f6d64b96e4cf0121a63ca190358db504d464620854c6ea4e849d8` |
+
+### B01 with Luna
+
+With `gpt-6-luna`, all five Inkbolt attempts delivered the correct PNG and
+three passed the full diagram task. Two of five no-engine attempts passed.
+These ten fresh attempts used the same Windows host, source commit, binary,
+prompt, judges, Codex CLI 0.160.0, medium reasoning and baseline-first order
+as the Sol batch above. Model selection came from the external evaluation
+configuration. The source and PNG each had to pass their own checks.
+
+| Measurement | Inkbolt | No-engine baseline |
+| --- | ---: | ---: |
+| Accepted artifacts and complete workflows | 3/5 | 2/5 |
+| Delivered PNGs matching all 7,168 expected pixels | 5/5 | 2/5 |
+| Median input + output tokens across all attempts | 387,552 | 66,828 |
+| Median client execution, seconds | 83.2 | 26.8 |
+
+One Inkbolt attempt saved the CLI response envelope as `editable.json`, which
+the engine could not reopen as a document. Another delivered the five requested
+shapes and labels inside one SVG import group. The judge counted the group as
+a sixth object. We checked each child separately on copies of that snapshot.
+Removing each one left the other four intact, and every rendered pixel matched
+the expected drawing for all five edits. The recorded score retains the
+original item-count failure.
+
+All five baseline SVGs rendered correctly when the judge loaded the supplied
+font. Three attempts omitted the font file from their own rasterizer command.
+Each delivered PNG differed from the reference at 424 pixels. The repeated
+Sol batch above passed five times per arm. Only one Luna pair succeeded in
+both arms, so the comparison policy reports no paired token-cost ratio.
+
+The model and baseline reports have SHA-256
+`a11757b63af7862b08727a6d8c449c85752fe594595a5165f7fa3850988f230e` and
+`01e93fbdbc8071659fd87ea3496af9c2475c12a9df7ce28868396d1e4278b070`.
+The matched comparison has SHA-256
+`0a43bd67ada83cdcefd04cf194c14218b70b97903bb234b6f6cf4884feebbbf6`.
+The five independent child-edit checks have SHA-256
+`279c4e8c345dc78b06816c385412638e5e535498e0edc6a9efd68bec67221f75`.
 
 ## B04/B05 at dabe447: five matched pairs
 
