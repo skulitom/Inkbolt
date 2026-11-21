@@ -1113,6 +1113,10 @@ pub mod path_text {
 
 /// Limits for `src/pdf.rs`.
 pub mod pdf {
+    /// Maximum combined scene ancestry and successive PDF knockout attenuation forms.
+    pub const MAX_KNOCKOUT_DEPTH: usize = 24;
+    /// Maximum emitted form and soft-mask reference depth on a knockout PDF page.
+    pub const MAX_KNOCKOUT_FORM_DEPTH: usize = 32;
     /// Existing page-coordinate span used to select a per-page UserUnit.
     pub const MAX_PAGE_COORDINATE: f64 = 14400.0;
     /// Existing upper bound on the per-page UserUnit multiplier.

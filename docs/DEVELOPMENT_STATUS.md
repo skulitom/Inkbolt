@@ -30,6 +30,41 @@ space through the final judge response. Both transports delivered the same
 TIFFs and PNG as the earlier unrestricted Linux and Windows references.
 The benchmark retains its separate peak-commit verdict.
 
+## Knockout groups in vector PDF
+
+At `347000d` the vector PDF writer refused a group that Inkbolt could preview
+with a visible, zero-opacity child cutting a hole in its siblings. On an
+unmarked working-RGB page, the writer now shares each child's intrinsic
+artwork between its paint and a soft mask. With footprint `f` and owner
+opacity `p`, the earlier siblings must retain `1-f` after the child paints.
+The mask first scales them by `(1-f)/(1-p*f)`. Ordinary source-over then
+supplies the remaining factor. A unit-opacity child needs no such mask.
+
+Two original 64 × 26 sheets include a translucent backdrop, a clipped,
+translated group, a gradient that changes color and alpha, a zero-opacity
+cutout and a fourth overlapping shape. Windows and WSL Linux emitted
+byte-identical PDFs and PNGs. The table gives the greatest RGB difference
+from an independent calculation over white, in 8-bit levels, across the
+1,664 pixel centers on each sheet. MuPDF was version 1.26.12. Poppler was
+26.07.0 on Windows and 22.02.0 on Ubuntu.
+
+| Group | MuPDF | Poppler | PDF bytes |
+| --- | ---: | ---: | ---: |
+| Isolated | 3 | 1 | 7,273 |
+| Pass-through | 4 | 2 | 7,197 |
+
+The engine's PNGs were within 0.5 levels of the premultiplied reference.
+Neither PDF contains an image. Other fixtures exercise masked fill/stroke
+overlap, nested groups and frames, an RGBA image used once, outlined glyphs
+on an artboard with bleed, and rendering at the 24-level attenuation limit.
+Deeply nested masked subgroups exposed a separate reader limit. The writer
+also checks the longest chain of generated forms and soft masks on the page.
+The regression renders two independent branches and verifies that an
+over-depth branch fails before creating an output file.
+Twenty-one existing gradient and mask PDFs retained their earlier bytes on
+both platforms. The wider page-exchange checkpoint remains open.
+[Regression fixtures](../tests/test_pdf_knockout.py) · [Delivery boundaries](PDF.md#knockout-groups)
+
 ## Artwork masks in vector PDF
 
 At `b39a5b9`, Inkbolt could preview a shared vector mask in alpha and
@@ -61,8 +96,7 @@ Scaling the completed mask by the owner's opacity reduced the maximum
 difference to three levels and retained the backdrop for multiply-blended
 children of a pass-through group on both Poppler versions. Poppler matched all 2,240 centers
 on this additional sheet. The same grouping fixes partially opaque owners
-with grayscale grid masks. Knockout groups
-remain open in the extended page-exchange checkpoint.
+with grayscale grid masks.
 [Regression fixtures](../tests/test_pdf_artwork_masks.py) · [PDF contract](PDF.md#masks-made-from-editable-artwork)
 
 ## Grayscale masks in vector PDF

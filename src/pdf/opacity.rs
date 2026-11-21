@@ -12,11 +12,11 @@ pub(super) fn mask_dictionary(
     mode: crate::artwork_masks::Mode,
     outside: f64,
     owner_opacity: f64,
-) -> Result<String, Error> {
-    let form = writer.stream(
+) -> Result<(String, usize), Error> {
+    let form = writer.form(
         &format!("/Type /XObject /Subtype /Form /BBox [{}] /Group << /S /Transparency /CS /DeviceGray /I true >> /Resources {}",
             writer.page_bbox, stream.dictionary(None)),
-        stream.content.as_bytes(),
+        &stream,
     )?;
     use crate::artwork_masks::Mode;
     let entries = match mode {
@@ -34,8 +34,9 @@ pub(super) fn mask_dictionary(
             number(owner_opacity)?
         )
     };
-    Ok(format!(
-        "<< /Type /ExtGState /SMask << {entries}{transfer} >> >>"
+    Ok((
+        format!("<< /Type /ExtGState /SMask << {entries}{transfer} >> >>"),
+        form,
     ))
 }
 
@@ -117,14 +118,14 @@ pub(super) fn grid_state(
         }
         _ => unreachable!("validated scalar mask sampling"),
     }
-    let dictionary = mask_dictionary(
+    let (dictionary, form) = mask_dictionary(
         writer,
         stream,
         crate::artwork_masks::Mode::Luminance,
         prepared.outside,
         owner_opacity,
     )?;
-    writer.add(dictionary).map(Some)
+    writer.mask_state(dictionary, form).map(Some)
 }
 
 fn bilinear_grid(

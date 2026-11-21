@@ -53,14 +53,24 @@ pub(super) fn prepare(
             items(writer, &mut stream, &instance, None, &resources)
                 .map_err(|e| e.at_item(&owner.id))?;
         }
-        let dictionary = opacity::mask_dictionary(
+        let knockout_child = owner
+            .parent
+            .as_ref()
+            .map(|id| scene::index(document, id))
+            .transpose()?
+            .is_some_and(|i| document.items[i].content.is_knockout());
+        let (dictionary, form) = opacity::mask_dictionary(
             writer,
             stream,
             mask.mode,
             0.0,
-            owner.opacity * owner.fill_opacity,
+            if knockout_child {
+                1.0
+            } else {
+                owner.opacity * owner.fill_opacity
+            },
         )?;
-        states.insert(owner.id.clone(), writer.add(dictionary)?);
+        states.insert(owner.id.clone(), writer.mask_state(dictionary, form)?);
         match mask.mode {
             Mode::Alpha => writer.artwork_alpha_masks += 1,
             Mode::Luminance => writer.artwork_luminance_masks += 1,

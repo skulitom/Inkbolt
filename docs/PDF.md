@@ -55,8 +55,8 @@ true, "registration": false}` for crop marks alone. Both display colour and
 `"color": "native_inks"` support marks. Paths and named inks keep their
 ordinary delivery semantics. The engine clips the artwork at the BleedBox
 and draws marks in the added margin using the PDF `All` separation.
-Marked pages with RGB blending support opaque knockout artwork. A transparent
-background is fine. Use unmarked vector delivery or explicit flattened
+Marked RGB pages can carry opaque paints that replace the inks underneath.
+The page background can be transparent. Use unmarked vector delivery or explicit flattened
 prepress when the artwork needs RGB transparency blending or overprint.
 Native CMYK page blending retains its existing vector transparency support.
 For a calibrated RGB-only page, the artwork's form carries the profile.
@@ -95,12 +95,42 @@ for unmarked pages. Callers using `..Default::default()` already get that value.
 
 The default display mode uses DeviceRGB with encoded working samples. Explicit `pdf_options.color:"native_inks"` retains named inks and overprint under the [native ink contract](INK_DELIVERY.md). Consumer color management,
 antialiasing and image reconstruction may differ from engine previews. Exact
-consumer pixels and print-profile fidelity are not promised. Knockout, effects, filters, dissolve, pixel warps, layer
+consumer pixels and print-profile fidelity are not promised. Effects, filters, dissolve, pixel warps, layer
 clipping, adjustment layers, ordered dither and
 other paint/sampling semantics return explicit errors. Hidden referenced fonts
 and resources are still validated. Unsupported items outside selected owned
 subtrees do not enter those exports. A scene view prepares all shared artwork,
 including off-view resources and unsupported items.
+
+### Knockout groups
+
+In a source build after v0.84.0, a visible shape with zero item opacity can
+cut a hole in earlier siblings in an unmarked working-RGB PDF. Set
+`content.knockout:true` on the enclosing group. Paint alpha controls how
+much of the earlier artwork is removed. Item and fill opacity control how
+much of the incoming shape is painted. A half-transparent paint with item
+opacity zero therefore removes half of the earlier artwork in its footprint.
+The receipt reports the number of delivered groups in `pdf.knockout_groups`.
+
+Each child contributes its completed fill, stroke, clip and opacity mask.
+Paths and glyphs stay vector, and a raster child shares its original image
+and alpha between the paint and the cutout. Groups and frames can be direct
+children with any permitted owner opacity. Within those children, visible
+descendants must retain unit item and fill opacity. Their paints and masks
+can still be translucent. Isolated knockout groups blend their direct
+children against transparent. Pass-through knockout groups require normal
+blends for children that see the surrounding artwork. An isolated subgroup
+can contain standard non-normal blends.
+
+The writer counts successive attenuations of earlier siblings plus the
+group's scene ancestry, up to 24 levels. It also follows the forms and soft
+masks referenced by each branch on the page, up to a depth of 32. Separate
+siblings can reuse the same depth allowance. Exceeding either limit returns
+`RESOURCE_LIMIT` before publication. An unsupported descendant or native-ink delivery returns
+`UNSUPPORTED`. Use an unmarked page with the default working space or its
+explicit sRGB profile. A marked page containing a painted knockout group
+requires flattened prepress delivery. Keep the snapshot for editable group
+controls. [Footprint equations](KNOCKOUT.md#pixel-equations) · [Reader measurements](DEVELOPMENT_STATUS.md#knockout-groups-in-vector-pdf)
 
 ### Opacity masks on shapes and groups
 

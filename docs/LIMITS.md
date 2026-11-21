@@ -427,6 +427,8 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `paths.MAX_PATH_UNITS` | `usize` | 4096 | `4096` |
 | `pdf.MAX_COMMANDS` | `usize` | 262144 | `262_144` |
 | `pdf.MAX_IMAGE_PIXELS` | `u64` | 4194304 | `4_194_304` |
+| `pdf.MAX_KNOCKOUT_DEPTH` | `usize` | 24 | `24` |
+| `pdf.MAX_KNOCKOUT_FORM_DEPTH` | `usize` | 32 | `32` |
 | `pdf.MAX_OBJECTS` | `usize` | 32768 | `32_768` |
 | `pdf.MAX_PAGE_COORDINATE` | `f64` | 14400.0 | `14400.0` |
 | `pdf.MAX_USER_UNIT` | `u32` | 75000 | `75000` |

@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 mod artwork;
 mod combined;
 mod inks;
+mod knockout;
 mod marks;
 mod opacity;
 mod prepress;
@@ -92,6 +93,10 @@ struct Writer {
     grid_masks: usize,
     artwork_alpha_masks: usize,
     artwork_luminance_masks: usize,
+    knockout_groups: usize,
+    // On knockout pages, record the longest form/mask dependency chain for
+    // each reusable resource. Siblings on separate branches do not add depth.
+    form_depths: Option<BTreeMap<usize, usize>>,
     native_inks: bool,
     swatches: BTreeMap<String, crate::swatches::Swatch>,
     ink_spaces: BTreeMap<String, usize>,
@@ -107,6 +112,43 @@ struct Writer {
     explicit_black_point: bool,
 }
 impl Writer {
+    fn isolated_rgb_form(&mut self, stream: &Stream) -> Result<usize, Error> {
+        let dictionary = format!(
+            "/Type /XObject /Subtype /Form /BBox [{}] /Group << /S /Transparency /I true /CS {} >> /Resources {}",
+            self.page_bbox,
+            self.group_space(),
+            stream.dictionary(None)
+        );
+        self.form(&dictionary, stream)
+    }
+    fn form(&mut self, dictionary: &str, stream: &Stream) -> Result<usize, Error> {
+        let id = self.stream(dictionary, stream.content.as_bytes())?;
+        self.record_form_depth(id, stream.resources.values().flatten())
+    }
+    fn mask_state(&mut self, dictionary: String, form: usize) -> Result<usize, Error> {
+        let id = self.add(dictionary)?;
+        self.record_form_depth(id, std::iter::once(&form))
+    }
+    fn record_form_depth<'a>(
+        &mut self,
+        id: usize,
+        references: impl Iterator<Item = &'a usize>,
+    ) -> Result<usize, Error> {
+        if let Some(depths) = &mut self.form_depths {
+            let depth = 1 + references
+                .filter_map(|child| depths.get(child))
+                .max()
+                .copied()
+                .unwrap_or(0);
+            if depth > crate::limits::pdf::MAX_KNOCKOUT_FORM_DEPTH {
+                return Err(limit(
+                    "PDF knockout page exceeds the supported form and soft-mask reference depth",
+                ));
+            }
+            depths.insert(id, depth);
+        }
+        Ok(id)
+    }
     fn group_space(&self) -> &str {
         self.blend_space.as_deref().unwrap_or(if self.native_inks {
             "/DeviceCMYK"
@@ -456,7 +498,7 @@ fn gradient(
             ..Stream::default()
         };
         mask_stream.use_resource("Shading", opacity, "sh");
-        let dictionary = opacity::mask_dictionary(
+        let (dictionary, form) = opacity::mask_dictionary(
             writer,
             mask_stream,
             crate::artwork_masks::Mode::Luminance,
@@ -464,7 +506,7 @@ fn gradient(
             1.0,
         )?;
         graphics_state(writer, stream, 1.0, BlendMode::Normal)?;
-        let state = writer.add(dictionary)?;
+        let state = writer.mask_state(dictionary, form)?;
         stream.use_resource("ExtGState", state, "gs");
         writer.page_requires_backdrop = true;
         writer.gradient_opacity_masks += 1;
@@ -639,14 +681,19 @@ fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
         if item.blend != BlendMode::Normal && !display_blends {
             return Err(unsupported("Non-normal vector PDF blending requires display color with the working RGB blending space").at_item(&item.id));
         }
-        if item.content.is_knockout()
-            || !item.effects.is_empty()
+        if item.content.is_knockout() {
+            knockout::preflight(document, item, display_blends)?;
+        }
+        if !item.effects.is_empty()
             || !item.filters.is_empty()
             || !item.coverage.is_smooth()
             || item.pixel_warp.is_some()
             || item.clip_to.is_some()
         {
-            return Err(unsupported("PDF does not preserve knockout, effects, filters, dissolve, pixel warps or layer clipping").at_item(&item.id));
+            return Err(unsupported(
+                "PDF does not preserve effects, filters, dissolve, pixel warps or layer clipping",
+            )
+            .at_item(&item.id));
         }
         if let Some(mask) = item
             .mask
@@ -731,10 +778,16 @@ fn items(
     writer: &mut Writer,
     output: &mut Stream,
     document: &Document,
-    parent: Option<&str>,
+    parent: Option<&Item>,
     resources: &PageResources,
 ) -> Result<(), Error> {
-    for i in scene::children(document, parent) {
+    let mut knockout_group = if let Some(group) = parent.filter(|p| p.content.is_knockout()) {
+        let depth = scene::ancestors(document, scene::index(document, &group.id)?)?.len();
+        Some(knockout::Group::new(writer, depth))
+    } else {
+        None
+    };
+    for i in scene::children(document, parent.map(|p| p.id.as_str())) {
         writer.control.check()?;
         let item = &document.items[i];
         if !item.visible
@@ -779,9 +832,7 @@ fn items(
                     )?;
                 }
             }
-            Content::Group { .. } => {
-                items(writer, &mut stream, document, Some(&item.id), resources)?
-            }
+            Content::Group { .. } => items(writer, &mut stream, document, Some(item), resources)?,
             Content::Frame { frame } => {
                 clip(
                     writer,
@@ -801,7 +852,7 @@ fn items(
                         FillRule::Nonzero,
                     )?;
                 }
-                items(writer, &mut stream, document, Some(&item.id), resources)?;
+                items(writer, &mut stream, document, Some(item), resources)?;
             }
             Content::Vector {
                 geometry,
@@ -891,7 +942,12 @@ fn items(
                 );
             }
         }
-        let mut opacity = item.opacity * item.fill_opacity;
+        let owner_opacity = item.opacity * item.fill_opacity;
+        let mut opacity = if knockout_group.is_some() {
+            1.0
+        } else {
+            owner_opacity
+        };
         let mut mask_state = resources.artwork_masks.get(&item.id).copied();
         if let Some(prepared) = resources.masks.items.get(&item.id) {
             let mask = item.mask.as_deref().expect("prepared item mask");
@@ -918,28 +974,51 @@ fn items(
             "/I true /CS /DeviceGray".into()
         } else if native_ink_leaf {
             "/I false".into()
-        } else if isolated {
+        } else if isolated || knockout_group.is_some() {
             format!("/I true /CS {}", writer.group_space())
         } else {
             "/I false".into()
         };
         // A unit-opacity leaf must paint directly into its ink backdrop. An
         // artificial isolated leaf group would erase overprint interaction.
-        // Real containers retain their declared isolation; item opacity still
-        // applies once to a composed fill/stroke through a transparency group.
+        // Knockout members supply a separate intrinsic footprint. For ordinary
+        // containers the PDF group retains the declared isolation.
         let group = if native_ink_leaf && opacity == 1.0 && mask_state.is_none() {
             String::new()
         } else {
             format!("/Group << /S /Transparency {group} /K false >>")
         };
-        let id = writer.stream(
-            &format!(
-                "/Type /XObject /Subtype /Form /FormType 1 /BBox [{}] /Resources {} {group}",
-                writer.page_bbox,
-                stream.dictionary(None)
-            ),
-            stream.content.as_bytes(),
-        )?;
+        let id = writer
+            .form(
+                &format!(
+                    "/Type /XObject /Subtype /Form /FormType 1 /BBox [{}] /Resources {} {group}",
+                    writer.page_bbox,
+                    stream.dictionary(None)
+                ),
+                &stream,
+            )
+            .map_err(|e| e.at_item(&item.id))?;
+        if let Some(group) = &mut knockout_group {
+            // The alpha of this isolated form is the complete intrinsic
+            // footprint, including the owner's clip and opacity mask.
+            let mut footprint = id;
+            if mask_state.is_some() || opacity != 1.0 {
+                let mut masked = Stream {
+                    default_rgb: writer.default_rgb,
+                    ..Stream::default()
+                };
+                graphics_state(writer, &mut masked, opacity, BlendMode::Normal)?;
+                if let Some(state) = mask_state {
+                    masked.use_resource("ExtGState", state, "gs");
+                }
+                masked.use_resource("XObject", id, "Do");
+                footprint = writer.isolated_rgb_form(&masked)?;
+            }
+            group
+                .add(writer, footprint, owner_opacity)
+                .map_err(|e| e.at_item(&item.id))?;
+            continue;
+        }
         output.content.push_str("q\n");
         graphics_state(writer, output, opacity, item.blend)?;
         if let Some(state) = mask_state {
@@ -948,6 +1027,11 @@ fn items(
         }
         output.use_resource("XObject", id, "Do");
         output.content.push_str("Q\n");
+    }
+    if let (Some(group), Some(owner)) = (knockout_group, parent) {
+        group
+            .finish(writer, output)
+            .map_err(|e| e.at_item(&owner.id))?;
     }
     Ok(())
 }
@@ -1117,6 +1201,11 @@ pub fn export_controlled(
             .transpose()?;
         let page = viewport.as_ref().unwrap_or(page);
         preflight(page, !native_inks && working_blend_space)?;
+        writer.form_depths = page
+            .items
+            .iter()
+            .any(|i| i.content.is_knockout())
+            .then(BTreeMap::new);
         writer.page_uses_blends = page
             .items
             .iter()
@@ -1320,6 +1409,7 @@ pub fn export_controlled(
     let grid_masks = writer.grid_masks;
     let artwork_alpha_masks = writer.artwork_alpha_masks;
     let artwork_luminance_masks = writer.artwork_luminance_masks;
+    let knockout_groups = writer.knockout_groups;
     let grid_mask_samples = writer.grid_mask_samples;
     let version = writer.version();
     let black_point = writer.explicit_black_point;
@@ -1330,6 +1420,10 @@ pub fn export_controlled(
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
     result["pdf"]["version"] = json!(version);
+    if knockout_groups > 0 {
+        result["pdf"]["knockout_groups"] = json!(knockout_groups);
+        result["losses"].as_array_mut().unwrap().push(json!("Knockout appearance is delivered as vector transparency forms. The snapshot retains the editable knockout group and its child footprint controls."));
+    }
     if artwork_alpha_masks + artwork_luminance_masks > 0 {
         result["pdf"]["artwork_masks"] =
             json!({"alpha":artwork_alpha_masks,"luminance":artwork_luminance_masks});
