@@ -223,6 +223,26 @@ class SearchablePdfTests(unittest.TestCase):
                 self.assertEqual(error["code"], "UNSUPPORTED")
                 self.assertFalse(target.exists())
 
+    def test_rtl_source_respects_searchable_delivery_in_both_layout_modes(self):
+        self.install(font_bytes())
+        for source in ("A אב", "A بت"):
+            for layout, reason in (
+                ({}, "right_to_left_source"),
+                (dict(bidi="unicode", direction="auto"), "right_to_left_run"),
+            ):
+                with self.subTest(source=source, layout=layout):
+                    doc = self.document(text=source, wrap=False, **layout)
+                    result = self.export(doc, "searchable")
+                    self.assertEqual(result["pdf"]["text"], "vector_outlines")
+                    self.assertEqual(
+                        result["pdf"]["text_delivery"]["outlined_items_by_reason"],
+                        {reason: 1},
+                    )
+                    self.assertEqual(Pdf(result).data, Pdf(self.export(doc)).data)
+                    self.assertIn(
+                        reason, self.export(doc, "require_searchable", 1)["message"]
+                    )
+
     def test_mixed_items_share_the_font_and_report_only_the_outlined_item(self):
         self.install(font_bytes())
         doc = self.document(text="fi")

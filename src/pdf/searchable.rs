@@ -228,13 +228,20 @@ pub(super) fn paint_text(
         if g.start >= g.end || g.end >= offsets.len() {
             return fallback(writer, item, resources.text, "missing_source_range");
         }
+        let cluster = &text[offsets[g.start]..offsets[g.end]];
+        // Single-run layout can paint strong RTL characters left to right.
+        // Readers may then reverse their Unicode even though the glyphs match.
+        if cluster.chars().any(|c| {
+            matches!(
+                unicode_bidi::bidi_class(c),
+                unicode_bidi::BidiClass::R | unicode_bidi::BidiClass::AL
+            )
+        }) {
+            return fallback(writer, item, resources.text, "right_to_left_source");
+        }
         // Each CMap destination is a PDF string. Bound UTF-16 bytes before
         // reserving a character code or painting any part of this text item.
-        if text[offsets[g.start]..offsets[g.end]]
-            .encode_utf16()
-            .count()
-            > 128
-        {
+        if cluster.encode_utf16().count() > 128 {
             return fallback(writer, item, resources.text, "long_unicode_cluster");
         }
         if let std::collections::btree_map::Entry::Vacant(entry) = kinds.entry(g.font_id.as_str()) {

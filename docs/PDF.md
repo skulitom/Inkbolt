@@ -110,7 +110,9 @@ can follow different tangents. Inkbolt preserves each glyph's position, scale
 and rotation. All visible glyphs in the cluster must share one opaque RGB fill,
 supplied as byte channels or a precise `rgba` value.
 Variable fonts, right-to-left runs, generated glyphs, gradient text and text
-on knockout pages use the fallback.
+on knockout pages use the fallback. A left-to-right frame containing strong
+right-to-left source characters also falls back (`right_to_left_source`).
+This preserves the drawn label when a reader would reverse the copied text.
 Flattened print, prepress and ink-recipe exports reject the searchable option.
 The PDF carries positioned text. Paragraph structure, accessibility tags and
 editable layout remain outside this contract.
