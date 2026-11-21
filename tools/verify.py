@@ -312,6 +312,9 @@ def verify(args, state, started, deadline):
         if not (args.thorough or args.force or force) and reusable(old, fingerprint):
             return dict(old, status='reused', seconds=0)
         timeout = None if deadline is None else deadline - time.monotonic()
+        if timeout is not None and timeout <= 0:
+            return dict(status='deferred', seconds=0, exit_code=None,
+                        reason='Quick budget exhausted before launch')
         try:
             row = checked_result(run(argv, ROOT, timeout, env, separate_stderr=expected is not None), expected, rust)
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
@@ -420,10 +423,15 @@ def verify(args, state, started, deadline):
                                  superseded_by=dict(check=parent, fingerprint=rows[parent]['fingerprint'],
                                                     log=rows[parent]['log']))
         for name, row in rows.items():
-            if row['status'] != 'reused':
-                # A failure survives a deferral until the check actually passes.
-                if row['status'] != 'deferred' or history.get(name, {}).get('status') != 'failed':
-                    history[name] = row
+            if row['status'] == 'reused':
+                continue
+            if row['status'] == 'deferred':
+                old_status = history.get(name, {}).get('status')
+                # A failure survives until a real pass. A check never launched
+                # cannot invalidate a completed pass for its original inputs.
+                if old_status == 'failed' or (old_status == 'passed' and 'command' not in row):
+                    continue
+            history[name] = row
         for name in failures:
             parent = parent_check(name)
             if parent and history.get(parent, {}).get('status') == 'passed':
@@ -438,7 +446,8 @@ def verify(args, state, started, deadline):
                     del history[case]
     else:
         history = {}
-    updated = dict(version=1, files=baseline if stable else {}, checks=history, executable=binary,
+    verified_binary = binary if rows['build']['status'] in ('passed', 'reused') else cache.get('executable')
+    updated = dict(version=1, files=baseline if stable else {}, checks=history, executable=verified_binary,
                    latest_report=str(report_path))
     temporary = state / (run_id + '.tmp')
     temporary.write_text(json.dumps(updated, indent=2) + '\n', encoding='utf-8')

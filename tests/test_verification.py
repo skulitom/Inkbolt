@@ -472,6 +472,63 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(saved['checks']['test_two']['duration_hint_seconds'], .01)
         self.assertEqual(sum('test_two.py' in command for command in commands), 1)
 
+    def test_unlaunched_check_retains_only_the_original_inputs_pass(self):
+        self.write('engine.exe', 'test-binary')
+        self.write('tests/test_two.py', 'value=1')
+        state = self.root / 'state'
+        state.mkdir()
+        launches = []
+        def fake(argv, *args):
+            if 'test_two.py' in argv:
+                launches.append(argv)
+            return dict(status='passed', seconds=90 if 'test_two.py' in argv else .01,
+                        exit_code=0, output='Ran 1 test in 0.01s\nOK\n')
+        args = ['--only', 'test_two']
+        self.assertEqual(self.mini_run(args, fake, state), 0)
+        original = verify.load_state(state/'state.json')['checks']['test_two']
+        self.write('tests/test_two.py', 'value=2')
+        for _ in range(2):
+            self.assertEqual(self.mini_run(args, fake, state, deadline=time.monotonic()+10), 2)
+            saved = verify.load_state(state/'state.json')
+            report = json.loads(Path(saved['latest_report']).read_text(encoding='utf-8'))
+            self.assertEqual(report['deferred'], ['test_two'])
+            self.assertEqual(saved['checks']['test_two'], original)
+        self.write('tests/test_two.py', 'value=1')
+        self.assertEqual(self.mini_run(args, fake, state), 0)
+        self.assertEqual(len(launches), 1)
+        self.write('tests/test_two.py', 'value=2')
+        self.assertEqual(self.mini_run(args, fake, state), 0)
+        self.assertEqual(len(launches), 2)
+
+    def test_interrupted_execution_and_unverified_binary_cannot_reuse_a_pass(self):
+        self.write('engine.exe', 'original')
+        self.write('tests/test_two.py', 'value=1')
+        state = self.root / 'state'
+        state.mkdir()
+        calls = []
+        interrupt = None
+        def fake(argv, *args):
+            calls.append(argv)
+            if interrupt and interrupt in argv:
+                return dict(status='deferred', seconds=.1, exit_code=None, output='')
+            return dict(status='passed', seconds=.01, exit_code=0, output='Ran 1 test in 0.01s\nOK\n')
+        args = ['--only', 'test_two']
+        self.assertEqual(self.mini_run(args, fake, state), 0)
+        original = verify.load_state(state/'state.json')['executable']
+        interrupt = 'test_two.py'
+        self.assertEqual(self.mini_run(args+['--force'], fake, state), 2)
+        self.assertEqual(verify.load_state(state/'state.json')['checks']['test_two']['status'], 'deferred')
+        interrupt = None
+        calls.clear()
+        self.assertEqual(self.mini_run(args, fake, state), 0)
+        self.assertTrue(any('test_two.py' in argv for argv in calls))
+        self.write('engine.exe', 'replacement')
+        self.assertEqual(self.mini_run(args, fake, state, deadline=time.monotonic()-1), 2)
+        self.assertEqual(verify.load_state(state/'state.json')['executable'], original)
+        calls.clear()
+        self.assertEqual(self.mini_run(args, fake, state), 0)
+        self.assertIn(['cargo','build','--locked'], calls)
+
     def test_public_guard_is_reported_and_cannot_satisfy_next_private_run(self):
         self.write('tests/test_one.py', 'value=1')
         self.write('engine.exe', 'test-binary')
