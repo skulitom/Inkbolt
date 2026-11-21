@@ -22,25 +22,36 @@ artwork, loses an ink or moves marks when the page uses a larger UserUnit.
 The independent PDF reader checks asymmetric bleed, vector forms, the named
 ink and its tint, plus a sheet whose margin doubles the UserUnit. The same
 crop strokes still measure six points. Two-page publication through MCP
-retains the document revision. Focused feedback including a rebuild and Clippy
-took 55 seconds on Windows and 41 seconds on Linux under WSL.
+retains the document revision. Focused feedback with a rebuild and Clippy
+stayed within the three-minute budget on Windows and Linux under WSL.
 
 At 288 DPI, Poppler 26.07.0 reproduced every one of the 153,600 artwork pixels
 on four sheets covering display RGB and native inks, each with and without
 an RGB page profile. All four unmarked PDFs matched v0.84.0 byte for byte.
-With vector antialiasing enabled, each spot sheet had 120 tinted pixels in the first pixel column outside the
-bleed edge. With antialiasing disabled, all 88,004 margin pixels matched the
+With vector antialiasing enabled, each spot sheet had 120 tinted pixels in the
+first pixel column outside the bleed edge. With antialiasing disabled, all
+88,004 margin pixels matched the
 marks-only reference on each sheet.
 
 Ghostscript 9.55.0 exposed a defect in the first implementation. An RGB page
 group could convert registration ink to unequal process amounts. The writer
-now keeps RGB-only artwork in a clipped form. Native CMYK pages and pages that
-paint a named separation retain their page-level group so spot and process
-paints keep their original appearance.
+now keeps RGB-only artwork in a clipped form. Native CMYK pages retain their
+page group. On calibrated spot pages, opaque knockout paints go directly on the
+sheet with their source profiles and the declared artwork profile retained.
+Translucent RGB fixtures matched visually but changed the process plates.
+Marked pages requiring RGB backdrop blending therefore fail explicitly.
 
 All 18 rendered plates matched their unmarked counterparts throughout the
 artwork. Every plate contained the same 1,440 fully inked mark pixels. The
-spot band's 75% tint appeared on its own plate. The independent comparison in
+spot band's 75% tint appeared on its own plate. Six further opaque sheets with
+profiled inks and mixed spot alternates passed all 32 additional plate comparisons.
+
+The original B14 A4 artwork exercised fractional page dimensions and two
+embedded colour profiles. Windows and Linux produced identical
+marked PDFs. All 8,371,176 RGB artwork pixels and all five ink plates matched
+the unmarked delivery. Each plate carried the same 1,520 fully inked mark
+pixels. This is an artifact replay of the print fixture. The original model
+benchmark scores still apply to the unmarked task. The independent comparison in
 `tests/test_native_print_cli.py` runs when Ghostscript and Pillow are available.
 The original extended page-exchange checkpoint remains open.
 

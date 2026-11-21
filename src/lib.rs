@@ -2209,7 +2209,7 @@ fn capability_report() -> Value {
         json!(limits::pixel_warps::MIN_FRAME_EXTENT);
     capabilities["path_text"]["minimum_baseline_length"] =
         json!(limits::path_text::MIN_BASELINE_LENGTH);
-    capabilities["pdf"]["marks"] = json!({"vector":"pdf_options.marks","native_flattened":"pdf_options.prepress.marks","types":["crop","registration"],"units":"physical_points","colorant":"All","placement":"outside_bleed"});
+    capabilities["pdf"]["marks"] = json!({"vector":"pdf_options.marks","native_flattened":"pdf_options.prepress.marks","types":["crop","registration"],"units":"physical_points","colorant":"All","placement":"outside_bleed","rgb_blending":"opaque_knockout_artwork_only","native_cmyk_blending":"retains_existing_vector_transparency"});
     capabilities["pdf"]["mark_limits"] = json!({"gap_pt":[limits::pdf_marks::MIN_GAP,limits::pdf_marks::MAX_GAP],"length_pt":[limits::pdf_marks::MIN_LENGTH,limits::pdf_marks::MAX_LENGTH],"line_width_pt":[limits::pdf_marks::MIN_LINE_WIDTH,limits::pdf_marks::MAX_LINE_WIDTH],"registration_radius_pt":[limits::pdf_marks::MIN_REGISTRATION_RADIUS,limits::pdf_marks::MAX_REGISTRATION_RADIUS],"defaults":{"gap_pt":limits::pdf_marks::DEFAULT_GAP,"length_pt":limits::pdf_marks::DEFAULT_LENGTH,"line_width_pt":limits::pdf_marks::DEFAULT_LINE_WIDTH,"registration_radius_pt":limits::pdf_marks::DEFAULT_REGISTRATION_RADIUS}});
     capabilities["print_proof"]["delta_e76_threshold"] =
         json!([0, limits::proof::MAX_DELTA_E76_THRESHOLD]);

@@ -90,6 +90,7 @@ struct Writer {
     swatches: BTreeMap<String, crate::swatches::Swatch>,
     ink_spaces: BTreeMap<String, usize>,
     page_has_spot_paint: bool,
+    page_requires_backdrop: bool,
     device_profiles: BTreeMap<String, usize>,
     blend_space: Option<String>,
     default_rgb: Option<usize>,
@@ -212,6 +213,7 @@ struct Stream {
     content: String,
     resources: BTreeMap<&'static str, BTreeSet<usize>>,
     default_rgb: Option<usize>,
+    artwork_blend_space: Option<String>,
 }
 impl Stream {
     fn use_resource(&mut self, category: &'static str, id: usize, op: &str) {
@@ -241,6 +243,12 @@ impl Stream {
                 .or_default()
                 .push(format!("/Marks {id} 0 R"));
         }
+        if let Some(space) = &self.artwork_blend_space {
+            entries
+                .entry("ColorSpace")
+                .or_default()
+                .push(format!("/ArtworkBlend {space}"));
+        }
         let entries = entries
             .iter()
             .map(|(kind, values)| format!("/{kind} << {} >>", values.join(" ")))
@@ -250,6 +258,7 @@ impl Stream {
     }
 }
 fn alpha(writer: &mut Writer, stream: &mut Stream, opacity: f64) -> Result<(), Error> {
+    writer.page_requires_backdrop |= opacity != 1.0;
     let id = writer.add(format!(
         "<< /Type /ExtGState /ca {} /CA {} /BM /Normal /SMask /None /OP false /op false /OPM 0 >>",
         number(opacity)?,
@@ -471,6 +480,7 @@ fn image(
         gray.push(pixel[3]);
     }
     let mask = if gray.iter().any(|&a| a != 255) {
+        writer.page_requires_backdrop = true;
         let id = writer.stream(&format!("/Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Interpolate false"), &gray)?;
         format!("/SMask {id} 0 R")
     } else {
@@ -988,6 +998,8 @@ pub fn export_controlled(
                 .add("<< /Type /ExtGState /RI /RelativeColorimetric /UseBlackPtComp /OFF >>")?;
             stream.use_resource("ExtGState", state, "gs");
         }
+        writer.page_has_spot_paint = false;
+        writer.page_requires_backdrop = false;
         if let Some([r, g, b]) = crate::backgrounds::visible_matte(page) {
             paint(
                 &mut writer,
@@ -1004,7 +1016,6 @@ pub fn export_controlled(
                 FillRule::Nonzero,
             )?;
         }
-        writer.page_has_spot_paint = false;
         items(&mut writer, &mut stream, page, None, &pixels, &layouts)?;
         stream.content.push_str("Q\n");
         let mut page_group = format!(
@@ -1012,6 +1023,11 @@ pub fn export_controlled(
             writer.group_space()
         );
         let (media, bounds, trim, mark_space) = if let Some(layout) = &marked {
+            if writer.page_requires_backdrop && (!native_inks || writer.blend_space.is_some()) {
+                return Err(unsupported(
+                    "Marked pages with RGB blending require opaque knockout artwork. Keep the unmarked vector page or use prepress.marks for a flattened plate sheet.",
+                ));
+            }
             let bounds = layout.coordinates(layout.bleed);
             let placement = format!(
                 "q\n1 0 0 1 {} {} cm\n0 0 {} {} re W n\n",
@@ -1021,12 +1037,16 @@ pub fn export_controlled(
                 number(height)?
             );
             if native_inks && (writer.blend_space.is_none() || writer.page_has_spot_paint) {
-                // Keep native CMYK and painted named separations at page level.
-                // Isolating those inks in a form can alter the process plates.
+                // Isolating native separations in another form can change
+                // process plate values. Opaque spot paints need no page blend.
+                if writer.blend_space.is_some() {
+                    stream.artwork_blend_space.clone_from(&writer.blend_space);
+                    page_group.clear();
+                }
                 stream.content.insert_str(0, &placement);
             } else {
-                // An RGB page group would convert All to RGB before separation.
-                // Confine RGB blending to the artwork and paint marks outside it.
+                // Keep RGB blending and explicit source-profile conversions on
+                // the artwork. Passing All through them can erase spot marks.
                 let form = writer.stream(&format!("/Type /XObject /Subtype /Form /FormType 1 /BBox [0 0 {} {}] /Resources {}{page_group}",
                     number(width)?, number(height)?, stream.dictionary(None)), stream.content.as_bytes())?;
                 page_group.clear();
@@ -1068,6 +1088,10 @@ pub fn export_controlled(
             receipt["physical_points"] = json!([layout.media[2], layout.media[3]]);
             receipt["bleed_box"] = json!(bounds);
             receipt["marks"] = layout.receipt();
+            if stream.artwork_blend_space.is_some() {
+                receipt["artwork_blending"] =
+                    json!("opaque_knockout_paints;declared_RGB_profile_retained_in_ArtworkBlend");
+            }
         }
         receipts.push(receipt);
         envelopes.push(json!({"artboard_id":artboard_id,"packet":packet.map(|s|serde_json::from_str::<Value>(&s).unwrap())}));
@@ -1137,13 +1161,22 @@ pub fn export_controlled(
     } else {
         crate::swatches::annotate(source, &mut result)?;
     }
-    if let Some(profile) = color_profile {
+    if let Some(mut profile) = color_profile {
+        if options.marks.is_some() {
+            profile["role"] =
+                json!("RGB_artwork_blending;opaque_spot_pages_retain_profile_in_ArtworkBlend");
+        }
         result["color_profile"] = profile;
         result["pdf"]["color"] =
             json!("calibrated_ICCBased_RGB_blending;retained_source_profiles_and_spot_identities");
         result["losses"][2] = json!(
             "The declared RGB profile calibrates page and isolated-group blending. Device RGB sources explicitly use sRGB; profiled paints retain their source profiles and intents. Consumer rounding, antialiasing and profile interpretation may differ; this is not a print proof or exact-pixel guarantee."
         );
+        if options.marks.is_some() {
+            result["losses"][2] = json!(
+                "RGB artwork groups use the declared blending profile. Opaque calibrated spot pages retain that profile in ArtworkBlend and paint directly on the sheet. Device RGB uses sRGB and profiled paints retain their source profiles and intents. Rasterization and colour conversion depend on the consumer."
+            );
+        }
     }
     Ok(result)
 }

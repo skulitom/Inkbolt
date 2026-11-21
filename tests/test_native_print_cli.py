@@ -253,16 +253,38 @@ class NativePrintTests(unittest.TestCase):
         original = pdf_reader.Pdf(self.invoke(dict(request, pdf_options=options)))
         marked = pdf_reader.Pdf(self.invoke(dict(request, pdf_options=dict(options, marks={}))))
         for index, page in enumerate(marked.pages):
+            self.assertNotIn('Group', page)
             if index == 1:
-                self.assertNotIn('Group', page)
                 form, = page['Resources']['XObject'].values()
-                group = marked.get(form)['Group']
+                space = marked.get(form)['Group']['CS']
             else:
-                group = page['Group']
-            self.assertEqual(group['CS'][0], 'ICCBased')
-            self.assertEqual(marked.streams[group['CS'][1]],
+                space = page['Resources']['ColorSpace']['ArtworkBlend']
+            self.assertEqual(space[0], 'ICCBased')
+            self.assertEqual(marked.streams[space[1]],
                              original.streams[original.pages[index]['Group']['CS'][1]])
             self.assertEqual(strokes(marked, index)[0]['color'][:3], ['Separation', 'All', 'DeviceCMYK'])
+
+        # Each admitted opaque spot remains an ordinary unmarked export when a
+        # later edit requires calibrated backdrop blending or process overprint.
+        for change in ('opacity', 'overprint', 'image'):
+            translucent = copy.deepcopy(d)
+            if change == 'opacity':
+                translucent['items'][1]['opacity'] = .5
+            elif change == 'overprint':
+                translucent['items'][1]['content']['fill']['overprint'] = 'preserve'
+            else:
+                from test_images_cli import canonical
+                pixel = bytes.fromhex('ffeebb80')
+                translucent['assets'] = dict(dot=dict(width=1, height=1,
+                    sha256=hashlib.sha256(canonical(1, 1, pixel)).hexdigest(),
+                    storage=dict(type='embedded', rgba_hex=pixel.hex())))
+                translucent['items'].append(dict(id='alpha', parent='page-0', content=dict(
+                    type='image', asset_id='dot', width=1, height=1, sampling='nearest')))
+            self.invoke(dict(request, document=translucent, pdf_options=options))
+            error = self.invoke(dict(request, document=translucent,
+                                     pdf_options=dict(options, marks={})), 1)
+            self.assertEqual(error['code'], 'UNSUPPORTED')
+            self.assertIn('opaque knockout', error['message'])
 
     def test_vector_marks_keep_physical_size_when_margin_changes_user_unit(self):
         d = self.document(0, width=200, height=16, ppi=1)
@@ -287,7 +309,11 @@ class NativePrintTests(unittest.TestCase):
         except ImportError:
             self.skipTest('Pillow is required to read the independent TIFF plates')
         margin_reference = None
-        for calibrated, native in itertools.product((False, True), repeat=2):
+        from test_profiles_cli import linear_profile
+        from test_swatch_profiles_cli import managed
+        cases = [(calibrated, native, False) for calibrated, native in itertools.product((False, True), repeat=2)]
+        cases.append((True, True, True))
+        for calibrated, native, profiled_inks in cases:
             d = self.invoke(dict(command='document.create', id='proof', kind='vector',
                                  width=120, height=80, resolution_ppi=72))
             if calibrated:
@@ -297,9 +323,13 @@ class NativePrintTests(unittest.TestCase):
                 d['swatches'] = {'seal': dict(name='Seal', definition=dict(
                     type='spot', alternate=dict(space='srgb', components=[.125, .375, .875])))}
                 ink = named('seal', tint=.75)
+            if profiled_inks:
+                d['output_profile'] = embedded(linear_profile())
+                d['swatches']['seal'] = managed('cmyk', [0, 1, 0, 0], embedded(cmyk_profile()),
+                                                spot=True, untagged='reject')
             d['items'] = [rect('band', ink, box=(-25, 8, 180, 30)),
                           rect('footer', [170, 60, 38, 255], box=(7, 55, 98, 14))]
-            with self.subTest(calibrated=calibrated, native=native), tempfile.TemporaryDirectory() as root:
+            with self.subTest(calibrated=calibrated, native=native, profiled_inks=profiled_inks), tempfile.TemporaryDirectory() as root:
                 for variant in ('plain', 'marked'):
                     options = dict(color='native_inks' if native else 'display')
                     if variant == 'marked':
@@ -344,6 +374,18 @@ class NativePrintTests(unittest.TestCase):
                                            output=dict(output, pdf_options=options)), 1)
                 self.assertEqual(failure['code'], 'INVALID_REQUEST')
                 self.assertFalse((Path(root) / 'sheet.pdf').exists())
+            d['items'] = [rect('tint', [30, 100, 215, 128])]
+            for profile in (None, dict(type='builtin', name='srgb')):
+                d['output_profile'] = profile
+                failure = self.invoke(dict(command='document.publish', document=d,
+                                           output=dict(output, pdf_options=dict(marks={}))), 1)
+                self.assertEqual(failure['code'], 'UNSUPPORTED')
+                self.assertIn('opaque knockout', failure['message'])
+                self.assertFalse((Path(root) / 'sheet.pdf').exists())
+            d['output_profile'] = None
+            receipt = self.invoke(dict(command='document.publish', document=d, output=dict(
+                output, pdf_options=dict(color='native_inks', marks={}))))
+            self.assertEqual(receipt['pages'][0]['marks']['colorant'], 'All')
 
     def test_print_mark_advertised_bounds_and_defaults_are_inclusive(self):
         bounds = capabilities()['pdf']['mark_limits']; d = self.document(0, ppi=1)

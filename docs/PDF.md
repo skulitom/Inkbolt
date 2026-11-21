@@ -55,8 +55,13 @@ true, "registration": false}` for crop marks alone. Both display colour and
 `"color": "native_inks"` support marks. Paths and named inks keep their
 ordinary delivery semantics. The engine clips the artwork at the BleedBox
 and draws marks in the added margin using the PDF `All` separation.
-For a calibrated RGB-only page, the artwork's form carries its blending
-profile. A page that paints named separations keeps its calibrated page group.
+Marked pages with RGB blending support opaque knockout artwork. A transparent
+background is fine. Use unmarked vector delivery or explicit flattened
+prepress when the artwork needs RGB transparency blending or overprint.
+Native CMYK page blending retains its existing vector transparency support.
+For a calibrated RGB-only page, the artwork's form carries the profile.
+Calibrated pages with named spots paint them directly and retain the declared
+profile in their `ArtworkBlend` resource.
 
 MediaBox and CropBox include the margin. The marked page receipt reports
 the full sheet in `physical_points`, the artwork including bleed in
