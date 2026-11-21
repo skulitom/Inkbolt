@@ -23,9 +23,10 @@ The server exposes ten tools at startup. An agent can look up individual editing
 commands as it works. The release page lists archives by operating system and
 CPU, plus a desktop extension for Windows. [Installation and client setup](docs/INSTALLATION.md)
 
-To make your first PNG, save the [postcard example](examples/first-png.json) as
-`first-png.json` in an empty folder. Open PowerShell or a Unix shell there and
-run this command with the extracted binary on your path.
+To make your first PNG, copy the [postcard example](examples/first-png.json)
+into an empty workspace folder. Starting with 0.84, the example comes in the
+archive under `examples/`. Open PowerShell or a Unix shell in the workspace and
+run this command with `inkbolt` on your path.
 
 ```text
 inkbolt --workspace "$PWD" first-png.json

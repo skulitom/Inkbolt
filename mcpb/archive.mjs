@@ -14,11 +14,13 @@ export const TARGETS = {
   'x86_64-apple-darwin': { platform: 'darwin', arch: 'x64', binary: 'inkbolt', extension: 'tar.gz' }
 };
 
-// Root-level names fit the ustar name field; preserve the executable bit.
+// Use relative ASCII paths that fit the ustar name field and preserve the executable bit.
 export function writeTarGz(files, executable) {
   const blocks = [], octal = (value, length) => value.toString(8).padStart(length - 1, '0') + '\0';
   for (const [name, data] of [...files].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
-    if (!/^[A-Za-z0-9_.-]{1,100}$/.test(name)) throw new Error(`Unsupported tar entry name: ${name}`);
+    if (name.length > 100 || !name.split('/').every(part => /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(part))) {
+      throw new Error(`Unsupported tar entry name: ${name}`);
+    }
     const header = Buffer.alloc(512);
     header.write(name); header.write(octal(name === executable ? 0o755 : 0o644, 8), 100);
     header.write(octal(0, 8), 108); header.write(octal(0, 8), 116);
@@ -46,7 +48,16 @@ export async function archive({ target, binary, sbom, base = root, out = path.jo
   const files = new Map([[spec.binary, await readFile(binary)]]);
   const version = await cargoVersion(base);
   if (sbom) files.set('sbom.cdx.json', checkSbom(await readFile(sbom), files.get(spec.binary), target, version));
-  for (const name of ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']) files.set(name, await textFile(path.join(base, name)));
+  for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'examples/first-png.json']) {
+    files.set(name, await textFile(path.join(base, name)));
+  }
+  // Repository links work on GitHub. In a download, keep the included files local
+  // and send readers to the matching tagged documentation for everything else.
+  const readme = (await textFile(path.join(base, 'README.md'))).toString();
+  const tagged = `https://github.com/skulitom/Inkbolt/blob/v${version}/`;
+  const localLink = /\]\(([\w][\w./-]*)(#[\w-]+)?\)/g;
+  files.set('README.md', Buffer.from(readme.replace(localLink, (match, file, fragment = '') =>
+    files.has(file) ? match : `](${tagged}${file}${fragment})`)));
   const bytes = spec.extension === 'zip' ? writeZip(files) : writeTarGz(files, spec.binary);
   const file = path.resolve(out, `inkbolt-v${version}-${target}.${spec.extension}`);
   await writeUnchangedOrNew(file, bytes);

@@ -26,6 +26,11 @@ Download the archive for your system from
 `SHA256SUMS`, and extract it, for example to `C:\Tools\Inkbolt`. Create your
 workspace folder first.
 
+Each 0.84 archive includes an editable postcard. Copy `examples/first-png.json`
+to your workspace. With the binary on your path, run
+`inkbolt --workspace "$PWD" first-png.json` there to create `postcard.png`.
+The example works offline.
+
 Starting with 0.84, release archives include a software bill of materials in
 `sbom.cdx.json`. Its application SHA-256 identifies the executable inside the
 archive. Individual component entries identify the locked dependencies and

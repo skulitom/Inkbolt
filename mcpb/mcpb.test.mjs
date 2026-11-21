@@ -29,7 +29,9 @@ before(async () => {
   await writeFile(path.join(base, 'Cargo.toml'), cargo(version));
   await writeFile(path.join(base, 'LICENSE'), 'Fixture license\r\n');
   await writeFile(path.join(base, 'THIRD_PARTY_NOTICES.md'), 'Fixture notices\r\n');
-  await writeFile(path.join(base, 'README.md'), 'Fixture readme\r\n');
+  await mkdir(path.join(base, 'examples'));
+  await writeFile(path.join(base, 'examples/first-png.json'), '{"fixture":true}\r\n');
+  await writeFile(path.join(base, 'README.md'), '[Postcard](examples/first-png.json) [Guide](docs/GUIDE.md#setup) [License](LICENSE) [Web](https://example.org/)\r\n');
   binary = path.join(base, 'stand-in.exe');
   await writeFile(binary, Buffer.from([77, 90, 0, 13, 10, 255]));
   build = await buildFixture({ base, binary, out: path.join(temp, 'first') });
@@ -181,9 +183,10 @@ test('native archives are deterministic and carry the binary, readme and license
       }
     }
     const executable = isWindows ? 'inkbolt.exe' : 'inkbolt';
-    assert.deepEqual([...entries.keys()].sort(), ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md', executable].sort());
+    assert.deepEqual([...entries.keys()].sort(), ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md', 'examples/first-png.json', executable].sort());
     assert.deepEqual(entries.get(executable), await readFile(binary));
-    assert.equal(entries.get('README.md').toString(), 'Fixture readme\n');
+    assert.equal(entries.get('examples/first-png.json').toString(), '{"fixture":true}\n');
+    assert.equal(entries.get('README.md').toString(), `[Postcard](examples/first-png.json) [Guide](https://github.com/skulitom/Inkbolt/blob/v${version}/docs/GUIDE.md#setup) [License](LICENSE) [Web](https://example.org/)\n`);
   }
 });
 

@@ -67,9 +67,11 @@ time at release build time.
 ### Test an extracted archive
 
 The release workflow extracts each native archive on its target OS, compares
-the executable with the locked release build, and checks the packaged notices
-and version. It then runs eight CLI and MCP tests with the extracted
-executable. They cover the README postcard, discovery, workspace permissions,
+the executable with the locked release build, and checks the packaged notices,
+version and README links. The archive includes `examples/first-png.json` and
+links to the rest of the documentation at its Git tag. It runs eight CLI and
+MCP tests with the extracted executable and postcard. They cover rendering,
+discovery, workspace permissions,
 saved revisions, publication, retries, undo and editable curve output. To repeat the check
 against the matching source revision and an extracted archive, run:
 

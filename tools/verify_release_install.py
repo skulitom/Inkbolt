@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -44,11 +45,20 @@ def main():
     digest = sha256(binary)
     if args.built_binary and sha256(args.built_binary) != digest:
         raise ValueError('Extracted executable differs from the original build')
-    for name in ('LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md'):
+    for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'examples/first-png.json'):
         if (folder / name).read_text(encoding='utf8') != (ROOT / name).read_text(encoding='utf8'):
             raise ValueError(f'Packaged {name} differs from the source checkout')
     with (ROOT / 'Cargo.toml').open('rb') as stream:
         package = tomllib.load(stream)['package']
+    readme = (folder / 'README.md').read_text(encoding='utf8')
+    tagged = f"https://github.com/skulitom/Inkbolt/blob/v{package['version']}/"
+    if readme.replace('](' + tagged, '](') != (ROOT / 'README.md').read_text(encoding='utf8'):
+        raise ValueError('Packaged README differs from the release overview')
+    for link in re.findall(r'\]\(([^)]+)\)', readme):
+        if link.startswith(('https://', '#')):
+            continue
+        if not (folder / link.partition('#')[0]).is_file():
+            raise ValueError(f'Packaged README links to a missing file: {link}')
     expected = {'ok': True, 'result': {'name': package['name'], 'version': package['version']}}
     with tempfile.TemporaryDirectory() as directory:
         reply = subprocess.run([str(binary), '--version'], cwd=directory, capture_output=True,
@@ -58,6 +68,7 @@ def main():
     print(f"Testing {binary} (SHA-256 {digest})", flush=True)
     # All selected CLI and MCP clients take their subprocess path from this variable at import.
     os.environ['INKBOLT_EXE'] = str(binary)
+    os.environ['INKBOLT_TEST_EXAMPLES'] = str(folder / 'examples')
     if args.thorough:
         from verify import python_checks
         os.environ['PYTHONDONTWRITEBYTECODE'] = '1'

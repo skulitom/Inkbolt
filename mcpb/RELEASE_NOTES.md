@@ -6,6 +6,10 @@ Union, intersection, difference and xor now keep Bézier handles on supported cu
 
 ## Installation and examples
 
+Copy `examples/first-png.json` from the archive into an empty workspace and run
+`inkbolt --workspace "$PWD" first-png.json` there. It creates a four-shape
+mountain postcard using only the downloaded files.
+
 - Run `inkbolt --version` for a short JSON response. Run `inkbolt --workspace PATH_TO_EXISTING_FOLDER doctor` to check the platform and access to session, font and other stores. The check leaves the workspace untouched. [Installation guide](https://github.com/skulitom/Inkbolt/blob/v0.84.0/docs/INSTALLATION.md)
 - Python examples can use an installed executable. Set `INKBOLT_EXE` to its full path, or put it on your shell's path when using a checkout without a development build. [Runnable examples](https://github.com/skulitom/Inkbolt/blob/v0.84.0/examples/README.md)
 
