@@ -1,6 +1,7 @@
 # Compact session responses
 
-To save a CLI receipt or pass it to another program, add `--result-only`.
+In v0.84.0, read the `result` field of a successful CLI response to get the
+receipt. Source builds after v0.84.0 can emit that field directly with `--result-only`.
 For example, `inkbolt --workspace "$PWD" --result-only recover.json` writes the
 result of the request directly to stdout. On failure, stdout is empty and
 stderr carries the usual JSON error object. Check the exit status before

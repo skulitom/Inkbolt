@@ -35,7 +35,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B14 Deliver a print page | 5/5 | 3/5 | 4/5 | 531,200 / 97,120 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
-| B17 Recover a lost response | 5/5 | 4/5 | n/a | 194,428 / n/a | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
+| B17 Recover a lost response | 5/5 | 5/5 | n/a | 222,485 / n/a | [c3fd51f](#b17-at-c3fd51f-saving-a-recovered-receipt) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
 | B19 Recover an interrupted export | 4/5 | 4/5 | n/a | 569,666.5 / n/a | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
 | B20 Revise a linked video graphic | 3/5 | 3/5 | 5/5 | 1,065,545 / 280,910 | [f61d952](#b19b20-at-f61d952-recovery-pilot-and-five-pair-handoff-follow-up) |
@@ -66,6 +66,41 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## B17 at c3fd51f: saving a recovered receipt
+
+All five agents found `--result-only` in CLI help and used it to recover a lost
+edit receipt. Each saved the compact receipt, delivered the correct preview and
+retried the original move after undo. The independent judge reopened the saved
+artwork and replayed the request on a copy. The restored document stayed at
+revision 2. All six checks passed in each trial. [CLI receipt format](AGENT_RESPONSES.md)
+
+| Five Windows trials per build | Accepted artifacts | Complete workflows | Median input + output tokens | Median client seconds |
+| --- | ---: | ---: | ---: | ---: |
+| [Earlier batch at 447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) | 5/5 | 4/5 | 194,428 | 76.4 |
+| Result-only option at c3fd51f | 5/5 | 5/5 | 222,485 | 87.2 |
+
+In the earlier batch, one agent saved the CLI envelope as the receipt. No agent
+made that error in the new batch. Each initially requested a receipt without
+selecting the workspace and received a missing-`session_root` error. Median
+token use rose 14.4%. Keep the option for callers saving receipts and continue
+tracking the cost of finding the workspace.
+
+Both batches used the same prompt, fixtures, B17 judge, client executable
+(Codex CLI 0.160.0) and externally selected model (`gpt-6.1-sol`, medium).
+The new attempts ran sequentially on a shared Windows host with the core MCP
+catalog available. All five chose the CLI. The different source revisions and
+small samples limit attribution. B17 exercises an engine-specific recovery
+contract. Engine calls, retries, wire bytes, time to first verified preview,
+engine-only memory and underlying model-call counts remain unmeasured.
+[Recovery task](../tools/benchmark_prompts/B17.md)
+
+The harness confirmed stable inputs. A second read verified the recorded
+workspace files, setup evidence, requests, client results and transcripts for
+all ten attempts. The current report SHA-256 is
+`078e04c0a1475f5c6e81e652bd7aec4bea972881fa39471aba19147393172d61`.
+The tested release executable is
+`1e482847bc23bed84d9eaba719184605957e0b37d45b6d8bf036d0a16e45035c`.
 
 ## B02 at c7d9f30: initial five matched icon-sheet trials
 

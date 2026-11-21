@@ -60,17 +60,13 @@ The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
-Building from `main` also lets you cut a window through a group and keep the
-surrounding paths in the PDF. You can also export searchable labels with
-embedded static fonts. Ligatures and supported combining accents copy as
-their original text, including on curved labels.
-For print work, you can preserve spot inks on
-separate plates or add crop and registration marks to RGB artwork on a chosen
-paper color. [PDF export](docs/PDF.md) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
+Source builds from `main` can export searchable text on curved labels, keep
+the paths around group cutouts as vectors in a PDF, and preserve spot inks on
+separate printing plates. [PDF export](docs/PDF.md) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
 ## Explore the project
 
-- [Agent interface](docs/AGENT_INTERFACE.md) and [tool discovery](docs/AGENT_DISCOVERY.md) cover requests, schemas and receipts.
+- To connect an agent or script an edit, see the [agent interface](docs/AGENT_INTERFACE.md), [tool discovery](docs/AGENT_DISCOVERY.md) and [guide to saving CLI receipts](docs/AGENT_RESPONSES.md).
 - [Implemented capabilities](docs/IMPLEMENTATION.md) and [agent benchmarks](docs/BENCHMARK_RESULTS.md) describe supported behavior and measured task outcomes.
 - The [development plan](FIX_PLAN.md) tracks remaining work. The [development guide](docs/DEVELOPMENT_LOOP.md) explains the 2–3 minute feedback loop and full milestone checks.
 - [Architecture](docs/ARCHITECTURE.md) and [source requirements](docs/RESEARCH.md) are the starting points for contributors.
