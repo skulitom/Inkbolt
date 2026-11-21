@@ -185,18 +185,21 @@ class NativePdfKnockoutTests(unittest.TestCase):
             doc = sheet(False)
             doc['items'].append(group('pass',False,False,parent='cut'))
             doc['items'].append(rect('ink',named('z',overprint=policy),(0,0,48,36),parent='pass'))
-            output = dict(format='pdf',file_name='refused.pdf',pdf_options=dict(color='native_inks'))
-            self.assertFalse(self.cli('document.preflight',document=doc,output=output)['ready'])
-            error = self.cli('document.publish',document=doc,output=output,error='UNSUPPORTED')
-            self.assertEqual(error['item_id'],'ink')
-            self.assertFalse((self.root/'refused.pdf').exists())
+            output = dict(format='pdf',file_name=f'{policy}.pdf',pdf_options=dict(color='native_inks'))
+            self.assertTrue(self.cli('document.preflight',document=doc,output=output)['ready'])
+            self.assertFalse((self.root/output['file_name']).exists())
+            self.cli('document.publish',document=doc,output=output)
+            self.assertEqual((self.root/output['file_name']).read_bytes(),Pdf(self.export(doc)).data)
         doc = dict(sheet(),output_profile=builtin('srgb'))
+        output = dict(format='pdf',file_name='refused.pdf',pdf_options=dict(color='native_inks'))
         error = self.cli('document.publish',document=doc,output=output,error='UNSUPPORTED')
         self.assertEqual(error['item_id'],'cut')
         self.assertFalse((self.root/'refused.pdf').exists())
 
     def test_saved_revision_publishes_the_preflighted_plate_document(self):
         doc = sheet(False)
+        doc['items'].append(rect('overprint',named('z',overprint='preserve',opacity=.51),
+                                 (2,3,40,25),parent='cut'))
         with closing(Client(('--tools','essentials'),workspace=self.root)) as client:
             client.initialize()
             def run(command, **args):

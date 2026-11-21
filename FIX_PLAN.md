@@ -39,7 +39,7 @@ standing authorization.
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |
 | W3c | The original advanced Boolean criterion is verified. New edits preserve Bézier handles by default across shared boundaries, self-intersections, disjoint regions and declared approximate tangencies. [Geometry and workflow evidence](docs/DEVELOPMENT_STATUS.md#curved-boolean-checkpoint-evidence) · [Precision and atomic edits](docs/BOOLEANS.md) · [Performance limits](docs/BOOLEAN_PERFORMANCE.md) | Preserve the declared strict refusals, historical retries and explicit polygon option. Evaluate model efficiency in W2 |
 | W4 / W5.2+ / W6 | The four [scale workflows](docs/SCALE_WORKLOADS.md) pass five repeats on Windows and Linux. Windows measures peak commit. Linux measures RSS under a 512 MiB address-space limit. [Layered import](docs/LAYERED_NATIVE_IMPORT.md#seekable-input-acceptance-23-october-2026) has independent 8192 x 8192 sample checks. The [Linux B10 reference](docs/B10_LARGE.md#linux-address-space-experiment) passes over MCP and CLI. | Close the [field-discovery experiment](docs/B10_LARGE.md#finding-the-publication-inputs). Both arms delivered 5/5, with zero full publication-schema fetches and 8.82× median tokens for Inkbolt. Carry overall interaction cost into W2. Linux peak commit, layered input/output beyond the verified RGB8 and metadata contracts, full W4 and three original interchange checkpoints remain open. [Raster milestone evidence](docs/DEVELOPMENT_STATUS.md) |
-| W6a.3 | Working-RGB PDFs preserve [nested knockout groups](docs/PDF.md#knockout-groups) with independently faded descendants and [pass-through blends against surrounding artwork](docs/DEVELOPMENT_STATUS.md#blending-against-the-artwork-behind-a-knockout-group), including masked images, frames and zero-opacity cutouts. [Native CMYK and spot knockout](docs/DEVELOPMENT_STATUS.md#native-cmyk-and-spot-knockout) covers normal blending on marked and unmarked pages, including overprint inside isolated groups. Vector delivery also supports [artwork masks](docs/PDF.md#masks-made-from-editable-artwork), [grayscale grids](docs/PDF.md#opacity-masks-on-shapes-and-groups), [gradient opacity](docs/PDF.md#gradients-that-fade-to-transparent) and [standard RGB blends](docs/PDF.md#rgb-blend-modes) | Verify native overprint against the external backdrop of a pass-through knockout group |
+| W6a.3 | Working-RGB PDFs preserve [nested knockout groups](docs/PDF.md#knockout-groups) with independently faded descendants and [pass-through blends against surrounding artwork](docs/DEVELOPMENT_STATUS.md#blending-against-the-artwork-behind-a-knockout-group), including masked images, frames and zero-opacity cutouts. [Native CMYK and spot knockout](docs/DEVELOPMENT_STATUS.md#native-cmyk-and-spot-knockout) covers normal blending on marked and unmarked pages, including [overprint against existing page inks](docs/DEVELOPMENT_STATUS.md#overprint-against-existing-page-inks). Vector delivery also supports [artwork masks](docs/PDF.md#masks-made-from-editable-artwork), [grayscale grids](docs/PDF.md#opacity-masks-on-shapes-and-groups), [gradient opacity](docs/PDF.md#gradients-that-fade-to-transparent) and [standard RGB blends](docs/PDF.md#rgb-blend-modes) | Working-RGB and native CMYK transparency are verified within these contracts. Advance W6a.1 searchable text and W6a.2 stream compression; calibrated native knockout remains open |
 | W6a.4 | [Marked vector pages](docs/DEVELOPMENT_STATUS.md#marked-vector-print-pages) retain paths and named inks with independent media, bleed and trim boxes. All 55 plate comparisons passed across eleven sheets, including the A4 print fixture. [Marked RGB transparency](docs/DEVELOPMENT_STATUS.md#marked-rgb-transparency) supports full-bleed document paper or a selected export matte | Clear partial-page RGB blending with marks, searchable fonts and editable page reimport remain open |
 | W7 / W8 | [v0.84.0](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) shipped four native archives with checked inventories, an offline postcard, checksums and a Windows extension. [Release verification](docs/PLATFORMS.md#v0840-platform-checks) covers tag-bound attestations, source installation and prior saved edits. The README shows a verified before-and-after edit | Keep installation and platform evidence current. Extend examples and publish comparable model outcomes as W2 advances. Registry publication remains separate |
 | W9 | Deferred, outside active scope | No learned-model plugin work |
@@ -694,7 +694,7 @@ Current state (`src/pdf.rs` and the `src/pdf/` submodules):
 - **Text** is painted as glyph outlines (~558-576). There is no font embedding,
   subsetting or ToUnicode.
 - **Streams** are unfiltered (~124).
-- **Preflight** admits standard blends on unmarked working-RGB display pages.
+- **Preflight** admits standard blends on working-RGB display pages, including marked artwork on full-bleed paper.
   It checks knockout group contents against the [supported footprint and
   backdrop rules](docs/PDF.md#knockout-groups). Unsupported blend modes and
   effects still fail explicitly.
@@ -722,13 +722,13 @@ Tasks:
    - Inline and stored grayscale masks retain their prepared coverage on items
      and groups. Artwork-source masks retain vector paths, outlined glyphs
      and source opacity in both alpha and luminance modes.
-   - Unmarked working-RGB display pages now retain the standard `/BM`
+   - Working-RGB display pages retain the standard `/BM`
      operators. Other modes fail explicitly.
    - Axial and radial pad gradients retain varying alpha in fills and strokes.
    - Isolated and pass-through knockout groups preserve masks and the intrinsic
      footprints of independently faded descendants through nested groups
-     and frames. Backdrop-dependent blends inside pass-through members and native-ink
-     knockout group delivery remain open.
+     and frames. Working-RGB blends and native CMYK or spot overprints can
+     use the surrounding artwork at group entry. See the [PDF contract](docs/PDF.md#knockout-groups).
 4. **Page boxes.** Make BleedBox independent of MediaBox when marks or slug
    extend the media.
 5. **Bounded reimport and encapsulated pages.** Write an original content-stream

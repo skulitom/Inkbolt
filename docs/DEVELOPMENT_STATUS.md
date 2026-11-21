@@ -164,10 +164,29 @@ preserved every interior plate pixel at output resolution and produced
 identical margins on all six plates. A separate test evaluates each DeviceN
 alternate tint function. Publication tests cover a saved revision after an
 edit, repeat requests, an existing destination and located preflight errors.
-Overprint that depends on the external backdrop of a pass-through knockout,
-native-ink knockout with a calibrated RGB page and the wider page-exchange
+Native-ink knockout with a calibrated RGB page and the wider page-exchange
 checkpoint remain open.
 [Regression fixtures](../tests/test_pdf_knockout_inks.py) · [PDF delivery contract](PDF.md#knockout-groups)
+
+### Overprint against existing page inks
+
+A spot or explicit CMYK paint in a pass-through knockout group can now pick
+up the inks visible at group entry. In the four reference sheets, a cyan
+sibling and an overprinting spot or two-component process paint overlap
+clear paper, translucent yellow and an existing spot. The second paint
+varies its footprint and owner opacity independently across twelve patches.
+Ghostscript separated each issued vector PDF at 288 dpi. At all 1,728
+logical pixel centers per sheet the largest difference from Inkbolt's native
+prepress reference was two 8-bit ink levels. MuPDF's page alpha was within
+two levels of the independently calculated coverage at the same centers.
+
+Further fixtures cover a clipped pass-through group, a grayscale mask, an
+artwork mask, a separate overprinting stroke and isolated group entry. A
+32-glyph label retains its outlined paths. For the marked sheet, all process
+and spot plates match inside the bleed and carry identical registration
+marks outside it. Publication tests exercise a pinned revision, preflight
+and a page that exceeds its form-reference budget.
+[Regression fixtures](../tests/test_pdf_external_inks.py) · [Native ink delivery](INK_DELIVERY.md#explicit-pdf-ink-mode)
 
 ### Marked RGB transparency
 

@@ -143,7 +143,6 @@ pub(super) fn paint(
         ));
     }
     let overprint = !p.overprint.is_knockout();
-    stream.overprints |= overprint;
     writer.page_requires_backdrop |= p.opacity != 1.0 || overprint;
     let mode = usize::from(p.overprint == Overprint::PreserveNonzero);
     let intent = match &p.color {

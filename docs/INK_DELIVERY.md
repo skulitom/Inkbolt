@@ -70,8 +70,8 @@ Display pages support the standard RGB blend modes. Marked pages can use an opaq
 
 On native CMYK pages with knockout groups, process overprint names the
 addressed process plates explicitly in a PDF DeviceN color space. A cyan
-overprint can therefore preserve a spot underneath it inside an isolated
-group. With `preserve_nonzero`, a process component with zero effective tint
+overprint can preserve a spot underneath it inside an isolated group or on
+the page behind a pass-through knockout group. With `preserve_nonzero`, a process component with zero effective tint
 is omitted from the addressed set. See the [knockout delivery
 contract](PDF.md#knockout-groups) for isolation, marks and profile support.
 

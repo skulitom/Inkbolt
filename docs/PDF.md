@@ -152,10 +152,17 @@ readers. [Measured reader differences](DEVELOPMENT_STATUS.md#blending-against-th
 For print, set `pdf_options.color` to `native_inks` and leave the document's
 RGB output profile unset. Both group modes retain native CMYK and named spot
 plates with normal blending. Crop and registration marks can be added on
-these pages. An overprinting child can preserve other inks inside an
-isolated group. If its overprint reaches the entry of a pass-through
-knockout group, preflight locates the paint and publication returns
-`UNSUPPORTED`. Use flattened prepress delivery for that combination.
+these pages. A pass-through knockout group can preserve inks that were
+already on the page. For example, a magenta overprint inside the group can
+leave a spot from an earlier group on its own plate. A zero-opacity child
+still cuts earlier siblings according to its intrinsic coverage.
+
+When a fill, stroke or outlined glyph needs the original inks, the exporter
+saves the visible artwork and applies the named ink to that copy. The original
+path clips the result, and its paint, item and group opacity still apply. An
+isolated group starts with a clear backdrop. The
+`pdf.external_overprint_paints` receipt counts paints that use the saved
+artwork. Process overprint requires explicit CMYK components.
 [Ink controls](INK_DELIVERY.md#explicit-pdf-ink-mode) · [Plate measurements](DEVELOPMENT_STATUS.md#native-cmyk-and-spot-knockout)
 
 For the writer that successively attenuates earlier siblings, the limit is

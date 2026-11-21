@@ -52,7 +52,7 @@ pub(super) fn prepare(
                 layouts,
                 ..PageResources::default()
             };
-            items(writer, &mut stream, &instance, None, &resources, None)
+            items(writer, &mut stream, &instance, None, &resources, None, None)
                 .map_err(|e| e.at_item(&owner.id))?;
         }
         let parent = owner

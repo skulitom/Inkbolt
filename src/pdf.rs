@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 mod artwork;
 mod backdrop;
 mod combined;
+mod ink_backdrop;
 mod inks;
 mod knockout;
 mod marks;
@@ -102,6 +103,7 @@ struct Writer {
     knockout_field_masks: usize,
     backdrop_groups: usize,
     uses_backdrop_division: bool,
+    external_overprints: usize,
     form_visits: Option<BTreeMap<usize, usize>>,
     // On knockout pages, record the longest form/mask dependency chain for
     // each reusable resource. Siblings on separate branches do not add depth.
@@ -220,6 +222,13 @@ impl Writer {
         bytes.extend_from_slice(b"\nendstream");
         self.add(bytes)
     }
+    fn charge_commands(&mut self, count: usize) -> Result<(), Error> {
+        self.commands += count;
+        if self.commands > MAX_COMMANDS {
+            return Err(limit(&format!("PDF path commands exceed {MAX_COMMANDS}")));
+        }
+        Ok(())
+    }
     fn path(&mut self, output: &mut String, shape: &Geometry, matrix: Matrix) -> Result<(), Error> {
         // Stored paths have already passed document validation. Generated
         // outlines have their own larger budget; expanding them again would
@@ -234,10 +243,7 @@ impl Writer {
         let Geometry::Path { commands } = path else {
             unreachable!()
         };
-        self.commands += commands.len();
-        if self.commands > MAX_COMMANDS {
-            return Err(limit(&format!("PDF path commands exceed {MAX_COMMANDS}")));
-        }
+        self.charge_commands(commands.len())?;
         for command in commands {
             self.control.check()?;
             let (points, op) = match *command {
@@ -319,9 +325,17 @@ struct Stream {
     default_rgb: Option<usize>,
     artwork_blend_space: Option<String>,
     scalar_artwork: bool,
-    overprints: bool,
+    // Actual native artwork visible to a paint inside a pass-through knockout.
+    ink_entry: Option<ink_backdrop::Entry>,
+    path_commands: usize,
 }
 impl Stream {
+    fn path(&mut self, writer: &mut Writer, shape: &Geometry, matrix: Matrix) -> Result<(), Error> {
+        let before = writer.commands;
+        writer.path(&mut self.content, shape, matrix)?;
+        self.path_commands += writer.commands - before;
+        Ok(())
+    }
     fn solid_color(&mut self, rgb: [f64; 3]) -> Result<(), Error> {
         if self.scalar_artwork {
             let [r, g, b] = rgb;
@@ -436,7 +450,7 @@ fn clip(
     matrix: Matrix,
     rule: FillRule,
 ) -> Result<(), Error> {
-    writer.path(&mut stream.content, shape, matrix)?;
+    stream.path(writer, shape, matrix)?;
     stream.content.push_str(if rule == FillRule::EvenOdd {
         "W* n\n"
     } else {
@@ -626,6 +640,14 @@ fn paint(
     paint_matrix: Matrix,
     rule: FillRule,
 ) -> Result<(), Error> {
+    if let Some(entry) = stream.ink_entry.as_mut() {
+        if let Paint::Named(reference) = paint
+            && !reference.overprint.is_knockout()
+        {
+            return ink_backdrop::paint(writer, stream, shape, shape_matrix, rule, reference);
+        }
+        entry.invalidate();
+    }
     stream.content.push_str("q\n");
     match paint {
         Paint::Solid(color) => {
@@ -641,7 +663,7 @@ fn paint(
             } else {
                 stream.solid_color([r, g, b].map(|v| f64::from(v) / 255.0))?;
             }
-            writer.path(&mut stream.content, shape, shape_matrix)?;
+            stream.path(writer, shape, shape_matrix)?;
             stream.content.push_str(if rule == FillRule::EvenOdd {
                 "f*\n"
             } else {
@@ -656,7 +678,7 @@ fn paint(
             graphics_state(writer, stream, color.rgba[3], BlendMode::Normal)?;
             let [r, g, b, _] = color.rgba;
             stream.solid_color([r, g, b])?;
-            writer.path(&mut stream.content, shape, shape_matrix)?;
+            stream.path(writer, shape, shape_matrix)?;
             stream.content.push_str(if rule == FillRule::EvenOdd {
                 "f*\n"
             } else {
@@ -665,7 +687,7 @@ fn paint(
         }
         Paint::Named(reference) => {
             inks::paint(writer, stream, reference)?;
-            writer.path(&mut stream.content, shape, shape_matrix)?;
+            stream.path(writer, shape, shape_matrix)?;
             stream.content.push_str(if rule == FillRule::EvenOdd {
                 "f*\n"
             } else {
@@ -811,6 +833,7 @@ struct PageResources {
     masks: crate::masks::PreparedDocument,
     artwork_masks: BTreeMap<String, opacity::States>,
     footprint_unions: BTreeSet<usize>,
+    ink_entries: BTreeSet<usize>,
 }
 
 fn checked_layouts(
@@ -977,6 +1000,7 @@ fn items(
     parent: Option<&Item>,
     resources: &PageResources,
     mut union: Option<&mut Stream>,
+    entry: Option<usize>,
 ) -> Result<(), Error> {
     let mut knockout_group = if let Some(group) = parent.filter(|p| p.content.is_knockout()) {
         let depth = scene::ancestors(document, scene::index(document, &group.id)?)?.len();
@@ -996,36 +1020,36 @@ fn items(
             continue;
         }
         let world = scene::world_transform(document, i)?;
-        let commands_before = writer.commands;
         let mut stream = Stream {
             default_rgb: writer.default_rgb,
             scalar_artwork: output.scalar_artwork,
             ..Stream::default()
         };
+        let item_entry = if resources.ink_entries.contains(&i) {
+            if knockout_group.is_some() {
+                // Direct siblings all see the same initial artwork, including
+                // transparent at the entrance of an isolated knockout.
+                Some(match entry {
+                    Some(form) => form,
+                    None => writer.isolated_form(&Stream::default())?,
+                })
+            } else {
+                Some(ink_backdrop::snapshot(writer, entry, output)?)
+            }
+        } else {
+            None
+        };
+        stream.ink_entry = item_entry.map(ink_backdrop::Entry::new);
         item_clip(writer, &mut stream, item, world)?;
-        item_paint(writer, &mut stream, item, world, resources)?;
-        if stream.overprints
-            && writer.form_depths.is_some()
-            && scene::ancestors(document, i)?
-                .iter()
-                .map(|&p| &document.items[p])
-                .take_while(|p| !p.content.is_isolated())
-                .any(|p| p.content.is_knockout())
-        {
-            return Err(unsupported("A pass-through native-ink knockout group cannot preserve overprint against its external backdrop in vector PDF").at_item(&item.id));
-        }
+        item_paint(writer, &mut stream, item, world, resources).map_err(|e| e.at_item(&item.id))?;
         // Both streams start with the same geometric clip and frame background.
         // Their children share paint resources even when coverage and color differ.
         let mut child_union = None;
         if item.content.is_container() {
             if resources.footprint_unions.contains(&i) {
-                writer.commands += writer.commands - commands_before;
-                if writer.commands > MAX_COMMANDS {
-                    return Err(
-                        limit("PDF knockout footprint exceeds the generated-path budget")
-                            .at_item(&item.id),
-                    );
-                }
+                writer
+                    .charge_commands(stream.path_commands)
+                    .map_err(|e| e.at_item(&item.id))?;
                 child_union = Some(stream.clone());
             }
             items(
@@ -1035,6 +1059,7 @@ fn items(
                 Some(item),
                 resources,
                 child_union.as_mut(),
+                item_entry,
             )?;
         }
         let owner_opacity = item.opacity * item.fill_opacity;
@@ -1338,6 +1363,15 @@ pub fn export_controlled(
         let fonts = crate::fonts::resolve(page, resources.font_root.as_deref())?;
         let layouts = checked_layouts(page, &fonts)?;
         glyphs += layouts.values().map(|l| l.glyphs.len()).sum::<usize>();
+        let ink_entries = if native_inks && writer.form_depths.is_some() {
+            ink_backdrop::entries(page, &layouts, &writer.control)?
+        } else {
+            BTreeSet::new()
+        };
+        let native_external = !ink_entries.is_empty();
+        if native_external {
+            writer.form_visits = Some(BTreeMap::new());
+        }
         let pixels = assets::resolve(page, resources.asset_root.as_deref())?;
         let masks =
             crate::masks::prepare_document(page, resources.asset_root.as_deref(), &writer.control)?;
@@ -1350,6 +1384,7 @@ pub fn export_controlled(
             masks,
             artwork_masks,
             footprint_unions,
+            ink_entries,
         };
         let ppi = page.resolution_ppi;
         let physical = 72.0 / ppi;
@@ -1404,7 +1439,7 @@ pub fn export_controlled(
             default_rgb: writer.default_rgb,
             ..Stream::default()
         };
-        let separate_artwork = external || options.matte.is_some();
+        let separate_artwork = external || native_external || options.matte.is_some();
         let artwork = if separate_artwork {
             &mut logical_art
         } else {
@@ -1432,10 +1467,28 @@ pub fn export_controlled(
             backdrop::render(&mut writer, artwork, page, &page_resources, &paper)?;
             coverage = Some(paper);
         } else {
-            items(&mut writer, artwork, page, None, &page_resources, None)?;
+            items(
+                &mut writer,
+                artwork,
+                page,
+                None,
+                &page_resources,
+                None,
+                None,
+            )?;
         }
         if separate_artwork {
-            let id = writer.isolated_form(artwork)?;
+            let id = if native_external {
+                // Keep the page's original separation and overprint context.
+                let dictionary = format!(
+                    "/Type /XObject /Subtype /Form /BBox [{}] /Resources {}",
+                    writer.page_bbox,
+                    artwork.dictionary(None)
+                );
+                writer.form(&dictionary, artwork)?
+            } else {
+                writer.isolated_form(artwork)?
+            };
             if let Some([r, g, b]) = options.matte {
                 // The paper sits behind the finished artwork. It must never
                 // become the entry backdrop of an authored blend or knockout.
@@ -1607,10 +1660,14 @@ pub fn export_controlled(
     let corrected_endpoints = writer.corrected_blend_endpoints();
     let blend_modes = writer.non_normal_modes.clone();
     let gradient_opacity_masks = writer.gradient_opacity_masks;
+    let external_overprints = writer.external_overprints;
     let bytes = writer.finish(catalog, info)?;
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
     result["pdf"]["version"] = json!(version);
+    if external_overprints != 0 {
+        result["pdf"]["external_overprint_paints"] = json!(external_overprints);
+    }
     if options.matte.is_some() {
         result["losses"].as_array_mut().unwrap().push(json!("The selected sRGB matte fills transparent areas behind the completed vector artwork. The PDF page is opaque throughout the artwork box."));
     }
