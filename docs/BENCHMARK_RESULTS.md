@@ -1,73 +1,67 @@
 # Recorded agent evaluation results
 
-The latest [focused CLI-example evaluation at `d18ac62`](BENCHMARK_CLI_EXAMPLES.md)
-passes all applicable B16 checks in five attempts per arm. Engine median tokens
-are 35.8% below the preceding essentials batch, but still 2.94x the fresh
-no-engine baseline. All five engine attempts received examples and chose the
-CLI. This one-task, sequential comparison does not establish causation or full
-W5 acceptance; all attempts and the earlier client-version setup failures remain
-retained separately.
+## Results by task
 
-The [essentials catalog evaluation at `81e8830`](BENCHMARK_ESSENTIALS.md) retains
-five attempts per task for B03/B16 with essentials, core and the no-engine
-baseline. All applicable checks pass 5/5. Essentials uses 12.8% fewer median
-tokens than core on layout editing, but 13.3% more on text repair. It still uses
-4.28x/4.54x baseline tokens. All repeated engine attempts chose the CLI; no
-general catalog-efficiency or MCP-transport gain is established. The focused
-CLI-example follow-up above addresses observed discovery costs; further schema
-deferral stays paused. Earlier batches below remain separate.
+For photo editing, mixed composition and linked-graphic revision, the model
+completed three of five attempts per task with Inkbolt. It completed all five
+per task with the no-engine baseline. Across the 17 tasks with a baseline, Inkbolt
+matched its artifact
+success count on 11, scored higher on three and lower on three. Median recorded
+token use was higher with Inkbolt on all 17.
 
-The separate [50 MP B10 evaluation](B10_LARGE.md) now retains exact full-size
-reference checks on Windows/Linux, relocation-tested external controls and one
-genuine matched Codex pilot. Both pilot arms pass applicable artifact checks;
-the engine arm uses substantially more tokens in this single pair. Original B10
-and its 256 MiB criterion are unchanged. Linux commit-budget evidence, repeated
-matched model trials and broader readiness gates remain open.
+Each row uses the latest documented five-attempt batch for the standard task.
+The evidence links give the prompts, independent checks, trial conditions and
+judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
+reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
+library. The Inkbolt build varied by batch. A comparison on a single current release and
+the separate comparison with Cutbolt remain open.
 
-The latest [request-guidance follow-up](#b10b17b19-at-447bbc2-request-guidance-follow-up)
-passes 3/5 photograph workflows versus 5/5 baseline, 4/5 lost-response workflows,
-and 4/5 interrupted-job workflows. It retains every failure and establishes no
-general efficiency gain from the new diagnostics. Earlier batches below remain
-separate; no prompt versions or attempts are pooled.
+| Task | Inkbolt artifact | Inkbolt workflow | Baseline passes | Median tokens, Inkbolt / baseline | Evidence |
+| --- | ---: | ---: | ---: | ---: | --- |
+| B01 Labelled diagram | 5/5 | 5/5 | 0/5 | 299,232 / 71,327 | [8bc8982](#b01b03-at-8bc8982-five-matched-pairs) |
+| B02 Aligned icon sheet | 5/5 | 5/5 | 5/5 | 313,114 / 57,582 | [8586e82](#b02-at-8586e82-cli-help-and-sibling-index-guidance) |
+| B03 Edit a 5,000-object layout | 5/5 | 5/5 | 5/5 | 296,450 / 69,288 | [81e8830](BENCHMARK_ESSENTIALS.md) |
+| B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 206,924 / 57,528 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
+| B05 Recolor a shared palette | 5/5 | 5/5 | 5/5 | 270,958 / 54,973 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
+| B06 Repair linked text overflow | 5/5 | 5/5 | 5/5 | 337,131 / 76,580 | [a7e034e](#b06b07-at-a7e034e-captured-trials-rejudged) |
+| B07 Multilingual typography | 5/5 | 5/5 | 0/5 | 405,058 / 218,798 | [a7e034e](#b06b07-at-a7e034e-captured-trials-rejudged) |
+| B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 327,734 / 43,824 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
+| B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 354,590 / 43,008 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
+| B10 Edit a multi-megapixel photo | 3/5 | 3/5 | 5/5 | 580,184 / 75,230 | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
+| B11 Revise a mixed composition | 3/5 | 3/5 | 5/5 | 395,699 / 72,214 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
+| B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
+| B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 313,210 / 41,717 | [7a07f07](#b10b13-at-7a07f07-five-matched-pairs-with-retained-capture-corrections) |
+| B14 Deliver a print page | 5/5 | 3/5 | 4/5 | 531,200 / 97,120 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
+| B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
+| B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
+| B17 Recover a lost response | 5/5 | 4/5 | n/a | 194,428 / n/a | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
+| B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
+| B19 Recover an interrupted export | 4/5 | 4/5 | n/a | 569,666.5 / n/a | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
+| B20 Revise a linked video graphic | 3/5 | 3/5 | 5/5 | 1,065,545 / 280,910 | [f61d952](#b19b20-at-f61d952-recovery-pilot-and-five-pair-handoff-follow-up) |
 
-Five-pair evaluations now cover B01-B16, with separate smaller-model pilots.
-Five additional native attempts each cover B17/B18; those recovery tasks have no
-applicable baseline. Both pass 5/5 artifact checks, but two B17 receipt-format
-failures leave its complete workflow at 3/5. B18 passes its full workflow 5/5.
-Eleven tasks matched baseline artifact success with higher median token use.
-Photo repair and mixed composition each passed 3/5 with Inkbolt versus 5/5 with
-the baseline. Layout variants passed 5/5 in both arms at 9.17x median token use
-with Inkbolt after tested judge corrections. Resource repair passed 5/5 in both
-arms at 4.83x tokens; version-2 text repair passed 5/5 in both at 4.47x.
-After PDF-judge corrections, print artifacts pass 5/5 with
-Inkbolt and 4/5 with the baseline. Two Inkbolt receipt-selection failures leave
-its complete workflow at 3/5; this small sample establishes no reliability advantage.
-The evidence below preserves failures, judge corrections and exact build
-identities. Five B19 attempts failed the protocol gate; four nevertheless passed
-all nine independent artifact/recovery checks. B20's first five-pair batch passed
-0/5 native workflows versus 5/5 baseline workflows; native artifact judging
-stopped at prerequisites, leaving its quality unjudged. B19 accepted-trial
-coverage, B20 source-preservation failures, further smaller-model trials and the separate
-sister-project comparison remain open. These batches are not full-suite acceptance.
+Artifact checks cover the requested delivery and source preservation. A complete
+Inkbolt workflow also requires the specified editing history, receipts or
+recovery behavior. Baseline artifact and workflow counts coincide in these
+batches. B17–B19 exercise engine-specific recovery and have no baseline arm.
 
-The later [B19/B20 guidance pilots](#b19b20-at-1d5b960-guidance-pilots-and-observation-corrections)
-pass the protocol gates. B19 still fails exact retained-record checks; B20 passes
-both arms after tested judge corrections. These single attempts stay separate
-from the earlier five-trial batches.
+Token medians include all attempts with reported usage, including failures, and
+count cached input once. B19 has usage for four of five attempts. Five trials
+give wide uncertainty. For example, five successes give a 95% Wilson interval
+of 56.6%–100%. Full model-call counts, engine-only model-trial memory and time
+to the first verified preview remain open. [Comparison policy](BENCHMARK_COMPARISON.md)
 
-The [separate follow-up at f61d952](#b19b20-at-f61d952-recovery-pilot-and-five-pair-handoff-follow-up)
-passes 3/5 complete B20 native workflows versus 5/5 baseline after one further
-judge correction, at 3.79x median tokens. Its B19 pilot passes all independent
-checks but fails the protocol gate. Prior attempts and original scores remain
-retained; no batches or prompt versions are pooled.
+Two outcomes depend on what the judge accepts. In B01, all five delivered
+baseline PNGs passed a later pixel check. The original judge rejected how the
+SVG retained its font and frame metadata. In B07, both arms rendered the
+expected pixels. The baseline failed the ordering check for a base glyph and
+its mark inside one cluster. In B14, Inkbolt produced all five requested print
+artifacts but selected the wrong publication receipt twice.
 
-The later B03/B16 discovery follow-up passes 5/5 per task in both arms, while
-Inkbolt still uses 4.62x/5.20x baseline median tokens. Its before/after signal is
-mixed; see the [follow-up](#b03b16-at-d34851e-nested-discovery-follow-up).
-
-A preliminary B16 batch exposed a default-field judge bug and underspecified
-recipe types. Its retained failures and correction are recorded below, separately
-from the completed matched prompt-version-2 batch.
+The [50 MP photo pilot](B10_LARGE.md), [smaller-model pilots](#b01b03-breadth-pilots-and-capture-rejudgment)
+and [earlier evaluations](#b02-at-c7d9f30-initial-five-matched-icon-sheet-trials)
+retain their own attempts. In the focused text-repair follow-up, median Inkbolt
+token use was 35.8% lower than in the preceding essentials batch and 2.94 times
+the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
 
 ## B02 at c7d9f30: initial five matched icon-sheet trials
 
