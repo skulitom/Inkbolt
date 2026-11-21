@@ -17,6 +17,19 @@ import linux_process_memory as memory
 
 @unittest.skipUnless(sys.platform == 'linux', 'Linux wait4 backend')
 class LinuxProcessMemoryTests(unittest.TestCase):
+    def assert_child_exited(self, pid):
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            try:
+                status = Path(f'/proc/{pid}/status').read_text()
+            except (FileNotFoundError, ProcessLookupError):
+                # procfs can lose the process after open, during read.
+                return
+            if '\nState:\tZ' in status:
+                return  # Dead; init owns reaping after supervisor death.
+            time.sleep(.01)
+        self.fail('Owned command survived its supervisor')
+
     def run_python(self, script, payload=b'', timeout=10):
         return memory.run([sys.executable, '-c', script], payload, timeout)
 
@@ -143,18 +156,7 @@ else:
                 supervisor.kill()
                 supervisor.wait(timeout=5)
                 self.assertEqual(supervisor.stdout.read(), b'')
-                deadline = time.monotonic() + 2
-                while time.monotonic() < deadline:
-                    try:
-                        status = Path(f'/proc/{pid}/status').read_text()
-                    except (FileNotFoundError, ProcessLookupError):
-                        # procfs can lose the process after open, during read.
-                        break
-                    if '\nState:\tZ' in status:
-                        break  # Dead; init owns reaping after supervisor death.
-                    time.sleep(.01)
-                else:
-                    self.fail('Owned command survived its supervisor')
+                self.assert_child_exited(pid)
             self.assertFalse(report.exists())
 
     def stream(self, script):
@@ -254,16 +256,7 @@ for line in sys.stdin:
         self.assertEqual(process.stdout.read(), b'')
         with self.assertRaises(RuntimeError):
             process.memory()
-        deadline = time.monotonic()+2
-        while time.monotonic() < deadline:
-            try:
-                if '\nState:\tZ' in Path(f'/proc/{pid}/status').read_text():
-                    break
-            except FileNotFoundError:
-                break
-            time.sleep(.01)
-        else:
-            self.fail('Owned command survived a failed supervisor')
+        self.assert_child_exited(pid)
 
     def test_stream_constructor_failure_releases_private_directory_and_descriptors(self):
         make_directory = tempfile.TemporaryDirectory
