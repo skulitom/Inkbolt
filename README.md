@@ -20,8 +20,8 @@ inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools essentials
 ```
 
 The server exposes ten tools at startup. An agent can look up individual editing
-commands as it works. Downloads are available for Windows x64, Linux x64 and macOS Apple
-silicon, plus a Windows desktop extension. [Installation and client setup](docs/INSTALLATION.md)
+commands as it works. The release page lists archives by operating system and
+CPU, plus a desktop extension for Windows. [Installation and client setup](docs/INSTALLATION.md)
 
 To make your first PNG, save the [postcard example](examples/first-png.json) as
 `first-png.json` in an empty folder. Open PowerShell or a Unix shell there and
@@ -39,16 +39,15 @@ change a fill in the JSON and give the output a new filename.
 | Task | How Inkbolt helps |
 | --- | --- |
 | Draw a diagram or illustration | Arrange shapes, text, images and artboards. Import editable SVG artwork, including reusable symbols and positioned text. [SVG import](docs/SVG_IMPORT.md) |
-| Cut or join shapes | Combine filled paths, circles and ellipses in one undoable edit. On `main`, curved boundaries keep their editable Bézier handles by default. In v0.83.0, request `"output":"curves"`. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
+| Cut or join shapes | Combine filled paths, circles and ellipses in one undoable edit. Keep Bézier handles editable for later changes. This is the default starting with 0.84. In 0.83, request `"output":"curves"`. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
 | Retouch an image | Select a region, feather a mask or repair a patch. Keep 16-bit samples and share unchanged image data across revisions. [Selections](docs/NATIVE_SELECTIONS.md) · [Image repair](docs/NATIVE_REPAIR.md) |
 | Review and deliver artwork | Compare revisions, undo a change, and preflight the output before writing a new PNG, JPEG, TIFF, SVG or PDF within the supported workflows. [Sessions](docs/AGENT_WORKSPACE.md) · [Runnable examples](examples/README.md) |
 
 ## Builds and platform support
 
-v0.83.0 adds shape combinations, native JPEG import and lower-memory exports.
-Windows and Linux checks cover a 24 MP JPEG import, a 50 MP 16-bit edit through
-undo and TIFF export, A2 delivery at 300 ppi and an 8192 × 8192 PNG render.
-[Release notes](https://github.com/skulitom/Inkbolt/releases/tag/v0.83.0) · [Measured workflows and limits](docs/SCALE_WORKLOADS.md)
+Measured Windows and Linux workflows include a 24 MP JPEG import, a 50 MP
+16-bit edit through undo and TIFF export, A2 delivery at 300 ppi and an
+8192 × 8192 PNG render. [Release notes](https://github.com/skulitom/Inkbolt/releases/latest) · [Measured workflows and limits](docs/SCALE_WORKLOADS.md)
 
 The core engine, CLI, MCP and saved sessions have been tested on Windows, Linux
 and macOS. Background export jobs currently require Windows. The platform guide

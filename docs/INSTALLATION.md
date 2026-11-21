@@ -4,13 +4,13 @@ Use a release for an existing build, or build from source with the pinned Rust
 toolchain. See [platform support](PLATFORMS.md) for verified coverage and current
 limitations.
 
-On `main`, run `inkbolt --version` to print the package name and version in
+With Inkbolt 0.84, run `inkbolt --version` to print the package name and version in
 one JSON response. The same version appears in the MCP handshake. For the
 v0.83.0 download, use the `version` field from `inkbolt capabilities`.
 
 ### Check a local installation
 
-On `main`, run `inkbolt doctor` for the platform tier and available job and
+With Inkbolt 0.84, run `inkbolt doctor` for the platform tier and available job and
 publication-receipt backends. To inspect the workspace your agent will use,
 run `inkbolt --workspace PATH_TO_EXISTING_FOLDER doctor`. Each default store,
 including the font store, reports whether its directory exists and whether the
@@ -26,7 +26,7 @@ Download the archive for your system from
 `SHA256SUMS`, and extract it, for example to `C:\Tools\Inkbolt`. Create your
 workspace folder first.
 
-Release builds from `main` include a software bill of materials in
+Starting with 0.84, release archives include a software bill of materials in
 `sbom.cdx.json`. Its application SHA-256 identifies the executable inside the
 archive. Individual component entries identify the locked dependencies and
 bundled SQLite. [Inventory contents](../mcpb/PUBLISHING.md#software-bill-of-materials)
