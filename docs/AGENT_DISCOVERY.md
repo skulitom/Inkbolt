@@ -65,7 +65,9 @@ as `image_store_root` and `font_store_root` in this description.
 
 The schema index's `example_queries` lists focused examples for font import,
 session creation/review, an empty document, text content and text/transform/boolean
-operations. Those lookups include `example` beside the schema or outline, with
+operations. On main, `document.publish` also has an example that writes an
+editable JSON snapshot from a saved revision. The command returns a receipt
+with the file's SHA-256. Those lookups include `example` beside the schema or outline, with
 `kind`, `value`, `requires` and `usage`. Each complete example is bounded to 2 KiB.
 `schema_bytes` continues to measure only the validation schema. Nested routes
 to the same selected type return the same example. Discovery never executes it.

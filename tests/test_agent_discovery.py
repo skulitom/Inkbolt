@@ -2,6 +2,7 @@
 from contextlib import closing
 import base64
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -70,7 +71,7 @@ class AgentDiscoveryTests(unittest.TestCase):
     def test_advertised_examples_execute_preserve_artwork_and_review_without_writes(self):
         queries = invoke(dict(command='schema.lookup', name='index'))['result']['example_queries']
         examples = {(q['name'], q.get('select')): invoke(q)['result']['example']['value'] for q in queries}
-        self.assertEqual(len(examples), 8)  # Boolean execution is covered by test_boolean_edit_cli.
+        self.assertEqual(len(examples), 9)  # Boolean execution is covered by test_boolean_edit_cli.
         for transport in ('cli', 'mcp'):
             with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -81,7 +82,7 @@ class AgentDiscoveryTests(unittest.TestCase):
                 with closing(Client(('--tools', 'essentials'), workspace=root)) as client:
                     client.initialize()
 
-                    def call(request, workspace=root, adapter=client):
+                    def call(request, workspace=root, adapter=client, *, error=None):
                         if transport == 'mcp':
                             arguments = {k: v for k, v in request.items() if k != 'command'}
                             result = restore(adapter.tool('run', command=request['command'], arguments=arguments))
@@ -90,7 +91,11 @@ class AgentDiscoveryTests(unittest.TestCase):
                                                      input=json.dumps(request).encode(), capture_output=True, timeout=20)
                             self.assertEqual(process.stderr, b'')
                             result = json.loads(process.stdout)
-                            self.assertEqual(process.returncode, 0, result)
+                            self.assertEqual(process.returncode, int(error is not None), result)
+                        if error:
+                            self.assertFalse(result['ok'], result)
+                            self.assertEqual(result['error']['code'], error, result)
+                            return
                         self.assertTrue(result['ok'], result)
                         return result['result']
 
@@ -146,6 +151,17 @@ class AgentDiscoveryTests(unittest.TestCase):
                     self.assertEqual((width, height), (64, 64))
                     self.assertEqual(preview_pixels, bytes.fromhex(command('document.render', document=text_result)['data']))
                     self.assertEqual(command('session.read', session_id='example')['undo_depth'], 1)
+                    publish = examples['document.publish', None]
+                    receipt = call(publish)
+                    saved = root / 'editable.json'
+                    raw = saved.read_bytes()
+                    self.assertEqual(receipt['sha256'], hashlib.sha256(raw).hexdigest())
+                    self.assertEqual(json.loads(raw), populated)
+                    reference = dict(file_path='editable.json', sha256=receipt['sha256'])
+                    self.assertEqual(command('document.validate', document=reference), populated)
+                    call(publish, error='OUTPUT_EXISTS')
+                    self.assertEqual(saved.read_bytes(), raw)
+                    self.assertEqual(command('session.read', session_id='example')['document'], text_result)
                     self.assertEqual((root / 'typeface.ttf').read_bytes(), font)
                     self.assertEqual((root / 'typeface-license.txt').read_bytes(), license_bytes)
 
