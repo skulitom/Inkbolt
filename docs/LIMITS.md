@@ -8,6 +8,9 @@ A request must satisfy every applicable document, storage, work and memory budge
 Equal values do not imply interchangeable policies. Existing public Rust module paths
 re-export the central constants. Admission changes require separate workload evidence.
 
+A [saved session review](SESSION_PROPOSALS.md#save-the-review-to-a-file) uses
+`publish.MAX_OUTPUT_BYTES` for the complete serialized JSON file.
+
 The native store tile-count ceiling remains independent of its pixel ceiling:
 partial edge blocks consume tile entries too. See [scale admission](SCALE_ADMISSION.md)
 for current measured scope and the remaining W4 acceptance gates.

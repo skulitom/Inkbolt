@@ -145,7 +145,7 @@ fn description(command: &str) -> String {
             "Return a new editable document, artboard parent ID, exact preset identity, preview and delivery settings. Requires a supported version and explicit background or print color. Writes no files. Save through session.create, add artwork under content_parent_id, review, preflight and publish to a new destination."
         }
         "session.dry_run" => {
-            "Evaluate any session action on the expected head without changing the database. Returns a content-bound proposal, predicted receipt, structural differences and optional PNG/pixel comparison. Use session.apply_proposal with the same action to commit after review."
+            "Review an action on the expected head without changing the session. Optional review_output saves the full result to a new JSON file and returns the proposal and change summary. Commit with session.apply_proposal and the same action."
         }
         "session.apply_proposal" => {
             "Commit a reviewed dry-run proposal only if revision, action and before/after content still match. Preserves atomic history, resource checks and durable retry receipts; no source or output is overwritten."
@@ -499,6 +499,7 @@ pub fn catalog_in_workspace(
                 | "session.continue"
                 | "session.recover"
                 | "session.apply"
+                | "session.dry_run"
                 | "session.apply_proposal"
                 | "session.publish"
                 | "document.publish"

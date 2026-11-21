@@ -35,8 +35,10 @@ pub struct Options {
     pub include_bleed: bool,
 }
 pub(crate) fn destination(options: &Options) -> Result<PathBuf, Error> {
-    assets::absolute(&options.output_root)?;
-    let name = &options.file_name;
+    output_path(&options.output_root, &options.file_name, options.format)
+}
+pub(crate) fn output_path(root: &Path, name: &str, format: ExportFormat) -> Result<PathBuf, Error> {
+    assets::absolute(root)?;
     let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
     let reserved = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
         || (stem.len() == 4
@@ -53,7 +55,7 @@ pub(crate) fn destination(options: &Options) -> Result<PathBuf, Error> {
             "Output file_name must be a portable single filename, without reserved names or a trailing dot",
         ));
     }
-    let extensions: &[&str] = match options.format {
+    let extensions: &[&str] = match format {
         ExportFormat::NativeVector => &[".vector", ".ai"],
         ExportFormat::Layered => &[".psd"],
         ExportFormat::LayeredLarge => &[".psb"],
@@ -77,7 +79,7 @@ pub(crate) fn destination(options: &Options) -> Result<PathBuf, Error> {
             "Output filename extension must match the export format",
         ));
     }
-    let target = options.output_root.join(name);
+    let target = root.join(name);
     if target.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
         return Err(crate::model::limit("Output path exceeds its length limit"));
     }
@@ -674,9 +676,23 @@ pub fn publish(
         mut bytes,
         mut receipt,
     } = prepare_publication(document, resources, options, control)?;
+    write_new(&target, &mut bytes, control)?;
+    receipt["created"] = json!(true);
+    Ok(receipt)
+}
+
+/// Share the same complete-file commit point for artwork and saved JSON reviews.
+pub(crate) fn write_new(
+    target: &Path,
+    bytes: &mut payload::Payload,
+    control: &Control,
+) -> Result<(), Error> {
+    let root = target
+        .parent()
+        .ok_or_else(|| Error::new("INVALID_PATH", "Output requires a parent directory"))?;
     let mut reserved = None;
     for _ in 0..crate::limits::publish::MAX_STAGE_ATTEMPTS {
-        let path = options.output_root.join(format!(
+        let path = root.join(format!(
             ".inkbolt-output-{}-{}.tmp",
             std::process::id(),
             TEMP.fetch_add(1, Ordering::Relaxed)
@@ -704,7 +720,7 @@ pub fn publish(
     #[cfg(test)]
     fault_point("before_publish");
     control.check()?;
-    match fs::hard_link(&temp.0, &target) {
+    match fs::hard_link(&temp.0, target) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
             return Err(Error::new(
@@ -713,7 +729,7 @@ pub fn publish(
             ));
         }
         Err(_) => {
-            exists(&target)?;
+            exists(target)?;
             return Err(Error::new(
                 "IO_ERROR",
                 "Output root must support create-only hard-link publication",
@@ -723,8 +739,7 @@ pub fn publish(
     #[cfg(test)]
     fault_point("after_publish");
     // Publication is the commit point; late cancellation cannot undo a completed export.
-    receipt["created"] = json!(true);
-    Ok(receipt)
+    Ok(())
 }
 
 #[cfg(test)]

@@ -123,8 +123,11 @@ def solve(case):
     action=dict(type='edit',operations=[dict(op='retouch',id='pixels',options=dict(source_id='pixels',
         source_transform=[1,0,0,1,fixture_data.DONOR_DX,0],region=region,mode=dict(type='clone')))])
     review=case.call('review','session.dry_run',session_id=session,request_id='repair',expected_revision=0,
-                     action=action,options=dict(include_document=True))
-    save_json(case.root/'review.json',review)
+                     action=action,options=dict(include_document=True),review_output=dict(file_name='review.json'))
+    review_path=case.root/'review.json'
+    receipt=review['review_file']
+    require(review_path.samefile(receipt['path']) and review_path.stat().st_size==receipt['bytes']
+            and file_hash(review_path)==receipt['sha256'], 'Saved review differs from its publication receipt')
     edited=case.call('commit','session.apply_proposal',proposal=review['proposal'],action=action,response_mode='compact')['document_ref']
     source_snapshot(case,edited,'edited')
     preview=case.call('preview','document.preview',document=edited,preview=True,options=preview_options(case))

@@ -1,5 +1,9 @@
 # Compact session responses
 
+For a dry run whose full result belongs on disk, supply `review_output`.
+The reply carries the proposal for the commit, a change summary and the
+hash of the complete review file. [Saved review example](SESSION_PROPOSALS.md#save-the-review-to-a-file)
+
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
 Set `response_mode:"compact"` on `session.create`, `session.continue`, `session.read`, `session.apply`, `session.apply_proposal` or `session.receipt` to avoid receiving the entire saved document on each call. CLI and MCP use the same projection. Omission or `response_mode:"full"` retains the original full response.

@@ -26,7 +26,7 @@ Snapshot file references require a path and exact byte hash from create-only pub
 
 Use `document.inspect.page` for content-bound pages of selected fields, resource inventories and path anchors. MCP `response_format:"preview"` sends image bytes once with explicit references and preserves all metadata. See [inspection and preview delivery](AGENT_INSPECTION.md).
 
-Use `session.dry_run` to predict any session action without writing the store. `session.apply_proposal` checks its revision, action and before/after state hashes again inside the writer transaction before committing. See [session proposals](SESSION_PROPOSALS.md).
+Use `session.dry_run` to predict any session action without writing the store. Set `review_output` to save the complete result to a new JSON file and receive a short change summary. `session.apply_proposal` checks the revision, action and before/after state hashes inside the writer transaction before committing. [Session proposals](SESSION_PROPOSALS.md)
 
 Use `document.preview` to review a region, object selection or standalone artboard with explicit world/pixel coordinates. `document.contact_sheet` combines bounded views of one document with exact per-tile maps. See [focused previews](FOCUSED_PREVIEWS.md).
 

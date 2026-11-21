@@ -68,6 +68,21 @@ fn private_file(control: &Control) -> Result<File, Error> {
     Err(io_error())
 }
 
+/// Stream the ordinary JSON result into a bounded private file before publication.
+pub(crate) fn json_file(value: &serde_json::Value, control: &Control) -> Result<Payload, Error> {
+    let sink = Sink::new(Storage::Private(private_file(control)?), control);
+    let mut writer = io::BufWriter::with_capacity(limits::IO_CHUNK_BYTES, sink);
+    let encoded = serde_json::to_writer(&mut writer, value)
+        .map_err(io::Error::other)
+        .and_then(|()| writer.flush());
+    // Keep the sink's precise cancellation, size or storage error. Only a flushed
+    // encoding may be published, even if the private file contains a valid prefix.
+    let (sink, _) = writer.into_parts();
+    let payload = sink.finish()?;
+    encoded.map_err(|_| io_error())?;
+    Ok(payload)
+}
+
 pub(crate) struct Payload {
     storage: Storage,
     len: usize,
@@ -333,6 +348,13 @@ mod tests {
         child.kill().unwrap();
         child.wait().unwrap();
         assert_eq!(fs::read_dir(&owned.root).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn saved_review_counts_json_quotes_and_reports_the_original_size_error() {
+        let value = serde_json::Value::String("x".repeat(limits::MAX_OUTPUT_BYTES - 1));
+        let result = json_file(&value, &Control::default());
+        assert_eq!(result.err().expect("oversized JSON").code, "RESOURCE_LIMIT");
     }
 
     #[test]

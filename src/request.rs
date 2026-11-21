@@ -176,6 +176,7 @@ pub fn execute(
         ));
     }
     let response_mode = crate::responses::take(&mut value)?;
+    let review = crate::responses::ReviewOutput::take(&mut value, workspace)?;
     // Inline requests without a workspace need no generated schema or path preparation.
     let has_reference = value.as_object().is_some_and(|object| {
         object
@@ -186,7 +187,7 @@ pub fn execute(
         let command = diagnostics::command(&value);
         let request = serde_json::from_value(value)
             .map_err(|cause| diagnostics::invalid_arguments(command.as_deref(), cause))?;
-        return crate::responses::execute(request, context, response_mode);
+        return crate::responses::execute(request, context, response_mode, review);
     }
     let command = value
         .get("command")
@@ -298,7 +299,7 @@ pub fn execute(
     }
     let request: Request = serde_json::from_value(value)
         .map_err(|cause| diagnostics::invalid_arguments(Some(&command), cause))?;
-    let mut result = crate::responses::execute(request, &context, response_mode)?;
+    let mut result = crate::responses::execute(request, &context, response_mode, review)?;
     if let Some(w) = workspace
         && command == "capabilities"
     {

@@ -30,11 +30,33 @@ stores that state and receipt; the committed document omits `staged`. Preview
 pixels still use the private blocks before commit. This does not change legacy
 patch documents or their historical fingerprints.
 
-When a delivery requires the full review, save the CLI envelope's `result`
-object to a new file. Read `base_ref`, `difference` and `predicted_receipt`
-from that file to inspect the change. For the commit, read `proposal` from
-the same file and pass it with the original `action`. This keeps the full
-native tile data available on disk without printing it into the agent's context.
+## Save the review to a file
+
+Add a top-level `review_output` to a `session.dry_run` request when a delivery
+needs the complete review. This workspace request saves `review.json` and
+returns the proposal, base revision, a change summary and the file's path,
+byte count and SHA-256.
+
+```json
+{"command":"session.dry_run","session_id":"poster","request_id":"move-title","expected_revision":3,"action":{"type":"edit","label":"Move title","operations":[{"op":"transform","id":"title","matrix":[1,0,0,1,12,0],"space":"world"}]},"options":{"include_document":true},"review_output":{"file_name":"review.json"}}
+```
+
+`difference_summary` reports how many items, metadata fields and resources
+changed, the first changed item, and the pixel comparison when requested.
+Use the returned `proposal` and the same `action` to commit. The file contains
+the full ordinary result, including all differences, the predicted receipt,
+and any requested document or PNG. File delivery keeps those payloads out of
+the CLI and MCP response. A later writer can still advance the session before
+the agent commits its proposal.
+
+The optional `output_root` defaults to the selected workspace. Without a
+workspace, supply an existing absolute output directory. The portable
+`.json` filename must be new. Review files share the 32 MiB JSON output limit
+and create-only publication protocol. A failed or cancelled review before
+publication creates no destination. Repeating a saved review at the same
+destination returns `OUTPUT_EXISTS`. MCP advertises the tool's optional file
+write. Typed Rust callers can pass their existing dry-run request to
+`responses::ReviewOutput::publish`.
 
 ## Apply exactly the reviewed content
 

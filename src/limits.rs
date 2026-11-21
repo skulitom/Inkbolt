@@ -1387,7 +1387,7 @@ pub mod publish {
     pub const MAX_STAGE_ATTEMPTS: usize = 64;
     /// Maximum bytes per checked staging write or receipt-verification read; cancellation is checked between chunks.
     pub const IO_CHUNK_BYTES: usize = 65536;
-    /// Inline and non-streaming encoded output bytes.
+    /// Inline and non-streaming encoded output bytes, and the serialized JSON size of a saved session review.
     pub const MAX_OUTPUT_BYTES: usize = 32 * 1024 * 1024;
     /// Streaming PNG/JPEG/TIFF file output: target RGBA16 extent plus codec/metadata headroom.
     pub const MAX_FILE_IMAGE_BYTES: usize = 544 * 1024 * 1024;

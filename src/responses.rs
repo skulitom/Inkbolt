@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 
+mod review;
+pub use review::ReviewOutput;
+
 pub use crate::limits::responses::COMPACT_TARGET_BYTES;
 pub const COMMANDS: &[&str] = &[
     "session.create",
@@ -44,6 +47,9 @@ pub(crate) fn take(value: &mut Value) -> Result<Mode, Error> {
 }
 
 pub(crate) fn describe(command: &str, schema: &mut Value) {
+    if command == "session.dry_run" {
+        schema["properties"]["review_output"] = ReviewOutput::schema();
+    }
     if COMMANDS.contains(&command) {
         schema["properties"]["response_mode"] = json!({"type":"string","enum":["full","compact"],"default":"full","description":"Compact returns pinned document/receipt references and summaries, omitting snapshot pixels, receipt changes and the snapshot list. Full preserves the original response. Presentation does not change durable retry identity."});
     }
@@ -133,7 +139,15 @@ fn compact(result: Value, root: PathBuf, session_id: String) -> Value {
     summary
 }
 
-pub(crate) fn execute(request: Request, context: &Control, mode: Mode) -> Result<Value, Error> {
+pub(crate) fn execute(
+    request: Request,
+    context: &Control,
+    mode: Mode,
+    review: Option<ReviewOutput>,
+) -> Result<Value, Error> {
+    if let Some(output) = review {
+        return output.publish(request, context);
+    }
     let target = if mode == Mode::Compact {
         Some(target(&request).ok_or_else(|| {
             Error::new(

@@ -39,6 +39,76 @@ class SessionProposalTests(unittest.TestCase):
         self.cli('session.receipt',session_id='work',request_id=request_id,error='REQUEST_NOT_FOUND')
         return result
 
+    def test_review_file_contains_full_result_with_a_compact_checked_proposal(self):
+        self.save()
+        action = dict(type='edit', operations=[dict(op='add', item=box())])
+        args = dict(session_id='work', request_id='propose', expected_revision=0, action=action,
+                    options=dict(include_document=True, preview=True, compare_pixels=True))
+        original = self.cli('session.dry_run', **args)
+        initial = self.files()
+        for client in ('cli', 'mcp'):
+            filename = f'{client}-review.json'
+            output = dict(file_name=filename)
+            if client == 'cli':
+                result = self.cli('session.dry_run', **args, review_output=output)
+            else:
+                with closing(Client(('--tools', 'core'), workspace=self.root)) as c:
+                    c.initialize()
+                    tool = next(t for t in workspace.catalog(c) if t['name'] == 'inkbolt_session_dry_run')
+                    self.assertFalse(tool['annotations']['readOnlyHint'])
+                    self.assertFalse(tool['annotations']['destructiveHint'])
+                    self.assertIn('review_output', tool['inputSchema']['properties'])
+                    result = c.success('session.dry_run', **args, review_output=output)
+            raw = (self.root / filename).read_bytes()
+            self.assertEqual(json.loads(raw), original)
+            receipt = result['review_file']
+            self.assertEqual((receipt['bytes'], receipt['sha256']), (len(raw), hashlib.sha256(raw).hexdigest()))
+            self.assertTrue((self.root / filename).samefile(receipt['path']))
+            self.assertEqual(result['proposal'], original['proposal'])
+            self.assertFalse(result['committed'])
+            self.assertLess(len(json.dumps(result).encode()), 8192)
+            self.assertNotIn('proposed_document', result)
+            self.assertNotIn('preview', result)
+            changes = result['difference_summary']
+            self.assertEqual((changes['item_count'], changes['first_item']['id'], changes['first_item']['change']), (1, 'box', 'added'))
+            self.assertEqual(changes['rendered_pixels']['bounds'], [0, 0, 1, 1])
+        current = self.files()
+        self.assertEqual({p:v for p,v in current.items() if p not in ('cli-review.json', 'mcp-review.json')}, initial)
+        wrong = dict(type='snapshot', name='other')
+        self.cli('session.apply_proposal', proposal=result['proposal'], action=wrong, error='PROPOSAL_MISMATCH')
+        self.cli('session.dry_run', **args, review_output=output, error='OUTPUT_EXISTS')
+        committed = self.cli('session.apply_proposal', proposal=result['proposal'], action=action)
+        self.assertEqual(committed['receipt'], original['predicted_receipt'])
+        self.assertTrue(self.cli('session.apply_proposal', proposal=result['proposal'], action=action)['replayed'])
+
+    def test_review_file_refusals_preserve_sources_and_session(self):
+        self.save()
+        args = dict(session_id='work', request_id='review', expected_revision=0,
+                    action=dict(type='snapshot', name='origin'))
+        existing = self.root / 'original.json'
+        existing.write_bytes(b'original input')
+        before = self.files()
+        for output, error in [
+            (dict(file_name=existing.name), 'OUTPUT_EXISTS'),
+            (dict(file_name='../escape.json'), 'INVALID_REQUEST'),
+            (dict(file_name='review.png'), 'INVALID_REQUEST'),
+            (dict(file_name='review.json', output_root='..'), 'INVALID_PATH'),
+            (dict(file_name='review.json', output_root='missing'), 'IO_ERROR'),
+            (dict(file_name='review.json', unexpected=True), 'INVALID_REQUEST'),
+        ]:
+            with self.subTest(output=output):
+                self.cli('session.dry_run', **args, review_output=output, error=error)
+        target = dict(file_name='review.json')
+        self.cli('session.dry_run', **args, control=dict(timeout_ms=0), review_output=target, error='TIMEOUT')
+        self.cli('session.dry_run', **dict(args, expected_revision=1), review_output=target, error='REVISION_CONFLICT')
+        self.cli('session.apply', **args, review_output=target, error='INVALID_REQUEST')
+        self.cli('session.dry_run', scoped=False, **args, session_root=str(self.root/'.inkbolt/sessions'),
+                 review_output=target, error='INVALID_REQUEST')
+        self.assertEqual(self.files(), before)
+        self.cli('session.dry_run', scoped=False, **args, session_root=str(self.root/'.inkbolt/sessions'),
+                 review_output=dict(target, output_root=str(self.root)))
+        self.assertTrue((self.root / 'review.json').is_file())
+
     def test_every_action_predicts_exact_receipt_state_history_and_pixels(self):
         self.save()
         actions=[dict(type='edit',label='Original proposal',operations=[dict(op='add',item=box())]),
