@@ -62,7 +62,8 @@ Apple silicon and Intel Macs. Background export jobs currently require Windows.
 
 Building from `main` also lets you cut a window through a group and keep the
 surrounding paths in the PDF. You can also export searchable labels with
-embedded static fonts, including ligatures that copy as their original text.
+embedded static fonts. Ligatures and supported combining accents copy as
+their original text.
 For print work, you can preserve spot inks on
 separate plates or add crop and registration marks to RGB artwork on a chosen
 paper color. [PDF export](docs/PDF.md) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)

@@ -3,7 +3,11 @@ use super::*;
 use crate::text::Glyph;
 use rustybuzz::ttf_parser::{Face, GlyphId, Permissions};
 
+mod cluster;
 mod program;
+
+const GLYPH_COLLECTION: &str =
+    "/CIDSystemInfo << /Registry (Inkbolt) /Ordering (Glyphs) /Supplement 0 >>";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -74,6 +78,7 @@ struct PendingFont {
 #[derive(Default)]
 pub(super) struct Registry {
     fonts: BTreeMap<String, PendingFont>,
+    clusters: BTreeMap<(String, String), usize>,
     outlined_on_page: BTreeSet<String>,
     losses: BTreeMap<&'static str, usize>,
     embedded_fonts: usize,
@@ -130,6 +135,16 @@ fn source<'a>(document: &'a Document, item: &'a Item, glyph: &Glyph) -> Option<&
     }
 }
 
+struct PaintedGlyph<'a> {
+    glyph: &'a Glyph,
+    paint: Option<&'a Paint>,
+}
+impl PaintedGlyph<'_> {
+    fn span(&self) -> (Option<usize>, usize, usize) {
+        (self.glyph.paragraph, self.glyph.start, self.glyph.end)
+    }
+}
+
 fn drawn(glyph: &Glyph) -> bool {
     glyph.path.as_ref().is_none_or(|p| p.drawn)
 }
@@ -156,19 +171,43 @@ pub(super) fn paint_text(
     {
         return fallback(writer, item, resources.text, "gradient_text");
     }
+    let mut paths = layout.paths.iter();
+    let mut painted = Vec::new();
+    for g in layout.glyphs.iter().filter(|g| drawn(g)) {
+        let paint = if g.ink_bounds.is_some() {
+            Some(
+                &paths
+                    .next()
+                    .ok_or_else(|| unsupported("Missing glyph paint in layout"))?
+                    .fill,
+            )
+        } else {
+            None
+        };
+        painted.push(PaintedGlyph { glyph: g, paint });
+    }
+    let groups = || painted.chunk_by(|a, b| a.span() == b.span());
     let mut kinds = BTreeMap::new();
     let mut spans = BTreeSet::new();
     let mut boundaries = BTreeMap::new();
-    for g in layout.glyphs.iter().filter(|g| drawn(g)) {
+    for group in groups() {
+        if !spans.insert(group[0].span()) {
+            return fallback(writer, item, resources.text, "noncontiguous_cluster");
+        }
+        if group.len() > 1
+            && let Err(reason) = cluster::admit(group)
+        {
+            return fallback(writer, item, resources.text, reason);
+        }
+    }
+    for position in &painted {
+        let g = position.glyph;
         writer.control.check()?;
         if g.generated.is_some() {
             return fallback(writer, item, resources.text, "generated_glyphs");
         }
         if g.direction == crate::text::Direction::Rtl {
             return fallback(writer, item, resources.text, "right_to_left_run");
-        }
-        if !spans.insert((g.paragraph, g.start, g.end)) {
-            return fallback(writer, item, resources.text, "multiple_glyphs_in_cluster");
         }
         let Some(text) = source(document, item, g) else {
             return fallback(writer, item, resources.text, "missing_source_range");
@@ -202,21 +241,21 @@ pub(super) fn paint_text(
             entry.insert(font_kind);
         }
     }
-    let mut paths = layout.paths.iter();
-    for g in layout.glyphs.iter().filter(|g| drawn(g)) {
+    for group in groups() {
+        let g = group[0].glyph;
         let text = source(document, item, g).expect("validated source range");
         let offsets = &boundaries[&g.paragraph];
         let cluster = &text[offsets[g.start]..offsets[g.end]];
         let font_kind = kinds[g.font_id.as_str()];
-        let (font, code) = register(writer, g, cluster, font_kind)?;
-        let paint = if g.ink_bounds.is_some() {
-            &paths
-                .next()
-                .ok_or_else(|| unsupported("Missing glyph paint in layout"))?
-                .fill
+        let (font, code) = if group.len() == 1 {
+            register(writer, g, cluster, font_kind)?
         } else {
-            &Paint::Solid([0, 0, 0, 255])
+            (cluster::font(writer, group, cluster, &kinds)?, "01".into())
         };
+        let paint = group
+            .iter()
+            .find_map(|p| p.paint)
+            .unwrap_or(&Paint::Solid([0, 0, 0, 255]));
         let local = g
             .path
             .as_ref()
@@ -238,7 +277,8 @@ pub(super) fn paint_text(
         stream.content.push_str("BT\n");
         stream.use_resource("Font", font, "1 Tf");
         stream.content.push_str(&format!("{} Tm\n", numbers(&m)?));
-        let actual = cluster.chars().count() > 1
+        let actual = group.len() > 1
+            || cluster.chars().count() > 1
             || matches!(
                 font_kind,
                 Kind::SubsetCff | Kind::WholeNamedCff | Kind::WholeCidCff
@@ -254,7 +294,7 @@ pub(super) fn paint_text(
             stream.content.push_str("EMC\n");
         }
         stream.content.push_str("ET\nQ\n");
-        writer.text.embedded_glyphs += 1;
+        writer.text.embedded_glyphs += group.len();
     }
     Ok(true)
 }
@@ -317,6 +357,7 @@ pub(super) fn finish_page(
         .map_err(|e| e.at_font(&name))?;
         writer.text.embedded_fonts += 1;
     }
+    writer.text.clusters.clear();
     writer.text.outlined_on_page.clear();
     Ok(())
 }

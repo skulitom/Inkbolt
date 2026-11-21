@@ -66,7 +66,7 @@ fn pdf_name(name: &str) -> String {
     out
 }
 
-fn cmap(
+pub(super) fn cmap(
     writer: &mut Writer,
     system: &str,
     kind: u8,
@@ -156,7 +156,7 @@ pub(super) fn embed(
     let system = if matches!(font.kind, Kind::SubsetCff | Kind::WholeCidCff) {
         collection(&bytes)?
     } else {
-        "/CIDSystemInfo << /Registry (Inkbolt) /Ordering (Glyphs) /Supplement 0 >>".into()
+        GLYPH_COLLECTION.into()
     };
     let metrics = |v: i16| f64::from(v) * 1000.0 / f64::from(face.units_per_em());
     let r = face.global_bounding_box();

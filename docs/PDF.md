@@ -103,9 +103,13 @@ are supported. If the font forbids subsetting, Inkbolt embeds the complete
 standalone font. Restricted, preview-and-print-only and bitmap-only permissions
 fall back to outlines. Supply fonts you have the right to distribute.
 
-This mode covers left-to-right runs, solid fills and one drawn glyph per source
-cluster. Variable fonts, right-to-left runs, clusters drawn with several glyphs,
-generated glyphs, gradient text, and text on knockout pages use the fallback.
+Left-to-right runs support both ligatures and clusters made of several glyphs.
+For example, a base letter and a separately positioned accent copy together as
+the original Unicode sequence. The cluster draws each embedded glyph at its
+shaped offset and inherits the text color. Multi-glyph clusters require a
+straight baseline, matching character scales and one opaque solid fill.
+Variable fonts, right-to-left runs, generated glyphs, gradient text and text
+on knockout pages use the fallback.
 Flattened print, prepress and ink-recipe exports reject the searchable option.
 The PDF carries positioned text. Paragraph structure, accessibility tags and
 editable layout remain outside this contract.

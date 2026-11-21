@@ -244,6 +244,109 @@ class SearchablePdfTests(unittest.TestCase):
             glyphs[1][1][5] - glyphs[0][1][5], -4 * 72 / doc["resolution_ppi"]
         )
 
+    def test_combining_marks_use_the_shaped_glyphs_and_copy_once(self):
+        source = "A\u0301Afi A\u0301"
+        for cff in (False, True):
+            for whole in (False, True):
+                with self.subTest(cff=cff, whole=whole):
+                    self.install(font_bytes(cff, 0x108 if whole else 8))
+                    doc = self.document(text=source, wrap=False)
+                    result = self.export(doc, "require_searchable")
+                    pdf = Pdf(result)
+                    clusters = [
+                        v
+                        for v in pdf.objects.values()
+                        if isinstance(v, dict) and v.get("Subtype") == "Type3"
+                    ]
+                    self.assertEqual(len(clusters), 1)
+                    self.assertEqual(
+                        [v for v, _ in pdf.text_glyphs()],
+                        ["A\u0301", "A", "fi", " ", "A\u0301"],
+                    )
+                    self.assertEqual(
+                        result["pdf"]["text_delivery"]["embedded_glyphs"], 7
+                    )
+                    cluster = clusters[0]
+                    procedure = pdf.streams[cluster["CharProcs"]["Cluster"]].decode()
+                    self.assertEqual(cluster["Widths"], [600])
+                    self.assertIn("1 0 0 1 300 750 Tm", procedure)
+                    self.assertEqual(procedure.count(" Tj"), 2)
+                    self.assertEqual(len(cluster["Resources"]["Font"]), 1)
+                    if pymupdf:
+                        with pymupdf.open(stream=pdf.data, filetype="pdf") as parsed:
+                            self.assertEqual(
+                                parsed[0].get_text().rstrip("\r\n"), source
+                            )
+                    if shutil.which("pdftotext"):
+                        text = subprocess.check_output(
+                            ["pdftotext", "-enc", "UTF-8", "-", "-"],
+                            input=pdf.data,
+                            timeout=10,
+                        )
+                        self.assertEqual(text.decode().rstrip("\r\n\f"), source)
+
+    @unittest.skipUnless(pymupdf, "MuPDF renders the colored combining clusters")
+    def test_scaled_combining_marks_match_outline_coverage_and_fill(self):
+        self.install(font_bytes())
+        doc = self.document(
+            text="A\u0301Afi A\u0301",
+            width=120,
+            height=60,
+            wrap=False,
+            style=dict(
+                font_id="geometry",
+                size=32,
+                horizontal_scale=1.25,
+                vertical_scale=0.8,
+                fill=[25, 100, 200, 255],
+            ),
+        )
+        doc.update(width=120, height=60, resolution_ppi=72)
+        actual = Pdf(self.export(doc, "require_searchable")).data
+        outlined = Pdf(self.export(doc)).data
+        with pymupdf.open(stream=actual, filetype="pdf") as f, pymupdf.open(
+            stream=outlined, filetype="pdf"
+        ) as r:
+            a = f[0].get_pixmap(dpi=288, alpha=True)
+            b = r[0].get_pixmap(dpi=288, alpha=True)
+            self.assertEqual(a.irect, b.irect)
+            rgba, reference = a.samples, b.samples
+            alpha, coverage = rgba[3::4], reference[3::4]
+            # Reader antialiasing can shift an edge within one device pixel.
+            # A displaced mark, missing component or incorrect solid fill fails.
+            self.assertLess(abs(sum(alpha) - sum(coverage)) / sum(coverage), 0.001)
+            for i, (v, w) in enumerate(zip(alpha, coverage)):
+                if v == w == 255:
+                    self.assertEqual(
+                        rgba[4 * i : 4 * i + 3], reference[4 * i : 4 * i + 3]
+                    )
+                elif v != w:
+                    x, y = i % a.width, i // a.width
+                    around = [
+                        coverage[yy * a.width + xx]
+                        for yy in range(max(0, y - 1), min(a.height, y + 2))
+                        for xx in range(max(0, x - 1), min(a.width, x + 2))
+                    ]
+                    self.assertLessEqual(min(around), v)
+                    self.assertGreaterEqual(max(around), v)
+
+    def test_translucent_mark_cluster_keeps_per_glyph_paint(self):
+        self.install(font_bytes())
+        doc = self.document(
+            text="A\u0301",
+            wrap=False,
+            style=dict(font_id="geometry", size=12, fill=[10, 80, 150, 128]),
+        )
+        result = self.export(doc, "searchable")
+        self.assertEqual(
+            result["pdf"]["text_delivery"]["outlined_items_by_reason"],
+            {"cluster_paint": 1},
+        )
+        self.assertEqual(Pdf(result).data, Pdf(self.export(doc)).data)
+        self.assertIn(
+            "cluster_paint", self.export(doc, "require_searchable", 1)["message"]
+        )
+
     def test_linked_story_uses_each_paragraphs_source(self):
         self.install(font_bytes())
         doc = story_cli.StoryTests.document(
