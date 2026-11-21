@@ -57,13 +57,61 @@ on disk. Its `proposal` field, needed for the commit, occupied just 359–367
 bytes in compact JSON. An agent can read that field and the change summary
 from the saved review. [Session proposals](SESSION_PROPOSALS.md)
 
-Prioritize keeping full reviews on disk and returning selected fields to the
-agent. Test that change with the same prompt, artifact checks and history checks
-before claiming lower cost. This comparison covers one large-photo variant.
+These results motivated the file-delivery experiment below. This comparison
+covers one large-photo variant.
 The retained set is `b10-large-matched-windows-01`. All ten captured transcripts,
 prompts and original TIFF hashes were verified. The comparison report SHA-256 is
 `cffd9938f08af39342624b3345b05ab29d58ed3fa741963bfca6ef1ca5c88308`.
 [Measured source revision](https://github.com/skulitom/Inkbolt/commit/e4529266b79a07b89dd5f5a7f1711da2dd366a16)
+
+### File delivery and agent uptake
+
+With `review_output`, Inkbolt writes the complete review to a new JSON file
+and returns the proposal and a change summary. In two dry runs on the same
+50 MP Windows session, the ordinary CLI reply was **1,466,296 bytes** and the
+file-backed reply was **1,105 bytes**. The saved JSON equalled the ordinary
+result field for field. Applying the returned proposal committed the predicted
+state. [Request example](SESSION_PROPOSALS.md#save-the-review-to-a-file)
+
+| Full reference workflow | Earlier inline review reply | File-backed reply |
+| --- | ---: | ---: |
+| Windows CLI | 1,466,313 B | 1,115 B |
+| Windows MCP | 2,945,599 B | 2,477 B |
+| WSL Linux CLI | 1,466,241 B | 1,060 B |
+| WSL Linux MCP | 2,945,395 B | 2,325 B |
+
+Each transport completed all 14 solve and nine judge commands. The original,
+edited and historical TIFFs and focused PNG matched the earlier deliveries
+byte for byte. Both Windows references passed all eleven checks. Both Linux
+references passed the ten source, artifact and history checks under the
+512 MiB address-space limit. Linux peak commit remains unmeasured.
+
+Five new Windows trials per arm used the same model, settings, prompt and
+judges as the earlier batch. Both arms again delivered 5/5 accepted artifacts
+and complete applicable workflows. Inkbolt passed all seven engine checks in
+every trial. All five agents received the file option in schema discovery.
+Their executed requests and scripts show that all five saved the ordinary
+review themselves.
+
+| Median per attempt | Inkbolt | No-engine baseline |
+| --- | ---: | ---: |
+| Input + output tokens, cached input counted once | 694,184 | 94,679 |
+| Cached input tokens | 634,368 | 62,464 |
+| Agent time | 176.3 s | 78.5 s |
+| Shell tool calls | 15 | 4 |
+
+Inkbolt used 7.33 times the fresh baseline's median tokens. Its own median
+also rose from 654,324 in the earlier batch. With zero uptake, these trials
+cannot estimate how opting in changes model token use. Each Inkbolt trial
+issued four to six shell commands containing schema lookups. Keep the file
+option for callers that need a saved review. Prioritize reducing the setup
+steps for the reviewed edit before repeating this unprompted comparison.
+Underlying model-call counts and time to first verified preview remain unknown.
+
+The retained set is `b10-file-review-01`. All ten transcripts, fixture hashes
+and matched settings were verified. The comparison report SHA-256 is
+`2786a001caf747a505634f114ade8a4a1073f8331b709dda8a335ca4fa81ef1f`.
+[Measured source revision](https://github.com/skulitom/Inkbolt/commit/6f5114efd6d70ad33922e3dc61f646fd1987cdd6)
 
 ## Linux address-space experiment
 

@@ -32,7 +32,7 @@ patch documents or their historical fingerprints.
 
 ## Save the review to a file
 
-Add a top-level `review_output` to a `session.dry_run` request when a delivery
+Available on `main` after v0.84.0. Add a top-level `review_output` to a `session.dry_run` request when a delivery
 needs the complete review. This workspace request saves `review.json` and
 returns the proposal, base revision, a change summary and the file's path,
 byte count and SHA-256.
