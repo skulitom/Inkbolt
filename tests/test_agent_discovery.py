@@ -30,6 +30,39 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_first_lookup_describes_document_inputs_with_current_workspace_roots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for workspace in (None, directory):
+                args = ['--workspace', directory] if workspace else []
+                with closing(Client(('--tools', 'essentials'), workspace=workspace)) as client:
+                    client.initialize()
+                    for command, fields in [('document.publish', ['document']),
+                                            ('session.create', ['document']), ('document.diff', ['before', 'after'])]:
+                        query = dict(command='schema.lookup', name=command)
+                        wire = subprocess.check_output([str(EXE), *args], input=json.dumps(query).encode(), timeout=20)
+                        result = json.loads(wire)['result']
+                        self.assertEqual(result, client.success('schema.lookup', name=command))
+                        self.assertEqual(result['detail'], 'outline')
+                        if command == 'document.publish':
+                            output = next(f for f in result['fields'] if f['name'] == 'output')['object_inputs']
+                            self.assertEqual(set(output['required']), {'file_name', 'format'} |
+                                             (set() if workspace else {'output_root'}))
+                            self.assertIn('tiff', output['properties']['format']['enum'])
+                            self.assertNotIn('$defs', output)
+                        for name in fields:
+                            field = next(f for f in result['fields'] if f['name'] == name)
+                            self.assertEqual(field['select'], f'field:{name}')
+                            inline, saved, file = field['anyOf']
+                            self.assertEqual(inline, {'$ref': '#/$defs/Document'})
+                            self.assertEqual(set(saved['required']), {'session_id', 'revision'} |
+                                             (set() if workspace else {'session_root'}))
+                            self.assertEqual(saved['properties']['revision'], {'type': 'integer', 'minimum': 0})
+                            self.assertEqual(set(file['required']), {'file_path', 'sha256'})
+                            self.assertEqual(file['properties']['sha256']['pattern'], '^[0-9a-f]{64}$')
+                            exact = client.success('schema.lookup', name=command, select=field['select'], full=True)
+                            self.assertEqual([c.get('required') for c in field['anyOf']],
+                                             [c.get('required') for c in exact['schema']['anyOf']])
+
     def test_focused_examples_are_bounded_scoped_and_identical_in_cli_mcp(self):
         index = invoke(dict(command='schema.lookup', name='index'))['result']
         caps = invoke(dict(command='capabilities'))['result']['agent_discovery']

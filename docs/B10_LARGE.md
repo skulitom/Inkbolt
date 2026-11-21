@@ -113,6 +113,25 @@ and matched settings were verified. The comparison report SHA-256 is
 `2786a001caf747a505634f114ade8a4a1073f8331b709dda8a335ca4fa81ef1f`.
 [Measured source revision](https://github.com/skulitom/Inkbolt/commit/6f5114efd6d70ad33922e3dc61f646fd1987cdd6)
 
+### Finding the publication inputs
+
+All five agents in the file-delivery trial fetched the full `document.publish`
+schema and extracted its `document` field. Their initial outlines named that
+field but omitted its accepted forms. An ordinary lookup now gives the fields
+for a pinned session revision and a hashed snapshot file, plus the required
+output options and format choices. [Field lookup](AGENT_DISCOVERY.md)
+
+| Scripted Windows CLI replay | Earlier outline plus full lookup | Current outline alone |
+| --- | ---: | ---: |
+| Explicit roots | 94,513 B | 5,055 B |
+| Configured workspace | 96,236 B | 5,011 B |
+
+The replay checked both replies against the complete schema for the same
+workspace setting. Counts include the CLI envelope and newline. The ten
+ordinary command lookups grouped in the fourth trial grew from 25,527 to
+30,203 bytes in total. These measurements cover engine output. The clients
+filtered some shell output before presenting it to the model.
+
 ## Linux address-space experiment
 
 Run the original 50 MP reference task with a 512 MiB limit on each Inkbolt

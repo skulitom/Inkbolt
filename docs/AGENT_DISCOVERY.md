@@ -89,6 +89,8 @@ To save an editable file, use the [snapshot publication example](AGENT_WORKSPACE
 {"command":"schema.lookup","name":"operation","select":"transform"}
 {"command":"schema.lookup","name":"operation","select":"reorder"}
 {"command":"schema.lookup","name":"document.edit","select":"Operation","full":true}
+{"command":"schema.lookup","name":"document.publish","select":"field:output/field:format"}
+{"command":"schema.lookup","name":"document.preview","select":"field:options/field:focus"}
 {"command":"schema.lookup","name":"session.apply","select":"Action/edit"}
 {"command":"schema.lookup","name":"session.apply","select":"Action/edit/Operation/transform"}
 ```
@@ -97,7 +99,7 @@ To save an editable file, use the [snapshot publication example](AGENT_WORKSPACE
 
 Results report `detail`, `name`, `select` and the serialized `schema_bytes`. Schemas through 12 KiB return `detail:"full"` and `schema`, including every referenced definition. Larger schemas return `detail:"outline"`, fields, tagged variants and reachable definition names. An outline is not a validation schema. `full:true` always requests the complete selected schema. The index is already complete and rejects `select` and `full:true`.
 
-`select` chooses a variant of the named root (for example `transform`) or a
+`select` chooses a public field (`field:output`), a variant (such as `transform`) or a
 reachable definition. Separate components with `/` to follow nested selections.
 Each outline variant supplies its complete next `select` value; keep the same
 `name`. For example, the `Action` outline under `session.apply` advertises
@@ -105,6 +107,19 @@ Each outline variant supplies its complete next `select` value; keep the same
 `Action/edit/Operation/transform`. Definition names remain directly selectable
 from the named root. Shared aliases such as `action` and `operation` remain
 available; generated definition names come from the current schema.
+
+Source builds after v0.84.0 support field selectors and input summaries.
+The ordinary `document.publish` lookup shows three alternatives on its
+`document` field. Pass the inline snapshot, a saved revision with `session_id`
+and `revision`, or a file with `file_path` and its lowercase hex `sha256`.
+The saved revision also requires `session_root` outside a workspace.
+The same reply shows the `output` object's required inputs and format choices
+under `object_inputs`. Object summaries stop after one level.
+Each outline field supplies its `select` path. A field path can follow a
+referenced object, including an optional object with a single non-null shape,
+or continue into a tagged variant such as `field:action/edit`. An untagged
+union with several object shapes lists its alternatives. Use `full:true` on
+the field for all constraints, including nullability, defaults and definitions.
 
 Unknown names/selectors still return `SCHEMA_NOT_FOUND` without echoing unknown
 text. Error `details.field` identifies `name` or `select`, and

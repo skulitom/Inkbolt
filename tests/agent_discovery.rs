@@ -140,6 +140,63 @@ fn focused_schemas_are_complete_and_outlines_are_explicit() {
 }
 
 #[test]
+fn discovery_field_paths_follow_public_names_and_preserve_constraints() {
+    let exact = |name, select| schema::lookup(name, Some(select), true).unwrap()["schema"].clone();
+    let output = exact("document.publish", "field:output");
+    check_refs(&output, &output);
+    let render = exact("document.publish", "field:output/field:render_options");
+    assert!(
+        render["anyOf"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["type"] == "null")
+    );
+    let mode = exact(
+        "document.publish",
+        "field:output/field:render_options/field:antialias",
+    );
+    check_refs(&mode, &mode);
+    let definition = mode["$ref"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("#/$defs/")
+        .unwrap();
+    assert!(
+        mode["$defs"][definition]["enum"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("coverage"))
+    );
+    assert_eq!(
+        exact("session.apply", "field:action/edit"),
+        exact("session.apply", "Action/edit")
+    );
+    let action = schema::lookup("session.apply", Some("field:action"), false).unwrap();
+    assert!(
+        action["variants"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v["select"] == "field:action/edit")
+    );
+    let document = schema::lookup("document.publish", Some("field:document"), false).unwrap();
+    assert_eq!(document["anyOf"].as_array().unwrap().len(), 3);
+    for route in [
+        "field:document/field:revision",
+        "field:output/field:missing",
+        "field:",
+    ] {
+        assert_eq!(
+            schema::lookup("document.publish", Some(route), true)
+                .unwrap_err()
+                .code,
+            "SCHEMA_NOT_FOUND"
+        );
+    }
+}
+
+#[test]
 fn legacy_schema_and_capabilities_match_typed_discovery() {
     assert_eq!(execute(Request::Schema {}).unwrap(), *schema::full());
     let capabilities = execute(Request::Capabilities {}).unwrap();

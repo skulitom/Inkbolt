@@ -4,6 +4,7 @@ use serde_json::{Map, Value, json};
 use std::{collections::BTreeSet, sync::OnceLock};
 
 mod examples;
+mod fields;
 
 pub use crate::limits::schema::OUTLINE_BYTES;
 const TYPES: &[(&str, &str)] = &[
@@ -87,6 +88,9 @@ fn abbreviate(value: &mut Value) {
 }
 
 fn complete(mut value: Value, compact: bool) -> Value {
+    if value.is_boolean() {
+        return value;
+    }
     value.as_object_mut().unwrap().remove("$defs");
     if compact {
         abbreviate(&mut value);
@@ -236,6 +240,28 @@ fn variant_path(prefix: Option<&str>, tag: &str) -> String {
     }
 }
 
+fn select_component<'a>(
+    value: &'a Value,
+    shape: &'a Value,
+    prefix: Option<&str>,
+    segment: &str,
+) -> Option<(&'a Value, String)> {
+    if let Some(field) = segment.strip_prefix("field:") {
+        return Some((
+            shape.get("properties")?.get(field)?,
+            variant_path(prefix, segment),
+        ));
+    }
+    if let Some((_, _, variant)) = variants(shape)
+        .into_iter()
+        .find(|(_, tag, _)| *tag == segment)
+    {
+        return Some((variant, variant_path(prefix, segment)));
+    }
+    // Definitions are also reachable directly from the named root.
+    Some((value.get("$defs")?.get(segment)?, segment.to_owned()))
+}
+
 fn selector_suggestion(value: &Value, prefix: Option<&str>, selector: &str) -> Option<String> {
     let definitions = value.get("$defs").and_then(Value::as_object);
     let mut candidates = BTreeSet::new();
@@ -297,7 +323,7 @@ pub(crate) fn lookup_in_workspace(
             json!({"detail":"index", "commands":commands().collect::<Vec<_>>(),
             "types":TYPES.iter().map(|(alias, _)| alias).collect::<Vec<_>>(),
             "example_queries":examples::queries(),
-            "usage":"Choose a command or type as name. Large schemas return an outline; select a listed variant/definition, or request full:true."}),
+            "usage":"Choose a command or type as name. Large schemas list field and variant selectors and reachable definitions. Use full:true for a validation schema."}),
         );
     }
     let mut value = if let Some((_, definition)) = TYPES.iter().find(|(alias, _)| *alias == name) {
@@ -314,37 +340,35 @@ pub(crate) fn lookup_in_workspace(
             error
         })?
     };
+    if workspace {
+        crate::workspace::describe(&mut value);
+    }
     let mut prefix: Option<String> = None;
     if let Some(selector) = select {
         for segment in selector.split('/') {
-            let selected = variants(&value)
-                .into_iter()
-                .find(|(_, tag, _)| *tag == segment)
-                .map(|(_, tag, v)| (v.clone(), variant_path(prefix.as_deref(), tag)))
-                .or_else(|| {
-                    value.get("$defs").and_then(|d| d.get(segment))
-                        .map(|v| (v.clone(), segment.to_owned()))
-                })
+            let shape = fields::shape(&value, &value["$defs"]);
+            let (selected, route) = select_component(&value, shape, prefix.as_deref(), segment)
                 .ok_or_else(|| {
                     let mut error = Error::new(
                         "SCHEMA_NOT_FOUND",
-                        "Each select component must name a listed variant or reachable definition; use details.schema_lookup for valid choices",
+                        "Use field:NAME, a listed variant or a reachable definition in each select component. See details.schema_lookup for choices.",
                     );
                     let mut details = json!({"field":"select", "schema_lookup":lookup_request(name, prefix.as_deref())});
-                    if let Some(suggestion) = selector_suggestion(&value, prefix.as_deref(), segment) {
+                    let suggestion = selector_suggestion(&value, prefix.as_deref(), segment)
+                        .or_else(|| shape.get("properties")?.get(segment)
+                            .map(|_| variant_path(prefix.as_deref(), &format!("field:{segment}"))));
+                    if let Some(suggestion) = suggestion.filter(|s| s.len() <= crate::limits::schema::MAX_SELECTOR_BYTES) {
                         details["suggested_lookup"] = lookup_request(name, Some(&suggestion));
                     }
                     error.details = Some(Box::new(details));
                     error
                 })?;
-            // Every reachable definition is also reachable from the named root.
-            // Resetting its route avoids growing paths when definitions recur.
-            prefix = Some(selected.1);
-            value = complete(selected.0, false);
+            prefix = Some(route);
+            value = complete(selected.clone(), false);
+            if workspace {
+                crate::workspace::describe(&mut value);
+            }
         }
-    }
-    if workspace {
-        crate::workspace::describe(&mut value);
     }
     let example = examples::for_schema(name, prefix.as_deref(), &value);
     let bytes = serde_json::to_vec(&value).unwrap().len();
@@ -354,22 +378,17 @@ pub(crate) fn lookup_in_workspace(
             example,
         );
     }
-    let fields: Vec<Value> = value.get("properties").and_then(Value::as_object).into_iter().flat_map(|m| m.iter()).map(|(field, property)| {
-        let mut summary = json!({"name":field, "required":value["required"].as_array().is_some_and(|a| a.iter().any(|v| v == field))});
-        for key in ["type", "$ref", "description", "const", "default"] {
-            if let Some(v) = property.get(key) {
-                summary[key] = v.clone();
-            }
-        }
-        summary
-    }).collect();
-    examples::attach(
-        json!({"name":name, "select":select, "detail":"outline", "schema_bytes":bytes,
-        "fields":fields, "variants":variants(&value).iter().map(|(field, tag, _)| json!({"field":field,"value":tag,"select":variant_path(prefix.as_deref(), tag)})).collect::<Vec<_>>(),
+    let shape = fields::shape(&value, &value["$defs"]);
+    let mut outline = json!({"name":name, "select":select, "detail":"outline", "schema_bytes":bytes,
+        "fields":fields::outline(shape, &value["$defs"], prefix.as_deref()), "variants":variants(shape).iter().map(|(field, tag, _)| json!({"field":field,"value":tag,"select":variant_path(prefix.as_deref(), tag)})).collect::<Vec<_>>(),
         "definitions":value.get("$defs").and_then(Value::as_object).map(|m| m.keys().collect::<Vec<_>>()).unwrap_or_default(),
-        "usage":"This is an outline, not a validation schema. Keep name and use a variant's select value or a listed definition name. Select components separated by / follow nested variants/definitions. Repeat this lookup with full:true for the complete schema."}),
-        example,
-    )
+        "usage":"Keep name and use a field or variant's select value, or a listed definition. Join components with / to follow nested fields and variants. Use full:true for the complete validation schema."});
+    if variants(&value).is_empty()
+        && let Some(choices) = fields::alternatives(&value)
+    {
+        outline["anyOf"] = choices;
+    }
+    examples::attach(outline, example)
 }
 
 #[cfg(test)]

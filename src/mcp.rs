@@ -166,7 +166,7 @@ fn description(command: &str) -> String {
             return format!("Review up to {} focused views of one document in a bounded PNG contact sheet. Row-major thumbnails retain explicit world/sheet coordinate maps and source identities. Nearest-neighbor reduction can omit thin details; use document.preview for full-resolution review. Read-only.", crate::limits::contact_sheets::MAX_VIEWS);
         }
         "schema.lookup" => {
-            "Discover command arguments and shared graphics types. Use name index for available names. Large schemas return an outline; select a listed variant or definition, or use full:true for all reachable definitions. Read-only. The original schema command still returns the entire engine schema."
+            "Discover command arguments and shared graphics types. Use name index for available names. Outlines show input alternatives. Select field:NAME, a variant or a definition. Join with / for nested fields. Use full:true for a validation schema. Read-only."
         }
         "layered.import" => {
             "Read a bounded local layered RGB file into editable pixels, normal/pass-through groups and authored scalar masks. Explicit storage retains pixel layers in native blocks; resource_profile:large_raster admits larger canvases. Preserves source bytes and uses explicit color policy. Inspect capabilities.layered_interchange for exact limits. Optional text_fonts checks pinned font choices; adding reconstruction:engine_layout imports the declared editable point-text subset. Unsupported appearance semantics fail explicitly; no flattened-cache substitution."
