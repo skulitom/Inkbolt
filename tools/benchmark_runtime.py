@@ -49,15 +49,17 @@ def strict_json(raw):
 
 class Mcp:
     """One owned stdio server; background jobs require RecoveryTrial containment."""
-    def __init__(self, case):
+    def __init__(self, case, *, workspace=None, catalog='core'):
         self.case = case
         self.rid = 0
         self.closed = False
         self.stderr_path = case.root/'mcp.stderr.log'
         self.stderr = self.stderr_path.open('xb')
         try:
-            self.process = case.spawn([str(case.executable), '--workspace', str(case.root),
-                'mcp', '--tools', 'core'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            argv = [str(case.executable), '--workspace', str(workspace or case.root), 'mcp']
+            if catalog is not None:
+                argv.extend(['--tools', catalog])
+            self.process = case.spawn(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=self.stderr, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         except BaseException:
             self.stderr.close()

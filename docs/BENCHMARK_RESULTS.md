@@ -13,8 +13,9 @@ Each row uses the latest documented five-attempt batch for the standard task.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. The Inkbolt build varied by batch. A comparison on a single current release and
-the separate comparison with Cutbolt remain open.
+library. The Inkbolt build varied by batch. A single-release model comparison
+remains open. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
+measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
 | Task | Inkbolt artifact | Inkbolt workflow | Baseline passes | Median tokens, Inkbolt / baseline | Evidence |
 | --- | ---: | ---: | ---: | ---: | --- |

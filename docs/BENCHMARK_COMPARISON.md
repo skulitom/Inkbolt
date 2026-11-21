@@ -115,3 +115,57 @@ and the equivalent WSL selector for portable coverage. The original fabricated
 metadata tests cover complete/incomplete inventories, distinct artifact/workflow
 scores, losing thresholds, missing observations, invalid evidence and create-only
 outputs. They do not execute a model or establish a real success rate.
+
+## Saved-session recovery with Cutbolt
+
+Inkbolt and Cutbolt each recovered the original creation receipt in five of
+five trials on Windows x64 and five of five on Arch Linux under WSL2. The test
+created an empty 192 × 108 vector document or 25 fps timeline, withheld the
+first response and restarted the MCP server. The client used its original
+request ID to retrieve the receipt and retry. Both engines rejected a changed
+width with the same ID. Each saved project still had its original dimensions
+and exactly one creation at revision zero.
+
+The comparison used the native archives from the [Inkbolt 0.84.0 candidate at
+`63a78d2`](https://github.com/skulitom/Inkbolt/actions/runs/44848096043) and
+[Cutbolt 0.4.0 at `e668c16`](https://github.com/skulitom/Cutbolt/releases/tag/v0.4.0).
+The table counts actual JSON-RPC response bytes including framing and every
+catalog page. The values matched across the two systems.
+
+| Startup option | Tools | Pages | First page, bytes | Complete catalog, bytes |
+| --- | ---: | ---: | ---: | ---: |
+| Inkbolt, plain `mcp` | 96 | 12 | 355,139 | 4,119,315 |
+| Inkbolt, `--tools core` | 22 | 3 | 26,013 | 86,185 |
+| Inkbolt, `--tools essentials` | 10 | 2 | 18,880 | 24,487 |
+| Cutbolt, plain `mcp` or `--tools core` | 18 | 1 | 21,198 | 21,198 |
+
+The README's `--tools essentials` setting brings Inkbolt's first page below
+Cutbolt's, while its full catalog takes 3,289 more bytes. The six recovery
+calls used the core dispatcher and default response format in both engines.
+Inkbolt returned 8,343 bytes on Windows and 7,287 on Arch, including the saved
+document and workspace resource paths. Cutbolt returned 3,551 bytes on both.
+Discovery and handshakes are counted separately in the raw report.
+
+On Ubuntu 22.04 under WSL2, Inkbolt also passed all five trials. The published
+Cutbolt binary required glibc 2.39 and could not start on that installation.
+Those five startup failures remain in the Ubuntu report. Arch supplied glibc
+2.39 and ran the same two Linux executable hashes.
+
+To repeat the comparison, extract both native binaries and supply a new output
+directory outside the checkout. The runner alternates the starting engine,
+records both server lifetimes and retains the individual request and response
+bytes, errors and platform-specific memory observations.
+
+```sh
+python tools/compare_session_recovery.py --inkbolt /path/to/inkbolt --cutbolt /path/to/cutbolt --output /path/to/new-results
+```
+
+These are scripted calls with known commands. Actual model discovery, creative
+workflows and the broader sister-project comparison remain open. The archived
+reports have the following SHA-256 digests.
+
+| Environment | Report SHA-256 |
+| --- | --- |
+| Windows x64 | `b852565c09ecaffc7cc57c4aec735baf4fbf7c9f72943690f43a130081b14245` |
+| Arch Linux, WSL2 | `343e48509c5d2baa32a4f24be0a520e714cc5e12f00926d31b2c784bf6a66852` |
+| Ubuntu 22.04, WSL2 | `d7160da54582eeb077bc8e94b69b44e4b20dfe5be63ea8f0bf34ee0d619a83e1` |
