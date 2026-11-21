@@ -1113,6 +1113,8 @@ pub mod path_text {
 
 /// Limits for `src/pdf.rs`.
 pub mod pdf {
+    /// Smallest drawing stream considered for compression. Skips tiny per-shape forms.
+    pub const MIN_FLATE_CONTENT_BYTES: usize = 128;
     /// Maximum combined scene ancestry and successive PDF knockout attenuation forms.
     pub const MAX_KNOCKOUT_DEPTH: usize = 24;
     /// Maximum emitted form and soft-mask reference depth on a knockout PDF page.

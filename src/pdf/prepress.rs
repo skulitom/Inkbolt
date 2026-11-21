@@ -154,7 +154,7 @@ pub(super) fn export(
             number(bounds[3] - image_size[1])?
         ));
         let marks = layout.emit(&mut writer, &mut content)?;
-        let content = writer.stream("", content.as_bytes())?;
+        let content = writer.content_stream("", content.as_bytes())?;
         let mark_resource = marks
             .map(|id| format!("/ColorSpace << /Marks {id} 0 R >>"))
             .unwrap_or_default();

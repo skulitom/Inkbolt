@@ -5,6 +5,7 @@ External consumer verification additionally checks these files outside the engin
 """
 import base64
 import re
+import zlib
 
 
 class Ref(int): pass
@@ -66,6 +67,7 @@ class Pdf:
         offsets=[int(rows[n*20:n*20+10]) for n in range(1,count)]+[start]
         assert offsets==sorted(set(offsets))
         self.objects={};self.streams={}
+        remaining=32*1024*1024
         for n,(lo,hi) in enumerate(zip(offsets,offsets[1:]),1):
             chunk=self.data[lo:hi];prefix=f'{n} 0 obj\n'.encode()
             assert chunk.startswith(prefix) and chunk.endswith(b'\nendobj\n')
@@ -73,7 +75,18 @@ class Pdf:
             if b'\nstream\n' in body:
                 head,stream=body.split(b'\nstream\n',1);obj=parse(head)
                 length=obj['Length'];assert len(stream)==length+10 and stream[length:]==b'\nendstream'
-                self.streams[n]=stream[:length]
+                decoded=stream[:length]
+                if 'Filter' in obj:
+                    if obj['Filter']!='FlateDecode' or obj.get('DecodeParms') is not None:
+                        raise ValueError('Unsupported PDF stream filter or predictor')
+                    decoder=zlib.decompressobj()
+                    decoded=decoder.decompress(decoded,remaining+1)
+                    if not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
+                        raise ValueError('Incomplete, oversized or trailing Flate data')
+                if len(decoded)>remaining:
+                    raise ValueError('PDF streams exceed the decoded byte budget')
+                remaining-=len(decoded)
+                self.streams[n]=decoded
             else:obj=parse(body)
             self.objects[n]=obj
         self.catalog=self.get(self.trailer['Root']);assert self.catalog['Type']=='Catalog'

@@ -35,6 +35,26 @@ class PdfTests(unittest.TestCase):
             self.assertEqual(a,self.export(d));self.assertEqual(a['pdf']['image_pixels'],0)
             self.assertEqual(p.get(p.trailer['Info']),{'Producer':'Inkbolt'})
 
+    def test_page_and_transparency_form_compression_preserves_every_path(self):
+        doc=self.invoke(dict(command='document.create',id='rows',kind='vector',width=64,height=64))
+        doc['resolution_ppi']=72
+        for grouped in (False,True):
+            with self.subTest(grouped=grouped):
+                parent='sheet' if grouped else None
+                doc['items']=[dict(id='sheet',opacity=.5,content=dict(type='group',isolated=True))] if grouped else []
+                for y in range(24):
+                    doc['items'].append(self.rectangle('row'+str(y),parent,'vector',2,y*2,40,1,[0,0,0,255]))
+                result=self.export(doc)
+                pdf=Pdf(result)
+                self.assertEqual(result,self.export(doc))
+                paths=pdf.paths()
+                self.assertEqual([p['path'][0] for p in paths],[('m',[[2,2*y]]) for y in range(24)])
+                self.assertEqual([p['alpha'] for p in paths],[.5 if grouped else 1.]*24)
+                selected=([n for n,obj in pdf.objects.items() if obj.get('Subtype')=='Form']
+                          if grouped else [pdf.pages[0]['Contents']])
+                self.assertTrue(any(pdf.objects[n].get('Filter')=='FlateDecode' and
+                                    pdf.objects[n]['Length']<len(pdf.streams[n])//2 for n in selected))
+
     def test_stroked_circle_uses_the_generated_outline_budget(self):
         doc = self.invoke(dict(command='document.create',id='diagram',kind='vector',width=96,height=96))
         doc['items'] = [dict(id='node',content=dict(type='vector',

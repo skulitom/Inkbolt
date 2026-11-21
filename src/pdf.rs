@@ -8,6 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::Write;
 
 mod artwork;
 mod backdrop;
@@ -134,7 +135,7 @@ impl Writer {
         self.form(&dictionary, stream)
     }
     fn form(&mut self, dictionary: &str, stream: &Stream) -> Result<usize, Error> {
-        let id = self.stream(dictionary, stream.content.as_bytes())?;
+        let id = self.content_stream(dictionary, stream.content.as_bytes())?;
         self.record_form_depth(
             id,
             stream
@@ -221,6 +222,33 @@ impl Writer {
         bytes.extend_from_slice(data);
         bytes.extend_from_slice(b"\nendstream");
         self.add(bytes)
+    }
+    fn content_stream(&mut self, entries: &str, data: &[u8]) -> Result<usize, Error> {
+        const FILTER: &str = " /Filter /FlateDecode";
+        if self.bytes + data.len() > crate::publish::MAX_OUTPUT_BYTES {
+            return Err(limit(
+                "PDF content exceeds the output byte budget before compression",
+            ));
+        }
+        if data.len() < crate::limits::pdf::MIN_FLATE_CONTENT_BYTES {
+            return self.stream(entries, data);
+        }
+        let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::fast());
+        let encode_error = |_| Error::new("EXPORT_ERROR", "Unable to compress PDF content");
+        for chunk in data.chunks(crate::limits::publish::IO_CHUNK_BYTES) {
+            self.control.check()?;
+            encoder.write_all(chunk).map_err(encode_error)?;
+        }
+        let encoded = encoder.finish().map_err(encode_error)?;
+        let plain_size = data.len() + data.len().to_string().len();
+        let filtered_size = encoded.len() + encoded.len().to_string().len() + FILTER.len();
+        if filtered_size >= plain_size {
+            return self.stream(entries, data);
+        }
+        // Charge the original object size even though fewer bytes are stored.
+        // This preserves the document-wide budget for decoded drawing commands.
+        self.bytes += plain_size - filtered_size;
+        self.stream(&format!("{entries}{FILTER}"), &encoded)
     }
     fn charge_commands(&mut self, count: usize) -> Result<(), Error> {
         self.commands += count;
@@ -1589,7 +1617,7 @@ pub fn export_controlled(
                 None,
             )
         };
-        let content = writer.stream("", stream.content.as_bytes())?;
+        let content = writer.content_stream("", stream.content.as_bytes())?;
         let id=writer.add(format!("<< /Type /Page /Parent {tree} 0 R /MediaBox [{}] /CropBox [{}] /BleedBox [{}] /TrimBox [{}] /UserUnit {} /Resources {} /Contents {content} 0 R{page_group} >>",numbers(&media)?,numbers(&media)?,numbers(&bounds)?,numbers(&trim)?,number(user_unit)?,stream.dictionary(mark_space)))?;
         references.push(format!("{id} 0 R"));
         let artboard_id = selection.map(|i| &document.items[i].id);
@@ -1749,6 +1777,30 @@ pub fn export_controlled(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn content_compression_preserves_the_unfiltered_object_budget() {
+        use super::*;
+        let drawing = b"0 0 m 2 1 l 1 2 l h f\n".repeat(512);
+        let mut plain = Writer::default();
+        plain.stream("/Subtype /Form", &drawing).unwrap();
+        let mut compact = Writer::default();
+        compact.content_stream("/Subtype /Form", &drawing).unwrap();
+        assert!(compact.objects[0].len() < plain.objects[0].len() / 2);
+        assert_eq!(compact.bytes, plain.bytes);
+        for spare in [0, 1] {
+            let mut writer = Writer {
+                bytes: crate::publish::MAX_OUTPUT_BYTES - plain.bytes + spare,
+                ..Writer::default()
+            };
+            let result = writer.content_stream("/Subtype /Form", &drawing);
+            if spare == 0 {
+                assert!(result.is_ok());
+            } else {
+                assert_eq!(result.unwrap_err().code, "RESOURCE_LIMIT");
+            }
+        }
+    }
+
     #[test]
     fn opacity_grid_and_image_copies_share_one_export_budget() {
         use super::*;

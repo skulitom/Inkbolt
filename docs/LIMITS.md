@@ -433,6 +433,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `pdf.MAX_OBJECTS` | `usize` | 32768 | `32_768` |
 | `pdf.MAX_PAGE_COORDINATE` | `f64` | 14400.0 | `14400.0` |
 | `pdf.MAX_USER_UNIT` | `u32` | 75000 | `75000` |
+| `pdf.MIN_FLATE_CONTENT_BYTES` | `usize` | 128 | `128` |
 | `pdf_marks.DEFAULT_GAP` | `f64` | 3.0 | `3.0` |
 | `pdf_marks.DEFAULT_LENGTH` | `f64` | 6.0 | `6.0` |
 | `pdf_marks.DEFAULT_LINE_WIDTH` | `f64` | 0.25 | `0.25` |

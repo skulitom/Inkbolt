@@ -291,6 +291,19 @@ An explicit document `output_profile` embeds its exact RGB ICC bytes as the page
 
 Managed paint and calibrated page sources explicitly disable optional black-point compensation through PDF 2.0 `UseBlackPtComp OFF`. The file header and receipt declare version 2.0. Older consumers can ignore this setting, and different lookup interpolation or legacy v2 perceptual black normalization can still change appearance. See the [PDF Association application note](https://pdfa.org/resource/pdf-2-0-application-note-001-black-point-compensation/) for the format control. Native ink delivery without a page profile retains its DeviceCMYK blending contract. Flattened print, native plate and independent ink-recipe paths retain their separate output-profile rules.
 
+## Content compression
+
+Page drawing commands and reusable form streams of at least 128 bytes use
+`FlateDecode` when the encoded payload and its filter declaration make the PDF
+smaller. This also applies to the drawing commands on print and prepress pages.
+Small forms remain inexpensive to emit on pages with thousands of shapes.
+PDF readers recover the original drawing commands losslessly. Images, ink
+samples, ICC profiles and metadata keep their existing encodings.
+
+The exporter charges the full uncompressed object size against the 32 MiB
+budget. The same inputs produce the same bytes within a build. A saved
+publication receipt identifies the particular file delivered.
+
 ## Metadata, bounds and verification
 
 Public/strip metadata policy runs on each selected export view before outlining.

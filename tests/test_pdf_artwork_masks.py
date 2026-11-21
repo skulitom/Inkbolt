@@ -267,7 +267,7 @@ class PdfArtworkMaskTests(unittest.TestCase):
         for opts in ({}, dict(color='native_inks')):
             pdf = Pdf(self.export(doc, **opts))
             self.assertNotIn(b'/Inkbolt.stencil', pdf.data)
-            self.assertIn(b'0.7154 g', pdf.data)
+            self.assertTrue(any(b'0.7154 g' in stream for stream in pdf.streams.values()))
         doc['items'][-1]['artwork_mask']['enabled'] = False
         unused = self.export(doc)
         self.assertNotIn('artwork_masks', unused['pdf'])

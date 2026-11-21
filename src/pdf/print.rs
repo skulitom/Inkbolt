@@ -161,7 +161,7 @@ pub(super) fn export(
             number(image_height)?,
             number(height - image_height)?
         );
-        let content = writer.stream("", content.as_bytes())?;
+        let content = writer.content_stream("", content.as_bytes())?;
         let bleed = if options.include_bleed {
             selection
                 .map(|i| {

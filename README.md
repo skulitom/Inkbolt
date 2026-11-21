@@ -61,10 +61,10 @@ Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
 Building from `main` also lets you cut a window through a group and keep the
-surrounding paths and text outlines in the PDF. For print work, a native CMYK
-PDF can keep spot inks on separate plates. You can also add crop and
-registration marks to RGB artwork and choose the paper color behind it.
-[PDF masks](docs/PDF.md#masks-made-from-editable-artwork) · [Knockout groups](docs/PDF.md#knockout-groups)
+surrounding paths and text outlines in the PDF. Inkbolt compresses drawing
+commands to reduce file size. For print work, you can preserve spot inks on
+separate plates or add crop and registration marks to RGB artwork on a chosen
+paper color. [PDF export](docs/PDF.md) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
 ## Explore the project
 

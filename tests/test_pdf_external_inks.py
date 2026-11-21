@@ -150,8 +150,8 @@ class ExternalInkTests(unittest.TestCase):
             item.setdefault('parent','board')
         doc['items'].insert(0,frame)
         selected = Pdf(self.export(doc,artboards=dict(type='ids',ids=['board'])))
-        self.assertIn(b'W* n',selected.data)
-        self.assertIn(b' c\n',selected.data)
+        self.assertTrue(any(b'W* n' in s for s in selected.streams.values()))
+        self.assertTrue(any(b' c\n' in s for s in selected.streams.values()))
         self.assertNotIn(b'/Subtype /Image',selected.data)
         plain = self.root/'plain'
         board = self.root/'board'

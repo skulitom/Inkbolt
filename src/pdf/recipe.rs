@@ -113,7 +113,7 @@ pub(super) fn export(
         "[/DeviceN [{names}] [/ICCBased {icc} 0 R] {function} 0 R]"
     ))?;
     let image = writer.stream(&format!("/Type /XObject /Subtype /Image /Width {} /Height {} /ColorSpace {space} 0 R /BitsPerComponent 8 /Decode [{domain}] /Interpolate false /Intent /RelativeColorimetric",prepared.width,prepared.height),&prepared.samples)?;
-    let content = writer.stream(
+    let content = writer.content_stream(
         "",
         format!(
             "q\n/RelativeColorimetric ri\n{} 0 0 {} 0 {} cm\n/Im Do\nQ\n",
