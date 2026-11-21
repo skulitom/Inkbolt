@@ -72,6 +72,10 @@ SCALE_DIMENSIONS = {'jpeg-24mp':[6000,4000], 'photo-50mp':[8192,6144],
 SCALE_HARNESS = HARNESS + ('tools/measure_scale.py', 'tools/scale_workloads.py',
                          'tools/scale_oracles.py', 'tools/scale_jpeg.py')
 SCALE_COMMIT_CEILING = 512*1024*1024
+LINUX_POLICY = dict(version='linux-scale-regression-v1', minimum_repetitions=5,
+                    median_seconds_factor=1.5, maximum_seconds_factor=2,
+                    peak_resident_factor=1.5, seconds_quantum=.001,
+                    memory_quantum_bytes=1024*1024, address_space_limit_bytes=SCALE_COMMIT_CEILING)
 PHOTO_STAGES = ('patch', 'selection', 'brush', 'repair', 'mask-selection', 'mask')
 PHOTO_HISTORY = [f'undo-{n}' for n in range(5,-1,-1)]+[f'redo-{n}' for n in range(1,7)]
 SCALE_CONTRACTS = {
@@ -117,26 +121,65 @@ def hash_value(value):
     return isinstance(value, str) and len(value) == 64 and all(c in '0123456789abcdef' for c in value)
 
 
+def check_workflow(row, contract):
+    calls, checks = row['calls'], row['checks']
+    require(row['success'] is True and row['blocked_steps'] == 0 and row['process_calls'] == len(calls),
+            'Failed, blocked or missing commands')
+    require([(c['step'], c['command']) for c in calls] == contract[0]
+            and [c['name'] for c in checks] == contract[1]
+            and all(c['status'] == 'pass' for c in checks), 'Incomplete scale workflow or artifact checks')
+    for call in calls:
+        require(call['status'] == 'success' and type(call['exit_code']) is int and call['exit_code'] == 0
+                and call['timed_out'] is False and type(call['retries']) is int and call['retries'] == 0,
+                'An engine command failed, timed out or retried')
+
+
 def check_linux_scale_budget(row, supervisor_sha256):
     """Validate the full-size workflow and kernel limit on every engine command."""
     import linux_process_memory
     name = row['case']
-    require(row['success'] is True and row['fixed_fixture'] is True
-            and row['dimensions'] == SCALE_DIMENSIONS[name], 'Requires a successful full-size fixture')
-    calls, checks = row['calls'], row['checks']
-    require([(c['step'], c['command']) for c in calls] == SCALE_CONTRACTS[name][0]
-            and [c['name'] for c in checks] == SCALE_CONTRACTS[name][1]
-            and all(c['status'] == 'pass' for c in checks), 'Incomplete scale workflow or artifact checks')
+    require(row['fixed_fixture'] is True and row['dimensions'] == SCALE_DIMENSIONS[name],
+            'Requires a full-size fixture')
+    check_workflow(row, SCALE_CONTRACTS[name])
     require(hash_value(supervisor_sha256), 'Missing supervisor source identity')
     limit = dict(method=linux_process_memory.LIMIT_METHOD, soft_bytes=SCALE_COMMIT_CEILING,
                  hard_bytes=SCALE_COMMIT_CEILING)
-    for call in calls:
-        require(call['status'] == 'success' and call['exit_code'] == 0 and call['timed_out'] is False
-                and call['retries'] == 0, 'An engine command failed, timed out or retried')
+    for call in row['calls']:
         counters = call['memory']
-        require(counters.get('address_space_limit') == limit, 'Missing or changed engine address-space limit')
+        require(isinstance(counters, dict) and counters.get('address_space_limit') == limit
+                and all(type(counters['address_space_limit'][k]) is int for k in ('soft_bytes', 'hard_bytes')),
+                'Missing or changed engine address-space limit')
         resident = counters.get('resident', {})
-        require(resident.get('supervisor_sha256') == supervisor_sha256, 'Supervisor differs from recorded source')
+        require(isinstance(resident, dict) and resident.get('supervisor_sha256') == supervisor_sha256,
+                'Supervisor differs from recorded source')
+
+
+def windows_peak(row):
+    require(row['memory_complete'] is True, 'Missing memory measurement')
+    observations = [c['memory'] for c in row['calls']]
+    for value in observations:
+        require(value['available'] is True and all(type(value[k]) is int and value[k] > 0
+                for k in ('peak_commit_bytes', 'peak_working_set_bytes')), 'Invalid command memory peak')
+    for key in ('peak_commit_bytes', 'peak_working_set_bytes'):
+        require(type(row[key]) is int and row[key] == max(m[key] for m in observations),
+                'Trial memory disagrees with command records')
+    return row['peak_commit_bytes']
+
+
+def linux_peak(row, supervisor_sha256):
+    import linux_process_memory
+    check_linux_scale_budget(row, supervisor_sha256)
+    require(row['linux_address_space_budget'] == dict(status='passed', maximum_bytes=SCALE_COMMIT_CEILING),
+            'Missing successful Linux address-space budget')
+    observations = [c['memory'] for c in row['calls']]
+    require(row['memory_complete'] is False and row['peak_commit_bytes'] is None
+            and row['peak_working_set_bytes'] is None and all(m['available'] is False for m in observations)
+            and row['commit_budget'] == dict(status='unavailable', maximum_bytes=SCALE_COMMIT_CEILING),
+            'Unexpected Windows counters in Linux measurement')
+    observed = linux_process_memory.resident_summary(observations)
+    require(observed['resident_memory_complete'] and all(row[k] == v for k,v in observed.items()),
+            'Invalid or inconsistent Linux resident measurements')
+    return observed['peak_resident_bytes']
 
 
 def summarize(report):
@@ -157,15 +200,28 @@ def summarize(report):
     require(build['artifact']['profile']['opt_level'] in ('1', '2', '3', 's', 'z'), 'Optimized build required')
     require(build['artifact']['target']['name'] == 'inkbolt'
             and 'bin' in build['artifact']['target']['kind'], 'Wrong measured executable target')
-    require(report['environment']['system'] == 'Windows', 'Only Windows memory measurements are verified')
+    system = report['environment']['system']
+    require(system == 'Windows' or (system == 'Linux' and report['suite'] == 'scale-v2'),
+            'Unsupported platform for this workload suite')
+    linux = system == 'Linux'
+    source = 'linux_uname_cpuinfo_affinity_v1' if linux else 'windows_native_system_info_and_cpu_registry_v1'
     require(report['environment']['hardware_available'] is True
-            and report['environment']['hardware_source'] == 'windows_native_system_info_and_cpu_registry_v1',
+            and report['environment']['hardware_source'] == source,
             'Native machine identity is unavailable or unverified')
     environment = {k: report['environment'][k] for k in ENVIRONMENT}
     require(all(isinstance(environment[k], str) and environment[k] for k in ENVIRONMENT
                 if k not in ('pointer_bits', 'logical_cpus')), 'Incomplete machine identity')
     require(type(environment['pointer_bits']) is int and environment['pointer_bits'] in (32, 64)
             and type(environment['logical_cpus']) is int and environment['logical_cpus'] > 0, 'Invalid machine dimensions')
+    if linux:
+        require(report.get('linux_address_space_budget') == dict(maximum_bytes=SCALE_COMMIT_CEILING,
+                selected_workloads_passed=True, full_suite_passed=True), 'Missing completed Linux budget run')
+        affinity = report['environment']['cpu_affinity']
+        require(isinstance(affinity, list) and 0 < len(affinity) <= environment['logical_cpus']
+                and all(type(cpu) is int and cpu >= 0 for cpu in affinity)
+                and affinity == sorted(set(affinity)), 'Invalid Linux CPU affinity')
+        environment['cpu_affinity'] = affinity
+        harness_files = (*harness_files, 'tools/workload_gates.py')
     require(isinstance(report['conditions'], str) and report['conditions'].strip(), 'Missing measurement conditions')
     require(isinstance(report['toolchain'], str) and report['toolchain'], 'Missing compiler identity')
     harness = {p: report['candidate_files'][p] for p in harness_files}
@@ -181,33 +237,22 @@ def summarize(report):
                 'Unknown, missing or duplicate case/repetition')
         seen.add(key)
         require(row['adapter'] == report['adapter'], 'Mixed call adapters')
-        require(row['success'] is True and row['blocked_steps'] == 0, 'Failed or blocked trial')
-        require(row['memory_complete'] is True, 'Missing memory measurement')
-        calls, checks = row['calls'], row['checks']
-        require(calls and checks and row['process_calls'] == len(calls), 'Missing command/oracle records')
-        require([(c['step'], c['command']) for c in calls] == contracts[row['case']][0]
-                and [c['name'] for c in checks] == contracts[row['case']][1], 'Workload steps or correctness checks changed')
-        require(all(c['status'] == 'pass' for c in checks)
-                and any(c['name'] == 'source-preservation' for c in checks), 'Failed/missing correctness or source check')
-        for call in calls:
-            require(call['status'] == 'success' and call['exit_code'] == 0
-                    and call['timed_out'] is False and call['retries'] == 0, 'Failed, retried or timed-out command')
-            require(positive(call['seconds']), 'Invalid command timing')
-            memory = call['memory']
-            require(memory['available'] is True, 'Missing command memory measurement')
-            require(all(type(memory[k]) is int and memory[k] > 0 for k in
-                        ('peak_commit_bytes', 'peak_working_set_bytes')), 'Invalid command memory peak')
+        if linux:
+            peak = linux_peak(row, harness['tools/linux_process_memory.py'])
+        else:
+            check_workflow(row, contracts[row['case']])
+            peak = windows_peak(row)
+        calls = row['calls']
+        require(all(positive(c['seconds']) for c in calls), 'Invalid command timing')
         seconds = sum(c['seconds'] for c in calls)
-        peak = max(c['memory']['peak_commit_bytes'] for c in calls)
         require(positive(row['engine_seconds']) and math.isclose(row['engine_seconds'], seconds, rel_tol=1e-12),
                 'Trial time disagrees with command records')
-        require(type(row['peak_commit_bytes']) is int and row['peak_commit_bytes'] == peak,
-                'Trial memory disagrees with command records')
         if report['suite'] == 'scale-v2':
             require(row['fixed_fixture'] is True and row['dimensions'] == SCALE_DIMENSIONS[row['case']],
                     'Reduced test fixtures cannot establish scale-v2 acceptance')
-            require(row['commit_budget'] == dict(status='passed',maximum_bytes=SCALE_COMMIT_CEILING)
-                    and peak <= SCALE_COMMIT_CEILING, 'Scale-v2 exceeds or lacks the fixed D7 commit budget')
+            if not linux:
+                require(row['commit_budget'] == dict(status='passed',maximum_bytes=SCALE_COMMIT_CEILING)
+                        and peak <= SCALE_COMMIT_CEILING, 'Scale-v2 exceeds or lacks the fixed D7 commit budget')
             if row['case'] == 'jpeg-24mp':
                 tools = row['jpeg_tools']
                 require(tools['pillow_version'] == '10.3.0' and tools['dimensions'] == SCALE_DIMENSIONS['jpeg-24mp']
@@ -217,32 +262,36 @@ def summarize(report):
                 require(all(hash_value(value) for value in identity.values()), 'Missing pinned JPEG oracle identity')
                 require(jpeg_tools is None or jpeg_tools == identity, 'JPEG oracle/source changed between repetitions')
                 jpeg_tools = identity
-        require(row['peak_working_set_bytes'] == max(c['memory']['peak_working_set_bytes'] for c in calls),
-                'Working set disagrees with command records')
         groups[row['case']].append((seconds, peak))
     require(seen == expected, 'Missing trials')
     if report['suite'] == 'scale-v2':
         environment['scale_v2_jpeg_oracle'] = jpeg_tools
     return dict(suite=report['suite'], adapter=report['adapter'], repetitions=repetitions,
                 environment=environment, toolchain=report['toolchain'], harness=harness,
-                metrics={name: dict(median_seconds=statistics.median(v[0] for v in values),
-                                    maximum_seconds=max(v[0] for v in values),
-                                    peak_commit_bytes=max(v[1] for v in values))
+                metrics={name: {'median_seconds': statistics.median(v[0] for v in values),
+                                'maximum_seconds': max(v[0] for v in values),
+                                ('peak_resident_bytes' if linux else 'peak_commit_bytes'): max(v[1] for v in values)}
                          for name, values in groups.items()})
 
 
-def limits(metrics, cases=CASES):
+def limits(metrics, cases=CASES, system='Windows'):
     require(set(metrics) == set(cases), 'Baseline metrics do not match the fixed suite')
+    linux = system == 'Linux'
+    require(system == 'Windows' or (linux and tuple(cases) == SCALE_CASES), 'Unsupported gate platform')
+    policy = LINUX_POLICY if linux else POLICY
+    memory_key = 'peak_resident_bytes' if linux else 'peak_commit_bytes'
+    memory_factor = policy['peak_resident_factor'] if linux else policy['peak_commit_factor']
+    quantum = policy['memory_quantum_bytes']
     result = {}
     for name in cases:
         row = metrics[name]
-        require(all(positive(row[k]) for k in ('median_seconds', 'maximum_seconds', 'peak_commit_bytes')),
+        require(all(positive(row[k]) for k in ('median_seconds', 'maximum_seconds', memory_key)),
                 'Invalid baseline metric')
-        result[name] = dict(
-            median_seconds=math.ceil(row['median_seconds']*POLICY['median_seconds_factor']*1000)/1000,
-            maximum_seconds=math.ceil(row['maximum_seconds']*POLICY['maximum_seconds_factor']*1000)/1000,
-            peak_commit_bytes=math.ceil(row['peak_commit_bytes']*POLICY['peak_commit_factor']/(1024*1024))*(1024*1024))
-        if tuple(cases) == SCALE_CASES:
+        result[name] = {
+            'median_seconds': math.ceil(row['median_seconds']*policy['median_seconds_factor']*1000)/1000,
+            'maximum_seconds': math.ceil(row['maximum_seconds']*policy['maximum_seconds_factor']*1000)/1000,
+            memory_key: math.ceil(row[memory_key]*memory_factor/quantum)*quantum}
+        if not linux and tuple(cases) == SCALE_CASES:
             require(row['peak_commit_bytes'] <= SCALE_COMMIT_CEILING, 'Baseline exceeds the fixed D7 ceiling')
             result[name]['peak_commit_bytes'] = min(result[name]['peak_commit_bytes'], SCALE_COMMIT_CEILING)
     return result
@@ -252,11 +301,13 @@ def create(report, report_sha256, reason):
     summary = summarize(report)
     require(hash_value(report_sha256), 'Missing baseline report identity')
     require(isinstance(reason, str) and reason.strip(), 'Record why this baseline was selected')
-    return dict(schema_version=1, kind='inkbolt_local_workload_gate', policy=dict(POLICY),
+    system = summary['environment']['system']
+    return dict(schema_version=1, kind='inkbolt_local_workload_gate',
+                policy=dict(LINUX_POLICY if system == 'Linux' else POLICY),
                 baseline_report_sha256=report_sha256, baseline_source_sha256=report['source_sha256'],
                 baseline_executable_sha256=report['build']['executable_sha256'],
                 baseline_conditions=report['conditions'], selection_reason=reason,
-                baseline=summary, limits=limits(summary['metrics'], SUITES[summary['suite']][0]),
+                baseline=summary, limits=limits(summary['metrics'], SUITES[summary['suite']][0], system),
                 scope=f"Fixed {summary['suite']} regression budgets on the recorded environment; not full A5 or model-task acceptance")
 
 
@@ -282,14 +333,15 @@ def compare_metrics(summary, allowed):
 def validate_gate(gate):
     require(type(gate['schema_version']) is int and gate['schema_version'] in (1, 2)
             and gate['kind'] == 'inkbolt_local_workload_gate', 'Unknown gate format')
-    require(gate['policy'] == POLICY, 'Unknown or modified budget policy')
     require(hash_value(gate['baseline_report_sha256']) and hash_value(gate['baseline_source_sha256'])
             and hash_value(gate['baseline_executable_sha256']), 'Missing baseline identity')
     baseline = gate['baseline']
+    system = baseline['environment']['system']
+    require(gate['policy'] == (LINUX_POLICY if system == 'Linux' else POLICY), 'Unknown or modified budget policy')
     require(baseline['suite'] in SUITES and type(baseline['repetitions']) is int
             and 5 <= baseline['repetitions'] <= 10, 'Invalid gate baseline')
     cases = SUITES[baseline['suite']][0]
-    derived = limits(baseline['metrics'], cases)
+    derived = limits(baseline['metrics'], cases, system)
     changed_helpers(baseline['harness'], baseline['harness'])
     if gate['schema_version'] == 1:
         require(gate['limits'] == derived, 'Budgets disagree with the recorded policy/baseline')
@@ -394,7 +446,7 @@ def main():
             gate, gate_hash = load(args.gate)
             report, report_hash = load(args.report)
             result = dict(schema_version=1, gate_sha256=gate_hash, report_sha256=report_hash,
-                          policy=POLICY['version'], **check(gate, report))
+                          policy=gate['policy']['version'], **check(gate, report))
             if report_hash == gate.get('baseline_report_sha256'):
                 result.update(status='ineligible', eligible=False,
                               reason='The baseline itself is not a new regression measurement')

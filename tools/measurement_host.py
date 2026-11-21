@@ -1,7 +1,8 @@
-"""Observed Windows architecture and CPU model, independent of optional env vars."""
+"""Observed host architecture and CPU model for local workload comparisons."""
 import ctypes
 from ctypes import wintypes
 import os
+from pathlib import Path
 import platform
 import struct
 import sys
@@ -37,16 +38,45 @@ def windows_hardware():
     return names[native.architecture], ' | '.join(values)
 
 
+def linux_hardware():
+    affinity = sorted(os.sched_getaffinity(0))
+    processors = {}
+    for block in Path('/proc/cpuinfo').read_text().strip().split('\n\n'):
+        fields = {}
+        for line in block.splitlines():
+            key, separator, value = line.partition(':')
+            if separator:
+                fields[key.strip()] = value.strip()
+        if 'processor' not in fields:
+            continue
+        if fields.get('model name'):
+            keys = ('vendor_id', 'model name', 'cpu family', 'model', 'stepping')
+        elif fields.get('CPU implementer') and fields.get('CPU part'):
+            keys = ('CPU implementer', 'CPU architecture', 'CPU variant', 'CPU part', 'CPU revision')
+        else:
+            continue
+        processors[int(fields['processor'])] = ' | '.join(fields[k] for k in keys if k in fields)
+    if not affinity or not all(cpu in processors for cpu in affinity):
+        raise ValueError('Missing CPU model for an allowed processor')
+    # Retain heterogeneous models and the CPUs available to this measurement.
+    models = sorted({processors[cpu] for cpu in affinity})
+    return os.uname().machine, ', '.join(models), affinity
+
+
 def identity():
     result = dict(system=platform.system(), release=platform.release(), version=platform.version(),
                   machine=None, pointer_bits=struct.calcsize('P')*8, processor=None,
                   logical_cpus=os.cpu_count(), python=sys.version, hardware_available=False,
                   hardware_source='windows_native_system_info_and_cpu_registry_v1')
-    if os.name != 'nt':
-        result['hardware_error'] = 'Only the Windows measurement backend is verified'
-        return result
     try:
-        result['machine'], result['processor'] = windows_hardware()
+        if sys.platform == 'linux':
+            result['hardware_source'] = 'linux_uname_cpuinfo_affinity_v1'
+            result['machine'], result['processor'], result['cpu_affinity'] = linux_hardware()
+        elif os.name == 'nt':
+            result['machine'], result['processor'] = windows_hardware()
+        else:
+            result['hardware_source'] = None
+            raise ValueError('Host hardware discovery is unavailable on this platform')
         result['hardware_available'] = True
     except (OSError, ValueError, TypeError, AttributeError) as error:
         result['hardware_error'] = f'{type(error).__name__}: {error}'

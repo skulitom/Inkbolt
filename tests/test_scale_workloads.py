@@ -84,7 +84,7 @@ class ScaleWorkloadTests(unittest.TestCase):
             self.assertEqual(scale.DIMENSIONS['photo-50mp'],(8192,6144))
             self.assertEqual(scale.MAX_PEAK_COMMIT_BYTES,512*1024*1024)
 
-    def test_scale_gates_reject_reduced_missing_changed_and_unknown_memory_evidence(self):
+    def scale_report(self):
         report=gate_tests.report();template=report['rows'][0]
         report.update(suite='scale-v2',selected_cases=list(gates.SCALE_CASES),rows=[],
             candidate_files={name:'3'*64 for name in gates.SCALE_HARNESS})
@@ -99,6 +99,10 @@ class ScaleWorkloadTests(unittest.TestCase):
                 if name=='jpeg-24mp':row['jpeg_tools']=dict(pillow_version='10.3.0',dimensions=[6000,4000],quality=93,subsampling=0,
                     python_sha256='4'*64,pillow_files_sha256='5'*64,source_rgb_sha256='6'*64)
                 report['rows'].append(row)
+        return report
+
+    def test_scale_gates_reject_reduced_missing_changed_and_unknown_memory_evidence(self):
+        report=self.scale_report()
         gate=gates.create(report,'7'*64,'Synthetic contract checks, not engine performance')
         self.assertEqual(gates.check(gate,report)['status'],'passed')
         for change in ('small','flag','missing','rss','ceiling','decoder','fixture','helper','oracle','call','failed'):
@@ -128,6 +132,7 @@ class ScaleWorkloadTests(unittest.TestCase):
         memory = dict(address_space_limit=dict(method=linux_process_memory.LIMIT_METHOD, soft_bytes=cap,
                       hard_bytes=cap), resident=dict(supervisor_sha256=helper))
         row = dict(case='photo-50mp', success=True, dimensions=[8192,6144], fixed_fixture=True,
+                   blocked_steps=0, process_calls=len(commands),
                    calls=[dict(step=s, command=c, status='success', retries=0, exit_code=0, timed_out=False,
                                memory=copy.deepcopy(memory)) for s,c in commands],
                    checks=[dict(name=n, status='pass') for n in checks])
@@ -154,6 +159,49 @@ class ScaleWorkloadTests(unittest.TestCase):
                 else: call['memory']['resident']['supervisor_sha256'] = 'f' * 64
                 with self.assertRaises(ValueError):
                     gates.check_linux_scale_budget(altered, helper)
+
+    def test_linux_regression_gate_binds_cpu_set_resident_peak_and_process_limit(self):
+        import linux_process_memory as linux
+        report = self.scale_report()
+        windows = gates.create(report, 'a'*64, 'Synthetic Windows gate')
+        report['environment'].update(system='Linux', hardware_source='linux_uname_cpuinfo_affinity_v1',
+                                     cpu_affinity=[1, 3])
+        cap = gates.SCALE_COMMIT_CEILING
+        report['linux_address_space_budget'] = dict(maximum_bytes=cap, selected_workloads_passed=True,
+                                                   full_suite_passed=True)
+        report['candidate_files']['tools/workload_gates.py'] = '4'*64
+        memory = dict(available=False, address_space_limit=dict(method=linux.LIMIT_METHOD, soft_bytes=cap,
+                      hard_bytes=cap), resident=dict(available=True, method=linux.METHOD, scope=linux.SCOPE,
+                      supervisor_sha256='3'*64, peak_resident_bytes=8*1024**2))
+        for row in report['rows']:
+            for call in row['calls']:
+                call['memory'] = copy.deepcopy(memory)
+            row.update(linux.resident_summary([memory]), memory_complete=False, peak_working_set_bytes=None,
+                       peak_commit_bytes=None, linux_address_space_budget=dict(status='passed', maximum_bytes=cap),
+                       commit_budget=dict(status='unavailable', maximum_bytes=cap))
+        gate = gates.create(report, 'b'*64, 'Synthetic Linux gate')
+        self.assertEqual(gates.check(gate, report)['status'], 'passed')
+        self.assertEqual(gate['limits']['photo-50mp']['peak_resident_bytes'], 12*1024**2)
+        self.assertNotIn('peak_commit_bytes', gate['limits']['photo-50mp'])
+        self.assertEqual(gates.check(windows, report)['status'], 'ineligible')
+        self.assertEqual(gates.check(gate, self.scale_report())['status'], 'ineligible')
+        for change in ('affinity', 'host', 'limit', 'scope', 'summary', 'commit', 'rss', 'helper'):
+            with self.subTest(change=change):
+                altered = copy.deepcopy(report)
+                row = altered['rows'][0]
+                observed = row['calls'][0]['memory']
+                if change == 'affinity': altered['environment']['cpu_affinity'] = [0, 1]
+                elif change == 'host': altered['environment']['hardware_available'] = False
+                elif change == 'limit': observed['address_space_limit']['hard_bytes'] += 1
+                elif change == 'scope': observed['resident']['scope'] = 'sampled'
+                elif change == 'summary': row['peak_resident_bytes'] += 1
+                elif change == 'commit': row['peak_commit_bytes'] = row['peak_resident_bytes']
+                elif change == 'helper': altered['candidate_files']['tools/workload_gates.py'] = 'f'*64
+                else:
+                    observed['resident']['peak_resident_bytes'] = 16*1024**2
+                    row['peak_resident_bytes'] = 16*1024**2
+                result = gates.check(gate, altered)
+                self.assertEqual(result['status'], 'failed' if change == 'rss' else 'ineligible')
 
 
 if __name__=='__main__':unittest.main()

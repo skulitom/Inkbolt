@@ -96,6 +96,14 @@ The usual latency and memory regression policy applies, with memory headroom
 capped at the fixed 512 MiB ceiling. An engine change cannot reset the original
 budgets; a helper refresh requires an explicit reason and preserves them.
 
+The same `create` and `check` commands accept Linux scale-v2 reports from two
+separate runs of at least five repetitions with `--linux-address-space-budget`.
+The Linux gate compares median and maximum command time and peak resident
+bytes. Its RSS ceiling is 1.5 times the baseline peak, rounded up to MiB.
+Each command must also meet the fixed 512 MiB address-space requirement.
+Comparisons bind the Linux kernel, processor model, CPU affinity, Python,
+compiler, measurement helpers and JPEG oracle recorded with the baseline.
+
 ```powershell
 python tools/workload_gates.py create --baseline C:\Work\Evidence\scale-v2-01\report.json --output C:\Work\Evidence\scale-v2-gate.json --reason "Five complete repetitions on the recorded host"
 python tools/workload_gates.py check --gate C:\Work\Evidence\scale-v2-gate.json --report C:\Work\Evidence\scale-v2-02\report.json --output C:\Work\Evidence\scale-v2-check.json
