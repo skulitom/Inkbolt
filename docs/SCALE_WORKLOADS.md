@@ -4,10 +4,9 @@
 [the primary plan](../FIX_PLAN.md#w4-practical-raster-scale-p1-multiple-substantial-milestones-w0-d7-a5).
 It is separate from `scale-v1`, the native-* suites and B10's unchanged 256 MiB
 photo budget. All four fixed target-size cases pass independent Windows/Linux
-fidelity checks, with fresh full suites on both platforms. A Windows regression
-gate now has a five-repeat baseline and a separate passing five-repeat check.
-Unix commit-budget evidence and regression gates remain open. No new engine
-checkpoint is awarded.
+fidelity checks. Windows has a [repeated peak-commit and latency
+gate](#windows-repeated-regression-acceptance). On Linux, all four cases
+finish with each command under a [512 MiB address-space limit](#linux-address-space-and-regression-results).
 
 The first Windows target run passed JPEG, the complete photo workflow and A2
 delivery, but refused the three-shape 8192 x 8192 render on the conservative
@@ -109,9 +108,9 @@ python tools/workload_gates.py create --baseline C:\Work\Evidence\scale-v2-01\re
 python tools/workload_gates.py check --gate C:\Work\Evidence\scale-v2-gate.json --report C:\Work\Evidence\scale-v2-02\report.json --output C:\Work\Evidence\scale-v2-check.json
 ```
 
-Unix commit-budget evidence and host/gate comparability, the separate larger B10
-variant, larger layered files and full W4 acceptance remain open. Tests of the
-gate use synthetic records and make no engine performance claim.
+The [separate larger B10 workflow](B10_LARGE.md) has its own benchmark and
+memory criterion, including for a persistent MCP server. Its Linux commit
+measurement, broader layered workflows and full W4 acceptance remain open.
 
 ## Target-size acceptance
 
@@ -203,3 +202,39 @@ That binding retains the fresh 270-stage Windows/Linux suites. This milestone
 adds repeated measurement evidence without redundantly rebuilding or rerunning
 the unchanged full implementation tests. The later documentation delta is
 recorded separately.
+
+## Linux address space and regression results
+
+On Ubuntu 22.04 x86-64 under WSL2, the original four workloads passed all
+39 artifact, history and source checks with a 512 MiB hard address-space
+limit on each of their 35 engine commands. The 50 MP RGBA16 workflow alone
+made 30 calls covering reviewed edits, TIFF delivery, historical access,
+undo and redo. A separate allocation control succeeded with ordinary
+settings and received `ENOMEM` for the same untouched 128 MiB mapping under
+a 96 MiB limit.
+
+Five repetitions established the thresholds before a separate five-repetition
+check started. Both ran sequentially on the same host and release executable,
+using fresh workspaces. All 350 commands and 390 artifact, history and source
+checks passed. The gate measures command lifetimes and excludes fixture
+preparation and independent reading. Desktop load was uncontrolled and OS
+caches could be warm.
+
+| Workflow | Baseline median s | Check median s | Check max s | Check peak RSS MiB | RSS gate MiB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 24 MP JPEG import | 7.18 | 7.22 | 8.38 | 295.98 | 447 |
+| 50 MP RGBA16 edit and history | 38.62 | 39.30 | 39.66 | 50.50 | 76 |
+| A2 PDF and PNG | 2.10 | 2.00 | 2.25 | 27.07 | 41 |
+| 8192 × 8192 PNG | 4.25 | 4.25 | 4.34 | 86.56 | 130 |
+
+The edited and restored TIFFs, A2 PDF and PNG, and square PNG matched the
+accepted Windows deliveries byte for byte across all ten repetitions.
+An independent live check read the same soft and hard limit from the
+unprivileged Inkbolt executable before its request and after exit.
+Linux peak process commit remains unmeasured.
+
+The retained Linux runs are `scale-budget-five-baseline-01` and
+`scale-budget-five-check-01`. The comparison receipt has SHA-256
+`bf7d7e6b8ca5f7b7081226eb66b5f2afea977f616ff442ca7cff147be768c4be`.
+Both the Windows and WSL thorough suites passed 278 fresh stages at the
+[measured revision](https://github.com/skulitom/Inkbolt/commit/dacbc8e6b4363661cd6a20cc2cbc8bd4c8a7f71d).

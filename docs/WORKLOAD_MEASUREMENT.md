@@ -11,9 +11,9 @@ The parent directory must exist; the output directory must be new and outside th
 ## Versioned workloads
 
 The separate [scale-v2 runner](SCALE_WORKLOADS.md) covers the primary plan's four
-larger-image cases, with fixed dimensions and independent oracles. Its Windows
-gate retains the fixed D7 ceiling; Linux RSS remains a separate observation.
-It does not replace or alter the scale-v1 cases below.
+larger-image cases, with fixed dimensions and independent oracles. Windows
+records peak commit. The Linux runner can enforce a 512 MiB per-command
+address-space budget and record peak RSS for regression comparisons.
 
 The initial `scale-v1` suite has seven fixed cases. Each repetition uses new workspaces and synchronous CLI processes. Case order rotates deterministically; filesystem/page caches are not flushed, and the tool makes no cold-cache claim.
 
@@ -73,10 +73,11 @@ accompany each observation. Linux timing includes supervisor startup and up to
 one millisecond of exit-observation polling; it is a new measurement path and
 must not be treated as an unchanged latency baseline. Spawn/supervisor failures
 fail the run; missing or zero RSS never becomes a positive observation.
-Windows commit and Linux RSS are not interchangeable. Existing Windows gates
-and B10's fixed commit requirement remain unchanged; a Linux RSS record cannot
-satisfy them. Linux host comparability, separate regression gates and macOS memory
-remain separate work. [Reference MCP trials](AGENT_BENCHMARK.md) also use the
+The [Linux scale-v2 gate](SCALE_WORKLOADS.md#linux-address-space-and-regression-results)
+binds its latency and RSS comparisons to the CPU model, allowed CPUs, kernel
+and measurement tools. The report records the enforced address-space ceiling
+separately. B10 retains its own commit requirement. macOS memory measurement
+remains open. [Reference MCP trials](AGENT_BENCHMARK.md) also use the
 isolated supervisor for a complete server lifetime. A private control pipe
 requests termination while preserving the child's final counters, including
 when stopped immediately after launch. Per-request and shutdown deadlines remain

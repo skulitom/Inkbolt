@@ -15,6 +15,14 @@ Keep the unrestricted fixture generator and independent readers outside the
 engine process. Require every command and artifact check to succeed. An absent
 limit, an interrupted command or a reduced fixture cannot establish acceptance.
 
+All four workloads passed a five-repeat baseline and a separate five-repeat
+check under that limit on WSL2, including every
+reviewed edit, historical state and TIFF sample in the 50 MP workflow. Both
+platforms passed all 278 fresh verification stages. Focused Linux feedback
+took 12 seconds and Windows feedback took 19 seconds. The [scale-v2
+results](SCALE_WORKLOADS.md#linux-address-space-and-regression-results)
+record the fixed workloads and their memory and timing evidence.
+
 ## Marked vector print pages
 
 The B14 print benchmark already covers unmarked pages with native inks and
