@@ -52,7 +52,8 @@ to the first verified preview remain open. [Comparison policy](BENCHMARK_COMPARI
 
 Two outcomes depend on what the judge accepts. In B01, all five delivered
 baseline PNGs passed a later pixel check. The original judge rejected how the
-SVG retained its font and frame metadata. In B07, both arms rendered the
+SVG retained its font and frame metadata. A later [source-rendering check](#b01-source-rendering-check)
+also reproduced all five images from the original SVGs. In B07, both arms rendered the
 expected pixels. The baseline failed the ordering check for a base glyph and
 its mark inside one cluster. In B14, Inkbolt produced all five requested print
 artifacts but selected the wrong publication receipt twice.
@@ -453,6 +454,26 @@ and `w2-breadth-sol-comparison-five-01`, with separate trace reviews and
 | Inkbolt report | `abf3044104010b5fc36043eb4c5edf1b8df03878da86d55539a86bb76fd920f2` |
 | Baseline report | `632a0f5dda0a8de1f951f1d415b94978c546674bf0d8b2010a4a09b835982a85` |
 | Matched comparison | `a3ef9a766ea7ecb721f77dbc871ab651ae4ddf9e631b06a7ee751d0e3ea5949d` |
+
+### B01 source rendering check
+
+The five original baseline SVGs each contain the exact supplied TrueType bytes
+in a font-face declaration. All retain two editable text labels, three
+rectangles and the requested frame coordinates. The supplied font and license
+beside each SVG also match the input hashes.
+
+The pinned resvg 0.47.0 freshly rendered each original SVG with system fonts
+disabled and the supplied typeface loaded. Every RGBA sample in all five
+128 × 56 renders matched the original diagram oracle, as did the five delivered
+PNGs. The five version-2 workflow failures remain in the table under their
+original source-format contract. The report SHA-256 is
+`e58a0060f8c86e377258251f72dd5c4c8ae9a42ea7cba0211e5e26fc776713f4`.
+
+Version 3 of the [diagram prompt](../tools/benchmark_prompts/B01.md) specifies
+how to deliver the supplied font beside the SVG and position the labels with
+standard SVG attributes. The next batch uses five fresh attempts per arm with
+the same inputs and judges. Its primary outcome is the number of accepted
+editable diagrams. Each failure stays in its batch.
 
 ## B04/B05 at dabe447: five matched pairs
 

@@ -74,6 +74,11 @@ the original and delivered documents exactly after capture relocation.
 
 ## Pinned baseline
 
+For B01, deliver the SVG, supplied font file and license together. The text
+elements name the supplied font family and size. The pinned renderer loads the
+font file explicitly. Version 3 of the shared prompt spells out this delivery
+contract. The input fixtures and independent checks are identical to version 2.
+
 The no-engine arm uses the same prompt and original inputs. B01 includes the
 original named font; B02 has no asset dependencies; B03 supplies the same original
 5,000-object JSON layout to both arms; B04 supplies the same original SVG;
