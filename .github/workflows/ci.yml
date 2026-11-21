@@ -6,6 +6,11 @@ name: Verify
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      macos_intel_only:
+        description: Run the complete suite on Intel macOS for a platform milestone
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -23,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025, macos-15]
+        os: ${{ fromJSON(inputs.macos_intel_only && '["macos-15-intel"]' || '["ubuntu-24.04","windows-2025","macos-15"]') }}
     defaults:
       run:
         shell: bash

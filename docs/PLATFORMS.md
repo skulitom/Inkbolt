@@ -7,6 +7,12 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 
+The release workflow on `main` builds separate native macOS archives for
+Apple silicon and Intel. Each runner verifies its Rust host target and tests
+the extracted executable. Maintainers can select `macos_intel_only` in the
+Verify workflow to run the full source suite on Intel without repeating the
+three regular CI jobs. The v0.83.0 macOS download is for Apple silicon.
+
 ## v0.83.0 platform checks
 
 The [hosted Windows, Linux and macOS run](https://github.com/skulitom/Inkbolt/actions/runs/44780380192)

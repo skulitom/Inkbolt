@@ -159,7 +159,7 @@ test('existing different artifacts are preserved', async () => {
 });
 
 test('native archives are deterministic and carry the binary, readme and licenses', async () => {
-  for (const target of ['x86_64-pc-windows-msvc', 'x86_64-unknown-linux-gnu', 'aarch64-apple-darwin']) {
+  for (const target of ['x86_64-pc-windows-msvc', 'x86_64-unknown-linux-gnu', 'aarch64-apple-darwin', 'x86_64-apple-darwin']) {
     const options = { base, binary, target, smoke: false, out: path.join(temp, 'archives') };
     const first = await archive(options), second = await archive(options);
     assert.deepEqual(first.bytes, second.bytes);

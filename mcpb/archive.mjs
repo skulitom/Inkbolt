@@ -10,7 +10,8 @@ import { writeZip } from './zip.mjs';
 export const TARGETS = {
   'x86_64-pc-windows-msvc': { platform: 'win32', arch: 'x64', binary: 'inkbolt.exe', extension: 'zip' },
   'x86_64-unknown-linux-gnu': { platform: 'linux', arch: 'x64', binary: 'inkbolt', extension: 'tar.gz' },
-  'aarch64-apple-darwin': { platform: 'darwin', arch: 'arm64', binary: 'inkbolt', extension: 'tar.gz' }
+  'aarch64-apple-darwin': { platform: 'darwin', arch: 'arm64', binary: 'inkbolt', extension: 'tar.gz' },
+  'x86_64-apple-darwin': { platform: 'darwin', arch: 'x64', binary: 'inkbolt', extension: 'tar.gz' }
 };
 
 // Root-level names fit the ustar name field; preserve the executable bit.
