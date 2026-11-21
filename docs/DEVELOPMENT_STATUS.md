@@ -22,21 +22,27 @@ artwork, loses an ink or moves marks when the page uses a larger UserUnit.
 The independent PDF reader checks asymmetric bleed, vector forms, the named
 ink and its tint, plus a sheet whose margin doubles the UserUnit. The same
 crop strokes still measure six points. Two-page publication through MCP
-retains the document revision. Focused checks passed in 22 seconds on Windows
-and 15 seconds on Linux under WSL.
+retains the document revision. Focused feedback including a rebuild and Clippy
+took 55 seconds on Windows and 41 seconds on Linux under WSL.
 
 At 288 DPI, Poppler 26.07.0 reproduced every one of the 153,600 artwork pixels
-on each of the display RGB, calibrated RGB and native-ink sheets. All three
-unmarked PDFs matched v0.84.0 byte for byte. With vector antialiasing enabled,
-the spot sheet had 120 tinted pixels in the first pixel column outside the
+on four sheets covering display RGB and native inks, each with and without
+an RGB page profile. All four unmarked PDFs matched v0.84.0 byte for byte.
+With vector antialiasing enabled, each spot sheet had 120 tinted pixels in the first pixel column outside the
 bleed edge. With antialiasing disabled, all 88,004 margin pixels matched the
 marks-only reference on each sheet.
 
-Ghostscript 9.55.0 rendered the four process plates and the named spot plate
-independently. Each marked plate matched its unmarked counterpart throughout
-the artwork, and all five plates contained the same 1,440 fully inked mark
-pixels. The spot band's 75% tint appeared on its own plate. The original
-extended page-exchange checkpoint remains open.
+Ghostscript 9.55.0 exposed a defect in the first implementation. An RGB page
+group could convert registration ink to unequal process amounts. The writer
+now keeps RGB-only artwork in a clipped form. Native CMYK pages and pages that
+paint a named separation retain their page-level group so spot and process
+paints keep their original appearance.
+
+All 18 rendered plates matched their unmarked counterparts throughout the
+artwork. Every plate contained the same 1,440 fully inked mark pixels. The
+spot band's 75% tint appeared on its own plate. The independent comparison in
+`tests/test_native_print_cli.py` runs when Ghostscript and Pillow are available.
+The original extended page-exchange checkpoint remains open.
 
 ## W3c.4: editable curve output
 

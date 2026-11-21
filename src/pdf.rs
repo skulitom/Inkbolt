@@ -89,6 +89,7 @@ struct Writer {
     native_inks: bool,
     swatches: BTreeMap<String, crate::swatches::Swatch>,
     ink_spaces: BTreeMap<String, usize>,
+    page_has_spot_paint: bool,
     device_profiles: BTreeMap<String, usize>,
     blend_space: Option<String>,
     default_rgb: Option<usize>,
@@ -972,27 +973,14 @@ pub fn export_controlled(
         let factor = physical / user_unit;
         let width = logical[0] * factor;
         let height = logical[1] * factor;
-        let mut content = String::from("q\n");
-        if let Some(layout) = &marked {
-            let [left, bottom, right, top] = layout.coordinates(layout.bleed);
-            // Enlarging the media must not expose any off-canvas paint.
-            content.push_str(&format!(
-                "1 0 0 1 {} {} cm\n0 0 {} {} re W n\n",
-                number(left)?,
-                number(bottom)?,
-                number(right - left)?,
-                number(top - bottom)?
-            ));
-        }
-        content.push_str(&format!(
-            "{} 0 0 {} 0 {} cm\n",
-            number(factor)?,
-            number(-factor)?,
-            number(height)?
-        ));
         let mut stream = Stream {
             default_rgb: writer.default_rgb,
-            content,
+            content: format!(
+                "q\n{} 0 0 {} 0 {} cm\n",
+                number(factor)?,
+                number(-factor)?,
+                number(height)?
+            ),
             ..Stream::default()
         };
         if writer.blend_space.is_some() {
@@ -1016,19 +1004,45 @@ pub fn export_controlled(
                 FillRule::Nonzero,
             )?;
         }
+        writer.page_has_spot_paint = false;
         items(&mut writer, &mut stream, page, None, &pixels, &layouts)?;
         stream.content.push_str("Q\n");
-        let mark_space = if let Some(layout) = &marked {
-            layout.emit(&mut writer, &mut stream.content)?
-        } else {
-            None
-        };
-        let content = writer.stream("", stream.content.as_bytes())?;
-        let (media, bounds, trim) = if let Some(layout) = &marked {
+        let mut page_group = format!(
+            " /Group << /Type /Group /S /Transparency /CS {} /I true /K false >>",
+            writer.group_space()
+        );
+        let (media, bounds, trim, mark_space) = if let Some(layout) = &marked {
+            let bounds = layout.coordinates(layout.bleed);
+            let placement = format!(
+                "q\n1 0 0 1 {} {} cm\n0 0 {} {} re W n\n",
+                number(bounds[0])?,
+                number(bounds[1])?,
+                number(width)?,
+                number(height)?
+            );
+            if native_inks && (writer.blend_space.is_none() || writer.page_has_spot_paint) {
+                // Keep native CMYK and painted named separations at page level.
+                // Isolating those inks in a form can alter the process plates.
+                stream.content.insert_str(0, &placement);
+            } else {
+                // An RGB page group would convert All to RGB before separation.
+                // Confine RGB blending to the artwork and paint marks outside it.
+                let form = writer.stream(&format!("/Type /XObject /Subtype /Form /FormType 1 /BBox [0 0 {} {}] /Resources {}{page_group}",
+                    number(width)?, number(height)?, stream.dictionary(None)), stream.content.as_bytes())?;
+                page_group.clear();
+                stream = Stream {
+                    content: placement,
+                    ..Stream::default()
+                };
+                stream.use_resource("XObject", form, "Do");
+            }
+            stream.content.push_str("Q\n");
+            let mark_space = layout.emit(&mut writer, &mut stream.content)?;
             (
                 layout.coordinates(layout.media),
-                layout.coordinates(layout.bleed),
+                bounds,
                 layout.coordinates(layout.trim),
+                mark_space,
             )
         } else {
             let media = [0.0, 0.0, width, height];
@@ -1041,10 +1055,11 @@ pub fn export_controlled(
                     width - bleed.right as f64 * factor,
                     height - bleed.top as f64 * factor,
                 ],
+                None,
             )
         };
-        let group_space = writer.group_space();
-        let id=writer.add(format!("<< /Type /Page /Parent {tree} 0 R /MediaBox [{}] /CropBox [{}] /BleedBox [{}] /TrimBox [{}] /UserUnit {} /Resources {} /Contents {content} 0 R /Group << /Type /Group /S /Transparency /CS {group_space} /I true /K false >> >>",numbers(&media)?,numbers(&media)?,numbers(&bounds)?,numbers(&trim)?,number(user_unit)?,stream.dictionary(mark_space)))?;
+        let content = writer.stream("", stream.content.as_bytes())?;
+        let id=writer.add(format!("<< /Type /Page /Parent {tree} 0 R /MediaBox [{}] /CropBox [{}] /BleedBox [{}] /TrimBox [{}] /UserUnit {} /Resources {} /Contents {content} 0 R{page_group} >>",numbers(&media)?,numbers(&media)?,numbers(&bounds)?,numbers(&trim)?,number(user_unit)?,stream.dictionary(mark_space)))?;
         references.push(format!("{id} 0 R"));
         let artboard_id = selection.map(|i| &document.items[i].id);
         let mut receipt = json!({"index":receipts.len(),"artboard_id":artboard_id,"logical_size":logical,"physical_points":[logical[0]*physical,logical[1]*physical],"resolution_ppi":ppi,"media_box":media,"trim_box":trim,"user_unit":user_unit,"coordinates":"pdf_bottom_left_in_user_units"});

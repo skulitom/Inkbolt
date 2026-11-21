@@ -6,6 +6,8 @@ import itertools
 import json
 import math
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import unittest
 from advertised_limits import capabilities
@@ -46,8 +48,6 @@ def strokes(pdf,index=0):
         elif token==b'S':
             if path:paths.append(path)
             result.append(dict(width=width,color=color,paths=paths));path=[];paths=[]
-        # The vector writer clips the artwork to a rectangle before drawing
-        # its forms. Only the page's separate stroked mark paths are measured.
         else:assert token in (b'ri',b'Do',b'SCN',b'J',b'j',b're',b'W',b'n',b'gs'),token
         args=[]
     assert not stack and not args and not path and not paths
@@ -195,7 +195,8 @@ class NativePrintTests(unittest.TestCase):
         original_content = plain.streams[plain.pages[0]['Contents']]
         marked_content = marked.streams[page['Contents']]
         clip = b'q\n1 0 0 1 12.25 12.25 cm\n0 0 140 104 re W n\n'
-        self.assertTrue(marked_content.startswith(clip + original_content[2:] + b'q\n/Marks CS\n1 SCN\n'))
+        self.assertTrue(marked_content.startswith(clip + original_content + b'Q\nq\n/Marks CS\n1 SCN\n'))
+        self.assertEqual(page['Group'], plain.pages[0]['Group'])
         self.assertEqual(page['Resources']['XObject'], plain.pages[0]['Resources']['XObject'])
         # Check the tint applied by each form that references the named separation.
         spot_paints = []
@@ -216,6 +217,53 @@ class NativePrintTests(unittest.TestCase):
         self.assertEqual(len(stroke['paths']), 20)
         self.assertEqual(stroke['paths'][0], [('m', [3.25, 17.25]), ('l', [9.25, 17.25])])
 
+    def test_rgb_artwork_calibration_does_not_convert_registration_ink(self):
+        d = self.invoke(dict(command='document.create', id='proof', kind='vector', width=120, height=80))
+        d['items'] = [rect('paint', [30, 100, 215, 255], box=(-10, 0, 145, 60))]
+        for calibrated in (False, True):
+            if calibrated:
+                d['output_profile'] = dict(type='builtin', name='srgb')
+            request = dict(command='document.export', document=d, format='pdf')
+            plain = pdf_reader.Pdf(self.invoke(request))
+            marked = pdf_reader.Pdf(self.invoke(dict(request, pdf_options=dict(marks={}))))
+            page = marked.pages[0]
+            self.assertNotIn('Group', page)
+            self.assertEqual(set(page['Resources']['ColorSpace']), {'Marks'})
+            form_ref, = page['Resources']['XObject'].values()
+            artwork = marked.get(form_ref)
+            self.assertEqual(artwork['Group'], plain.pages[0]['Group'])
+            self.assertEqual(artwork['Resources'], plain.pages[0]['Resources'])
+            self.assertEqual(marked.streams[form_ref], plain.streams[plain.pages[0]['Contents']])
+            self.assertEqual(strokes(marked)[0]['color'][:3], ['Separation', 'All', 'DeviceCMYK'])
+
+    def test_calibrated_marked_pages_follow_painted_spots_in_each_artboard(self):
+        d = self.invoke(dict(command='document.create', id='pages', kind='vector', width=120, height=80))
+        d['output_profile'] = dict(type='builtin', name='srgb')
+        d['swatches'] = {'seal': dict(name='Seal', definition=dict(
+            type='spot', alternate=dict(space='srgb', components=[.125, .375, .875])))}
+        for index in range(3):
+            board = f'page-{index}'
+            d['items'].append(dict(id=board, content=dict(type='frame', frame=dict(
+                role='artboard', width=120, height=80))))
+            d['items'].append(rect(f'seal-{index}', named('seal', tint=.75),
+                                   parent=board, visible=index != 1))
+            d['items'].append(rect(f'process-{index}', [170, 60, 38, 255], parent=board))
+        request = dict(command='document.export', document=d, format='pdf')
+        options = dict(color='native_inks', artboards=dict(type='all'))
+        original = pdf_reader.Pdf(self.invoke(dict(request, pdf_options=options)))
+        marked = pdf_reader.Pdf(self.invoke(dict(request, pdf_options=dict(options, marks={}))))
+        for index, page in enumerate(marked.pages):
+            if index == 1:
+                self.assertNotIn('Group', page)
+                form, = page['Resources']['XObject'].values()
+                group = marked.get(form)['Group']
+            else:
+                group = page['Group']
+            self.assertEqual(group['CS'][0], 'ICCBased')
+            self.assertEqual(marked.streams[group['CS'][1]],
+                             original.streams[original.pages[index]['Group']['CS'][1]])
+            self.assertEqual(strokes(marked, index)[0]['color'][:3], ['Separation', 'All', 'DeviceCMYK'])
+
     def test_vector_marks_keep_physical_size_when_margin_changes_user_unit(self):
         d = self.document(0, width=200, height=16, ppi=1)
         d['items'] = []
@@ -229,6 +277,62 @@ class NativePrintTests(unittest.TestCase):
         self.assertEqual(len(stroke['paths']), 8)
         for start, end in stroke['paths']:
             self.assertAlmostEqual(math.dist(start[1], end[1]), 6)
+
+    def test_rendered_vector_marks_match_on_every_process_and_spot_plate(self):
+        gs = shutil.which('gs') or shutil.which('gswin64c')
+        if not gs:
+            self.skipTest('Ghostscript is required for the independent plate comparison')
+        try:
+            from PIL import Image, ImageChops
+        except ImportError:
+            self.skipTest('Pillow is required to read the independent TIFF plates')
+        margin_reference = None
+        for calibrated, native in itertools.product((False, True), repeat=2):
+            d = self.invoke(dict(command='document.create', id='proof', kind='vector',
+                                 width=120, height=80, resolution_ppi=72))
+            if calibrated:
+                d['output_profile'] = dict(type='builtin', name='srgb')
+            ink = [30, 100, 215, 255]
+            if native:
+                d['swatches'] = {'seal': dict(name='Seal', definition=dict(
+                    type='spot', alternate=dict(space='srgb', components=[.125, .375, .875])))}
+                ink = named('seal', tint=.75)
+            d['items'] = [rect('band', ink, box=(-25, 8, 180, 30)),
+                          rect('footer', [170, 60, 38, 255], box=(7, 55, 98, 14))]
+            with self.subTest(calibrated=calibrated, native=native), tempfile.TemporaryDirectory() as root:
+                for variant in ('plain', 'marked'):
+                    options = dict(color='native_inks' if native else 'display')
+                    if variant == 'marked':
+                        options['marks'] = {}
+                    artifact = self.invoke(dict(command='document.export', document=d,
+                                                format='pdf', pdf_options=options))
+                    directory = Path(root) / variant
+                    directory.mkdir()
+                    (directory / 'proof.pdf').write_bytes(base64.b64decode(artifact['data']))
+                    subprocess.run([gs, '-dSAFER', '-dBATCH', '-dNOPAUSE', '-sDEVICE=tiffsep',
+                                    '-r288', '-sOutputFile=sheet.tif', 'proof.pdf'],
+                                   cwd=directory, check=True, capture_output=True, timeout=30)
+                planes = {path.stem[6:-1] for path in (Path(root) / 'marked').glob('sheet(*).tif')}
+                expected = {'Cyan', 'Magenta', 'Yellow', 'Black'}
+                if native:
+                    expected.add('Inkbolt.seal')
+                self.assertEqual(planes, expected)
+                for plane in sorted(planes):
+                    filename = f'sheet({plane}).tif'
+                    with Image.open(Path(root) / 'plain' / filename) as image:
+                        source = image.convert('L')
+                    with Image.open(Path(root) / 'marked' / filename) as image:
+                        sheet = image.convert('L')
+                    self.assertEqual((source.size, sheet.size), ((480, 320), (578, 418)))
+                    artwork = (49, 49, 529, 369)
+                    self.assertIsNone(ImageChops.difference(sheet.crop(artwork), source).getbbox())
+                    if plane == 'Inkbolt.seal':
+                        self.assertEqual(source.getpixel((24, 64)), 64)
+                    sheet.paste(255, artwork)
+                    self.assertEqual({value for _, value in sheet.getcolors(256)}, {0, 255})
+                    if margin_reference is None:
+                        margin_reference = sheet
+                    self.assertIsNone(ImageChops.difference(sheet, margin_reference).getbbox())
 
     def test_invalid_vector_marks_do_not_publish_a_partial_sheet(self):
         d = self.invoke(dict(command='document.create', id='marks', kind='vector', width=96, height=72))

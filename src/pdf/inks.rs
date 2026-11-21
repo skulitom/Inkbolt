@@ -96,6 +96,7 @@ pub(super) fn paint(
     stream.use_resource("ExtGState", gs, "gs");
     let (space, white, components) = alternate(writer, &p.color)?;
     if let Some(id) = &p.spot_id {
+        writer.page_has_spot_paint = true;
         let resource = if let Some(&resource) = writer.ink_spaces.get(id) {
             resource
         } else {
