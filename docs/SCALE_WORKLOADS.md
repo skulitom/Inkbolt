@@ -74,6 +74,20 @@ establish it; Linux RSS cannot. `commit_budget.status` is `passed`, `failed` or
 `full_suite_fidelity` concerns artifact correctness only, and
 `complete_scale_acceptance` remains false.
 
+On Linux, add `--linux-address-space-budget` to the scale runner to test each
+Inkbolt command with a 512 MiB soft and hard virtual address-space limit.
+The supervisor applies `RLIMIT_AS` before starting the executable and reads
+both limits from the exited process before reaping it. Only the engine gets
+the limit. Fixture generation and independent artifact checking retain their
+ordinary memory allowance. The supervisor refuses to raise an inherited limit.
+See the [Linux resource limit manual](https://man7.org/linux/man-pages/man2/getrlimit.2.html).
+
+The report records the result under `linux_address_space_budget`. A passing
+case requires the original dimensions, every expected command and artifact
+check, and the recorded limit for each successful command. RSS stays a
+measured peak. The address-space limit provides separate evidence that the
+workflow can finish within a fixed allowance.
+
 `tools/workload_gates.py` accepts a complete successful Windows `scale-v2` report
 with at least five repetitions. It checks every fixed command/oracle, dimensions,
 commit observation, source/decoder identity and required helper hash. Reduced

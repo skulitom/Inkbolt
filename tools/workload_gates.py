@@ -117,6 +117,28 @@ def hash_value(value):
     return isinstance(value, str) and len(value) == 64 and all(c in '0123456789abcdef' for c in value)
 
 
+def check_linux_scale_budget(row, supervisor_sha256):
+    """Validate the full-size workflow and kernel limit on every engine command."""
+    import linux_process_memory
+    name = row['case']
+    require(row['success'] is True and row['fixed_fixture'] is True
+            and row['dimensions'] == SCALE_DIMENSIONS[name], 'Requires a successful full-size fixture')
+    calls, checks = row['calls'], row['checks']
+    require([(c['step'], c['command']) for c in calls] == SCALE_CONTRACTS[name][0]
+            and [c['name'] for c in checks] == SCALE_CONTRACTS[name][1]
+            and all(c['status'] == 'pass' for c in checks), 'Incomplete scale workflow or artifact checks')
+    require(hash_value(supervisor_sha256), 'Missing supervisor source identity')
+    limit = dict(method=linux_process_memory.LIMIT_METHOD, soft_bytes=SCALE_COMMIT_CEILING,
+                 hard_bytes=SCALE_COMMIT_CEILING)
+    for call in calls:
+        require(call['status'] == 'success' and call['exit_code'] == 0 and call['timed_out'] is False
+                and call['retries'] == 0, 'An engine command failed, timed out or retried')
+        counters = call['memory']
+        require(counters.get('address_space_limit') == limit, 'Missing or changed engine address-space limit')
+        resident = counters.get('resident', {})
+        require(resident.get('supervisor_sha256') == supervisor_sha256, 'Supervisor differs from recorded source')
+
+
 def summarize(report):
     """Recompute eligibility and metrics from every trial; ignore aggregate claims."""
     require(report['schema_version'] == 1 and report['suite'] in SUITES, 'Unknown measurement schema/suite')

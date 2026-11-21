@@ -14,8 +14,13 @@ def main(argv=None):
     parser.add_argument('--repetitions',type=int,choices=range(1,11),default=5)
     parser.add_argument('--case',action='append',choices=scale.CASES,dest='cases')
     parser.add_argument('--conditions',required=True)
+    parser.add_argument('--linux-address-space-budget', action='store_true',
+                        help='Run every engine command under a 512 MiB hard address-space limit on Linux')
     parser.add_argument('--jpeg-python',type=Path,help='External Python with pinned Pillow 10.3.0; required for the JPEG case')
     args=parser.parse_args(argv)
+    if args.linux_address_space_budget and sys.platform != 'linux':
+        parser.error('--linux-address-space-budget requires Linux')
+    address_space_limit = scale.MAX_PEAK_COMMIT_BYTES if args.linux_address_space_budget else None
     if sys.flags.optimize:parser.error('Independent oracles require assertions; do not use -O')
     cases=tuple(args.cases or scale.CASES)
     if len(set(cases))!=len(cases):parser.error('Duplicate cases are not allowed')
@@ -31,16 +36,19 @@ def main(argv=None):
     executable,build=measure.release_build(output)
     measure.save_json(output/'inputs.json',dict(suite=scale.SUITE,candidate_files=candidates,
         source_sha256=source,build=build,environment=environment,conditions=args.conditions,
-        cases=cases,repetitions=args.repetitions))
+        cases=cases,repetitions=args.repetitions,linux_address_space_limit_bytes=address_space_limit))
     rows=[]
     for repetition in range(1,args.repetitions+1):
         offset=(repetition-1)%len(cases)
         for name in cases[offset:]+cases[:offset]:
-            case=measure.Case(executable,output/f'{repetition:02d}-{name}',name,repetition,timeout=1200)
-            row=scale.run(case,jpeg_python=args.jpeg_python);rows.append(row)
+            case=measure.Case(executable,output/f'{repetition:02d}-{name}',name,repetition,timeout=1200,
+                              address_space_limit=address_space_limit)
+            row=scale.run(case,jpeg_python=args.jpeg_python,supervisor_sha256=candidates['tools/linux_process_memory.py'])
+            rows.append(row)
             print(json.dumps(dict(case=name,repetition=repetition,success=row['success'],
                 seconds=row['engine_seconds'],peak_commit=row['peak_commit_bytes'],
-                peak_resident=row['peak_resident_bytes'],commit_budget=row['commit_budget']['status'])),flush=True)
+                peak_resident=row['peak_resident_bytes'],commit_budget=row['commit_budget']['status'],
+                linux_address_space_budget=row.get('linux_address_space_budget'))),flush=True)
     report=dict(schema_version=1,suite=scale.SUITE,adapter=measure.ADAPTERS[0],model_trials=False,
         full_readiness_benchmark=False,selected_cases=list(cases),repetitions=args.repetitions,
         source_sha256=source,source_unchanged=source==measure.source_identity(),candidate_files=candidates,
@@ -57,6 +65,11 @@ def main(argv=None):
     report['valid_inputs']=all(report[key] for key in ('source_unchanged','candidate_files_unchanged','executable_unchanged','environment_unchanged'))
     success=all(row['success'] for row in rows)
     report['full_suite_fidelity']=report['valid_inputs'] and success and set(cases)==set(scale.CASES)
+    if address_space_limit is not None:
+        success = success and all(r['linux_address_space_budget']['status'] == 'passed' for r in rows)
+        report['linux_address_space_budget'] = dict(maximum_bytes=address_space_limit,
+            selected_workloads_passed=report['valid_inputs'] and success,
+            full_suite_passed=report['full_suite_fidelity'] and success)
     report['outcome']='all_selected_workloads_passed' if success else 'baseline_recorded_with_failures'
     if not report['valid_inputs']:report['outcome']='invalid_inputs_changed'
     measure.save_json(output/'report.json',report)

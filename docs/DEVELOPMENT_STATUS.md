@@ -5,6 +5,16 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## Linux memory budget for large raster edits
+
+The four scale-v2 workloads already have independent output checks. On Linux
+the recorded peak resident memory leaves open whether the 50 MP edit can finish
+when its process has only 512 MiB of address space. Run the original workloads
+under an enforced per-command limit, including import, undo, redo and export.
+Keep the unrestricted fixture generator and independent readers outside the
+engine process. Require every command and artifact check to succeed. An absent
+limit, an interrupted command or a reduced fixture cannot establish acceptance.
+
 ## Marked vector print pages
 
 The B14 print benchmark already covers unmarked pages with native inks and

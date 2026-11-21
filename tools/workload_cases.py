@@ -70,10 +70,12 @@ def process_memory(process):
                 peak_commit_bytes=counters.peak_commit)
 
 
-def run_process(argv, payload, timeout):
+def run_process(argv, payload, timeout, *, address_space_limit=None):
     """Only used for synchronous commands; these workloads never start job workers."""
     if sys.platform == 'linux':
-        return linux_process_memory.run(argv, payload, timeout)
+        return linux_process_memory.run(argv, payload, timeout, address_space_limit=address_space_limit)
+    if address_space_limit is not None:
+        raise ValueError('The address-space budget requires Linux')
     start = time.perf_counter()
     with subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,
@@ -160,11 +162,13 @@ def check_pdf(path):
 
 
 class Case:
-    def __init__(self, executable, root, name, repetition, timeout=90, adapter=ADAPTERS[0]):
+    def __init__(self, executable, root, name, repetition, timeout=90, adapter=ADAPTERS[0],
+                 *, address_space_limit=None):
         if adapter not in ADAPTERS:
             raise ValueError('Unknown workload adapter')
         self.executable, self.root, self.timeout = executable, root, timeout
         self.adapter = adapter
+        self.address_space_limit = address_space_limit
         self.name, self.repetition = name, repetition
         root.mkdir()
         self.calls, self.checks, self.sources = [], [], {}
@@ -185,7 +189,7 @@ class Case:
         prefix = self.root / f'{len(self.calls):02d}-{step}'
         save(prefix.with_suffix('.request.json'), payload)
         metrics, stdout, stderr = run_process([str(self.executable), '--workspace', str(self.root)],
-                                             payload, self.timeout)
+                                             payload, self.timeout, address_space_limit=self.address_space_limit)
         save(prefix.with_suffix('.response.json'), stdout)
         save(prefix.with_suffix('.stderr.txt'), stderr)
         row = dict(step=step, command=command, request_bytes=len(payload), response_bytes=len(stdout),

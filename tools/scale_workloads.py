@@ -167,7 +167,7 @@ def jpeg(case,width,height,python):
     return identity
 
 
-def run(case, *, dimensions=None, jpeg_python=None):
+def run(case, *, dimensions=None, jpeg_python=None, supervisor_sha256=None):
     width,height=dimensions or DIMENSIONS[case.name]
     extra={}
     try:
@@ -187,5 +187,13 @@ def run(case, *, dimensions=None, jpeg_python=None):
     result=case.finish()
     result.update(dimensions=[width,height],fixed_fixture=(width,height)==DIMENSIONS[case.name],
         commit_budget=dict(status=budget,maximum_bytes=MAX_PEAK_COMMIT_BYTES),**extra)
+    if case.address_space_limit is not None:
+        from workload_gates import check_linux_scale_budget
+        bounded = dict(maximum_bytes=case.address_space_limit, status='passed')
+        try:
+            check_linux_scale_budget(result, supervisor_sha256)
+        except (KeyError, TypeError, ValueError) as error:
+            bounded.update(status='failed', reason=str(error))
+        result['linux_address_space_budget'] = bounded
     measure.save_json(case.root/'scale-case.json',result)
     return result

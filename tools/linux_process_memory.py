@@ -20,6 +20,7 @@ import time
 
 METHOD = 'linux_wait4_isolated_supervisor_v1'
 SCOPE = 'command_lifetime_including_pre_exec_and_reaped_descendant_maximum'
+LIMIT_METHOD = 'linux_rlimit_as_before_exec_verified_at_exit_v1'
 
 
 def _parent_death(expected_parent):
@@ -36,8 +37,10 @@ def _parent_death(expected_parent):
         os._exit(125)
 
 
-def _supervise(report_path, expected_parent, timeout, argv, control_fd=None):
+def _supervise(report_path, expected_parent, timeout, argv, control_fd=None, address_space_limit=None):
     _parent_death(expected_parent)
+    if address_space_limit is not None:
+        import resource
     signal.signal(signal.SIGCHLD, signal.SIG_DFL)
     if control_fd is not None:
         os.set_inheritable(control_fd, False)
@@ -54,6 +57,11 @@ def _supervise(report_path, expected_parent, timeout, argv, control_fd=None):
                 if control_fd is not None:
                     os.close(control_fd)
                 _parent_death(parent)
+                if address_space_limit is not None:
+                    inherited = resource.getrlimit(resource.RLIMIT_AS)
+                    if any(n != resource.RLIM_INFINITY and n < address_space_limit for n in inherited):
+                        raise ValueError('Inherited address-space limit is below the requested budget')
+                    resource.setrlimit(resource.RLIMIT_AS, (address_space_limit, address_space_limit))
                 # Match Popen's restored SIGPIPE behavior on POSIX.
                 for name in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
                     if hasattr(signal, name):
@@ -90,6 +98,10 @@ def _supervise(report_path, expected_parent, timeout, argv, control_fd=None):
             os.kill(child, signal.SIGKILL)
             os.waitid(os.P_PID, child, os.WEXITED | os.WNOWAIT)
             exited = True
+        # The exited child still owns its PID here. Read the limit actually
+        # retained through exec and exit before consuming the resource counters.
+        if address_space_limit is not None:
+            soft, hard = resource.prlimit(child, resource.RLIMIT_AS)
         waited, status, usage = os.wait4(child, 0)
         reaped = True
         if waited != child:
@@ -100,6 +112,8 @@ def _supervise(report_path, expected_parent, timeout, argv, control_fd=None):
                       peak_resident_bytes=int(usage.ru_maxrss) * 1024)
         if error:
             result['launch_error'] = json.loads(error)
+        elif address_space_limit is not None:
+            result['address_space_limit'] = dict(method=LIMIT_METHOD, soft_bytes=soft, hard_bytes=hard)
         with open(report_path, 'x', encoding='utf-8') as output:
             json.dump(result, output)
     finally:
@@ -117,7 +131,7 @@ def _supervise(report_path, expected_parent, timeout, argv, control_fd=None):
                 os.close(fd)
 
 
-def _result(report, process, source_hash):
+def _result(report, process, source_hash, address_space_limit=None):
     if process.returncode != 0 or not report.is_file():
         raise RuntimeError(f'Linux memory supervisor failed ({process.returncode}); no valid measurement')
     result = json.loads(report.read_bytes())
@@ -134,6 +148,11 @@ def _result(report, process, source_hash):
         resident['reason'] = 'wait4 returned no positive lifetime RSS'
     result['memory'] = dict(available=False,
         reason='Windows working-set/commit counters unavailable; see resident', resident=resident)
+    if address_space_limit is not None:
+        limit = result.get('address_space_limit')
+        if limit != dict(method=LIMIT_METHOD, soft_bytes=address_space_limit, hard_bytes=address_space_limit):
+            raise RuntimeError('The engine did not retain the requested address-space limit')
+        result['memory']['address_space_limit'] = limit
     return result
 
 
@@ -231,19 +250,22 @@ def resident_summary(observations):
         resident_supervisor_sha256=residents[0]['supervisor_sha256'] if complete else None)
 
 
-def run(argv, payload, timeout):
+def run(argv, payload, timeout, *, address_space_limit=None):
     """Return the ordinary workload tuple; never fill Windows counters with RSS."""
     if sys.platform != 'linux':
         raise RuntimeError('The RSS supervisor is Linux-only')
     if not argv or not math.isfinite(timeout) or timeout <= 0:
         raise ValueError('A command and positive finite deadline are required')
+    if address_space_limit is not None and (type(address_space_limit) is not int or address_space_limit <= 0):
+        raise ValueError('Address-space limit must be a positive integer number of bytes')
     script = Path(__file__).resolve()
     source_hash = hashlib.sha256(script.read_bytes()).hexdigest()
     start = time.perf_counter()
     with tempfile.TemporaryDirectory(prefix='inkbolt-rss-') as directory:
         report = Path(directory) / 'result.json'
-        command = [sys.executable, '-I', '-S', str(script), str(report), str(os.getpid()),
-                   str(timeout), *map(os.fspath, argv)]
+        limit_args = [] if address_space_limit is None else ['--address-space-limit', str(address_space_limit)]
+        command = [sys.executable, '-I', '-S', str(script), *limit_args, str(report),
+                   str(os.getpid()), str(timeout), *map(os.fspath, argv)]
         with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE) as process:
             try:
@@ -255,7 +277,7 @@ def run(argv, payload, timeout):
             if process.returncode != 0 or not report.is_file():
                 raise RuntimeError(f'Linux memory supervisor failed ({process.returncode}); '
                                    f'no valid measurement: {stderr[-4096:]!r}')
-            result = _result(report, process, source_hash)
+            result = _result(report, process, source_hash, address_space_limit)
             return dict(exit_code=result['exit_code'], seconds=time.perf_counter()-start,
                         timed_out=result['timed_out'], memory=result['memory']), stdout, stderr
 
@@ -263,5 +285,8 @@ def run(argv, payload, timeout):
 if __name__ == '__main__':
     if sys.argv[1] == '--persistent':
         _supervise(sys.argv[2], int(sys.argv[3]), None, sys.argv[5:], control_fd=int(sys.argv[4]))
+    elif sys.argv[1] == '--address-space-limit':
+        _supervise(sys.argv[3], int(sys.argv[4]), float(sys.argv[5]), sys.argv[6:],
+                   address_space_limit=int(sys.argv[2]))
     else:
         _supervise(sys.argv[1], int(sys.argv[2]), float(sys.argv[3]), sys.argv[4:])

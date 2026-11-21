@@ -55,6 +55,43 @@ class LinuxProcessMemoryTests(unittest.TestCase):
                 unrelated.kill()
                 unrelated.wait(timeout=5)
 
+    def test_address_space_limit_survives_exec_and_refuses_an_untouched_mapping(self):
+        import resource
+        inherited = resource.getrlimit(resource.RLIMIT_AS)
+        cap = 96 * 1024**2
+        script = """import errno, mmap, resource
+print(resource.getrlimit(resource.RLIMIT_AS))
+with mmap.mmap(-1, 1024**2) as small:
+    small[0] = 1
+try:
+    reservation = mmap.mmap(-1, 128 * 1024**2)
+except OSError as error:
+    if error.errno != errno.ENOMEM:
+        raise
+    print('refused')
+else:
+    reservation.close()
+    print('reserved')
+"""
+        result, stdout, stderr = memory.run([sys.executable, '-c', script], b'', 10,
+                                            address_space_limit=cap)
+        self.assertEqual((result['exit_code'], stderr, result['timed_out']), (0, b'', False))
+        self.assertEqual(stdout.decode().splitlines(), [str((cap, cap)), 'refused'])
+        self.assertEqual(result['memory']['address_space_limit'],
+                         dict(method=memory.LIMIT_METHOD, soft_bytes=cap, hard_bytes=cap))
+        self.assertLess(self.peak(result), cap)
+        control, stdout, stderr = self.run_python(script)
+        self.assertEqual((control['exit_code'], stderr), (0, b''))
+        self.assertEqual(stdout.decode().splitlines(), [str(inherited), 'reserved'])
+        self.assertNotIn('address_space_limit', control['memory'])
+        self.assertEqual(resource.getrlimit(resource.RLIMIT_AS), inherited)
+
+    def test_changed_address_space_limit_is_detected_after_engine_exit(self):
+        cap = 96 * 1024**2
+        script = f'import resource; resource.setrlimit(resource.RLIMIT_AS, ({cap//2}, {cap}))'
+        with self.assertRaisesRegex(RuntimeError, 'did not retain'):
+            memory.run([sys.executable, '-c', script], b'', 10, address_space_limit=cap)
+
     def test_reaped_descendant_peak_is_declared_not_tree_sum(self):
         result, _, _ = self.run_python(
             'import subprocess,sys; subprocess.run([sys.executable,"-c","a=bytearray(64*1024*1024)"])')

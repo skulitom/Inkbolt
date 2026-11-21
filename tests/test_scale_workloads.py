@@ -120,5 +120,40 @@ class ScaleWorkloadTests(unittest.TestCase):
         metrics={name:dict(median_seconds=1,maximum_seconds=2,peak_commit_bytes=400*1024*1024) for name in gates.SCALE_CASES}
         self.assertTrue(all(v['peak_commit_bytes']==512*1024*1024 for v in gates.limits(metrics,gates.SCALE_CASES).values()))
 
+    def test_linux_budget_requires_each_original_command_oracle_and_exit_limit(self):
+        import linux_process_memory
+        helper = 'b' * 64
+        commands, checks = gates.SCALE_CONTRACTS['photo-50mp']
+        cap = gates.SCALE_COMMIT_CEILING
+        memory = dict(address_space_limit=dict(method=linux_process_memory.LIMIT_METHOD, soft_bytes=cap,
+                      hard_bytes=cap), resident=dict(supervisor_sha256=helper))
+        row = dict(case='photo-50mp', success=True, dimensions=[8192,6144], fixed_fixture=True,
+                   calls=[dict(step=s, command=c, status='success', retries=0, exit_code=0, timed_out=False,
+                               memory=copy.deepcopy(memory)) for s,c in commands],
+                   checks=[dict(name=n, status='pass') for n in checks])
+        gates.check_linux_scale_budget(row, helper)
+        for mutation in ('case', 'reduced', 'size', 'call', 'oracle', 'fail', 'timeout',
+                         'exit', 'retry', 'unbounded', 'soft', 'hard', 'method', 'helper'):
+            with self.subTest(mutation=mutation):
+                altered = copy.deepcopy(row)
+                call = altered['calls'][-1]
+                limit = call['memory']['address_space_limit']
+                if mutation == 'case': altered['success'] = False
+                elif mutation == 'reduced': altered['fixed_fixture'] = False
+                elif mutation == 'size': altered['dimensions'] = [512,384]
+                elif mutation == 'call': altered['calls'].pop()
+                elif mutation == 'oracle': altered['checks'].pop()
+                elif mutation == 'fail': altered['checks'][-1]['status'] = 'fail'
+                elif mutation == 'timeout': call['timed_out'] = True
+                elif mutation == 'exit': call['exit_code'] = 1
+                elif mutation == 'retry': call['retries'] = 1
+                elif mutation == 'unbounded': call['memory'].pop('address_space_limit')
+                elif mutation == 'soft': limit['soft_bytes'] += 1
+                elif mutation == 'hard': limit['hard_bytes'] += 1
+                elif mutation == 'method': limit['method'] = 'resident'
+                else: call['memory']['resident']['supervisor_sha256'] = 'f' * 64
+                with self.assertRaises(ValueError):
+                    gates.check_linux_scale_budget(altered, helper)
+
 
 if __name__=='__main__':unittest.main()
