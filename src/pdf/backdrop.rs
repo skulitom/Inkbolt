@@ -50,6 +50,7 @@ fn placed(writer: &Writer, form: usize) -> Stream {
 struct Member {
     id: String,
     paint: Artwork,
+    covers_page: bool,
     // Intrinsic alpha, with the clip and mask, before this or any descendant's owner opacity.
     shape: Option<usize>,
     opacity: f64,
@@ -70,6 +71,7 @@ fn prepare(
     doc: &Document,
     parent: Option<&str>,
     res: &PageResources,
+    coverage: &paper::Coverage,
     need_shape: bool,
 ) -> Result<Vec<Member>, Error> {
     let mut out = Vec::new();
@@ -77,7 +79,10 @@ fn prepare(
         let item = &doc.items[i];
         if printable(item) {
             writer.control.check()?;
-            out.push(member(writer, doc, i, res, need_shape).map_err(|e| e.at_item(&item.id))?);
+            out.push(
+                member(writer, doc, i, res, coverage, need_shape)
+                    .map_err(|e| e.at_item(&item.id))?,
+            );
         }
     }
     Ok(out)
@@ -88,6 +93,7 @@ fn member(
     doc: &Document,
     i: usize,
     res: &PageResources,
+    coverage: &paper::Coverage,
     need_shape: bool,
 ) -> Result<Member, Error> {
     let item = &doc.items[i];
@@ -139,7 +145,14 @@ fn member(
         (Artwork::Isolated(form), need_shape.then_some(form))
     } else {
         let knockout = item.content.is_knockout();
-        let children = prepare(writer, doc, Some(&item.id), res, need_shape || knockout)?;
+        let children = prepare(
+            writer,
+            doc,
+            Some(&item.id),
+            res,
+            coverage,
+            need_shape || knockout,
+        )?;
         // Share the frame background with its color and coverage forms.
         if !body.content.is_empty() {
             let background = writer.isolated_form(&body)?;
@@ -164,7 +177,7 @@ fn member(
                         Artwork::Isolated(f) => f,
                         Artwork::Through { .. } => {
                             let mut single = stream(writer);
-                            child.draw_through(writer, &mut single, 1.)?;
+                            child.draw_through(writer, &mut single, 1., false)?;
                             writer.isolated_form(&single)?
                         }
                     };
@@ -177,7 +190,12 @@ fn member(
                 }
                 group.finish(writer, &mut body)?;
             } else {
-                draw_all(writer, &mut body, &children)?;
+                draw_all(
+                    writer,
+                    &mut body,
+                    &children,
+                    coverage.frame_backgrounds.contains(item.id.as_str()),
+                )?;
             }
             let form = writer.isolated_form(&body)?;
             Artwork::Isolated(wrap(writer, form)?)
@@ -201,15 +219,24 @@ fn member(
     Ok(Member {
         id: item.id.clone(),
         paint,
+        covers_page: coverage.members.contains(item.id.as_str()),
         shape,
         opacity: item.opacity * item.fill_opacity,
         blend: item.blend,
     })
 }
 
-fn draw_all(writer: &mut Writer, out: &mut Stream, children: &[Member]) -> Result<(), Error> {
+fn draw_all(
+    writer: &mut Writer,
+    out: &mut Stream,
+    children: &[Member],
+    mut opaque_entry: bool,
+) -> Result<(), Error> {
     for child in children {
-        child.draw(writer, out).map_err(|e| e.at_item(&child.id))?;
+        child
+            .draw(writer, out, opaque_entry)
+            .map_err(|e| e.at_item(&child.id))?;
+        opaque_entry |= child.covers_page;
     }
     Ok(())
 }
@@ -219,13 +246,13 @@ impl Member {
         self.shape.expect("prepared knockout footprint")
     }
 
-    fn draw(&self, writer: &mut Writer, out: &mut Stream) -> Result<(), Error> {
+    fn draw(&self, writer: &mut Writer, out: &mut Stream, opaque_entry: bool) -> Result<(), Error> {
         if self.opacity == 0. {
             return Ok(());
         }
         match self.paint {
             Artwork::Isolated(form) => self.draw_form(writer, out, form, self.opacity),
-            Artwork::Through { .. } => self.draw_through(writer, out, self.opacity),
+            Artwork::Through { .. } => self.draw_through(writer, out, self.opacity, opaque_entry),
         }
     }
 
@@ -248,6 +275,7 @@ impl Member {
         writer: &mut Writer,
         out: &mut Stream,
         opacity: f64,
+        opaque_entry: bool,
     ) -> Result<(), Error> {
         let Artwork::Through {
             children,
@@ -261,10 +289,12 @@ impl Member {
             return Ok(());
         }
         if !knockout && opacity == 1. && boundary.is_none() {
-            return draw_all(writer, out, children);
+            return draw_all(writer, out, children, opaque_entry);
         }
         let entry = writer.isolated_form(out)?;
-        let completed = self.on_entry(writer, entry, opacity)?.form(writer)?;
+        let completed = self
+            .on_entry(writer, entry, opacity, opaque_entry)?
+            .form(writer, opaque_entry)?;
         *out = placed(writer, completed);
         Ok(())
     }
@@ -274,6 +304,7 @@ impl Member {
         writer: &mut Writer,
         entry: usize,
         opacity: f64,
+        opaque_entry: bool,
     ) -> Result<Composite, Error> {
         if opacity == 0. {
             return Ok(Composite::Form(entry));
@@ -297,10 +328,10 @@ impl Member {
             writer.knockout_groups += 1;
             writer.backdrop_groups += 1;
             writer.page_requires_backdrop = true;
-            composite(writer, entry, children)?
+            composite(writer, entry, children, opaque_entry)?
         } else {
             let mut all = placed(writer, entry);
-            draw_all(writer, &mut all, children)?;
+            draw_all(writer, &mut all, children, opaque_entry)?;
             Composite::Form(writer.isolated_form(&all)?)
         };
         if opacity == 1. && boundary.is_none() {
@@ -330,9 +361,10 @@ pub(super) fn render(
     out: &mut Stream,
     doc: &Document,
     res: &PageResources,
+    coverage: &paper::Coverage,
 ) -> Result<(), Error> {
-    let children = prepare(writer, doc, None, res, false)?;
-    draw_all(writer, out, &children)
+    let children = prepare(writer, doc, None, res, coverage, false)?;
+    draw_all(writer, out, &children, coverage.document_matte)
 }
 
 fn alpha_mask(writer: &mut Writer, form: usize, inverse: bool) -> Result<usize, Error> {
@@ -477,9 +509,13 @@ impl Composite {
             Self::Fields(fields) => Ok(fields),
         }
     }
-    fn form(self, writer: &mut Writer) -> Result<usize, Error> {
+    fn form(self, writer: &mut Writer, opaque_entry: bool) -> Result<usize, Error> {
         match self {
             Self::Form(f) => Ok(f),
+            // On an opaque entry every candidate has unit alpha. The
+            // associated RGB field is already straight; reconstructing alpha
+            // can introduce spurious transparency in separation readers.
+            Self::Fields(fields) if opaque_entry => Ok(fields.rgb),
             Self::Fields(fields) => fields.restore(writer),
         }
     }
@@ -490,8 +526,13 @@ struct Range {
     shape: usize,
 }
 
-fn composite(writer: &mut Writer, entry: usize, children: &[Member]) -> Result<Composite, Error> {
-    let first = children[0].on_entry(writer, entry, children[0].opacity)?;
+fn composite(
+    writer: &mut Writer,
+    entry: usize,
+    children: &[Member],
+    opaque_entry: bool,
+) -> Result<Composite, Error> {
+    let first = children[0].on_entry(writer, entry, children[0].opacity, opaque_entry)?;
     if children.len() == 1 {
         return Ok(first);
     }
@@ -503,7 +544,7 @@ fn composite(writer: &mut Writer, entry: usize, children: &[Member]) -> Result<C
     }];
     for child in &children[1..] {
         let current = child
-            .on_entry(writer, entry, child.opacity)?
+            .on_entry(writer, entry, child.opacity, opaque_entry)?
             .fields(writer)?;
         let survival = alpha_mask(writer, child.footprint(), true)?;
         // C >= (1-F)B in every associated channel, even for darkening modes.

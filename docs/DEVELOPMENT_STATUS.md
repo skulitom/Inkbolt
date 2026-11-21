@@ -165,9 +165,46 @@ identical margins on all six plates. A separate test evaluates each DeviceN
 alternate tint function. Publication tests cover a saved revision after an
 edit, repeat requests, an existing destination and located preflight errors.
 Overprint that depends on the external backdrop of a pass-through knockout,
-native-ink knockout with a calibrated RGB page, marked RGB transparency and
-the wider page-exchange checkpoint remain open.
+native-ink knockout with a calibrated RGB page and the wider page-exchange
+checkpoint remain open.
 [Regression fixtures](../tests/test_pdf_knockout_inks.py) · [PDF delivery contract](PDF.md#knockout-groups)
+
+### Marked RGB transparency
+
+The source build accepts marks around translucent display artwork when the
+selected page has opaque paper across its bleed area. An optional sRGB matte
+places the completed artwork on a chosen paper color. The exporter reports
+which item or matte supplied the paper on each page that required it.
+
+Eight original 48 × 32 sheets pair ordinary and pass-through knockout groups
+with document paper or an export matte, in default RGB and explicit sRGB.
+Each sheet includes a fading gradient, a masked Multiply shape and a
+zero-opacity child. At 288 dpi the marked and unmarked artwork matched on
+all 24,576 interior pixels of each of the four Ghostscript process plates.
+The margin carried the same marks on all four plates. MuPDF's associated
+RGBA and Poppler's RGB also matched throughout the artwork. MuPDF reported
+alpha 254 or 255 for opaque paper after compositing. Its explicit matte was
+within two 8-bit levels of compositing the clear page over the requested color.
+
+A separate press fixture uses a fully covering zero-opacity child. Every
+plate in the cutout matched an independent export of the artwork that was
+visible before the group. Reconstructing alpha for a group entered on opaque
+paper had previously turned saturated colors in that region almost white in
+the separation reader. The PDF now uses the completed RGB directly when the
+preceding artwork establishes unit alpha.
+
+The public two-page diagram example also exercises stroked circles and
+asymmetric bleed. The two pages retained 12,344 path commands and zero image
+samples. Both pages matched on all four process plates across 585,792
+artwork pixels. MuPDF differed on two edge pixels by up to six 8-bit levels.
+Previously, export applied the stored-path limit to the generated stroke
+outlines and refused the example. The writer now applies the generated-stroke
+and PDF budgets to those outlines.
+
+A visibly clear marked page that needs RGB blending still requires an
+explicit matte. Calibrated native-ink overprint, searchable text and editable
+page reimport retain their separate acceptance requirements.
+[Regression fixtures](../tests/test_pdf_marked_rgb.py) · [PDF marks and paper color](PDF.md#crop-and-registration-marks)
 
 ## Artwork masks in vector PDF
 

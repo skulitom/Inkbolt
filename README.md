@@ -62,7 +62,8 @@ Apple silicon and Intel Macs. Background export jobs currently require Windows.
 
 Building from `main` also lets you cut a window through a group and keep the
 surrounding paths and text outlines in the PDF. For print work, a native CMYK
-PDF can keep spot inks on separate plates and add crop and registration marks.
+PDF can keep spot inks on separate plates. You can also add crop and
+registration marks to RGB artwork and choose the paper color behind it.
 [PDF masks](docs/PDF.md#masks-made-from-editable-artwork) · [Knockout groups](docs/PDF.md#knockout-groups)
 
 ## Explore the project

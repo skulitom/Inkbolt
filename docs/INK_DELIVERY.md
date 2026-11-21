@@ -66,7 +66,7 @@ once through a nonisolated group, retaining overprint interaction. Actual groups
 and frames retain their established isolation: inks outside an isolated group
 are not its internal backdrop. Paint alpha, item opacity and group opacity are
 separate controls. Native ink vector delivery rejects non-normal blend modes.
-Unmarked display pages support the [standard RGB blend modes](PDF.md#rgb-blend-modes).
+Display pages support the standard RGB blend modes. Marked pages can use an opaque full-bleed background or a chosen paper color. [Display PDF contract](PDF.md#crop-and-registration-marks)
 
 On native CMYK pages with knockout groups, process overprint names the
 addressed process plates explicitly in a PDF DeviceN color space. A cyan

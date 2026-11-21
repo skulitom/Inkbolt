@@ -35,6 +35,21 @@ class PdfTests(unittest.TestCase):
             self.assertEqual(a,self.export(d));self.assertEqual(a['pdf']['image_pixels'],0)
             self.assertEqual(p.get(p.trailer['Info']),{'Producer':'Inkbolt'})
 
+    def test_stroked_circle_uses_the_generated_outline_budget(self):
+        doc = self.invoke(dict(command='document.create',id='diagram',kind='vector',width=96,height=96))
+        doc['items'] = [dict(id='node',content=dict(type='vector',
+            geometry=dict(shape='ellipse',cx=48,cy=48,rx=24,ry=24),
+            fill=[240,170,30,255],stroke=dict(width=3,color=[255,255,255,255])))]
+        result = self.export(doc)
+        source_limit = capabilities()['limits']['path_commands']
+        self.assertGreater(result['pdf']['path_commands'],source_limit)
+        self.assertEqual(result['pdf']['image_pixels'],0)
+        self.assertEqual(len(Pdf(result).paths()),2)
+        # The same number of hand-authored commands still exceeds the source limit.
+        doc['items'][0]['content']['geometry'] = dict(shape='path',commands=[
+            dict(verb='move',to=[0,0]), *[dict(verb='line',to=[1,1])]*source_limit])
+        self.assertEqual(self.export(doc,1)['code'],'RESOURCE_LIMIT')
+
     def test_two_artboards_have_independently_parsed_sizes_content_bounds_and_order(self):
         d=self.fixture();before=copy.deepcopy(d)
         a=self.export(d,pdf_options=dict(artboards=dict(type='all')));p=Pdf(a)

@@ -16,6 +16,7 @@ mod inks;
 mod knockout;
 mod marks;
 mod opacity;
+mod paper;
 mod prepress;
 mod print;
 mod recipe;
@@ -37,6 +38,9 @@ pub struct Options {
     /// Physical crop and registration marks for vector page delivery.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub marks: Option<Marks>,
+    /// Opaque sRGB paper behind the completed vector display artwork.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matte: Option<[u8; 3]>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub print: Option<PrintOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -217,7 +221,17 @@ impl Writer {
         self.add(bytes)
     }
     fn path(&mut self, output: &mut String, shape: &Geometry, matrix: Matrix) -> Result<(), Error> {
-        let Geometry::Path { commands } = crate::primitives::expand(shape)? else {
+        // Stored paths have already passed document validation. Generated
+        // outlines have their own larger budget; expanding them again would
+        // incorrectly apply the stored-path limit to the finished stroke.
+        let expanded;
+        let path = if matches!(shape, Geometry::Path { .. }) {
+            shape
+        } else {
+            expanded = crate::primitives::expand(shape)?;
+            &expanded
+        };
+        let Geometry::Path { commands } = path else {
             unreachable!()
         };
         self.commands += commands.len();
@@ -226,7 +240,7 @@ impl Writer {
         }
         for command in commands {
             self.control.check()?;
-            let (points, op) = match command {
+            let (points, op) = match *command {
                 PathCommand::Move { to } => (vec![to], "m"),
                 PathCommand::Line { to } => (vec![to], "l"),
                 PathCommand::Cubic {
@@ -663,6 +677,11 @@ fn paint(
     Ok(())
 }
 
+fn image_matrix(world: Matrix, [width, height]: Point) -> Matrix {
+    // The first image sample row is at the top of the PDF unit square.
+    geometry::multiply(world, [width, 0., 0., -height, 0., height])
+}
+
 fn image(
     writer: &mut Writer,
     stream: &mut Stream,
@@ -693,8 +712,7 @@ fn image(
     };
     let id = writer.stream(&format!("/Type /XObject /Subtype /Image /Width {width} /Height {height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Interpolate false {mask}"), &rgb)?;
     stream.content.push_str("q\n");
-    // PDF images map the first sample row to the top of their unit square.
-    let matrix = geometry::multiply(world, [size[0], 0.0, 0.0, -size[1], 0.0, size[1]]);
+    let matrix = image_matrix(world, size);
     stream
         .content
         .push_str(&format!("{} cm\n", numbers(&matrix)?));
@@ -1142,6 +1160,17 @@ pub fn export_controlled(
         document,
         control.unwrap_or(&crate::control::Control::default()),
     )?;
+    if options.matte.is_some()
+        && (options.color != ColorDelivery::Display
+            || options.print.is_some()
+            || options.prepress.is_some()
+            || options.ink_recipe.is_some())
+    {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            "pdf_options.matte applies to vector display delivery. A flattened CMYK print request takes its own print.matte.",
+        ));
+    }
     if [
         options.print.is_some(),
         options.ink_recipe.is_some(),
@@ -1375,7 +1404,8 @@ pub fn export_controlled(
             default_rgb: writer.default_rgb,
             ..Stream::default()
         };
-        let artwork = if external {
+        let separate_artwork = external || options.matte.is_some();
+        let artwork = if separate_artwork {
             &mut logical_art
         } else {
             &mut stream
@@ -1396,23 +1426,65 @@ pub fn export_controlled(
                 FillRule::Nonzero,
             )?;
         }
+        let mut coverage = None;
         if external {
-            backdrop::render(&mut writer, artwork, page, &page_resources)?;
-            let id = writer.isolated_form(artwork)?;
-            stream.use_resource("XObject", id, "Do");
+            let paper = paper::coverage(page, logical, &page_resources.pixels, &writer.control)?;
+            backdrop::render(&mut writer, artwork, page, &page_resources, &paper)?;
+            coverage = Some(paper);
         } else {
             items(&mut writer, artwork, page, None, &page_resources, None)?;
+        }
+        if separate_artwork {
+            let id = writer.isolated_form(artwork)?;
+            if let Some([r, g, b]) = options.matte {
+                // The paper sits behind the finished artwork. It must never
+                // become the entry backdrop of an authored blend or knockout.
+                paint(
+                    &mut writer,
+                    &mut stream,
+                    &Geometry::Rect {
+                        x: 0.0,
+                        y: 0.0,
+                        width: logical[0],
+                        height: logical[1],
+                    },
+                    identity(),
+                    &Paint::Solid([r, g, b, 255]),
+                    identity(),
+                    FillRule::Nonzero,
+                )?;
+            }
+            stream.use_resource("XObject", id, "Do");
         }
         stream.content.push_str("Q\n");
         let mut page_group = format!(
             " /Group << /Type /Group /S /Transparency /CS {} /I true /K false >>",
             writer.group_space()
         );
+        let mut opaque_source = None;
         let (media, bounds, trim, mark_space) = if let Some(layout) = &marked {
             if writer.page_requires_backdrop && (!native_inks || writer.blend_space.is_some()) {
-                return Err(unsupported(
-                    "Marked pages with RGB blending require opaque knockout artwork. Keep the unmarked vector page or use prepress.marks for a flattened plate sheet.",
-                ));
+                if native_inks {
+                    return Err(unsupported(
+                        "Marked native inks with an RGB page profile require opaque knockout paints. Use an unmarked vector page or flattened prepress marks.",
+                    ));
+                }
+                opaque_source = if options.matte.is_some() {
+                    Some(json!({"source":"export_matte"}))
+                } else {
+                    match &coverage {
+                        Some(paper) => paper.receipt(),
+                        None => {
+                            paper::coverage(page, logical, &page_resources.pixels, &writer.control)?
+                                .receipt()
+                        }
+                    }
+                };
+                if opaque_source.is_none() {
+                    return Err(unsupported(
+                        "Marked RGB pages need opaque knockout paints or opaque paper across the bleed area. Choose pdf_options.matte or use an unmarked vector page.",
+                    ));
+                }
             }
             let bounds = layout.coordinates(layout.bleed);
             let placement = format!(
@@ -1433,8 +1505,8 @@ pub fn export_controlled(
             } else {
                 // Keep RGB blending and explicit source-profile conversions on
                 // the artwork. Passing All through them can erase spot marks.
-                let form = writer.stream(&format!("/Type /XObject /Subtype /Form /FormType 1 /BBox [0 0 {} {}] /Resources {}{page_group}",
-                    number(width)?, number(height)?, stream.dictionary(None)), stream.content.as_bytes())?;
+                let form = writer.form(&format!("/Type /XObject /Subtype /Form /FormType 1 /BBox [0 0 {} {}] /Resources {}{page_group}",
+                    number(width)?, number(height)?, stream.dictionary(None)), &stream)?;
                 page_group.clear();
                 stream = Stream {
                     content: placement,
@@ -1469,6 +1541,12 @@ pub fn export_controlled(
         references.push(format!("{id} 0 R"));
         let artboard_id = selection.map(|i| &document.items[i].id);
         let mut receipt = json!({"index":receipts.len(),"artboard_id":artboard_id,"logical_size":logical,"physical_points":[logical[0]*physical,logical[1]*physical],"resolution_ppi":ppi,"media_box":media,"trim_box":trim,"user_unit":user_unit,"coordinates":"pdf_bottom_left_in_user_units"});
+        if let Some(matte) = options.matte {
+            receipt["matte"] = json!(matte);
+        }
+        if let Some(source) = opaque_source {
+            receipt["opaque_rgb_paper"] = source;
+        }
         if let Some(layout) = &marked {
             receipt["artwork_physical_points"] = receipt["physical_points"].clone();
             receipt["physical_points"] = json!([layout.media[2], layout.media[3]]);
@@ -1533,6 +1611,9 @@ pub fn export_controlled(
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
     result["pdf"]["version"] = json!(version);
+    if options.matte.is_some() {
+        result["losses"].as_array_mut().unwrap().push(json!("The selected sRGB matte fills transparent areas behind the completed vector artwork. The PDF page is opaque throughout the artwork box."));
+    }
     if backdrop_groups > 0 {
         result["pdf"]["knockout_backdrop_groups"] = json!(backdrop_groups);
         result["losses"].as_array_mut().unwrap().push(json!("Backdrop-dependent knockout blends use PDF 2.0 transparency fields. Reader blending and intermediate mask precision can affect delivered colors."));

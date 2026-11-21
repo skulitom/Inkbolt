@@ -56,13 +56,26 @@ true, "registration": false}` for crop marks alone. Both display colour and
 `"color": "native_inks"` support marks. Paths and named inks keep their
 ordinary delivery semantics. The engine clips the artwork at the BleedBox
 and draws marks in the added margin using the PDF `All` separation.
-Marked RGB pages can carry opaque paints that replace the inks underneath.
-The page background can be transparent. Use unmarked vector delivery or explicit flattened
-prepress when the artwork needs RGB transparency blending or overprint.
+Opaque RGB paints can print on a clear page with marks. For translucent paint,
+masks, gradients or blend groups, the exporter checks that opaque artwork
+covers the full BleedBox of each selected page. It recognizes a visible raster
+document matte, an opaque rectangular fill, a frame background or an opaque
+image crop. Ancestor opacity, clips and masks affect this check. Multiple
+partial shapes may look opaque together without passing it.
+
+For display delivery on a chosen paper color, set `"pdf_options": {"marks": {},
+"matte": [42, 96, 178]}`. The three sRGB bytes set the paper behind the
+completed artwork. The color fills transparent areas and preserves how shapes
+blend with one another. The same matte is available without marks. Omitting it
+retains the document's own paper and allows clear areas in an unmarked export.
+When a marked page needs RGB blending, `pages[].opaque_rgb_paper` identifies
+the covering item, document matte or export matte. An explicit choice is also
+recorded in `pages[].matte`. If coverage cannot be established, preflight
+identifies the issue and publication leaves the destination free.
 Native CMYK page blending retains its existing vector transparency support.
 For a calibrated RGB-only page, the artwork's form carries the profile.
-Calibrated pages with named spots paint them directly and retain the declared
-profile in their `ArtworkBlend` resource.
+Calibrated native-ink pages require opaque knockout paints for marks. When a
+page uses named spots, its `ArtworkBlend` resource retains the declared profile.
 
 MediaBox and CropBox include the margin. The marked page receipt reports
 the full sheet in `physical_points`, the artwork including bleed in
@@ -70,8 +83,8 @@ the full sheet in `physical_points`, the artwork including bleed in
 `marks`. Gap, stroke width, length and radius use physical points at every
 page scale. For flattened native plates, use the existing
 [`pdf_options.prepress.marks` setting](VECTOR_PLATES.md).
-Rust callers using a full `pdf::Options` struct literal add `marks: None`
-for unmarked pages. Callers using `..Default::default()` already get that value.
+Rust callers using a full `pdf::Options` struct literal can use `marks: None` and
+`matte: None` for the default display output, or `..Default::default()`.
 
 ## Appearance contract
 
@@ -106,7 +119,7 @@ including off-view resources and unsupported items.
 ### Knockout groups
 
 In a source build after v0.84.0, a visible shape with zero item opacity can
-cut a hole in earlier siblings in an unmarked working-RGB PDF or on a
+cut a hole in earlier siblings in a working-RGB PDF or on a
 native CMYK page. Set `content.knockout:true` on the enclosing group. Paint alpha controls how
 much of the earlier artwork is removed. Item and fill opacity control how
 much of the incoming shape is painted. A half-transparent paint with item
@@ -151,9 +164,9 @@ of 32 nested form and soft-mask references. On a page that saves external
 backdrops, the writer additionally counts expanded resource visits,
 including repeated references to the same form or graphics state. The
 limit is 65,536 per page. Any exceeded limit returns `RESOURCE_LIMIT`
-before publication. RGB display delivery requires an unmarked page with the
-default working space or its explicit sRGB profile. A marked RGB page
-containing a painted knockout group requires flattened prepress delivery.
+before publication. RGB display delivery uses the default working space or its explicit sRGB
+profile. To add marks to a painted knockout group, provide opaque artwork
+across the bleed area or choose an export matte.
 Keep the snapshot for editable group
 controls. [Footprint equations](KNOCKOUT.md#pixel-equations) · [Reader measurements](DEVELOPMENT_STATUS.md#knockout-groups-in-vector-pdf)
 
@@ -181,9 +194,8 @@ selected pages. `pdf.grid_mask_samples` counts padded cells examined, including
 cells checked for uniform coverage. Those cells and `pdf.image_pixels` share
 the 4,194,304-sample budget across pages. Embedded mask samples round to
 16 bits. Fine check patterns and stripes can look softer than the PNG proof. Use an
-overprint-capable separation preview to inspect masked inks. An opaque field
-can pass the marked RGB page check. A field with partial coverage needs an
-unmarked page or flattened prepress delivery.
+overprint-capable separation preview to inspect masked inks. On marked RGB pages, masks with partial
+coverage can print over document paper or an explicit export matte.
 [Mask coordinates and feathering](MASKS.md#numerical-contract) · [Measured reader differences](DEVELOPMENT_STATUS.md#grayscale-masks-in-vector-pdf)
 
 ### Masks made from editable artwork
@@ -204,9 +216,8 @@ ink and overprint still reach the page.
 
 `pdf.artwork_masks.alpha` and `pdf.artwork_masks.luminance` count painted
 references across the selected pages. Placed mask paths consume the PDF path
-and object budgets. They generate no image samples. Unmarked RGB and native
-CMYK pages can carry these masks. A marked page that needs RGB transparency
-returns a preflight issue. Readers can differ in edge sampling and rounding.
+and object budgets. They generate no image samples. RGB and native CMYK pages can carry these masks. Marked RGB transparency
+requires [opaque paper across the bleed area](#crop-and-registration-marks). Readers can differ in edge sampling and rounding.
 [Source and placement rules](ARTWORK_MASKS.md) · [Reader measurements](DEVELOPMENT_STATUS.md#artwork-masks-in-vector-pdf)
 
 ### Gradients that fade to transparent
@@ -233,13 +244,12 @@ strokes. Equal stop opacities use one constant graphics-state opacity.
 `pdf.gradient_opacity_masks` counts the varying-opacity paints on the
 selected pages. A repeated offset makes a hard stop. At output pixels that
 touch the stop, readers can render visibly different edge colors. The receipt
-flags that behavior. Marked RGB pages still require opaque artwork.
+flags that behavior. A marked RGB page can carry a fading gradient over opaque paper.
 [Measured examples](DEVELOPMENT_STATUS.md#gradient-opacity-in-vector-pdf) · [PDF transparency specification](https://pdfa.org/resource/iso-32000-2/)
 
 ### RGB blend modes
 
-Source builds after v0.84.0 preserve standard blend modes on unmarked display
-PDFs. For example, a vector shape with `"blend":"multiply"` stays a vector
+Source builds after v0.84.0 preserve standard blend modes on display PDFs. For example, a vector shape with `"blend":"multiply"` stays a vector
 path and multiplies against the artwork beneath it. Inkbolt applies the blend
 once to the composed fill and stroke. An isolated group's blend applies to
 its combined children. Children of pass-through groups see the surrounding
@@ -251,7 +261,7 @@ saturation, color and luminosity. `capabilities.pdf.display_blend_modes` lists
 the request values. `pdf.blend_modes` identifies the non-normal PDF operators
 actually used. The page can use default DeviceRGB or the exact working sRGB
 profile. Other blending profiles and native ink delivery reject non-normal
-vector blends. RGB printer's marks retain their opaque-artwork restriction.
+vector blends. For marks and blends on the same page, follow the [full-bleed paper rules](#crop-and-registration-marks).
 
 On a page with blending, Inkbolt writes solid 8-bit path colors as exact RGB
 bytes in indexed PDF color spaces. This keeps adjacent source colors distinct

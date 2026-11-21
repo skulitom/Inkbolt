@@ -79,7 +79,7 @@ Documents without knockout allocate no retained shape fields.
 
 SVG export rejects stored knockout, including hidden groups, because the
 current exporter cannot preserve it. Snapshot and PNG export remain available.
-Unmarked working-RGB PDFs and native CMYK PDFs can carry vector knockout
+Working-RGB PDFs and native CMYK PDFs can carry vector knockout
 groups, including zero-opacity cutouts and masked paths. The PDF contract
 covers nested groups, spot overprint, marks and output profiles. [PDF delivery](PDF.md#knockout-groups)
 Ungroup rejects a knockout group or a group directly inside a knockout parent:
