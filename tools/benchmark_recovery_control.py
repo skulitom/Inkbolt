@@ -64,6 +64,7 @@ class RecoveryControl:
         require(isinstance(command,str) and isinstance(arguments,dict),'Invalid engine command')
         require(not {'command','step'}&set(arguments),'Command and step belong at message level, not in arguments')
         require('judge_workspace' not in arguments,'Clients cannot select a judge workspace')
+        require('allow_busy_wait' not in arguments,'Clients observe job contention through the engine response')
         expected=message.get('expected_error')
         try:value=case.call(step,command,expected_error=expected,retry_of=message.get('retry_of'),preview=message.get('preview',False),**arguments)
         except Exception:

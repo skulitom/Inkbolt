@@ -43,11 +43,18 @@ def authored(asset):
         rectangle('badge',32,40,24,20,GREEN)])
 
 
-def terminal(case,request_id,expected):
+def terminal(wait,request_id,expected):
     deadline=time.monotonic()+25
+    retry_of=None
     for index in range(30):
         require(time.monotonic()<deadline,'Background output exceeded its observation deadline')
-        result=case.call(f'{request_id}-wait-{index}','job.wait',request_id=request_id,wait_ms=1000)
+        step=f'{request_id}-wait-{index}'
+        result=wait(step,request_id,retry_of)
+        if result.get('code')=='JOB_BUSY':
+            retry_of=step
+            time.sleep(min(.05,max(0.,deadline-time.monotonic())))
+            continue
+        retry_of=None
         if result['state'] not in ('queued','running'):
             require(result['state']==expected,'Unexpected final job state: '+str(result))
             return result
@@ -55,6 +62,10 @@ def terminal(case,request_id,expected):
 
 
 def solve(case):
+    def wait(step,request_id,retry_of):
+        return case.call(step,'job.wait',request_id=request_id,wait_ms=1000,
+                         retry_of=retry_of,allow_busy_wait=True)
+
     asset=case.call('image','asset.import',source_path='original.png')['asset']
     saved=store(case,authored(asset))
     preview=case.call('preview','document.preview',document=saved,options=dict(focus=dict(type='region',bounds=[32,40,56,60])),preview=True)
@@ -64,7 +75,7 @@ def solve(case):
     with case.launch_boundary('cancel-start','job.start','cancel',**args) as cancelling:
         case.event('cancel-requested',request_id='cancel',runner=cancelling['runner'])
         case.call('cancel','job.cancel',request_id='cancel')
-    attempts['cancelled']=terminal(case,'cancel','cancelled')
+    attempts['cancelled']=terminal(wait,'cancel','cancelled')
     attempts['cancel-resume']=case.call('cancel-resume','job.resume',request_id='cancel')
     attempts['cancel-error']=case.call('cancel-result','job.result',request_id='cancel',expected_error='JOB_NOT_COMPLETED')
     # Admit revision 0 before the revision 1 edit using an OS queue lease,
@@ -82,7 +93,7 @@ def solve(case):
     attempts['interrupted-error']=case.call('interrupted-result','job.result',request_id='recover',expected_error='JOB_NOT_COMPLETED')
     case.output_checkpoint('after-inspection')
     case.call('restart','job.resume',request_id='recover')
-    attempts['completed']=terminal(case,'recover','completed')
+    attempts['completed']=terminal(wait,'recover','completed')
     attempts['receipt']=case.call('result','job.result',request_id='recover')
     case.output_checkpoint('before-replays')
     source_snapshot(case,ref(1))

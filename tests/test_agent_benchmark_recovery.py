@@ -1,9 +1,11 @@
 """Release-compatible recovery faults, complete process accounting and cleanup."""
 import ctypes
 import copy
+from contextlib import closing
 from ctypes import wintypes as w
 import json
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -16,7 +18,7 @@ sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
 from benchmark_recovery_runtime import RecoveryTrial,process_ids
 from benchmark_runtime import TaskFailure
-from benchmark_recovery import fixture,solve,durable_inputs,judge_retained,PROMPT
+from benchmark_recovery import fixture,solve,durable_inputs,judge_retained,terminal,PROMPT
 from benchmark_tasks import CHECKS
 from workload_cases import sha
 
@@ -24,6 +26,37 @@ from workload_cases import sha
 class RecoveryBenchmarkTests(unittest.TestCase):
     def setUp(self):
         require_capability(self, "jobs")
+
+    def test_busy_wait_retries_the_same_observation_and_counts_both_responses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for transport in ('cli','mcp'):
+                with self.subTest(transport=transport):
+                    case=RecoveryTrial(EXE,Path(directory)/transport,'B19',1,transport,[])
+                    try:
+                        case.begin('Observe a cancelled job while its queue is briefly locked')
+                        doc=case.call('create','document.create',id='sample',kind='vector',width=8,height=8)
+                        with case.blocked_queue():
+                            case.call('start','job.start',request_id='sample',document=doc,
+                                      output=dict(file_name='sample.png',format='png'))
+                            case.call('cancel','job.cancel',request_id='sample')
+                        with closing(sqlite3.connect(case.ledger)) as writer:
+                            writer.execute('BEGIN EXCLUSIVE')
+                            def wait(step,request_id,retry_of):
+                                try:
+                                    return case.call(step,'job.wait',request_id=request_id,wait_ms=1000,
+                                                     retry_of=retry_of,allow_busy_wait=True)
+                                finally:
+                                    writer.rollback()
+                            self.assertEqual(terminal(wait,'sample','cancelled')['state'],'cancelled')
+                        busy,observed=case.calls[-2:]
+                        self.assertEqual((busy['status'],busy['engine_error']['code']),('expected_error','JOB_BUSY'))
+                        self.assertEqual((observed['status'],observed['retry_of']),('success',busy['step']))
+                        self.assertEqual(busy['request_sha256'],observed['request_sha256'])
+                        self.assertTrue(all(r['response_bytes']>0 for r in (busy,observed)))
+                        self.assertEqual(case.finish()['retries'],1)
+                        self.assertFalse((case.root/'sample.png').exists())
+                    finally:
+                        case.close()
 
     def test_exited_command_identity_survives_until_the_trial_closes(self):
         with tempfile.TemporaryDirectory() as directory:

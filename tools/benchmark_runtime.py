@@ -261,7 +261,7 @@ class Trial:
     def extra_results(self):
         return {}
 
-    def call(self, step, command, *, expected_error=None, retry_of=None, discard=False, preview=False, judge_workspace=None, **arguments):
+    def call(self, step, command, *, expected_error=None, retry_of=None, discard=False, preview=False, judge_workspace=None, allow_busy_wait=False, **arguments):
         require(self.agent_started is not None, 'Start the task before making measured calls')
         if judge_workspace is not None:
             from pathlib import Path
@@ -308,6 +308,9 @@ class Trial:
             self.results[step] = copy.deepcopy(envelope)
             if not envelope['ok']:
                 row['engine_error'] = envelope.get('error')
+                if (allow_busy_wait and command == 'job.wait' and expected_error is None
+                        and isinstance(row['engine_error'], dict) and row['engine_error'].get('code') == 'JOB_BUSY'):
+                    expected_error = row['expected_error'] = 'JOB_BUSY'
             if expected_error is not None:
                 require(not envelope['ok'] and envelope.get('error',{}).get('code') == expected_error,
                         'Expected diagnostic did not occur')

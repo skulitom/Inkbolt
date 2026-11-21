@@ -2,7 +2,7 @@
 import base64
 from pathlib import Path
 
-from benchmark_recovery import authored
+from benchmark_recovery import authored,terminal
 from benchmark_graphics import ORANGE
 from workload_cases import save,save_json
 
@@ -18,18 +18,19 @@ def solve(root,send):
         return response['result']
     def control(step,name,**arguments):
         response=send(dict(step=step,control=name,arguments=arguments));assert response['ok'],response
-    def terminal(request_id,state):
-        for i in range(30):
-            value=call(request_id+'-wait-'+str(i),'job.wait',request_id=request_id,wait_ms=1000)
-            if value['state'] not in ('queued','running'):
-                assert value['state']==state,value;return value
-        raise RuntimeError('Recovery did not finish')
+    def wait(step,request_id,retry_of):
+        response=send(dict(step=step,command='job.wait',arguments=dict(request_id=request_id,wait_ms=1000),
+                           retry_of=retry_of))
+        if not response['ok']:
+            assert response['error']['code']=='JOB_BUSY',response
+            return response['error']
+        return response['result']
     asset=call('image','asset.import',source_path='original.png')['asset']
     saved=call('save','session.create',session_id='work',request_id='create',document=authored(asset),response_mode='compact')['document_ref']
     preview=call('preview','document.preview',document=saved,options=dict(focus=dict(type='region',bounds=[32,40,56,60])))
     save(root/'preview.png',base64.b64decode(preview['artifact']['data'],validate=True))
     control('cancel','cancel-active',document=saved,output=dict(file_name='cancelled.png',format='png'))
-    attempts={};attempts['cancelled']=terminal('cancel','cancelled')
+    attempts={};attempts['cancelled']=terminal(wait,'cancel','cancelled')
     attempts['cancel-resume']=call('cancel-resume','job.resume',request_id='cancel')
     attempts['cancel-error']=call('cancel-result','job.result',request_id='cancel',expected_error='JOB_NOT_COMPLETED')
     control('gate','hold-queue')
@@ -42,7 +43,7 @@ def solve(root,send):
     attempts['interrupted-wait']=call('interrupted-wait','job.wait',request_id='recover',wait_ms=0)
     attempts['interrupted-error']=call('interrupted-result','job.result',request_id='recover',expected_error='JOB_NOT_COMPLETED')
     call('restart','job.resume',request_id='recover')
-    attempts['completed']=terminal('recover','completed');attempts['receipt']=call('result','job.result',request_id='recover')
+    attempts['completed']=terminal(wait,'recover','completed');attempts['receipt']=call('result','job.result',request_id='recover')
     call('editable','document.publish',document=dict(session_id='work',revision=1),output=dict(format='snapshot',file_name='editable.json'))
     attempts['start-replay']=call('start-replay','job.start',request_id='recover',retry_of='recover-start',**args)
     attempts['resume-completed']=call('resume-completed','job.resume',request_id='recover',retry_of='restart')

@@ -527,7 +527,11 @@ retain their own baselines and budgets; task timings here do not replace them.
 Use `python tools/verify.py --only test_agent_benchmark` for the common adapters.
 Use `--only test_benchmark_diagram` for the separated B01 contract.
 The photo and recovery workflows have focused `test_agent_benchmark_photo` and
-`test_agent_benchmark_recovery` modules. `test_agent_benchmark_handoff` checks
+`test_agent_benchmark_recovery` modules. During B19, the scripted clients repeat
+a `job.wait` observation if the queue returns `JOB_BUSY`. Each retry retains
+the request, response and traffic counts within the original 25-second deadline.
+The required terminal state and publication checks still apply.
+`test_agent_benchmark_handoff` checks
 fail-closed dependencies, independent alpha/time expectations and owned process
 accounting/cleanup without external media tools. It does not substitute for B20:
 run the release driver with `--task B20 --repetitions 1` and all three executable

@@ -9,7 +9,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock,patch
 
 from test_cli import EXE,ROOT
 from platform_support import require_capability
@@ -19,9 +19,22 @@ from benchmark_runtime import TaskFailure
 from test_benchmark_driver import driver,fake_tools
 from benchmark_recovery_external import validate_capture
 from benchmark_recovery_control import RecoveryControl
+from benchmark_recovery import terminal
 
 
 class RecoveryPlatformTests(unittest.TestCase):
+    def test_wait_contention_keeps_the_deadline_and_requires_the_requested_terminal_state(self):
+        wait=Mock(return_value={'code':'JOB_BUSY'})
+        with patch('benchmark_recovery.time.monotonic',side_effect=[0,1,25,25]),patch('benchmark_recovery.time.sleep'):
+            with self.assertRaisesRegex(TaskFailure,'observation deadline'):
+                terminal(wait,'recover','completed')
+        wait.assert_called_once_with('recover-wait-0','recover',None)
+        outcomes=[{'code':'JOB_BUSY'},{'state':'running'},{'state':'cancelled'}]
+        wait=Mock(side_effect=outcomes)
+        with patch('benchmark_recovery.time.sleep'),self.assertRaisesRegex(TaskFailure,'Unexpected final job state'):
+            terminal(wait,'recover','completed')
+        self.assertEqual([call.args[2] for call in wait.call_args_list],[None,'recover-wait-0',None])
+
     def test_reserved_command_fields_fail_explicitly_before_engine_execution(self):
         def unexpected(*args,**kwargs):raise AssertionError('Malformed bridge message reached the engine')
         with tempfile.TemporaryDirectory() as directory:
