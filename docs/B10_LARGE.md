@@ -24,6 +24,47 @@ keeps an editable native TIFF, the same exact samples and preview; engine-only
 checks are explicitly inapplicable. Fixtures and outputs use file streams;
 metadata and transcript bounds remain separate.
 
+## Five matched Windows trials
+
+On 21 November 2026, Codex CLI 0.164.0 ran the same 50 MP task five times
+with Inkbolt and five times with the no-engine baseline. Both arms used the
+externally selected `gpt-6.1-sol` model with medium reasoning, the same host,
+prompt, TIFF and frozen source. The five Inkbolt runs preceded the baseline
+batch. Desktop and remote-service load could vary. The October pilot is separate.
+
+| Outcome or median per attempt | Inkbolt | No-engine baseline |
+| --- | ---: | ---: |
+| Accepted TIFF, preview and preserved source | 5/5 | 5/5 |
+| Complete applicable workflow | 5/5 | 5/5 |
+| Native import, immutable blocks, reviewed edit and history (seven checks) | 7/7 in every trial | Outside baseline scope |
+| Input + output tokens, cached input counted once | 654,324 | 79,002 |
+| Cached input tokens | 585,344 | 44,416 |
+| Agent time | 169.6 s | 68.7 s |
+| Largest single-process peak commit in the owned client tree | 58.11 MiB | 44.20 MiB |
+
+The baseline agents used the pinned Python environment and Pillow 12.3.0.
+Both arms passed the full-image sample and focused-preview comparisons.
+Five successes give a 95% Wilson interval of 56.6%–100% for each arm.
+Inkbolt used 8.28 times the median input-plus-output tokens. Its assignment
+also required a reviewed proposal, immutable blocks and historical deliveries.
+Underlying model-call counts, engine-only traffic and time to the first verified
+preview remain unmeasured. The memory row includes the client and its tools.
+
+All five Inkbolt agents used the CLI. In three transcripts, printing the
+dry-run result exposed over a million characters of output in one shell
+step, including hex-encoded native pixels. The task requires the full review
+on disk. Its `proposal` field, needed for the commit, occupied just 359–367
+bytes in compact JSON. An agent can read that field and the change summary
+from the saved review. [Session proposals](SESSION_PROPOSALS.md)
+
+Prioritize keeping full reviews on disk and returning selected fields to the
+agent. Test that change with the same prompt, artifact checks and history checks
+before claiming lower cost. This comparison covers one large-photo variant.
+The retained set is `b10-large-matched-windows-01`. All ten captured transcripts,
+prompts and original TIFF hashes were verified. The comparison report SHA-256 is
+`cffd9938f08af39342624b3345b05ab29d58ed3fa741963bfca6ef1ca5c88308`.
+[Measured source revision](https://github.com/skulitom/Inkbolt/commit/e4529266b79a07b89dd5f5a7f1711da2dd366a16)
+
 ## Linux address-space experiment
 
 Run the original 50 MP reference task with a 512 MiB limit on each Inkbolt
@@ -120,8 +161,7 @@ This single matched pair establishes neither equivalence nor efficiency. It
 shows substantial token overhead in the engine arm. Engine traffic, retries,
 underlying model-call counts and verified-preview timing remain unknown where
 the client did not report them. The comparison has no matching/evidence issues,
-but `decision_ready` and full original-suite completion remain false. Five
-matched repetitions and the broader W2 gates are separate work.
+but the pilot did not meet the five-repetition threshold.
 
 Two initial pilot attempts stopped before contacting a model because the Codex
 adapter refused fixtures over 128 MiB. Those failed preparations remain retained.

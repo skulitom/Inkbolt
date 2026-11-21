@@ -54,7 +54,7 @@ fill. Undo restored the starting SVG byte for byte. [Restored SVG](https://skuli
 
 Measured Windows and Linux workflows include a 24 MP JPEG import, a 50 MP
 16-bit edit through undo and TIFF export, A2 delivery at 300 ppi and an
-8192 × 8192 PNG render. [Measured workflows](docs/SCALE_WORKLOADS.md) · [Engine limits](docs/LIMITS.md) · [Release notes](https://github.com/skulitom/Inkbolt/releases/latest)
+8192 × 8192 PNG render. [Measured workflows](docs/SCALE_WORKLOADS.md) · [50 MP agent trials](docs/B10_LARGE.md#five-matched-windows-trials) · [Engine limits](docs/LIMITS.md)
 
 The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.

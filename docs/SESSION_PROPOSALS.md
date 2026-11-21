@@ -30,6 +30,12 @@ stores that state and receipt; the committed document omits `staged`. Preview
 pixels still use the private blocks before commit. This does not change legacy
 patch documents or their historical fingerprints.
 
+When a delivery requires the full review, save the CLI envelope's `result`
+object to a new file. Read `base_ref`, `difference` and `predicted_receipt`
+from that file to inspect the change. For the commit, read `proposal` from
+the same file and pass it with the original `action`. This keeps the full
+native tile data available on disk without printing it into the agent's context.
+
 ## Apply exactly the reviewed content
 
 Call `session.apply_proposal` with `session_root` (or its workspace default), the returned `proposal` object and the same `action`. Both commands are direct tools in the core MCP catalog. CLI, MCP and the Rust library use the same preparation and atomic commit path. Optional `response_mode:"compact"` returns the normal pinned session receipt summary.
