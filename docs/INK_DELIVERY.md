@@ -65,8 +65,8 @@ their paints interact with the existing backdrop. Leaf item/fill opacity applies
 once through a nonisolated group, retaining overprint interaction. Actual groups
 and frames retain their established isolation: inks outside an isolated group
 are not its internal backdrop. Paint alpha, item opacity and group opacity are
-separate controls. Existing PDF exclusions for effects, masks, non-normal blends,
-profiles and other unsupported content continue to apply.
+separate controls. Native ink vector delivery rejects non-normal blend modes.
+Unmarked display pages support the [standard RGB blend modes](PDF.md#rgb-blend-modes).
 
 This follows the public PDF overprint and transparency model; see the
 [PDF Association's overprint explanation](https://pdfa.org/understanding-overprint/).

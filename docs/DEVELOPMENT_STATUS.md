@@ -30,6 +30,55 @@ space through the final judge response. Both transports delivered the same
 TIFFs and PNG as the earlier unrestricted Linux and Windows references.
 The benchmark retains its separate peak-commit verdict.
 
+## Vector PDF blend delivery
+
+The B14 page workflow and W6a.3 require artwork to survive PDF delivery.
+At `56b6124` a display-RGB rectangle with `blend:"multiply"` fails export.
+The acceptance fixture checks standard blend operators on paths and composed
+groups, transparent and opaque backdrops, partial opacity and a pass-through
+parent. Unsupported modes or blending spaces identify the item before
+publication. The original B14 scores describe the original unblended fixture.
+
+The emitted PDF applies each blend to the completed form. Four sheets cover
+all 16 standard modes, including normal, opaque and transparent backdrops,
+fill/stroke overlap and full or faded pass-through groups. Each sheet uses
+default device RGB or an explicitly assigned working sRGB profile. Windows
+and WSL Linux produced byte-identical PDFs and PNGs. MuPDF 1.26.12 rendered
+all 2,560 pixels per platform within three 8-bit channel levels of the
+Inkbolt preview composited onto white. All 138 independently calculated color
+samples per platform met the same tolerance. The exports contain paths and
+zero embedded image pixels.
+
+Poppler 26.07.0 matched 67 of the 69 default-RGB samples within this tolerance.
+At the two singular burn/dodge inputs it produced the older endpoint on one
+channel. Those exports use PDF 2.0 and include a reader-compatibility loss.
+
+A second test used 24 seeded RGBA pairs and four deliberately sensitive pairs
+for each of the 16 modes. Before the exporter preserved solid RGB operands as
+exact bytes, MuPDF rendered the red channel of an opaque dodge sample at 0
+instead of 255. The new output gives 255 in both readers. The table compares
+all 448 samples with the independent color formulas.
+
+| Rendering path | Samples within three 8-bit levels | Largest channel difference |
+| --- | ---: | ---: |
+| Inkbolt PNG on white | 448/448 | 1 |
+| Poppler 26.07.0, Windows | 448/448 | 2 |
+| Poppler 22.02.0, Ubuntu 22.04 | 417/448 | 97 |
+| MuPDF 1.26.12, Windows and WSL Linux | 440/448 | 69 |
+
+MuPDF differed by four to six levels on six translucent patches. On opaque
+near-neutral colors it differed by 69 levels for hue and 54 for saturation.
+An independent minimal PDF using the same exact RGB lookup bytes reproduced
+both near-neutral differences. The Ubuntu Poppler differences on the wider
+palette were all in hue or saturation. The test renders an independent PDF
+with directly painted patches to distinguish each reader's own color behavior
+from errors in Inkbolt's grouped paths. The receipt flags this variation. Across
+all 20 sheets, Windows and Linux produced identical PDFs, native preview pixels
+and MuPDF pixels. Workspace preflight, MCP create-only publication and CLI
+export cover the same forms. The fixtures, seed and independent checks are in
+[`test_pdf_blends_cli`](../tests/test_pdf_blends_cli.py).
+The extended page-exchange checkpoint remains open.
+
 ## Marked vector print pages
 
 The B14 print benchmark already covers unmarked pages with native inks and

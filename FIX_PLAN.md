@@ -39,6 +39,7 @@ standing authorization.
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |
 | W3c | The original advanced Boolean criterion is verified. New edits preserve Bézier handles by default across shared boundaries, self-intersections, disjoint regions and declared approximate tangencies. [Geometry and workflow evidence](docs/DEVELOPMENT_STATUS.md#curved-boolean-checkpoint-evidence) · [Precision and atomic edits](docs/BOOLEANS.md) · [Performance limits](docs/BOOLEAN_PERFORMANCE.md) | Preserve the declared strict refusals, historical retries and explicit polygon option. Evaluate model efficiency in W2 |
 | W4 / W5.2+ / W6 | The four [scale workflows](docs/SCALE_WORKLOADS.md) pass five repeats on Windows and Linux. Windows measures peak commit. Linux measures RSS under a 512 MiB address-space limit. [Layered import](docs/LAYERED_NATIVE_IMPORT.md#seekable-input-acceptance-23-october-2026) has independent 8192 x 8192 sample checks. The [Linux B10 reference](docs/B10_LARGE.md#linux-address-space-experiment) passes over MCP and CLI. | Close the [field-discovery experiment](docs/B10_LARGE.md#finding-the-publication-inputs). Both arms delivered 5/5, with zero full publication-schema fetches and 8.82× median tokens for Inkbolt. Carry overall interaction cost into W2. Linux peak commit, layered input/output beyond the verified RGB8 and metadata contracts, full W4 and three original interchange checkpoints remain open. [Raster milestone evidence](docs/DEVELOPMENT_STATUS.md) |
+| W6a.3 | Unmarked working-RGB PDFs retain [standard blend operators and paths](docs/PDF.md#rgb-blend-modes). The receipt describes reader differences for burn/dodge endpoints, partial opacity and near-neutral colors | Soft masks from engine masks, varying-alpha gradients and knockout groups remain open. Preserve explicit color-space and print-mark boundaries |
 | W6a.4 | [Marked vector pages](docs/DEVELOPMENT_STATUS.md#marked-vector-print-pages) retain paths and named inks with independent media, bleed and trim boxes. All 55 plate comparisons passed across eleven sheets, including the A4 print fixture | Marked RGB transparency, searchable fonts and editable page reimport remain open |
 | W7 / W8 | [v0.84.0](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) shipped four native archives with checked inventories, an offline postcard, checksums and a Windows extension. [Release verification](docs/PLATFORMS.md#v0840-platform-checks) covers tag-bound attestations, source installation and prior saved edits. The README shows a verified before-and-after edit | Keep installation and platform evidence current. Extend examples and publish comparable model outcomes as W2 advances. Registry publication remains separate |
 | W9 | Deferred, outside active scope | No learned-model plugin work |
@@ -693,8 +694,9 @@ Current state (`src/pdf.rs` and the `src/pdf/` submodules):
 - **Text** is painted as glyph outlines (~558-576). There is no font embedding,
   subsetting or ToUnicode.
 - **Streams** are unfiltered (~124).
-- **Preflight** refuses non-normal blends, knockout, active masks, effects and
-  more (~464-523).
+- **Preflight** admits standard blends on unmarked working-RGB display pages.
+  Unsupported blend modes, knockout, active masks and effects still fail
+  explicitly. See the [PDF appearance contract](docs/PDF.md#rgb-blend-modes).
 - **Page boxes:** vector pages and flattened native prepress both separate
   the bleed box from the marked sheet. See the
   [marked vector checks](docs/DEVELOPMENT_STATUS.md#marked-vector-print-pages).
@@ -717,8 +719,8 @@ Tasks:
 2. **Compression.** Flate-compress content streams (flate2 is already locked).
 3. **Transparency.**
    - Soft masks from engine masks.
-   - `/BM` for the blend modes PDF defines; flatten or refuse the rest
-     explicitly per mode.
+   - Unmarked working-RGB display pages now retain the standard `/BM`
+     operators. Other modes fail explicitly.
    - Knockout groups and gradients with varying alpha.
 4. **Page boxes.** Make BleedBox independent of MediaBox when marks or slug
    extend the media.

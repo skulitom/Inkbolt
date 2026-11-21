@@ -1,4 +1,4 @@
-//! Original PDF 1.7 appearance delivery using paths, transparency groups and images.
+//! Original PDF appearance delivery using paths, transparency groups and images.
 //! Snapshots remain the editable source; no external application or converter is used.
 use crate::{
     Error, ExportFormat, assets, boards, geometry, metadata, model::*, scene, sessions::Resources,
@@ -91,6 +91,8 @@ struct Writer {
     ink_spaces: BTreeMap<String, usize>,
     page_has_spot_paint: bool,
     page_requires_backdrop: bool,
+    page_uses_blends: bool,
+    non_normal_modes: BTreeSet<&'static str>,
     device_profiles: BTreeMap<String, usize>,
     blend_space: Option<String>,
     default_rgb: Option<usize>,
@@ -175,12 +177,19 @@ impl Writer {
         }
         Ok(())
     }
-    fn finish(self, root: usize, info: usize) -> Result<Vec<u8>, Error> {
-        let mut bytes = if self.explicit_black_point {
-            b"%PDF-2.0\n%\xe2\xe3\xcf\xd3\n".to_vec()
+    fn corrected_blend_endpoints(&self) -> bool {
+        self.non_normal_modes.contains("ColorDodge") || self.non_normal_modes.contains("ColorBurn")
+    }
+    fn version(&self) -> &'static str {
+        if self.explicit_black_point || self.corrected_blend_endpoints() {
+            "2.0"
         } else {
-            b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n".to_vec()
-        };
+            "1.7"
+        }
+    }
+    fn finish(self, root: usize, info: usize) -> Result<Vec<u8>, Error> {
+        let mut bytes = format!("%PDF-{}\n", self.version()).into_bytes();
+        bytes.extend_from_slice(b"%\xe2\xe3\xcf\xd3\n");
         let mut offsets = vec![0];
         self.control.check()?;
         for (i, object) in self.objects.iter().enumerate() {
@@ -212,6 +221,7 @@ impl Writer {
 struct Stream {
     content: String,
     resources: BTreeMap<&'static str, BTreeSet<usize>>,
+    rgb8_solids: BTreeSet<String>,
     default_rgb: Option<usize>,
     artwork_blend_space: Option<String>,
 }
@@ -231,6 +241,15 @@ impl Stream {
                 )
             })
             .collect();
+        if !self.rgb8_solids.is_empty() {
+            let base = self
+                .default_rgb
+                .map_or_else(|| "/DeviceRGB".into(), |id| format!("{id} 0 R"));
+            let spaces = entries.entry("ColorSpace").or_default();
+            for rgb in &self.rgb8_solids {
+                spaces.push(format!("/C{rgb} [/Indexed {base} 0 <{rgb}>]"));
+            }
+        }
         if let Some(id) = self.default_rgb {
             entries
                 .entry("ColorSpace")
@@ -257,10 +276,42 @@ impl Stream {
         format!("<< {entries} >>")
     }
 }
-fn alpha(writer: &mut Writer, stream: &mut Stream, opacity: f64) -> Result<(), Error> {
-    writer.page_requires_backdrop |= opacity != 1.0;
+pub(crate) fn blend_name(mode: BlendMode) -> Option<&'static str> {
+    Some(match mode {
+        BlendMode::Normal => "Normal",
+        BlendMode::Multiply => "Multiply",
+        BlendMode::Screen => "Screen",
+        BlendMode::Darken => "Darken",
+        BlendMode::Lighten => "Lighten",
+        BlendMode::ColorBurn => "ColorBurn",
+        BlendMode::ColorDodge => "ColorDodge",
+        BlendMode::Overlay => "Overlay",
+        BlendMode::HardLight => "HardLight",
+        BlendMode::SoftLight => "SoftLight",
+        BlendMode::Difference => "Difference",
+        BlendMode::Exclusion => "Exclusion",
+        BlendMode::Hue => "Hue",
+        BlendMode::Saturation => "Saturation",
+        BlendMode::Color => "Color",
+        BlendMode::Luminosity => "Luminosity",
+        _ => return None,
+    })
+}
+
+fn graphics_state(
+    writer: &mut Writer,
+    stream: &mut Stream,
+    opacity: f64,
+    mode: BlendMode,
+) -> Result<(), Error> {
+    let name =
+        blend_name(mode).ok_or_else(|| unsupported("Blend mode has no standard PDF equivalent"))?;
+    if mode != BlendMode::Normal {
+        writer.non_normal_modes.insert(name);
+    }
+    writer.page_requires_backdrop |= opacity != 1.0 || mode != BlendMode::Normal;
     let id = writer.add(format!(
-        "<< /Type /ExtGState /ca {} /CA {} /BM /Normal /SMask /None /OP false /op false /OPM 0 >>",
+        "<< /Type /ExtGState /ca {} /CA {} /BM /{name} /SMask /None /OP false /op false /OPM 0 >>",
         number(opacity)?,
         number(opacity)?
     ))?;
@@ -405,16 +456,21 @@ fn paint(
     stream.content.push_str("q\n");
     match paint {
         Paint::Solid(color) => {
-            alpha(writer, stream, color[3] as f64 / 255.0)?;
-            stream.content.push_str(&format!(
-                "{} rg\n",
-                numbers(
-                    &color[..3]
-                        .iter()
-                        .map(|&v| v as f64 / 255.0)
-                        .collect::<Vec<_>>()
-                )?
-            ));
+            graphics_state(writer, stream, color[3] as f64 / 255.0, BlendMode::Normal)?;
+            let [r, g, b, _] = *color;
+            if writer.page_uses_blends {
+                // A reader truncating a decimal RGB operand by one byte level
+                // can turn a near-neutral hue gray or reverse a dodge result.
+                // A single-entry Indexed space carries the source bytes exactly.
+                let rgb = format!("{r:02x}{g:02x}{b:02x}");
+                stream.content.push_str(&format!("/C{rgb} cs 0 scn\n"));
+                stream.rgb8_solids.insert(rgb);
+            } else {
+                let components = [r, g, b].map(|v| f64::from(v) / 255.0);
+                stream
+                    .content
+                    .push_str(&format!("{} rg\n", numbers(&components)?));
+            }
             writer.path(&mut stream.content, shape, shape_matrix)?;
             stream.content.push_str(if rule == FillRule::EvenOdd {
                 "f*\n"
@@ -425,7 +481,7 @@ fn paint(
         Paint::Field(field) => {
             let (shading, opacity) = gradient(writer, field)?;
             clip(writer, stream, shape, shape_matrix, rule)?;
-            alpha(writer, stream, opacity as f64 / 255.0)?;
+            graphics_state(writer, stream, opacity as f64 / 255.0, BlendMode::Normal)?;
             stream.content.push_str(&format!(
                 "{} cm\n",
                 numbers(&geometry::multiply(paint_matrix, field.transform()))?
@@ -433,7 +489,7 @@ fn paint(
             stream.use_resource("Shading", shading, "sh");
         }
         Paint::Precise(color) => {
-            alpha(writer, stream, color.rgba[3])?;
+            graphics_state(writer, stream, color.rgba[3], BlendMode::Normal)?;
             stream
                 .content
                 .push_str(&format!("{} rg\n", numbers(&color.rgba[..3])?));
@@ -498,12 +554,17 @@ fn image(
     Ok(())
 }
 
-fn preflight(document: &Document) -> Result<(), Error> {
+fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
     let mut stroke_commands = 0;
     let mut pixels = 0;
     for (i, item) in document.items.iter().enumerate() {
-        if item.blend != BlendMode::Normal
-            || item.content.is_knockout()
+        if blend_name(item.blend).is_none() {
+            return Err(unsupported("Blend mode has no standard PDF equivalent").at_item(&item.id));
+        }
+        if item.blend != BlendMode::Normal && !display_blends {
+            return Err(unsupported("Non-normal vector PDF blending requires display color with the working RGB blending space").at_item(&item.id));
+        }
+        if item.content.is_knockout()
             || !item.effects.is_empty()
             || !item.filters.is_empty()
             || !item.coverage.is_smooth()
@@ -512,7 +573,7 @@ fn preflight(document: &Document) -> Result<(), Error> {
             || item.mask.as_ref().is_some_and(|m| m.enabled)
             || item.artwork_mask.as_ref().is_some_and(|m| m.enabled)
         {
-            return Err(unsupported("PDF does not preserve non-normal blends, knockout, effects, filters, dissolve, pixel warps, layer clipping or active opacity/artwork masks").at_item(&item.id));
+            return Err(unsupported("PDF does not preserve knockout, effects, filters, dissolve, pixel warps, layer clipping or active opacity/artwork masks").at_item(&item.id));
         }
         match &item.content {
             Content::Object { .. } => return Err(unsupported("PDF does not retain editable object sources; deliver an explicit image or snapshot").at_item(&item.id)),
@@ -771,7 +832,7 @@ fn items(
             stream.content.as_bytes(),
         )?;
         output.content.push_str("q\n");
-        alpha(writer, output, item.opacity * item.fill_opacity)?;
+        graphics_state(writer, output, item.opacity * item.fill_opacity, item.blend)?;
         output.use_resource("XObject", id, "Do");
         output.content.push_str("Q\n");
     }
@@ -894,7 +955,7 @@ pub fn export_controlled(
         swatches: document.swatches.clone(),
         ..Writer::default()
     };
-    let color_profile = if let Some(profile) = &document.output_profile {
+    let (color_profile, working_blend_space) = if let Some(profile) = &document.output_profile {
         let encoding = crate::profiles::device::Endpoint {
             space: crate::profiles::device::Space::Rgb,
             profile: Some(profile.clone()),
@@ -908,13 +969,19 @@ pub fn export_controlled(
         )?;
         writer.blend_space = Some(inks::device_space(&mut writer, &encoding)?);
         let source_space = inks::device_space(&mut writer, &crate::swatches::device::display())?;
+        // Profile streams are deduplicated by their exact ICC bytes. This also
+        // admits an explicitly embedded copy of the working profile.
+        let working = writer.blend_space.as_ref() == Some(&source_space);
         writer.default_rgb = Some(writer.add(source_space)?);
         let bytes = encoding.bytes()?;
-        Some(
-            json!({"icc_sha256":assets::sha256(&bytes),"icc_bytes":bytes.len(),"profile_embedded":true,"role":"ICCBased_RGB_page_and_isolated_group_blending","untagged_RGB":"explicit_builtin_srgb_DefaultRGB_in_every_resource_scope","rendering_intent":"retained_device_paint_intent;otherwise_relative_colorimetric","source_components_changed":false}),
+        (
+            Some(
+                json!({"icc_sha256":assets::sha256(&bytes),"icc_bytes":bytes.len(),"profile_embedded":true,"role":"ICCBased_RGB_page_and_isolated_group_blending","untagged_RGB":"explicit_builtin_srgb_DefaultRGB_in_every_resource_scope","rendering_intent":"retained_device_paint_intent;otherwise_relative_colorimetric","source_components_changed":false}),
+            ),
+            working,
         )
     } else {
-        None
+        (None, true)
     };
     let catalog = writer.add(Vec::new())?;
     let tree = writer.add(Vec::new())?;
@@ -935,7 +1002,11 @@ pub fn export_controlled(
             .map(|c| crate::vector_canvas::translated(page, c.origin_px.map(|v| -v)))
             .transpose()?;
         let page = viewport.as_ref().unwrap_or(page);
-        preflight(page)?;
+        preflight(page, !native_inks && working_blend_space)?;
+        writer.page_uses_blends = page
+            .items
+            .iter()
+            .any(|item| item.visible && item.blend != BlendMode::Normal);
         if native_inks {
             ink_pages.push(crate::swatches::ink_diagnostics(page)?);
         }
@@ -1131,16 +1202,22 @@ pub fn export_controlled(
     let info = writer.add("<< /Producer (Inkbolt) >>".to_string())?;
     let commands = writer.commands;
     let image_pixels = writer.pixels;
-    let version = if writer.explicit_black_point {
-        "2.0"
-    } else {
-        "1.7"
-    };
+    let version = writer.version();
+    let black_point = writer.explicit_black_point;
+    let corrected_endpoints = writer.corrected_blend_endpoints();
+    let blend_modes = writer.non_normal_modes.clone();
     let bytes = writer.finish(catalog, info)?;
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
     result["pdf"]["version"] = json!(version);
-    if version == "2.0" {
+    if !blend_modes.is_empty() {
+        result["pdf"]["blend_modes"] = json!(blend_modes);
+        result["losses"].as_array_mut().unwrap().push(json!("The PDF reader computes the native blends. Readers can differ on translucent colors and produce visible hue or saturation shifts, especially near gray. Use a PNG proof when the exact rendered pixels matter."));
+    }
+    if corrected_endpoints {
+        result["losses"].as_array_mut().unwrap().push(json!("ColorBurn and ColorDodge use PDF 2.0 endpoint rules. Readers using the earlier formulas can render a white backdrop channel burned with black as black, or a black backdrop channel dodged with white as white."));
+    }
+    if black_point {
         result["pdf"]["black_point_compensation"] =
             json!("explicit_OFF_for_managed_paints_and_calibrated_page_sources");
         result["losses"].as_array_mut().unwrap().push(json!("Managed color uses PDF 2.0 UseBlackPtComp OFF to preserve the declared conversion policy. Older consumers may ignore this setting. Lookup interpolation and legacy v2 perceptual black normalization can differ across color engines."));

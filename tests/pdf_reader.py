@@ -11,7 +11,7 @@ class Ref(int): pass
 class Name(str): pass
 
 
-TOKEN = re.compile(rb'\s+|%[^\r\n]*|<<|>>|\[|\]|/[^\s<>\[\]()/]+|\([^()]*\)|[^\s<>\[\]()/]+')
+TOKEN = re.compile(rb'\s+|%[^\r\n]*|<<|>>|<[0-9a-fA-F]*>|\[|\]|/[^\s<>\[\]()/]+|\([^()]*\)|[^\s<>\[\]()/]+')
 
 
 def parse(data):
@@ -31,6 +31,7 @@ def parse(data):
             while tokens[at]!=b']':result.append(value())
             at+=1;return result
         if token.startswith(b'/'):return Name(token[1:].decode())
+        if token.startswith(b'<'):return bytes.fromhex(token[1:-1].decode())
         if token.startswith(b'('):return token[1:-1].decode()
         if token in (b'true',b'false'):return token==b'true'
         if token==b'null':return None
@@ -94,15 +95,19 @@ class Pdf:
         p=self.pages[page];media=p['MediaBox'];height=media[3]
         result=[]
         def visit(data,resources,matrix,opacity,active):
-            args=[];path=[];stack=[];color=None;alpha=1
+            args=[];path=[];stack=[];color=None;space=None;alpha=1
             for token in data.split():
                 if re.fullmatch(rb'[+-]?(?:\d+(?:\.\d*)?|\.\d+)',token):args.append(float(token));continue
                 if token.startswith(b'/'):args.append(token[1:].decode());continue
-                if token==b'q':stack.append((matrix[:],color,alpha))
-                elif token==b'Q':matrix,color,alpha=stack.pop()
+                if token==b'q':stack.append((matrix[:],color,space,alpha))
+                elif token==b'Q':matrix,color,space,alpha=stack.pop()
                 elif token==b'cm':matrix=multiply(matrix,args)
-                elif token==b'rg':color=args[:]
-                elif token==b'gs':alpha=self.get(resources['ExtGState'][args[0]])['ca']
+                elif token==b'rg':color=args[:];space=None
+                elif token==b'cs':space=resources['ColorSpace'][args[0]]
+                elif token==b'scn':
+                    assert space[0]=='Indexed' and space[2]==0 and args==[0] and len(space[3])==3
+                    color=[v/255 for v in space[3]]
+                elif token==b'gs':alpha=self.get(resources['ExtGState'][args[0]]).get('ca',alpha)
                 elif token in (b'm',b'l',b'c'):path.append((token.decode(),[point(matrix,args[i:i+2]) for i in range(0,len(args),2)]))
                 elif token==b'h':path.append(('h',[]))
                 elif token==b'n':path=[]

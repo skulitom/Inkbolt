@@ -11,7 +11,7 @@ limits remain separate from document dimensions and output byte budgets.
 
 Explicit `pdf_options.print` instead produces flattened calibrated CMYK image pages using a supplied output profile, matte and sample density. See [PRINT_CMYK.md](PRINT_CMYK.md). The native path contracts and restrictions below apply when print settings are omitted.
 
-`document.export` accepts `format:"pdf"`. It returns a deterministic PDF 1.7 file (PDF 2.0 for explicit managed colours or a calibrated page profile)
+`document.export` accepts `format:"pdf"`. It returns a deterministic PDF 1.7 file (PDF 2.0 for explicit managed colours, a calibrated page profile, color burn or color dodge)
 as base64, a `pages` receipt and explicit fidelity losses. `document.publish` and
 `session.publish` deliver the same bytes to a new `.pdf` file. Existing files are
 never replaced. No external application, converter or additional dependency is
@@ -83,7 +83,7 @@ for unmarked pages. Callers using `..Default::default()` already get that value.
   Each positioned glyph remains a vector path. No font files, searchable text,
   semantic tags or editable text objects are embedded. Keep the original snapshot
   and licensed resource store to retain source text, font controls and editability.
-- Solid RGBA, normal compositing, isolated/pass-through groups, item/fill opacity,
+- Solid RGBA, isolated/pass-through groups, item/fill opacity,
   axial/radial pad gradients with encoded-sRGB interpolation and constant alpha
   are supported. Gradient duplicate-stop discontinuities retain their two sides.
   Shapes with fill and stroke composite before item opacity is applied.
@@ -96,12 +96,44 @@ for unmarked pages. Callers using `..Default::default()` already get that value.
 
 The default display mode uses DeviceRGB with encoded working samples. Explicit `pdf_options.color:"native_inks"` retains named inks and overprint under the [native ink contract](INK_DELIVERY.md). Consumer color management,
 antialiasing and image reconstruction may differ from engine previews. Exact
-consumer pixels and print-profile fidelity are not promised. Non-normal blending, knockout, effects, filters, dissolve, pixel warps, layer
+consumer pixels and print-profile fidelity are not promised. Knockout, effects, filters, dissolve, pixel warps, layer
 clipping, active opacity/artwork masks, adjustment layers, ordered dither and
 other paint/sampling semantics return explicit errors. Hidden referenced fonts
 and resources are still validated. Unsupported items outside selected owned
 subtrees do not enter those exports. A scene view prepares all shared artwork,
 including off-view resources and unsupported items.
+
+### RGB blend modes
+
+Source builds after v0.84.0 preserve standard blend modes on unmarked display
+PDFs. For example, a vector shape with `"blend":"multiply"` stays a vector
+path and multiplies against the artwork beneath it. Inkbolt applies the blend
+once to the composed fill and stroke. An isolated group's blend applies to
+its combined children. Children of pass-through groups see the surrounding
+artwork.
+
+The supported modes are normal, multiply, screen, darken, lighten, color burn,
+color dodge, overlay, hard light, soft light, difference, exclusion, hue,
+saturation, color and luminosity. `capabilities.pdf.display_blend_modes` lists
+the request values. `pdf.blend_modes` identifies the non-normal PDF operators
+actually used. The page can use default DeviceRGB or the exact working sRGB
+profile. Other blending profiles and native ink delivery reject non-normal
+vector blends. RGB printer's marks retain their opaque-artwork restriction.
+
+On a page with blending, Inkbolt writes solid 8-bit path colors as exact RGB
+bytes in indexed PDF color spaces. This keeps adjacent source colors distinct
+when a reader would round a decimal paint operand down. The reader still
+performs the blend. Near gray, even a one-level difference between channels
+can produce a visible hue or saturation shift in some readers. Older readers
+can also shift these two modes on saturated colors. Partial opacity can change
+rounding. For delivery that requires the preview's exact
+pixels, export a PNG proof. [Measured reader results](DEVELOPMENT_STATUS.md#vector-pdf-blend-delivery)
+
+Color burn and color dodge select PDF 2.0 for its corrected channel endpoint
+rules. The export receipt flags a visible difference in readers using the older
+formulas. Burning white with black can produce black, and dodging black with
+white can produce white. The corrected results are white and black respectively.
+[PDF Association on the endpoint correction](https://pdfa.org/why-pdf-2-0-is-the-new-pdf-bible/)
 
 ## Calibrated page colour
 
@@ -139,4 +171,4 @@ PDF reimport remain required by the separate extended page criterion.
 Public format reference: [ISO 32000-1 entry](https://committee.iso.org/standard/51502.html)
 and [PDF specification archive](https://pdfa.org/resource/pdf-specification-archive/).
 
-Raster background roles deliver the explicit canvas matte beneath retained source artwork within this normal-blend subset. Hidden backgrounds suppress the matte. Other restrictions, including masks, effects, adjustments and clipping groups, remain explicit. See [BACKGROUNDS.md](BACKGROUNDS.md).
+Raster background roles deliver the explicit canvas matte beneath retained source artwork within the supported page blending space. Hidden backgrounds suppress the matte. Other restrictions, including masks, effects, adjustments and clipping groups, remain explicit. See [BACKGROUNDS.md](BACKGROUNDS.md).
