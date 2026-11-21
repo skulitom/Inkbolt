@@ -50,10 +50,15 @@ References are supported in top-level snapshot arguments only. Nested `transfer.
 
 ## Snapshot file input
 
-Publish a create-only JSON snapshot with `document.publish` or `session.publish`, `format:"snapshot"` and a new `.json` filename. Its receipt supplies the exact path and SHA-256. A later top-level snapshot argument can use those values:
+To save an editable JSON file, copy the [publication request](../examples/publish-snapshot.json)
+into your workspace. Replace its `document` value with the `document_ref` for
+the saved revision you want and choose a new output filename. Run
+`inkbolt --workspace "$PWD" publish-snapshot.json` from that workspace.
+Inkbolt writes the snapshot to disk. The CLI response gives its path and
+SHA-256. Pass those values to a subsequent command to reopen that exact file.
 
 ```json
-{"command":"document.inspect","document":{"file_path":"poster.json","sha256":"<64 lowercase hexadecimal characters from the publication receipt>"}}
+{"command":"document.inspect","document":{"file_path":"editable.json","sha256":"<64 lowercase hexadecimal characters from the publication receipt>"}}
 ```
 
 Both fields are required, with no extras. `file_path` follows workspace path rules; without a workspace it must be absolute. The file is read once with a 16 MiB bound. Its exact bytes must match the supplied hash before parsing. Changed bytes return `SOURCE_MISMATCH`; malformed JSON, duplicate keys, response envelopes and files containing another reference fail with `INVALID_DOCUMENT_FILE`. References never recursively open other files. The expanded request retains its separate 16 MiB limit, including both sides of a comparison.

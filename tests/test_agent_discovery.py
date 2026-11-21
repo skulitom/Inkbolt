@@ -71,7 +71,7 @@ class AgentDiscoveryTests(unittest.TestCase):
     def test_advertised_examples_execute_preserve_artwork_and_review_without_writes(self):
         queries = invoke(dict(command='schema.lookup', name='index'))['result']['example_queries']
         examples = {(q['name'], q.get('select')): invoke(q)['result']['example']['value'] for q in queries}
-        self.assertEqual(len(examples), 9)  # Boolean execution is covered by test_boolean_edit_cli.
+        self.assertEqual(len(examples), 8)  # Boolean execution is covered by test_boolean_edit_cli.
         for transport in ('cli', 'mcp'):
             with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -151,7 +151,8 @@ class AgentDiscoveryTests(unittest.TestCase):
                     self.assertEqual((width, height), (64, 64))
                     self.assertEqual(preview_pixels, bytes.fromhex(command('document.render', document=text_result)['data']))
                     self.assertEqual(command('session.read', session_id='example')['undo_depth'], 1)
-                    publish = examples['document.publish', None]
+                    recipe = Path(__file__).resolve().parents[1] / 'examples/publish-snapshot.json'
+                    publish = json.loads(recipe.read_bytes())
                     receipt = call(publish)
                     saved = root / 'editable.json'
                     raw = saved.read_bytes()

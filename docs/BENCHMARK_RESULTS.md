@@ -556,6 +556,47 @@ The matched comparison has SHA-256
 The five independent child-edit checks have SHA-256
 `279c4e8c345dc78b06816c385412638e5e535498e0edc6a9efd68bec67221f75`.
 
+### Testing a snapshot publication example with Luna
+
+At [`3fdf09d`](https://github.com/skulitom/Inkbolt/commit/3fdf09d), a
+`document.publish` lookup returned a complete request to save an editable
+snapshot. The `session.create` example also explained how to pass a saved
+revision to that command. Five new attempts per arm used the preceding Luna
+configuration, task, judges and run order. The engine returned the publication
+example in four attempts and the guidance about saved revisions in all five.
+
+| Measurement | Earlier Inkbolt | New Inkbolt | Earlier baseline | New baseline |
+| --- | ---: | ---: | ---: | ---: |
+| Complete tasks | 3/5 | 1/5 | 2/5 | 1/5 |
+| Exact delivered PNGs | 5/5 | 3/5 | 2/5 | 1/5 |
+| Editable JSON files that reopened | 4/5 | 4/5 | n/a | n/a |
+| Median input + output tokens | 387,552 | 684,904 | 66,828 | 64,423 |
+| Median completed shell commands | 13 | 21 | 3 | 3 |
+| Median client seconds | 83.2 | 116.3 | 26.8 | 25.9 |
+
+The new attempts saved zero CLI envelopes. One produced no editable JSON and
+another saved an empty session. Two used glyph baselines to place the labels
+correctly in the PNG. Their text items had identity transforms, so they failed
+the requested frame-position check. Four baseline
+attempts omitted the supplied font from the preview command. All attempts
+used the shell, so a shell-command count can include multiple engine calls.
+
+The example passed all 278 source checks on Windows and WSL2. It did not
+increase the number of snapshots that reopened. Median shell-command and token
+counts increased for Inkbolt. Five attempts per arm leave the cause uncertain.
+We removed the extra text from automatic discovery and kept the
+[tested publication request](../examples/publish-snapshot.json) in the
+workspace guide.
+
+The Inkbolt and baseline reports have SHA-256
+`a030bcdabda81010287361a6eac743c2dab86ec91ee7e30cdd281c3b12da55c2` and
+`a9913944a7bc12af1406476fabda203b806066ec1f4a7202f90fd7add19e630f`.
+The matched report has SHA-256
+`cebc61a059df976d5117568424c4a9fca9dffee99fede67b76f23d724fe77ae9`.
+The separate audit reopened the saved files from both batches, checked the
+PNG pixels and verified the captures stayed unchanged. Its SHA-256 is
+`edb82375137220719c5fbc246fb50485fda180afcd5b858b98e9ff68967050a2`.
+
 ## B04/B05 at dabe447: five matched pairs
 
 Five fresh repetitions per task and arm used the same external Codex CLI

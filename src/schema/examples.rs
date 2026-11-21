@@ -7,7 +7,6 @@ pub(super) fn queries() -> Value {
         {"command":"schema.lookup","name":"font.import"},
         {"command":"schema.lookup","name":"session.create"},
         {"command":"schema.lookup","name":"session.dry_run"},
-        {"command":"schema.lookup","name":"document.publish"},
         {"command":"schema.lookup","name":"document"},
         {"command":"schema.lookup","name":"content","select":"text"},
         {"command":"schema.lookup","name":"operation","select":"text"},
@@ -112,18 +111,8 @@ pub(super) fn for_schema(name: &str, selected: Option<&str>, schema: &Value) -> 
                 "An unused session ID example",
             ],
             &format!(
-                "{workspace} Saves revision zero in .inkbolt/sessions. For existing artwork, replace document with its snapshot or a pinned file/reference. To write an editable file, pass the returned document_ref to document.publish with output.format set to snapshot."
+                "{workspace} Saves revision zero in .inkbolt/sessions. For existing artwork, replace document with its snapshot or a pinned file/reference."
             ),
-        )),
-        "document.publish" => Some(example(
-            "request",
-            json!({"command":"document.publish","document":{"session_id":"example","revision":0},
-                "output":{"format":"snapshot","file_name":"editable.json"}}),
-            &[
-                "A selected workspace containing saved revision zero of session example",
-                "An unused output filename editable.json",
-            ],
-            "Use the document_ref from your saved revision as document. The engine writes the editable snapshot to editable.json and returns a publication receipt with the file's SHA-256. Reopen the file with document.validate using file_path and that sha256.",
         )),
         "session.dry_run" => Some(example(
             "request",

@@ -1,0 +1,5 @@
+{
+  "command": "document.publish",
+  "document": { "session_id": "example", "revision": 0 },
+  "output": { "format": "snapshot", "file_name": "editable.json" }
+}

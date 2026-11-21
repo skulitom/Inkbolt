@@ -65,9 +65,7 @@ as `image_store_root` and `font_store_root` in this description.
 
 The schema index's `example_queries` lists focused examples for font import,
 session creation/review, an empty document, text content and text/transform/boolean
-operations. On main, `document.publish` also has an example that writes an
-editable JSON snapshot from a saved revision. The command returns a receipt
-with the file's SHA-256. Those lookups include `example` beside the schema or outline, with
+operations. Those lookups include `example` beside the schema or outline, with
 `kind`, `value`, `requires` and `usage`. Each complete example is bounded to 2 KiB.
 `schema_bytes` continues to measure only the validation schema. Nested routes
 to the same selected type return the same example. Discovery never executes it.
@@ -79,6 +77,8 @@ explicit font/item prerequisites. Bind the imported font descriptor in
 the complete frame: copy the existing frame and change only intended fields
 when repairing artwork. These examples cover a focused subset; they do not
 imply every operation has a recipe or establish model-efficiency gains.
+
+To save an editable file, use the [snapshot publication example](AGENT_WORKSPACE.md#snapshot-file-input).
 
 `schema.lookup` is a read-only CLI/library/MCP command. The original argument-free `schema` command still returns the complete engine schema unchanged in shape.
 
