@@ -23,6 +23,33 @@ class VerificationTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
+    def test_installed_suite_retains_subprocess_results_skips_and_failures(self):
+        module = 'test_installed_release_sample'
+        self.write(f'tests/{module}.py',
+                   "import os, unittest\n"
+                   "class Installed(unittest.TestCase):\n"
+                   "    def test_selected_binary(self):\n"
+                   "        self.assertEqual(os.environ['INKBOLT_EXE'], 'selected-binary')\n"
+                   "    @unittest.skip('platform-specific sample')\n"
+                   "    def test_platform(self): pass\n")
+        with patch.object(verify, 'ROOT', self.root), patch.object(verify, 'python_counts', return_value={module: 2}):
+            for selected in ('selected-binary', 'wrong-binary'):
+                logs = self.root / selected
+                with patch.dict(os.environ, INKBOLT_EXE=selected), redirect_stdout(io.StringIO()):
+                    if selected == 'selected-binary':
+                        verify.python_checks(1, logs)
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, module):
+                            verify.python_checks(1, logs)
+                report = json.loads((logs / 'report.json').read_text(encoding='utf8'))
+                self.assertEqual(report['expected'], {module: 2})
+                self.assertIn('platform-specific sample', (logs / f'{module}.log').read_text(encoding='utf8'))
+                if selected == 'selected-binary':
+                    self.assertEqual(report['failed'], [])
+                    self.assertEqual(report['checks'][module]['skipped'], 1)
+                else:
+                    self.assertEqual(report['failed'], [module])
+
     def write(self, name, text):
         path = self.root / name
         path.parent.mkdir(parents=True, exist_ok=True)

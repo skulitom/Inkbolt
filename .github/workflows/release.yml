@@ -9,6 +9,10 @@ on:
         description: 'Existing vX.Y.Z tag to publish, or leave blank to test archives on the selected revision'
         required: false
         type: string
+      thorough:
+        description: 'Run the complete installed Python suite during a dry run (always runs for publication)'
+        type: boolean
+        default: false
   pull_request:
     paths:
       - '.github/workflows/release.yml'
@@ -23,14 +27,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ inputs.tag || github.ref_name }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && !inputs.tag && github.run_id || inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   build:
     name: Build / ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: ${{ (github.event_name == 'push' || inputs.tag || inputs.thorough) && 120 || 40 }}
     strategy:
       fail-fast: false
       matrix:
@@ -135,6 +139,19 @@ jobs:
           npx --yes @anthropic-ai/mcpb@2.1.2 validate target/mcpb-validation/manifest.json
           node mcpb/build.mjs --registry-entry --tag "$RELEASE_TAG" --bundle target/dist/mcpb/inkbolt-windows-x64.mcpb
           cp target/dist/mcpb/inkbolt-windows-x64.mcpb target/dist/mcpb/inkbolt-windows-x64.mcpb.sha256 target/dist/mcpb/server.registry.json target/dist/release/
+      - name: Run all Python CI modules against the extracted archive
+        if: github.event_name == 'push' || inputs.tag || inputs.thorough
+        run: |
+          python -B tools/verify_release_install.py "$RUNNER_TEMP/inkbolt-native-installation" \
+            --built-binary target/release/${{ matrix.binary }} --thorough --jobs ${{ runner.os == 'Linux' && '2' || '1' }} \
+            --log-dir "$RUNNER_TEMP/inkbolt-installed-tests"
+      - name: Retain installed-suite results
+        if: always() && (github.event_name == 'push' || inputs.tag || inputs.thorough)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: installed-tests-${{ matrix.target }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/inkbolt-installed-tests
+          if-no-files-found: warn
       - name: Upload build artifacts (including PR dry runs)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

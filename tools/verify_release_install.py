@@ -33,7 +33,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('installation', type=Path, help='directory containing the extracted binary and notices')
     parser.add_argument('--built-binary', type=Path, help='require a byte-for-byte match with the original build')
+    parser.add_argument('--thorough', action='store_true', help='run every Python CI module against the installed executable')
+    parser.add_argument('--jobs', type=int, default=1, choices=range(1, 9), help='parallel modules for --thorough')
+    parser.add_argument('--log-dir', type=Path, help='save full module logs in a new directory with --thorough')
     args = parser.parse_args()
+    if args.log_dir and not args.thorough:
+        parser.error('--log-dir requires --thorough')
     folder = args.installation.resolve(strict=True)
     binary = folder / ('inkbolt.exe' if os.name == 'nt' else 'inkbolt')
     digest = sha256(binary)
@@ -53,6 +58,16 @@ def main():
     print(f"Testing {binary} (SHA-256 {digest})", flush=True)
     # All selected CLI and MCP clients take their subprocess path from this variable at import.
     os.environ['INKBOLT_EXE'] = str(binary)
+    if args.thorough:
+        from verify import python_checks
+        os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
+        python_checks(args.jobs, args.log_dir)
+        if sha256(binary) != digest:
+            raise ValueError('Installed executable changed during the suite')
+        if args.log_dir:
+            identity = {'name': package['name'], 'version': package['version'], 'binary_sha256': digest}
+            (args.log_dir / 'installation.json').write_text(json.dumps(identity, indent=2) + '\n', encoding='utf8')
+        return 0
     sys.path.insert(0, str(ROOT / 'tests'))
     suite = unittest.defaultTestLoader.loadTestsFromNames(CASES)
     result = unittest.TextTestRunner(verbosity=2).run(suite)

@@ -82,6 +82,14 @@ tag field empty. All target builds and installation checks run. The archives
 are available as workflow artifacts. Supplying an existing version tag selects
 the publishing path.
 
+Every publication also runs all Python CI modules against each extracted
+executable. A dry run can select `thorough` for the same check. For a local
+run, put the repository's pinned Rust compiler on your path for the generated
+test fixtures, then add `--thorough --jobs 2 --log-dir PATH_TO_NEW_LOG_FOLDER`
+to the installation checker. It records each module's output, expected test count,
+failures and explicit skips, plus the executable digest after a passing run.
+Rust library and integration tests run in the source verification workflow.
+
 ### Software bill of materials
 
 The release workflow writes a CycloneDX 1.6 JSON inventory for each target.

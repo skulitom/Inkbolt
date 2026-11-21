@@ -221,14 +221,22 @@ def schedule(names, worker, jobs, deadline, previous, changed):
     return result
 
 
-def python_checks(jobs):
-    """Complete Python-only helper retained for callers and fixture self-tests."""
+def python_checks(jobs, log_dir=None):
+    """Run every Python module in isolation, optionally retaining release evidence."""
     modules = sorted(p.stem for p in (ROOT / 'tests').glob('test_*.py'))
     counts = python_counts(modules)
+    if log_dir is not None:
+        log_dir.mkdir(parents=True, exist_ok=False)
     def worker(name):
-        return checked_result(run(PY + ['-m', 'unittest', 'discover', '-s', 'tests', '-p', name + '.py', '-v'], ROOT), counts[name])
+        row = checked_result(run(PY + ['-m', 'unittest', 'discover', '-s', 'tests', '-p', name + '.py', '-v'], ROOT), counts[name])
+        if log_dir is not None:
+            (log_dir / (name + '.log')).write_text(row.pop('output'), encoding='utf8')
+        return row
     rows = schedule(modules, worker, jobs, None, {}, set())
     failures = [name for name, row in rows.items() if row['status'] != 'passed']
+    if log_dir is not None:
+        report = dict(expected=counts, checks=rows, failed=failures)
+        (log_dir / 'report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf8')
     if failures or sum(row.get('tests', 0) for row in rows.values()) != sum(counts.values()):
         raise RuntimeError('Python verification failed: ' + ', '.join(failures))
     skipped = sum(row.get('skipped', 0) for row in rows.values())
