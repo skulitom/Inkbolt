@@ -30,6 +30,41 @@ space through the final judge response. Both transports delivered the same
 TIFFs and PNG as the earlier unrestricted Linux and Windows references.
 The benchmark retains its separate peak-commit verdict.
 
+## Grayscale masks in vector PDF
+
+At `66a6446`, exporting a feathered grayscale mask to PDF returned
+`UNSUPPORTED`. The same masked path now survives export as a vector with a
+separate opacity field. Seven original sheets produced byte-identical PDFs
+and PNGs on Windows and WSL Linux. Inkbolt's PNG alpha matched the independent
+coverage calculation at all 48,000 pixel centers.
+
+The two 88 × 56 sheets exercise rotated nearest cells and a bilinear mask with
+inversion, density, feather and an opaque exterior. At four-times resolution
+the mean of four central PDF subsamples differed from each expected grayscale
+pixel by at most two levels in MuPDF 1.26.12 and one in Poppler 26.07.0 on
+Windows and 22.02.0 on Ubuntu.
+
+The five other sheets use alternating single-cell checks or stripes. Some
+readers lose that detail when they approximate one shading across the whole
+field. Splitting the field into patches with identical boundary samples
+reduced MuPDF's mean error on the 128 × 128 stripe sheet from 99.21 to 1.17
+levels. Across the five sheets, the largest individual differences from the
+four-subsample bilinear reference were 29.18 levels for MuPDF and 28.11 for
+Poppler. The source knots remain available at 16-bit precision.
+
+A separate 1024 × 1024 stored mask produced identical files on both systems.
+Both sampling modes preserved the vector path. Both readers reproduced all
+1,024 patch centers within one level. Each bilinear shading declares its
+own bounding box so a reader can limit painting to that patch. Adjacent
+patches overlap by one interpolation cell. On a sheared grid this reduced
+Poppler's largest interior error from 99.19 to 1.23 levels.
+
+The fixtures also check nested masks, overlapping fills and strokes, artboard
+bleed, damaged native tiles and create-only publication. With overprint
+simulation enabled, half-strength process cyan over solid process black
+retained the full black plate on both unmarked and crop-marked sheets.
+[Regression fixtures](../tests/test_pdf_opacity_masks.py) · [Export contract](PDF.md#opacity-masks-on-shapes-and-groups)
+
 ## Gradient opacity in vector PDF
 
 At `be47f9f` a two-stop fade rendered as PNG and failed PDF export. The

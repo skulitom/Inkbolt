@@ -187,7 +187,7 @@ pub(crate) struct Prepared {
     native: Option<native::Prepared>,
 }
 impl Prepared {
-    fn at(&self, x: i64, y: i64) -> Result<f64, Error> {
+    pub(crate) fn at(&self, x: i64, y: i64) -> Result<f64, Error> {
         if x < 0 || y < 0 || x >= self.width as i64 || y >= self.height as i64 {
             Ok(self.outside)
         } else if let Some(native) = &self.native {
@@ -248,6 +248,7 @@ pub(crate) fn prepare_with_resources(
     control: &crate::control::Control,
     budget: native::Budget,
 ) -> Result<Prepared, Error> {
+    control.check()?;
     mask.validate(item_world)?;
     let [width, height] = mask.prepared_size();
     let pad = mask.feather + 1;
@@ -267,6 +268,7 @@ pub(crate) fn prepare_with_resources(
     let mut values = vec![outside; width as usize * height as usize];
     let source = crate::render::unhex(&mask.gray_hex);
     for y in 0..mask.height as usize {
+        control.check()?;
         for x in 0..mask.width as usize {
             let v = source[y * mask.width as usize + x] as f64 / 255.0;
             values[(y + pad as usize) * width as usize + x + pad as usize] =
@@ -279,6 +281,7 @@ pub(crate) fn prepare_with_resources(
         let mut temporary = vec![outside; values.len()];
         for horizontal in [true, false] {
             for y in 0..height as i64 {
+                control.check()?;
                 for x in 0..width as i64 {
                     let mut sum = 0.0;
                     for d in -r..=r {

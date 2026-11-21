@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 mod combined;
 mod inks;
 mod marks;
+mod opacity;
 mod prepress;
 mod print;
 mod recipe;
@@ -86,6 +87,8 @@ struct Writer {
     bytes: usize,
     commands: usize,
     pixels: u64,
+    grid_mask_samples: u64,
+    grid_masks: usize,
     native_inks: bool,
     swatches: BTreeMap<String, crate::swatches::Swatch>,
     ink_spaces: BTreeMap<String, usize>,
@@ -426,15 +429,9 @@ fn gradient(
             ..Stream::default()
         };
         mask_stream.use_resource("Shading", opacity, "sh");
-        let mask = writer.stream(
-            &format!("/Type /XObject /Subtype /Form /BBox [{}] /Group << /S /Transparency /CS /DeviceGray /I true >> /Resources {}",
-                writer.page_bbox, mask_stream.dictionary(None)),
-            mask_stream.content.as_bytes(),
-        )?;
+        let dictionary = opacity::luminosity_dictionary(writer, mask_stream, 0.0)?;
         graphics_state(writer, stream, 1.0, BlendMode::Normal)?;
-        let state = writer.add(format!(
-            "<< /Type /ExtGState /SMask << /S /Luminosity /G {mask} 0 R /BC [0] >> >>"
-        ))?;
+        let state = writer.add(dictionary)?;
         stream.use_resource("ExtGState", state, "gs");
         writer.page_requires_backdrop = true;
         writer.gradient_opacity_masks += 1;
@@ -559,9 +556,9 @@ fn image(
 ) -> Result<(), Error> {
     let [width, height] = dimensions;
     writer.pixels += width as u64 * height as u64;
-    if writer.pixels > MAX_IMAGE_PIXELS {
+    if writer.pixels + writer.grid_mask_samples > MAX_IMAGE_PIXELS {
         return Err(limit(&format!(
-            "PDF embedded image copies exceed {MAX_IMAGE_PIXELS} pixels"
+            "PDF image copies and opacity grids exceed {MAX_IMAGE_PIXELS} samples"
         )));
     }
     let mut rgb = Vec::with_capacity(rgba.len() / 4 * 3);
@@ -591,6 +588,8 @@ fn image(
 
 fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
     let mut stroke_commands = 0;
+    // Validate each page's inputs here, including hidden items. The writer
+    // charges only painted copies to the cumulative delivery budget.
     let mut pixels = 0;
     for (i, item) in document.items.iter().enumerate() {
         if blend_name(item.blend).is_none() {
@@ -605,10 +604,17 @@ fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
             || !item.coverage.is_smooth()
             || item.pixel_warp.is_some()
             || item.clip_to.is_some()
-            || item.mask.as_ref().is_some_and(|m| m.enabled)
             || item.artwork_mask.as_ref().is_some_and(|m| m.enabled)
         {
-            return Err(unsupported("PDF does not preserve knockout, effects, filters, dissolve, pixel warps, layer clipping or active opacity/artwork masks").at_item(&item.id));
+            return Err(unsupported("PDF does not preserve knockout, effects, filters, dissolve, pixel warps, layer clipping or active artwork-source masks").at_item(&item.id));
+        }
+        if let Some(mask) = item
+            .mask
+            .as_ref()
+            .filter(|m| m.enabled && !m.constant && m.density != 0.0)
+        {
+            let [w, h] = mask.prepared_size();
+            pixels += u64::from(w) * u64::from(h);
         }
         match &item.content {
             Content::Object { .. } => return Err(unsupported("PDF does not retain editable object sources; deliver an explicit image or snapshot").at_item(&item.id)),
@@ -646,11 +652,15 @@ fn preflight(document: &Document, display_blends: bool) -> Result<(), Error> {
             }
             _ => {}
         }
+        if pixels > MAX_IMAGE_PIXELS {
+            return Err(limit(&format!(
+                "PDF image copies and opacity grids exceed {MAX_IMAGE_PIXELS} samples"
+            ))
+            .at_item(&item.id));
+        }
     }
-    if stroke_commands > MAX_COMMANDS as u64 || pixels > MAX_IMAGE_PIXELS {
-        return Err(limit(
-            "PDF scene exceeds generated-path or image-copy budget",
-        ));
+    if stroke_commands > MAX_COMMANDS as u64 {
+        return Err(limit("PDF scene exceeds generated-path budget"));
     }
     Ok(())
 }
@@ -662,6 +672,7 @@ fn items(
     parent: Option<&str>,
     pixels: &BTreeMap<String, assets::Pixels>,
     layouts: &BTreeMap<String, crate::text::Layout>,
+    masks: &crate::masks::PreparedDocument,
 ) -> Result<(), Error> {
     for i in scene::children(document, parent) {
         writer.control.check()?;
@@ -714,6 +725,7 @@ fn items(
                 Some(&item.id),
                 pixels,
                 layouts,
+                masks,
             )?,
             Content::Frame { frame } => {
                 clip(
@@ -741,6 +753,7 @@ fn items(
                     Some(&item.id),
                     pixels,
                     layouts,
+                    masks,
                 )?;
             }
             Content::Vector {
@@ -831,6 +844,17 @@ fn items(
                 );
             }
         }
+        let mut opacity = item.opacity * item.fill_opacity;
+        let mut mask_state = None;
+        if let Some(prepared) = masks.items.get(&item.id) {
+            let mask = item.mask.as_deref().expect("prepared item mask");
+            writer.grid_masks += 1;
+            mask_state = opacity::grid_state(writer, mask, prepared, world)
+                .map_err(|e| e.at_item(&item.id))?;
+            if mask_state.is_none() {
+                opacity *= prepared.outside;
+            }
+        }
         let isolated = !matches!(
             item.content,
             Content::Group {
@@ -851,7 +875,8 @@ fn items(
         // applies once to a composed fill/stroke through a transparency group.
         let group = if writer.native_inks
             && !item.content.is_container()
-            && item.opacity * item.fill_opacity == 1.0
+            && opacity == 1.0
+            && mask_state.is_none()
         {
             String::new()
         } else {
@@ -866,7 +891,11 @@ fn items(
             stream.content.as_bytes(),
         )?;
         output.content.push_str("q\n");
-        graphics_state(writer, output, item.opacity * item.fill_opacity, item.blend)?;
+        graphics_state(writer, output, opacity, item.blend)?;
+        if let Some(state) = mask_state {
+            output.use_resource("ExtGState", state, "gs");
+            writer.page_requires_backdrop = true;
+        }
         output.use_resource("XObject", id, "Do");
         output.content.push_str("Q\n");
     }
@@ -1057,6 +1086,8 @@ pub fn export_controlled(
             }
         }
         let pixels = assets::resolve(page, resources.asset_root.as_deref())?;
+        let masks =
+            crate::masks::prepare_document(page, resources.asset_root.as_deref(), &writer.control)?;
         let ppi = page.resolution_ppi;
         let physical = 72.0 / ppi;
         let bleed = if options.include_bleed {
@@ -1122,7 +1153,15 @@ pub fn export_controlled(
                 FillRule::Nonzero,
             )?;
         }
-        items(&mut writer, &mut stream, page, None, &pixels, &layouts)?;
+        items(
+            &mut writer,
+            &mut stream,
+            page,
+            None,
+            &pixels,
+            &layouts,
+            &masks,
+        )?;
         stream.content.push_str("Q\n");
         let mut page_group = format!(
             " /Group << /Type /Group /S /Transparency /CS {} /I true /K false >>",
@@ -1237,6 +1276,8 @@ pub fn export_controlled(
     let info = writer.add("<< /Producer (Inkbolt) >>".to_string())?;
     let commands = writer.commands;
     let image_pixels = writer.pixels;
+    let grid_masks = writer.grid_masks;
+    let grid_mask_samples = writer.grid_mask_samples;
     let version = writer.version();
     let black_point = writer.explicit_black_point;
     let corrected_endpoints = writer.corrected_blend_endpoints();
@@ -1246,6 +1287,13 @@ pub fn export_controlled(
     let mut result = json!({"media_type":"application/pdf","encoding":"base64","data":STANDARD.encode(&bytes),"pages":receipts,"pdf":{"version":"1.7","include_bleed":options.include_bleed,"artboards":options.artboards,"path_commands":commands,"image_pixels":image_pixels,"text_glyphs":glyphs,"color":"DeviceRGB_encoded_working_samples_consumer_color_management","text":"vector_outlines","editable_source":"snapshot","deterministic":true},"losses":["Text is delivered as glyph outlines, without searchable text, embedded fonts or semantic tagging; retain the snapshot and pinned resources for editing.","Vector geometry remains paths. Ellipses use four cubic segments; complex strokes use the shared bounded outline evaluator.","DeviceRGB consumer color management, edge antialiasing and image sampling can differ from Inkbolt previews; this is not a print-profile or exact-pixel guarantee.","PDF does not carry the editable document model, guides, selections, channels or font controls. PDF reimport is not implemented."]});
     metadata::annotate(&mut result, packet.as_deref(), policy, false);
     result["pdf"]["version"] = json!(version);
+    if grid_masks != 0 {
+        result["pdf"]["grid_masks"] = json!(grid_masks);
+        result["pdf"]["grid_mask_samples"] = json!(grid_mask_samples);
+        if grid_mask_samples != 0 {
+            result["losses"].as_array_mut().unwrap().push(json!("PDF stores sampled opacity grids at 16-bit precision. Readers can soften fine checkerboards and stripes or shift a cell edge. Use a PNG proof for exact preview pixels and keep the snapshot to edit the mask."));
+        }
+    }
     if gradient_opacity_masks > 0 {
         result["pdf"]["gradient_opacity_masks"] = json!(gradient_opacity_masks);
         result["losses"].as_array_mut().unwrap().push(json!("Gradient opacity is retained as a vector shading. At a hard stop, a PDF reader can sample both sides of the transition within one pixel and display a different edge color from the Inkbolt preview."));
@@ -1300,6 +1348,43 @@ pub fn export_controlled(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn opacity_grid_and_image_copies_share_one_export_budget() {
+        use super::*;
+        let mask: crate::masks::Mask = serde_json::from_value(json!({
+            "width": 1, "height": 1, "gray_hex":"80"
+        }))
+        .unwrap();
+        let plane = crate::masks::prepare(&mask, identity()).unwrap();
+        let mut writer = Writer {
+            pixels: MAX_IMAGE_PIXELS - 9,
+            page_bbox: "0 0 1 1".into(),
+            ..Writer::default()
+        };
+        assert!(
+            opacity::grid_state(&mut writer, &mask, &plane, identity())
+                .unwrap()
+                .is_some()
+        );
+        assert_eq!(writer.grid_mask_samples, 9);
+        assert_eq!(
+            opacity::grid_state(&mut writer, &mask, &plane, identity())
+                .unwrap_err()
+                .code,
+            "RESOURCE_LIMIT"
+        );
+        let error = image(
+            &mut writer,
+            &mut Stream::default(),
+            [1, 1],
+            &[255; 4],
+            [1.0; 2],
+            identity(),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "RESOURCE_LIMIT");
+    }
+
     #[test]
     fn decimal_numbers_roundtrip_without_pdf_forbidden_exponents() {
         for value in [

@@ -53,6 +53,11 @@ The isolated-result and final transparency model is informed by the public [CSS 
 
 ## Outputs and limits
 
+Vector PDF export accepts inline, stored and constant item masks. It keeps
+the artwork as paths and applies the prepared coverage to each masked item
+or group. The editable grid and its controls remain in the snapshot.
+[PDF mask sampling and limits](PDF.md#opacity-masks-on-shapes-and-groups)
+
 PNG and numerical previews use the engine contract above. SVG embeds processed grayscale8 PNG fields in luminance masks, with explicit user-space units, affine placement, sRGB interpretation and nearest/bilinear consumer hints. An opaque constant background within the exported viewport represents the outside field. Prepared fields include a constant border for interpolation. SVG consumers may resample differently and the fields introduce grayscale8 rounding; PNG is authoritative for exact engine samples. Original mask pixels and reversible settings require the editable snapshot, and SVG reports this loss. Disabled masks produce no SVG artwork effect.
 
 Mask pixels share the document's 65,536 inline-pixel budget with raster layers, embedded images and pattern tiles. Ordinary plane dimensions are 1 through 32,768; explicit constant planes have both dimensions zero; total snapshot size remains 768 KiB. Preparation pads each axis by `2*(feather+1)`: each mask allows 262,144 prepared pixels, and all masks together allow 1,048,576. Total preparation work is at most 67,108,864 taps, counted as prepared pixels times `2*(2*r+1)` for positive radius, or one for radius zero. Disabled masks also count toward storage and preparation budgets. Rendering reserves four mask-sampling work units per output pixel per active mask in the existing paint-work budget. Prepared fields use separate bounded f64 storage; convolution temporarily adds one field. Artboard ranges count repeated preparation, sampling and embedded mask pixels in their batch limits.

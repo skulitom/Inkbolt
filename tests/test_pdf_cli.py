@@ -175,9 +175,8 @@ class PdfTests(unittest.TestCase):
         for kw in [dict(scale=2),dict(image_options=dict(quality=90)),dict(pdf_options=dict(include_bleed=True)),dict(pdf_options=dict(unknown=True)),dict(pdf_options=dict(artboards=dict(type='ids',ids=['missing']))),dict(pdf_options=dict(artboards=dict(type='range',start=1,end=1)))]:
             self.assertIn('code',self.export(d,1,**kw))
         self.assertEqual(self.invoke(dict(command='document.export',document=d,format='png',pdf_options={}),1)['code'],'INVALID_REQUEST')
-        for property,value in [('blend','linear_burn'),('mask',dict(width=1,height=1,gray_hex='80'))]:
-            bad=copy.deepcopy(d);next(i for i in bad['items'] if i['id']=='red')[property]=value
-            self.assertIn('code',self.export(bad,1))
+        bad=copy.deepcopy(d);next(i for i in bad['items'] if i['id']=='red')['blend']='linear_burn'
+        self.assertEqual(self.export(bad,1)['code'],'UNSUPPORTED')
         bad=self.fixture('raster');next(i for i in bad['items'] if i['id']=='red')['content']['sampling']='bilinear'
         self.assertEqual(self.export(bad,1)['code'],'UNSUPPORTED')
         with tempfile.TemporaryDirectory() as directory:

@@ -39,7 +39,7 @@ standing authorization.
 | W3b | Atomic SVG insertion complete within its declared contract; fresh Windows/Linux full acceptance passed at `e9c493e` | Measure B01/B02 usability through W2 |
 | W3c | The original advanced Boolean criterion is verified. New edits preserve Bézier handles by default across shared boundaries, self-intersections, disjoint regions and declared approximate tangencies. [Geometry and workflow evidence](docs/DEVELOPMENT_STATUS.md#curved-boolean-checkpoint-evidence) · [Precision and atomic edits](docs/BOOLEANS.md) · [Performance limits](docs/BOOLEAN_PERFORMANCE.md) | Preserve the declared strict refusals, historical retries and explicit polygon option. Evaluate model efficiency in W2 |
 | W4 / W5.2+ / W6 | The four [scale workflows](docs/SCALE_WORKLOADS.md) pass five repeats on Windows and Linux. Windows measures peak commit. Linux measures RSS under a 512 MiB address-space limit. [Layered import](docs/LAYERED_NATIVE_IMPORT.md#seekable-input-acceptance-23-october-2026) has independent 8192 x 8192 sample checks. The [Linux B10 reference](docs/B10_LARGE.md#linux-address-space-experiment) passes over MCP and CLI. | Close the [field-discovery experiment](docs/B10_LARGE.md#finding-the-publication-inputs). Both arms delivered 5/5, with zero full publication-schema fetches and 8.82× median tokens for Inkbolt. Carry overall interaction cost into W2. Linux peak commit, layered input/output beyond the verified RGB8 and metadata contracts, full W4 and three original interchange checkpoints remain open. [Raster milestone evidence](docs/DEVELOPMENT_STATUS.md) |
-| W6a.3 | Vector PDFs retain [gradients with per-stop opacity](docs/PDF.md#gradients-that-fade-to-transparent) and unmarked working-RGB pages retain [standard blend operators](docs/PDF.md#rgb-blend-modes). Receipts describe reader differences at abrupt color transitions | Soft masks from user-authored masks and knockout groups remain open. Preserve color-space and print-mark boundaries |
+| W6a.3 | Vector PDFs retain [grayscale item and group masks](docs/PDF.md#opacity-masks-on-shapes-and-groups), [gradient stop opacity](docs/PDF.md#gradients-that-fade-to-transparent) and [standard working-RGB blends](docs/PDF.md#rgb-blend-modes) | Artwork-source masks and knockout groups remain open. Preserve color-space and print-mark boundaries |
 | W6a.4 | [Marked vector pages](docs/DEVELOPMENT_STATUS.md#marked-vector-print-pages) retain paths and named inks with independent media, bleed and trim boxes. All 55 plate comparisons passed across eleven sheets, including the A4 print fixture | Marked RGB transparency, searchable fonts and editable page reimport remain open |
 | W7 / W8 | [v0.84.0](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) shipped four native archives with checked inventories, an offline postcard, checksums and a Windows extension. [Release verification](docs/PLATFORMS.md#v0840-platform-checks) covers tag-bound attestations, source installation and prior saved edits. The README shows a verified before-and-after edit | Keep installation and platform evidence current. Extend examples and publish comparable model outcomes as W2 advances. Registry publication remains separate |
 | W9 | Deferred, outside active scope | No learned-model plugin work |
@@ -695,7 +695,7 @@ Current state (`src/pdf.rs` and the `src/pdf/` submodules):
   subsetting or ToUnicode.
 - **Streams** are unfiltered (~124).
 - **Preflight** admits standard blends on unmarked working-RGB display pages.
-  Unsupported blend modes, knockout, active masks and effects still fail
+  Unsupported blend modes, knockout, active artwork-source masks and effects still fail
   explicitly. See the [PDF appearance contract](docs/PDF.md#rgb-blend-modes).
 - **Page boxes:** vector pages and flattened native prepress both separate
   the bleed box from the marked sheet. See the
@@ -718,7 +718,8 @@ Tasks:
      match, and the fonts are subset and embedded.
 2. **Compression.** Flate-compress content streams (flate2 is already locked).
 3. **Transparency.**
-   - Soft masks from engine masks.
+   - Inline and stored grayscale masks retain their prepared coverage on items
+     and groups. Artwork-source alpha and luminance masks remain open.
    - Unmarked working-RGB display pages now retain the standard `/BM`
      operators. Other modes fail explicitly.
    - Axial and radial pad gradients retain varying alpha in fills and strokes.

@@ -96,11 +96,40 @@ for unmarked pages. Callers using `..Default::default()` already get that value.
 The default display mode uses DeviceRGB with encoded working samples. Explicit `pdf_options.color:"native_inks"` retains named inks and overprint under the [native ink contract](INK_DELIVERY.md). Consumer color management,
 antialiasing and image reconstruction may differ from engine previews. Exact
 consumer pixels and print-profile fidelity are not promised. Knockout, effects, filters, dissolve, pixel warps, layer
-clipping, active opacity/artwork masks, adjustment layers, ordered dither and
+clipping, active artwork-source masks, adjustment layers, ordered dither and
 other paint/sampling semantics return explicit errors. Hidden referenced fonts
 and resources are still validated. Unsupported items outside selected owned
 subtrees do not enter those exports. A scene view prepares all shared artwork,
 including off-view resources and unsupported items.
+
+### Opacity masks on shapes and groups
+
+Source builds after v0.84.0 can export an item's grayscale `mask` to PDF.
+For example, along the middle of a 24 × 12 shape, this mask fades from fully
+visible at x = 6 to fully transparent at x = 18.
+
+```json
+{"width":2,"height":1,"gray_hex":"ff00","clip":true,"sampling":"bilinear","transform":[12,0,0,12,0,0]}
+```
+
+The exporter applies the field once to the completed item, including any
+overlapping fill and stroke. A group mask acts on its combined children.
+Linked and document-space placement, feather, inversion, density and outside
+coverage follow the same rules as preview. Nearest sampling produces a
+grayscale image with interpolation disabled. Bilinear sampling uses adjacent
+two-dimensional shadings with shared boundary samples. Only the opacity grid is sampled. Paths,
+glyph outlines and gradient paints retain their vector form.
+
+Inline and stored grayscale grids share this path. Constant fields fold into
+item opacity. The receipt's `pdf.grid_masks` counts active masks drawn on the
+selected pages. `pdf.grid_mask_samples` counts padded cells examined, including
+cells checked for uniform coverage. Those cells and `pdf.image_pixels` share
+the 4,194,304-sample budget across pages. Embedded mask samples round to
+16 bits. Fine check patterns and stripes can look softer than the PNG proof. Use an
+overprint-capable separation preview to inspect masked inks. An opaque field
+can pass the marked RGB page check. A field with partial coverage needs an
+unmarked page or flattened prepress delivery.
+[Mask coordinates and feathering](MASKS.md#numerical-contract) · [Measured reader differences](DEVELOPMENT_STATUS.md#grayscale-masks-in-vector-pdf)
 
 ### Gradients that fade to transparent
 
@@ -179,7 +208,7 @@ the existing all-resources-in-export-view contract, including unused descriptors
 Stripping descriptions does not anonymize visible artwork or erase source files.
 
 Limits are 32 pages, 262144 generated path commands, 32768 PDF objects, 4194304
-embedded image pixels across all copies/pages, and 32 MiB output. Existing scene,
+image pixels and padded opacity-grid samples across all copies/pages, and 32 MiB output. Existing scene,
 font, generated-geometry and metadata limits also apply. Export completes in
 memory before create-only publication; cancellation is checked before work and
 before the publication commit point. There is no partial page batch on failure.
@@ -197,4 +226,4 @@ PDF reimport remain required by the separate extended page criterion.
 Public format reference: [ISO 32000-1 entry](https://committee.iso.org/standard/51502.html)
 and [PDF specification archive](https://pdfa.org/resource/pdf-specification-archive/).
 
-Raster background roles deliver the explicit canvas matte beneath retained source artwork within the supported page blending space. Hidden backgrounds suppress the matte. Other restrictions, including masks, effects, adjustments and clipping groups, remain explicit. See [BACKGROUNDS.md](BACKGROUNDS.md).
+Raster background roles deliver the explicit canvas matte beneath retained source artwork within the supported page blending space. Hidden backgrounds suppress the matte. Other restrictions, including artwork-source masks, effects, adjustments and clipping groups, remain explicit. See [BACKGROUNDS.md](BACKGROUNDS.md).
