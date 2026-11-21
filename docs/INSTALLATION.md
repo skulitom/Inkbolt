@@ -56,7 +56,9 @@ args = ['--workspace', 'C:\Work\Graphics', 'mcp', '--tools', 'essentials']
 
 Double-click `inkbolt-windows-x64.mcpb` from the release, or use
 Settings > Extensions > Advanced settings > Install Extension, then pick an
-existing workspace.
+existing workspace. The Windows extension uses the 22-tool `core` catalog.
+The manual configurations above use the smaller, ten-tool `essentials`
+catalog. Both can run the same editing commands.
 
 ### Linux and macOS
 

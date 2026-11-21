@@ -19,7 +19,7 @@ launch the extracted binary with that folder's absolute path.
 inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools essentials
 ```
 
-The server exposes ten tools at startup. An agent can look up individual editing
+This command exposes ten tools at startup. An agent can look up individual editing
 commands as it works. The release page lists archives by operating system and
 CPU, plus a desktop extension for Windows. [Installation and client setup](docs/INSTALLATION.md)
 
@@ -37,6 +37,13 @@ change a fill in the JSON and give the output a new filename.
 
 ## What you can make
 
+| Saved diagram | After one edit |
+| --- | --- |
+| ![Two blue blocks connected by a curved arrow](https://skulitom.github.io/Inkbolt/compare/svg-vector-editing-mcp-servers/data/outputs-v0.82.0/original.svg) | ![The left block is lower and the right block is green](https://skulitom.github.io/Inkbolt/compare/svg-vector-editing-mcp-servers/data/outputs-v0.82.0/edited.svg) |
+
+One edit moved the left block down 10 units and changed the right block's
+fill. Undo restored the starting SVG byte for byte. [Restored SVG](https://skulitom.github.io/Inkbolt/compare/svg-vector-editing-mcp-servers/data/outputs-v0.82.0/restored.svg)
+
 | Task | How Inkbolt helps |
 | --- | --- |
 | Draw a diagram or illustration | Arrange shapes, text, images and artboards. Import editable SVG artwork, including reusable symbols and positioned text. [SVG import](docs/SVG_IMPORT.md) |
@@ -48,7 +55,7 @@ change a fill in the JSON and give the output a new filename.
 
 Measured Windows and Linux workflows include a 24 MP JPEG import, a 50 MP
 16-bit edit through undo and TIFF export, A2 delivery at 300 ppi and an
-8192 × 8192 PNG render. [Release notes](https://github.com/skulitom/Inkbolt/releases/latest) · [Measured workflows and limits](docs/SCALE_WORKLOADS.md)
+8192 × 8192 PNG render. [Measured workflows](docs/SCALE_WORKLOADS.md) · [Engine limits](docs/LIMITS.md) · [Release notes](https://github.com/skulitom/Inkbolt/releases/latest)
 
 The core engine, CLI, MCP and saved sessions have been tested on Windows, Linux
 and macOS. Background export jobs currently require Windows. The platform guide
