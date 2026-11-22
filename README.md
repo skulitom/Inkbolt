@@ -71,7 +71,7 @@ All 15 PNGs matched the expected pixels. The same workflow
 also passed scripted checks on Linux. [Model trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-placement-pairs-on-windows) · [Cross-platform checks](docs/BENCHMARK_COMPARISON.md#move-a-placed-still-and-review-the-original)
 
 Source builds from `main` can export PDF labels that readers can search and
-copy, including curved labels and translucent letters with combining accents.
+copy, including curved labels, gradient fills and translucent combining accents.
 They also support variable TrueType weights and widths, vector cutouts and
 separate printing plates for spot inks.
 [PDF export](docs/PDF.md#searchable-text) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)

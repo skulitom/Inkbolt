@@ -348,7 +348,7 @@ on either side. The eight sheets contain zero embedded image pixels.
 
 ### Reader experiments for searchable gradient text
 
-Inkbolt currently outlines gradient-filled text. For W6a.1, two experimental
+Before Inkbolt could export searchable gradient-filled text, two experimental
 PDFs used the same synthetic font, glyph positions and translucent gradients
 as an outlined export. One used an axial gradient. The other used a radial
 gradient with a rotated and scaled label. Each contained an A and an
@@ -374,11 +374,33 @@ transparent page at 288 dpi, MuPDF's total alpha coverage was 5.55% lower than
 the outline in all three profiles. The coverage difference persists when the
 embedded glyph uses a shading pattern for its fill.
 
-Engine acceptance still needs exported files that preserve coverage and
-gradient placement, including repeated clusters at different positions,
-calibrated pages, other supported fonts and curved text. The existing 17
-searchable PDF tests passed with the external readers enabled on Windows and
-Ubuntu. [Current text export contract](PDF.md#searchable-text)
+The coverage difference ruled out the clipping prototype. The engine uses the
+color-glyph representation tested below.
+
+### Searchable gradient text in exported PDFs
+
+Source builds draw each gradient-filled cluster as a positioned Type 3 color
+glyph. Its character procedure paints the same per-component contours, gradient
+coordinates and opacity as the outline exporter. A page-space form keeps the
+gradient aligned across repeated letters. The glyph's Unicode mapping lets a
+reader find and copy an accented letter once. The PDF retains the pinned
+source font and its embedding permissions.
+
+On the original combining-accent fixture, MuPDF at 288 dpi measured total
+alpha of 102,091 for both the engine's searchable export and the original
+outline, up from 96,429 for the text-clipping prototype. Every RGBA channel
+matched on the sRGB, linear sRGB and Display P3 pages on Windows and Linux.
+
+The larger comparison used 32 pairs per host. It covered two copies of the
+accented letter, axial and transformed radial gradients, TrueType and CFF,
+subset and whole-program embedding, clear and painted backgrounds, and
+untagged, sRGB, linear sRGB and Display P3 output. Windows and Linux produced
+byte-identical PDFs. MuPDF matched every full-page RGBA sample at 72 and
+288 dpi and Poppler matched every RGB sample at 288 dpi. Search bounds
+matched solid text in every case. MuPDF and a second text extractor recovered
+both accented letters exactly on each host. Regression tests also exercise variable
+TrueType, curved text and strict publication with a restricted font.
+[Export contract](PDF.md#searchable-text) · [Regression tests](../tests/test_pdf_searchable.py)
 
 ## Vector PDF blend delivery
 

@@ -1,5 +1,6 @@
 """Original static fonts, text extraction, embedding restrictions and page placement."""
 import copy
+import itertools
 import re
 import shutil
 import struct
@@ -134,6 +135,116 @@ class SearchablePdfTests(unittest.TestCase):
         if mode:
             request["pdf_options"] = dict(text=mode)
         return self.invoke(request, expected)
+
+    def test_gradient_glyphs_keep_unicode_source_fonts_and_page_space_paint(self):
+        source = "A\u0301A\u0301"
+        stops = [dict(offset=0, color=[250, 30, 40, 65]),
+                 dict(offset=1, color=[20, 80, 222, 240])]
+        axial = dict(type="linear", start=[0, 0], end=[35, 0], stops=stops)
+        radial = dict(type="radial", center=[14, 20], radius=24, stops=stops)
+        for cff, permissions, profile, fill in itertools.product(
+            (False, True), (8, 0x108), (None, "srgb", "linear_srgb", "display_p3"), (axial, radial)
+        ):
+            with self.subTest(cff=cff, permissions=permissions, profile=profile, gradient=fill["type"]):
+                original = font_bytes(cff, permissions, mark_anchor=(80, 160))
+                self.install(original)
+                doc = self.document(text=source, width=100, height=60, wrap=False,
+                                    style=dict(font_id="geometry", size=36, fill=fill))
+                doc.update(width=100, height=60, resolution_ppi=72)
+                if profile:
+                    doc["output_profile"] = builtin(profile)
+                if fill is radial:
+                    doc["items"][0]["transform"] = [0.95, 0.2, -0.1, 0.8, 8, 2]
+                if permissions == 0x108:
+                    doc["items"].insert(0, boards.BoardCliTests.rectangle(
+                        self, "paper", None, "vector", 0, 0, 100, 60, [62, 110, 30, 255]))
+                result = self.export(doc, "require_searchable")
+                info = result["pdf"]["text_delivery"]
+                self.assertEqual((info["embedded_font_programs"], info["embedded_glyphs"],
+                                  info["gradient_color_glyphs"]), (1, 4, 2))
+                self.assertEqual(result["pdf"]["gradient_opacity_masks"], 4)
+                pdf = Pdf(result)
+                self.assertEqual([s for s, _ in pdf.text_glyphs()], ["A\u0301"] * 2)
+                color_fonts = [v for v in pdf.objects.values()
+                               if isinstance(v, dict) and v.get("Subtype") == "Type3"]
+                self.assertEqual(len(color_fonts), 2)
+                for color in color_fonts:
+                    self.assertEqual(len(color["Resources"]["Font"]), 1)
+                    [drawing] = color["Resources"]["XObject"].values()
+                    self.assertEqual(pdf.streams[drawing].count(b" sh\n"), 2)
+                    l, t, r, b = pdf.get(drawing)["BBox"]
+                    self.assertLess(r-l, doc["width"])
+                    self.assertLess(b-t, doc["height"])
+                if permissions == 0x108:
+                    self.assertTrue(any(program == original for program in pdf.streams.values()))
+                if shutil.which("pdftotext"):
+                    self.assertEqual(extracted_text(pdf.data), source)
+                control = Pdf(self.export(doc)).data
+                if pymupdf:
+                    solid_doc = copy.deepcopy(doc)
+                    solid_doc["items"][-1]["content"]["frame"]["style"]["fill"] = [0,0,0,255]
+                    normal = Pdf(self.export(solid_doc, "require_searchable")).data
+                    with pymupdf.open(stream=pdf.data, filetype="pdf") as actual, pymupdf.open(
+                            stream=control, filetype="pdf") as reference, pymupdf.open(
+                            stream=normal, filetype="pdf") as solid:
+                        self.assertEqual(actual[0].get_text().strip(), source)
+                        self.assertTrue(actual[0].search_for(source))
+                        self.assertEqual(actual[0].search_for(source), solid[0].search_for(source))
+                        for dpi in (72, 288):
+                            a, b = [p[0].get_pixmap(dpi=dpi, alpha=True).samples
+                                    for p in (actual, reference)]
+                            self.assertGreater(sum(b[3::4]), 0)
+                            self.assertLess(abs(sum(a[3::4]) / sum(b[3::4]) - 1), 0.001)
+                            self.assertLessEqual(max(abs(x-y) for x,y in zip(a,b)), 3)
+                if shutil.which("pdftoppm"):
+                    a,b = [poppler_rgb(data, 288, 400, 240) for data in (pdf.data, control)]
+                    self.assertLessEqual(max(abs(x-y) for x,y in zip(a,b)), 3)
+                self.assertEqual(self.source.read_bytes(), original)
+
+    def test_gradient_text_on_a_curve_and_variable_glyphs_over_painted_paper(self):
+        fill = dict(type="radial", center=[14, 20], radius=24,
+                    stops=[dict(offset=0, color=[20, 160, 70, 190]),
+                           dict(offset=1, color=[185, 20, 75, 190])])
+        for source, font, frame, style in (
+            ("A\u0301", font_bytes(mark_anchor=(600, 750)), dict(path=curved(start_offset=14)),
+             dict(horizontal_scale=1.25, vertical_scale=0.75)),
+            ("AB fi", variable_font(), {}, dict(font_variations={"geometry": {"wght":800, "wdth":150}})),
+        ):
+            with self.subTest(source=source):
+                self.install(font)
+                doc = self.document(text=source, wrap=False, **frame,
+                                    style=dict(font_id="geometry", size=16, fill=fill, **style))
+                doc.update(resolution_ppi=72, output_profile=builtin("linear_srgb"))
+                doc["items"].insert(0, boards.BoardCliTests.rectangle(
+                    self, "paper", None, "vector", 0, 0, doc["width"], doc["height"], [35, 58, 110, 255]))
+                result = self.export(doc, "require_searchable")
+                pdf = Pdf(result)
+                self.assertEqual("".join(s for s, _ in pdf.text_glyphs()), source)
+                self.assertEqual(result["pdf"]["text_delivery"]["embedded_font_programs"], 1)
+                if shutil.which("pdftotext"):
+                    self.assertEqual(extracted_text(pdf.data), source)
+                if pymupdf:
+                    with pymupdf.open(stream=pdf.data, filetype="pdf") as actual, pymupdf.open(
+                            stream=Pdf(self.export(doc)).data, filetype="pdf") as outlines:
+                        self.assertEqual(actual[0].get_text().strip(), source)
+                        self.assertTrue(actual[0].search_for(source))
+                        a, b = [p[0].get_pixmap(dpi=288, alpha=True).samples for p in (actual, outlines)]
+                        self.assertLessEqual(max(abs(x-y) for x,y in zip(a,b)), 3)
+
+    def test_restricted_gradient_text_refuses_strict_publication(self):
+        self.install(font_bytes(permissions=2))
+        doc = self.document(text="AA", style=dict(font_id="geometry", size=18, fill=dict(
+            type="linear", start=[0, 0], end=[25, 0], stops=[
+                dict(offset=0, color=[255, 0, 0, 255]), dict(offset=1, color=[0, 0, 255, 255])])))
+        fallback = self.export(doc, "searchable")
+        self.assertEqual(fallback["pdf"]["text_delivery"]["outlined_items_by_reason"], {"restricted_embedding": 1})
+        self.assertEqual(Pdf(fallback).data, Pdf(self.export(doc)).data)
+        error = self.invoke(dict(command="document.publish", document=doc,
+                                 resources=dict(font_root=str(self.store)),
+                                 output=dict(output_root=str(self.directory), file_name="gradient.pdf",
+                                             format="pdf", pdf_options=dict(text="require_searchable"))), 1)
+        self.assertIn("restricted_embedding", error["message"])
+        self.assertFalse((self.directory / "gradient.pdf").exists())
 
     def test_variable_instances_embed_their_own_outlines_advances_and_unicode(self):
         from test_font_controls_cli import deformation

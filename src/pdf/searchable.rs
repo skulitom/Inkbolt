@@ -109,6 +109,7 @@ pub(super) struct Registry {
     losses: BTreeMap<&'static str, usize>,
     embedded_fonts: usize,
     embedded_glyphs: usize,
+    gradient_clusters: usize,
 }
 impl Registry {
     pub(super) fn receipt(&self, mode: TextDelivery) -> Option<(&'static str, Value)> {
@@ -120,11 +121,12 @@ impl Registry {
             } else {
                 "mixed_searchable_and_outlines"
             };
-            (
-                delivered,
-                json!({"requested":mode,"embedded_font_programs":self.embedded_fonts,
-            "embedded_glyphs":self.embedded_glyphs,"outlined_items_by_reason":self.losses}),
-            )
+            let mut receipt = json!({"requested":mode,"embedded_font_programs":self.embedded_fonts,
+                "embedded_glyphs":self.embedded_glyphs,"outlined_items_by_reason":self.losses});
+            if self.gradient_clusters > 0 {
+                receipt["gradient_color_glyphs"] = json!(self.gradient_clusters);
+            }
+            (delivered, receipt)
         })
     }
 }
@@ -163,9 +165,12 @@ fn source<'a>(document: &'a Document, item: &'a Item, glyph: &Glyph) -> Option<&
 
 struct PaintedGlyph<'a> {
     glyph: &'a Glyph,
-    paint: Option<&'a Paint>,
+    path: Option<&'a crate::text::PaintedPath>,
 }
 impl PaintedGlyph<'_> {
+    fn paint(&self) -> Option<&Paint> {
+        self.path.map(|path| &path.fill)
+    }
     fn span(&self) -> (Option<usize>, usize, usize) {
         (self.glyph.paragraph, self.glyph.start, self.glyph.end)
     }
@@ -197,27 +202,19 @@ pub(super) fn paint_text(
     if writer.form_depths.is_some() {
         return fallback(writer, item, resources.text, "knockout_page");
     }
-    if layout
-        .paths
-        .iter()
-        .any(|p| matches!(p.fill, Paint::Field(_)))
-    {
-        return fallback(writer, item, resources.text, "gradient_text");
-    }
     let mut paths = layout.paths.iter();
     let mut painted = Vec::new();
     for g in layout.glyphs.iter().filter(|g| drawn(g)) {
-        let paint = if g.ink_bounds.is_some() {
+        let path = if g.ink_bounds.is_some() {
             Some(
-                &paths
+                paths
                     .next()
-                    .ok_or_else(|| unsupported("Missing glyph paint in layout"))?
-                    .fill,
+                    .ok_or_else(|| unsupported("Missing glyph paint in layout"))?,
             )
         } else {
             None
         };
-        painted.push(PaintedGlyph { glyph: g, paint });
+        painted.push(PaintedGlyph { glyph: g, path });
     }
     let groups = || painted.chunk_by(|a, b| a.span() == b.span());
     let mut kinds = BTreeMap::new();
@@ -230,8 +227,8 @@ pub(super) fn paint_text(
         if group.len() > 1
             && group
                 .iter()
-                .filter_map(|p| p.paint)
-                .any(|p| !matches!(p, Paint::Solid(_) | Paint::Precise(_)))
+                .filter_map(PaintedGlyph::paint)
+                .any(|p| matches!(p, Paint::Named(_)))
         {
             return fallback(writer, item, resources.text, "cluster_paint");
         }
@@ -290,18 +287,29 @@ pub(super) fn paint_text(
         let offsets = &boundaries[&g.paragraph];
         let cluster = &text[offsets[g.start]..offsets[g.end]];
         let font_kind = kinds[g.font_id.as_str()];
-        let colored = group.len() > 1 && cluster::intrinsic_color(group);
-        let (font, code) = if group.len() == 1 {
+        let gradient = group
+            .iter()
+            .any(|g| matches!(g.paint(), Some(Paint::Field(_))));
+        let colored = gradient || (group.len() > 1 && cluster::intrinsic_color(group));
+        let (font, code) = if group.len() == 1 && !gradient {
             register(writer, g, cluster, font_kind)?
         } else {
             (
-                cluster::font(writer, group, cluster, &kinds, stream, colored)?,
+                cluster::font(
+                    writer,
+                    group,
+                    cluster,
+                    &kinds,
+                    stream,
+                    colored,
+                    gradient.then_some(world),
+                )?,
                 "01".into(),
             )
         };
         let paint = group
             .iter()
-            .find_map(|p| p.paint)
+            .find_map(PaintedGlyph::paint)
             .unwrap_or(&Paint::Solid([0, 0, 0, 255]));
         let m = geometry::multiply(world, glyph_matrix(g));
         stream.content.push_str("q\n");

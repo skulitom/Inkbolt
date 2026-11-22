@@ -1352,6 +1352,7 @@ fn capability_report() -> Value {
         "variable_truetype":"static_outlines_and_advances;one_subset_per_used_font_and_design_coordinates_per_page;requires_subset_permission",
         "mapping":"positioned_left_to_right_glyphs_with_source_unicode_including_ligatures;strong_right_to_left_source_uses_outlines",
         "multiple_glyphs_per_cluster":"one_searchable_character_draws_positioned_embedded_glyphs;straight_or_curved_baseline;rgb8_or_precise_rgba_with_per_glyph_opacity",
+        "gradient_text":"axial_or_radial_pad_srgb;positioned_Type3_color_glyphs_with_source_unicode_and_pinned_font_programs;per_component_stop_opacity",
         "permissions":"installable_or_editable;subset_when_permitted;whole_standalone_static_font_when_subsetting_is_forbidden",
         "fallback":"searchable_outlines_unadmitted_text_items_and_counts_reasons;require_searchable_fails_before_publication",
         "receipt":"pdf.text_delivery","editable_source":"snapshot_and_pinned_fonts"

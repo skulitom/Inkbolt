@@ -129,7 +129,17 @@ keep their different shapes and advances, and both copy as their original
 text. The editable document retains the original font and axis settings.
 Variable fonts that require whole-font embedding and CFF2 fonts use outlines.
 
-Right-to-left runs, generated glyphs, gradient text and text
+Source builds can also deliver searchable text with axial or radial gradients.
+Use pad spread and encoded-sRGB interpolation. Each painted character or
+shaping cluster becomes a positioned PDF Type 3 color glyph with its original
+Unicode. Its drawing uses the font's contours and the gradient's position in
+the artwork. A translucent accent paints over its base letter. Repeated letters
+can show different colors along the same gradient. The color glyph references
+the embedded source font, subject to the same permissions as solid text.
+`pdf.text_delivery.gradient_color_glyphs` counts these painted characters
+when present. [Rendering and extraction checks](DEVELOPMENT_STATUS.md#searchable-gradient-text-in-exported-pdfs)
+
+Right-to-left runs, generated glyphs and text
 on knockout pages use the fallback. A left-to-right frame containing strong
 right-to-left source characters also falls back (`right_to_left_source`).
 This preserves the drawn label when a reader would reverse the copied text.
