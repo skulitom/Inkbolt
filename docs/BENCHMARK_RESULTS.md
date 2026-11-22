@@ -37,7 +37,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 178,056 / n/a | [77c6a17](#b17-with-the-workspace-in-the-cli-launch-command) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
-| B19 Recover an interrupted export | 4/5 | 4/5 | n/a | 569,666.5 / n/a | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
+| B19 Recover an interrupted export | 5/5 | 5/5 | n/a | 614,476 / n/a | [Vector fill and export recovery](#interrupted-export-recovery-with-a-vector-fill-edit) |
 | B20 Revise a linked video graphic | 5/5 | 5/5 | 5/5 | 921,483 / 284,822 | [Timed sequence example](#timed-sequence-handoff-with-one-discovery-example) |
 
 Artifact checks cover the requested delivery and source preservation. A complete
@@ -46,7 +46,7 @@ recovery behavior. Baseline artifact and workflow counts coincide in these
 batches. B17–B19 exercise engine-specific recovery and have no baseline arm.
 
 Token medians include all attempts with reported usage, including failures, and
-count cached input once. B19 has usage for four of five attempts. Five trials
+count cached input once. Five trials
 give wide uncertainty. For example, five successes give a 95% Wilson interval
 of 56.6%–100%. Full model-call counts, engine-only model-trial memory and
 preview timing across the entire suite remain open. [Comparison policy](BENCHMARK_COMPARISON.md)
@@ -66,6 +66,43 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Interrupted export recovery with a vector fill edit
+
+On Windows, five agents cancelled an active export, queued a fresh export,
+recolored the badge in the current document, and recovered the interrupted
+export from its earlier revision. Each used `op:"fill"` successfully on the
+first badge edit. All five passed the nine independent checks. Rejudging
+their retained captures reproduced every verdict, receipt and reported metric.
+The [earlier batch](#b10b17b19-at-447bbc2-request-guidance-follow-up) passed 4/5.
+
+| Median per accepted attempt | Earlier four | Current five |
+| --- | ---: | ---: |
+| Engine commands | 30 | 43 |
+| Response bytes | 342,539 | 220,327 |
+| Tokens | 569,666.5 | 614,476 |
+| Time to verified engine preview | 61.6 s | 64.3 s |
+| Solve time | 119.7 s | 141.2 s |
+
+Four agents made 12–19 schema lookups and one completed the task without a
+lookup. Keep the fill edit. The higher command and token counts leave overall
+efficiency open. Both batches used prompt version 5, Codex CLI 0.160.0 and the
+same model settings. Other engine and driver changes also separate the batches.
+The current driver measured a median of 71.9 seconds to the first client event
+observing a verified preview file across all five attempts.
+
+The evaluated source was `a8a3617a1fa29fe5c983961880a215f3a87619cf`.
+An initial launch configuration resolved to CLI 0.164.0. Its version check
+stopped all five launches before any model solve. The evaluation used the
+retained CLI executable with the same SHA-256 as the earlier batch.
+
+| Retained evidence | SHA-256 |
+| --- | --- |
+| Evaluated Inkbolt executable | `da7a6506cfe4bec87764e7942216ba269715bea969ede4390aaa24682057f989` |
+| Five model attempts | `b1fc8586cba08b336496a7d8f79debd95711b216b3ff26d4e0b79f3eab436bed` |
+| Capture replay | `8d20e57ca658a15c3d9dc55f63cfb01e99295bfedba60c1dead684218ef4e156` |
+| Per-attempt review | `67afec043aaf6e7fd4a7216bdc39bb7efb43e2bd24af0d0f852111774aaa7bbb` |
+| Initial startup failures | `34c790706bcbf524f2d57642c644857d58590e6eac1b2fcf2f3be53d79b139f1` |
 
 ## Timed sequence handoff with one discovery example
 
