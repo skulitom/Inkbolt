@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_print import fixture,solve,judge,PROMPT,source_document,expected_picture,retained_print_file,print_files,native_inks,profile_identities
 from benchmark_baseline_print import manifest,judge_print,page_geometry
 from benchmark_driver import run_external_task,workspace_files
@@ -48,16 +48,11 @@ class PrintBenchmarkTests(unittest.TestCase):
         case.call=original
         return case
 
-    def test_original_outcomes_on_cli_and_mcp_with_separated_solver(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport),tempfile.TemporaryDirectory() as directory:
-                row=run_task(EXE,Path(directory)/'reference','B14',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(7,9))
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B14'])|{'source-preservation'})
-                self.assertTrue(row['judge_separated']);self.assertGreater(row['first_verified_preview_seconds'],0)
-                self.assertEqual(row['sources'],{'original-rgb.icc':'ae8f979d6718a08dd8b9526c965263444caa8b7e1b7c0f8a12ebba9c76365c98',
-                    'original-cmyk.icc':'5ba4f5f0eb525b7dbc622b4aa51c27cc32676648a581a4f2a5fe4949d4375a58'})
+    @reference_task('B14')
+    def test_original_outcomes_on_cli_and_mcp_with_separated_solver(self, row):
+        self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(7,9))
+        self.assertEqual(row['sources'],{'original-rgb.icc':'ae8f979d6718a08dd8b9526c965263444caa8b7e1b7c0f8a12ebba9c76365c98',
+            'original-cmyk.icc':'5ba4f5f0eb525b7dbc622b4aa51c27cc32676648a581a4f2a5fe4949d4375a58'})
 
     def test_independent_names_and_source_pass_without_solver_result_access(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_conflict import fixture,prepare,solve,judge,PROMPT,SETUP_FILES,target_action
 from benchmark_driver import run_external_task,workspace_files,run_owned
 from benchmark_runtime import Trial,TaskFailure
@@ -23,15 +23,10 @@ class ConflictBenchmarkTests(unittest.TestCase):
         fixture(case);case.begin(PROMPT.read_text(encoding='utf-8'));prepare(case);solve(case)
         return case
 
-    def test_original_ten_commands_and_five_checks_on_cli_and_mcp(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport),tempfile.TemporaryDirectory() as directory:
-                row=run_task(EXE,Path(directory)/'reference','B18',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(10,13))
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B18'])|{'source-preservation'})
-                self.assertTrue(row['judge_separated']);self.assertGreater(row['first_verified_preview_seconds'],0)
-                self.assertEqual(row['sources']['source.json'],'043f59c6e7024a9bd2b6d8be99ccdabbffd32a56cce25657efb9157de32c98d6')
+    @reference_task('B18')
+    def test_original_ten_commands_and_five_checks_on_cli_and_mcp(self, row):
+        self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(10,13))
+        self.assertEqual(row['sources']['source.json'],'043f59c6e7024a9bd2b6d8be99ccdabbffd32a56cce25657efb9157de32c98d6')
 
     def test_judge_reproduces_conflict_without_solver_results_or_changing_capture(self):
         with tempfile.TemporaryDirectory() as directory:

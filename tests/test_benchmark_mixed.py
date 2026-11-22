@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_mixed import fixture,solve,judge,PROMPT,initial_document,original_pixels,mask_samples,mixed_pixels
 from benchmark_baseline_mixed import manifest,admitted_manifest,decode_and_compose
 from benchmark_driver import run_external_task,workspace_files
@@ -43,17 +43,10 @@ class MixedBenchmarkTests(unittest.TestCase):
             solve(case)
         return case
 
-    def test_reference_transports_keep_original_fixture_and_separate_judge_traffic(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport),tempfile.TemporaryDirectory() as directory:
-                root=Path(directory)/transport;row=run_task(EXE,root,'B11',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B11'])|{'source-preservation'})
-                self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(9,7))
-                self.assertTrue(row['judge_separated']);self.assertGreater(row['first_verified_preview_seconds'],0)
-                self.assertEqual(row['sources']['original.png'],'d3b13b878b717a8b41f391753b0bd6f372116f0797d261c0e8acf296165fe208')
-                for direction in ('request','response'):
-                    self.assertEqual(row[direction+'_bytes']+row['judge_'+direction+'_bytes'],sum(p.stat().st_size for p in root.glob('*.'+direction+'.json')))
+    @reference_task('B11')
+    def test_reference_transports_keep_original_fixture_and_separate_judge_traffic(self, row):
+        self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(9,7))
+        self.assertEqual(row['sources']['original.png'],'d3b13b878b717a8b41f391753b0bd6f372116f0797d261c0e8acf296165fe208')
 
     def test_independent_ids_and_two_edits_pass_without_solver_results(self):
         with tempfile.TemporaryDirectory() as directory:

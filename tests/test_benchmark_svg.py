@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from test_cli import EXE, ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_svg import fixture, solve, judge, PROMPT, SOURCE, DESCRIPTION, svg_artifact, declared_losses, expected_picture
 from benchmark_driver import run_external_task, workspace_files
 from benchmark_runtime import Trial, TaskFailure
@@ -35,20 +35,10 @@ class BenchmarkSvgTests(unittest.TestCase):
         fixture(trial);trial.begin(PROMPT.read_text(encoding='utf-8'));solve(trial)
         return trial
 
-    def test_reference_transports_keep_checks_and_separate_all_judge_traffic(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
-                root=Path(directory)/transport
-                row=run_task(EXE,root,'B04',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B04'])|{'source-preservation'})
-                self.assertTrue(row['judge_separated'])
-                self.assertEqual(row['judge_engine_commands'],5)
-                self.assertEqual(row['engine_commands'],6)
-                self.assertGreater(row['first_verified_preview_seconds'],0)
-                for direction in ('request','response'):
-                    self.assertEqual(row[direction+'_bytes']+row['judge_'+direction+'_bytes'],
-                        sum(p.stat().st_size for p in root.glob('*.'+direction+'.json')))
+    @reference_task('B04')
+    def test_reference_transports_keep_checks_and_separate_all_judge_traffic(self, row):
+        self.assertEqual(row['judge_engine_commands'],5)
+        self.assertEqual(row['engine_commands'],6)
 
     def test_independent_names_and_restored_svg_description_are_judged_from_files(self):
         with tempfile.TemporaryDirectory() as directory:

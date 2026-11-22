@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from test_cli import EXE, ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_retouch import fixture, solve, judge, PROMPT, original_pixels, repaired_pixels
 from benchmark_baseline_retouch import manifest, admitted_manifest, decode_pixels
 from benchmark_driver import run_external_task, workspace_files
@@ -40,21 +40,14 @@ class BenchmarkRetouchTests(unittest.TestCase):
         fixture(trial); trial.begin(PROMPT.read_text(encoding='utf-8')); solve(trial)
         return trial
 
-    def test_reference_transports_preserve_fixture_and_separate_solver_from_judge(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)/transport; row = run_task(EXE,root,'B09',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B09'])|{'source-preservation'})
-                self.assertEqual(row['engine_commands'],6); self.assertEqual(row['judge_engine_commands'],7)
-                self.assertTrue(row['judge_separated']); self.assertGreater(row['first_verified_preview_seconds'],0)
-                for direction in ('request','response'):
-                    self.assertEqual(row[direction+'_bytes']+row['judge_'+direction+'_bytes'],
-                        sum(p.stat().st_size for p in root.glob('*.'+direction+'.json')))
-                self.assertEqual(row['sources']['source.json'],'200dda427495dfe414221be21d9db65ce8ab8091bd0ecac3cf34b7f397292558')
-                original,correct = original_pixels(),repaired_pixels()
-                changed = [i for i in range(256) if original[i*4:i*4+4] != correct[i*4:i*4+4]]
-                self.assertEqual(changed,[170,171,186,187])
+    @reference_task('B09')
+    def test_reference_transports_preserve_fixture_and_separate_solver_from_judge(self, row):
+        self.assertEqual(row['engine_commands'],6)
+        self.assertEqual(row['judge_engine_commands'],7)
+        self.assertEqual(row['sources']['source.json'],'200dda427495dfe414221be21d9db65ce8ab8091bd0ecac3cf34b7f397292558')
+        original,correct = original_pixels(),repaired_pixels()
+        changed = [i for i in range(256) if original[i*4:i*4+4] != correct[i*4:i*4+4]]
+        self.assertEqual(changed,[170,171,186,187])
 
     def test_judge_accepts_independent_session_and_two_edits_without_solver_evidence(self):
         with tempfile.TemporaryDirectory() as directory:

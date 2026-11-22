@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from test_cli import EXE, ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_mask import fixture, solve, judge, PROMPT, original_pixels, selected_pixels, expected_picture
 from benchmark_baseline_mask import manifest, admitted_manifest, decode_and_compose
 from benchmark_driver import run_external_task, workspace_files
@@ -40,20 +40,12 @@ class BenchmarkMaskTests(unittest.TestCase):
         fixture(trial); trial.begin(PROMPT.read_text(encoding='utf-8')); solve(trial)
         return trial
 
-    def test_reference_transports_separate_judging_and_keep_original_check_inventory(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)/transport
-                row = run_task(EXE,root,'B08',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B08'])|{'source-preservation'})
-                self.assertEqual(row['engine_commands'],6); self.assertEqual(row['judge_engine_commands'],7)
-                self.assertTrue(row['judge_separated']); self.assertGreater(row['first_verified_preview_seconds'],0)
-                for direction in ('request','response'):
-                    self.assertEqual(row[direction+'_bytes']+row['judge_'+direction+'_bytes'],
-                        sum(p.stat().st_size for p in root.glob('*.'+direction+'.json')))
-                self.assertEqual(selected_pixels().count(255),56)
-                self.assertEqual(row['sources']['source.json'],'0ef39aeb334a308f979cfa0dc5edc757f9b55b1deb0ff3421e5f8eb14a690b0b')
+    @reference_task('B08')
+    def test_reference_transports_separate_judging_and_keep_original_check_inventory(self, row):
+        self.assertEqual(row['engine_commands'],6)
+        self.assertEqual(row['judge_engine_commands'],7)
+        self.assertEqual(selected_pixels().count(255),56)
+        self.assertEqual(row['sources']['source.json'],'0ef39aeb334a308f979cfa0dc5edc757f9b55b1deb0ff3421e5f8eb14a690b0b')
 
     def test_judge_accepts_authors_session_and_equivalent_full_canvas_mask_without_solver_logs(self):
         with tempfile.TemporaryDirectory() as directory:

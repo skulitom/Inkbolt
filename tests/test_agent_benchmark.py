@@ -1,7 +1,6 @@
 """Benchmark evidence must reflect actual transport, required outcomes and failures."""
 import copy
 import io
-import json
 from pathlib import Path
 import queue
 import sys
@@ -13,6 +12,7 @@ from unittest.mock import patch
 from test_cli import EXE, ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task, aggregate
+from benchmark_reference_checks import reference_task
 from benchmark_tasks import TASKS, CHECKS
 from benchmark_adapters import ADAPTERS
 from benchmark_graphics import pixels, png_check
@@ -59,37 +59,30 @@ class AgentBenchmarkTests(unittest.TestCase):
             self.assertEqual(summary[-1]['not_implemented'],1)
             self.assertEqual(sum(v['passed'] for v in summary),0)
 
-    def test_each_scripted_task_passes_its_independent_judge_on_cli_and_compact_mcp(self):
-        with tempfile.TemporaryDirectory() as directory:
-            for transport in ['cli','mcp']:
-                for task in ADAPTERS:
-                    if task in ('B10','B19','B20'):continue  # Photo/recovery are focused modules; B20 requires explicit external release tools.
-                    with self.subTest(transport=transport,task=task):
-                        root=Path(directory)/(transport+'-'+task)
-                        row=run_task(EXE,root,task,1,transport)
-                        self.assertEqual(row['status'],'passed',json.dumps(row,indent=2))
-                        self.assertEqual(set(c['name'] for c in row['checks']),set(CHECKS[task])|{'source-preservation'})
-                        self.assertEqual(row['request_bytes']+row['judge_request_bytes'],sum(p.stat().st_size for p in root.glob('*.request.json')))
-                        self.assertEqual(row['response_bytes']+row['judge_response_bytes'],sum(p.stat().st_size for p in root.glob('*.response.json')))
-                        self.assertIsNone(row['token_usage']);self.assertIsNone(row['model_calls'])
-                        self.assertFalse(row['model_trials'])
-                        self.assertGreater(row['first_verified_preview_seconds'],0)
-                        if sys.platform=='win32':
-                            self.assertTrue(row['memory_complete'])
-                            self.assertGreater(row['peak_commit_bytes'],0)
-                        elif sys.platform=='linux':
-                            self.assertTrue(row['resident_memory_complete'],row)
-                            self.assertGreater(row['peak_resident_bytes'],0)
-                            self.assertFalse(row['memory_complete'])
-                            self.assertIsNone(row['peak_commit_bytes'])
-                            if transport=='mcp':
-                                self.assertEqual(row['server_memory']['resident']['peak_resident_bytes'],row['peak_resident_bytes'])
-                                self.assertIn('including judge calls',row['memory_scope'])
-                        if task=='B17':
-                            self.assertEqual(row['retries'],2)
-                            lost=next(c for c in row['calls'] if c['step']=='lost')
-                            self.assertFalse(lost['response_observed'])
-                            self.assertEqual(lost['status'],'response_lost')
+    @reference_task('B01')
+    def test_diagram_reference_on_cli_and_mcp(self, row):
+        self.assertEqual(row['engine_commands'], 5)
+        self.assertEqual(row['judge_engine_commands'], 2)
+
+    def test_every_standard_reference_has_one_discovered_transport_pair(self):
+        loader = unittest.TestLoader()
+        pending = list(loader.discover(str(ROOT / 'tests'), pattern='test_*benchmark*.py'))
+        self.assertFalse(loader.errors, loader.errors)
+        tasks = []
+        while pending:
+            test = pending.pop()
+            if isinstance(test, unittest.TestSuite):
+                pending.extend(test)
+                continue
+            method = getattr(test, test._testMethodName)
+            task = getattr(method, 'reference_task', None)
+            if task:
+                self.assertFalse(getattr(method, '__unittest_skip__', False), test.id())
+                self.assertFalse(getattr(type(test), '__unittest_skip__', False), test.id())
+                tasks.append(task)
+        # Photo memory, controlled recovery and external handoff have dedicated
+        # platform and tool contracts. Their existing tests cover them separately.
+        self.assertCountEqual(tasks, set(ADAPTERS) - {'B10', 'B19', 'B20'})
 
     def test_missing_checks_unexpected_errors_and_invalid_retry_claims_cannot_pass(self):
         with tempfile.TemporaryDirectory() as directory:

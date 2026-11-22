@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_resources import fixture,solve,judge,PROMPT,expected_picture,cache_name,BLUE,GREEN,BROKEN,expected_diagnostics,reported_diagnostics
 from benchmark_baseline_resources import judge_resources
 from benchmark_driver import run_external_task,workspace_files
@@ -41,19 +41,14 @@ class ResourceBenchmarkTests(unittest.TestCase):
             (case.root/'session.json').write_text(json.dumps(locator),encoding='utf-8')
         return case
 
-    def test_original_fixtures_and_checks_on_cli_and_mcp_with_separate_judge(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport),tempfile.TemporaryDirectory() as directory:
-                row=run_task(EXE,Path(directory)/'reference','B15',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(11,10))
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B15'])|{'source-preservation'})
-                self.assertGreater(row['first_verified_preview_seconds'],0);self.assertTrue(row['judge_separated'])
-                self.assertEqual(row['sources'],{
-                    'source.json':'01f756ed9743525ec539feb42bb0397d82218cd15e118672c140612894fe15b2',
-                    'original-0.png':'4e8a1ab5551f3c15849555e07b0b7b11bd4fa7ed7fb5025aa7c317428c06fe9a',
-                    'original-1.png':'3e3f4de7859b333f69ac692e04b6fa7d78ad1cc49105c385e12b5a6b4a65f27b',
-                    'broken-assets/'+cache_name(0):'6a247b61b66cea977151ac86e18ede3fc3490038618782910e723242199ab325'})
+    @reference_task('B15')
+    def test_original_fixtures_and_checks_on_cli_and_mcp_with_separate_judge(self, row):
+        self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(11,10))
+        self.assertEqual(row['sources'],{
+            'source.json':'01f756ed9743525ec539feb42bb0397d82218cd15e118672c140612894fe15b2',
+            'original-0.png':'4e8a1ab5551f3c15849555e07b0b7b11bd4fa7ed7fb5025aa7c317428c06fe9a',
+            'original-1.png':'3e3f4de7859b333f69ac692e04b6fa7d78ad1cc49105c385e12b5a6b4a65f27b',
+            'broken-assets/'+cache_name(0):'6a247b61b66cea977151ac86e18ede3fc3490038618782910e723242199ab325'})
 
     def test_independent_request_and_session_ids_do_not_need_solver_results(self):
         with tempfile.TemporaryDirectory() as directory:

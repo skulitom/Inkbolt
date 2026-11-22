@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 
 from test_cli import EXE, ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_flow import fixture, solve, judge, PROMPT, expected_picture, expected_lines, repaired, read_report
 from benchmark_baseline_flow import svg_flow, judge_flow, same_json
 from benchmark_driver import run_external_task, workspace_files
@@ -34,20 +34,10 @@ class BenchmarkFlowTests(unittest.TestCase):
         fixture(trial); trial.begin(PROMPT.read_text(encoding='utf-8')); solve(trial)
         return trial
 
-    def test_reference_transports_keep_all_checks_and_separate_judge_traffic(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)/transport
-                row = run_task(EXE,root,'B06',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B06'])|{'source-preservation'})
-                self.assertEqual(row['engine_commands'],10)
-                self.assertEqual(row['judge_engine_commands'],9)
-                self.assertTrue(row['judge_separated'])
-                self.assertGreater(row['first_verified_preview_seconds'],0)
-                for direction in ('request','response'):
-                    self.assertEqual(row[direction+'_bytes']+row['judge_'+direction+'_bytes'],
-                        sum(p.stat().st_size for p in root.glob('*.'+direction+'.json')))
+    @reference_task('B06')
+    def test_reference_transports_keep_all_checks_and_separate_judge_traffic(self, row):
+        self.assertEqual(row['engine_commands'],10)
+        self.assertEqual(row['judge_engine_commands'],9)
 
     def test_judge_uses_authors_session_and_deliveries_without_solver_results(self):
         with tempfile.TemporaryDirectory() as directory:

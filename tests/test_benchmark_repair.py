@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_repair import fixture,solve,judge,PROMPT,initial_document,original_font,FONT_FAMILY,expected_picture
 from benchmark_baseline_repair import judge_repair,measured_width
 from benchmark_driver import run_external_task,workspace_files
@@ -59,15 +59,10 @@ class RepairBenchmarkTests(unittest.TestCase):
         self.assertEqual(measured_width(original),24)
         self.assertEqual(sha(original),'0bc1bae3dae5c43f7a8eb8500b12ea60f16afd6317501878cbee455b30401b11')
 
-    def test_original_checks_on_cli_and_mcp_with_separate_judge(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport),tempfile.TemporaryDirectory() as directory:
-                row=run_task(EXE,Path(directory)/'reference','B16',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(11,12))
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B16'])|{'source-preservation'})
-                self.assertGreater(row['first_verified_preview_seconds'],0);self.assertTrue(row['judge_separated'])
-                self.assertEqual(row['sources']['font-license.txt'],'38b2ad535b9f5a4778264eddc05f1c8286131dd1079d5cfd7cde6d00c6c85ed6')
+    @reference_task('B16')
+    def test_original_checks_on_cli_and_mcp_with_separate_judge(self, row):
+        self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(11,12))
+        self.assertEqual(row['sources']['font-license.txt'],'38b2ad535b9f5a4778264eddc05f1c8286131dd1079d5cfd7cde6d00c6c85ed6')
 
     def test_independent_ids_and_requests_do_not_need_solver_results(self):
         with tempfile.TemporaryDirectory() as directory:

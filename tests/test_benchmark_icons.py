@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from test_cli import EXE, ROOT
 sys.path.insert(0, str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_icons import fixture, solve, judge, PROMPT, expected_board
 from benchmark_baseline_icons import svg_boards
 from benchmark_driver import run_external_task, workspace_files
@@ -33,19 +33,9 @@ class BenchmarkIconTests(unittest.TestCase):
         fixture(trial); trial.begin(PROMPT.read_text(encoding='utf-8')); solve(trial)
         return trial
 
-    def test_both_reference_transports_preserve_checks_and_separate_judge_traffic(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)/transport
-                row = run_task(EXE, root, 'B02', 1, transport)
-                self.assertEqual(row['status'], 'passed', row)
-                self.assertEqual({c['name'] for c in row['checks']}, set(CHECKS['B02'])|{'source-preservation'})
-                self.assertEqual(row['judge_engine_commands'], 4)
-                self.assertTrue(row['judge_separated'])
-                self.assertGreater(row['first_verified_preview_seconds'], 0)
-                for direction in ('request', 'response'):
-                    self.assertEqual(row[direction+'_bytes'] + row['judge_'+direction+'_bytes'],
-                                     sum(p.stat().st_size for p in root.glob('*.'+direction+'.json')))
+    @reference_task('B02')
+    def test_both_reference_transports_preserve_checks_and_separate_judge_traffic(self, row):
+        self.assertEqual(row['judge_engine_commands'], 4)
 
     def test_judge_reads_artifacts_and_allows_independent_document_and_session_names(self):
         with tempfile.TemporaryDirectory() as directory:

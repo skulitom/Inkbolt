@@ -7,11 +7,10 @@ from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_baseline_screen import screen_shape
 from benchmark_driver import run_external_task,workspace_files
 from benchmark_runtime import TaskFailure
-from benchmark_tasks import CHECKS
 from benchmark_screen_client import SVG
 from test_benchmark_driver import driver,fake_tools
 from test_images_cli import png
@@ -19,18 +18,12 @@ from workload_cases import sha
 
 
 class ScreenBenchmarkTests(unittest.TestCase):
-    def test_original_outcomes_on_cli_and_mcp_with_separate_judge_calls(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport),tempfile.TemporaryDirectory() as directory:
-                row=run_task(EXE,Path(directory)/'reference','B13',1,transport)
-                self.assertEqual(row['status'],'passed',row);self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(6,6))
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B13'])|{'source-preservation'})
-                self.assertTrue(row['judge_separated']);self.assertGreater(row['first_verified_preview_seconds'],0)
-                probes=[call for call in row['calls'] if 'judge_workspace' in call]
-                self.assertEqual(len(probes),3);self.assertTrue(all(call['phase']=='judge' and call['transport']=='cli' for call in probes))
-                for direction in ('request','response'):
-                    self.assertEqual(row[direction+'_bytes']+row['judge_'+direction+'_bytes'],
-                        sum(p.stat().st_size for p in (Path(directory)/'reference').glob('*.'+direction+'.json')))
+    @reference_task('B13')
+    def test_original_outcomes_on_cli_and_mcp_with_separate_judge_calls(self, row):
+        self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(6,6))
+        probes=[call for call in row['calls'] if 'judge_workspace' in call]
+        self.assertEqual(len(probes),3)
+        self.assertTrue(all(call['phase']=='judge' and call['transport']=='cli' for call in probes))
 
     def test_external_capture_can_be_rejudged_without_writing_into_solver_workspace(self):
         with tempfile.TemporaryDirectory() as directory:

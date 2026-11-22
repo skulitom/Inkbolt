@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_variants import fixture,solve,judge,PROMPT,initial_document,FONT_FAMILY,BOARDS,expected_picture,hierarchical_state
 from benchmark_baseline_variants import svg_layout,manifest,judge_variants
 from benchmark_driver import run_external_task,workspace_files
@@ -66,15 +66,11 @@ class VariantBenchmarkTests(unittest.TestCase):
         before,after=tables(original),tables(named);self.assertEqual(set(after)-set(before),{b'name'})
         self.assertEqual(before,{k:v for k,v in after.items() if k!=b'name'})
 
-    def test_reference_transports_keep_original_outcomes_and_separate_judge_traffic(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport),tempfile.TemporaryDirectory() as directory:
-                row=run_task(EXE,Path(directory)/'reference','B12',1,transport)
-                self.assertEqual(row['status'],'passed',row);self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(18,18))
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B12'])|{'source-preservation'})
-                self.assertEqual(row['sources']['green.png'],'3e3f4de7859b333f69ac692e04b6fa7d78ad1cc49105c385e12b5a6b4a65f27b')
-                self.assertEqual(row['sources']['orange.png'],'ecc09c674ec0eba98d3890f5e0eb393ba07fa46e4df3a4f0d524451f81db176e')
-                self.assertTrue(row['judge_separated']);self.assertGreater(row['first_verified_preview_seconds'],0)
+    @reference_task('B12')
+    def test_reference_transports_keep_original_outcomes_and_separate_judge_traffic(self, row):
+        self.assertEqual((row['engine_commands'],row['judge_engine_commands']),(18,18))
+        self.assertEqual(row['sources']['green.png'],'3e3f4de7859b333f69ac692e04b6fa7d78ad1cc49105c385e12b5a6b4a65f27b')
+        self.assertEqual(row['sources']['orange.png'],'ecc09c674ec0eba98d3890f5e0eb393ba07fa46e4df3a4f0d524451f81db176e')
 
     def test_independent_ids_and_extra_edit_pass_without_solver_results(self):
         with tempfile.TemporaryDirectory() as directory:

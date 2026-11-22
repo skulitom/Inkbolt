@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 from test_cli import EXE, ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_typography import (fixture, solve, judge, PROMPT, TYPOGRAPHY, named_font,
     expected_picture, authored_geometry, shaping_report, typography_document)
 from benchmark_baseline_typography import svg_typography, judge_typography
@@ -58,18 +58,10 @@ class BenchmarkTypographyTests(unittest.TestCase):
         self.assertEqual(set(new)-set(old),{b'name'})
         self.assertEqual({k:v for k,v in new.items() if k != b'name'},old)
 
-    def test_both_reference_transports_separate_judging_and_preserve_check_inventory(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)/transport
-                row = run_task(EXE,root,'B07',1,transport)
-                self.assertEqual(row['status'],'passed',row)
-                self.assertEqual({c['name'] for c in row['checks']},set(CHECKS['B07'])|{'source-preservation'})
-                self.assertEqual(row['engine_commands'],9); self.assertEqual(row['judge_engine_commands'],9)
-                self.assertTrue(row['judge_separated']); self.assertGreater(row['first_verified_preview_seconds'],0)
-                for direction in ('request','response'):
-                    self.assertEqual(row[direction+'_bytes']+row['judge_'+direction+'_bytes'],
-                        sum(p.stat().st_size for p in root.glob('*.'+direction+'.json')))
+    @reference_task('B07')
+    def test_both_reference_transports_separate_judging_and_preserve_check_inventory(self, row):
+        self.assertEqual(row['engine_commands'],9)
+        self.assertEqual(row['judge_engine_commands'],9)
 
     def test_judge_uses_deliveries_and_arbitrary_author_ids_without_solver_results(self):
         with tempfile.TemporaryDirectory() as directory:

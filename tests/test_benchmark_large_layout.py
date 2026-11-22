@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from test_cli import EXE, ROOT
 sys.path.insert(0, str(ROOT/'tools'))
-from agent_benchmark import run_task
+from benchmark_reference_checks import reference_task
 from benchmark_large_layout import fixture, expected_picture
 from benchmark_baseline_large_layout import svg_layout
 from benchmark_driver import run_external_task, workspace_files
@@ -30,19 +30,9 @@ class BenchmarkLargeLayoutTests(unittest.TestCase):
         checker.start()
         self.addCleanup(checker.stop)
 
-    def test_both_reference_transports_separate_judging_and_keep_all_checks(self):
-        for transport in ('cli','mcp'):
-            with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)/transport
-                row = run_task(EXE, root, 'B03', 1, transport)
-                self.assertEqual(row['status'], 'passed', row)
-                self.assertEqual({c['name'] for c in row['checks']}, set(CHECKS['B03'])|{'source-preservation'})
-                self.assertEqual(row['judge_engine_commands'], 7)
-                self.assertTrue(row['judge_separated'])
-                self.assertGreater(row['first_verified_preview_seconds'], 0)
-                for direction in ('request','response'):
-                    self.assertEqual(row[direction+'_bytes']+row['judge_'+direction+'_bytes'],
-                        sum(p.stat().st_size for p in root.glob('*.'+direction+'.json')))
+    @reference_task('B03')
+    def test_both_reference_transports_separate_judging_and_keep_all_checks(self, row):
+        self.assertEqual(row['judge_engine_commands'], 7)
 
     def test_external_model_capture_is_rejudged_without_mutating_its_workspace(self):
         for flags in (('--custom-session-store',),):
