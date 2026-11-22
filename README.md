@@ -68,10 +68,10 @@ Source builds from `main` can export searchable text on curved labels, keep
 the paths around group cutouts as vectors in a PDF, and preserve spot inks on
 separate printing plates. [PDF export](docs/PDF.md) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
-On `main`, an agent can also start a diagram from one vector quickstart or
-carry a saved edit between Windows and Linux. Copy the checked session backup,
-bring the original assets and fonts, and bind them in the new workspace.
-[Vector quickstart](docs/AGENT_DISCOVERY.md#vector-quickstart) · [Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability)
+On `main`, agents can start a diagram with editable shapes or place a local
+image and move it while keeping the original file intact. A saved edit can
+also travel between Windows and Linux with its assets and fonts.
+[Vector quickstart](docs/AGENT_DISCOVERY.md#vector-quickstart) · [Image placement](docs/AGENT_DISCOVERY.md#place-an-image) · [Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability)
 
 ## Explore the project
 

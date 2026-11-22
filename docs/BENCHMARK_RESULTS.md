@@ -28,7 +28,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 327,734 / 43,824 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 354,590 / 43,008 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
-| B11 Revise a mixed composition | 3/5 | 3/5 | 5/5 | 513,525 / 58,445 | [Source-layer lock](#mixed-composition-and-the-source-layer-lock) |
+| B11 Revise a mixed composition | 3/5 | 3/5 | 5/5 | 375,355 / 57,938 | [Image quickstart](#mixed-composition-with-the-image-quickstart) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 313,210 / 41,717 | [7a07f07](#b10b13-at-7a07f07-five-matched-pairs-with-retained-capture-corrections) |
 | B14 Deliver a print page | 5/5 | 3/5 | 4/5 | 531,200 / 97,120 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
@@ -65,6 +65,43 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Mixed composition with the image quickstart
+
+All five Inkbolt agents read the image placement guide, preserved the original
+file and delivered a pixel-correct revised PNG. Three also delivered the requested
+editable composition. In attempts one and four the sole difference in both
+saved documents was `locked: true` on the source layer. The five baseline agents
+all delivered the required editable manifest and PNG. [Image placement guide](AGENT_DISCOVERY.md#place-an-image)
+
+| Five attempts per arm | Earlier Inkbolt | Inkbolt with guide | Earlier baseline | Fresh baseline |
+| --- | ---: | ---: | ---: | ---: |
+| Complete workflows | 3/5 | 3/5 | 5/5 | 5/5 |
+| Correct revised PNGs | 5/5 | 5/5 | 5/5 | 5/5 |
+| Median seconds to the observed revised PNG | 76.3 | 71.5 | 39.7 | 37.2 |
+| Median total client seconds | 98.9 | 91.7 | 48.5 | 44.5 |
+| Median input + output tokens, including failures | 513,525 | 375,355 | 58,445 | 57,938 |
+
+Median Inkbolt token use fell 26.9% between these batches. The same layer
+property accounts for the two failures in each of three five-attempt Inkbolt
+batches. The shared prompt asks for a “pinned original image” and default
+remaining properties. A future paired trial should specify directly that the
+file's bytes are fixed and the placed layer must remain movable.
+[Prompt used in every batch](../tools/benchmark_prompts/B11.md) · [Previous batch](#mixed-composition-and-the-source-layer-lock)
+
+At `6605ca2` both arms ran sequentially on Windows with the preceding batch's
+prompt, judge, client and external model settings. The guide was opt-in. Its
+placement instructions and snapshot example appeared in every Inkbolt transcript. Timing uses the earliest
+completed client event with the delivered revised PNG's hash. All ten captures
+replayed with identical check outcomes, recorded timings and file identities.
+Only three pairs passed both arms' artifact checks, below the five needed for
+a paired cost ratio.
+
+| Retained report | SHA-256 |
+| --- | --- |
+| Inkbolt | `830271637ad2d938a2967bb716ab89f1e41127b0eb80c28eb05554dbca8b34c1` |
+| Baseline | `3a93f2040176e7c09c77c343be0791627c6ea41bd2d47239434f8e02e454d340` |
+| Matched comparison | `07a1af0f8e662c84f8953ee30d898c01ba4a698967364d4b189c6df72a707900` |
 
 ## Mixed composition and the source-layer lock
 
