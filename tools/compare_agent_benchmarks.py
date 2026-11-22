@@ -18,7 +18,7 @@ def main(argv=None):
         model=load_report(args.model_report,'model');baseline=load_report(args.baseline_report,'baseline')
         result=compare(model,baseline)
         result['comparison_code']={name:digest(Path(__file__).with_name(name).read_bytes())
-            for name in ('compare_agent_benchmarks.py','benchmark_comparison.py','benchmark_tasks.py')}
+            for name in ('compare_agent_benchmarks.py','benchmark_comparison.py','benchmark_tasks.py','benchmark_codex_driver.py')}
         output.mkdir()
         with (output/'report.json').open('xb') as stream:stream.write(canonical(result)+b'\n')
         with (output/'summary.md').open('x',encoding='utf-8') as stream:stream.write(markdown(result))

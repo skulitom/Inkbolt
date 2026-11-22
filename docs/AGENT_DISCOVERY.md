@@ -149,6 +149,7 @@ To save an editable file, use the [snapshot publication example](AGENT_WORKSPACE
 {"command":"schema.lookup","name":"document.edit","select":"Operation","full":true}
 {"command":"schema.lookup","name":"document.publish","select":"field:output/field:format"}
 {"command":"schema.lookup","name":"document.preview","select":"field:options/field:focus"}
+{"command":"schema.lookup","name":"session.apply","select":"edit"}
 {"command":"schema.lookup","name":"session.apply","select":"Action/edit"}
 {"command":"schema.lookup","name":"session.apply","select":"Action/edit/Operation/transform"}
 ```
@@ -182,6 +183,14 @@ referenced object, including an optional object with a single non-null shape,
 or continue into a tagged variant such as `field:action/edit`. An untagged
 union with several object shapes lists its alternatives. Use `full:true` on
 the field for all constraints, including nullability, defaults and definitions.
+
+An exact variant tag can select the value of a direct field. For example,
+`session.apply` with `select:"edit"` gives the same schema and navigable child
+paths as `field:action/edit`. This shorthand works when exactly one direct
+field owns the tag. A variant or definition at the current level takes
+precedence. If the tag also names a property or matches multiple fields,
+use an explicit field path. Case corrections still require the caller to
+choose the suggested spelling.
 
 Unknown names/selectors still return `SCHEMA_NOT_FOUND` without echoing unknown
 text. Error `details.field` identifies `name` or `select`, and

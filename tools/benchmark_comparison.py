@@ -1,9 +1,12 @@
 """Compare retained external trials without mixing artifacts and engine guarantees."""
 import hashlib
+import io
 import json
 import math
 from pathlib import Path
 import statistics
+
+from benchmark_codex_driver import TOOL_ACTIVITY_METRICS, transcript_activity
 
 from benchmark_tasks import (SUITE, TASKS, CHECKS, ARTIFACT_CHECKS, ENGINE_CHECKS, VARIANTS,
                              BASELINE_NOT_APPLICABLE, PREVIEWS_IN_SUBFOLDERS, allowed_preview_file, check_class)
@@ -27,7 +30,7 @@ METRICS = ('model_calls','input_output_tokens','input_tokens','output_tokens',
            'total_engine_commands','total_engine_retries','total_request_bytes',
            'total_response_bytes','total_engine_roundtrip_seconds','peak_commit_bytes',
            'peak_working_set_bytes','consumer_peak_tree_commit_bytes',
-           'client_tree_peak_process_commit_bytes','client_tree_peak_job_commit_bytes')
+           'client_tree_peak_process_commit_bytes','client_tree_peak_job_commit_bytes') + TOOL_ACTIVITY_METRICS
 
 
 def require(condition, message):
@@ -67,7 +70,7 @@ def retained_contract(root, row, provenance):
     if row['status']=='not_applicable':
         require(provenance['arm']=='baseline' and task in BASELINE_NOT_APPLICABLE and row.get('reason')==BASELINE_NOT_APPLICABLE[task],
                 'Unexpected inapplicable trial')
-        return None,False
+        return None,False,None
     request=read_json(base/'evidence/request.json');contract=request['contract']
     require(contract.get('benchmark_variant','standard')==provenance.get('benchmark_variant','standard'),
             'Request benchmark variant differs from report provenance')
@@ -96,7 +99,7 @@ def retained_contract(root, row, provenance):
     driver=row.get('driver')
     if not driver:
         require(row['status']!='passed','Passing trial lacks captured client evidence')
-        return contract,False  # Failed clients remain in the denominator.
+        return contract,False,None  # Failed clients remain in the denominator.
     capture=read_json(base/'evidence/capture.json',32*1024*1024)
     result=read_json(base/'evidence/driver-result.json')
     for key in ('kind','client','model'):
@@ -131,7 +134,8 @@ def retained_contract(root, row, provenance):
                 'Client file preview differs from captured event or final file')
     valid=not row.get('driver_failure') and driver['execution'].get('status')=='passed' and row['status'] in ('passed','failed')
     require(row['status']!='passed' or valid,'Passing trial has an incomplete captured execution')
-    return contract,valid
+    activity = transcript_activity(io.BytesIO(raw), contract, request['contract_sha256'], recorded.get('token_usage'))
+    return contract,valid,activity
 
 
 def load_report(path, arm):
@@ -180,10 +184,13 @@ def load_report(path, arm):
             require(set(names)==set(CHECKS[key[0]])|{'source-preservation'} and not row.get('error') and
                     not row.get('driver_failure') and all(c['status'] in ('pass','not_applicable') for c in checks),
                     'Passing row has missing or failed checks')
-        rows[key]=row
-        try:contracts[key],valid[key]=retained_contract(path.parent,row,p)
+        activity = None
+        try:contracts[key],valid[key],activity=retained_contract(path.parent,row,p)
         except (ValueError,KeyError,TypeError,OSError) as error:
             contracts[key]=None;valid[key]=False;issues[key]=str(error)
+        # Derive these measurements from the verified transcript, including on
+        # replay of older reports. No row-supplied count can replace it.
+        rows[key]=dict(row,client_tool_activity=activity)
     return dict(report=report,rows=rows,contracts=contracts,valid=valid,issues=issues,
                 path=str(path.resolve()),sha256=digest(read_bytes(path,128*1024*1024)))
 
@@ -207,7 +214,9 @@ def number(value):
 
 def metric(row, name):
     usage=row.get('token_usage') or {};driver=row.get('driver') or {}
-    if name=='input_output_tokens':
+    if name in TOOL_ACTIVITY_METRICS:
+        value=(row.get('client_tool_activity') or {}).get(name)
+    elif name=='input_output_tokens':
         parts=[number(usage.get(k)) for k in ('input_tokens','output_tokens')]
         value=sum(parts) if all(v is not None for v in parts) else None
     elif name.endswith('_tokens'):value=usage.get(name)

@@ -296,8 +296,27 @@ fn select_component<'a>(
     {
         return Some((variant, variant_path(prefix, segment)));
     }
-    // Definitions are also reachable directly from the named root.
-    Some((value.get("$defs")?.get(segment)?, segment.to_owned()))
+    if let Some(definition) = value["$defs"].get(segment) {
+        return Some((definition, segment.to_owned()));
+    }
+    let properties = shape.get("properties")?.as_object()?;
+    if properties.contains_key(segment) {
+        return None;
+    }
+    // A caller may know the action tag before knowing which field owns it.
+    // Only one direct field may supply that exact variant.
+    let mut matches = properties.iter().flat_map(|(field, property)| {
+        variants(fields::shape(property, &value["$defs"]))
+            .into_iter()
+            .filter(move |(_, tag, _)| *tag == segment)
+            .map(move |(_, _, variant)| (field, variant))
+    });
+    let (field, variant) = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    let route = variant_path(prefix, &format!("field:{field}/{segment}"));
+    (route.len() <= crate::limits::schema::MAX_SELECTOR_BYTES).then_some((variant, route))
 }
 
 fn selector_suggestion(value: &Value, prefix: Option<&str>, selector: &str) -> Option<String> {
@@ -467,6 +486,30 @@ pub(crate) fn lookup_in_workspace(
 #[cfg(test)]
 mod essentials_tests {
     use super::*;
+
+    #[test]
+    fn direct_variant_requires_one_immediate_field_and_preserves_explicit_names() {
+        let tagged = json!({"oneOf":[{"properties":{"type":{"const":"edit"}}}]});
+        let mut schema = json!({"properties":{"action":tagged}});
+        let select =
+            |s: &Value, tag: &str| select_component(s, s, None, tag).map(|(_, route)| route);
+        assert_eq!(
+            select(&schema, "edit").as_deref(),
+            Some("field:action/edit")
+        );
+        assert_eq!(select(&schema, "Edit"), None);
+        schema["properties"]["another"] = tagged.clone();
+        assert_eq!(select(&schema, "edit"), None);
+        schema["properties"]["another"] = json!({"properties":{"nested":tagged}});
+        assert_eq!(
+            select(&schema, "edit").as_deref(),
+            Some("field:action/edit")
+        );
+        schema["properties"]["edit"] = json!({"type":"string"});
+        assert_eq!(select(&schema, "edit"), None);
+        schema["$defs"]["edit"] = json!({"type":"integer"});
+        assert_eq!(select(&schema, "edit").as_deref(), Some("edit"));
+    }
 
     #[test]
     fn essentials_metadata_keeps_named_fields_and_literal_values() {

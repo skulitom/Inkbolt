@@ -2222,6 +2222,7 @@ fn capability_report() -> Value {
         "large_schema_outline_bytes":schema::OUTLINE_BYTES,
         "schema_selector_separator":"/",
         "schema_type_root_selector":true,
+        "schema_direct_field_variant":"unique_exact_tag",
         "schema_field_selector_prefix":"field:",
         "schema_selector_max_bytes":limits::schema::MAX_SELECTOR_BYTES,
         "schema_variant_selector_field":"select",

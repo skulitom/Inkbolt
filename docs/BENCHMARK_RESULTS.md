@@ -67,6 +67,69 @@ retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
 
+## Shell and MCP activity across twenty tasks
+
+The 185 retained transcripts behind the task table contain 100 Inkbolt
+attempts and 85 baseline attempts. Among the 17 paired tasks, the Inkbolt
+agents used more shell commands at the median on every task. Across those
+85 attempts per arm, they ran 1,069 commands with 75 nonzero exits. Baseline
+agents ran 371 commands with eight nonzero exits. All exit codes were recorded.
+
+The shell returned 5,911,947 bytes across the paired Inkbolt attempts and
+3,379,271 across the baseline attempts. B03 was the exception to the usual
+direction of that difference. The baseline returned a median 672,753 bytes
+per trial while editing the 5,000-object layout. On B13, both arms delivered
+five accepted artifacts, with medians of 22 shell commands for Inkbolt and
+two for the baseline. This makes transparent artwork delivery a concrete
+workflow to investigate for interaction cost.
+
+| Task | Inkbolt shell commands | Baseline shell commands | Inkbolt shell output, bytes | Baseline shell output, bytes |
+| --- | ---: | ---: | ---: | ---: |
+| B01 | 6 | 4 | 6,635 | 5,366 |
+| B02 | 10 | 3 | 68,639 | 5,606 |
+| B03 | 10 | 4 | 54,116 | 672,753 |
+| B04 | 9 | 3 | 38,236 | 394 |
+| B05 | 12 | 3 | 52,733 | 813 |
+| B06 | 11 | 4 | 77,316 | 7,288 |
+| B07 | 10 | 8 | 46,304 | 14,133 |
+| B08 | 11 | 2 | 55,290 | 2,440 |
+| B09 | 11 | 3 | 45,668 | 2,445 |
+| B10 | 15 | 3 | 98,054 | 291 |
+| B11 | 11 | 3 | 101,137 | 754 |
+| B12 | 14 | 3 | 99,968 | 5,652 |
+| B13 | 22 | 2 | 68,348 | 214 |
+| B14 | 10 | 5 | 103,926 | 1,032 |
+| B15 | 11 | 3 | 45,408 | 1,824 |
+| B16 | 12 | 6 | 77,427 | 6,222 |
+| B17 | 10 | — | 37,807 | — |
+| B18 | 13 | — | 34,787 | — |
+| B19 | 16 | — | 260,966 | — |
+| B20 | 19 | 14 | 163,083 | 77,226 |
+
+Each cell is a median across all five attempts. The three recovery tasks have
+engine-specific contracts. Five Inkbolt attempts also used direct MCP tools,
+across B08, B09 and B13. Their transcripts contain 99 completed MCP calls
+including 11 marked failed. The recorded MCP results and errors occupy
+1,882,464 bytes as compact JSON. Shell output and MCP reply sizes measure
+different representations. [Metric definitions](BENCHMARK_COMPARISON.md)
+
+Six of the eleven MCP failures used the same request to look up the edit action
+on `session.apply`. Replaying all 74 recorded MCP schema lookups on source
+`1b2fa56` succeeded for 67. With direct field variant lookup, 73 succeeded.
+The six new successes returned the same schema as `field:action/edit`.
+Every other reply matched the pre-change build, including a refusal for the older
+generated definition name `Options6`. The output options in that request are
+reachable through `document.publish` with `select:"field:output"`.
+Windows and Linux returned identical replies. These are replays of recorded
+requests. The model timings and task outcomes above belong to the original
+solves. [Schema lookup](AGENT_DISCOVERY.md#focused-schemas)
+
+Windows and Linux produced the same tool-activity report, SHA-256
+`85525e55a47dfefa21fc54053ba0b475fda2ccf515e16345c01f10b26e754235`.
+It binds the comparison method, source reports, individual transcript hashes
+and measured counts. The B10 tool events come from the original solves whose
+saved photo stores were [rejudged separately](#b10-rejudging-the-saved-photo-stores).
+
 ## Observing print previews in delivery folders
 
 All five Inkbolt attempts published the requested PDF and identified its

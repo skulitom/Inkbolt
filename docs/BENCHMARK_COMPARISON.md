@@ -5,6 +5,29 @@ It writes a new external `report.json` and an aggregate `summary.md`. It never
 runs clients, engines or judges, and refuses an existing output directory.
 Keep the complete original trial directories beside their reports.
 
+For Codex CLI captures made with the supplied adapter, reports also measure
+shell and MCP activity. The comparison reader checks the request identity,
+the transcript hash, the completed turn and its token record before counting
+completed tool events. It can recover the same measurements from older captures.
+Other transcript formats leave these metrics unknown.
+
+- `client_shell_commands` counts completed shell commands. The report counts
+  nonzero exits and unknown exits separately. `client_shell_repeated_commands`
+  counts each subsequent occurrence of identical command text in a trial.
+  A repeat can be a deliberate reread. `client_shell_output_bytes` measures
+  the UTF-8 text in the completed commands' combined output events.
+- `client_mcp_calls` and `client_mcp_failed_calls` count completed MCP events
+  and the subset the client marked failed. `client_mcp_reply_json_bytes`
+  measures compact UTF-8 JSON containing the recorded non-null result and
+  error fields. This includes any structured content and text copies the
+  client retained. Protocol framing and the client's own event envelope
+  have separate representations.
+
+A shell command can issue several native requests, filter their replies or
+work entirely on local files. Engine request bytes, engine retries and model
+inference calls retain their own evidence requirements. The task distributions
+include failed deliveries with a valid completed client turn. [Results across twenty tasks](BENCHMARK_RESULTS.md#shell-and-mcp-activity-across-twenty-tasks)
+
 ```powershell
 python tools/compare_agent_benchmarks.py --model-report C:/Work/model-01/report.json --baseline-report C:/Work/baseline-01/report.json --output-root C:/Work/comparison-01
 ```

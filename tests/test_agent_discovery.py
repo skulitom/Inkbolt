@@ -397,13 +397,19 @@ class AgentDiscoveryTests(unittest.TestCase):
                     self.assertEqual(lookup(name='document', select='Documnt')['error']['code'], 'SCHEMA_NOT_FOUND')
                     self.assertEqual(lookup(name='operation', select='Operation/transform')['result']['detail'], 'full')
 
-                    error = lookup(name='session.apply', select='edit')['error']
+                    error = lookup(name='session.apply', select='EDIT')['error']
                     self.assertEqual(error['code'], 'SCHEMA_NOT_FOUND')
                     self.assertEqual(error['details']['field'], 'select')
                     suggested = dict(error['details']['suggested_lookup'])
                     self.assertEqual(suggested.pop('command'), 'schema.lookup')
                     edited = lookup(**suggested)['result']
                     self.assertEqual(suggested['select'], 'Action/edit')
+                    for full in (False, True):
+                        direct = lookup(name='session.apply', select='edit', full=full)['result']
+                        qualified = lookup(name='session.apply', select='field:action/edit', full=full)['result']
+                        self.assertEqual(direct, dict(qualified, select='edit'))
+                        self.assertEqual(lookup(name='session.apply', select='edit/Operation/transform', full=full)['result']['schema'],
+                                         lookup(name='operation', select='transform', full=full)['result']['schema'])
                     if edited['detail'] == 'full':
                         self.assertEqual(edited['schema']['properties']['type']['const'], 'edit')
                     outline = lookup(name='session.apply', select='Action')['result']

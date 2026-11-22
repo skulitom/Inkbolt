@@ -1,4 +1,5 @@
 """External-client and transcript-import lifecycle; client data never supplies a verdict."""
+import io
 import math
 from pathlib import Path
 import shutil
@@ -28,6 +29,7 @@ import benchmark_conflict
 import benchmark_recovery_external
 import benchmark_handoff_external
 from benchmark_baseline import judge_diagram, file_hash
+from benchmark_codex_driver import transcript_activity
 from benchmark_baseline_icons import judge_icons
 from benchmark_baseline_large_layout import judge_large_layout
 from benchmark_baseline_svg import judge_svg_artwork
@@ -236,6 +238,7 @@ class ExternalTrial(Trial):
         return dict(driver=evidence,driver_failure=self.driver_failure,model_trials=evidence.get('kind')=='model',
             harness_setup=evidence.get('harness_setup',self.setup),
             token_usage=observed.get('token_usage'),model_calls=observed.get('model_calls'),
+            client_tool_activity=evidence.get('client_tool_activity'),
             agent_seconds=observed.get('agent_seconds'),scripted_wall_seconds=None,
             first_verified_preview_seconds=preview,preview_timing_source=source,
             first_verified_preview_file=event_file if not bridge_clock else None,
@@ -298,15 +301,20 @@ def validate_result(evidence, request_contract, capture, files):
     adapter=migration(request_contract['task'],request_contract.get('benchmark_variant','standard'))[0]
     observed=observations(result,tuple(adapter.PREVIEW_FILES.values()),
                           subfolders=request_contract['task'] in PREVIEWS_IN_SUBFOLDERS)
+    with raw.open('rb') as stream:
+        transcript_bytes = stream.read(MAX_TRANSCRIPT + 1)
     require(capture['workspace_files']==files and capture['contract']==request_contract and
             capture['result_sha256']==file_hash(evidence/'driver-result.json') and
-            capture['transcript_sha256']==file_hash(raw), 'Captured evidence identity mismatch')
+            0 < len(transcript_bytes) <= MAX_TRANSCRIPT and capture['transcript_sha256']==sha(transcript_bytes),
+            'Captured evidence identity mismatch')
     execution_memory(capture['execution'])
     setup=validate_setup(evidence,request_contract['task'],capture.get('harness_setup'))
     validated=dict(kind=result['kind'],client=result['client'],model=result['model'],observations=observed,
         transcript_sha256=capture['transcript_sha256'],result_sha256=capture['result_sha256'],
         workspace_sha256=sha(canonical(files)),contract_sha256=sha(canonical(request_contract)),
         original_host=capture['host'],execution=capture['execution'],harness_setup=setup)
+    validated['client_tool_activity'] = transcript_activity(io.BytesIO(transcript_bytes), request_contract,
+                                                            result['contract_sha256'], observed['token_usage'])
     if 'solve_workspace' in capture:
         recorded_path(capture['solve_workspace'])
         validated['solve_workspace'] = capture['solve_workspace']

@@ -292,6 +292,77 @@ def observed_usage(events):
     return result or None
 
 
+TOOL_ACTIVITY_METRICS = (
+    'client_shell_commands', 'client_shell_nonzero_exits', 'client_shell_unknown_exits',
+    'client_shell_repeated_commands', 'client_shell_output_bytes',
+    'client_mcp_calls', 'client_mcp_failed_calls', 'client_mcp_reply_json_bytes',
+)
+
+
+def transcript_activity(stream, contract, checksum, reported_tokens):
+    """Recover completed tool activity from this adapter's recorded turn."""
+    if contract['client']['id'] != 'codex-cli':
+        return None
+    first = stream.readline(MAX_EVENT + 1)
+    try:
+        header = strict_json(first)
+    except (ValueError, UnicodeError):
+        return None
+    if not isinstance(header, dict) or header.get('type') != 'inkbolt.client_request':
+        return None
+    require(len(first) <= MAX_EVENT and header.get('contract_sha256') == checksum and
+            all(header.get(k) == contract[k] for k in ('model', 'client', 'kind')),
+            'Codex transcript belongs to a different request')
+    counts = dict.fromkeys(TOOL_ACTIVITY_METRICS, 0)
+    turns = []
+    completed = set()
+    commands = set()
+    size = len(first)
+    while line := stream.readline(MAX_EVENT + 1):
+        size += len(line)
+        require(len(line) <= MAX_EVENT and size <= MAX_TRANSCRIPT, 'Client transcript exceeds its bound')
+        event = strict_json(line)
+        require(isinstance(event, dict), 'Malformed Codex event')
+        kind = event.get('type')
+        if kind in ('turn.started', 'turn.completed', 'turn.failed', 'error'):
+            turns.append(event)
+        if kind != 'item.completed':
+            continue
+        item = event.get('item')
+        require(isinstance(item, dict), 'Malformed completed Codex item')
+        tool = item.get('type')
+        if tool not in ('command_execution', 'mcp_tool_call'):
+            continue
+        require(len(turns) == 1 and turns[0]['type'] == 'turn.started',
+                'Completed tool event outside the recorded solve turn')
+        identity = item.get('id')
+        require(isinstance(identity, str) and identity and identity not in completed,
+                'Missing or duplicate completed tool event ID')
+        completed.add(identity)
+        if tool == 'command_execution':
+            command, output, code = item.get('command'), item.get('aggregated_output'), item.get('exit_code')
+            require(isinstance(command, str) and isinstance(output, str) and (code is None or type(code) is int),
+                    'Malformed completed Codex shell command')
+            signature = digest(command.encode('utf-8'))
+            counts['client_shell_commands'] += 1
+            counts['client_shell_repeated_commands'] += signature in commands
+            commands.add(signature)
+            counts['client_shell_unknown_exits'] += code is None
+            counts['client_shell_nonzero_exits'] += code is not None and code != 0
+            counts['client_shell_output_bytes'] += len(output.encode('utf-8'))
+        else:
+            require(item.get('status') in ('completed', 'failed') and
+                    ('result' in item or 'error' in item), 'Malformed completed Codex MCP call')
+            counts['client_mcp_calls'] += 1
+            counts['client_mcp_failed_calls'] += item['status'] == 'failed'
+            reply = {k: item[k] for k in ('result', 'error') if item.get(k) is not None}
+            counts['client_mcp_reply_json_bytes'] += len(json.dumps(
+                reply, ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode('utf-8'))
+    require([turn['type'] for turn in turns] == ['turn.started', 'turn.completed'] and
+            observed_usage(turns) == reported_tokens, 'Codex turn or token usage differs from the recorded solve')
+    return counts
+
+
 def run(request_path, executable, mcp_approval_mode=None, mcp_tools='core'):
     request = strict_json(regular(request_path)); contract = request['contract']
     argv, prompt, workspace = prepare(request, executable, mcp_approval_mode, mcp_tools)

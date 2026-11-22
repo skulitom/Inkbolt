@@ -22,13 +22,15 @@ def save(path,value):
     path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(canonical(value))
 
 
-def suite(root,arm,tasks=('B01',),reps=5,kind='synthetic',edit=None,preview='preview.png'):
+def suite(root,arm,tasks=('B01',),reps=5,kind='synthetic',edit=None,preview='preview.png',events=None):
     candidates={'original.py':H};driver=dict(config_sha256=H,files={'client.py':dict(sha256=H)})
     p=dict(arm=arm,suite=SUITE,client=dict(id='original-metadata-fixture',version='1'),model=dict(id='fixture',settings={}),
         driver_kind=kind,driver=driver,candidate_files=candidates,candidate_sha256=digest(canonical(candidates)),
         environment=dict(system='Fixture',machine='original'),conditions='Original test fixture; no model executed',
         selected_tasks=list(tasks),repetitions=reps,build=dict(executable_sha256=H) if arm=='model' else None,
         baseline_tools=TOOLS if arm=='baseline' else None,consumer_tools={k:dict(sha256=H) for k in ('cutbolt','ffmpeg','ffprobe')})
+    if events is not None:
+        p['client']['id']='codex-cli'
     rows=[]
     for task in tasks:
         for rep in range(1,reps+1):
@@ -52,9 +54,14 @@ def suite(root,arm,tasks=('B01',),reps=5,kind='synthetic',edit=None,preview='pre
             evidence=base/'evidence';request=dict(contract=contract,contract_sha256=identity,preview_files=['preview.png'])
             if task=='B14':request['preview_subfolders']=True
             save(evidence/'request.json',request)
-            save(evidence/'driver-result.json',result);(evidence/'transcript.jsonl').write_bytes(b'{"fixture":true}\n')
+            log=b'{"fixture":true}\n'
+            if events is not None:
+                header=dict(type='inkbolt.client_request',contract_sha256=identity,kind=kind,
+                            client=p['client'],model=p['model'])
+                log=b''.join(canonical(event)+b'\n' for event in [header,*events])
+            save(evidence/'driver-result.json',result);(evidence/'transcript.jsonl').write_bytes(log)
             execution=dict(status='passed',seconds=3);workspace={'original.txt':H,preview:H}
-            capture=dict(contract=contract,result_sha256=digest(canonical(result)),transcript_sha256=digest(b'{"fixture":true}\n'),
+            capture=dict(contract=contract,result_sha256=digest(canonical(result)),transcript_sha256=digest(log),
                 execution=execution,host=p['environment'],workspace_files=workspace,driver_identity=driver)
             save(evidence/'capture.json',capture)
             row['driver']=dict(kind=kind,client=p['client'],model=p['model'],observations={k:v for k,v in usage.items() if k!='source'},
@@ -73,6 +80,38 @@ class ComparisonTests(unittest.TestCase):
     def compare(self,model_options=None,baseline_options=None):
         m=suite(self.root/'model','model',**(model_options or {}));b=suite(self.root/'baseline','baseline',**(baseline_options or {}))
         return compare(load_report(m,'model'),load_report(b,'baseline'))
+
+    def test_historical_transcripts_measure_tool_activity_without_trusting_row_counts(self):
+        shell=dict(type='command_execution',command='read data',aggregated_output='é\n',exit_code=0)
+        reply={'content':[{'type':'text','text':'λ'}]}
+        events=[{'type':'turn.started'},
+                dict(type='item.started',item=dict(shell,id='a')),
+                dict(type='item.completed',item=dict(shell,id='a')),
+                dict(type='item.completed',item=dict(shell,id='b',exit_code=2)),
+                dict(type='item.completed',item=dict(shell,id='c',exit_code=None,command='cleanup',aggregated_output='')),
+                dict(type='item.completed',item=dict(type='mcp_tool_call',id='d',status='completed',result=reply,error=None)),
+                dict(type='item.completed',item=dict(type='mcp_tool_call',id='e',status='failed',result=None,error='busy')),
+                dict(type='turn.completed',usage=dict(input_tokens=80,output_tokens=20))]
+        def forge(row,contract,usage):
+            row['client_tool_activity']={'client_shell_commands':10000}
+        result=self.compare(dict(reps=1,events=events,edit=forge),dict(reps=1,edit=forge))['tasks'][0]['arms']
+        metrics=result['model']['metrics']
+        expected={'client_shell_commands':3,'client_shell_nonzero_exits':1,'client_shell_unknown_exits':1,
+                  'client_shell_repeated_commands':1,'client_shell_output_bytes':6,
+                  'client_mcp_calls':2,'client_mcp_failed_calls':1,
+                  'client_mcp_reply_json_bytes':len('{"result":{"content":[{"type":"text","text":"λ"}]}}{"error":"busy"}'.encode())}
+        for key,value in expected.items():
+            self.assertEqual(metrics[key]['all_attempts']['median'],value,key)
+            self.assertEqual(metrics[key]['artifact_successes']['observed'],1,key)
+            self.assertEqual(result['baseline']['metrics'][key]['all_attempts']['unknown'],1,key)
+        for bad in (events[:3]+[events[2]]+events[3:],
+                    events[:-1]+[dict(type='turn.completed',usage=dict(input_tokens=999))],
+                    [events[2],*events]):
+            with tempfile.TemporaryDirectory() as folder:
+                p=suite(Path(folder),'model',reps=1,events=bad)
+                data=load_report(p,'model')
+                self.assertIn(('B01',1),data['issues'])
+                self.assertIsNone(data['rows'][('B01',1)]['client_tool_activity'])
 
     def test_creation_tasks_match_empty_asset_manifests_but_reject_missing_asset_differences(self):
         def empty(row,contract,usage):

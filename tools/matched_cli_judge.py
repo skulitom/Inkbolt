@@ -2,34 +2,20 @@
 import argparse
 from pathlib import Path
 
-from benchmark_codex_driver import observed_usage
+from benchmark_codex_driver import transcript_activity
 from benchmark_driver import canonical, observations, read_json, transcript, workspace_files
-from benchmark_runtime import require, strict_json, TaskFailure
+from benchmark_runtime import require, TaskFailure
 from compare_placed_still import file_sha
 from workload_cases import ROOT, save_json, sha
 
 
 def codex_observations(log, contract, checksum, reported_tokens):
     with log.open('rb') as stream:
-        header = strict_json(stream.readline())
-        require(header.get('type') == 'inkbolt.client_request' and header.get('contract_sha256') == checksum
-                and header.get('model') == contract['model'] and header.get('client') == contract['client'],
-                'Codex transcript belongs to a different request')
-        turns = []
-        shells = set()
-        failed, output_bytes = 0, 0
-        for line in stream:
-            event = strict_json(line)
-            if event['type'] in ('turn.started', 'turn.completed', 'turn.failed', 'error'):
-                turns.append(event)
-            item = event.get('item', {})
-            if event['type'] == 'item.completed' and item.get('type') == 'command_execution':
-                require(item['id'] not in shells, 'Duplicate completed shell event')
-                shells.add(item['id'])
-                failed += item.get('exit_code') != 0
-                output_bytes += len(item['aggregated_output'].encode('utf-8'))
-    require(observed_usage(turns) == reported_tokens, 'Token usage differs from the recorded client turn')
-    return dict(completed_commands=len(shells), nonzero_exit_commands=failed, observed_stdout_stderr_bytes=output_bytes)
+        activity = transcript_activity(stream, contract, checksum, reported_tokens)
+    require(activity is not None, 'Expected the recorded Codex request and turn')
+    return dict(completed_commands=activity['client_shell_commands'],
+                nonzero_exit_commands=activity['client_shell_nonzero_exits'] if not activity['client_shell_unknown_exits'] else None,
+                observed_stdout_stderr_bytes=activity['client_shell_output_bytes'])
 
 
 def capture_conditions(root, engine, n, method, fixtures, preview_files, *, extra_evidence=()):
@@ -101,7 +87,7 @@ def run_judge(workflow, extra_tools, judge, task_file, oracle_files):
         rows.append(row)
     save_json(destination, dict(method_sha256=file_sha(root / 'method.json'), judge_sha256=file_sha(task_file),
                                 shared_judge_sha256=file_sha(Path(__file__)),
-                                oracle_sha256={name: file_sha(Path(__file__).with_name(name)) for name in oracle_files},
+                                oracle_sha256={name: file_sha(Path(__file__).with_name(name)) for name in (*oracle_files, 'benchmark_codex_driver.py')},
                                 method=method, trials=rows))
     for engine in ('inkbolt', 'cutbolt'):
         count = sum(r['passed'] for r in rows if r['engine'] == engine)

@@ -321,7 +321,7 @@ fn discovery_failures_offer_working_queries_without_echoing_unknown_text() {
     }
     for (name, select, wanted) in [
         ("session.create", "document", "Document"),
-        ("session.apply", "edit", "Action/edit"),
+        ("session.apply", "EDIT", "Action/edit"),
         ("operation", "TRANSFORM", "transform"),
     ] {
         let error = schema::lookup(name, Some(select), false).unwrap_err();
@@ -331,6 +331,10 @@ fn discovery_failures_offer_working_queries_without_echoing_unknown_text() {
         let request: Request = serde_json::from_value(suggestion.clone()).unwrap();
         execute(request).unwrap();
     }
+    let direct = schema::lookup("session.apply", Some("edit"), false).unwrap();
+    let explicit = schema::lookup("session.apply", Some("field:action/edit"), false).unwrap();
+    assert_eq!(direct["fields"], explicit["fields"]);
+    assert_eq!(direct["select"], "edit");
     // Both Boundary and Geometry have a rect variant; a hint must not pick one.
     let ambiguous = schema::lookup("operation", Some("rect"), false).unwrap_err();
     assert!(ambiguous.details.unwrap().get("suggested_lookup").is_none());
