@@ -34,6 +34,12 @@ class CompactResponseTests(unittest.TestCase):
         recovered = self.cli('session.receipt', **compact['receipt_ref'], response_mode='full')
         self.assertEqual(recovered['receipt'], full['receipt'])
         self.assertEqual(recovered['document'], full['document'])
+        help_reply = subprocess.run([str(workspace.EXE), '--help'], check=True, capture_output=True, timeout=20)
+        lookup = json.loads(help_reply.stdout)['result']['responses']['saved_receipt']
+        lookup.update(session_id='work', request_id='create')
+        detailed = self.cli(**lookup)
+        self.assertEqual(detailed, full['receipt'])
+        self.assertLess(len(json.dumps(detailed).encode()), 8192)
         read = self.cli('session.read', session_id='work', response_mode='compact')
         self.assertEqual(read['document_ref'], compact['document_ref'])
         self.assertEqual(read['snapshot_count'], 0)
@@ -60,6 +66,10 @@ class CompactResponseTests(unittest.TestCase):
             self.assertEqual(retry['receipt_summary']['change_count'], 1)
             receipt = c.tool('run', command='session.receipt', arguments=dict(**retry['receipt_ref'], response_mode='compact'))['structuredContent']['result']
             self.assertEqual(receipt, retry)
+            detailed = c.success('session.receipt', **retry['receipt_ref'], response_mode='receipt_only')
+            original = self.cli('session.receipt', **retry['receipt_ref'])['receipt']
+            self.assertEqual(detailed, original)
+            self.assertEqual((detailed['revision'], len(detailed['changes'])), (1, 1))
             source = self.root / 'recover.json'
             source.write_text(json.dumps(dict(command='session.receipt', **retry['receipt_ref'],
                                               response_mode='compact')), encoding='utf-8')
@@ -103,7 +113,7 @@ class CompactResponseTests(unittest.TestCase):
 
     def test_invalid_or_unsupported_response_policy_fails_before_mutation(self):
         doc = self.document()
-        for mode in [None, True, 'brief', {'type': 'compact'}]:
+        for mode in [None, True, 'brief', 'receipt_only', {'type': 'compact'}]:
             self.cli('session.create', session_id='work', request_id='create', document=doc, response_mode=mode, error='INVALID_REQUEST')
         self.cli('document.publish', document=doc, output=dict(file_name='absent.json', format='snapshot'),
                  response_mode='compact', error='INVALID_REQUEST')
@@ -114,6 +124,7 @@ class CompactResponseTests(unittest.TestCase):
                  action=dict(type='snapshot', name='absent'), response_mode='brief', error='INVALID_REQUEST')
         self.assertEqual(self.cli('session.read', session_id='work')['current_revision'], 0)
         self.cli('session.receipt', session_id='work', request_id='bad', error='REQUEST_NOT_FOUND')
+        self.cli('session.receipt', session_id='work', request_id='bad', response_mode='receipt_only', error='REQUEST_NOT_FOUND')
 
 
 if __name__ == '__main__':

@@ -2236,7 +2236,7 @@ fn capability_report() -> Value {
         "request_bytes":MAX_REQUEST_BYTES,"expanded_request_bytes":MAX_REQUEST_BYTES,
         "workspace_is_os_sandbox":false
     });
-    capabilities["agent_outputs"] = json!({"response_mode_default":"full","compact_commands":responses::COMMANDS,"compact_target_bytes":responses::COMPACT_TARGET_BYTES,"compact_target_scope":"ordinary_result_JSON;long_explicit_paths_can_exceed_target","compact_omissions":["document","receipt.changes","snapshots"],"compact_recovery":"pinned_document_ref_and_receipt_ref;request_response_mode_full","presentation_in_retry_fingerprint":false,"inline_snapshot_results":"full_only"});
+    capabilities["agent_outputs"] = json!({"response_mode_default":"full","compact_commands":responses::COMMANDS,"compact_target_bytes":responses::COMPACT_TARGET_BYTES,"compact_target_scope":"ordinary_result_JSON;long_explicit_paths_can_exceed_target","compact_omissions":["document","receipt.changes","snapshots"],"compact_recovery":"pinned_document_ref_and_receipt_ref;request_response_mode_full","receipt_only":{"command":"session.receipt","response_mode":"receipt_only","result":"original_receipt_including_changes"},"presentation_in_retry_fingerprint":false,"inline_snapshot_results":"full_only"});
     capabilities["geometry_limits"]["primitives"] = json!({"minimum_extent":limits::primitives::MIN_EXTENT,"rotation_degrees":[-i64::from(limits::primitives::MAX_ROTATION_DEGREES),limits::primitives::MAX_ROTATION_DEGREES]});
     capabilities["native_prepress"]["color_conversion_batch_samples"] =
         json!(limits::profiles::MAX_CONVERSION_SAMPLES);

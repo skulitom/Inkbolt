@@ -23,6 +23,7 @@ pub enum Mode {
     #[default]
     Full,
     Compact,
+    ReceiptOnly,
 }
 
 pub(crate) fn take(value: &mut Value) -> Result<Mode, Error> {
@@ -32,25 +33,36 @@ pub(crate) fn take(value: &mut Value) -> Result<Mode, Error> {
     let Some(mode) = object.remove("response_mode") else {
         return Ok(Mode::Full);
     };
-    if !object
+    let Some(command) = object
         .get("command")
         .and_then(Value::as_str)
-        .is_some_and(|c| COMMANDS.contains(&c))
-    {
+        .filter(|c| COMMANDS.contains(c))
+    else {
         return Err(Error::new(
             "INVALID_REQUEST",
             "response_mode is supported by session.create, session.continue, session.read, session.apply, session.apply_proposal and session.receipt",
         ));
+    };
+    let receipt_lookup = command == "session.receipt";
+    let choices = if receipt_lookup {
+        "session.receipt response_mode must be full, compact or receipt_only"
+    } else {
+        "response_mode must be full or compact for this command"
+    };
+    let mode = serde_json::from_value(mode).map_err(|_| Error::new("INVALID_REQUEST", choices))?;
+    if mode == Mode::ReceiptOnly && !receipt_lookup {
+        return Err(Error::new("INVALID_REQUEST", choices));
     }
-    serde_json::from_value(mode)
-        .map_err(|_| Error::new("INVALID_REQUEST", "response_mode must be full or compact"))
+    Ok(mode)
 }
 
 pub(crate) fn describe(command: &str, schema: &mut Value) {
     if command == "session.dry_run" {
         schema["properties"]["review_output"] = ReviewOutput::schema();
     }
-    if COMMANDS.contains(&command) {
+    if command == "session.receipt" {
+        schema["properties"]["response_mode"] = json!({"type":"string","enum":["full","receipt_only","compact"],"default":"full","description":"Use receipt_only to return the original complete receipt object, including changes, without the artwork. Full also returns the historical document and current head. Compact returns references and summaries."});
+    } else if COMMANDS.contains(&command) {
         schema["properties"]["response_mode"] = json!({"type":"string","enum":["full","compact"],"default":"full","description":"Compact returns pinned document/receipt references and summaries, omitting snapshot pixels, receipt changes and the snapshot list. Full preserves the original response. Presentation does not change durable retry identity."});
     }
 }
@@ -158,7 +170,14 @@ pub(crate) fn execute(
     } else {
         None
     };
-    let result = crate::execute_controlled(request, context)?;
+    let mut result = crate::execute_controlled(request, context)?;
+    if mode == Mode::ReceiptOnly {
+        // The ordinary receipt lookup has verified the receipt and its historical state.
+        return result
+            .as_object_mut()
+            .and_then(|object| object.remove("receipt"))
+            .ok_or_else(|| Error::new("SESSION_CORRUPT", "Committed receipt is missing"));
+    }
     // Projection cannot turn a committed success into a size-limit failure.
     Ok(match target {
         Some((root, session_id)) => compact(result, root, session_id),

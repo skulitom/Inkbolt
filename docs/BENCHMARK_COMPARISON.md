@@ -220,6 +220,30 @@ The original judgment and the copy-based judge agree on every check and metric.
 Two runs of the copy-based judge produced identical reports with SHA-256
 `59fa96d7179bd0c53ad169b8bf064b072612c299b8b39802f58d60adf1b45fc0`.
 
+### Recovering an edit receipt from a populated session
+
+A Windows CLI pilot asked an agent to recover an edit by request ID and save its
+complete native receipt. Each fresh session contained 256 shapes and eight moves.
+The requested edit was revision four. The prompt supplied the ID and allowed
+runtime discovery. It gave no response-mode or command hints.
+
+| Three trials per build | Original interface | Receipt option in schema | Receipt example also in CLI help |
+| --- | ---: | ---: | ---: |
+| Exact receipt and intact saved history | 3/3 | 3/3 | 3/3 |
+| Trials returning the artwork to the CLI client | 3/3 | 3/3 | 0/3 |
+| Median native CLI calls | 7 | 4 | 4 |
+| Median native stdout, bytes | 152,162 | 151,160 | 4,784 |
+| Median seconds to first exact receipt | 20.76 | 15.16 | 17.21 |
+| Median client-reported input plus output tokens, including cached input | 110,067 | 87,460 | 75,814 |
+
+The three series used the same externally selected Codex client, model and
+settings. They ran sequentially on one host. The judge compared each output
+with the withheld original, checked the saved files and reopened a copy to
+verify the head and all nine history entries. Byte counts include help, errors
+and repeated calls. A separate single-call check of the middle edit returned
+290 bytes with `receipt_only` and 73,370 bytes with the full response.
+[Request example](AGENT_RESPONSES.md#recover-a-detailed-receipt-without-loading-the-artwork-into-the-client)
+
 ## Move a placed still and review the original
 
 Inkbolt 0.84.0 and Cutbolt 0.4.0 each passed five of five scripted trials on

@@ -1,12 +1,14 @@
 # Compact session responses
 
-In v0.84.0, read the `result` field of a successful CLI response to get the
-receipt. Source builds after v0.84.0 can emit that field directly with `--result-only`.
+In v0.84.0, a successful full `session.receipt` reply contains the saved
+receipt in `result.receipt`. Source builds after v0.84.0 can emit the
+selected result directly with `--result-only`.
 For example, `inkbolt --workspace "$PWD" --result-only recover.json` writes the
 result of the request directly to stdout. On failure, stdout is empty and
 stderr carries the usual JSON error object. Check the exit status before
 saving the result. The option also works with requests on stdin. Set
-`response_mode` in the request to choose the compact or full result.
+`response_mode` in the request to choose the result. Current source builds
+also accept `receipt_only` for `session.receipt`.
 
 For a dry run whose full result belongs on disk, supply `review_output`.
 The reply carries the proposal for the commit, a change summary and the
@@ -52,7 +54,16 @@ Continuation responses retain the checked `lineage` object in compact and full m
 
 ## Recover a detailed receipt without loading the artwork into the client
 
-If you know the request ID, a full `session.receipt` lookup returns both the
+On current source builds, ask for `response_mode:"receipt_only"` when you know
+the request ID. The result is the original receipt object with its revision,
+state hash and all changes. It can be saved directly with the CLI's
+`--result-only` flag. A missing request ID returns `REQUEST_NOT_FOUND`.
+
+```json
+{"command":"session.receipt","session_id":"study","request_id":"edit-8","response_mode":"receipt_only"}
+```
+
+On v0.84.0, a full `session.receipt` lookup returns both the
 original receipt and its document in one call. For a large document, use a
 compact lookup first. Read `receipt_summary.revision` from the result, then
 request a single history entry starting just before that revision. For

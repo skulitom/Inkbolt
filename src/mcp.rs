@@ -335,7 +335,7 @@ fn description(command: &str) -> String {
             "Commit one atomic edit, undo/redo, named snapshot action or resource-binding change. Requires expected_revision and a unique request_id; same-payload retries return the original receipt without reapplying."
         }
         "session.receipt" => {
-            "Recover the original committed document and receipt by request_id after a lost response. Current head fields are separate from the historical result."
+            "Recover a committed receipt by request_id after a lost response. Set response_mode to receipt_only for just the original receipt with every change. The default also returns the historical document and current head."
         }
         "session.history" => {
             return format!("Page committed history receipts in revision order. Set limit 1..{} and pass next_after_revision as after_revision for the next page.", crate::limits::sessions::MAX_PAGE_RECEIPTS);

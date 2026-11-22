@@ -38,6 +38,7 @@ fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error>
                 "responses":{"success":"One JSON line with ok:true and result; exit code 0.",
                     "failure":"One JSON line with ok:false and error containing code and message; exit code 1.",
                     "result_only":"Add --result-only before the command or request file to emit only the successful result. Errors go to stderr as JSON with exit code 1. Accepts stdin and can be combined with --workspace.",
+                    "saved_receipt":{"command":"session.receipt","session_id":"YOUR_SESSION","request_id":"YOUR_REQUEST","response_mode":"receipt_only"},
                     "mcp":"MCP stdio protocol instead of CLI envelopes; use --tools essentials for the smallest catalog, core for more direct tools."},
                 "discovery":"Use schema.lookup name command.fields with select session, job or another command family for its input fields. Use vector.quickstart for editable shapes and text, image.quickstart for images, or handoff.quickstart for linked graphics. Find other names in the index.",
                 "examples":[
