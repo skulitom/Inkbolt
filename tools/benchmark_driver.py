@@ -1,11 +1,10 @@
 """External-client and transcript-import lifecycle; client data never supplies a verdict."""
-import json
 import math
 from pathlib import Path
 import shutil
 import traceback
 
-from benchmark_runtime import Trial, require, safe_name, strict_json
+from benchmark_runtime import MAX_METADATA, Trial, canonical, read_json, require, safe_name, strict_json
 from benchmark_stores import recorded_path
 from benchmark_tasks import TASKS, CHECKS, BASELINE_NOT_APPLICABLE, PREVIEWS_IN_SUBFOLDERS, allowed_preview_file
 import benchmark_diagram
@@ -59,7 +58,6 @@ MIGRATIONS = {'B01':(benchmark_diagram, judge_diagram), 'B02':(benchmark_icons, 
               'B17':(benchmark_retry, None), 'B18':(benchmark_conflict, None), 'B19':(benchmark_recovery_external,None),
               'B20':(benchmark_handoff_external,benchmark_handoff_external.judge_baseline)}
 MIGRATED_TASKS = tuple(MIGRATIONS)
-MAX_METADATA = 1024*1024
 MAX_TRANSCRIPT = 64*1024*1024
 
 
@@ -70,16 +68,6 @@ def migration(task,variant='standard'):
         import benchmark_photo_large
         return benchmark_photo_large,benchmark_photo_large.judge_baseline
     return MIGRATIONS[task]
-
-
-def read_json(path):
-    require(path.is_file() and not path.is_symlink() and path.stat().st_size <= MAX_METADATA,
-            'Missing, linked or oversized driver metadata')
-    return strict_json(path.read_bytes())
-
-
-def canonical(value):
-    return json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
 
 
 def config(path):

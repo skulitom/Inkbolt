@@ -346,6 +346,31 @@ that footprint. The PDF functions themselves retain the exact authored stops
 on either side. The eight sheets contain zero embedded image pixels.
 [Regression fixtures](../tests/test_pdf_gradient_opacity.py) · [Export contract](PDF.md#gradients-that-fade-to-transparent)
 
+### Reader experiments for searchable gradient text
+
+Inkbolt currently outlines gradient-filled text. For W6a.1, two experimental
+PDFs used the same synthetic font, glyph positions and translucent gradients
+as an outlined export. One used an axial gradient. The other used a radial
+gradient with a rotated and scaled label. Each contained an A and an
+overlapping combining acute accent. The experiment clipped the shading with
+the individual embedded glyphs inside a Type 3 character procedure, keeping
+one Unicode mapping for the base and accent. The text clipping rules are in
+section 9.3.6 of [ISO 32000-1](https://pdfa.org/resource/iso-32000-1/).
+
+MuPDF 1.26.7 found the original two-codepoint string in both prototypes.
+Xpdf on Windows and Poppler on Ubuntu also extracted it exactly once. Painting
+both components directly in the character procedure left the overlap too light
+in MuPDF. Giving each component its own isolated transparency group reduced
+the largest sampled overlap error from 50 to 1 for the axial gradient and
+from 48 to 1 for the radial gradient, on an 8-bit color channel. Poppler
+matched the outlined control at every sampled position in both cases.
+
+These were hand-assembled reader fixtures in untagged RGB. Engine acceptance
+still needs exported files, including repeated clusters at different positions,
+calibrated pages, other supported fonts and curved text. The existing 17
+searchable PDF tests passed with the external readers enabled on Windows and
+Ubuntu. [Current text export contract](PDF.md#searchable-text)
+
 ## Vector PDF blend delivery
 
 The B14 page workflow and W6a.3 require artwork to survive PDF delivery.

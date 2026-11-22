@@ -17,6 +17,7 @@ import linux_process_memory
 from mcp_artifacts import restore
 from benchmark_tasks import check_class
 
+MAX_METADATA = 1024 * 1024
 MAX_RESPONSE = 96*1024*1024
 
 
@@ -45,6 +46,16 @@ def strict_json(raw):
         return result
     return json.loads(raw, object_pairs_hook=unique,
                       parse_constant=lambda value: (_ for _ in ()).throw(ValueError('Nonfinite response')))
+
+
+def read_json(path):
+    require(path.is_file() and not path.is_symlink() and path.stat().st_size <= MAX_METADATA,
+            'Missing, linked or oversized driver metadata')
+    return strict_json(path.read_bytes())
+
+
+def canonical(value):
+    return json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
 
 
 class Mcp:

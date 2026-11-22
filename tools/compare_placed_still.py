@@ -14,6 +14,7 @@ from benchmark_runtime import Trial, require
 from workload_cases import ROOT, png, save, save_json, sha
 
 
+PREVIEWS = ['before.png', 'after.png', 'historical.png']
 WIDTH, HEIGHT = 32, 24
 BADGE_WIDTH, BADGE_HEIGHT = 6, 4
 BEFORE, AFTER = (3, 5), (17, 12)

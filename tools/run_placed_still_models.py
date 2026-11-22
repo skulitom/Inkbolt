@@ -5,7 +5,7 @@ import platform
 
 from benchmark_driver import canonical, config, driver_identity, workspace_files
 from benchmark_runtime import require
-from compare_placed_still import BADGE_HEIGHT, BADGE_WIDTH, HEIGHT, WIDTH, artwork, file_sha
+from compare_placed_still import BADGE_HEIGHT, BADGE_WIDTH, HEIGHT, PREVIEWS, WIDTH, artwork, file_sha
 from verify_process import run
 from workload_cases import ROOT, png, save, save_json, sha
 
@@ -18,7 +18,6 @@ Move only the badge so its top-left corner is at (17,12). Save the change as a l
 
 Deliver the three PNGs at the workspace root. Also write revisions.json there with two integer fields, original_revision and moved_revision, identifying the saved versions. Use the engine for the actual compositing, saving and rendering. Use the shell for discovery, preparing requests and writing delivered files. Run synchronous commands and render each requested preview from its saved revision.
 """
-PREVIEWS = ['before.png', 'after.png', 'historical.png']
 HERE = Path(__file__).resolve().parent
 
 

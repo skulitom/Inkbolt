@@ -12,7 +12,7 @@ from test_images_cli import png
 sys.path.insert(0, str(ROOT / 'tools'))
 from benchmark_runtime import Trial
 from compare_placed_still import artwork, inkbolt, WIDTH, HEIGHT, BADGE_WIDTH, BADGE_HEIGHT
-from judge_placed_still_models import score, traffic
+from placed_still_judge import score, traffic
 from workload_cases import save_json, sha
 
 
@@ -33,7 +33,7 @@ class ModelPlacementTests(unittest.TestCase):
                        dict(file='elsewhere.png', sha256=sha(before), seconds=2),
                        dict(file='before.png', sha256=sha(before), seconds=3)]
             paths = dict(inkbolt=EXE, ffmpeg=Path('decoder'), ffprobe=Path('probe'))
-            with patch('judge_placed_still_models.preview_rgba', side_effect=lambda path, _: png_pixels(path.read_bytes())[2]):
+            with patch('placed_still_judge.preview_rgba', side_effect=lambda path, _: png_pixels(path.read_bytes())[2]):
                 def run():
                     return score(root, 'inkbolt', paths, trial.sources, samples)
 
