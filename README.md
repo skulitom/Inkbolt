@@ -64,9 +64,10 @@ The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
-Source builds from `main` can export searchable text on curved labels, keep
-the paths around group cutouts as vectors in a PDF, and preserve spot inks on
-separate printing plates. [PDF export](docs/PDF.md) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
+Source builds from `main` can keep PDF labels searchable along curves and at
+different weights and widths of a variable TrueType font. They can also preserve
+vector cutouts and put spot inks on separate printing plates.
+[PDF export](docs/PDF.md#searchable-text) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
 On `main`, agents can start a diagram with editable shapes or place a local
 image and move it while keeping the original file intact. A saved edit can

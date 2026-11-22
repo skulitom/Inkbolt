@@ -4,6 +4,7 @@ use crate::text::Glyph;
 use rustybuzz::ttf_parser::{Face, GlyphId, Permissions};
 
 mod cluster;
+mod instance;
 mod program;
 
 const GLYPH_COLLECTION: &str =
@@ -25,6 +26,7 @@ impl TextDelivery {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
+    VariableTrueType,
     SubsetTrueType,
     WholeTrueType,
     SubsetCff,
@@ -44,6 +46,9 @@ fn kind(data: &[u8], index: u32) -> Result<Kind, &'static str> {
         return Err("bitmap_only_embedding");
     }
     if face.is_variable() {
+        if face.tables().glyf.is_some() && os2.is_subsetting_allowed() {
+            return Ok(Kind::VariableTrueType);
+        }
         return Err("variable_font");
     }
     let whole = !os2.is_subsetting_allowed();
@@ -75,9 +80,30 @@ struct PendingFont {
     codes: BTreeMap<(u16, String), usize>,
 }
 
+/// The shaper applies design coordinates as f32. Store their bits in tag order
+/// so different instances of the same pinned face can coexist on a page.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Instance {
+    font_id: String,
+    axes: Vec<([u8; 4], u32)>,
+}
+impl Instance {
+    fn for_glyph(glyph: &Glyph) -> Result<Self, Error> {
+        let mut axes = Vec::with_capacity(glyph.variations.len());
+        for (tag, value) in &glyph.variations {
+            let tag = crate::fonts::tag(tag)?.to_bytes();
+            axes.push((tag, (*value as f32).to_bits()));
+        }
+        Ok(Self {
+            font_id: glyph.font_id.clone(),
+            axes,
+        })
+    }
+}
+
 #[derive(Default)]
 pub(super) struct Registry {
-    fonts: BTreeMap<String, PendingFont>,
+    fonts: BTreeMap<Instance, PendingFont>,
     clusters: BTreeMap<(String, String), usize>,
     outlined_on_page: BTreeSet<String>,
     losses: BTreeMap<&'static str, usize>,
@@ -304,10 +330,11 @@ fn register(
     cluster: &str,
     kind: Kind,
 ) -> Result<(usize, String), Error> {
+    let instance = Instance::for_glyph(g)?;
     let font = writer
         .text
         .fonts
-        .entry(g.font_id.clone())
+        .entry(instance.clone())
         .or_insert_with(|| PendingFont {
             kind,
             ids: vec![],
@@ -326,11 +353,12 @@ fn register(
         }
         (0, format!("{:04X}", n + 1))
     };
-    if part == font.ids.len() {
-        let id = writer.add(Vec::new())?;
-        writer.text.fonts.get_mut(&g.font_id).unwrap().ids.push(id);
+    if let Some(&id) = font.ids.get(part) {
+        return Ok((id, code));
     }
-    Ok((writer.text.fonts[&g.font_id].ids[part], code))
+    let id = writer.add(Vec::new())?;
+    writer.text.fonts.get_mut(&instance).unwrap().ids.push(id);
+    Ok((id, code))
 }
 fn utf16(s: &str) -> String {
     use std::fmt::Write;
@@ -346,12 +374,14 @@ pub(super) fn finish_page(
     document: &Document,
     fonts: &crate::fonts::Cache,
 ) -> Result<(), Error> {
-    for (name, font) in std::mem::take(&mut writer.text.fonts) {
+    for (instance, font) in std::mem::take(&mut writer.text.fonts) {
+        let name = instance.font_id;
         program::embed(
             writer,
             &fonts[&name],
             document.fonts[&name].face_index,
             font,
+            &instance.axes,
         )
         .map_err(|e| e.at_font(&name))?;
         writer.text.embedded_fonts += 1;

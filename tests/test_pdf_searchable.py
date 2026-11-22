@@ -134,6 +134,102 @@ class SearchablePdfTests(unittest.TestCase):
             request["pdf_options"] = dict(text=mode)
         return self.invoke(request, expected)
 
+    def test_variable_instances_embed_their_own_outlines_advances_and_unicode(self):
+        from test_font_controls_cli import deformation
+
+        original = variable_font(avar=True, hvar=True, metrics=True)
+        self.install(original)
+        doc = self.document(text="AA", wrap=False)
+        doc.update(width=120, height=110, resolution_ppi=72)
+        label = doc["items"][0]
+        label["content"]["frame"]["style"]["size"] = 20
+        instances = [(400, 100), (650, 150), (900, 200), (650, 150)]
+        edits = []
+        for i, (weight, width) in enumerate(instances[1:], 1):
+            item = copy.deepcopy(label)
+            item.update(id=f"instance-{i}", transform=[1, 0, 0, 1, 0, 25*i])
+            item["content"]["frame"]["style"]["font_variations"] = {
+                "geometry": dict(wght=weight, wdth=width)
+            }
+            edits.append(dict(op="add", item=item))
+        doc = self.edit(doc, edits)
+        result = self.export(doc, "require_searchable")
+        self.assertEqual(result["pdf"]["text_delivery"]["embedded_font_programs"], 3)
+        pdf = Pdf(result)
+        self.assertEqual([s for s, _ in pdf.text_glyphs()], ["A"]*8)
+        metrics = {}
+        for font in pdf.objects.values():
+            if not isinstance(font, dict) or font.get("Subtype") != "CIDFontType2":
+                continue
+            desc = pdf.objects[font["FontDescriptor"]]
+            program = pdf.streams[desc["FontFile2"]]
+            self.assertEqual(checksum(program), 0xB1B0AFBA)
+            data = tables(program)
+            self.assertFalse({b"gvar", b"fvar", b"avar", b"HVAR", b"MVAR"} & data.keys())
+            self.assertEqual(data[b"OS/2"][8:10], tables(original)[b"OS/2"][8:10])
+            self.assertEqual(struct.unpack_from(">H", data[b"maxp"], 4)[0], 2)
+            # Read A from its embedded CID mapping and glyph location table.
+            gid = struct.unpack_from(">H", pdf.streams[font["CIDToGIDMap"]], 2)[0]
+            long_offsets = struct.unpack_from(">h", data[b"head"], 50)[0]
+            if long_offsets:
+                offset = struct.unpack_from(">I", data[b"loca"], gid * 4)[0]
+            else:
+                offset = 2 * struct.unpack_from(">H", data[b"loca"], gid * 2)[0]
+            box = struct.unpack_from(">hhhh", data[b"glyf"], offset + 2)
+            self.assertEqual(tuple(desc["FontBBox"]), box)
+            self.assertEqual(struct.unpack_from(">hhhh", data[b"head"], 36), box)
+            advance = font["W"][1][0]
+            count = struct.unpack_from(">H", data[b"hhea"], 34)[0]
+            self.assertEqual(struct.unpack_from(">H", data[b"hmtx"], min(gid, count-1)*4)[0], advance)
+            self.assertEqual(struct.unpack_from(">hh", data[b"OS/2"], 68), (desc["Ascent"], desc["Descent"]))
+            self.assertEqual(struct.unpack_from(">hhh", data[b"hhea"], 12), (50, advance-box[2], box[2]))
+            weight_class, width_class = struct.unpack_from(">HH", data[b"OS/2"], 4)
+            metrics[advance] = (box, desc["Ascent"], desc["Descent"], weight_class, width_class)
+        for weight, width in set(instances):
+            dx, dy, w, _ = deformation(weight, width, remap=True)
+            self.assertEqual(metrics[600+dx], (
+                (50, 0, 170+dx, 410+dy), 1000+200*w, -200-100*w, weight, {100: 5, 150: 8, 200: 9}[width],
+            ))
+        if shutil.which("pdftotext"):
+            self.assertEqual(extracted_text(pdf.data).split(), ["AA"]*4)
+        if pymupdf:
+            with pymupdf.open(stream=pdf.data, filetype="pdf") as actual, pymupdf.open(
+                stream=Pdf(self.export(doc)).data, filetype="pdf"
+            ) as outlines:
+                self.assertEqual(actual[0].get_text().split(), ["AA"]*4)
+                self.assert_cluster_raster(actual[0].get_pixmap(dpi=288, alpha=True),
+                                           outlines[0].get_pixmap(dpi=288, alpha=True), 0.005)
+        self.assertEqual(self.source.read_bytes(), original)
+
+    def test_variable_font_that_requires_whole_embedding_keeps_its_rights(self):
+        data = tables(variable_font())
+        rights = bytearray(data[b"OS/2"])
+        struct.pack_into(">H", rights, 8, 0x108)
+        data[b"OS/2"] = bytes(rights)
+        original = sfnt(data)
+        self.install(original)
+        doc = self.document(text="A")
+        fallback = self.export(doc, "searchable")
+        self.assertEqual(fallback["pdf"]["text_delivery"]["outlined_items_by_reason"], {"variable_font": 1})
+        self.assertEqual(Pdf(fallback).data, Pdf(self.export(doc)).data)
+        self.assertIn("variable_font", self.export(doc, "require_searchable", 1)["message"])
+        self.assertEqual(self.source.read_bytes(), original)
+
+    def test_variable_advances_from_phantom_points_or_metrics_only_font(self):
+        for only_metrics in (False, True):
+            with self.subTest(only_metrics=only_metrics):
+                data = tables(variable_font(hvar=only_metrics))
+                if only_metrics:
+                    del data[b"gvar"]
+                self.install(sfnt(data))
+                doc = self.document(text="AA", style=dict(font_id="geometry", size=20, fill=[25,100,200,255],
+                                    font_variations={"geometry": {"wght": 900, "wdth": 200}}))
+                pdf = Pdf(self.export(doc, "require_searchable"))
+                font = next(f for f in pdf.objects.values() if isinstance(f, dict) and f.get("Subtype") == "CIDFontType2")
+                self.assertEqual(font["W"], [1, [1200]])
+                desc = pdf.objects[font["FontDescriptor"]]
+                self.assertEqual(desc["FontBBox"], [50, 0, 170, 410] if only_metrics else [50, 0, 770, 510])
+
     def test_subset_and_whole_programs_retain_glyphs_rights_and_source_text(self):
         for cff in (False, True):
             for whole in (False, True):

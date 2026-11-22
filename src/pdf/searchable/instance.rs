@@ -1,0 +1,227 @@
+//! Turn the same positioned font instance used by the layout engine into a
+//! static PDF font. Retain quadratic contours in font units and write only the
+//! used glyphs, their metrics and the source embedding permissions.
+use super::*;
+use rustybuzz::ttf_parser::OutlineBuilder;
+use subsetter::GlyphRemapper;
+use write_fonts::{
+    FontBuilder,
+    from_obj::ToOwnedTable,
+    read::{FontRef, TableProvider, tables::glyf::CurvePoint},
+    tables::{
+        glyf::{GlyfLocaBuilder, SimpleGlyph},
+        head::Head,
+        hhea::Hhea,
+        hmtx::{Hmtx, LongMetric},
+        maxp::Maxp,
+        os2::Os2,
+        post::Post,
+    },
+    types::{Fixed, Tag, Version16Dot16},
+};
+
+#[derive(Default)]
+struct Pen {
+    glyph: SimpleGlyph,
+    contour: Vec<CurvePoint>,
+    points: usize,
+    invalid: bool,
+}
+impl Pen {
+    fn encodable(&self) -> bool {
+        if self.invalid || self.glyph.contours.len() >= i16::MAX as usize {
+            return false;
+        }
+        // TrueType stores signed deltas continuously, including between contours.
+        let mut previous = (0, 0);
+        self.glyph.contours.iter().flat_map(|c| c.iter()).all(|p| {
+            let fits =
+                p.x.checked_sub(previous.0).is_some() && p.y.checked_sub(previous.1).is_some();
+            previous = (p.x, p.y);
+            fits
+        })
+    }
+
+    fn point(&mut self, x: f32, y: f32, on_curve: bool) {
+        let (x, y) = (x.round(), y.round());
+        let units = f32::from(i16::MIN)..=f32::from(i16::MAX);
+        if self.points >= usize::from(u16::MAX) || !units.contains(&x) || !units.contains(&y) {
+            self.invalid = true;
+            return;
+        }
+        self.contour
+            .push(CurvePoint::new(x as i16, y as i16, on_curve));
+        self.points += 1;
+    }
+}
+impl OutlineBuilder for Pen {
+    fn move_to(&mut self, x: f32, y: f32) {
+        self.close();
+        self.point(x, y, true);
+    }
+    fn line_to(&mut self, x: f32, y: f32) {
+        self.point(x, y, true);
+    }
+    fn quad_to(&mut self, cx: f32, cy: f32, x: f32, y: f32) {
+        self.point(cx, cy, false);
+        self.point(x, y, true);
+    }
+    fn curve_to(&mut self, _: f32, _: f32, _: f32, _: f32, _: f32, _: f32) {
+        self.invalid = true; // The admitted TrueType glyf table contains quadratics.
+    }
+    fn close(&mut self) {
+        if self.contour.len() > 1 && self.contour.first() == self.contour.last() {
+            self.contour.pop();
+            self.points -= 1;
+        }
+        if !self.contour.is_empty() {
+            self.glyph
+                .contours
+                .push(std::mem::take(&mut self.contour).into());
+        }
+    }
+}
+
+pub(super) fn program(
+    data: &[u8],
+    index: u32,
+    face: &Face<'_>,
+    axes: &[([u8; 4], u32)],
+    mapper: &GlyphRemapper,
+    control: &crate::control::Control,
+) -> Result<Vec<u8>, Error> {
+    let invalid = || unsupported("Unable to encode the static TrueType font instance");
+    let font = FontRef::from_index(data, index).map_err(|_| invalid())?;
+    let mut loca_builder = GlyfLocaBuilder::new();
+    let mut metrics = Vec::with_capacity(mapper.num_gids().into());
+    let mut head: Head = font.head().map_err(|_| invalid())?.to_owned_table();
+    let mut hhea: Hhea = font.hhea().map_err(|_| invalid())?.to_owned_table();
+    let mut os2: Os2 = font.os2().map_err(|_| invalid())?.to_owned_table();
+    let mut maxp = Maxp {
+        num_glyphs: mapper.num_gids(),
+        max_points: Some(0),
+        max_contours: Some(0),
+        max_composite_points: Some(0),
+        max_composite_contours: Some(0),
+        max_zones: Some(1),
+        max_twilight_points: Some(0),
+        max_storage: Some(0),
+        max_function_defs: Some(0),
+        max_instruction_defs: Some(0),
+        max_stack_elements: Some(0),
+        max_size_of_instructions: Some(0),
+        max_component_elements: Some(0),
+        max_component_depth: Some(0),
+    };
+    let mut bbox: Option<[i16; 4]> = None;
+    let mut bearings: Option<[i16; 3]> = None;
+    let mut point_count = 0;
+    let mut advance_max = 0;
+    for gid in mapper.remapped_gids().map(GlyphId) {
+        control.check()?;
+        let mut pen = Pen::default();
+        let outline_bounds = face.outline_glyph(gid, &mut pen);
+        pen.close();
+        if !pen.encodable() || (outline_bounds.is_none() && pen.points > 0) {
+            return Err(invalid());
+        }
+        point_count += pen.points;
+        if point_count > MAX_COMMANDS {
+            return Err(limit("PDF font instance exceeds the outline point budget"));
+        }
+        pen.glyph.recompute_bounding_box();
+        let b = pen.glyph.bbox;
+        let advance = face.glyph_hor_advance(gid).ok_or_else(invalid)?;
+        advance_max = advance_max.max(advance);
+        metrics.push(LongMetric::new(advance, b.x_min));
+        if !pen.glyph.contours.is_empty() {
+            let bounds = [b.x_min, b.y_min, b.x_max, b.y_max];
+            bbox = Some(bbox.map_or(bounds, |[l, t, r, d]| {
+                [
+                    l.min(b.x_min),
+                    t.min(b.y_min),
+                    r.max(b.x_max),
+                    d.max(b.y_max),
+                ]
+            }));
+            let right =
+                i16::try_from(i32::from(advance) - i32::from(b.x_max)).map_err(|_| invalid())?;
+            let extents = [b.x_min, right, b.x_max];
+            bearings = Some(bearings.map_or(extents, |[l, r, x]| {
+                [l.min(b.x_min), r.min(right), x.max(b.x_max)]
+            }));
+        }
+        maxp.max_points = maxp.max_points.max(Some(pen.points as u16));
+        maxp.max_contours = maxp.max_contours.max(Some(pen.glyph.contours.len() as u16));
+        loca_builder.add_glyph(&pen.glyph).map_err(|_| invalid())?;
+    }
+    let (glyf, loca, format) = loca_builder.build();
+    head.index_to_loc_format = format as i16;
+    [head.x_min, head.y_min, head.x_max, head.y_max] = bbox.unwrap_or_default();
+    hhea.number_of_h_metrics = mapper.num_gids();
+    hhea.advance_width_max = advance_max.into();
+    [
+        hhea.min_left_side_bearing,
+        hhea.min_right_side_bearing,
+        hhea.x_max_extent,
+    ] = bearings.unwrap_or_default().map(Into::into);
+    os2.s_typo_ascender = face.typographic_ascender().ok_or_else(invalid)?;
+    os2.s_typo_descender = face.typographic_descender().ok_or_else(invalid)?;
+    os2.s_typo_line_gap = face.typographic_line_gap().ok_or_else(invalid)?;
+    os2.sx_height = face.x_height();
+    os2.s_cap_height = face.capital_height();
+    for (tag, bits) in axes {
+        let value = f32::from_bits(*bits);
+        match tag {
+            b"wght" => os2.us_weight_class = value.clamp(1.0, 1000.0).round() as u16,
+            b"wdth" => {
+                // Midpoints between the nine standard OS/2 width class percentages.
+                let midpoints = [56.25, 68.75, 81.25, 93.75, 106.25, 118.75, 137.5, 175.0];
+                os2.us_width_class = 1 + midpoints.partition_point(|mid| value >= *mid) as u16;
+            }
+            _ => {}
+        }
+    }
+    let underline = face.underline_metrics();
+    let post = Post {
+        version: Version16Dot16::VERSION_3_0,
+        italic_angle: Fixed::from_f64(f64::from(face.italic_angle())),
+        is_fixed_pitch: u32::from(face.is_monospaced()),
+        underline_position: underline.map_or(0, |line| line.position).into(),
+        underline_thickness: underline.map_or(0, |line| line.thickness).into(),
+        ..Post::default()
+    };
+    let mut builder = FontBuilder::new();
+    builder
+        .add_table(&head)
+        .and_then(|b| b.add_table(&hhea))
+        .and_then(|b| b.add_table(&maxp))
+        .and_then(|b| b.add_table(&Hmtx::new(metrics, vec![])))
+        .and_then(|b| b.add_table(&glyf))
+        .and_then(|b| b.add_table(&loca))
+        .and_then(|b| b.add_table(&os2))
+        .and_then(|b| b.add_table(&post))
+        .map_err(|_| invalid())?;
+    if let Some(name) = font.data_for_tag(Tag::new(b"name")) {
+        builder.add_raw(Tag::new(b"name"), name.as_bytes());
+    }
+    Ok(builder.build())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signed_point_deltas_span_contours() {
+        let mut pen = Pen::default();
+        pen.move_to(-20000.0, 0.0);
+        pen.line_to(-20000.0, 25.0);
+        pen.close();
+        assert!(pen.encodable());
+        pen.move_to(20000.0, 0.0);
+        pen.line_to(20000.0, 25.0);
+        pen.close();
+        assert!(!pen.encodable());
+    }
+}

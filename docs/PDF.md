@@ -96,12 +96,13 @@ Set `pdf_options.text` on a vector PDF export, preflight or publication.
 | `searchable` | Embedded text where supported. Other text items keep their outlines and the receipt counts the reason for each fallback. |
 | `require_searchable` | Embedded text for every drawn text item or an error identifying the item and reason before publication. |
 
-Inkbolt uses the pinned static TrueType or CFF font and positions each glyph
+Inkbolt uses the pinned font and positions each glyph
 from the document layout. A ligature drawn with one glyph can copy as several
 source characters, such as `fi`. Installable and editable embedding permissions
-are supported. If the font forbids subsetting, Inkbolt embeds the complete
-standalone font. Restricted, preview-and-print-only and bitmap-only permissions
-fall back to outlines. Supply fonts you have the right to distribute.
+are supported. If a static TrueType or CFF font forbids subsetting, Inkbolt
+embeds the complete standalone font. Restricted, preview-and-print-only and
+bitmap-only permissions fall back to outlines. Supply fonts you have the right
+to distribute.
 
 Left-to-right runs support both ligatures and clusters made of several glyphs.
 For example, a base letter and a separately positioned accent copy together as
@@ -109,7 +110,15 @@ the original Unicode sequence. On a curved baseline, the letter and accent
 can follow different tangents. Inkbolt preserves each glyph's position, scale
 and rotation. All visible glyphs in the cluster must share one opaque RGB fill,
 supplied as byte channels or a precise `rgba` value.
-Variable fonts, right-to-left runs, generated glyphs, gradient text and text
+
+For a variable TrueType font with permission to subset,
+Inkbolt embeds a static font at each set of axis settings used on the page.
+For example, a regular label and a wide label can share one source font,
+keep their different shapes and advances, and both copy as their original
+text. The editable document retains the original font and axis settings.
+Variable fonts that require whole-font embedding and CFF2 fonts use outlines.
+
+Right-to-left runs, generated glyphs, gradient text and text
 on knockout pages use the fallback. A left-to-right frame containing strong
 right-to-left source characters also falls back (`right_to_left_source`).
 This preserves the drawn label when a reader would reverse the copied text.
@@ -120,8 +129,23 @@ editable layout remain outside this contract.
 Read `pdf.text` for the delivered representation and `pdf.text_delivery` for
 the requested mode, embedded glyph and font-program counts, and outlined items
 by reason. Counts accumulate across the selected pages. Items on one page
-share their embedded font program. The snapshot retains the original text,
+share a font program when they use the same font and axis settings. The snapshot retains the original text,
 styles and linked stories.
+
+### Searchable variable TrueType instances
+
+Each embedded program contains the used glyphs at the requested design
+coordinates. Inkbolt takes the outlines and advances from the same pinned
+font instance used for layout, rounds contours to integer font units and writes
+a static TrueType subset. Readers can display and copy the result without
+the original variable font.
+
+The regression fixture sets three weight and width combinations on one page,
+reuses one of them, and checks the embedded contours, advances, vertical metrics,
+permissions and Unicode mappings. In a separate four-setting comparison,
+two PDF readers extracted `AB fi`, including the two characters of the ligature.
+At 288 dpi the maximum difference in total glyph coverage between searchable
+and outlined output was 0.12% across those four samples.
 
 ## Appearance contract
 

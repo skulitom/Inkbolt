@@ -109,11 +109,19 @@ pub(super) fn embed(
     data: &[u8],
     index: u32,
     font: PendingFont,
+    axes: &[([u8; 4], u32)],
 ) -> Result<(), Error> {
-    let face = Face::parse(data, index).map_err(|_| unsupported("Unreadable font program"))?;
+    let mut face = Face::parse(data, index).map_err(|_| unsupported("Unreadable font program"))?;
+    for (tag, bits) in axes {
+        face.set_variation(Tag::from_bytes(tag), f32::from_bits(*bits))
+            .ok_or_else(|| unsupported("Unable to apply PDF font instance coordinates"))?;
+    }
     let mut codes = font.codes.into_iter().collect::<Vec<_>>();
     codes.sort_by_key(|(_, code)| *code);
-    let subset = matches!(font.kind, Kind::SubsetCff | Kind::SubsetTrueType);
+    let subset = matches!(
+        font.kind,
+        Kind::VariableTrueType | Kind::SubsetCff | Kind::SubsetTrueType
+    );
     let cff = matches!(
         font.kind,
         Kind::SubsetCff | Kind::WholeCidCff | Kind::WholeNamedCff
@@ -128,9 +136,13 @@ pub(super) fn embed(
             .table(Tag::from_bytes(b"OS/2"))
             .ok_or_else(|| unsupported("Missing font embedding permissions"))?;
         writer.control.check()?;
-        let raw = subsetter::subset(data, index, &mapper)
-            .map_err(|_| unsupported("Unable to subset this font program"))?;
-        Cow::Owned(restore_metrics(&raw, os2)?)
+        Cow::Owned(if font.kind == Kind::VariableTrueType {
+            instance::program(data, index, &face, axes, &mapper, &writer.control)?
+        } else {
+            let raw = subsetter::subset(data, index, &mapper)
+                .map_err(|_| unsupported("Unable to subset this font program"))?;
+            restore_metrics(&raw, os2)?
+        })
     } else {
         Cow::Borrowed(data)
     };
@@ -159,7 +171,13 @@ pub(super) fn embed(
         GLYPH_COLLECTION.into()
     };
     let metrics = |v: i16| f64::from(v) * 1000.0 / f64::from(face.units_per_em());
-    let r = face.global_bounding_box();
+    let r = if font.kind == Kind::VariableTrueType {
+        Face::parse(&bytes, 0)
+            .map_err(|_| unsupported("Unreadable static PDF instance"))?
+            .global_bounding_box()
+    } else {
+        face.global_bounding_box()
+    };
     let bbox = numbers(&[r.x_min, r.y_min, r.x_max, r.y_max].map(metrics))?;
     let flags =
         4 + if face.is_monospaced() { 1 } else { 0 } + if face.is_italic() { 64 } else { 0 };
