@@ -380,7 +380,11 @@ pub(crate) fn lookup_in_workspace(
     }
     if matches!(
         name,
-        "index" | "vector.quickstart" | "image.quickstart" | "handoff.quickstart"
+        "index"
+            | "vector.quickstart"
+            | "image.quickstart"
+            | "screen.quickstart"
+            | "handoff.quickstart"
     ) {
         if select.is_some() || force_full {
             return Err(Error::new(
@@ -394,6 +398,9 @@ pub(crate) fn lookup_in_workspace(
         if name == "image.quickstart" {
             return Ok(examples::image_quickstart());
         }
+        if name == "screen.quickstart" {
+            return Ok(examples::screen_quickstart());
+        }
         if name == "handoff.quickstart" {
             return Ok(examples::handoff_quickstart());
         }
@@ -402,6 +409,7 @@ pub(crate) fn lookup_in_workspace(
             "types":TYPES.iter().map(|(alias, _)| alias).collect::<Vec<_>>(),
             "example_queries":examples::queries(), "vector_quickstart":lookup_request("vector.quickstart", None),
             "image_quickstart":lookup_request("image.quickstart", None),
+            "screen_quickstart":lookup_request("screen.quickstart", None),
             "handoff_quickstart":lookup_request("handoff.quickstart", None),
             "command_fields":lookup_request("command.fields", Some("session")),
             "usage":"Use command.fields with select job or session for required and optional input names. Look up a command or type by name for details. Use full:true for a validation schema."}),

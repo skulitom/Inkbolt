@@ -6,11 +6,13 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import runpy
 import subprocess
 import tempfile
 import unittest
 
 from test_mcp import Client
+from test_cli import ROOT
 from test_sessions_cli import EXE, invoke
 from synthetic_font import geometric_font
 from mcp_artifacts import restore
@@ -31,6 +33,72 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_screen_quickstart_publishes_editable_source_and_pinned_png(self):
+        lookup = invoke(dict(command='schema.lookup', name='index'))['result']['screen_quickstart']
+        guide = invoke(lookup)['result']
+        example = ROOT / 'examples' / 'publish_screen.py'
+        self.assertEqual(guide['python_example'], example.read_text(encoding='utf-8'))
+        publish = runpy.run_path(str(example))['publish_screen']
+        self.assertLess(len(json.dumps(guide, separators=(',', ':')).encode()), 4096)
+        for fields in ({'select': 'screen'}, {'full': True}):
+            self.assertEqual(invoke(dict(lookup, **fields))['error']['code'], 'INVALID_REQUEST')
+
+        for transport in ('cli', 'mcp'):
+            with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                with closing(Client(('--tools', 'essentials'), workspace=root)) as client:
+                    client.initialize()
+                    self.assertEqual(client.success('schema.lookup', name=lookup['name']), guide)
+                    self.assertEqual(list(root.iterdir()), [])
+                    requests = []
+
+                    def call(request):
+                        requests.append(request)
+                        if transport == 'cli':
+                            proc = subprocess.run([str(EXE), '--workspace', directory, '--result-only'],
+                                input=json.dumps(request).encode(), capture_output=True, timeout=20)
+                            if proc.returncode:
+                                raise ValueError(json.loads(proc.stderr)['error']['code'])
+                            return json.loads(proc.stdout)
+                        fields = {k: v for k, v in request.items() if k != 'command'}
+                        reply = restore(client.tool('run', command=request['command'], arguments=fields))
+                        if not reply['ok']:
+                            raise ValueError(reply['error']['code'])
+                        return reply['result']
+
+                    args = copy.deepcopy(guide['arguments'])
+                    if transport == 'mcp':
+                        args['items'].insert(0, {'id': 'lamps', 'content': {'type': 'group'}})
+                        args['items'][1]['parent'] = 'lamps'
+                    source, png = publish(call, **args)
+                    self.assertEqual([r['command'] for r in requests],
+                        ['preset.create', 'document.publish', 'document.preflight', 'document.publish'])
+                    source_file = root / args['source_name']
+                    image_file = root / args['png_name']
+                    saved, raw = source_file.read_bytes(), image_file.read_bytes()
+                    document = json.loads(saved)
+                    self.assertEqual(document['metadata'], args['metadata'])
+                    self.assertEqual(document['items'][1]['parent'], document['items'][0]['id'])
+                    if transport == 'mcp':
+                        self.assertEqual(document['items'][2]['parent'], 'lamps')
+                    self.assertEqual(source['sha256'], hashlib.sha256(saved).hexdigest())
+                    self.assertEqual(png['sha256'], hashlib.sha256(raw).hexdigest())
+                    pin = dict(file_path=source_file.name, sha256=source['sha256'])
+                    self.assertEqual(requests[2]['document'], pin)
+                    self.assertEqual(requests[3]['document'], pin)
+                    self.assertEqual(requests[2]['output'], requests[3]['output'])
+                    w, h, pixels, chunks = png_pixels(raw)
+                    self.assertEqual((w, h), (256, 256))
+                    center = 4 * (128 * w + 128)
+                    self.assertEqual(pixels[center:center + 4], bytes([251, 190, 68, 192]))
+                    self.assertEqual(pixels[:4], bytes(4))
+                    self.assertIn(b'sRGB', chunks)
+                    self.assertFalse(set(chunks).intersection({b'tEXt', b'iTXt', b'zTXt', b'iCCP'}))
+                    for repeat in [requests[1], requests[3]]:
+                        with self.assertRaisesRegex(ValueError, 'OUTPUT_EXISTS'):
+                            call(repeat)
+                    self.assertEqual((source_file.read_bytes(), image_file.read_bytes()), (saved, raw))
+
     def test_command_fields_match_cli_mcp_and_the_workspace_validation_schema(self):
         index = invoke(dict(command='schema.lookup', name='index'))['result']
         query = index['command_fields']

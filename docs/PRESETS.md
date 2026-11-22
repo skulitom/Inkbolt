@@ -21,6 +21,10 @@ delivery settings alongside the editable source.
 
 ## Screen artwork
 
+The [screen quickstart](AGENT_DISCOVERY.md#screen-artwork) shows how to save an
+editable vector source, preflight it and publish its PNG in four requests,
+including preset creation. It also works without a saved session.
+
 | Size | Pixels |
 | --- | --- |
 | `icon256` | 256 x 256 |

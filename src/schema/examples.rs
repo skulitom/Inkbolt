@@ -82,6 +82,23 @@ pub(super) fn image_quickstart() -> Value {
     })
 }
 
+pub(super) fn screen_quickstart() -> Value {
+    json!({
+        "name":"screen.quickstart", "detail":"examples",
+        "arguments":{
+            "document_id":"beacon", "size":"icon256", "source_name":"beacon.json", "png_name":"beacon.png",
+            "items":[{"id":"light","content":{"type":"vector","geometry":{"shape":"ellipse","cx":128,"cy":128,"rx":80,"ry":80},"fill":[251,190,68,192]}}],
+            "metadata":{"private":{"sketch":"First light"}}
+        },
+        "python_example":include_str!("../../examples/publish_screen.py"),
+        "usage":[
+            "Use one selected workspace. Run publish_screen(call, **arguments) with your own items, size and unused filenames. In any client, send the same four JSON requests in order. For the CLI, send JSON on stdin to inkbolt --workspace DIR --result-only. Parse stdout as the result on success and raise on a nonzero exit. For MCP, check the result of each inkbolt_run call.",
+            "The preset supplies the artboard and delivery settings. Top-level artwork belongs under content_parent_id. Give nested items their own parent. The editable snapshot retains metadata and the PNG uses the preset's strip policy.",
+            "Each publication is create-only. After the snapshot succeeds it remains available even if PNG delivery fails. To retry the PNG, use the recorded source hash and the same output settings."
+        ]
+    })
+}
+
 pub(super) fn handoff_quickstart() -> Value {
     json!({
         "name":"handoff.quickstart","detail":"examples",

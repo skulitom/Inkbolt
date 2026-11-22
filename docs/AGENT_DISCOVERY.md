@@ -73,6 +73,22 @@ Save the assembled document in a session, then use its ID and revision to
 publish the snapshot and PNG. Each publication needs a fresh output filename.
 Reading the examples leaves the workspace untouched.
 
+## Screen artwork
+
+For an editable screen graphic and a transparent PNG, request
+`{"command":"schema.lookup","name":"screen.quickstart"}`. The reply includes a
+256 × 256 beacon example and a short Python function that shows how to assemble
+four ordinary JSON requests. Choose a screen size, editable items, source
+metadata and two unused filenames. A client in any language can issue the
+requests shown in the function.
+
+The first request creates the preset. The second attaches the artwork to its
+artboard and saves an editable snapshot. The final two preflight and publish
+the PNG using the saved filename and its SHA-256. The preset supplies the
+color, transparency and metadata-stripping settings. If PNG delivery fails
+after the snapshot was saved, that source is available for review or retry.
+[Versioned screen presets](PRESETS.md#screen-artwork) · [Example function](../examples/publish_screen.py)
+
 ## Place an image
 
 For a composition that starts with an image, request the image quickstart.
