@@ -150,7 +150,7 @@ def observations(result, preview_files=(), *, subfolders=False):
         answer.update(first_preview_seconds=seconds,first_preview_sha256=value['first_preview_sha256'])
     if 'completed_event_previews' in value:
         samples=value['completed_event_previews']
-        require(isinstance(samples,list) and len(samples)<=64 and bool(preview_files)
+        require(isinstance(samples,list) and len(samples)<=64
                 and answer['agent_seconds'] is not None and value.get('first_preview_seconds') is None,
                 'Invalid completed-event preview observations')
         seen=set()

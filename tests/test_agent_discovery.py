@@ -586,6 +586,10 @@ class AgentDiscoveryTests(unittest.TestCase):
             core.initialize(); full.initialize()
             small, large = catalog(core), catalog(full)
             self.assertEqual([t['name'] for t in large], sorted(t['name'] for t in large))
+            history = next(t for t in large if t['name'] == 'inkbolt_session_history')
+            limit = core.success('schema.lookup', name='session.history', select='field:limit')['schema']
+            for schema in (history['inputSchema']['properties']['limit'], limit):
+                self.assertEqual((schema['minimum'], schema['maximum']), (1, 128))
             size = len(json.dumps(small, separators=(',', ':')).encode())
             self.assertLessEqual(size, 96 * 1024)
             self.assertLess(size * 10, len(json.dumps(large, separators=(',', ':')).encode()))

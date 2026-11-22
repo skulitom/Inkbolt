@@ -247,7 +247,14 @@ class SessionTests(unittest.TestCase):
             self.apply(n,f'save{n}',dict(type='snapshot',name=f's{n}'))
         self.apply(32,'overflow',dict(type='snapshot',name='overflow'),expected='RESOURCE_LIMIT')
         self.apply(32,'invalid-undo',dict(type='undo',steps=0),expected='INVALID_REQUEST')
-        self.call('session.history',limit=129,expected='INVALID_REQUEST')
+        lookup = invoke(dict(command='schema.lookup', name='session.history', select='field:limit'))
+        limits = lookup['result']['schema']
+        self.assertEqual((limits['minimum'], limits['maximum']), (1, 128))
+        minimum, maximum = int(limits['minimum']), int(limits['maximum'])
+        for count in (minimum - 1, maximum + 1):
+            self.call('session.history', limit=count, expected='INVALID_REQUEST')
+        self.assertEqual(len(self.call('session.history', limit=minimum)['entries']), 1)
+        self.assertEqual(len(self.call('session.history', limit=maximum)['entries']), 33)
         self.call('session.history',limit=1,after_revision=2**64-1,expected='INVALID_REQUEST')
         self.assertEqual(len(self.call('session.read')['snapshots']),32)
         self.assertEqual(self.call('session.verify')['requests'],33)

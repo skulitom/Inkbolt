@@ -641,6 +641,7 @@ pub enum Request {
         session_root: PathBuf,
         session_id: String,
         after_revision: Option<u64>,
+        #[schemars(range(min = 1, max = limits::sessions::MAX_PAGE_RECEIPTS))]
         limit: usize,
     },
     #[serde(rename = "session.verify")]

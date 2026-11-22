@@ -158,6 +158,10 @@ class BenchmarkDriverTests(unittest.TestCase):
             return observations(dict(observations=dict(source='client_reported',agent_seconds=1,
                                 completed_event_previews=samples,**extra)), ('preview.png',),subfolders=subfolders)
         self.assertEqual(observe([sample,later])['completed_event_previews'],[sample,later])
+        no_images = dict(source='client_reported', agent_seconds=1, completed_event_previews=[])
+        self.assertEqual(observations(dict(observations=no_images))['completed_event_previews'], [])
+        with self.assertRaises(TaskFailure):
+            observations(dict(observations=dict(no_images, completed_event_previews=[sample])))
         for invalid in ([sample,sample],[later,sample],[dict(sample,file='../preview.png')],
                         [dict(sample,seconds=2)],[dict(sample,seconds=True)],[dict(sample,seconds=float('nan'))],
                         [dict(sample,sha256='x'*64)], [sample]*65):

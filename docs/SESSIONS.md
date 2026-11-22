@@ -23,7 +23,7 @@ Commands require `session_id`, directly or inside the reviewed proposal for `ses
 | session.dry_run | request_id, expected_revision, action; optional options, control | Read-only proposal, predicted receipt/history, structural comparison and optional PNG/pixel comparison |
 | session.apply_proposal | proposal, action; optional control | Commit only if revision, reviewed action and before/after content still match |
 | session.receipt | request_id | Original committed result, even after later edits |
-| session.history | limit in 1..128; optional after_revision | Ordered receipt page with next_after_revision and has_more |
+| session.history | `limit` from 1 through 128 inclusive, optional `after_revision` | Ordered receipts. When `has_more` is true, pass `next_after_revision` to the next call. |
 | session.verify | optional control | Storage integrity, content/receipt/metadata checksums, references and bounded ledger validation |
 | session.backup | expected_revision, output; optional control | Verified standalone copy of complete history, exact byte identity and logical history fingerprint |
 | session.recover | source with file_path/bytes/sha256; optional control | Checked restoration into an unused session destination, preserving identity/history and external resource bindings |

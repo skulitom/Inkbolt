@@ -340,7 +340,7 @@ def run(request_path, executable, mcp_approval_mode=None, mcp_tools='core'):
         kind=contract['kind'], client=contract['client'], model=contract['model'],
         transcript=transcript.name, observations=dict(source='client_reported',
             token_usage=usage, model_calls=None, agent_seconds=time.perf_counter()-started))
-    if sampler.paths:
+    if sampler.names:
         result['observations']['completed_event_previews'] = sampler.observations()
     with result_path.open('xb') as stream:
         stream.write(canonical(result) + b'\n')

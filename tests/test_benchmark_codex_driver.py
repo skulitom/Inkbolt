@@ -257,6 +257,13 @@ class CodexDriverTests(unittest.TestCase):
             limited.sample(10)
             self.assertEqual(limited.observations(),[])
 
+    def test_receipt_only_task_omits_image_observations(self):
+        self.request['preview_files'] = []
+        self.bind()
+        self.invoke([dict(type='turn.started'), dict(type='turn.completed', usage=dict(input_tokens=2))])
+        result = json.loads((self.evidence / 'driver-result.json').read_bytes())
+        self.assertNotIn('completed_event_previews', result['observations'])
+
     def test_failed_incomplete_duplicate_and_malformed_usage_cannot_pass(self):
         start = dict(type='turn.started'); done = dict(type='turn.completed',usage=dict(input_tokens=2))
         for events in ([start], [done], [start,done,done], [start,done,dict(type='error')],
