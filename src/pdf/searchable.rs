@@ -228,9 +228,12 @@ pub(super) fn paint_text(
             return fallback(writer, item, resources.text, "noncontiguous_cluster");
         }
         if group.len() > 1
-            && let Err(reason) = cluster::admit(group)
+            && group
+                .iter()
+                .filter_map(|p| p.paint)
+                .any(|p| !matches!(p, Paint::Solid(_) | Paint::Precise(_)))
         {
-            return fallback(writer, item, resources.text, reason);
+            return fallback(writer, item, resources.text, "cluster_paint");
         }
     }
     for position in &painted {
@@ -287,10 +290,14 @@ pub(super) fn paint_text(
         let offsets = &boundaries[&g.paragraph];
         let cluster = &text[offsets[g.start]..offsets[g.end]];
         let font_kind = kinds[g.font_id.as_str()];
+        let colored = group.len() > 1 && cluster::intrinsic_color(group);
         let (font, code) = if group.len() == 1 {
             register(writer, g, cluster, font_kind)?
         } else {
-            (cluster::font(writer, group, cluster, &kinds)?, "01".into())
+            (
+                cluster::font(writer, group, cluster, &kinds, stream, colored)?,
+                "01".into(),
+            )
         };
         let paint = group
             .iter()
@@ -298,7 +305,13 @@ pub(super) fn paint_text(
             .unwrap_or(&Paint::Solid([0, 0, 0, 255]));
         let m = geometry::multiply(world, glyph_matrix(g));
         stream.content.push_str("q\n");
-        flat_paint(writer, stream, paint)?;
+        if colored {
+            // The charproc paints each component at its own opacity. Applying
+            // the first component's opacity to the whole cluster would double it.
+            graphics_state(writer, stream, 1.0, BlendMode::Normal)?;
+        } else {
+            flat_paint(writer, stream, paint)?;
+        }
         stream.content.push_str("BT\n");
         stream.use_resource("Font", font, "1 Tf");
         stream.content.push_str(&format!("{} Tm\n", numbers(&m)?));

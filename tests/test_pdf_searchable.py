@@ -15,7 +15,8 @@ from synthetic_variable_font import tables, variable_font
 import test_text_cli as text_cli
 import test_boards_cli as boards
 from test_path_text_cli import curved, line
-from test_pdf_blends_cli import pymupdf
+from test_pdf_blends_cli import poppler_rgb, pymupdf
+from test_profiles_cli import builtin
 import test_story_cli as story_cli
 
 
@@ -462,24 +463,99 @@ class SearchablePdfTests(unittest.TestCase):
                     self.assertGreaterEqual(max(around), value)
 
     def test_translucent_mark_cluster_keeps_per_glyph_paint(self):
-        self.install(font_bytes())
-        for fill in ([10, 80, 150, 128], {"rgba": [0.12, 0.38, 0.78, 0.9999]}):
-            with self.subTest(fill=fill):
+        self.install(font_bytes(mark_anchor=(80, 160)))
+        source = "A\u0301A\u0301"
+        byte_fill = [148, 38, 82, 127]
+        for fill, alpha, profile in (
+            (byte_fill, 127 / 255, None),
+            (byte_fill, 127 / 255, "srgb"),
+            (byte_fill, 127 / 255, "linear_srgb"),
+            (byte_fill, 127 / 255, "display_p3"),
+            ({"rgba": [0.12, 0.38, 0.78, 0.5]}, 0.5, None),
+            ({"rgba": [0.12, 0.38, 0.78, 0.5]}, 0.5, "linear_srgb"),
+            ({"rgba": [0.12, 0.38, 0.78, 0.9999]}, 0.9999, None),
+        ):
+            with self.subTest(fill=fill, profile=profile):
                 doc = self.document(
-                    text="A\u0301",
-                    wrap=False,
-                    style=dict(font_id="geometry", size=12, fill=fill),
+                    text=source, width=100, height=60, wrap=False,
+                    style=dict(font_id="geometry", size=36, fill=fill),
                 )
-                result = self.export(doc, "searchable")
-                self.assertEqual(
-                    result["pdf"]["text_delivery"]["outlined_items_by_reason"],
-                    {"cluster_paint": 1},
-                )
-                self.assertEqual(Pdf(result).data, Pdf(self.export(doc)).data)
-                self.assertIn(
-                    "cluster_paint",
-                    self.export(doc, "require_searchable", 1)["message"],
-                )
+                doc.update(width=100, height=60, resolution_ppi=72)
+                if profile:
+                    doc["output_profile"] = builtin(profile)
+                result = self.export(doc, "require_searchable")
+                pdf = Pdf(result)
+                self.assertEqual(result["pdf"]["text_delivery"]["embedded_glyphs"], 4)
+                self.assertEqual([s for s, _ in pdf.text_glyphs()], ["A\u0301"] * 2)
+                cluster, = [v for v in pdf.objects.values()
+                            if isinstance(v, dict) and v.get("Subtype") == "Type3"]
+                body = pdf.streams[cluster["CharProcs"]["Cluster"]]
+                self.assertTrue(body.startswith(b"600 0 d0\n"))
+                if profile:
+                    form, = cluster["Resources"]["XObject"].values()
+                    self.assertIn(f"/R{form} Do".encode(), body)
+                    rgb = pdf.pages[0]["Resources"]["ColorSpace"]["DefaultRGB"]
+                    self.assertEqual(cluster["Resources"]["ColorSpace"]["DefaultRGB"], rgb)
+                    self.assertEqual(pdf.objects[form]["Resources"]["ColorSpace"]["DefaultRGB"], rgb)
+                    body = pdf.streams[form]
+                self.assertEqual(body.count(b" Tj"), 2)
+                if shutil.which("pdftotext"):
+                    self.assertEqual(extracted_text(pdf.data), source)
+                outlined = Pdf(self.export(doc)).data
+                base, mark = [glyph["ink_bounds"] for glyph in self.inspect(doc)["layout"]["glyphs"][:2]]
+                x = (max(base[0], mark[0]) + min(base[2], mark[2])) / 2
+                # Sample the base below the mark, then deep inside their overlap.
+                ys = ((mark[3] + base[3]) / 2, (max(base[1], mark[1]) + min(base[3], mark[3])) / 2)
+                points = [(int(4 * x), int(4 * y)) for y in ys]
+                if pymupdf:
+                    with pymupdf.open(stream=pdf.data, filetype="pdf") as f, pymupdf.open(stream=outlined, filetype="pdf") as r:
+                        self.assertEqual(f[0].get_text().rstrip("\r\n"), source)
+                        actual = f[0].get_pixmap(dpi=288, alpha=True)
+                        reference = r[0].get_pixmap(dpi=288, alpha=True)
+                        base_pixel, overlap_pixel = [actual.pixel(*xy) for xy in points]
+                        self.assertEqual([base_pixel, overlap_pixel], [reference.pixel(*xy) for xy in points])
+                        self.assertAlmostEqual(base_pixel[3], alpha * 255, delta=2)
+                        # Compose the reader's quantized single-layer alpha twice.
+                        overlap_alpha = 255 * (1 - (1 - base_pixel[3] / 255) ** 2)
+                        self.assertAlmostEqual(overlap_pixel[3], overlap_alpha, delta=2)
+                if shutil.which("pdftoppm"):
+                    rgb = poppler_rgb(pdf.data, 288, 400, 240)
+                    expected = poppler_rgb(outlined, 288, 400, 240)
+                    for x, y in points:
+                        i = 3 * (400 * y + x)
+                        self.assertEqual(rgb[i:i + 3], expected[i:i + 3])
+
+    def test_cluster_paints_share_only_matching_page_resources_and_require_paper_for_marks(self):
+        self.install(font_bytes(mark_anchor=(80, 160)))
+        doc = self.document(text="A\u0301")
+        template, = doc["items"]
+        doc["items"] = []
+        red, blue = [160, 30, 14, 128], [5, 50, 100, 64]
+        for board_id, fills in (("paper", [red, blue, red]), ("clear", [red])):
+            board = boards.BoardCliTests.board(self, board_id, 60, 40)
+            if board_id == "paper":
+                board["content"]["frame"]["background"] = [255, 255, 255, 255]
+            doc["items"].append(board)
+            for index, fill in enumerate(fills):
+                label = copy.deepcopy(template)
+                label.update(id=f"{board_id}-{index}", parent=board_id, transform=[1, 0, 0, 1, 15 * index, 0])
+                label["content"]["frame"]["style"]["fill"] = fill
+                doc["items"].append(label)
+        options = dict(text="require_searchable", artboards=dict(type="ids", ids=["paper", "clear"]))
+        request = dict(command="document.export", document=doc, font_root=str(self.store),
+                       format="pdf", pdf_options=options)
+        pdf = Pdf(self.invoke(request))
+        self.assertEqual([[s for s, _ in pdf.text_glyphs(i)] for i in range(2)],
+                         [["A\u0301"] * 3, ["A\u0301"]])
+        clusters = [v for v in pdf.objects.values() if isinstance(v, dict) and v.get("Subtype") == "Type3"]
+        self.assertEqual(len(clusters), 3)  # two paints on the first page, one on the second
+        options["marks"] = {}
+        options["artboards"]["ids"] = ["paper"]
+        self.assertEqual(self.invoke(request)["pages"][0]["opaque_rgb_paper"]["item_id"], "paper")
+        options["artboards"]["ids"].append("clear")
+        self.assertIn("opaque paper", self.invoke(request, 1)["message"])
+        options["matte"] = [255, 255, 255]
+        self.assertEqual(len(self.invoke(request)["pages"]), 2)
 
     def test_linked_story_uses_each_paragraphs_source(self):
         self.install(font_bytes())
@@ -557,8 +633,8 @@ class SearchablePdfTests(unittest.TestCase):
 
     def test_curved_combining_cluster_retains_each_tangent_and_copies_once(self):
         source = "A\u0301"
-        for cff in (False, True):
-            with self.subTest(cff=cff):
+        for cff, alpha in ((False, 1.0), (True, 1.0), (False, 0.5), (True, 0.5)):
+            with self.subTest(cff=cff, alpha=alpha):
                 # An off-center attachment samples a different tangent on the curve.
                 self.install(font_bytes(cff, mark_anchor=(600, 750)))
                 doc = self.document(
@@ -570,7 +646,7 @@ class SearchablePdfTests(unittest.TestCase):
                         size=16,
                         horizontal_scale=1.25,
                         vertical_scale=0.75,
-                        fill={"rgba": [0.1254, 0.3951, 0.7788, 1.0]},
+                        fill={"rgba": [0.1254, 0.3951, 0.7788, alpha]},
                     ),
                 )
                 doc["resolution_ppi"] = 72

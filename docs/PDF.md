@@ -108,8 +108,19 @@ Left-to-right runs support both ligatures and clusters made of several glyphs.
 For example, a base letter and a separately positioned accent copy together as
 the original Unicode sequence. On a curved baseline, the letter and accent
 can follow different tangents. Inkbolt preserves each glyph's position, scale
-and rotation. All visible glyphs in the cluster must share one opaque RGB fill,
-supplied as byte channels or a precise `rgba` value.
+and rotation. Source builds support translucent RGB text supplied as byte
+channels or a precise `rgba` value. A translucent accent over its base letter
+adds a second layer of color where they overlap. The reader still copies
+the original letter and accent once.
+
+Windows and Linux produced 32 byte-identical PDF pairs. The fixtures covered
+subset and whole-font TrueType and CFF, clear and painted backgrounds, and
+four page color settings (untagged, sRGB, linear sRGB and Display P3).
+MuPDF and pdftotext recovered each source accent once. At 288 dpi, MuPDF and
+pdftoppm matched the outlined reference at all 192 sampled positions per
+platform, including the overlap and the area painted by the letter alone.
+Repeated letters with the same positioned accent and fill shared a font
+resource on each page.
 
 For a variable TrueType font with permission to subset,
 Inkbolt embeds a static font at each set of axis settings used on the page.
