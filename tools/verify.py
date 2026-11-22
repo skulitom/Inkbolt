@@ -478,7 +478,8 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--thorough', action='store_true', help='Rerun every check without cache reuse or the quick budget')
     parser.add_argument('--public', action='store_true', help='Use the explicit public structural guard for clones/CI; private policy is not evaluated')
-    parser.add_argument('--jobs', type=int, default=min(4, os.cpu_count() or 2), choices=range(1, 9), help='Concurrent stages (default: up to 4; maximum: 8)')
+    parser.add_argument('--jobs', type=int, choices=range(1, 9),
+                        help='Concurrent stages (default: up to 4, or 6 for quick Windows runs with 12+ logical CPUs)')
     parser.add_argument('--budget', type=float, default=180, help='Total quick-run seconds, including builds (default: 180)')
     parser.add_argument('--only', help='Comma-separated Python modules, module.TestClass.test_method selectors, or rust')
     rust = parser.add_mutually_exclusive_group()
@@ -489,6 +490,10 @@ def parse_args(argv=None):
     parser.add_argument('--list', action='store_true', help='Explain selection/reuse without executing checks')
     parser.add_argument('--report', type=Path, help='Also write the JSON run report to an external path')
     args = parser.parse_args(argv)
+    if args.jobs is None:
+        cpus = getattr(os, 'process_cpu_count', os.cpu_count)() or 2
+        quick_windows = sys.platform == 'win32' and not args.thorough and cpus >= 12
+        args.jobs = 6 if quick_windows else min(4, cpus)
     if args.budget <= 0 or not args.budget < float('inf'):
         parser.error('--budget must be finite and positive')
     rust_filter = args.rust if args.rust is not None else args.rust_lib

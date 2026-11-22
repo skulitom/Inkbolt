@@ -159,6 +159,8 @@ class VerificationTests(unittest.TestCase):
         for task, regular, judge in [
                 ('large_layout', 'test_benchmark_large_layout', 'test_benchmark_large_layout_judge'),
                 ('screen', 'test_benchmark_screen', 'test_benchmark_screen_judge'),
+                ('typography', 'test_benchmark_typography', 'test_benchmark_typography_judge'),
+                ('variants', 'test_benchmark_variants', 'test_benchmark_variants_judge'),
                 ('recovery', 'test_agent_benchmark_recovery', 'test_benchmark_recovery_judge')]:
             closure = inputs.python_closure(root, 'tests/' + judge + '.py', files, graph)
             self.assertIn('tools/benchmark_' + task + '.py', closure)
@@ -180,6 +182,17 @@ class VerificationTests(unittest.TestCase):
         changed=dict(files);changed['src/geometry.rs']='original-engine-change'
         after=inputs.fingerprints(root,changed,'fixture-environment',modules)
         self.assertTrue(all(before[name]!=after[name] for name in before))
+
+    def test_default_workers_respect_host_and_explicit_selection(self):
+        for platform, cpus, quick, thorough in (
+                ('win32', 32, 6, 4), ('win32', 12, 6, 4), ('win32', 8, 4, 4),
+                ('win32', 2, 2, 2), ('linux', 16, 4, 4), ('darwin', None, 2, 2)):
+            with self.subTest(platform=platform, cpus=cpus), patch.object(sys, 'platform', platform), \
+                    patch.object(os, 'process_cpu_count', return_value=cpus, create=True):
+                self.assertEqual(verify.parse_args([]).jobs, quick)
+                self.assertEqual(verify.parse_args(['--thorough']).jobs, thorough)
+                self.assertEqual(verify.parse_args(['--jobs', '1']).jobs, 1)
+                self.assertEqual(verify.parse_args(['--thorough', '--jobs', '8']).jobs, 8)
 
     def test_selection_errors_thorough_conflicts_and_zero_test_runs_fail(self):
         with redirect_stderr(io.StringIO()):
