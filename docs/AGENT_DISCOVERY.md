@@ -121,6 +121,12 @@ active workspace, the field lists reflect its default roots. For a field's
 type, allowed values and nested inputs, look up its command with
 `select:"field:NAME"`.
 
+For a single command, set `select` to its full name, such as
+`document.publish`. The reply contains just that command's required and
+optional inputs for the current workspace. Use `field:schema` to select the
+`schema` command alone when its name is also a family. A bare `schema` still
+includes `schema.lookup`.
+
 With a workspace selected, the compact JSON CLI response is 799 bytes for
 `job`, 1,999 bytes for `session` and 9,287 bytes for all 96 commands,
 including the response envelope and excluding the trailing newline.

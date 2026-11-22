@@ -431,7 +431,7 @@ pub enum Request {
         /// Command name, shared type alias, index, or command.fields for input names.
         name: String,
         /// Field (field:NAME), variant or definition. Join nested components with /.
-        /// For command.fields, select a family such as session or job.
+        /// For command.fields, choose a family or a command. Use field:COMMAND for an exact name.
         select: Option<String>,
         /// Return the complete schema even when it exceeds the outline budget.
         #[serde(default)]
@@ -2219,6 +2219,7 @@ fn capability_report() -> Value {
         "cli_help_workspace_defaults":"workspace_defaults;relative_to_explicit_workspace_only",
         "schema_examples":{"index_field":"example_queries","result_field":"example","maximum_bytes":limits::schema::EXAMPLE_BYTES,"fields":["kind","value","requires","usage"],"coverage":"focused_font_session_document_text_transform_boolean_fill;not_every_operation","executes_during_discovery":false},
         "lookup":"schema.lookup", "index":"index", "command_fields":"command.fields", "vector_quickstart":"vector.quickstart", "image_quickstart":"image.quickstart", "screen_quickstart":"screen.quickstart", "handoff_quickstart":"handoff.quickstart",
+        "command_field_selectors":["family","command","field:COMMAND"],
         "large_schema_outline_bytes":schema::OUTLINE_BYTES,
         "schema_selector_separator":"/",
         "schema_type_root_selector":true,

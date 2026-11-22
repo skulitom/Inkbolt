@@ -155,9 +155,8 @@ and its PNG lacked the sRGB declaration. Another left the rectangle outside
 the artboard hierarchy and omitted the private note from the JSON. All ten
 delivery receipts matched their original PNG hashes. Every agent used the
 shell. Commands containing `schema.lookup` returned a median of 53,865 bytes
-per Inkbolt attempt. The next delivery experiment should measure whether a
-short path from the screen preset to an editable source and a PNG reduces
-these lookups while preserving the delivery checks.
+per Inkbolt attempt. Those costs prompted a [second trial with a screen
+quickstart](#screen-preset-quickstart-trial).
 
 The original judge accepted only one Inkbolt workflow. It required an empty
 rectangle name and looked for the private note only on the document. The
@@ -182,6 +181,56 @@ five required for a paired cost ratio.
 | Original-judge replay | `7b4117d214d85ce847eab26550dab09b533abd678446b69218279ef2c5171a22` |
 | Corrected comparison | `4cf73ab774f12ae0c2cc896858407d00c84d2b8fe752fe07e3a9beb4cdc862dd` |
 | Independent pixel and transcript checks | `d051d77a45acde2dd9767b1a33e8ddddad8021acee0882f9f641a3252ba91927` |
+
+### Screen preset quickstart trial
+
+With the new guide, **four of five Inkbolt attempts passed the original judge**,
+up from three of five. The fresh no-engine baseline passed five of five.
+All five Inkbolt agents received the guide in shell output. They used a median
+of 11 shell commands, down from 20, and 61.6% fewer tokens than in the earlier
+batch. The predeclared rule required the guide to reach a solver, at least
+three complete workflows and a median below 20 shell commands. Keep the
+pointer in CLI help. [Four-request workflow](AGENT_DISCOVERY.md#screen-artwork)
+
+| Measurement | Earlier Inkbolt | With quickstart | Earlier baseline | Fresh baseline |
+| --- | ---: | ---: | ---: | ---: |
+| Complete workflows, judge frozen before the trial | 3/5 | 4/5 | 5/5 | 5/5 |
+| Complete workflows after rechecking both solid paint encodings | 3/5 | 5/5 | 5/5 | 5/5 |
+| Median shell commands | 20 | 11 | 3 | 3 |
+| Median shell output, UTF-8 bytes | 230,399 | 34,032 | 373 | 3,146 |
+| Median input + output tokens | 627,750 | 240,966 | 54,013 | 53,390 |
+| Median solve time | 150.1 s | 94.9 s | 45.3 s | 33.7 s |
+
+The attempt rejected by the frozen judge used normalized RGBA values for the editable fill.
+Each channel was exactly the requested byte divided by 255. Its PNG had
+every expected sample and the required sRGB declaration. The frozen judge
+required the byte-array form of the editable fill. The corrected judge also
+admits its exact normalized equivalent. Perturbing any one channel by one
+representable floating-point step still fails the source check. Rejudging
+all twenty retained workspaces with their original binaries and tools changed
+only this one outcome. All ten fresh PNGs passed a separate pixel check.
+
+The follow-up used source `91f54c5`, the same Windows host, prompt, client,
+Luna settings, pinned baseline tools and arm order as the earlier trial. The
+guide demonstrates an ellipse on a 256 × 256 icon. The unchanged task asks
+for a translucent rectangle on a 1920 × 1080 artboard. All cost medians
+include every attempt. The five pairs that passed the corrected judge still
+used 4.51 times as many median tokens with Inkbolt as with the baseline. Host
+load was uncontrolled and five attempts per arm leave wide uncertainty.
+
+Four agents received the guide on their second shell command and one on its
+third. Two later asked `command.fields` for one named command. The evaluated
+build rejected all five such queries. Replaying them after the [single-command
+lookup change](AGENT_DISCOVERY.md#focused-schemas) returned the same required
+and optional fields as the family listing, in 335–347 bytes per reply on both
+Windows and Linux. The trial costs above include the original five refusals.
+
+| Retained evidence | SHA-256 |
+| --- | --- |
+| Fresh comparison with the frozen judge | `64fdf90163f04eda86694077fa55f7cfcf2de0145fb52ff4bef27d2073788866` |
+| Earlier and fresh batches rejudged | `4ba6c2f1dc59d4c7c581ca1c4da7d84fb5f391e81b8de60ca3a8cf0b78ffd5d5` · `8f52fcc068a8221b51d96817cdb3b4872de4e77039b536570bc60cedcc28ef28` |
+| Guide exposure and original-judge replay audit | `17e9a7ae65e30045618e1ac37e0a711d309ece09c5d69e0b48ca1a39fbdecdd5` |
+| Independent checks of fresh PNGs and captures | `00ef48a9d43ce8d11e5e254174c9cd543ab7e22a29e904cfeddb7651c6c5eb0a` |
 
 ## Observing print previews in delivery folders
 

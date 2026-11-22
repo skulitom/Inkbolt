@@ -1,6 +1,7 @@
 """B13 screen artifact, history and workspace checks on original deliveries."""
 import copy
 import json
+import math
 from pathlib import Path
 import sys
 import tempfile
@@ -92,6 +93,34 @@ class ScreenJudgeTests(unittest.TestCase):
                     except TaskFailure:pass
                     expected='editable-source' if fault in ('geometry','alpha','private') else 'transparent-pixels' if fault=='pixels' else 'screen-color' if fault=='metadata' else 'no-overwrite'
                     self.assertIn(expected,[c['name'] for c in case.checks if c['status']=='fail'],case.checks)
+
+    def test_precise_solid_checks_each_source_channel_before_png_quantization(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            case = self.prepare(root / 'workspace')
+            path = case.root / 'editable.json'
+            source = json.loads(path.read_bytes())
+            exact = [n / 255 for n in (20, 80, 150, 128)]
+            original_call = case.call
+            case.begin_judging()
+            for index in range(5):
+                with self.subTest(changed_channel=index if index < 4 else None):
+                    channels = exact.copy()
+                    if index < 4:
+                        channels[index] = math.nextafter(channels[index], 1.0)
+                    source['items'][1]['content']['fill'] = {'rgba': channels}
+                    path.write_text(json.dumps(source), encoding='utf-8')
+                    case.checks.clear()
+                    case.judge_root = root / f'judge-{index}'
+                    case.judge_root.mkdir()
+                    case.call = lambda step, command, **kw: original_call(f'{index}-{step}', command, **kw)
+                    if index < 4:
+                        with self.assertRaises(TaskFailure):
+                            judge(case)
+                        self.assertIn('editable-source', [c['name'] for c in case.checks if c['status'] == 'fail'])
+                    else:
+                        judge(case)
+                        self.assertEqual({c['name'] for c in case.checks if c['status'] == 'pass'}, set(CHECKS['B13']))
 
     def test_color_oracle_rejects_missing_duplicate_invalid_tags_and_private_records(self):
         raw=png(1,1,bytes([20,80,150,128]));screen_color(raw)

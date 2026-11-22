@@ -117,6 +117,13 @@ class AgentDiscoveryTests(unittest.TestCase):
                     client.initialize()
                     session = lookup(name='command.fields', select='session')
                     self.assertEqual(session, client.success('schema.lookup', name='command.fields', select='session'))
+                    for select, name in [('session.read', 'session.read'), ('document.publish', 'document.publish'),
+                                         ('field:document.preflight', 'document.preflight'), ('field:schema', 'schema')]:
+                        single = lookup(name='command.fields', select=select)
+                        self.assertEqual(single['select'], select)
+                        self.assertEqual(single['commands'], {name: all_rows['commands'][name]})
+                        self.assertEqual(single, client.success('schema.lookup', name='command.fields', select=select))
+                    self.assertIn('schema.lookup', lookup(name='command.fields', select='schema')['commands'])
                     self.assertEqual(session['workspace'], workspace is not None)
                     self.assertEqual(session['commands'], {k:v for k,v in all_rows['commands'].items()
                                                            if k.startswith('session.')})
@@ -131,7 +138,8 @@ class AgentDiscoveryTests(unittest.TestCase):
                     self.assertIn('response_mode', session['commands']['session.apply']['optional'])
                     self.assertIn('review_output', session['commands']['session.dry_run']['optional'])
             self.assertEqual(list(Path(directory).iterdir()), [])
-        for options in (dict(select='unknown'), dict(select='session.read'), dict(full=True)):
+        for options in (dict(select='unknown'), dict(select='field:session'), dict(select='document.pub'),
+                        dict(select='field:'), dict(full=True)):
             self.assertEqual(invoke(dict(command='schema.lookup', name='command.fields', **options))
                              ['error']['code'], 'INVALID_REQUEST')
 

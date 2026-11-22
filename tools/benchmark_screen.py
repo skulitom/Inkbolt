@@ -74,6 +74,11 @@ def judge(case):
     require(len(actual['items'])==2,'Expected an artboard and one editable rectangle')
     expected=source_document(preset,actual['items'][1]['id'],actual['items'][0]['id']);expected['revision']=actual['revision']
     expected['metadata']=actual.get('metadata')
+    # Both solid paint encodings can express the requested four channel values.
+    expected_content = expected['items'][1]['content']
+    precise = {'rgba': [channel / 255 for channel in expected_content['fill']]}
+    if actual['items'][1]['content'].get('fill') == precise:
+        expected_content['fill'] = precise
     # The prompt allows a descriptive name and a note on either editable item.
     source_metadata = [actual.get('metadata')]
     for template, item in zip(expected['items'], actual['items']):

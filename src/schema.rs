@@ -148,9 +148,14 @@ pub fn arguments(command: &str, compact: bool) -> Option<Value> {
     Some(complete(described_root(command)?, compact))
 }
 
-fn command_fields(family: Option<&str>, workspace: bool) -> Result<Value, Error> {
+fn command_fields(select: Option<&str>, workspace: bool) -> Result<Value, Error> {
     let mut rows = Map::new();
-    for name in commands().filter(|name| family.is_none() || name.split('.').next() == family) {
+    for name in commands().filter(|name| {
+        select.is_none_or(|query| match query.strip_prefix("field:") {
+            Some(command) => *name == command,
+            None => *name == query || name.split('.').next() == Some(query),
+        })
+    }) {
         let mut root = described_root(name).expect("listed command has an argument schema");
         if workspace {
             crate::workspace::describe_essentials(&mut root);
@@ -169,11 +174,11 @@ fn command_fields(family: Option<&str>, workspace: bool) -> Result<Value, Error>
     if rows.is_empty() {
         return Err(Error::new(
             "INVALID_REQUEST",
-            "Unknown command family. Choose the part before the first dot in a command listed by schema.lookup with name index.",
+            "Unknown command or family. Choose a command from schema.lookup with name index, or its family before the first dot.",
         ));
     }
     Ok(
-        json!({"name":"command.fields","select":family,"detail":"command_fields","workspace":workspace,
+        json!({"name":"command.fields","select":select,"detail":"command_fields","workspace":workspace,
         "commands":rows,"usage":"For types, defaults and nested choices, look up the command by name. Select field:NAME for one input."}),
     )
 }
