@@ -96,6 +96,24 @@ class PrintBenchmarkTests(unittest.TestCase):
                     expected='editable-print-source' if fault in ('geometry','profile','ink') else 'print-preview' if fault=='pixels' else 'declared-losses'
                     self.assertIn(expected,[c['name'] for c in case.checks if c['status']=='fail'],case.checks)
 
+    def test_equivalent_default_fields_reopen_as_the_saved_print_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case=self.prepare(Path(directory)/'print')
+            path=case.root/'editable.json'
+            doc=json.loads(path.read_bytes())
+            for item in doc['items'][1:]:
+                for field in ('visible','locked','transform','name'):
+                    del item[field]
+                del item['content']['fill_rule']
+                item['content']['fill']['overprint']='knockout'
+            del doc['swatches']['process']['definition']['color']['encoding']['untagged']
+            del doc['swatches']['spot']['definition']['alternate']['encoding']['untagged']
+            path.write_text(json.dumps(doc),encoding='utf8')
+            delivered_bytes=path.read_bytes()
+            case.results.clear();case.begin_judging();judge(case)
+            self.assertEqual(case.finish()['status'],'passed')
+            self.assertEqual(path.read_bytes(),delivered_bytes)
+
     def test_external_capture_rejudges_after_original_workspace_moves(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);configuration=driver('--custom-session-store','--custom-receipt-store',

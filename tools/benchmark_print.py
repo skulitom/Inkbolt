@@ -135,8 +135,9 @@ def artifact_checks(case,raws,rgb,cmyk,native_geometry=None):
 def judge(case):
     files=print_files(case)
     rgb=delivered(case,'original-rgb.icc');cmyk=delivered(case,'original-cmyk.icc');raw=delivered(case,files['print.pdf'])
-    source=delivered(case,files['editable.json']);actual=strict_json(source)
-    reopened=case.call('judge-reopen','document.validate',document=dict(file_path=files['editable.json'],sha256=sha(source)))
+    source=delivered(case,files['editable.json'])
+    strict_json(source)  # Reject duplicate keys and nonfinite literals in the delivered bytes.
+    actual=case.call('judge-reopen','document.validate',document=dict(file_path=files['editable.json'],sha256=sha(source)))
     preset=case.call('judge-preset','preset.create',id=actual['id'],version=1,preset=PRESET)
     require(len(actual['items'])==3,'Expected a print page and two editable rectangles')
     names=dict(board=actual['items'][0]['id'],process=actual['items'][1]['content']['fill']['swatch'],items=[i['id'] for i in actual['items'][1:]])
@@ -145,9 +146,9 @@ def judge(case):
     # Added swatch display labels are not prescribed by the prompt or preset.
     for key in expected['swatches']:expected['swatches'][key]['name']=actual['swatches'][key]['name']
     normalized=case.call('judge-template','document.validate',document=expected)
-    require(case.check('editable-print-source',lambda:require(actual==reopened==normalized,
+    require(case.check('editable-print-source',lambda:require(actual==normalized,
         'Physical canvas, complete artwork, native swatches or embedded profiles changed')),'Print source was not admitted')
-    preview=case.call('judge-preview','document.preview',document=reopened,options=dict(focus=dict(type='region',bounds=[0,0,240,130])),preview=True)
+    preview=case.call('judge-preview','document.preview',document=actual,options=dict(focus=dict(type='region',bounds=[0,0,240,130])),preview=True)
     def picture():
         for data in (delivered(case,files['preview.png']),base64.b64decode(preview['artifact']['data'],validate=True)):
             png_check(data,240,130,expected_picture())
@@ -155,9 +156,9 @@ def judge(case):
     directory=getattr(case,'judge_root',case.root);output=output_settings(preset,names['board'])
     output.update(file_name='judge-print.pdf',output_root=str(directory.resolve()))
     require(not (directory/'judge-print.pdf').exists(),'Print judge output must be new')
-    ready=case.call('judge-preflight','document.preflight',document=reopened,output=output,judge_workspace=directory)
+    ready=case.call('judge-preflight','document.preflight',document=actual,output=output,judge_workspace=directory)
     require(ready['ready'] and not (directory/'judge-print.pdf').exists(),'Fresh preflight failed or wrote output')
-    fresh_result=case.call('judge-deliver','document.publish',document=reopened,output=output,judge_workspace=directory)
+    fresh_result=case.call('judge-deliver','document.publish',document=actual,output=output,judge_workspace=directory)
     fresh=(directory/'judge-print.pdf').read_bytes();artifact_checks(case,(raw,fresh),rgb,cmyk)
     def losses():
         value=strict_json(delivered(case,files['delivery.json']));declared_losses(value,raw)
