@@ -11,6 +11,23 @@ inkbolt --workspace C:\Work\Graphics mcp --tools core
 
 The directory must already exist and be absolute. Starting a process, inspecting capabilities and looking up schemas do not create folders. The working directory and environment do not silently select a workspace. Existing commands without the flag retain their explicit-root behavior. `capabilities.workspace` reports the selected canonical root and defaults; `capabilities.agent_inputs` describes the shared JSON interface.
 
+When a client starts a new CLI process for each request, configure the executable
+and workspace together. Pass the same argument array to every invocation. This
+Python example reads the active workspace and looks up the receipt command in it.
+
+```python
+import json
+import subprocess
+from pathlib import Path
+
+inkbolt = ["inkbolt", "--workspace", str(Path.cwd().resolve())]
+for request in ({"command": "capabilities"}, {"command": "schema.lookup", "name": "session.receipt"}):
+    reply = subprocess.run(inkbolt, input=json.dumps(request), text=True,
+                           capture_output=True, check=True)
+    result = json.loads(reply.stdout)["result"]
+    print(result["workspace"] if request["command"] == "capabilities" else result["name"])
+```
+
 | Omitted runtime root | Default relative to workspace |
 | --- | --- |
 | `session_root` | `.inkbolt/sessions` |

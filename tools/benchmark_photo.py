@@ -10,6 +10,7 @@ from benchmark_diagram import delivered
 from benchmark_graphics import store, source_snapshot, png_check
 from benchmark_large_layout import retained_session_store
 from benchmark_runtime import require, safe_name, strict_json
+from benchmark_stores import contained_file, photo_asset_store
 from workload_cases import document, native_png, check_tiff, save, save_json, sha
 
 WIDTH, HEIGHT = 1920, 1080
@@ -154,12 +155,13 @@ def original_manifest():
     return native_manifest(photographic_source())
 
 
-def check_tiles(case, edited_manifest=None):
-    paths=list((case.root/'.inkbolt/assets').glob('*.native-tile'))
+def check_tiles(case, asset_root, edited_manifest=None):
+    root=case.root.resolve()
+    paths=list((root/asset_root).glob('*.native-tile'))
     expected={digest+'.native-tile':digest for digest in original_manifest()['tiles']}
     if edited_manifest is not None:
         expected.update({digest+'.native-tile':digest for digest in edited_manifest['tiles']})
-    require(all(p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(case.root.resolve()) for p in paths)
+    require(all(contained_file(root,p) for p in paths)
             and {p.name:sha(p.read_bytes()) for p in paths}==expected,
             'Immutable native files differ from independently encoded original and edited samples')
 
@@ -219,7 +221,6 @@ def judge(case):
         imported['storage']['kind']=='native_tiles' and imported['storage']['manifest_sha256']==original_manifest()['sha256'],
         'Import must retain original identity, dimensions, native depth and all exact base samples'))
     edited_manifest=native_manifest(expected) if storage_version==2 else None
-    case.check('immutable-tiles',lambda:check_tiles(case,edited_manifest))
     locator=strict_json(delivered(case,'session.json'))
     require(isinstance(locator,dict) and set(locator)=={'session_id','requests'} and
             isinstance(locator['requests'],dict) and set(locator['requests'])==set(names),'Invalid photo session locator')
@@ -231,6 +232,10 @@ def judge(case):
         safe_name(locator['requests'][role])
         receipts[role]=case.call('judge-'+role+'-receipt','session.receipt',session_root=session_root,
                                 session_id=locator['session_id'],request_id=locator['requests'][role])
+    review=strict_json(delivered(case,'review.json'))
+    publications=strict_json(delivered(case,'publication-report.json'))
+    asset_root=photo_asset_store(case,imported,review,publications,session_root,receipts)
+    case.check('immutable-tiles',lambda:check_tiles(case,asset_root,edited_manifest))
     wanted=copy.deepcopy(wanted_before);wanted['revision']=1
     expected_transfer=None
     if storage_version==1:
@@ -241,7 +246,6 @@ def judge(case):
         blocks={name:blob for name,blob in native_blocks(expected) if name in pending}
         expected_transfer=dict(version=1,manifest=edited_manifest,
                                pending=[dict(sha256=name,data_hex=blocks[name].hex()) for name in sorted(blocks)])
-    review=strict_json(delivered(case,'review.json'))
     def exact_patch():
         require(edited==wanted and receipts['edit']['document']==edited,'Only the exact clone samples and revision may change')
         check_review(review,receipts,edited,expected_transfer)
@@ -251,18 +255,16 @@ def judge(case):
         case.check(role+'-editability',lambda role=role,w=wanted_state:require(
             snapshots[role]==w and receipts[role]['document']==w and receipts[role]['receipt']['action']==role,
             'Undo/redo must restore the entire editable native state'))
-    rendered=case.call('judge-preview','document.preview',document=current,preview=True,options=preview_options())
+    rendered=case.call('judge-preview','document.preview',document=current,asset_root=asset_root,preview=True,options=preview_options())
     def picture():
         pixels=preview_samples(expected)
         png_check(delivered(case,'preview.png'),REGION['width'],REGION['height'],pixels)
         png_check(base64.b64decode(rendered['artifact']['data'],validate=True),REGION['width'],REGION['height'],pixels)
     case.check('photo-preview',picture)
-    publications=strict_json(delivered(case,'publication-report.json'))
-    require(isinstance(publications,dict) and set(publications)=={'edited','historical'},'Missing native publication receipts')
     for name,doc,samples in [('edited',current,expected),('historical',before,raw)]:
         target='judge-'+name+'.tiff'
         options=tiff_output(target);options.pop('file_name')
-        export=case.call('judge-'+name,'document.export',document=doc,**options)
+        export=case.call('judge-'+name,'document.export',document=doc,asset_root=asset_root,**options)
         path=getattr(case,'judge_root',case.root)/target
         save(path,base64.b64decode(export['data'],validate=True))
         def native(name=name,path=path,samples=samples):

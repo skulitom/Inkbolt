@@ -54,6 +54,7 @@ class RecoveryPlatformTests(unittest.TestCase):
                     self.assertEqual(prepared['status'],'prepared')
                     request=json.loads((root/'prepared/evidence/request.json').read_bytes())
                     self.assertIsNone(request['mcp_config']);self.assertNotIn('engine_executable',request)
+                    self.assertNotIn('engine_cli_argv',request)
                     self.assertIn('recovery_bridge',request);self.assertIn('control_files',request['contract'])
                     self.assertTrue(Path(request['recovery_bridge'][-1]).is_absolute())
                     self.assertFalse((root/'prepared/evidence/control-channel').exists())

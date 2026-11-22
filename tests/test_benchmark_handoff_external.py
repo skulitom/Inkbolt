@@ -45,6 +45,7 @@ class HandoffBoundaryTests(unittest.TestCase):
                     self.assertEqual(result['status'],'prepared')
                     request=json.loads((root/'prepared/evidence/request.json').read_bytes())
                     self.assertIsNone(request['mcp_config']);self.assertNotIn('engine_executable',request)
+                    self.assertNotIn('engine_cli_argv',request)
                     self.assertIn('consumer_tools',request['contract']);self.assertIn('handoff_bridge',request)
                     self.assertFalse((root/'prepared/evidence/control-channel').exists())
                 else:

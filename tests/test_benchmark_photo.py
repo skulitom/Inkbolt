@@ -30,7 +30,7 @@ class ExternalPhotoTests(unittest.TestCase):
 
     def test_external_model_relocated_capture_and_damaged_delivery_controls(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);configuration=driver('--photo-names','--custom-session-store');configuration['timeout_seconds']=90
+            root=Path(directory);configuration=driver('--photo-names','--custom-session-store','--custom-asset-store');configuration['timeout_seconds']=90
             self.client_failures=[]
             def observed_client(*args,**kwargs):
                 # Only this known credential-free synthetic fixture is captured.
@@ -55,6 +55,7 @@ class ExternalPhotoTests(unittest.TestCase):
             self.assertEqual(imported['external_process_tree_memory'],row['external_process_tree_memory'])
             workspace=root/'import/workspace'
             self.assertFalse((workspace/'.inkbolt/sessions').exists())
+            self.assertFalse((workspace/'.inkbolt/assets').exists())
             self.assertEqual(before,workspace_files(workspace))
             self.assertEqual(before,workspace_files(root/'captured/workspace'))
             self.assertEqual(json.loads((workspace/'editable.json').read_bytes())['id'],'original-studio')
@@ -71,7 +72,7 @@ class ExternalPhotoTests(unittest.TestCase):
                        'review-manifest':('review.json','editable-exact-patch'),'import':('import-report.json','native-import'),
                        'receipt':('publication-report.json','edited-native-samples'),
                        'native':('edited.tiff','edited-native-samples'),'head':(None,'history-valid'),
-                       'tile':(str(next((workspace/'.inkbolt/assets').glob('*.native-tile')).relative_to(workspace)),'immutable-tiles')}
+                       'tile':(str(next((workspace/'chosen resources/images').glob('*.native-tile')).relative_to(workspace)),'immutable-tiles')}
             for fault,(filename,check) in mutations.items():
                 with self.subTest(fault=fault):
                     case=ExternalTrial(EXE,root/('control-'+fault),'B10',1,'cli',CHECKS['B10'],arm='model')

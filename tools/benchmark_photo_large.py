@@ -12,6 +12,7 @@ from benchmark_graphics import store,source_snapshot,png_check
 from benchmark_large_layout import retained_session_store
 from benchmark_photo import check_review,judge_memory,tiff_output
 from benchmark_runtime import Trial,TaskFailure,require,safe_name,strict_json
+from benchmark_stores import contained_file,photo_asset_store
 from benchmark_tasks import ENGINE_CHECKS
 from scale_oracles import check_native,check_tiff,file_hash
 from workload_cases import document,save,save_json
@@ -157,18 +158,18 @@ def judge(case):
     judge_memory(case,fixture_data.MAX_PEAK_COMMIT_BYTES)
 
 
-def publication_workspace(case):
-    if not hasattr(case,'judge_root'):return case.root,None
+def publication_workspace(case,asset_root):
+    if not hasattr(case,'judge_root'):return case.root,None,asset_root
     # External judging cannot publish into the solver workspace or escape its
     # boundary. Reopen the already independently verified native blocks in an
     # owned judge workspace; engine resource hashes verify the streamed copies.
     root=case.judge_root/'native-publication';root.mkdir()
     assets=root/'.inkbolt/assets';assets.mkdir(parents=True)
-    for source in sorted((case.root/'.inkbolt/assets').glob('*.native-tile')):
-        require(source.is_file() and not source.is_symlink(),'Linked or missing judge source block')
+    for source in sorted((case.root.resolve()/asset_root).glob('*.native-tile')):
+        require(contained_file(case.root.resolve(),source),'Linked or missing judge source block')
         with source.open('rb') as before,(assets/source.name).open('xb') as after:
             shutil.copyfileobj(before,after)
-    return root,root
+    return root,root,'.inkbolt/assets'
 
 
 def _judge(case,rows,width,height):
@@ -184,15 +185,6 @@ def _judge(case,rows,width,height):
         imported['source_sha256']==case.sources['original.tiff'] and imported['source_changed'] is False and
         imported['storage']['kind']=='native_tiles' and imported['storage']['manifest_sha256']==original['sha256'],
         'Import must retain the full native 50 MP source and interpretation'))
-    def immutable():
-        expected=set(original['tiles'])|set(changed['tiles'])
-        files=list((case.root/'.inkbolt/assets').glob('*.native-tile'))
-        require(all(p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(case.root.resolve()) for p in files) and
-                {p.name:file_hash(p) for p in files}=={h+'.native-tile':h for h in expected},
-                'Native store contains missing, changed or unexpected blocks')
-        check_native(case.root,before,width,height,rows.row)
-        check_native(case.root,edited,width,height,lambda y:rows.row(y,True))
-    case.check('immutable-tiles',immutable)
     locator=strict_json(delivered(case,'session.json'))
     require(isinstance(locator,dict) and set(locator)=={'session_id','requests'} and
             isinstance(locator['requests'],dict) and set(locator['requests'])==set(names),'Invalid photo session locator')
@@ -207,6 +199,18 @@ def _judge(case,rows,width,height):
     blocks={name:blob for name,blob in rows.blocks(True) if name in pending}
     transfer=dict(version=1,manifest=changed,pending=[dict(sha256=name,data_hex=blocks[name].hex()) for name in sorted(blocks)])
     review=strict_json(delivered(case,'review.json'))
+    publications=strict_json(delivered(case,'publication-report.json'))
+    asset_root=photo_asset_store(case,imported,review,publications,session_root,receipts)
+    def immutable():
+        expected=set(original['tiles'])|set(changed['tiles'])
+        root=case.root.resolve()
+        files=list((root/asset_root).glob('*.native-tile'))
+        require(all(contained_file(root,p) for p in files) and
+                {p.name:file_hash(p) for p in files}=={h+'.native-tile':h for h in expected},
+                'Native store contains missing, changed or unexpected blocks')
+        check_native(root,before,width,height,rows.row,asset_root=asset_root)
+        check_native(root,edited,width,height,lambda y:rows.row(y,True),asset_root=asset_root)
+    case.check('immutable-tiles',immutable)
     def exact():
         require(edited==wanted and receipts['edit']['document']==edited,'Only the exact native repair and revision may change')
         check_review(review,receipts,edited,transfer)
@@ -216,18 +220,17 @@ def _judge(case,rows,width,height):
         case.check(role+'-editability',lambda role=role,expected=expected:require(
             snapshots[role]==expected and receipts[role]['document']==expected and receipts[role]['receipt']['action']==role,
             'Undo/redo must preserve the entire native document'))
-    rendered=case.call('judge-preview','document.preview',document=current,preview=True,options=preview_options(case))
+    rendered=case.call('judge-preview','document.preview',document=current,asset_root=asset_root,preview=True,options=preview_options(case))
     def preview():
         r=rows.region;pixels=rows.preview()
         png_check(delivered(case,'preview.png'),r['width'],r['height'],pixels)
         png_check(base64.b64decode(rendered['artifact']['data'],validate=True),r['width'],r['height'],pixels)
     case.check('photo-preview',preview)
-    publications=strict_json(delivered(case,'publication-report.json'))
-    require(isinstance(publications,dict) and set(publications)=={'edited','historical'},'Missing native publication receipts')
-    directory,judge_workspace=publication_workspace(case)
+    directory,judge_workspace,publication_assets=publication_workspace(case,asset_root)
     for name,doc,is_edited in [('edited',current,True),('historical',before,False)]:
         options=tiff_output('judge-'+name+'.tiff');options['output_root']=str(directory.resolve())
-        fresh=case.call('judge-'+name,'document.publish',document=doc,output=options,judge_workspace=judge_workspace)
+        fresh=case.call('judge-'+name,'document.publish',document=doc,resources=dict(asset_root=publication_assets),
+                        output=options,judge_workspace=judge_workspace)
         target=directory/options['file_name']
         def pixels(name=name,target=target,is_edited=is_edited,fresh=fresh):
             source=image_file(case,name+'.tiff')

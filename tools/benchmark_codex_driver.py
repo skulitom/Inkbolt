@@ -155,6 +155,10 @@ def prepare(request, executable, mcp_approval_mode=None, mcp_tools='core'):
     for name in DISABLED_FEATURES:
         argv += ['--disable', name]
     argv += ['--enable', 'skip_host_skill_discovery']
+    if 'engine_cli_argv' in request:
+        require(request.get('mcp_config') and
+                request['engine_cli_argv'] == [request.get('engine_executable'), '--workspace', str(workspace)],
+                'CLI launch must use the same pinned executable and workspace as MCP')
     if request.get('mcp_config'):
         mcp = strict_json(regular(request['mcp_config']))
         require(set(mcp) == {'mcpServers'} and set(mcp['mcpServers']) == {'inkbolt'},
@@ -174,6 +178,9 @@ def prepare(request, executable, mcp_approval_mode=None, mcp_tools='core'):
     # B19/B20 supply only their measured bridge instead of a direct engine.
     tools = {key: request[key] for key in ('tool_policy', 'baseline_tools',
              'engine_executable', 'recovery_bridge', 'handoff_bridge') if request.get(key) is not None}
+    if 'engine_cli_argv' in request:
+        del tools['engine_executable']
+        tools['engine_cli_argv'] = request['engine_cli_argv']
     tools['arm'] = contract['arm']
     prompt = POLICY + '\n\nAvailable tools and arm:\n' + json.dumps(tools, indent=2) + '\n\n' + raw.decode('utf-8')
     return argv + ['-'], prompt, workspace

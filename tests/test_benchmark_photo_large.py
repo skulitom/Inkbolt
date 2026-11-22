@@ -33,8 +33,20 @@ class LargePhotoTests(unittest.TestCase):
                 case=trial_type(EXE,Path(directory)/transport,'B10',1,transport,CHECKS['B10'])
                 case.photo_test_profile=SMALL;case.benchmark_variant=fixture.VARIANT
                 case.judge_root=Path(directory)/(transport+'-judge');case.judge_root.mkdir()
-                try:photo.photograph(case)
+                solve=photo.solve
+                def custom_store(trial):
+                    call=trial.call
+                    def request(step,command,**args):
+                        if command=='sample.import':args['storage']['store_root']='native tiles'
+                        if command=='session.create':args['resources']={'asset_root':'native tiles'}
+                        return call(step,command,**args)
+                    with patch.object(trial,'call',side_effect=request):solve(trial)
+                try:
+                    with patch.object(photo,'solve',custom_store if transport=='cli' else solve):
+                        photo.photograph(case)
                 finally:case.close()
+                if transport=='cli':
+                    self.assertFalse((case.root/'.inkbolt/assets').exists())
                 row=case.finish()
                 self.assertEqual(row['status'],'passed' if os.name=='nt' else 'failed',row)
                 self.assertEqual({c['name'] for c in row['checks'] if c['status']=='fail'},

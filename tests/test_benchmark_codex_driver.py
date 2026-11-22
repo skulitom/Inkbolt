@@ -113,7 +113,7 @@ class CodexDriverTests(unittest.TestCase):
         self.assertEqual(driver.prepare(self.request, Path(sys.executable), 'approve', 'essentials'),
                          driver.prepare(self.request, Path(sys.executable), 'approve'))
         if sys.platform == 'win32': self.assertIn('windows.sandbox="elevated"',argv)
-        for field in ('mcp_config', 'engine_executable'):
+        for field in ('mcp_config', 'engine_executable', 'engine_cli_argv'):
             bad = dict(self.request, **{field:'unexpected'})
             with self.assertRaises(ValueError): driver.prepare(bad, Path(sys.executable))
 
@@ -140,6 +140,16 @@ class CodexDriverTests(unittest.TestCase):
         self.assertIn(changed, smaller)
         self.assertEqual(same_prompt, prompt)
         self.assertEqual(set(smaller)-set(approved), {changed})
+        prefix = [str(engine), '--workspace', str(self.workspace)]
+        scoped = dict(self.request, engine_cli_argv=prefix)
+        scoped_args, scoped_prompt, _ = driver.prepare(scoped, engine)
+        self.assertEqual(scoped_args, argv)
+        descriptor = json.loads(scoped_prompt.split('Available tools and arm:\n', 1)[1].split('\n\n',1)[0])
+        self.assertEqual(descriptor['engine_cli_argv'], prefix)
+        self.assertNotIn('engine_executable', descriptor)
+        for invalid in ([str(engine)], [*prefix, '--result-only'], [str(engine),'--workspace',str(self.evidence)]):
+            with self.assertRaisesRegex(ValueError, 'CLI launch'):
+                driver.prepare(dict(scoped, engine_cli_argv=invalid), engine)
         with self.assertRaisesRegex(ValueError, 'Unknown MCP catalog'):
             driver.prepare(self.request, engine, 'approve', 'full')
         self.contract['engine_sha256'] = '0'*64; self.bind()

@@ -2,12 +2,11 @@
 
 ## Results by task
 
-For photo editing, mixed composition and linked-graphic revision, the model
+For mixed composition and linked-graphic revision, the model
 completed three of five attempts per task with Inkbolt. It completed all five
 per task with the no-engine baseline. Across the 17 tasks with a baseline, Inkbolt
-matched its artifact success count on 12, scored higher on two and lower on
-three. Median recorded
-token use was higher with Inkbolt on all 17.
+matched its artifact success count on 13, scored higher on two and lower on
+two. Median recorded token use was higher with Inkbolt on all 17.
 
 Each row uses the latest documented five-attempt batch for the standard task.
 The evidence links give the prompts, independent checks, trial conditions and
@@ -28,7 +27,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B07 Multilingual typography | 5/5 | 5/5 | 0/5 | 405,058 / 218,798 | [a7e034e](#b06b07-at-a7e034e-captured-trials-rejudged) |
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 327,734 / 43,824 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 354,590 / 43,008 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
-| B10 Edit a multi-megapixel photo | 3/5 | 3/5 | 5/5 | 580,184 / 75,230 | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
+| B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
 | B11 Revise a mixed composition | 3/5 | 3/5 | 5/5 | 395,699 / 72,214 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 313,210 / 41,717 | [7a07f07](#b10b13-at-7a07f07-five-matched-pairs-with-retained-capture-corrections) |
@@ -66,6 +65,39 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## B10 rejudging the saved photo stores
+
+All five Inkbolt attempts and all five baseline attempts at `447bbc2` delivered
+the requested 1920 × 1080 RGBA16 repair. The previous judge looked for native
+tiles in `.inkbolt/assets`. Attempts 2 and 4 used `tiles` and `native-tiles`
+and recorded those stores in their saved sessions. The prompt specifies the
+native samples, edit, history and deliveries. It leaves the tile directory to
+the caller. [Task prompt](../tools/benchmark_prompts/B10.md)
+
+On fresh copies of the ten original captures, the earlier judge reproduced
+the recorded 3/5 Inkbolt and 5/5 baseline outcomes. The corrected judge traced
+each store through the import, review and four revision receipts. It verified
+the immutable blocks, every channel in both delivered and freshly exported
+TIFFs, the preview, undo/redo, history and the original memory observation.
+All eleven Inkbolt checks passed in each attempt. Transcript and workspace
+hashes, client time and token counts matched the original reports. Median
+token use was 580,184 versus 75,230 (7.71×), and median client time was 128.3
+versus 63.7 seconds. These are the same ten model executions. The separate
+50 MP experiment retains its own results.
+
+Both judges used the same optimized reader rebuilt from the 898 archived source
+files and locked toolchain of the original evaluation. The rebuilt executable
+had a different SHA-256 from the original solve executable. Each original
+client contract, capture and transcript was verified independently. New model
+runs retain the executable itself for exact-binary replay.
+
+| Retained evidence | SHA-256 |
+| --- | --- |
+| Original solve executable | `2b5a6275cb502d4fd31797d990a5b05e409dd3a5f33736356223fe615bac9ad2` |
+| Rebuilt reader for both judges | `a419381a990f6b8d2d998aba789bda6acc3e67e443187a8cdf4d54c695e7cf51` |
+| Earlier judge replay | `cb2b39be41d0f3a0d2123e6cb5f4e39fea3dd906ba85e64899dece93e1ac886b` |
+| Corrected judge replay | `f6eb7a7161c5d7127bc4a20c9152ae0132ba5444067786d2ca8e8060de007351` |
 
 ## B17 at c3fd51f: saving a recovered receipt
 
@@ -1749,6 +1781,9 @@ in its review inventory. Both sets remain available externally.
 | Rejudge review inventory | `be67b2bd3a303df954c6d8d654b40ee80b65f295dd3e72346ea6e8092ece160e` |
 
 ## B10/B17/B19 at 447bbc2: request-guidance follow-up
+
+The B10 counts below record the original judge. Reopening the same captures
+with their recorded tile stores gave 5/5 for both arms. [Corrected B10 results](#b10-rejudging-the-saved-photo-stores)
 
 Five native attempts per task and five B10 baseline attempts used unchanged
 prompts (B10/B17 version 1, B19 version 5) and the same external Codex CLI 0.160.0

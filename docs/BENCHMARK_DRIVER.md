@@ -45,11 +45,21 @@ python tools/agent_benchmark.py --arm model --driver-config C:/Work/client.json 
 
 The model arm builds and pins the release executable. Each request names its
 workspace, exact prompt, output paths and MCP configuration (`--tools core`),
-and supplies the executable for clients that use the CLI. A portable contract
+and supplies `engine_cli_argv` for clients that use the CLI. Pass this array
+directly to the subprocess for each request. Its executable and explicitly
+selected workspace match the MCP launch. The request also retains the executable
+path for existing drivers. Bridge tasks supply their own command array. A portable contract
 binds task/repetition, arm, prompt, original fixture hashes, model/settings,
 client version and executable/tool identities. The transcript and usage must
 refer to this contract. `--transport` selects the reference runner's transport;
 external-client reports describe the actual adapter protocol as external.
+
+New model runs keep the tested executable alongside `inputs.json`. Its filename
+and SHA-256 are in `build.retained_file` and `build.executable_sha256`. To rejudge
+that run with a newer judge, pass `--import-root` and `--import-engine` with the
+path to your trusted retained executable. The harness checks its digest against
+the original run before judging and checks each imported trial's contract.
+The new report records the original engine commit and the judge commit.
 
 For B01, B06 and B07 native snapshots, the agent may choose any font store inside the captured
 workspace. The judge finds a complete content-addressed font/license pair there,
@@ -281,8 +291,13 @@ focused PNG, two native TIFFs and a locator containing its chosen session/reques
 IDs. The judge independently builds native block identities from the original
 channels, binds every snapshot and the review to durable receipts and the final
 head, checks all immutable tile files, and freshly renders/exports the delivered
-states. Its generated files stay outside external solver workspaces. Captures
-rejudge after the original workspace and its absolute resource roots move.
+states. For both photo sizes, the judge locates the original tile store from
+the import and all four durable revision receipts. It cross-checks the review's
+session and resource paths against the delivered TIFF paths, then reads the
+corresponding directory inside the capture. This also works when the agent
+chose a custom store or the original workspace has moved. New captures retain
+the solve workspace name. Older captures use the two publication locations and
+the independently located session database to rebase their paths.
 
 The baseline retains an editable native TIFF with a bounded layer manifest and
 the same focused PNG. Python byte processing is permitted to avoid accidental

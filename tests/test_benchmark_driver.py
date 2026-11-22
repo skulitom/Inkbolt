@@ -6,11 +6,13 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from benchmark_driver import run_external_task,workspace_files,model_run_complete,observations,execution_memory
+from benchmark_external_cli import retained_engine
 from verify_process import MEMORY_SCOPE,MEMORY_METHOD
 from benchmark_tasks import TASKS,CHECKS,ARTIFACT_CHECKS,ENGINE_CHECKS
 from benchmark_diagram import expected_picture
@@ -35,6 +37,30 @@ def fake_tools():
 
 
 class BenchmarkDriverTests(unittest.TestCase):
+    def test_retained_engine_reopens_exact_original_after_build_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            live=root/'live';live.mkdir()
+            replay=root/'replay';replay.mkdir()
+            binary=root/'compiled';binary.write_bytes(b'original bytes')
+            digest=sha(binary.read_bytes())
+            args=SimpleNamespace(import_engine=None,import_root=None)
+            with patch('benchmark_external_cli.release_build',return_value=(binary,dict(executable_sha256=digest))):
+                launched,build=retained_engine(args,live)
+            self.assertEqual(launched,binary)
+            binary.write_bytes(b'new build')
+            saved=live/build['retained_file']
+            self.assertEqual(sha(saved.read_bytes()),digest)
+            (live/'inputs.json').write_text(json.dumps(dict(arm='model',git_commit='original',build=build)))
+            args.import_engine=saved;args.import_root=live
+            second,metadata=retained_engine(args,replay)
+            self.assertEqual(second,saved)
+            self.assertEqual((replay/metadata['retained_file']).read_bytes(),saved.read_bytes())
+            self.assertEqual(metadata['original_commit'],'original')
+            with self.assertRaises(FileExistsError):retained_engine(args,replay)
+            args.import_engine=binary
+            with self.assertRaisesRegex(ValueError,'differs'):retained_engine(args,replay)
+
     def test_diagram_accepts_relocated_custom_font_store_but_requires_intact_pinned_copies(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)

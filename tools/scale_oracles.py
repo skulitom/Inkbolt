@@ -39,7 +39,7 @@ def write_tiff(path, width, height, row):
             stream.write(value)
 
 
-def check_native(root, document, width, height, row, depth='u16', tolerance=0):
+def check_native(root, document, width, height, row, depth='u16', tolerance=0, *, asset_root='.inkbolt/assets'):
     """Verify every channel, block framing/hash and the manifest identity."""
     grid = document['items'][0]['content']['grid']
     require(grid.get('storage_version')==2 and not grid.get('patches') and not grid.get('staged'),
@@ -53,7 +53,9 @@ def check_native(root, document, width, height, row, depth='u16', tolerance=0):
         for left in range(0,width,128):
             w,h = min(128,width-left),len(rows)
             index = len(names); name = manifest['tiles'][index]; names.append(name)
-            blob = (root/'.inkbolt/assets'/(name+'.native-tile')).read_bytes()
+            require(isinstance(name,str) and len(name)==64 and all(c in '0123456789abcdef' for c in name),
+                    'Invalid native tile digest')
+            blob = (root/asset_root/(name+'.native-tile')).read_bytes()
             expected = b''.join(r[left*unit:(left+w)*unit] for r in rows)
             require(blob[:20]==b'INKTILE1'+struct.pack('<IIBBBB',w,h,code,4,0,0)
                     and len(blob)==20+len(expected) and hashlib.sha256(blob).hexdigest()==name,

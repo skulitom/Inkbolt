@@ -10,12 +10,40 @@ import unittest
 from test_cli import ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from benchmark_runtime import TaskFailure
-from benchmark_stores import retained_asset_store,retained_publication_store
+from benchmark_stores import photo_asset_store,retained_asset_store,retained_publication_store
 from test_images_cli import canonical
 from workload_cases import sha
 
 
 class RetainedStoreTests(unittest.TestCase):
+    def test_photo_store_rebases_old_windows_paths_and_requires_every_binding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory).resolve()
+            (root/'chosen tiles').mkdir()
+            origin='D:/archived/work'
+            store=origin+'/chosen tiles'
+            case=SimpleNamespace(root=root,driver_evidence={'imported': True})
+            imported={'storage':{'store_root':store}}
+            review={'base_ref':{'session_root':origin+'/sessions','session_id':'photo','revision':0},
+                    'proposed_resources':{'asset_root':store}}
+            outputs={name:{'path':origin+'/'+name+'.tiff'} for name in ('edited','historical')}
+            receipts={name:{'session_id':'photo','resources':{'asset_root':store}}
+                      for name in ('create','edit','undo','redo')}
+            def locate():
+                return photo_asset_store(case,imported,review,outputs,'sessions',receipts)
+            self.assertEqual(locate(),'chosen tiles')
+            case.driver_evidence['solve_workspace']=origin
+            self.assertEqual(locate(),'chosen tiles')
+            for recorded in (origin+'/wrong',origin+'/../work/chosen tiles','D:/outside/chosen tiles'):
+                receipts['undo']['resources']['asset_root']=recorded
+                with self.assertRaises(TaskFailure):locate()
+            receipts['undo']['resources']['asset_root']=store
+            case.driver_evidence['solve_workspace']='D:/other'
+            with self.assertRaises(TaskFailure):locate()
+            case.driver_evidence.pop('solve_workspace')
+            outputs['historical']['path']='D:/unrelated/historical.tiff'
+            with self.assertRaises(TaskFailure):locate()
+
     def files(self,root):
         return {p.relative_to(root).as_posix():p.read_bytes() for p in root.rglob('*') if p.is_file()}
 

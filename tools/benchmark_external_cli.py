@@ -1,5 +1,7 @@
 """External arm orchestration, isolated from the scripted reference runner."""
 import json
+import os
+import shutil
 import subprocess
 import traceback
 
@@ -11,6 +13,25 @@ from measure_workloads import ROOT,candidate_identity,release_build,save_json,sh
 import measurement_host
 
 
+def retained_engine(args, output):
+    if args.import_engine:
+        executable=args.import_engine.resolve(strict=True)
+        original=read_json(args.import_root/'inputs.json')
+        if original['arm']!='model' or file_hash(executable)!=original['build']['executable_sha256']:
+            raise ValueError('Supplied engine differs from the original model run')
+        build=dict(source='imported_engine', original_commit=original['build'].get('original_commit',original['git_commit']),
+                   executable_sha256=original['build']['executable_sha256'])
+    else:
+        executable,build=release_build(output)
+    retained=output/('evaluated-inkbolt.exe' if os.name=='nt' else 'evaluated-inkbolt')
+    with executable.open('rb') as source, retained.open('xb') as destination:
+        shutil.copyfileobj(source,destination)
+    retained.chmod(retained.stat().st_mode | 0o100)
+    if file_hash(retained)!=build['executable_sha256']:
+        raise ValueError('Retained engine differs from the selected binary')
+    return executable,dict(build,retained_file=retained.name)
+
+
 def run_suite(args, output, aggregate):
     variant=getattr(args,'variant','standard')
     configuration=config(args.driver_config)
@@ -20,7 +41,7 @@ def run_suite(args, output, aggregate):
     consumer_tools={name:getattr(args,name).resolve() for name in ('cutbolt','ffmpeg','ffprobe') if getattr(args,name)}
     consumer_identity=tool_identities(consumer_tools) if consumer_tools else None
     candidates=candidate_identity();environment=measurement_host.identity()
-    executable,build=release_build(output) if args.arm=='model' else (None,None)
+    executable,build=retained_engine(args,output) if args.arm=='model' else (None,None)
     selected=tuple(args.tasks or TASKS)
     identity=dict(schema_version=1,suite=SUITE,arm=args.arm,benchmark_variant=variant,client=configuration['client'],model=configuration['model'],
         driver_kind=configuration['kind'],driver=driver,baseline_tools=tools,consumer_tools=consumer_identity,build=build,environment=environment,
@@ -49,7 +70,8 @@ def run_suite(args, output, aggregate):
             print(json.dumps(dict(task=task,repetition=repetition,arm=args.arm,status=row['status'])),flush=True)
     unchanged=(candidates==candidate_identity() and environment==measurement_host.identity() and
                driver==driver_identity(configuration) and (tools is None or tools==tool_identity(baseline_config)) and
-               (executable is None or file_hash(executable)==build['executable_sha256']) and
+               (executable is None or
+                file_hash(executable)==build['executable_sha256']==file_hash(output/build['retained_file'])) and
                (not consumer_tools or consumer_identity==tool_identities(consumer_tools)))
     success=all(row['status'] in (('prepared','not_applicable') if args.prepare_only else ('passed','not_applicable')) for row in rows)
     report=dict(schema_version=2,suite=SUITE,arm=args.arm,transport='external-client',benchmark_variant=variant,

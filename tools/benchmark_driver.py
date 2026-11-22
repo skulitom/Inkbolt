@@ -6,6 +6,7 @@ import shutil
 import traceback
 
 from benchmark_runtime import Trial, require, safe_name, strict_json
+from benchmark_stores import recorded_path
 from benchmark_tasks import TASKS, CHECKS, BASELINE_NOT_APPLICABLE
 import benchmark_diagram
 import benchmark_icons
@@ -281,6 +282,9 @@ def validate_result(evidence, request_contract, capture, files):
         transcript_sha256=capture['transcript_sha256'],result_sha256=capture['result_sha256'],
         workspace_sha256=sha(canonical(files)),contract_sha256=sha(canonical(request_contract)),
         original_host=capture['host'],execution=capture['execution'],harness_setup=setup)
+    if 'solve_workspace' in capture:
+        recorded_path(capture['solve_workspace'])
+        validated['solve_workspace'] = capture['solve_workspace']
     adapter=migration(request_contract['task'],request_contract.get('benchmark_variant','standard'))[0]
     if hasattr(adapter,'validate_capture'):
         key=getattr(adapter,'CAPTURE_KEY','harness_recovery')
@@ -344,13 +348,16 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
         result_path=str((evidence/'driver-result.json').resolve()),transcript_directory=str(evidence.resolve()),
         baseline_tools=tools,mcp_config=None,
         tool_policy='Use only file writing, shell and the pinned baseline tools; Inkbolt is unavailable.' if arm=='baseline' else
-            'Use the supplied Inkbolt executable or its MCP configuration; preserve all original inputs.')
+            'Use the supplied Inkbolt CLI argument array or its MCP configuration. Preserve all original inputs.')
     if arm=='model':
-        save_json(evidence/'mcp-config.json',dict(mcpServers=dict(inkbolt=dict(command=str(case.executable.resolve()),
-            args=['--workspace',str(case.root.resolve()),'mcp','--tools','core']))))
-        request['mcp_config']=str((evidence/'mcp-config.json').resolve())
         request['engine_executable']=str(case.executable.resolve())
     if hasattr(adapter,'configure_request'):adapter.configure_request(case,request)
+    if request.get('engine_executable'):
+        cli = [request['engine_executable'], '--workspace', request['workspace']]
+        request['engine_cli_argv'] = cli
+        save_json(evidence/'mcp-config.json',dict(mcpServers=dict(inkbolt=dict(command=cli[0],
+            args=[*cli[1:], 'mcp', '--tools', 'core']))))
+        request['mcp_config']=str((evidence/'mcp-config.json').resolve())
     save_json(evidence/'request.json',request)
     if not import_source and hasattr(adapter,'prepare_external'):
         adapter.prepare_external(case)
@@ -383,7 +390,8 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
             files=workspace_files(case.root)
             capture=dict(schema_version=1,contract=expected,workspace_files=files,
                 result_sha256=file_hash(evidence/'driver-result.json'),transcript_sha256=file_hash(raw),
-                host=measurement_host.identity(),execution=execution,driver_identity=pinned)
+                host=measurement_host.identity(),execution=execution,driver_identity=pinned,
+                solve_workspace=str(case.root.resolve()))
             if case.setup is not None:capture['harness_setup']=case.setup
             key=getattr(adapter,'CAPTURE_KEY','harness_recovery')
             if hasattr(case,key):capture[key]=getattr(case,key)

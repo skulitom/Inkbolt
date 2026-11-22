@@ -66,6 +66,11 @@ the run receives the task and tools instead of unrelated development instruction
 The only configured MCP server is the supplied, required Inkbolt core server in
 the model arm. Bridge tasks receive their harness-owned bridge instead. The
 baseline receives the pinned image tools and no Inkbolt executable/server.
+For direct engine trials, the tool description now includes the complete CLI
+argument array with the same workspace as MCP. The adapter checks both against
+the pinned engine before starting the client. Recorded results identify the
+adapter used. Earlier requests containing only the executable path keep their
+original tool description.
 On Windows, the child explicitly selects the provisioned `elevated` native
 sandbox, since ignoring user configuration also removes that selection. Missing
 sandbox setup remains an environment failure; this adapter does not provision

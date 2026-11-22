@@ -210,8 +210,9 @@ def main():
             if task in ('B01','B06','B07','B12') and '--custom-font-store' in sys.argv:
                 if command=='font.import':arguments['store_root']='chosen resources/fonts'
                 if command=='session.create':arguments.setdefault('resources',{}).update(font_root='chosen resources/fonts')
-            if task in ('B11','B12') and '--custom-asset-store' in sys.argv:
+            if task in ('B10','B11','B12') and '--custom-asset-store' in sys.argv:
                 if command=='asset.import':arguments['store_root']='chosen resources/images'
+                if command=='sample.import':arguments['storage']['store_root']='chosen resources/images'
                 if command=='session.create':arguments.setdefault('resources',{}).update(asset_root='chosen resources/images')
             if task in ('B12','B14','B16') and '--custom-receipt-store' in sys.argv and 'receipt' in arguments:
                 arguments['receipt']['receipt_root']='chosen receipts/'+arguments['receipt']['request_id']
@@ -223,7 +224,7 @@ def main():
                 if 'request_id' in arguments:arguments['request_id']='owner-'+arguments['request_id']
                 if command=='sample.import':arguments['id']='original-studio'
             payload=json.dumps(dict(command=command,**arguments)).encode()
-            process=subprocess.run([request['engine_executable'],'--workspace',str(root)],input=payload,capture_output=True,timeout=20)
+            process=subprocess.run(request['engine_cli_argv'],input=payload,capture_output=True,timeout=20)
             response=json.loads(process.stdout)
             events.append(dict(step=step,request=payload.decode(),response=process.stdout.decode()))
             if expected_error is not None:
