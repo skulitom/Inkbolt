@@ -684,14 +684,14 @@ impl Context<'_> {
             }
             let point = inverse.map_or([0.0, 0.0], |m| geometry::map(m, self.point(pixel)));
             if let Some(shape) = &mut surface.shape {
-                shape[pixel] = item.coverage.alpha(shape[pixel] * shape_weight, point);
+                shape[pixel] = item.coverage.alpha(shape[pixel] * shape_weight, || point);
             }
             if !item.coverage.is_smooth() {
                 let alpha = src[n];
                 g = if alpha == 0.0 {
                     0.0
                 } else {
-                    item.coverage.alpha(alpha * g, point) / alpha
+                    item.coverage.alpha(alpha * g, || point) / alpha
                 };
             }
             for value in src {

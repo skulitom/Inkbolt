@@ -19,7 +19,7 @@ impl Mode {
     pub fn is_smooth(&self) -> bool {
         matches!(self, Self::Smooth {})
     }
-    pub(crate) fn alpha(self, alpha: f64, local: Point) -> f64 {
+    pub(crate) fn alpha(self, alpha: f64, local: impl FnOnce() -> Point) -> f64 {
         let alpha = alpha.clamp(0.0, 1.0);
         let Self::Dissolve { seed } = self else {
             return alpha;
@@ -30,7 +30,7 @@ impl Mode {
         let mut hash = Sha256::new();
         hash.update(b"inkbolt.coverage.v1\0");
         hash.update(seed.to_le_bytes());
-        for v in local {
+        for v in local() {
             hash.update((v.floor() as i64).to_le_bytes());
         }
         let bytes = hash.finalize();
@@ -54,11 +54,21 @@ mod tests {
         ] {
             let mode = Mode::Dissolve { seed };
             let threshold = (word as f64 + 0.5) / 4294967296.0;
-            assert_eq!(mode.alpha(threshold, point), 0.0);
-            assert_eq!(mode.alpha(threshold + f64::EPSILON, point), 1.0);
-            assert_eq!(mode.alpha(threshold - f64::EPSILON, point), 0.0);
-            assert_eq!(mode.alpha(0.0, point), 0.0);
-            assert_eq!(mode.alpha(1.0, point), 1.0);
+            assert_eq!(mode.alpha(threshold, || point), 0.0);
+            assert_eq!(mode.alpha(threshold + f64::EPSILON, || point), 1.0);
+            assert_eq!(mode.alpha(threshold - f64::EPSILON, || point), 0.0);
+            assert_eq!(
+                mode.alpha(0.0, || panic!("transparent dissolve needs no cell")),
+                0.0
+            );
+            assert_eq!(
+                mode.alpha(1.0, || panic!("opaque dissolve needs no cell")),
+                1.0
+            );
         }
+        assert_eq!(
+            Mode::default().alpha(0.25, || panic!("smooth coverage needs no cell")),
+            0.25
+        );
     }
 }

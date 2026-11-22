@@ -343,6 +343,9 @@ fn image_map_region(
 }
 fn composite(dst: &mut [f64], src: [f64; 4], opacity: f64, blend: BlendMode, linear: bool) {
     let sa = src[3] * opacity;
+    if sa == 0.0 {
+        return;
+    }
     let da = dst[3];
     let mixed = crate::hdr::mix(
         std::array::from_fn(|c| if da == 0.0 { 0.0 } else { dst[c] / da }),
@@ -678,15 +681,15 @@ impl Coverage<'_> {
         self.sample(pixel, shape, 1.0)
     }
     fn sample(&self, pixel: usize, alpha: f64, opacity: f64) -> Result<f64, Error> {
-        let point = [
-            self.origin[0] as f64 + (pixel % self.width as usize) as f64 + 0.5,
-            self.origin[1] as f64 + (pixel / self.width as usize) as f64 + 0.5,
-        ]
-        .map(|v| v / self.scale as f64);
-        Ok(self.mode.alpha(
-            alpha * opacity * self.mask_at(pixel)?,
-            geometry::map(self.inverse, point),
-        ))
+        let amount = alpha * opacity * self.mask_at(pixel)?;
+        Ok(self.mode.alpha(amount, || {
+            let point = [
+                self.origin[0] as f64 + (pixel % self.width as usize) as f64 + 0.5,
+                self.origin[1] as f64 + (pixel / self.width as usize) as f64 + 0.5,
+            ]
+            .map(|v| v / self.scale as f64);
+            geometry::map(self.inverse, point)
+        }))
     }
     fn at(&self, pixel: usize) -> Result<f64, Error> {
         Ok(self.opacity * self.mask_at(pixel)?)
