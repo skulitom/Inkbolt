@@ -21,6 +21,7 @@ struct Layer {
     channels: Vec<(i16, usize)>,
     name: String,
     opacity: u8,
+    clipped: bool,
     blend: BlendMode,
     fill: u8,
     visible: bool,
@@ -102,11 +103,11 @@ fn record(
         read_blend(blend)?
     };
     let opacity = input.byte()?;
-    if input.byte()? != 0 {
-        return Err(unsupported(
-            "Clipping stacks require extended layered interchange",
-        ));
-    }
+    let clipped = match input.byte()? {
+        0 => false,
+        1 => true,
+        _ => return Err(unsupported("Unknown layered clipping flag")),
+    };
     let flags = input.byte()?;
     if flags & !31 != 0 {
         return Err(unsupported(
@@ -135,6 +136,7 @@ fn record(
         channels,
         name: String::new(),
         opacity,
+        clipped,
         blend: record_blend,
         fill: 255,
         visible: flags & 2 == 0,
@@ -376,6 +378,11 @@ fn record(
         };
         size(width as u32, height as u32, maximum, version)?;
     } else {
+        if layer.clipped {
+            return Err(unsupported(
+                "A folder or folder boundary cannot preserve membership as a clipped layer",
+            ));
+        }
         if count != 0
             && (!(3..=4).contains(&count)
                 || ![0, 1, 2]
@@ -400,8 +407,14 @@ fn record(
     Ok(layer)
 }
 
-fn hierarchy(records: &[Layer]) -> Result<Vec<Option<String>>, Error> {
-    let mut parents = vec![None; records.len()];
+#[derive(Clone, Copy, Default)]
+struct Relations {
+    parent: Option<usize>,
+    clip_base: Option<usize>,
+}
+
+fn hierarchy(records: &[Layer]) -> Result<Vec<Relations>, Error> {
+    let mut links = vec![Relations::default(); records.len()];
     let mut stack: Vec<usize> = Vec::new();
     for (index, record) in records.iter().enumerate().rev() {
         if record.kind == Kind::Boundary {
@@ -414,7 +427,7 @@ fn hierarchy(records: &[Layer]) -> Result<Vec<Option<String>>, Error> {
                 crate::scene::MAX_DEPTH
             )));
         }
-        parents[index] = stack.last().map(|&parent| records[parent].identity(parent));
+        links[index].parent = stack.last().copied();
         if matches!(record.kind, Kind::Group { .. }) {
             stack.push(index);
         }
@@ -422,7 +435,25 @@ fn hierarchy(records: &[Layer]) -> Result<Vec<Option<String>>, Error> {
     if !stack.is_empty() {
         return Err(malformed());
     }
-    Ok(parents)
+    // Native membership is implicit in bottom-to-top order within each folder.
+    let mut bases = std::collections::BTreeMap::new();
+    for (index, record) in records.iter().enumerate() {
+        if record.kind == Kind::Boundary {
+            continue;
+        }
+        let parent = links[index].parent;
+        if record.clipped {
+            let base = bases.get(&parent).copied().ok_or_else(|| {
+                unsupported("A clipped layer needs a preceding pixel layer or isolated folder as its sibling base")
+            })?;
+            links[index].clip_base = Some(base);
+        } else if matches!(record.kind, Kind::Group { isolated: false }) {
+            bases.remove(&parent);
+        } else {
+            bases.insert(parent, index);
+        }
+    }
+    Ok(links)
 }
 
 pub(super) fn document(
@@ -497,6 +528,7 @@ pub(super) fn document_parts(
     let mut resource_ids = BTreeSet::new();
     let mut ignored = BTreeSet::new();
     let mut profile = None;
+    let mut untagged_rgb = None;
     let mut resolution = 96.0;
     let mut density_declared = false;
     while resources.left() > 0 {
@@ -519,6 +551,14 @@ pub(super) fn document_parts(
             1039 => {
                 crate::profiles::parse(data.data)?;
                 profile = Some(data.data.to_vec());
+            }
+            1041 => {
+                untagged_rgb = Some(match data.byte()? {
+                    0 => false,
+                    1 => true,
+                    _ => return Err(malformed()),
+                });
+                data.end()?;
             }
             1005 => {
                 let x = data.word()? as f64 / 65536.0;
@@ -604,6 +644,11 @@ pub(super) fn document_parts(
         if count % 2 != 0 {
             resources.take(1)?;
         }
+    }
+    if untagged_rgb == Some(true) && profile.is_some() {
+        return Err(unsupported(
+            "Layered input declares intentionally untagged RGB and also supplies an embedded profile",
+        ));
     }
     let working = crate::profiles::resolve(&crate::profiles::Profile::Builtin {
         name: crate::profiles::Builtin::Srgb,
@@ -710,7 +755,7 @@ pub(super) fn document_parts(
             decoded_maximum / (1024 * 1024)
         )));
     }
-    let parents = hierarchy(&records)?;
+    let links = hierarchy(&records)?;
     let editable = records.iter().filter(|r| r.kind != Kind::Boundary).count();
     budget.items += editable;
     if budget.items > bounds::MAX_DECODED_ITEMS {
@@ -809,7 +854,8 @@ pub(super) fn document_parts(
             Kind::Group { isolated } => json!({"type":"group","isolated":isolated}),
             Kind::Boundary => unreachable!(),
         };
-        let mut item:Item=serde_json::from_value(json!({"id":r.identity(index),"parent":parents[index],"name":r.name,"visible":r.visible,"locked":r.locked,"opacity":r.opacity as f64/255.0,"fill_opacity":r.fill as f64/255.0,"transform":[1,0,0,1,r.bounds[1],r.bounds[0]],"mask":mask,"content":content})).map_err(|_|malformed())?;
+        let identity = |i: usize| records[i].identity(i);
+        let mut item:Item=serde_json::from_value(json!({"id":r.identity(index),"parent":links[index].parent.map(identity),"clip_to":links[index].clip_base.map(identity),"name":r.name,"visible":r.visible,"locked":r.locked,"opacity":r.opacity as f64/255.0,"fill_opacity":r.fill as f64/255.0,"transform":[1,0,0,1,r.bounds[1],r.bounds[0]],"mask":mask,"content":content})).map_err(|_|malformed())?;
         item.blend = r.blend;
         if let Some(text) = &r.text {
             if let Some(mask) = &mut item.mask
@@ -981,6 +1027,9 @@ pub(super) fn document_parts(
     control.check()?;
     let mut result = json!({"document":document,"format":if version==Version::Large{"layered_rgb_v2"}else{"layered_rgb_v1"},"file_version":version.number(),"layers":editable,"serialized_records":records.len(),"masked_items":records.iter().filter(|r|r.mask.is_some()).count(),"groups":records.iter().filter(|r|matches!(r.kind,Kind::Group{..})).count(),"source_profile_sha256":profile.as_ref().map(|v|assets::sha256(v)),"interpretation":if convert{"converted_srgb_per_layer"}else if profile.is_some(){"declared_working_srgb"}else{"assumed_srgb"},"merged_cache":{"sample_sha256":merged_hash,"used_for_editable_reconstruction":false},"resolution_declared":density_declared,"omitted_nonappearance_records":ignored,"losses":["Creates new layer identities from numeric file IDs; preserves native pixel extents, sibling order, folder hierarchy, Unicode names, visibility, opacity and supported full locks. Folder expansion state is listed as omitted UI metadata. No file is overwritten.","The merged cache is decoded and validated but editable appearance is recomputed from layers. Descriptive/UI/thumbnail records listed in the receipt are not imported as trusted document metadata.","Explicit conversion to working sRGB changes layer RGB before compositing, preserves alpha and can change profile-space blending. It is not a promise of cross-consumer composite equality."]});
     result["embedded_zero_padding"] = json!(padding);
+    if let Some(untagged) = untagged_rgb {
+        result["source_declares_untagged_rgb"] = json!(untagged);
+    }
     if !text_receipts.is_empty() {
         result["losses"].as_array_mut().unwrap().push(json!("Text is reconstructed with explicitly chosen pinned fonts and engine shaping, metrics and antialiasing. Native point baselines are retained; the visible, unwrapped engine frame has a nominal one-pixel extent. Source glyph caches and inherited layout are not used. RGB fills are quantized to eight bits. Native layout or pixel equality is not promised."));
     }

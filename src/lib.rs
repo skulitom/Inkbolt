@@ -1881,7 +1881,16 @@ fn capability_report() -> Value {
             .map(|mode| format!("{mode}_isolated")),
     );
     capabilities["layered_interchange"]["pixel_blend_modes"] = json!(pixel_modes);
+    capabilities["layered_interchange"]["intentionally_untagged_rgb"] =
+        json!("requires_explicit_assume_srgb");
     capabilities["layered_interchange"]["groups"]["modes"] = json!(group_modes);
+    capabilities["layered_interchange"]["clipping"] = json!({
+        "reference":"item.clip_to",
+        "members":["pixel","text","embedded_object"],
+        "bases":["pixel","text","embedded_object","isolated_group"],
+        "base_selection":"nearest_preceding_unclipped_sibling",
+        "blend_clipped_layers_as_group":true
+    });
     capabilities["layered_interchange"]["native_import"] = json!({
         "opt_in":"storage;resource_profile:large_raster_for_canvases_over_inline_limit",
         "storage_version":2,"mode":"rgb8","file_bytes":limits::layered::MAX_NATIVE_FILE_BYTES,

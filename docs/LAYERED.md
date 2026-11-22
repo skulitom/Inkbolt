@@ -272,6 +272,8 @@ This is partial extended interchange and adds no checkpoint credit. Version two 
 
 Use an absolute local path, optionally pinned with `expected_sha256`. Import reads the file without changing it and returns a document plus source, profile, omitted-record and merged-cache receipts. Untagged input requires `assume_srgb`. An exact working-sRGB profile preserves encoded bytes. Other embedded RGB profiles require `convert_srgb`, which converts layer RGB before composition and preserves alpha; it can change blending in the source profile space. Profiles are checked and never silently replaced by an assumption.
 
+Files can explicitly declare that their RGB samples are intentionally untagged. Import requires `color_policy:"assume_srgb"` in that case and reports `source_declares_untagged_rgb:true`. An embedded profile together with this declaration is a conflict.
+
 Layers retain original RGB and alpha samples, including invisible RGB under zero alpha, integer extents outside the canvas, Unicode names, bottom-to-top order, visibility, exact byte opacity/fill opacity and full locks. Numeric file IDs become fresh engine IDs. Export creates independent file IDs and records the original mapping in its receipt. Identical names are allowed. Source samples and physical density remain independent of the flattened preview.
 
 Import accepts raw, PackBits row compression, ZIP and ZIP with 8-bit row prediction. Export uses PackBits; the Rust library also offers raw planes. Framing, counts, channel IDs, bounded decompression, trailing data and every editable appearance record are validated. Unknown appearance information fails explicitly. Descriptive, UI and thumbnail records may be omitted only where the receipt identifies them; this is not metadata round-trip support.
@@ -291,13 +293,23 @@ The command is available in the Rust library, JSON CLI and MCP stdio. Ordinary c
 
 ## Nested folders
 
-Isolated and pass-through groups retain sibling order, parentage, Unicode and duplicate names, visibility, exact byte opacity and whole-object locks. Empty and hidden folders remain editable. Import pairs folder boundaries before returning a document. It rejects malformed nesting, more than 16 ancestor levels, more than 256 editable items or more than 512 serialized records. Group fill opacity below full, knockout, clipping, layer-role containers and folder records with cached pixel extents remain unsupported.
+Isolated and pass-through groups retain sibling order, parentage, Unicode and duplicate names, visibility, exact byte opacity and whole-object locks. Empty and hidden folders remain editable. Import pairs folder boundaries before returning a document. It rejects malformed nesting, more than 16 ancestor levels, more than 256 editable items or more than 512 serialized records. Group fill opacity below full, knockout, clipped folders, layer-role containers and folder records with cached pixel extents remain unsupported.
 
 Native pixel positions are absolute. Export evaluates integer translations through the parent hierarchy without changing the source document; import uses identity group transforms and the equivalent absolute pixel positions. Scaling, rotation and fractional placements of plain pixel layers fail. With the explicit embedded-object or text delivery policy below, folder transforms may be resolved into child object or text placements; masks still need supported integer bounds. Folder open/closed state is identified as omitted UI metadata. Known minimum-reader compatibility values are checked and listed in the omission receipt; unknown versions and unknown appearance records fail.
 
 Empty names are stored exactly in the file, but native consumers can generate names on opening or saving. The delivery receipt lists `empty_name_source_ids`, and its losses explain this behavior. Assign explicit names when stable external names matter. Original file bytes and engine source documents remain unchanged.
 
 This completes a verified unit of extended interchange, not the entire checkpoint. Remaining mask controls, editable text, full embedded-object exchange, larger axes and the remaining group semantics retain their original acceptance requirements.
+
+### Editable layer clipping
+
+A layer can take its silhouette from a lower sibling. For example, a blue layer clipped to translucent red lettering can recolor the letters while preserving their transparency. Both RGB8 containers retain the original content, the stacking order and the editable relationship.
+
+On import, each clipped layer receives an `item.clip_to` reference to the nearest preceding unclipped sibling in the same folder. Consecutive clipped layers share that base, even when names are duplicated or a layer is hidden. Pixel layers, explicitly reconstructed text and embedded objects can be members or bases. An isolated folder can also be a base. Native-storage import preserves the same references on stored pixel layers.
+
+Use the `layer_clip` operation to release or reapply the relationship before export. A clipped folder, a pass-through base, a missing sibling base or a nondefault clipping blend policy produces an error. Native editors can discard a clipping flag on a folder when saving it. For the engine compositing equations and editing rules, see [layer clipping](LAYER_CLIPPING.md).
+
+An independent editor reopened 36 original stacks exported in both containers. All 72 matched its rendering of the corresponding original on every alpha sample and every visible color sample. Cases covered translucent bases, multiple members, masks, visibility, fill, blending and isolated folder bases. After the editor released a layer from its base and saved a new file, Inkbolt reopened the edited relationship and reproduced the editor’s samples within one 8-bit level.
 
 ### Editable blend modes
 
@@ -360,7 +372,7 @@ language stays absent. Other tags, aliases and region inference are unsupported.
 
 Frames must be horizontal, left-aligned LTR with single-run direction handling and no path. `wrap:false` delivers point text with the engine's first baseline incorporated into its affine placement; `wrap:true` delivers an explicit local paragraph box. Parent transforms are resolved into the text matrix. Point text accepts error/visible overflow; paragraph text accepts error/clipped overflow. Nominal point-frame bounds are not native editing constraints. Unicode bidirectional layout, fallback fonts, variable instances, unmapped language settings, other features, character alpha/non-solid paints and unmapped item controls fail explicitly.
 
-Layer opacity, fill opacity, supported scalar masks and grouping remain separate from text and its preview cache. Text inside embedded objects requires both delivery policies. Per-layer and merged caches use pinned source fonts and engine rendering. The receiving consumer can reshape, reflow and rerasterize text differently; kerning, baselines, line breaks, hinting and antialiasing are not promised equal. Caches are never an editable source or evidence of native recomposition equality.
+Layer opacity, fill opacity, supported scalar masks and grouping remain separate from text and its preview cache. On export, automatic kerning and standard ligatures use the features available in the pinned font. Explicit feature controls retain their settings. Text inside embedded objects requires both delivery policies. Per-layer and merged caches use pinned source fonts and engine rendering. The receiving consumer can reshape, reflow and rerasterize text differently; kerning, baselines, line breaks, hinting and antialiasing are not promised equal. Caches are never an editable source or evidence of native recomposition equality.
 
 `layered.text` receipts identify each source item, text hash, character/UTF-16 counts, point/paragraph shape, supplied owner, source frame, native matrix and pinned font descriptors/names. They explicitly report `native_layout_equality:false`, `recipient_file_identity_pinned:false` per face and external fonts. Nested receipts and losses remain with the embedded-source receipt. Source documents/files remain unchanged. Publication is create-only; CLI, MCP, preflight and durable jobs share this contract.
 

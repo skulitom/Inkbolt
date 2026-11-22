@@ -34,6 +34,18 @@ class NativeLayeredTests(unittest.TestCase):
             self.assertFalse(result['source_changed'])
         return result
 
+    def test_native_storage_preserves_source_samples_and_clipping(self):
+        base = bytes.fromhex('ff000040 ff000080')
+        overlay = bytes.fromhex('0000ff80 0000ff80')
+        records = [dict(name='base', width=2, height=1, rgba=base),
+                   dict(name='overlay', width=2, height=1, rgba=overlay, clipping=1)]
+        for version in (1, 2):
+            doc = self.imported(f.make(records, w=2, h=1, version=version))['document']
+            self.assert_grid(doc['items'][0], base, 2, 1)
+            self.assert_grid(doc['items'][1], overlay, 2, 1)
+            self.assertEqual(doc['items'][1]['clip_to'], doc['items'][0]['id'])
+            self.assertEqual(self.cli('document.render', document=doc)['data'], '7f0080407f008080')
+
     def assert_grid(self, item, rgba, w, h):
         self.assertEqual(item['content']['type'], 'stored_samples')
         grid = item['content']['grid']

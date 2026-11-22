@@ -4,6 +4,7 @@ from pathlib import Path
 import layered_fixtures as f
 import layered_delivery_reader as objects
 import layered_text_delivery_reader as reader
+from synthetic_unicode_font import unicode_font
 import test_layered_cli as core
 from test_mcp import Client
 from platform_support import requires_capability
@@ -35,6 +36,29 @@ class LayeredTextExportTests(unittest.TestCase):
     def parse(self,d,**kw):
         artifact=self.export(d,**kw);p=f.parse(base64.b64decode(artifact['data']))
         return artifact,p,reader.record(next(l['tags'][b'TySh'] for l in p['layers'] if b'TySh' in l['tags']))
+    def test_clipped_text_keeps_editable_story_and_font_binding(self):
+        doc = self.scene()
+        doc['items'][0]['clip_to'] = 'base'
+        doc['items'].insert(0, dict(id='base', content=dict(type='raster', width=1, height=1, rgba_hex='ff000080')))
+        policy = dict(reconstruction='engine_layout', font_root=str(self.store),
+                      bindings=[dict(face_name='InkboltDeliveryFixture-Regular', font=self.font)])
+        for format in ('layered', 'layered_large'):
+            raw = base64.b64decode(self.export(doc, format=format)['data'])
+            self.assertEqual(f.parse(raw)['layers'][1]['clipping'], 1)
+            restored = self.read(raw, text_fonts=policy)['document']
+            first, member = restored['items']
+            self.assertEqual(member['clip_to'], first['id'])
+            self.assertEqual(member['content']['frame']['text'], 'AB A')
+            self.assertEqual(next(iter(restored['fonts'].values()))['sha256'], self.font['sha256'])
+    def test_automatic_native_features_follow_the_pinned_face(self):
+        named = reader.named_font('FixtureWithLigatures', source=unicode_font())
+        font = self.add_font('with-ligatures', named)
+        for pinned, text, expected_liga in ((self.font, 'AB', False), (font, 'fi', True)):
+            doc = self.scene(text)
+            doc['fonts']['original'] = pinned
+            _, _, record = self.parse(doc)
+            styles = record['data']['EngineDict']['StyleRun']['RunArray']
+            self.assertEqual(styles[0]['StyleSheet']['StyleSheetData']['Ligatures'], expected_liga)
     def test_point_source_fonts_decimal_units_geometry_and_determinism(self):
         d=self.scene();before=copy.deepcopy(d)
         for format in ['layered','layered_large']:

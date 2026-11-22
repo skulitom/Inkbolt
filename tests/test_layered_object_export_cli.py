@@ -30,6 +30,20 @@ class LayeredObjectExportTests(unittest.TestCase):
     def export(self,d,expected=0,format='layered',**kw):
         return self.invoke(dict(command='document.export',document=d,format=format,**dict(dict(layered_options=POLICY),**kw)),expected)
     def load(self,b):return self.read(b,embedded_objects=incoming.POLICY)['document']
+    def test_clipped_placed_object_keeps_editable_embedded_source(self):
+        doc = self.scene()
+        placed = doc['items'][0]
+        base = dict(id='base', content=dict(type='raster', width=1, height=1, rgba_hex='ff0000ff'))
+        doc['items'] = [base, dict(placed, clip_to='base')]
+        for format in ('layered', 'layered_large'):
+            raw = base64.b64decode(self.export(doc, format=format)['data'])
+            self.assertEqual(f.parse(raw)['layers'][1]['clipping'], 1)
+            restored = self.load(raw)
+            first, member = restored['items']
+            self.assertEqual(member['clip_to'], first['id'])
+            self.assertEqual(member['content']['type'], 'object')
+            self.assertEqual(json.loads(member['content']['object']['snapshot'])['items'][0]['content']['rgba_hex'],
+                             PIXELS.hex())
     def test_explicit_policy_and_format_validation_are_actionable(self):
         d=self.scene()
         for option in [None,{}]:

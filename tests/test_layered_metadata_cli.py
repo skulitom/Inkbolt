@@ -1,4 +1,5 @@
 """Original descriptor, ancillary-state and hostile-framing fixtures."""
+import base64
 import struct,unittest
 import layered_fixtures as f
 import test_layered_cli as core
@@ -38,6 +39,24 @@ class LayeredMetadataTests(unittest.TestCase):
         layer=dict(name='original \u0394',width=2,height=1,rgba=[10,20,30,64,200,80,40,255])
         layer.update(kwargs.pop('layer',{}));return f.make([layer],**kwargs)
     def load(self,raw,expected=0):return self.read(raw,expected,color_policy='assume_srgb')
+    def test_intentionally_untagged_rgb_requires_explicit_color_policy(self):
+        flag = f.resource(1041, b'\x01')
+        raw = self.source(extra_resources=flag)
+        for policy in ({}, {'color_policy':'convert_srgb'}):
+            self.assertEqual(self.read(raw, 1, **policy)['code'], 'COLOR_POLICY_REQUIRED')
+        assumed = self.load(raw)
+        self.assertTrue(assumed['source_declares_untagged_rgb'])
+        self.assertEqual(assumed['interpretation'], 'assumed_srgb')
+        exported = self.invoke(dict(command='document.export', document=assumed['document'], format='layered'))
+        profile = f.parse(base64.b64decode(exported['data']))['resources'][1039]
+        clear = self.read(self.source(profile=profile, extra_resources=f.resource(1041, b'\x00')))
+        self.assertFalse(clear['source_declares_untagged_rgb'])
+        self.assertEqual(clear['interpretation'], 'declared_working_srgb')
+        self.assertEqual(self.load(self.source(profile=profile, extra_resources=flag), 1)['code'],
+                         'UNSUPPORTED_LAYERED_SEMANTICS')
+        for payload in (b'', b'\x02', b'\x01\x00'):
+            self.assertEqual(self.load(self.source(extra_resources=f.resource(1041, payload)), 1)['code'],
+                             'INVALID_LAYERED_FILE')
     def test_density_selectors_are_display_units_and_never_rescale_fixed_ppi(self):
         for units in [(1,1),(1,2),(2,1),(2,2)]:
             for ppi in [72,96,300.25]:

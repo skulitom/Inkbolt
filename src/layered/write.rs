@@ -10,9 +10,14 @@ fn native_byte(value: f64) -> Result<u8, Error> {
     Ok(byte)
 }
 pub(super) fn controls(item: &Item) -> Result<(), Error> {
+    if item.clip_to.is_some() && matches!(item.content, Content::Group { .. }) {
+        return Err(
+            unsupported("A native folder cannot preserve membership as a clipped layer")
+                .at_item(&item.id),
+        );
+    }
     if (item.blend != BlendMode::Normal
         && matches!(item.content, Content::Text { .. } | Content::Object { .. }))
-        || item.clip_to.is_some()
         || item.clip.is_some()
         || item.artwork_mask.is_some()
         || !item.effects.is_empty()
@@ -21,7 +26,7 @@ pub(super) fn controls(item: &Item) -> Result<(), Error> {
         || item.pixel_warp.is_some()
         || !item.coverage.is_smooth()
     {
-        return Err(unsupported("Layered delivery requires supported controls without effects, filters or clipping; text and placed objects require normal blending").at_item(&item.id));
+        return Err(unsupported("Layered delivery requires supported controls without effects, filters or vector clips; text and placed objects require normal blending").at_item(&item.id));
     }
     if item.name.encode_utf16().count() > bounds::MAX_NAME_UNITS {
         return Err(limit(&format!(
@@ -271,7 +276,7 @@ pub(super) fn document(
             } else {
                 native_byte(item.opacity)?
             },
-            0,
+            u8::from(!boundary && item.clip_to.is_some()),
             8 | if boundary || item.visible { 0 } else { 2 },
             0,
         ]);

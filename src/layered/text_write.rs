@@ -251,13 +251,22 @@ pub(super) fn prepare(
         let face = fonts::parsed(&document.fonts[&style.font_id], &cache[&style.font_id])?;
         let natural = (face.ascender() as f64-face.descender() as f64+face.line_gap() as f64)*style.size*style.vertical_scale/face.units_per_em() as f64;
         let leading = frame.leading.unwrap_or(natural.max(0.001));
-        let liga = style.features.get("liga").copied().unwrap_or(u32::from(style.tracking==0.0))!=0;
+        // A native record has explicit switches even when the engine style
+        // inherits its defaults. Resolve those defaults against the pinned face.
+        let liga = match style.features.get("liga") {
+            Some(value) => *value != 0,
+            None => style.tracking == 0.0 && fonts::has_feature(&face, "liga")?,
+        };
+        let kern = match style.features.get("kern") {
+            Some(value) => *value != 0,
+            None => fonts::has_feature(&face, "kern")?,
+        };
         let mut encoded = json!({"Font":font_indexes[&style.font_id],"FontSize":style.size,
             "FillColor":{"Type":1,"Values":[1.0,color[0] as f64/255.0,color[1] as f64/255.0,color[2] as f64/255.0]},
             "FillFlag":true,"StrokeFlag":false,"AutoLeading":false,"Leading":leading,
             "Tracking":tracking,"HorizontalScale":style.horizontal_scale,"VerticalScale":style.vertical_scale,
             "BaselineShift":style.baseline_shift,"FontCaps":0,"FontBaseline":0,
-            "AutoKerning":style.features.get("kern").copied().unwrap_or(1)!=0,"Kerning":0,
+            "AutoKerning":kern,"Kerning":0,
             "Ligatures":liga,"DLigatures":style.features.get("dlig").copied().unwrap_or(0)!=0});
         if let Some(language) = &style.language {
             encoded["Language"] = json!(super::text_language::to_code(language)?);
