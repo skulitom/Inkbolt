@@ -32,11 +32,11 @@ inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools essentials
 ```
 
 The agent starts with ten tools and can look up editing commands as it works.
-A desktop extension is also available for Windows. [Installation and client setup](docs/INSTALLATION.md)
+A desktop extension is also available for Windows. [Installation and client setup](docs/INSTALLATION.md) · [First vector edit](docs/AGENT_DISCOVERY.md#vector-quickstart)
 
-If your agent uses the CLI, pass `--workspace` with the same absolute folder
-path on every request. That lets a later process reopen the saved edit or
-recover its receipt. [CLI scripting example](docs/AGENT_WORKSPACE.md)
+For CLI scripts, pass the same absolute `--workspace` on every request.
+If an edit succeeds but its reply is lost, the next process can recover the
+receipt using the original request ID. [CLI scripting example](docs/AGENT_WORKSPACE.md) · [Recovering an edit](docs/SESSIONS.md#retries-and-conflicts)
 
 ## What you can make
 
@@ -65,21 +65,15 @@ The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
-In five Windows trials, an agent using v0.84.0 previewed a placed image,
-moved it and rendered the original revision again without undoing the move.
-All 15 PNGs matched the expected pixels. The same workflow
-also passed scripted checks on Linux. [Model trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-placement-pairs-on-windows) · [Cross-platform checks](docs/BENCHMARK_COMPARISON.md#move-a-placed-still-and-review-the-original)
+Agents using v0.84.0 on Windows passed five trials moving an image and
+reviewing its original position, and five trials recovering the receipt after
+session creation. Each recovered session had exactly one creation. Both
+workflows also passed scripted checks on Linux. [Image revision trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-placement-pairs-on-windows) · [Receipt recovery trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-receipt-recovery-pairs-on-windows)
 
-Source builds from `main` can export PDF labels that readers can search and
-copy, including curved labels, gradient fills and translucent combining accents.
-They also support variable TrueType weights and widths, vector cutouts and
-separate printing plates for spot inks.
-[PDF export](docs/PDF.md#searchable-text) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
-
-On `main`, agents can look up runnable examples for editable diagrams and
-image placement. A saved edit can travel between Windows and Linux with its
-assets and fonts.
-[Vector quickstart](docs/AGENT_DISCOVERY.md#vector-quickstart) · [Image placement](docs/AGENT_DISCOVERY.md#place-an-image) · [Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability)
+Source builds from `main` can move a saved edit between Windows and Linux
+with its assets and fonts. They can also export searchable PDF labels with
+curved baselines or gradient fills, and separate printing plates for spot inks.
+[Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability) · [PDF text](docs/PDF.md#searchable-text) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
 ## Explore the project
 

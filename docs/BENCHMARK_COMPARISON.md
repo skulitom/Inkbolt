@@ -160,15 +160,65 @@ bytes, errors and platform-specific memory observations.
 python tools/compare_session_recovery.py --inkbolt /path/to/inkbolt --cutbolt /path/to/cutbolt --output /path/to/new-results
 ```
 
-These are scripted calls with known commands. Actual model discovery, creative
-workflows and the broader sister-project comparison remain open. The archived
-reports have the following SHA-256 digests.
+The scripted client knew the commands in advance. The next section measures how
+agents found and used them. The archived scripted reports have these SHA-256 digests.
 
 | Environment | Report SHA-256 |
 | --- | --- |
 | Windows x64 | `b852565c09ecaffc7cc57c4aec735baf4fbf7c9f72943690f43a130081b14245` |
 | Arch Linux, WSL2 | `343e48509c5d2baa32a4f24be0a520e714cc5e12f00926d31b2c784bf6a66852` |
 | Ubuntu 22.04, WSL2 | `d7160da54582eeb077bc8e94b69b44e4b20dfe5be63ea8f0bf34ee0d619a83e1` |
+
+### Five model-driven receipt recovery pairs on Windows
+
+Inkbolt 0.84.0 completed **5/5** recoveries and Cutbolt 0.4.0 completed **4/5**.
+All ten agents delivered the exact original receipt and the correct session
+summary. An independent read confirmed that every session still contained just
+one creation at revision zero. In Cutbolt's fourth trial, the agent finished
+reading the head and history before the changed request returned its expected
+conflict. Those reads could establish the earlier state only.
+
+Each agent started with the original creation request after its reply had been
+withheld. It had to discover how to recover the receipt, retry the request,
+check that changing its width under the same ID failed, and then verify the
+saved state. Five sequential pairs alternated the first engine. Both arms used
+the same externally configured Codex CLI 0.160.0, GPT-6 Luna with medium
+reasoning, and a ten-minute deadline. Medians include all five attempts per arm.
+The client reported token usage and solve time. Its inference-call count was unavailable.
+
+| Windows x64 measurement | Inkbolt | Cutbolt |
+| --- | ---: | ---: |
+| First correct receipt response from client launch, seconds | 21.42 | 23.64 |
+| Client solve time, seconds | 45.15 | 50.55 |
+| Client-reported input plus output tokens | 136,261 | 149,445 |
+| Native CLI calls | 10 | 9 |
+| Help and schema calls | 5 | 4 |
+| Native request bytes | 835 | 580 |
+| Native stdout bytes | 9,341 | 6,825 |
+| Peak commit for the client process tree, MiB | 120.58 | 116.31 |
+
+All five Inkbolt agents used a full receipt lookup and requested 100 history
+entries. Their session contained a single entry. A separate pilot requested
+1,000 entries and hit the page limit. The released schema
+listed zero as the minimum and omitted the maximum, although the engine admits
+1–128. On `main`, the CLI schema and MCP discovery now expose the enforced range.
+The timing and token figures above come from the released binaries. The
+[Linux recovery trials](#saved-session-recovery-with-cutbolt) used scripted clients.
+
+To run another comparison, supply your own model configuration and choose new
+paths outside the checkout. Judging reuses the captured CLI traffic and opens
+a copy of each saved workspace.
+
+```sh
+python tools/run_receipt_recovery_models.py --driver-config /path/to/driver.json --inkbolt /path/to/inkbolt --cutbolt /path/to/cutbolt --output /path/to/new-capture
+python tools/judge_receipt_recovery_models.py --capture /path/to/new-capture --inkbolt /path/to/inkbolt --cutbolt /path/to/cutbolt --output /path/to/new-judgment.json
+```
+
+The captured method SHA-256 is
+`78acaa936292607e7f606a53e8dd1c4beae9e4a8e9cf87a50f3ac95cb7d4dbb5`.
+The original judgment and the copy-based judge agree on every check and metric.
+Two runs of the copy-based judge produced identical reports with SHA-256
+`59fa96d7179bd0c53ad169b8bf064b072612c299b8b39802f58d60adf1b45fc0`.
 
 ## Move a placed still and review the original
 

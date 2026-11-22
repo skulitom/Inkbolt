@@ -49,3 +49,31 @@ Compact mode is currently limited to durable session results. A snapshot edit or
 `python tools/measure_responses.py` records CLI receipt sizes and actual MCP JSON-RPC line sizes for all four response formats. Original pixel and snapshot fixtures must reconstruct the CLI results exactly, and each PNG's wire occurrence count is reported. Source/executable fingerprints bind the report; an older build's unsupported format is retained explicitly. `--output <new-external-report.json>` writes a create-only external report. These are response-volume measurements, not autonomous task success, token usage or peak memory. See [MCP payload references](AGENT_INSPECTION.md) for default JSON compatibility and the optional `structured` format.
 
 Continuation responses retain the checked `lineage` object in compact and full modes. Ordinary sessions return null provenance. Parent backup paths remain data; result projection never traverses them. See [linked history](SESSION_LINEAGE.md).
+
+## Recover a detailed receipt without loading the artwork into the client
+
+If you know the request ID, a full `session.receipt` lookup returns both the
+original receipt and its document in one call. For a large document, use a
+compact lookup first. Read `receipt_summary.revision` from the result, then
+request a single history entry starting just before that revision. For
+revision 8 in session `study`, send these two requests.
+
+```json
+{"command":"session.receipt","session_id":"study","request_id":"edit-8","response_mode":"compact"}
+```
+
+```json
+{"command":"session.history","session_id":"study","after_revision":7,"limit":1}
+```
+
+Use the first entry in `result.entries` after checking its request ID and
+revision. For revision zero, omit `after_revision`. If you already know the
+revision, the history request alone returns the detailed receipt.
+
+On Inkbolt 0.84.0, a 256-rectangle document with eight saved moves returned
+73,389 bytes for the final full lookup on Windows. The two requests above
+returned 1,515 bytes combined, including all changes. On native Arch Linux
+under WSL2 the same comparison was 73,301 versus 1,339 bytes. The one-entry
+page itself was 431 bytes on both hosts. The full and paged receipts matched
+the saved originals for revisions 0, 4 and 8 at 1, 32 and 256 rectangles on
+each host. With one rectangle, the full lookup took fewer bytes and one call.
