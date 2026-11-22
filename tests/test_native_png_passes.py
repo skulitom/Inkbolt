@@ -4,7 +4,8 @@ import struct
 import unittest
 import zlib
 
-from test_images_cli import chunk
+from test_editing_cli import png_pixels
+from test_images_cli import chunk, png
 from test_mcp import Client
 import test_native_import_rows as native
 
@@ -75,6 +76,24 @@ class NativePngPassTests(unittest.TestCase):
         result = self.imported(data)
         self.assertEqual(result['normalization']['decode_storage'], 'adam7_passes_to_native_blocks')
         return self.check_blocks(result, width, height, depth, n, expected)
+
+    def test_rgba8_test_decoder_handles_plain_repeated_and_mixed_filtered_rows(self):
+        width = 17
+        row_bytes = width * 4
+        previous = bytes(row_bytes)
+        encoded, expected = bytearray(), bytearray()
+        modes = (2, 1, 2, 2, 3, 4, 0, 2, 4)
+        for index, kind in enumerate(modes):
+            row = bytes((i * 53 + index * 71) % 256 for i in range(row_bytes))
+            if index in (0, 2, 7):
+                row = previous
+            encoded.extend(filtered(row, previous, 4, kind))
+            expected.extend(row)
+            previous = row
+        image = png(width, len(modes), expected, raw=encoded)
+        self.assertEqual(png_pixels(image)[:3], (width, len(modes), bytes(expected)))
+        with self.assertRaisesRegex(AssertionError, 'Unknown PNG filter'):
+            png_pixels(png(width, 1, b'', raw=bytes([5]) + bytes(row_bytes)))
 
     def test_all_channels_depths_and_filters_across_native_block_edges(self):
         w, h = 131, 133

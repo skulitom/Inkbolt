@@ -36,25 +36,29 @@ def png_pixels(data):
     for y in range(height):
         mode = raw[y*(stride+1)]
         row = bytearray(raw[y*(stride+1)+1:(y+1)*(stride+1)])
-        for i in range(stride):
-            left = row[i-4] if i >= 4 else 0
-            up = previous[i]
-            corner = previous[i-4] if i >= 4 else 0
-            if mode == 0:
-                predictor = 0
-            elif mode == 1:
-                predictor = left
-            elif mode == 2:
-                predictor = up
-            elif mode == 3:
-                predictor = (left+up)//2
-            elif mode == 4:
-                p = left+up-corner
-                candidates = [(abs(p-left), left), (abs(p-up), up), (abs(p-corner), corner)]
-                predictor = min(enumerate(candidates), key=lambda x: (x[1][0], x[0]))[1][1]
+        if mode == 1:
+            for i in range(4, stride):
+                row[i] = (row[i] + row[i-4]) & 255
+        elif mode == 2:
+            # An Up row containing only zero differences repeats every channel.
+            if row.count(0) == stride:
+                row = previous
             else:
-                raise AssertionError("Unknown PNG filter")
-            row[i] = (row[i]+predictor) & 255
+                row = bytes((delta + up) & 255 for delta, up in zip(row, previous))
+        elif mode in (3, 4):
+            for i in range(stride):
+                left = row[i-4] if i >= 4 else 0
+                up = previous[i]
+                if mode == 3:
+                    predictor = (left + up) // 2
+                else:
+                    corner = previous[i-4] if i >= 4 else 0
+                    p = left + up - corner
+                    distances = (abs(p-left), abs(p-up), abs(p-corner))
+                    predictor = (left, up, corner)[distances.index(min(distances))]
+                row[i] = (row[i] + predictor) & 255
+        elif mode != 0:
+            raise AssertionError("Unknown PNG filter")
         pixels.extend(row)
         previous = row
     return width, height, bytes(pixels), chunks
