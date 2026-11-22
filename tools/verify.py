@@ -197,6 +197,9 @@ def schedule(names, worker, jobs, deadline, previous, changed):
             return (not failed, not direct, -seconds, name)
         return (-seconds, not failed, not direct, name)
     pending = sorted(names, key=priority)
+    # With only one unchecked stage, a forecast reserve cannot free a worker
+    # for other work. The worker still enforces the actual deadline.
+    reserve = 1.1 if len(pending) > 1 else 1.0
     result = {}
     with ThreadPoolExecutor(max_workers=jobs) as pool:
         running = {}
@@ -208,9 +211,11 @@ def schedule(names, worker, jobs, deadline, previous, changed):
                 if remaining is not None and remaining <= 0:
                     result[name] = dict(status='deferred', seconds=0, exit_code=None,
                                         reason='Quick budget exhausted before launch')
-                elif remaining is not None and estimate is not None and estimate * 1.1 > remaining:
+                elif remaining is not None and estimate is not None and estimate * reserve > remaining:
+                    reason = ('Saved duration plus 10% reserve exceeds remaining quick budget'
+                              if reserve > 1 else 'Saved duration exceeds remaining quick budget')
                     result[name] = dict(status='deferred', seconds=0, exit_code=None,
-                                        reason='Saved duration plus 10% reserve exceeds remaining quick budget',
+                                        reason=reason,
                                         duration_hint_seconds=estimate, remaining_seconds=max(0, remaining))
                     print(f'{name}: pending without launch (estimated {estimate:.1f}s; {remaining:.1f}s left)', flush=True)
                 else:

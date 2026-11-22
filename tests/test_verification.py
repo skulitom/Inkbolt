@@ -198,7 +198,7 @@ class VerificationTests(unittest.TestCase):
         before = heartbeat.read_bytes()
         time.sleep(.15)
         self.assertEqual(heartbeat.read_bytes(), before)
-        self.assertEqual(row['memory']['available'], os.name == 'nt')
+        self.assertEqual(row['memory']['available'], os.name == 'nt', row['memory'])
         failed = process.run([sys.executable, '-c', "print('test-error');raise SystemExit(7)"], self.root, timeout=3)
         self.assertEqual((failed['status'], failed['exit_code']), ('failed', 7))
         self.assertIn('test-error', failed['output'])
@@ -351,6 +351,19 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(launched, ['first', 'short'])
         self.assertEqual(rows['second']['remaining_seconds'], 4)
         self.assertEqual(rows['second']['status'], 'deferred')
+
+    def test_lone_remaining_check_can_use_its_whole_quick_window(self):
+        previous = {'screen': dict(status='deferred', seconds=0, duration_hint_seconds=153)}
+        for remaining, should_launch in ((167, True), (152, False)):
+            with self.subTest(remaining=remaining):
+                launched = []
+                def worker(name):
+                    launched.append(name)
+                    return dict(status='passed', seconds=153)
+                with patch.object(verify.time, 'monotonic', return_value=100), redirect_stdout(io.StringIO()):
+                    rows = verify.schedule(['screen'], worker, 4, 100 + remaining, previous, set())
+                self.assertEqual(launched, ['screen'] if should_launch else [])
+                self.assertEqual(rows['screen']['status'], 'passed' if should_launch else 'deferred')
 
     def test_duration_evidence_survives_deferral_and_failure_without_becoming_a_pass(self):
         previous = dict(status='passed', seconds=100)
