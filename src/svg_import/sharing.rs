@@ -28,6 +28,7 @@ fn neutral(id: String, content: Content) -> Item {
         locked: false,
         opacity: 1.0,
         fill_opacity: 1.0,
+        knockout_target: Default::default(),
         coverage: Default::default(),
         blend: BlendMode::Normal,
         hdr_grade: None,

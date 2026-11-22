@@ -7,6 +7,36 @@ that edit field preserves the current value. Snapshot defaults omit false.
 Inspection exposes `group:{isolated,knockout,role}`, and diffs name
 `content.knockout`. Atomic edits, duplication and durable history retain it.
 
+## Knocking out one pixel layer
+
+In a working-sRGB raster document, set `item.knockout_target` to `shallow`
+or `deep` on an unclipped pixel layer. A `properties` edit changes the target.
+Setting it to `none` restores ordinary compositing. Other siblings retain their
+own settings. Inline raster pixels, sample grids and stored sample grids can
+carry the control.
+
+A shallow cut reveals the artwork visible on entry to its immediate folder.
+A deep cut passes through successive pass-through folders to the nearest
+isolated boundary. At the document root, either target reveals the visible
+document background, or transparency when there is no background. A regular
+opaque bottom layer can be punched through. An isolated folder starts with
+transparency, so a cut inside it can reveal the artwork beneath that folder.
+
+Layer opacity attenuates both the painted color and the knockout footprint.
+Fill opacity attenuates only the paint. For example, a fully opaque pixel
+with zero fill can cut a complete hole. Setting its layer opacity to one half
+makes the same hole half as strong. Enabled masks limit both contributions.
+The layer blends against the selected backdrop. Layered files retain the
+editable target and PNG retains the rendered cut. Vector PDF preflight
+identifies layers whose targets it cannot preserve. Native process and spot-ink
+separations currently reject visible per-layer knockout. [Layered file exchange](LAYERED.md#editable-pixel-layer-knockout)
+
+Rust callers constructing an `Item` literal can use `knockout_target:
+Default::default()` for ordinary paint. Existing snapshots and JSON requests
+that omit the field keep their original behavior.
+
+## Knocking out the children of a group
+
 Ordinary children blend with preceding siblings. Knockout children blend with
 the backdrop at group entry, replacing earlier siblings within their own
 footprints. An isolated group's entry backdrop is transparent. A pass-through
@@ -67,12 +97,13 @@ RGBA8 encoding; numerical residuals are projected to `0 <= rgb <= alpha <= 1`.
 
 ## Limits and explicit failures
 
-The presence of any knockout group enables retained shape fields for the
+The presence of a knockout group or active per-layer target enables retained shape fields for the
 document, including hidden content in resource preflight. Additional work is
 `output_pixels * sum(24 + filter_work + effect_work)` and must not exceed
 67,108,864. Shape storage reserves `3*(maximum_ancestor_depth+1)+3` full RGBA
 buffer slots in addition to existing compositing, mask and effect reservations,
-within the same 4,194,304 buffer-pixel budget. This conservative reservation
+within the same 4,194,304 buffer-pixel budget. A per-layer target reserves
+another `maximum_ancestor_depth+1` slots for the selected backdrops. The reservation
 covers retained initial backdrops, scalar shapes and temporary evaluation.
 Artboard range preflight includes the additional work for every selected view.
 Documents without knockout allocate no retained shape fields.

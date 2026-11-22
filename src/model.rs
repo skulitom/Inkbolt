@@ -198,6 +198,21 @@ pub enum GroupRole {
     Layer,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum KnockoutTarget {
+    #[default]
+    None,
+    Shallow,
+    Deep,
+}
+
+impl KnockoutTarget {
+    pub fn is_none(&self) -> bool {
+        *self == Self::None
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Clip {
@@ -454,6 +469,8 @@ pub struct Item {
     pub opacity: f64,
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub fill_opacity: f64,
+    #[serde(default, skip_serializing_if = "KnockoutTarget::is_none")]
+    pub knockout_target: KnockoutTarget,
     #[serde(default, skip_serializing_if = "crate::coverage::Mode::is_smooth")]
     pub coverage: crate::coverage::Mode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

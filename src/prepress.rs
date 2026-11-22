@@ -1201,6 +1201,12 @@ fn native_plan(
         if !scene::effective_visible(document, i)? || nonprinting(item) {
             continue;
         }
+        if !item.knockout_target.is_none() {
+            return Err(unsupported(
+                "Native process and spot plates require a mapped per-layer knockout target",
+            )
+            .at_item(&item.id));
+        }
         blending |= item.blend != BlendMode::Normal;
         if let Content::Adjustment { adjustment } = &item.content {
             if options.adjustment_policy.is_none() {

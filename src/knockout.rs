@@ -1,12 +1,26 @@
 //! Original footprint-aware group replacement in premultiplied encoded sRGB.
 use crate::{
     Error,
-    model::{BlendMode, Content, Document},
+    model::{BlendMode, ColorSpace, Content, Document, DocumentKind},
     scene,
 };
 
 pub(crate) fn validate(document: &Document) -> Result<(), Error> {
     for (i, item) in document.items.iter().enumerate() {
+        if !item.knockout_target.is_none()
+            && (document.kind != DocumentKind::Raster
+                || document.color_space != ColorSpace::Srgb
+                || !matches!(
+                    item.content,
+                    Content::Raster { .. }
+                        | Content::Samples { .. }
+                        | Content::StoredSamples { .. }
+                )
+                || item.clip_to.is_some()
+                || crate::backgrounds::matte(document, &item.id).is_some())
+        {
+            return Err(Error::new("UNSUPPORTED", "A layer knockout target requires an unclipped pixel layer in a working-sRGB raster document, above any document background").at_item(&item.id));
+        }
         if matches!(&item.content, Content::Adjustment { adjustment } if adjustment.clip_to.is_none())
             && scene::ancestors(document, i)?
                 .iter()
@@ -19,7 +33,10 @@ pub(crate) fn validate(document: &Document) -> Result<(), Error> {
 }
 
 pub(crate) fn active(document: &Document) -> bool {
-    document.items.iter().any(|i| i.content.is_knockout())
+    document
+        .items
+        .iter()
+        .any(|i| i.content.is_knockout() || !i.knockout_target.is_none())
 }
 pub(crate) fn work(document: &Document, scale: u32) -> u64 {
     if !active(document) {

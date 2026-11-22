@@ -61,6 +61,7 @@ pub(super) fn apply(
                 locked: false,
                 opacity: 1.0,
                 fill_opacity: 1.0,
+                knockout_target: Default::default(),
                 coverage: Default::default(),
                 effects: vec![],
                 blend: Default::default(),

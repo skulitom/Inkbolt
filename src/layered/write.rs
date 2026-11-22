@@ -309,6 +309,14 @@ pub(super) fn document(
             native_byte(item.fill_opacity)?
         };
         tagged(&mut extra, b"iOpa", &[fill, 0, 0, 0]);
+        let target = match item.knockout_target {
+            KnockoutTarget::None => 0,
+            KnockoutTarget::Shallow => 1,
+            KnockoutTarget::Deep => 2,
+        };
+        if target != 0 {
+            tagged(&mut extra, b"knko", &[target, 0, 0, 0]);
+        }
         if let Content::Group { isolated, .. } = item.content {
             let mut divider = Vec::new();
             word(&mut divider, if boundary { 3 } else { 1 });

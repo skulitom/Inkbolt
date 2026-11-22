@@ -413,6 +413,7 @@ fn child(id: String, parent: String, s: Sample, rule: FillRule) -> Item {
         locked: false,
         opacity: s.opacity,
         fill_opacity: 1.0,
+        knockout_target: Default::default(),
         coverage: Default::default(),
         effects: vec![],
         blend: BlendMode::Normal,

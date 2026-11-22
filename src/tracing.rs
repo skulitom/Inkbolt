@@ -446,6 +446,7 @@ fn contours(
             locked: false,
             opacity: 1.0,
             fill_opacity: 1.0,
+            knockout_target: Default::default(),
             coverage: crate::coverage::Mode::Smooth {},
             effects: vec![],
             blend: BlendMode::Normal,

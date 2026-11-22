@@ -148,6 +148,7 @@ fn generated(item: &Item, used: &mut HashSet<String>) -> Result<Vec<Item>, Error
             opacity: p.opacity,
             blend: p.blend,
             fill_opacity: 1.0,
+            knockout_target: Default::default(),
             coverage: Default::default(),
             transform: identity(),
             clip_to: None,

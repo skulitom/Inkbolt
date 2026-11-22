@@ -1010,6 +1010,7 @@ pub(crate) fn outline_item(
         locked: false,
         opacity: 1.0,
         fill_opacity: 1.0,
+        knockout_target: Default::default(),
         coverage: crate::coverage::Mode::Smooth {},
         effects: Vec::new(),
         blend: BlendMode::Normal,

@@ -422,6 +422,7 @@ fn clip_mask(
     )?))
 }
 struct Resources {
+    member_knockout: bool,
     spatial: Option<spatial::Plan>,
     control: crate::control::Control,
     objects: BTreeMap<String, prepared::Prepared>,
@@ -853,6 +854,9 @@ fn drawable_pixels(
                 vec![0.0; width as usize * height as usize * 4]
             };
             shape = resources.track_shape.then(|| alphas(&pixels));
+            let frame_backdrop = (resources.member_knockout
+                && matches!(&item.content, Content::Frame { frame } if frame.background.is_some()))
+            .then(|| pixels.clone());
             draw_items(
                 document,
                 Some(&item.id),
@@ -860,6 +864,7 @@ fn drawable_pixels(
                 shape.as_deref_mut(),
                 size,
                 resources,
+                frame_backdrop.as_deref(),
             )?;
             pixels
         }
@@ -1143,16 +1148,30 @@ fn draw_items(
     mut shape: Option<&mut [f64]>,
     size: [u32; 3],
     resources: &ResourcesView<'_>,
+    isolation_backdrop: Option<&[f64]>,
 ) -> Result<(), Error> {
     let knockout = parent.is_some_and(|id| {
         document.items[scene::index(document, id).unwrap()]
             .content
             .is_knockout()
     });
-    let initial = knockout.then(|| accum.to_vec());
-    for &i in resources.children(document, parent).iter() {
+    let siblings = resources.children(document, parent);
+    let needs_entry = knockout
+        || (resources.member_knockout
+            && parent.is_some()
+            && siblings
+                .iter()
+                .any(|&i| document.items[i].knockout_target == KnockoutTarget::Shallow));
+    let entry = needs_entry.then(|| accum.to_vec());
+    let group_entry = entry.as_deref().filter(|_| knockout);
+    // Pass-through folders share the nearest isolated backdrop but keep their
+    // own entry for shallow cuts. A visible document background supplies both
+    // targets for root layers.
+    let mut document_background = None;
+    for &i in siblings.iter() {
         resources.control.check()?;
         let item = &document.items[i];
+        let deep_backdrop = document_background.as_deref().or(isolation_backdrop);
         let background = crate::backgrounds::matte(document, &item.id);
         if !item.visible
             || (!resources.track_shape && item.opacity == 0.0 && background.is_none())
@@ -1181,7 +1200,7 @@ fn draw_items(
             }
         ) {
             if crate::layer_clipping::needs_buffer(item) || resources.track_shape {
-                let backdrop = initial.as_deref().unwrap_or(accum);
+                let backdrop = group_entry.unwrap_or(accum);
                 let mut after = backdrop.to_vec();
                 let mut child_shape = resources.track_shape.then(|| vec![0.0; accum.len() / 4]);
                 draw_items(
@@ -1191,6 +1210,7 @@ fn draw_items(
                     child_shape.as_deref_mut(),
                     size,
                     resources,
+                    deep_backdrop,
                 )?;
                 let coverage = coverage(item, world, size, resources)?;
                 for (pixel, (dst, src)) in accum
@@ -1206,7 +1226,7 @@ fn draw_items(
                         .transpose()?
                         .unwrap_or(0.0);
                     let weight = coverage.at(pixel)? * item.fill_opacity;
-                    if let Some(initial) = &initial {
+                    if let Some(initial) = group_entry {
                         let b = &initial[pixel * 4..pixel * 4 + 4];
                         for c in 0..4 {
                             dst[c] = (1.0 - f) * dst[c] + f * b[c] + weight * (src[c] - b[c]);
@@ -1222,7 +1242,15 @@ fn draw_items(
                     }
                 }
             } else {
-                draw_items(document, Some(&item.id), accum, None, size, resources)?;
+                draw_items(
+                    document,
+                    Some(&item.id),
+                    accum,
+                    None,
+                    size,
+                    resources,
+                    deep_backdrop,
+                )?;
             }
             continue;
         }
@@ -1268,6 +1296,9 @@ fn draw_items(
                 );
                 *src = dst;
             }
+            if resources.member_knockout {
+                document_background = Some(surface.pixels.clone());
+            }
             apply_clipped_adjustments(document, i, &mut surface.pixels, size, resources)?;
             apply_clipped_layers(document, i, &mut surface.pixels, size, resources)?;
             // Validation makes this the first printable root, never a nested
@@ -1288,6 +1319,11 @@ fn draw_items(
             resources.origin,
         )?;
         let coverage = coverage(item, world, size, resources)?;
+        let target = match item.knockout_target {
+            KnockoutTarget::Shallow if parent.is_some() => entry.as_deref(),
+            KnockoutTarget::Shallow | KnockoutTarget::Deep => deep_backdrop,
+            KnockoutTarget::None => group_entry,
+        };
         for (pixel, (dst, src)) in accum
             .as_chunks_mut::<4>()
             .0
@@ -1301,19 +1337,25 @@ fn draw_items(
                 [src[0] / src[3], src[1] / src[3], src[2] / src[3], src[3]]
             };
             let alpha = coverage.alpha(pixel, straight[3])?;
-            let f = surface
-                .shape
-                .as_ref()
-                .map(|s| coverage.shape(pixel, s[pixel]))
+            let intrinsic = surface.shape.as_ref().map(|shape| shape[pixel]);
+            let f = intrinsic
+                .map(|shape| coverage.shape(pixel, shape))
                 .transpose()?
                 .unwrap_or(alpha);
-            if let Some(initial) = &initial {
-                let b: &[f64; 4] = initial[pixel * 4..pixel * 4 + 4].try_into().unwrap();
+            if knockout || !item.knockout_target.is_none() {
+                let backdrop = target.map_or([0.0; 4], |values| {
+                    values[pixel * 4..pixel * 4 + 4].try_into().unwrap()
+                });
+                let footprint = if item.knockout_target.is_none() {
+                    f
+                } else {
+                    coverage.alpha(pixel, intrinsic.unwrap_or(src[3]))?
+                };
                 crate::knockout::composite(
                     dst,
                     [straight[0], straight[1], straight[2], alpha],
-                    f,
-                    *b,
+                    footprint,
+                    backdrop,
                     item.blend,
                 );
             } else {
@@ -1625,6 +1667,7 @@ pub(crate) fn plan_artwork_masks(
             world,
             instance,
             Resources {
+                member_knockout: false,
                 spatial: None,
                 control: crate::control::Control::default(),
                 objects: BTreeMap::new(),
@@ -1702,6 +1745,7 @@ impl ArtworkMaskPlan {
                     artwork_masks: &no_nested_masks,
                     control: control.unwrap_or(&instance_resources.control),
                 },
+                None,
             )?;
             if let Some(control) = control {
                 control.check()?;

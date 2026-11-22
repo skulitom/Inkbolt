@@ -353,6 +353,7 @@ pub(crate) fn validate(d: &Document, control: &crate::control::Control) -> Resul
             locked: false,
             opacity: 1.0,
             fill_opacity: 1.0,
+            knockout_target: Default::default(),
             coverage: Default::default(),
             effects: vec![],
             blend: BlendMode::Normal,

@@ -1884,6 +1884,16 @@ fn capability_report() -> Value {
     capabilities["layered_interchange"]["intentionally_untagged_rgb"] =
         json!("requires_explicit_assume_srgb");
     capabilities["layered_interchange"]["groups"]["modes"] = json!(group_modes);
+    capabilities["layered_interchange"]["pixel_knockout"] = json!({
+        "property":"knockout_target",
+        "targets":["none","shallow","deep"],
+        "shallow":"immediate_folder_entry_or_document_background",
+        "deep":"nearest_isolated_boundary_or_document_background",
+        "opacity":"attenuates_paint_and_knockout_footprint",
+        "fill_opacity":"attenuates_paint_only",
+        "members":"unclipped_working_srgb_pixel_layers",
+        "native_background":"unsupported_when_root_rgb_only_background_is_present"
+    });
     capabilities["layered_interchange"]["groups"]["fill_opacity"] = json!({
         "separate_from_layer_opacity":true, "precision":"exact_byte_fraction",
         "isolated":"all_supported_group_modes",
@@ -3440,6 +3450,9 @@ pub(crate) fn inspect_item(
         _ => None,
     };
     let mut result = json!({"object":match &item.content{model::Content::Object{object}=>Some(object.summary()),_=>None},"hdr_grade":item.hdr_grade,"samples":samples::inspect(&item.content),"pixel_warp":item.pixel_warp,"metadata":item.metadata,"id":item.id,"name":item.name,"content_type":query::item_type(item),"warp":match &item.content{model::Content::Warp{warp}=>Some(warp),_=>None},"repeat":match &item.content{model::Content::Repeat{repeat}=>Some(repeat),_=>None},"interpolation":match &item.content{model::Content::Interpolation{interpolation}=>Some(interpolation),_=>None},"instance":match &item.content{model::Content::Instance{instance}=>Some(instance),_=>None},"artwork_mask_source_sha256":artwork_masks::dependency_hash(document,i)?,"component_source_sha256":instances::dependency_hash(document,i)?,"group":match &item.content{model::Content::Group{isolated,knockout,role}=>Some(json!({"isolated":isolated,"knockout":knockout,"role":role})),_=>None},"geometry":match &item.content{model::Content::Vector{geometry,..}|model::Content::WorkPath{geometry,..}=>Some(geometry),_=>None},"stroke":match &item.content{model::Content::Vector{stroke,..}=>stroke.as_ref(),_=>None},"index":i,"sibling_index":sibling_index,"parent":item.parent,"clip_to":item.clip_to,"visible":item.visible,"effective_visible":scene::effective_visible(document,i)?,"locked":item.locked,"effective_locked":scene::effective_locked(document,i)?,"opacity":item.opacity,"fill_opacity":item.fill_opacity,"coverage":item.coverage,"effects":item.effects,"blend":item.blend,"world_transform":world,"geometry_bounds":bounds,"clip":item.clip,"mask":item.mask,"artwork_mask":item.artwork_mask,"artwork_mask_world_transform":item.artwork_mask.as_ref().map(|m|m.world_transform(world)),"filters":item.filters,"mask_world_transform":item.mask.as_ref().map(|m|m.world_transform(world)),"image":image,"adjustment":match &item.content{model::Content::Adjustment{adjustment}=>Some(adjustment),_=>None},"frame":match &item.content{model::Content::Frame{frame}=>Some(frame),_=>None}});
+    if !item.knockout_target.is_none() {
+        result["knockout_target"] = json!(item.knockout_target);
+    }
     if matches!(
         &item.content,
         model::Content::WorkPath {

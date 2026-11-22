@@ -528,6 +528,8 @@ pub enum Operation {
         locked: Option<bool>,
         opacity: Option<f64>,
         fill_opacity: Option<f64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        knockout_target: Option<KnockoutTarget>,
         coverage: Option<crate::coverage::Mode>,
         blend: Option<BlendMode>,
     },
@@ -1649,6 +1651,7 @@ fn apply_one(
                 locked: false,
                 opacity: 1.0,
                 fill_opacity: 1.0,
+                knockout_target: Default::default(),
                 coverage: crate::coverage::Mode::Smooth {},
                 effects: Vec::new(),
                 blend: BlendMode::Normal,
@@ -1691,6 +1694,9 @@ fn apply_one(
                 })
                 || group.opacity != 1.0
                 || group.fill_opacity != 1.0
+                || children
+                    .iter()
+                    .any(|&c| document.items[c].knockout_target == KnockoutTarget::Shallow)
                 || !group.coverage.is_smooth()
                 || !group.effects.is_empty()
                 || group.clip_to.is_some()
@@ -2044,6 +2050,7 @@ fn apply_one(
             locked,
             opacity,
             fill_opacity,
+            knockout_target,
             coverage,
             blend,
         } => {
@@ -2053,6 +2060,7 @@ fn apply_one(
                 && visible.is_none()
                 && opacity.is_none()
                 && fill_opacity.is_none()
+                && knockout_target.is_none()
                 && coverage.is_none()
                 && blend.is_none();
             if unlock_only {
@@ -2083,6 +2091,9 @@ fn apply_one(
             }
             if let Some(value) = fill_opacity {
                 item.fill_opacity = *value;
+            }
+            if let Some(target) = knockout_target {
+                item.knockout_target = *target;
             }
             if let Some(value) = coverage {
                 item.coverage = *value;

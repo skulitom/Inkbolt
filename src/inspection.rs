@@ -170,6 +170,9 @@ fn item_record(d: &Document, i: usize, fields: &[Field]) -> Result<Value, Error>
             Field::Style => {
                 row["opacity"] = json!(item.opacity);
                 row["fill_opacity"] = json!(item.fill_opacity);
+                if !item.knockout_target.is_none() {
+                    row["knockout_target"] = json!(item.knockout_target);
+                }
                 row["coverage"] = json!(item.coverage);
                 row["blend"] = json!(item.blend);
                 row["effects"] = json!(item.effects);

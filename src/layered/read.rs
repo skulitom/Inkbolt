@@ -24,6 +24,7 @@ struct Layer {
     clipped: bool,
     blend: BlendMode,
     fill: u8,
+    knockout_target: KnockoutTarget,
     visible: bool,
     id: Option<u32>,
     locked: bool,
@@ -139,6 +140,7 @@ fn record(
         clipped,
         blend: record_blend,
         fill: 255,
+        knockout_target: KnockoutTarget::None,
         visible: flags & 2 == 0,
         id: None,
         locked: false,
@@ -282,7 +284,16 @@ fn record(
                 }
                 layer.locked = locks == 7;
             }
-            b"clbl" | b"infx" | b"knko" | b"tsly" => {
+            b"knko" => {
+                layer.knockout_target = match data.byte()? {
+                    0 => KnockoutTarget::None,
+                    1 => KnockoutTarget::Shallow,
+                    2 => KnockoutTarget::Deep,
+                    _ => return Err(unsupported("Unknown layer knockout target")),
+                };
+                data.zero_padding(3)?;
+            }
+            b"clbl" | b"infx" | b"tsly" => {
                 let value = data.byte()?;
                 data.zero_padding(3)?;
                 let expected = match &key {
@@ -352,6 +363,16 @@ fn record(
     if flags & 1 != 0 && !layer.locked {
         return Err(unsupported(
             "Transparency-only locking has no whole-item lock equivalent",
+        ));
+    }
+    if !layer.knockout_target.is_none()
+        && (layer.kind != Kind::Pixel
+            || layer.clipped
+            || layer.text.is_some()
+            || layer.placement.is_some())
+    {
+        return Err(unsupported(
+            "Layer knockout targets require an unclipped pixel layer",
         ));
     }
     let count = count - u16::from(layer.mask.is_some());
@@ -763,6 +784,20 @@ pub(super) fn document_parts(
         )));
     }
     let links = hierarchy(&records)?;
+    // A bottom RGB-only pixel record can become a native Background, even
+    // with an ordinary name and no lock tag. Knockout reveals that surface.
+    if let Some(bottom) = records.first()
+        && bottom.kind == Kind::Pixel
+        && links[0].parent.is_none()
+        && !bottom.channels.iter().any(|&(id, _)| id == -1)
+        && records
+            .iter()
+            .any(|record| !record.knockout_target.is_none())
+    {
+        return Err(unsupported(
+            "Knockout over a native RGB-only background requires retaining its opaque background role",
+        ));
+    }
     let editable = records.iter().filter(|r| r.kind != Kind::Boundary).count();
     budget.items += editable;
     if budget.items > bounds::MAX_DECODED_ITEMS {
@@ -864,6 +899,7 @@ pub(super) fn document_parts(
         let identity = |i: usize| records[i].identity(i);
         let mut item:Item=serde_json::from_value(json!({"id":r.identity(index),"parent":links[index].parent.map(identity),"clip_to":links[index].clip_base.map(identity),"name":r.name,"visible":r.visible,"locked":r.locked,"opacity":r.opacity as f64/255.0,"fill_opacity":r.fill as f64/255.0,"transform":[1,0,0,1,r.bounds[1],r.bounds[0]],"mask":mask,"content":content})).map_err(|_|malformed())?;
         item.blend = r.blend;
+        item.knockout_target = r.knockout_target;
         if let Some(text) = &r.text {
             if let Some(mask) = &mut item.mask
                 && mask.linked

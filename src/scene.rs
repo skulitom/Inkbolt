@@ -326,7 +326,8 @@ pub(crate) fn insertion(
 }
 pub(crate) fn backdrop_dependent(document: &Document, i: usize) -> bool {
     let item = &document.items[i];
-    item.blend != BlendMode::Normal
+    !item.knockout_target.is_none()
+        || item.blend != BlendMode::Normal
         || matches!(
             item.content,
             Content::Group {

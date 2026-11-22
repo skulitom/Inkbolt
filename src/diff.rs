@@ -29,6 +29,7 @@ fn fields(a: &Item, b: &Item) -> Vec<String> {
         "locked",
         "opacity",
         "fill_opacity",
+        "knockout_target",
         "coverage",
         "effects",
         "blend",

@@ -776,6 +776,9 @@ fn preflight(document: &Document, display_blends: bool, native_cmyk: bool) -> Re
     // charges only painted copies to the cumulative delivery budget.
     let mut pixels = 0;
     for (i, item) in document.items.iter().enumerate() {
+        if !item.knockout_target.is_none() {
+            return Err(unsupported("Vector PDF pages cannot preserve per-layer knockout targets. Use layered delivery to retain the edit or PNG to retain its appearance.").at_item(&item.id));
+        }
         if blend_name(item.blend).is_none() {
             return Err(unsupported("Blend mode has no standard PDF equivalent").at_item(&item.id));
         }

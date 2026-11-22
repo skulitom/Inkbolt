@@ -293,7 +293,7 @@ The command is available in the Rust library, JSON CLI and MCP stdio. Ordinary c
 
 ## Nested folders
 
-Isolated and pass-through groups retain sibling order, parentage, Unicode and duplicate names, visibility, exact byte opacity and whole-object locks. Empty and hidden folders remain editable. Import pairs folder boundaries before returning a document. It rejects malformed nesting, more than 16 ancestor levels, more than 256 editable items or more than 512 serialized records. Knockout, clipped folders, layer-role containers and folder records with cached pixel extents remain unsupported.
+Isolated and pass-through groups retain sibling order, parentage, Unicode and duplicate names, visibility, exact byte opacity and whole-object locks. Empty and hidden folders remain editable. Import pairs folder boundaries before returning a document. It rejects malformed nesting, more than 16 ancestor levels, more than 256 editable items or more than 512 serialized records. Knockout on the folder itself, clipped folders, layer-role containers and folder records with cached pixel extents remain unsupported.
 
 Native pixel positions are absolute. Export evaluates integer translations through the parent hierarchy without changing the source document; import uses identity group transforms and the equivalent absolute pixel positions. Scaling, rotation and fractional placements of plain pixel layers fail. With the explicit embedded-object or text delivery policy below, folder transforms may be resolved into child object or text placements; masks still need supported integer bounds. Folder open/closed state is identified as omitted UI metadata. Known minimum-reader compatibility values are checked and listed in the omission receipt; unknown versions and unknown appearance records fail.
 
@@ -308,6 +308,16 @@ Both RGB8 containers preserve folder fill and folder opacity as separate 8-bit s
 Pass-through folders accept full fill and zero fill with blended children. Intermediate fill works when children compose independently of the artwork outside the folder. Normal pixel layers qualify, as does a nested Normal isolated folder containing its own blended layers. A Multiply layer that blends directly against the outer backdrop makes intermediate fill unsupported. Import and editing report that dependency.
 
 Windows and Linux exported the same bytes for 58 original 24 × 24 fixtures in both containers. An independent editor reopened all 116 exports and reproduced its rendering of the corresponding originals on every alpha and visible color sample. The fixtures cover translucent pixels, independent fill and opacity, all 15 isolated-folder modes, pass-through children and grayscale masks. Both platforms refused the same 10 intermediate-fill fixtures whose child blend used the outside backdrop.
+
+### Editable pixel-layer knockout
+
+An unclipped RGB8 pixel layer can retain its own shallow or deep knockout target in either layered container. This lets one layer cut through earlier artwork while the following sibling paints normally. A `properties` edit changes `knockout_target` to `shallow`, `deep` or `none`. Fill, layer opacity, original source channels and folder isolation stay separately editable. Import into native storage retains the same setting on the stored samples.
+
+For a shallow cut, the receiving layer uses the backdrop at the start of its folder. A deep cut crosses pass-through folders and stops at an isolated boundary or the document background. Native knockout marks on folders, clipped members, text and embedded objects require additional mappings. [Engine compositing rules](KNOCKOUT.md#knocking-out-one-pixel-layer)
+
+A bottom RGB-only pixel record can become a native opaque background regardless of its name or lock tag. Files that combine this background with knockout currently require a separate background mapping. A bottom layer with an explicit alpha channel can be punched through even when every pixel is opaque.
+
+Windows and Linux produced byte-identical exports from 89 original files. An independent editor reopened all 178 exports and matched its original alpha and visible color samples exactly. Inkbolt's own rendering agreed within one 8-bit level for alpha and premultiplied color. The cases included nested isolated and pass-through folders, two independently flagged siblings, Normal, Multiply and Screen blending, and separate layer opacity and fill. The editor also changed one layer from shallow to deep and saved the new target.
 
 ### Editable layer clipping
 

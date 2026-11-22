@@ -42,6 +42,13 @@ class NativeKnockoutTests(unittest.TestCase):
     edit=coverage_tests.NativeCoverageTests.edit
     export=coverage_tests.NativeCoverageTests.export
 
+    def test_visible_per_layer_knockout_requires_native_plate_mapping(self):
+        doc = self.document(1,1)
+        doc['items'] = [dict(id='cut',knockout_target='deep',content=dict(type='raster',width=1,height=1,rgba_hex='abcd12ff'))]
+        error = self.planes(doc,expected=1)
+        self.assertEqual(error['code'],'UNSUPPORTED')
+        self.assertIn('per-layer knockout',error['message'])
+
     def scene(self,w=1,isolated=True):
         back=[F(3,4),F(1,2),F(1,4),F(1,8),F(5,8)]
         first=[F(1,2),F(0),F(1,4),F(0),F(0)]

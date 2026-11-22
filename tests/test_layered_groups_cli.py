@@ -6,6 +6,7 @@ from pathlib import Path
 import layered_fixtures as f
 import test_blending_cli as reference
 import test_layered_cli as core
+from test_editing_cli import png_pixels
 from test_mcp import Client
 
 def marker(kind,name='folder',mode=b'norm',**kw):
@@ -178,6 +179,133 @@ class GroupLayeredTests(unittest.TestCase):
         for folder in [marker(1,blend=b'scrn',mode=b'mul '),marker(1,blend=b'pass',mode=b'mul ')]:
             error = self.read(f.make([marker(3),folder]),1,color_policy='assume_srgb')
             self.assertEqual(error['code'],'INVALID_LAYERED_FILE')
+
+    def test_shallow_and_deep_pixel_knockout_survive_nested_folders(self):
+        def strip(name,color):
+            return dict(name=name,width=3,height=1,rgba=bytes(color)*3)
+        paper = strip('paper',[220,87,13,255])
+        lower = strip('outside inner folder',[183,61,141,255])
+        inner = strip('inside',[31,58,191,255])
+        cut = dict(name='cut',width=3,height=1,rgba=bytes.fromhex('80000000 80000080 800000ff'))
+        following = dict(name='following',width=3,height=1,rgba=bytes.fromhex('00ff0000 00ff0000 00ff00ff'))
+        capability = capabilities()['layered_interchange']['pixel_knockout']
+        self.assertEqual(capability['targets'],['none','shallow','deep'])
+        for version in (1,2):
+            for target,byte in [('shallow',1),('deep',2)]:
+                flagged = dict(cut,extra=f.tag(b'knko',bytes([byte,0,0,0]))+f.tag(b'iOpa',bytes(4)))
+                records = [paper,marker(3),lower,marker(3),inner,flagged,following,
+                           marker(1,'inner',mode=b'pass'),marker(1,'outer')]
+                doc = self.read(f.make(records,w=3,h=1,version=version),color_policy='assume_srgb')['document']
+                items = {i['name']:i for i in doc['items']}
+                self.assertEqual(items['cut']['knockout_target'],target)
+                self.assertNotIn('knockout_target',items['following'])
+                revealed = lower if target=='shallow' else paper
+                half = [round((127*x+128*y)/255) for x,y in zip(inner['rgba'][:4],revealed['rgba'][:4])]
+                self.assertEqual(bytes.fromhex(self.pixels(doc)),inner['rgba'][:4]+bytes(half)+bytes([0,255,0,255]))
+                raw = base64.b64decode(self.export(doc,version)['data'])
+                parsed = {i['name']:i for i in f.parse(raw)['layers']}
+                self.assertEqual(parsed['cut']['tags'][b'knko'],bytes([byte,0,0,0]))
+                self.assertEqual(parsed['cut']['rgba'],cut['rgba'])
+                self.assertNotIn(b'knko',parsed['following']['tags'])
+                again = self.read(raw)['document']
+                self.assertEqual(self.pixels(again),self.pixels(doc))
+                self.assertEqual(next(i for i in again['items'] if i['name']=='cut')['knockout_target'],target)
+
+    def test_layer_knockout_opacity_and_document_background(self):
+        doc=self.document(1,1)
+        def pixel_item(name,color,**controls):
+            return dict(id=name,content=dict(type='raster',width=1,height=1,rgba_hex=color),**controls)
+        doc['items']=[pixel_item('paper','d5322aff'),pixel_item('ink','1e3cb4ff'),
+                      pixel_item('cut','e24612ff',fill_opacity=0,opacity=128/255,knockout_target='deep')]
+        self.assertEqual(self.pixels(doc),'1e3cb47f')
+        doc['background']=dict(item_id='paper',matte=[255,255,255])
+        expected=bytes([round((a*127+b*128)/255) for a,b in zip(bytes.fromhex('1e3cb4'),bytes.fromhex('d5322a'))])+b'\xff'
+        self.assertEqual(bytes.fromhex(self.pixels(doc)),expected)
+        cover = pixel_item('paint-on-paper','00ff00ff',clip_to='paper')
+        doc['items'].insert(1,cover)
+        self.assertEqual(bytes.fromhex(self.pixels(doc)),expected)
+        doc['items'][-1]['opacity']=0
+        self.assertEqual(self.pixels(doc),'1e3cb4ff')
+        doc['items'][-1]['opacity']=1
+        edit=dict(op='properties',id='cut',knockout_target='none')
+        changed=self.invoke(dict(command='document.edit',expected_revision=0,document=doc,operations=[edit]))['document']
+        self.assertEqual(self.pixels(changed),'1e3cb4ff')
+        self.assertNotIn('knockout_target',changed['items'][-1])
+        difference=self.invoke(dict(command='document.diff',before=doc,after=changed))
+        self.assertIn('knockout_target',next(i for i in difference['items'] if i['id']=='cut')['fields'])
+
+    def test_knockout_marks_on_folders_and_clipped_members_fail_explicitly(self):
+        tag=f.tag(b'knko',bytes([1,0,0,0]))
+        folder=marker(1)
+        folder['extra']+=tag
+        for records in ([marker(3),pixel(),folder],[pixel('base'),pixel('cut',clipping=1,extra=tag)]):
+            error=self.read(f.make(records),1,color_policy='assume_srgb')
+            self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
+            self.assertIn('knockout',error['message'])
+        for version in (1,2):
+            root = pixel('ordinary name',channel_ids=[0,1,2])
+            cut = pixel('cut',extra=tag+f.tag(b'iOpa',bytes(4)))
+            error = self.read(f.make([root,cut],version=version),1,color_policy='assume_srgb')
+            self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
+            self.assertIn('background',error['message'])
+
+    def test_vector_pdf_preflight_identifies_the_layer_that_would_lose_its_knockout(self):
+        doc = self.document(1,1)
+        paint = dict(type='raster',width=1,height=1,rgba_hex='ae352aff')
+        doc['items'] = [dict(id='paper',content=paint),
+                        dict(id='hole',content=paint,fill_opacity=0,knockout_target='deep')]
+        self.assertEqual(bytes.fromhex(self.pixels(doc)),bytes(4))
+        with tempfile.TemporaryDirectory() as root:
+            for color in ('display','native_inks'):
+                options = dict(color=color)
+                output = dict(output_root=root,file_name='page.pdf',format='pdf',pdf_options=options)
+                error = self.invoke(dict(command='document.export',document=doc,format='pdf',pdf_options=options),1)
+                self.assertEqual((error['code'],error['item_id']),('UNSUPPORTED','hole'))
+                preflight = self.invoke(dict(command='document.preflight',document=doc,output=output))
+                self.assertFalse(preflight['ready'])
+                self.assertEqual(preflight['issues'][0]['error'],error)
+            self.assertFalse((Path(root)/'page.pdf').exists())
+
+    def test_regional_and_whole_render_share_the_deep_knockout_backdrop(self):
+        width=513
+        doc=self.document(width,1)
+        doc['items']=[dict(id='paper',content=dict(type='raster',width=width,height=1,rgba_hex='a22452ff'*width)),
+                      dict(id='folder',content=dict(type='group',isolated=False)),
+                      dict(id='paint',parent='folder',content=dict(type='raster',width=width,height=1,rgba_hex='3498abff'*width)),
+                      dict(id='cut',parent='folder',knockout_target='deep',fill_opacity=0,
+                           transform=[1,0,0,1,126,0],content=dict(type='raster',width=260,height=1,rgba_hex='443322ff'*260))]
+        expected=bytes.fromhex('3498abff')*126+bytes(260*4)+bytes.fromhex('3498abff')*(width-386)
+        for evaluation in ('whole','tiled'):
+            artifact=self.invoke(dict(command='document.export',format='png',document=doc,render_options=dict(evaluation=evaluation)))
+            self.assertEqual(png_pixels(base64.b64decode(artifact['data']))[:3],(width,1,expected))
+
+    def test_session_can_edit_publish_and_undo_one_pixel_knockout(self):
+        layers = [pixel('base'),pixel('cut',extra=f.tag(b'knko',bytes([2,0,0,0]))+f.tag(b'iOpa',bytes(4)))]
+        raw = f.make(layers,w=2,h=1)
+        with tempfile.TemporaryDirectory() as root:
+            source = Path(root)/'source.psd'
+            source.write_bytes(raw)
+            client = Client()
+            try:
+                client.initialize()
+                doc = client.success('layered.import',source_path=str(source),id='knockout',color_policy='assume_srgb')['document']
+                cut = doc['items'][1]['id']
+                session = dict(session_root=root,session_id='knockout')
+                client.success('session.create',**session,document=doc,request_id='create')
+                edit = dict(expected_revision=0,request_id='remove',action=dict(type='edit',operations=[dict(op='properties',id=cut,knockout_target='none')]))
+                changed = client.success('session.apply',**session,**edit)['document']
+                self.assertNotEqual(self.pixels(changed),self.pixels(doc))
+                self.assertTrue(client.success('session.apply',**session,**edit)['replayed'])
+                client.success('session.publish',**session,expected_revision=1,output=dict(output_root=root,file_name='edited.psb',format='layered_large'))
+                saved = client.success('layered.import',source_path=str(Path(root)/'edited.psb'),id='saved')['document']
+                self.assertNotIn('knockout_target',saved['items'][1])
+                self.assertEqual(self.pixels(saved),self.pixels(changed))
+                undo = client.success('session.apply',**session,expected_revision=1,request_id='undo',action=dict(type='undo'))['document']
+                self.assertEqual(undo['items'][1]['knockout_target'],'deep')
+                self.assertEqual(self.pixels(undo),self.pixels(doc))
+                self.assertEqual(source.read_bytes(),raw)
+            finally:
+                client.close()
     def test_unbalanced_markers_unknown_modes_nonpixel_samples_and_subtypes_fail(self):
         for records in [[marker(3)],[marker(1)],[marker(1),marker(3)],[marker(3),marker(3),marker(1)]]:
             self.assertEqual(self.read(f.make(records),1,color_policy='assume_srgb')['code'],'INVALID_LAYERED_FILE')

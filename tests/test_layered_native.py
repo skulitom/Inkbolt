@@ -46,6 +46,17 @@ class NativeLayeredTests(unittest.TestCase):
             self.assertEqual(doc['items'][1]['clip_to'], doc['items'][0]['id'])
             self.assertEqual(self.cli('document.render', document=doc)['data'], '7f0080407f008080')
 
+    def test_stored_pixel_knockout_keeps_hidden_color_and_original_footprint(self):
+        cut = bytes.fromhex('0eab5600 0eab5680')
+        extra = f.tag(b'knko',bytes([2,0,0,0])) + f.tag(b'iOpa',bytes(4))
+        records = [dict(name='base',width=2,height=1,rgba=bytes.fromhex('8a47ceff')*2),
+                   dict(name='cut',width=2,height=1,rgba=cut,extra=extra)]
+        for version in (1,2):
+            doc = self.imported(f.make(records,w=2,h=1,version=version))['document']
+            self.assert_grid(doc['items'][1],cut,2,1)
+            self.assertEqual(doc['items'][1]['knockout_target'],'deep')
+            self.assertEqual(self.cli('document.render',document=doc)['data'],'8a47ceff8a47ce7f')
+
     def assert_grid(self, item, rgba, w, h):
         self.assertEqual(item['content']['type'], 'stored_samples')
         grid = item['content']['grid']

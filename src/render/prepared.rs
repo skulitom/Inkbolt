@@ -290,7 +290,12 @@ impl Prepared {
                 .into_iter()
                 .max()
                 .unwrap_or(0);
-            3 * (depth + 1) + 3
+            let extra = if document.items.iter().any(|i| !i.knockout_target.is_none()) {
+                depth + 1
+            } else {
+                0
+            };
+            3 * (depth + 1) + 3 + extra
         } else {
             0
         };
@@ -431,6 +436,7 @@ impl Prepared {
             antialias: plan.options.antialias,
             light: document.global_light,
             track_shape: crate::knockout::active(document),
+            member_knockout: document.items.iter().any(|i| !i.knockout_target.is_none()),
             masks: crate::masks::prepare_document(document, asset_root, control)?,
             assets: assets::resolve(document, asset_root)?,
             inline_samples: if tiled {
@@ -537,7 +543,15 @@ impl Prepared {
         if let Some(sparse) = &self.sparse {
             sparse.render(&self.document, size, &self.resources, &mut accum)?;
         } else {
-            draw_items(&self.document, None, &mut accum, None, size, &resources)?;
+            draw_items(
+                &self.document,
+                None,
+                &mut accum,
+                None,
+                size,
+                &resources,
+                None,
+            )?;
         }
         self.resources.control.check()?;
         if accum.iter().any(|v| !v.is_finite()) {
@@ -711,7 +725,15 @@ impl Prepared {
             origin,
         };
         let mut accum = vec![0.0; size[0] as usize * size[1] as usize * 4];
-        draw_items(&self.document, None, &mut accum, None, size, &resources)?;
+        draw_items(
+            &self.document,
+            None,
+            &mut accum,
+            None,
+            size,
+            &resources,
+            None,
+        )?;
         if accum.iter().any(|v| !v.is_finite()) {
             return Err(Error::new(
                 "NONFINITE_RENDER",
