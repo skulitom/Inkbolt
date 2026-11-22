@@ -5,6 +5,11 @@ Save [first-png.json](first-png.json) in an empty folder and run
 It writes a 240 × 144 mountain postcard. The sky, sun and two ridges are editable
 in the request. Choose a fresh output filename for each variation.
 
+To save editable artwork and export a transparent PNG from the saved file, see
+[the four-request screen artwork guide](../docs/AGENT_DISCOVERY.md#screen-artwork).
+Its [Python function](publish_screen.py) takes a callable that sends JSON requests
+to Inkbolt. Source builds from `main` include the function in `screen.quickstart`.
+
 The Python workflow examples use the checkout's native development build when
 available and otherwise look for `inkbolt` on your shell's path. Set
 `INKBOLT_EXE` to the full path of a specific installation to use it throughout

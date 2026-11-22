@@ -2,8 +2,8 @@
 
 See the generated [limit reference](LIMITS.md) for centralized resource ceilings.
 
-Current source builds offer `inkbolt mcp --tools essentials` for new agent
-connections: ten tools within a 24 KiB tool-array budget, including focused
+In v0.84.0 and current source builds, `inkbolt mcp --tools essentials` starts
+an agent with ten tools within a 24 KiB tool-array budget, including focused
 lookup and the complete dispatcher. The v0.82.0 release uses `--tools core`,
 which lists twenty-one everyday tools plus `inkbolt_run` within 96 KiB.
 `inkbolt mcp` and `--tools full` retain the full per-command catalog. All modes
@@ -25,8 +25,8 @@ values with `schema.lookup`. Required top-level fields, scalar choices, defaults
 and full pinned-document/file alternatives remain visible. Generated titles and
 repeated dialect annotations are omitted; the [MCP tool specification](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool)
 defaults these schemas to JSON Schema 2020-12. Workspace path rules
-appear once per tool. Smaller discovery is not yet a measured model-efficiency
-claim; see the [evaluation gate](DEVELOPMENT_STATUS.md#w52-essentials-catalog-implementation-and-evaluation-gate).
+appear once per tool. In five-attempt comparisons with the core catalog, median
+token use fell on layout edits and rose on text repair. [Catalog evaluation](BENCHMARK_ESSENTIALS.md)
 
 The core catalog covers document creation, inspection, object queries, edits and previews; session creation, reads, edits, dry runs, checked proposals, receipts, history, comparisons and publication; image/font import; and focused schema lookup. Specialist commands remain available through `inkbolt_run`:
 
@@ -75,7 +75,8 @@ Reading the examples leaves the workspace untouched.
 
 ## Screen artwork
 
-For an editable screen graphic and a transparent PNG, request
+Source builds after v0.84.0 include a guide to saving an editable screen
+graphic and a transparent PNG. Request
 `{"command":"schema.lookup","name":"screen.quickstart"}`. The reply includes a
 256 × 256 beacon example and a short Python function that shows how to assemble
 four ordinary JSON requests. Choose a screen size, editable items, source

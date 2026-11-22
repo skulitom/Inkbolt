@@ -65,21 +65,17 @@ The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
-Agents using v0.84.0 on Windows passed five trials moving an image and
-reviewing its original position, and five trials recovering the receipt after
-session creation. Each recovered session had exactly one creation. Both
-workflows also passed scripted checks on Linux. [Image revision trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-placement-pairs-on-windows) · [Receipt recovery trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-receipt-recovery-pairs-on-windows)
-
-Source builds from `main` can move a saved edit between Windows and Linux
-with its assets and fonts. They can open layered artwork, adjust an isolated
-folder’s fill independently of its opacity, and save the original layers for further editing.
-PDF exports support searchable labels on curves and separate spot-ink plates.
-[Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability) · [Layered artwork](docs/LAYERED.md#editable-folder-fill) · [PDF text](docs/PDF.md#searchable-text) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
+Building from `main` also gives agents a four-request guide to saving editable
+artwork and exporting a transparent PNG from that exact source. Other additions
+include moving a saved edit with its assets and fonts between Windows and Linux,
+editing layer groups, and exporting searchable PDF labels and spot-ink plates.
+[Screen artwork guide](docs/AGENT_DISCOVERY.md#screen-artwork) · [Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability) · [Layer groups](docs/LAYERED.md#editable-folder-fill) · [PDF text](docs/PDF.md#searchable-text) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
 ## Explore the project
 
 - To connect an agent or script an edit, see the [agent interface](docs/AGENT_INTERFACE.md), [tool discovery](docs/AGENT_DISCOVERY.md) and [guide to saving CLI receipts](docs/AGENT_RESPONSES.md).
 - Across 17 Windows tasks tested on several builds, agents using Inkbolt matched the no-engine baseline’s artifact success count on 15 and exceeded it on two. They used more tokens and shell commands at the median on all 17. [Results by task](docs/BENCHMARK_RESULTS.md#results-by-task) · [Tool use](docs/BENCHMARK_RESULTS.md#shell-and-mcp-activity-across-twenty-tasks)
+- For a direct comparison with Cutbolt on moving an image and recovering a saved session receipt, see the [matched agent trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-placement-pairs-on-windows).
 - The [capability reference](docs/IMPLEMENTATION.md) describes which editing and export operations are implemented.
 - The [development plan](FIX_PLAN.md) tracks remaining work. The [development guide](docs/DEVELOPMENT_LOOP.md) explains the 2–3 minute feedback loop and full milestone checks.
 - [Architecture](docs/ARCHITECTURE.md) and [source requirements](docs/RESEARCH.md) are the starting points for contributors.
