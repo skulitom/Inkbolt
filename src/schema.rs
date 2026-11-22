@@ -388,7 +388,10 @@ pub(crate) fn lookup_in_workspace(
             "usage":"Use command.fields with select job or session for required and optional input names. Look up a command or type by name for details. Use full:true for a validation schema."}),
         );
     }
-    let mut value = if let Some((_, definition)) = TYPES.iter().find(|(alias, _)| *alias == name) {
+    let root_type = TYPES
+        .iter()
+        .find_map(|&(alias, definition)| (alias == name).then_some(definition));
+    let mut value = if let Some(definition) = root_type {
         complete(full()["$defs"][definition].clone(), false)
     } else {
         arguments(name, false).ok_or_else(|| {
@@ -407,7 +410,15 @@ pub(crate) fn lookup_in_workspace(
     }
     let mut prefix: Option<String> = None;
     if let Some(selector) = select {
-        for segment in selector.split('/') {
+        let mut components = selector.split('/').peekable();
+        if let Some(root) = root_type
+            && value["$defs"].get(root).is_none()
+        {
+            // The selected type is already at the root. Recursive definitions
+            // keep their existing routes and advertised child selectors.
+            components.next_if_eq(&root);
+        }
+        for segment in components {
             let shape = fields::shape(&value, &value["$defs"]);
             let (selected, route) = select_component(&value, shape, prefix.as_deref(), segment)
                 .ok_or_else(|| {

@@ -369,6 +369,7 @@ class AgentDiscoveryTests(unittest.TestCase):
                                 self.assertEqual(found['detail'], 'full')
 
     def test_nested_schema_routes_and_error_recovery_match_cli_mcp(self):
+        self.assertTrue(invoke(dict(command='capabilities'))['result']['agent_discovery']['schema_type_root_selector'])
         with tempfile.TemporaryDirectory() as directory:
             for workspace in (None, directory):
                 with self.subTest(workspace=workspace), closing(Client(('--tools', 'core'), workspace=workspace)) as client:
@@ -385,6 +386,16 @@ class AgentDiscoveryTests(unittest.TestCase):
                         mcp = client.tool('schema.lookup', **arguments)['structuredContent']
                         self.assertEqual(cli, mcp)
                         return cli
+
+                    document = lookup(name='document')['result']
+                    explicit = lookup(name='document', select='Document')['result']
+                    self.assertEqual(explicit, dict(document, select='Document'))
+                    width = lookup(name='document', select='field:width', full=True)['result']
+                    self.assertEqual(lookup(name='document', select='Document/field:width', full=True)['result'],
+                                     dict(width, select='Document/field:width'))
+                    self.assertEqual(lookup(name='document', select='Document/Document')['error']['code'], 'SCHEMA_NOT_FOUND')
+                    self.assertEqual(lookup(name='document', select='Documnt')['error']['code'], 'SCHEMA_NOT_FOUND')
+                    self.assertEqual(lookup(name='operation', select='Operation/transform')['result']['detail'], 'full')
 
                     error = lookup(name='session.apply', select='edit')['error']
                     self.assertEqual(error['code'], 'SCHEMA_NOT_FOUND')

@@ -252,3 +252,50 @@ measurement requires a matching filename and SHA-256 at a completed client
 event. The report also records when the CLI trace shows a successful render of
 the original saved revision after the move with bytes matching `historical.png`.
 Rejudging a capture uses a new output file and does not call the model.
+
+### Five model-driven placement pairs on Windows
+
+Both released engines finished **5/5**. In every trial the three delivered PNGs
+matched every expected pixel, the original files retained their hashes, and the
+judge reopened the original revision, the moved revision and the current head.
+All ten traces also contained a successful render of the earlier revision
+after the move, with the exact bytes delivered in `historical.png`.
+
+The November 22 run used Codex CLI 0.160.0, GPT-6.1 Sol with medium reasoning,
+the Windows release binaries above and a ten-minute deadline per trial. Each
+agent started fresh and discovered its engine through the local CLI. Medians
+include all five attempts in each arm.
+
+| Measurement | Inkbolt 0.84.0 | Cutbolt 0.4.0 |
+| --- | ---: | ---: |
+| First observed correct `before.png`, seconds | 70.8 | 100.4 |
+| Client solve time, seconds | 85.9 | 123.2 |
+| Client-reported input plus output tokens | 231,983 | 563,292 |
+| Completed shell commands | 30 | 35 |
+| Native CLI calls | 28 | 35 |
+| Help, capabilities and schema calls | 20 | 22 |
+| Native calls with nonzero exit status | 1 | 4 |
+| Repeated requests | 1 | 1 |
+| Native stdout, bytes | 59,431 | 245,943 |
+| Native stdout from help, capabilities and schema calls, bytes | 52,099 | 230,906 |
+| Output observed in shell events, UTF-8 bytes | 50,745 | 167,011 |
+| Windows peak commit for the owned client process tree, MiB | 128.6 | 216.8 |
+
+Cutbolt returns usage text with a nonzero exit status for `--help`, which
+counts as a failed CLI call. Token totals include cached input once. First
+preview times reflect completed client events. The client supplied no count of
+model inference calls. The timing and token results apply to this CLI task on
+this host. The earlier [Linux comparison](#move-a-placed-still-and-review-the-original)
+used scripted clients.
+
+Three Inkbolt agents requested `name:"document", select:"Document"`. The
+release rejected all three. On the corrected source build, replaying all 94
+captured schema lookups admitted those three requests and returned identical
+JSON for the other 91. A separate comparison checked all eight named root types
+in normal and full modes. The model timings above come from the released
+engines. [Root selector syntax](AGENT_DISCOVERY.md#focused-schemas)
+
+The retained method SHA-256 is
+`c00a6661c1424023c6e47976e52d9cdaf264e8c0f85c4dd7168a4fcd729e3302`.
+Two independent judging runs over the same captures produced byte-identical
+reports with SHA-256 `2227f876a9b64754444910071c97544422d813935a7424ee21dfa31c87f92f7e`.

@@ -2171,6 +2171,7 @@ fn capability_report() -> Value {
         "lookup":"schema.lookup", "index":"index", "command_fields":"command.fields", "vector_quickstart":"vector.quickstart", "image_quickstart":"image.quickstart", "handoff_quickstart":"handoff.quickstart",
         "large_schema_outline_bytes":schema::OUTLINE_BYTES,
         "schema_selector_separator":"/",
+        "schema_type_root_selector":true,
         "schema_field_selector_prefix":"field:",
         "schema_selector_max_bytes":limits::schema::MAX_SELECTOR_BYTES,
         "schema_variant_selector_field":"select",

@@ -158,7 +158,11 @@ To save an editable file, use the [snapshot publication example](AGENT_WORKSPACE
 Results report `detail`, `name`, `select` and the serialized `schema_bytes`. Schemas through 12 KiB return `detail:"full"` and `schema`, including every referenced definition. Larger schemas return `detail:"outline"`, fields, tagged variants and reachable definition names. An outline is not a validation schema. `full:true` always requests the complete selected schema. The index is already complete and rejects `select` and `full:true`.
 
 `select` chooses a public field (`field:output`), a variant (such as `transform`) or a
-reachable definition. Separate components with `/` to follow nested selections.
+reachable definition. For a named type, its exact root name can start the
+selector when `agent_discovery.schema_type_root_selector` is true.
+For example, `name:"document", select:"Document"` returns the document
+outline, and `Document/field:width` selects its width. Separate components with
+`/` to follow nested selections.
 Each outline variant supplies its complete next `select` value; keep the same
 `name`. For example, the `Action` outline under `session.apply` advertises
 `Action/edit`. Its operation can then be selected with
