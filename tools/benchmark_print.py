@@ -80,7 +80,8 @@ def solve(case):
     require(result['sha256']==ready['prepared_output']['sha256']==sha(delivered(case,'print.pdf')),'Preflight/publication identity differs')
     source_snapshot(case,saved);case.call('verify-history','session.verify',session_id=saved['session_id'])
     save_json(case.root/'delivery.json',dict(file='print.pdf',sha256=result['sha256'],losses=result['losses']))
-    save_json(case.root/'session.json',dict(session_id=saved['session_id'],revision=saved['revision'],publication='print-delivery'))
+    save_json(case.root/'session.json',dict(session_id=saved['session_id'],revision=saved['revision'],
+        publication=result['publication']['request_id']))
 
 
 def physical_boxes(pdf):

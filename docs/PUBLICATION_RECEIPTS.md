@@ -14,6 +14,14 @@ Use the same request ID and normalized typed inputs to recover the original publ
 
 The ordinary output receipt includes its byte length, SHA-256, format, source revision, selected artboard and actual encoder loss/colour/metadata details. The added `publication` object identifies the receipt root/request, whether this is a replay, and completion state. Preparing durable output shares the exact existing publication encoder and does not change export semantics or force a format conversion.
 
+When you deliver both an editable snapshot and a PDF of the same revision,
+each durable publication has its own request ID. For a print handoff, copy
+`publication.request_id` from the successful PDF publication result. To check
+it later, use that ID with `publication.receipt` in the same receipt store.
+Check that the returned state is `complete`, that `result.format` is `pdf`
+and that `result.sha256` matches the bytes of the delivered PDF. Both outputs
+can have the same document ID and revision.
+
 PNG preparation uses bounded output bands and private encoded storage before
 the existing durable staging step. Preflight counts and hashes that same stream
 without creating a file. A changed encoder may produce different compressed
