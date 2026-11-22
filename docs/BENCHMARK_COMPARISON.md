@@ -169,3 +169,53 @@ reports have the following SHA-256 digests.
 | Windows x64 | `b852565c09ecaffc7cc57c4aec735baf4fbf7c9f72943690f43a130081b14245` |
 | Arch Linux, WSL2 | `343e48509c5d2baa32a4f24be0a520e714cc5e12f00926d31b2c784bf6a66852` |
 | Ubuntu 22.04, WSL2 | `d7160da54582eeb077bc8e94b69b44e4b20dfe5be63ea8f0bf34ee0d619a83e1` |
+
+## Move a placed still and review the original
+
+Inkbolt 0.84.0 and Cutbolt 0.4.0 each passed five of five scripted trials on
+Windows x64 and five of five on Arch Linux under WSL2. Both received the same
+two PNGs. Each placed a 6 × 4 badge with transparent pixels at (3, 5) on a
+32 × 24 patterned background, moved it to (17, 12), then reopened the saved
+original revision. All 60 delivered PNG previews matched the independently
+calculated RGBA values at every pixel. Both input files retained their hashes.
+
+Inkbolt imported the images, created a document and changed the badge's
+transform. Cutbolt compiled a one-frame scene at each position and changed
+the clip in a saved timeline. Both clients addressed saved revisions directly.
+Cutbolt read the two editable scene files by workspace reference. The judge
+also verified that the recipes and compiled media retained their hashes.
+
+| Host and CLI | Calls | Request bytes | Response bytes | First verified preview, seconds | All three previews, seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Windows · Inkbolt | 7 | 1,543 | 8,882 | 0.160 | 0.262 |
+| Windows · Cutbolt | 8 | 2,096 | 5,145 | 0.628 | 1.381 |
+| Arch Linux · Inkbolt | 7 | 1,543 | 8,490 | 0.216 | 0.376 |
+| Arch Linux · Cutbolt | 8 | 2,096 | 5,145 | 0.476 | 1.041 |
+
+Values are medians of five local trials per row. Each call starts a new CLI
+process. Elapsed time includes client file writes, compilation and recording
+the replies. The judge decodes the delivered PNGs after timing ends and
+matches each one to the bytes observed during the trial. Inkbolt returned its
+PNGs in the replies. Cutbolt wrote its PNGs to disk, and the client wrote
+1,964 bytes of scene JSON outside the requests. The three PNG files totaled
+719 bytes for Inkbolt and 575 for Cutbolt. This workflow measures a scripted
+edit with known commands. Model discovery and interaction cost remain open.
+
+To repeat, use the native releases identified in the
+[session comparison](#saved-session-recovery-with-cutbolt), supply local FFmpeg
+and ffprobe executables, and choose a new output directory outside the checkout.
+The runner alternates the first engine and retains the traffic, artworks,
+revisions, tool hashes and per-call process memory. Windows counters cover the
+CLI process. Linux `wait4` records a high-water mark that includes the pre-exec
+footprint and the maximum of reaped descendants.
+
+```sh
+python tools/compare_placed_still.py --inkbolt /path/to/inkbolt --cutbolt /path/to/cutbolt --ffmpeg /path/to/ffmpeg --ffprobe /path/to/ffprobe --output /path/to/new-results
+```
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Windows report | `507cd3a8a6042781ce302b317bc49a923ff48ebca3d2638f254092e287012e1a` |
+| Arch Linux report | `8070cc8b483e674a9107f9c0e449187f185b60ba02b5044038d2ca2235a50814` |
+| Decoded original and historical RGBA bytes | `e69f5b8ece217991a76f9312975fae53150c65b6e9023d4f29c4c80de6da1977` |
+| Decoded moved RGBA bytes | `7179693f9b0916765c92815ce94d4e626a5fa2844be7bf7b9549141ec767a255` |

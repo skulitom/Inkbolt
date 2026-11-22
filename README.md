@@ -65,15 +65,19 @@ The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
+On Windows and Linux, v0.84.0 can move a placed image over a background and
+reopen either arrangement with the original files intact.
+[Verified image placement](docs/BENCHMARK_COMPARISON.md#move-a-placed-still-and-review-the-original)
+
 Source builds from `main` can export PDF labels that readers can search and
 copy, including curved labels and translucent letters with combining accents.
 They also support variable TrueType weights and widths, vector cutouts and
 separate printing plates for spot inks.
 [PDF export](docs/PDF.md#searchable-text) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
-On `main`, agents can start a diagram with editable shapes or place a local
-image and move it while keeping the original file intact. A saved edit can
-also travel between Windows and Linux with its assets and fonts.
+On `main`, agents can look up runnable examples for editable diagrams and
+image placement. A saved edit can travel between Windows and Linux with its
+assets and fonts.
 [Vector quickstart](docs/AGENT_DISCOVERY.md#vector-quickstart) · [Image placement](docs/AGENT_DISCOVERY.md#place-an-image) · [Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability)
 
 ## Explore the project
