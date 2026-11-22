@@ -12,7 +12,7 @@ import layered_fixtures as f
 import layered_object_fixtures as objects
 import test_agent_workspace as workspace
 from test_editing_cli import png_pixels
-from test_layered_groups_cli import marker
+from test_layered_groups_cli import BACK, FIRST, SECOND, blended_sheet, expected_strip, marker
 from test_layered_masks_cli import masked
 from test_mcp import Client
 from test_profiles_cli import linear_profile
@@ -130,6 +130,21 @@ class NativeLayeredTests(unittest.TestCase):
                 self.assert_grid(actual, bytes.fromhex(expected['content']['rgba_hex']), 4,3)
                 actual = dict(actual, content=expected['content'])
             self.assertEqual(actual, expected)
+
+    def test_stored_pixels_and_blended_folder_render_from_original_channels(self):
+        raw = f.make(blended_sheet('overlay', grouped=True), w=4, h=1, version=2)
+        doc = self.imported(raw)['document']
+        back, first, second, folder = doc['items']
+        for item, samples in zip((back, first, second), (BACK, FIRST, SECOND), strict=True):
+            self.assert_grid(item, samples, 4, 1)
+        self.assertEqual(folder['blend'], 'overlay')
+        self.assertTrue(folder['content']['isolated'])
+        self.assertEqual(second['blend'], 'screen')
+        self.assertEqual(first['parent'], folder['id'])
+        self.assertEqual(second['parent'], folder['id'])
+        actual = bytes.fromhex(self.cli('document.render', document=doc)['data'])
+        expected = expected_strip('overlay', grouped=True)
+        self.assertLessEqual(max(abs(a-b) for a,b in zip(actual, expected, strict=True)), 1)
 
     def test_malformed_late_data_and_invalid_document_publish_nothing(self):
         layer = dict(name='pixel',width=129,height=129,rgba=bytes([7,81,29,0])*129*129)

@@ -282,7 +282,7 @@ Default inline limits are 32 MiB per file, 1,048,576 canvas pixels, 65,536 retai
 
 The native density numbers always represent pixels per inch. A pixels-per-centimetre display preference does not rescale them. Separate width/height display units do not change the pixel canvas.
 
-Delivery requires a raster document in working sRGB, original inline RGBA8 or equivalent native sample grids, nearest sampling and integer translation. Scale is one. Text or objects without their explicit delivery policies, other blend modes, pixel filters/effects, warps, extra channels, backgrounds and unmapped resources fail rather than being flattened implicitly. Opacity and fill opacity must already be exact byte fractions; arbitrary floating values are not silently quantized. Descriptive output metadata needs explicit `metadata_policy:{"mode":"strip"}`. Retain engine snapshots for variants, history, private notes and other editing state not represented in this subset.
+Layered export accepts working-sRGB raster documents with inline RGBA8 pixels or equivalent inline sample grids, nearest sampling, integer translations and scale one. Import can also put pixel layers in the [native sample store](LAYERED_NATIVE_IMPORT.md). Text and placed objects need explicit delivery policies. Unsupported blends, pixel filters and effects, warps, extra channels, document backgrounds and unmapped resources fail explicitly. Opacity and fill opacity must be exact byte fractions. Descriptive output metadata needs explicit `metadata_policy:{"mode":"strip"}`. Use engine snapshots to retain variants, history and private notes.
 
 The merged preview stores RGB composited against white plus a separate straight alpha plane, as required by compatible native readers. Reconstructing straight RGB from this 8-bit preview can lose precision at low alpha. The editable layers keep their original unassociated pixels. Independent consumers can also differ in final compositing rounding. Import validates the entire cache but reconstructs editable artwork from the layer channels.
 
@@ -291,13 +291,21 @@ The command is available in the Rust library, JSON CLI and MCP stdio. Ordinary c
 
 ## Nested folders
 
-Normal isolated and normal pass-through groups retain sibling order, parentage, Unicode and duplicate names, visibility, exact byte opacity and whole-object locks. Empty and hidden folders remain editable. An importer pairs folder boundaries before returning any document; malformed nesting, more than 16 ancestor levels, more than 256 editable items or more than 512 serialized records fails. Non-normal group blends, group fill opacity, knockout, layer-role containers and folder records with cached pixel extents remain unsupported.
+Isolated and pass-through groups retain sibling order, parentage, Unicode and duplicate names, visibility, exact byte opacity and whole-object locks. Empty and hidden folders remain editable. Import pairs folder boundaries before returning a document. It rejects malformed nesting, more than 16 ancestor levels, more than 256 editable items or more than 512 serialized records. Group fill opacity below full, knockout, clipping, layer-role containers and folder records with cached pixel extents remain unsupported.
 
 Native pixel positions are absolute. Export evaluates integer translations through the parent hierarchy without changing the source document; import uses identity group transforms and the equivalent absolute pixel positions. Scaling, rotation and fractional placements of plain pixel layers fail. With the explicit embedded-object or text delivery policy below, folder transforms may be resolved into child object or text placements; masks still need supported integer bounds. Folder open/closed state is identified as omitted UI metadata. Known minimum-reader compatibility values are checked and listed in the omission receipt; unknown versions and unknown appearance records fail.
 
 Empty names are stored exactly in the file, but native consumers can generate names on opening or saving. The delivery receipt lists `empty_name_source_ids`, and its losses explain this behavior. Assign explicit names when stable external names matter. Original file bytes and engine source documents remain unchanged.
 
 This completes a verified unit of extended interchange, not the entire checkpoint. Remaining mask controls, editable text, full embedded-object exchange, larger axes and the remaining group semantics retain their original acceptance requirements.
+
+### Editable blend modes
+
+Pixel layers and isolated folders support Normal, Multiply, Screen, Darken, Lighten, Overlay, Hard Light, Soft Light, Exclusion, Pin Light, Subtract, Hue, Saturation, Color and Luminosity. Both container versions retain the blend setting and the underlying pixels on export and reimport. Pass-through folders, editable text and placed objects currently require Normal. Agents can read the exact identifiers from `capabilities.layered_interchange.pixel_blend_modes` and `groups.modes`.
+
+The round-trip fixtures exercise partial layer opacity and fill, isolated folder opacity, and overlapping children on opaque, translucent and transparent backdrops. An independent reader recomposed the original and exported files from the editable layers. Across the 14 added modes its samples were within one 8-bit channel level of the reference calculation.
+
+An independent editor also changed Multiply to Overlay on a pixel layer and on an isolated folder. Inkbolt recovered all four edited settings across the two container versions.
 
 ## Authored scalar masks
 

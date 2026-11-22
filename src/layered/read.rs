@@ -21,6 +21,7 @@ struct Layer {
     channels: Vec<(i16, usize)>,
     name: String,
     opacity: u8,
+    blend: BlendMode,
     fill: u8,
     visible: bool,
     id: Option<u32>,
@@ -95,11 +96,11 @@ fn record(
         return Err(malformed());
     }
     let blend = input.take(4)?;
-    if blend != b"norm" && blend != b"pass" {
-        return Err(unsupported(
-            "Layered import currently preserves normal pixel-layer compositing",
-        ));
-    }
+    let record_blend = if blend == b"pass" {
+        BlendMode::Normal
+    } else {
+        read_blend(blend)?
+    };
     let opacity = input.byte()?;
     if input.byte()? != 0 {
         return Err(unsupported(
@@ -134,6 +135,7 @@ fn record(
         channels,
         name: String::new(),
         opacity,
+        blend: record_blend,
         fill: 255,
         visible: flags & 2 == 0,
         id: None,
@@ -237,17 +239,22 @@ fn record(
                 }
                 data.end()?;
                 layer.kind = match kind {
-                    0 if mode == b"norm" => Kind::Pixel,
-                    1 | 2 if mode == b"norm" || mode == b"pass" => {
-                        if blend == b"pass" && mode != b"pass" {
+                    0 if mode == blend && blend != b"pass" => Kind::Pixel,
+                    1 | 2 => {
+                        if blend != b"norm" && mode != blend {
                             return Err(malformed());
                         }
+                        layer.blend = if mode == b"pass" {
+                            BlendMode::Normal
+                        } else {
+                            read_blend(mode)?
+                        };
                         ignored.insert("lsct:folder_open_state".into());
                         Kind::Group {
-                            isolated: mode == b"norm",
+                            isolated: mode != b"pass",
                         }
                     }
-                    3 if mode == b"norm" => Kind::Boundary,
+                    3 if mode == b"norm" && blend == b"norm" => Kind::Boundary,
                     _ => return Err(unsupported("Unknown folder type or group blend mode")),
                 };
             }
@@ -261,7 +268,7 @@ fn record(
                 if value > 1 || layer.mask.is_none() {
                     return Err(unsupported("Unknown mask/effect ordering or missing mask"));
                 }
-                // Effects and non-normal blends fail separately; both orders agree here.
+                // Without effects, their ordering relative to the mask is inactive.
                 ignored.insert(format!(
                     "lmgm:effect_order_{value}_inactive_without_effects"
                 ));
@@ -352,9 +359,14 @@ fn record(
                 "Pixel records require RGB with optional transparency",
             ));
         }
-        if blend != b"norm" || flags & 16 != 0 {
+        if blend == b"pass" || flags & 16 != 0 {
             return Err(unsupported(
-                "Pixel records require ordinary normal compositing",
+                "Pixel records require visible pixel semantics and a pixel blend mode",
+            ));
+        }
+        if layer.blend != BlendMode::Normal && (layer.placement.is_some() || layer.text.is_some()) {
+            return Err(unsupported(
+                "Editable text and placed objects require normal layered blending",
             ));
         }
         let maximum = if options.native && layer.placement.is_none() && layer.text.is_none() {
@@ -798,6 +810,7 @@ pub(super) fn document_parts(
             Kind::Boundary => unreachable!(),
         };
         let mut item:Item=serde_json::from_value(json!({"id":r.identity(index),"parent":parents[index],"name":r.name,"visible":r.visible,"locked":r.locked,"opacity":r.opacity as f64/255.0,"fill_opacity":r.fill as f64/255.0,"transform":[1,0,0,1,r.bounds[1],r.bounds[0]],"mask":mask,"content":content})).map_err(|_|malformed())?;
+        item.blend = r.blend;
         if let Some(text) = &r.text {
             if let Some(mask) = &mut item.mask
                 && mask.linked

@@ -71,9 +71,10 @@ session creation. Each recovered session had exactly one creation. Both
 workflows also passed scripted checks on Linux. [Image revision trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-placement-pairs-on-windows) · [Receipt recovery trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-receipt-recovery-pairs-on-windows)
 
 Source builds from `main` can move a saved edit between Windows and Linux
-with its assets and fonts. They can also export searchable PDF labels with
-curved baselines or gradient fills, and separate printing plates for spot inks.
-[Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability) · [PDF text](docs/PDF.md#searchable-text) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
+with its assets and fonts. They can open layered artwork, change how a folder
+blends with the layers below it, and save it with the original pixels intact.
+PDF exports support searchable labels on curves and separate spot-ink plates.
+[Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability) · [Layered artwork](docs/LAYERED.md#editable-blend-modes) · [PDF text](docs/PDF.md#searchable-text) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
 ## Explore the project
 

@@ -38,6 +38,40 @@ use serde_json::{Value, json};
 use std::path::Path;
 pub use text_fonts::{TextFontBinding, TextFonts, TextImportReconstruction, TextImportRendering};
 
+pub(crate) const BLENDS: [(BlendMode, &[u8; 4]); 15] = [
+    (BlendMode::Normal, b"norm"),
+    (BlendMode::Multiply, b"mul "),
+    (BlendMode::Screen, b"scrn"),
+    (BlendMode::Darken, b"dark"),
+    (BlendMode::Lighten, b"lite"),
+    (BlendMode::Overlay, b"over"),
+    (BlendMode::HardLight, b"hLit"),
+    (BlendMode::SoftLight, b"sLit"),
+    (BlendMode::Exclusion, b"smud"),
+    (BlendMode::PinLight, b"pLit"),
+    (BlendMode::Subtract, b"fsub"),
+    (BlendMode::Hue, b"hue "),
+    (BlendMode::Saturation, b"sat "),
+    (BlendMode::Color, b"colr"),
+    (BlendMode::Luminosity, b"lum "),
+];
+
+fn read_blend(key: &[u8]) -> Result<BlendMode, Error> {
+    BLENDS
+        .iter()
+        .find(|(_, bytes)| key == *bytes)
+        .map(|&(mode, _)| mode)
+        .ok_or_else(|| unsupported("Unknown or unsupported layered blend mode"))
+}
+
+fn write_blend(mode: BlendMode) -> Result<&'static [u8; 4], Error> {
+    BLENDS
+        .iter()
+        .find(|&&(value, _)| value == mode)
+        .map(|&(_, key)| key)
+        .ok_or_else(|| unsupported("This blend mode has no verified layered delivery mapping"))
+}
+
 /// Explicit conversion of native embedded placements to retained engine objects.
 /// Reconstruction and source sharing can differ from the originating consumer.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema)]

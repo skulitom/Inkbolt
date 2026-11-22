@@ -10,7 +10,8 @@ fn native_byte(value: f64) -> Result<u8, Error> {
     Ok(byte)
 }
 pub(super) fn controls(item: &Item) -> Result<(), Error> {
-    if item.blend != BlendMode::Normal
+    if (item.blend != BlendMode::Normal
+        && matches!(item.content, Content::Text { .. } | Content::Object { .. }))
         || item.clip_to.is_some()
         || item.clip.is_some()
         || item.artwork_mask.is_some()
@@ -20,7 +21,7 @@ pub(super) fn controls(item: &Item) -> Result<(), Error> {
         || item.pixel_warp.is_some()
         || !item.coverage.is_smooth()
     {
-        return Err(unsupported("Layered delivery needs normal pixel layers or normal/pass-through folders without effects, filters or clipping; no implicit flattening is performed").at_item(&item.id));
+        return Err(unsupported("Layered delivery requires supported controls without effects, filters or clipping; text and placed objects require normal blending").at_item(&item.id));
     }
     if item.name.encode_utf16().count() > bounds::MAX_NAME_UNITS {
         return Err(limit(&format!(
@@ -257,7 +258,13 @@ pub(super) fn document(
             length(&mut records, mask.channel.len(), version);
             channel_data.extend_from_slice(&mask.channel);
         }
-        records.extend(b"8BIMnorm");
+        let blend = if boundary {
+            b"norm"
+        } else {
+            write_blend(item.blend).map_err(|error| error.at_item(&item.id))?
+        };
+        records.extend(b"8BIM");
+        records.extend(blend);
         records.extend([
             if boundary {
                 255
@@ -302,7 +309,7 @@ pub(super) fn document(
             word(&mut divider, if boundary { 3 } else { 1 });
             if !boundary {
                 divider.extend(b"8BIM");
-                divider.extend(if isolated { b"norm" } else { b"pass" });
+                divider.extend(if isolated { blend } else { b"pass" });
             }
             tagged(&mut extra, b"lsct", &divider);
         }
@@ -391,7 +398,7 @@ pub(super) fn document(
             MAX_FILE_BYTES / (1024 * 1024)
         )));
     }
-    let mut result = json!({"media_type":"application/octet-stream","encoding":"base64","data":STANDARD.encode(&bytes),"layered":{"version":version.number(),"mode":"rgb8","compression":compression,"layers":receipts,"empty_name_source_ids":document.items.iter().filter(|i|i.name.is_empty()).map(|i|&i.id).collect::<Vec<_>>(),"serialized_records":ordered.len(),"order":"bottom_to_top","source_composite_rgba_sha256":assets::sha256(&raster.rgba),"merged_planes_sha256":assets::sha256(&composite),"merged_color":"white_matted_rgb_plus_straight_alpha","profile_sha256":assets::sha256(&profile),"resolution_ppi":density as f64/65536.0,"source_changed":false},"losses":["Native pixel bytes, extents, names, visibility, exact byte opacity and normal/pass-through folder hierarchy are retained. Folder transforms are resolved to absolute pixel placements; imported folder transforms are identity, and source documents are unchanged. File layer IDs are independently generated; source IDs appear only in the delivery receipt. Empty names are encoded exactly, but native consumers may generate names for them; empty_name_source_ids identifies those items. Name items explicitly for stable external names.","The merged cache stores RGB composited against white plus a separate alpha plane. Unmatting this 8-bit cache can lose straight RGB precision at low alpha. Editable source pixels remain separate; consumer compositing and rounding can differ.","Physical density rounds to unsigned 16.16 pixels per inch. Engine history, variants and private metadata are not embedded as an editable engine snapshot."]});
+    let mut result = json!({"media_type":"application/octet-stream","encoding":"base64","data":STANDARD.encode(&bytes),"layered":{"version":version.number(),"mode":"rgb8","compression":compression,"layers":receipts,"empty_name_source_ids":document.items.iter().filter(|i|i.name.is_empty()).map(|i|&i.id).collect::<Vec<_>>(),"serialized_records":ordered.len(),"order":"bottom_to_top","source_composite_rgba_sha256":assets::sha256(&raster.rgba),"merged_planes_sha256":assets::sha256(&composite),"merged_color":"white_matted_rgb_plus_straight_alpha","profile_sha256":assets::sha256(&profile),"resolution_ppi":density as f64/65536.0,"source_changed":false},"losses":["Native pixel bytes, extents, names, visibility, exact byte opacity, supported blend modes and folder hierarchy are retained. Folder transforms are resolved to absolute pixel placements; imported folder transforms are identity, and source documents are unchanged. File layer IDs are independently generated; source IDs appear only in the delivery receipt. Empty names are encoded exactly, but native consumers may generate names for them; empty_name_source_ids identifies those items. Name items explicitly for stable external names.","The merged cache stores RGB composited against white plus a separate alpha plane. Unmatting this 8-bit cache can lose straight RGB precision at low alpha. Editable source pixels remain separate; consumer compositing and rounding can differ.","Physical density rounds to unsigned 16.16 pixels per inch. Engine history, variants and private metadata are not embedded as an editable engine snapshot."]});
     result["layered"]["embedded_objects"] = json!(embedded_receipts);
     result["layered"]["text"] = json!(text_receipts);
     if !text_receipts.is_empty() {

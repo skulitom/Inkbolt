@@ -42,10 +42,10 @@ class LayeredTests(unittest.TestCase):
 
     def test_unsupported_editable_semantics_fail_before_returning_a_document(self):
         basic=dict(name='pixel',width=1,height=1,rgba=[0,0,0,255])
-        for change in [dict(blend=b'mul '),dict(mask=bytes(17)+b'\4\0\0'),dict(clipping=1),dict(extra=f.tag(b'TySh',bytes(10))),dict(extra=f.tag(b'lsct',f.U32(1))),dict(extra=f.tag(b'lspf',f.U32(1))),dict(extra=f.tag(b'knko',b'\1\0\0\0'))]:
+        for change in [dict(blend=b'vLit'),dict(mask=bytes(17)+b'\4\0\0'),dict(clipping=1),dict(extra=f.tag(b'TySh',bytes(10))),dict(extra=f.tag(b'lsct',f.U32(1))),dict(extra=f.tag(b'lspf',f.U32(1))),dict(extra=f.tag(b'knko',b'\1\0\0\0'))]:
             with self.subTest(change=change):self.assertEqual(self.read(f.make([dict(basic,**change)]),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
         d=self.scene()
-        for change in [dict(opacity=.5),dict(transform=[1,0,0,1,.5,0]),dict(mask=dict(width=3,height=2,gray_hex='ff'*6,feather=1)),dict(blend='multiply')]:
+        for change in [dict(opacity=.5),dict(transform=[1,0,0,1,.5,0]),dict(mask=dict(width=3,height=2,gray_hex='ff'*6,feather=1)),dict(blend='vivid_light')]:
             bad=copy.deepcopy(d);bad['items'][1].update(change);self.assertEqual(self.export(bad,1)['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
 
     def test_truncation_lengths_duplicate_ids_and_decompression_overflow_rejected(self):
