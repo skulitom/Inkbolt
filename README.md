@@ -38,6 +38,10 @@ If your agent uses the CLI, pass `--workspace` with the same absolute folder
 path on every request. That lets a later process reopen the saved edit or
 recover its receipt. [CLI scripting example](docs/AGENT_WORKSPACE.md)
 
+On builds from `main`, the vector quickstart gives an agent editable shapes,
+a text label and the requests to save and export them in one lookup.
+[Vector quickstart](docs/AGENT_DISCOVERY.md#vector-quickstart)
+
 ## What you can make
 
 | Saved diagram | After one edit |

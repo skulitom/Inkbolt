@@ -18,7 +18,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
 | Task | Inkbolt artifact | Inkbolt workflow | Baseline passes | Median tokens, Inkbolt / baseline | Evidence |
 | --- | ---: | ---: | ---: | ---: | --- |
-| B01 Labelled diagram | 5/5 | 5/5 | 5/5 | 268,880 / 42,310 | [First accepted diagram preview](#time-to-the-first-accepted-diagram-preview) |
+| B01 Labelled diagram | 5/5 | 5/5 | 5/5 | 108,481 / 57,108 | [Vector quickstart](#diagram-authoring-with-the-vector-quickstart) |
 | B02 Aligned icon sheet | 5/5 | 5/5 | 5/5 | 313,114 / 57,582 | [8586e82](#b02-at-8586e82-cli-help-and-sibling-index-guidance) |
 | B03 Edit a 5,000-object layout | 5/5 | 5/5 | 5/5 | 296,450 / 69,288 | [81e8830](BENCHMARK_ESSENTIALS.md) |
 | B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 206,924 / 57,528 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
@@ -47,8 +47,8 @@ batches. B17–B19 exercise engine-specific recovery and have no baseline arm.
 Token medians include all attempts with reported usage, including failures, and
 count cached input once. B19 has usage for four of five attempts. Five trials
 give wide uncertainty. For example, five successes give a 95% Wilson interval
-of 56.6%–100%. Full model-call counts, engine-only model-trial memory and time
-to the first verified preview remain open. [Comparison policy](BENCHMARK_COMPARISON.md)
+of 56.6%–100%. Full model-call counts, engine-only model-trial memory and
+preview timing across the entire suite remain open. [Comparison policy](BENCHMARK_COMPARISON.md)
 
 In B01, both arms delivered five accepted editable diagrams once the prompt
 specified how to supply the font and position the labels. The earlier baseline
@@ -65,6 +65,42 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Diagram authoring with the vector quickstart
+
+Each of five Inkbolt agents found the vector quickstart through the CLI and
+delivered the correct diagram, editable snapshot and pinned font. Median time
+to the first observed accepted PNG fell 36.5% from the previous timed batch.
+Median input and output token use fell 59.7%. The no-engine baseline also
+completed all five fresh trials and remained faster. [Quickstart request](AGENT_DISCOVERY.md#vector-quickstart)
+
+| Five attempts per arm | Earlier Inkbolt | Inkbolt with quickstart | Earlier baseline | Fresh baseline |
+| --- | ---: | ---: | ---: | ---: |
+| Accepted workflows | 5/5 | 5/5 | 5/5 | 5/5 |
+| Median seconds to first observed accepted PNG | 52.6 | 33.4 | 18.5 | 17.7 |
+| Median total client seconds | 62.3 | 38.6 | 23.0 | 26.1 |
+| Median input + output tokens | 268,880 | 108,481 | 42,310 | 57,108 |
+| Median completed shell commands | 21 | 6 | 4 | 4 |
+
+The median number of shell commands mentioning `schema.lookup` dropped from
+15 to one. Their median combined console output fell from 78,265 to 2,213 UTF-8
+bytes per attempt. Every new Inkbolt transcript contained the returned
+quickstart. A shell command can invoke several tools. Underlying model calls
+and complete engine traffic remain unknown.
+
+The two batches used the same diagram prompt, fixtures, client, externally
+selected model and settings, preview clock and independent checks. Each ran
+Inkbolt first and the baseline second on the same shared Windows workstation.
+The new Inkbolt executable came from `4ff86dc`. All ten fresh captures replayed
+with identical outcomes, timestamps and delivered file identities.
+These measurements cover one diagram task and one model configuration.
+[Earlier timing evidence](#time-to-the-first-accepted-diagram-preview)
+
+| Retained report | SHA-256 |
+| --- | --- |
+| Inkbolt | `2b1e55bfff631b0ff43f0e6fa1a787314e84313513949adf3971df08d32bdc5c` |
+| Baseline | `1df6c47d46c06c6a5be32870f50b7722df0c255904be4f5bb631f56990318422` |
+| Matched comparison | `122b28689dd87cbba5e8a2d75b8d90b07ced234d35200f9e6a239f456f1bd1d0` |
 
 ## Time to the first accepted diagram preview
 

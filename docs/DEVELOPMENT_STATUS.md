@@ -22,6 +22,12 @@ if the engine delivers all five workflows with lower median time to the first
 accepted preview and lower median token usage. Otherwise revisit its placement
 or remove it before extending it to other workflows.
 
+The shortcut met both criteria. All five agents used it and delivered the
+required editable diagram. Median time to the accepted PNG fell from 52.6 to
+33.4 seconds and median token use from 268,880 to 108,481. Keep the opt-in
+lookup for vector authoring. The fresh baseline delivered five correct diagrams
+in a median 17.7 seconds to first preview. [Matched trials](BENCHMARK_RESULTS.md#diagram-authoring-with-the-vector-quickstart)
+
 ## Linux memory budget for large raster edits
 
 The four scale-v2 workloads already have independent output checks. On Linux

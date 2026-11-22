@@ -50,6 +50,21 @@ and begin discovery without one on a new connection. Discovery mode and order
 are fixed for the lifetime of the process; no environment variable silently
 changes an existing client.
 
+## Vector quickstart
+
+For a new vector graphic, request the following from a source build.
+
+```json
+{"command":"schema.lookup","name":"vector.quickstart"}
+```
+
+The reply contains the editable postcard and its PNG request, a font import,
+an editable text item, session creation and snapshot publication. Copy the
+parts you need. Supply your own font and license paths if you add a label.
+Save the assembled document in a session, then use its ID and revision to
+publish the snapshot and PNG. Each publication needs a fresh output filename.
+Reading the examples leaves the workspace untouched.
+
 ## Focused schemas
 
 For CLI discovery, `inkbolt --help` (or `-h`) returns one successful JSON envelope
@@ -69,19 +84,6 @@ operations. Those lookups include `example` beside the schema or outline, with
 `kind`, `value`, `requires` and `usage`. Each complete example is bounded to 2 KiB.
 `schema_bytes` continues to measure only the validation schema. Nested routes
 to the same selected type return the same example. Discovery never executes it.
-
-For a new vector graphic, request the following from a source build.
-
-```json
-{"command":"schema.lookup","name":"vector.quickstart"}
-```
-
-The reply contains the editable postcard and its PNG request, a font import,
-an editable text item, session creation and snapshot publication. Copy the
-parts you need. Supply your own font and license paths if you add a label.
-Save the assembled document in a session, then use its ID and revision to
-publish the snapshot and PNG. Each publication needs a fresh output filename.
-Reading the examples leaves the workspace untouched.
 
 Request examples need the declared workspace, original input files and unused
 or existing session IDs. Content and operation examples are fragments with
