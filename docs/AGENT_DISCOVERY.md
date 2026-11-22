@@ -104,8 +104,9 @@ selects or creates one. Image and font `store_root` defaults appear separately
 as `image_store_root` and `font_store_root` in this description.
 
 The schema index's `example_queries` lists focused examples for font import,
-session creation/review, an empty document, text content and text/transform/boolean
-operations. Those lookups include `example` beside the schema or outline, with
+session creation and review, an empty document, text content, and operations
+for editing text, moving items, combining shapes and changing a fill.
+Those lookups include `example` beside the schema or outline, with
 `kind`, `value`, `requires` and `usage`. Each complete example is bounded to 2 KiB.
 `schema_bytes` continues to measure only the validation schema. Nested routes
 to the same selected type return the same example. Discovery never executes it.

@@ -199,7 +199,7 @@ class AgentDiscoveryTests(unittest.TestCase):
     def test_advertised_examples_execute_preserve_artwork_and_review_without_writes(self):
         queries = invoke(dict(command='schema.lookup', name='index'))['result']['example_queries']
         examples = {(q['name'], q.get('select')): invoke(q)['result']['example']['value'] for q in queries}
-        self.assertEqual(len(examples), 8)  # Boolean execution is covered by test_boolean_edit_cli.
+        self.assertEqual(len(examples), 9)  # Boolean execution is covered by test_boolean_edit_cli.
         for transport in ('cli', 'mcp'):
             with self.subTest(transport=transport), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -260,6 +260,13 @@ class AgentDiscoveryTests(unittest.TestCase):
                     expected['revision'] = 2
                     expected['items'][0]['transform'] = [1, 0, 0, 1, 4, 4]
                     self.assertEqual(transformed, expected)
+                    fill = dict(examples['operation', 'fill'], id='untouched')
+                    recolored = command('document.edit', document=transformed, expected_revision=2,
+                                        operations=[fill])['document']
+                    recolored_expected = copy.deepcopy(transformed)
+                    recolored_expected['revision'] = 3
+                    recolored_expected['items'][1]['content']['fill'] = [40, 90, 180, 255]
+                    self.assertEqual(recolored, recolored_expected)
                     pixels = bytes.fromhex(command('document.render', document=transformed)['data'])
                     self.assertEqual(pixels[(50 * 64 + 50) * 4:(50 * 64 + 51) * 4], bytes([0, 200, 0, 255]))
                     self.assertTrue(any(pixels[(y * 64 + x) * 4 + 3] for y in range(4, 28) for x in range(4, 36)))

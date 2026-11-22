@@ -2204,6 +2204,12 @@ missing `name` in `schema.lookup` with a subsequent `name:"session.create"`
 query. The earlier prompt-5 run was one failed pilot, so it cannot serve as a
 five-attempt before/after control.
 
+Across these five B19 captures, four agents first tried `op:"fill"` on the
+vector badge. The build rejected the edit, and all four then resubmitted its
+geometry with `op:"vector"`. Attempt 1 also requested interruption before
+the corrected edit succeeded. Source builds now let an agent change just the
+vector fill. The 4/5 result above belongs to the evaluated build.
+
 The four accepted B19 attempts have median 30 observed engine commands, 2.5
 invalid calls, three retries, 3,636.5 request bytes, 342,539 response bytes and
 61.6 seconds to a verified preview. These measurements exclude judge work.

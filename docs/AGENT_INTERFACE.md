@@ -155,6 +155,12 @@ Raster content is `{type:"raster", width, height, rgba_hex, sampling}`. Sampling
 
 ## Paints and editable fill layers
 
+On a source build from `main`, recolor an existing vector shape with
+`{"op":"fill","id":"badge","paint":[220,90,30,255]}` in a document or
+session edit. This sets the fill and keeps the path, stroke and fill rule.
+The same operation changes a procedural fill layer's paint. The
+`ordered4x4` dithering option applies only to procedural fill layers.
+
 A paint is a solid `[r,g,b,a]` byte array or a tagged field. Vector `fill` and stroke `color` both accept paints; existing solid JSON remains valid. All fields accept an optional affine `transform` (identity), applied in item-local coordinates before the item's world transform. Sampling is at output-pixel centers. Bounds still describe geometry, independent of paint extent.
 
 | type | Required fields | Optional fields |

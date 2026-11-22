@@ -61,6 +61,37 @@ class SessionTests(unittest.TestCase):
     def db_path(self):
         return self.root / (hashlib.sha256(self.session.encode()).hexdigest()+'.sqlite3')
 
+    def test_vector_fill_preserves_stroke_geometry_and_pinned_revision(self):
+        self.create()
+        shape = self.shape()
+        green, orange = [30, 150, 70, 255], [220, 90, 30, 255]
+        shape['content'].update(geometry=dict(shape='rect', x=1, y=1, width=6, height=4),
+                                fill=green, fill_rule='even_odd', stroke=dict(width=1, color=[10, 30, 60, 255]))
+        before = self.edit(0, 'add', [dict(op='add', item=shape)])['document']
+        op = dict(op='fill', id='box', paint=orange)
+        recolored = self.edit(1, 'recolor', [op])
+        after = recolored['document']
+        expected = copy.deepcopy(before)
+        expected['revision'] = 2
+        expected['items'][0]['content']['fill'] = orange
+        self.assertEqual(after, expected)
+        center = 4 * (2 * 8 + 4)
+        self.assertEqual(self.pixels(before)[center:center+4], bytes(green))
+        self.assertEqual(self.pixels(after)[center:center+4], bytes(orange))
+        pinned = invoke(dict(command='document.export', format='png',
+                             document=dict(session_root=str(self.root), session_id=self.session, revision=1)))
+        self.assertTrue(pinned['ok'], pinned)
+        self.assertEqual(png_pixels(base64.b64decode(pinned['result']['data']))[2], self.pixels(before))
+        self.edit(2, 'dither', [dict(op='properties', id='box', name='discard'),
+                                dict(op, dither='ordered4x4')], expected='INVALID_OPERATION')
+        self.assertEqual(self.call('session.read')['document'], after)
+        undo = self.apply(2, 'undo', dict(type='undo'))['document']
+        self.assertEqual(undo, dict(before, revision=3))
+        replay = self.edit(1, 'recolor', [op])
+        self.assertTrue(replay['replayed'])
+        self.assertEqual(replay['receipt'], recolored['receipt'])
+        self.assertEqual(self.call('session.read')['document'], undo)
+
     def test_vector_grouped_history_restores_exact_geometry_and_all_pixels(self):
         initial = self.create()['document']
         ops = [dict(op='add', item=self.shape()), dict(op='transform', id='box', matrix=[1,0,0,1,2,1])]

@@ -11,6 +11,7 @@ pub(super) fn queries() -> Value {
         {"command":"schema.lookup","name":"content","select":"text"},
         {"command":"schema.lookup","name":"operation","select":"text"},
         {"command":"schema.lookup","name":"operation","select":"transform"},
+        {"command":"schema.lookup","name":"operation","select":"fill"},
         {"command":"schema.lookup","name":"operation","select":"boolean"}
     ])
 }
@@ -115,6 +116,14 @@ fn example(kind: &str, value: Value, requires: &[&str], usage: &str) -> Value {
 pub(super) fn for_schema(name: &str, selected: Option<&str>, schema: &Value) -> Option<Value> {
     let text_usage = "Bind document.fonts.face to the descriptor returned as the font.import result. Supply that font store through --workspace or font_root. A text operation replaces the complete frame: copy the existing frame and change only intended fields when repairing it.";
     match schema["properties"]["op"]["const"].as_str() {
+        Some("fill") => {
+            return Some(example(
+                "operation",
+                json!({"op":"fill","id":"panel","paint":[40,90,180,255]}),
+                &["An editable vector shape or procedural fill layer named panel"],
+                "Set the existing item's fill. On a vector shape, the geometry, stroke and fill rule are retained. Ordered dithering is available for procedural fill layers.",
+            ));
+        }
         Some("text") => {
             return Some(example(
                 "operation",

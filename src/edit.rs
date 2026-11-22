@@ -565,6 +565,8 @@ pub enum Operation {
         rect: PixelRect,
         color: Color,
     },
+    /// Change a vector shape's fill without replacing its geometry or stroke,
+    /// or update the paint and dithering of a procedural fill layer.
     Fill {
         id: String,
         paint: Paint,
@@ -2227,19 +2229,31 @@ fn apply_one(
         Operation::Fill { id, paint, dither } => {
             let i = index(document, id)?;
             unlocked(document, i)?;
-            let Content::Fill {
-                paint: old,
-                dither: old_dither,
-                ..
-            } = &mut document.items[i].content
-            else {
-                return Err(Error::new(
-                    "INVALID_OPERATION",
-                    "Fill paint editing requires a procedural fill layer",
-                ));
-            };
-            *old = paint.clone();
-            *old_dither = *dither;
+            match &mut document.items[i].content {
+                Content::Vector { fill, .. } => {
+                    if *dither != Dither::None {
+                        return Err(Error::new(
+                            "INVALID_OPERATION",
+                            "Vector fills do not support dithering",
+                        ));
+                    }
+                    *fill = Some(paint.clone());
+                }
+                Content::Fill {
+                    paint: old_paint,
+                    dither: old_dither,
+                    ..
+                } => {
+                    *old_paint = paint.clone();
+                    *old_dither = *dither;
+                }
+                _ => {
+                    return Err(Error::new(
+                        "INVALID_OPERATION",
+                        "Fill paint editing requires a vector shape or procedural fill layer",
+                    ));
+                }
+            }
             Ok((id.clone(), "fill"))
         }
         Operation::PixelFill { id, rect, color } => {
