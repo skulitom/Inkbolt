@@ -431,6 +431,27 @@ to the same filename preserved that PDF. A request with a stale revision
 returned `REVISION_CONFLICT` before creating its file. The saved history and
 source font were unchanged throughout.
 
+### Searching and selecting right-to-left labels
+
+Four original prototype PDFs used Inkbolt's shaped glyph positions and a
+pinned synthetic font. The study compared visual and logical painting order
+for a Hebrew line, an Arabic line and two mixed Hebrew/Latin lines. Each
+single-direction label had two words, with one also occurring inside the other.
+Searches covered both the full line and individual words.
+
+On Windows and WSL Linux, MuPDF 1.26.7 found the expected horizontal ranges
+and copied the selected text in all six cases for Hebrew and all six for
+Arabic. A search could return several touching rectangles for a single word.
+The comparison took their union and checked it against Inkbolt's positioned
+advances to 0.02 points. For the mixed lines, copying the expected ranges
+returned the exact source in only three of eight cases with a left-to-right
+base and six of eight with a right-to-left base.
+
+The independent text extractors on Windows and Linux also added directional
+controls to the single-direction lines. The engine continues to report an
+outline fallback for these labels, and strict searchable export refuses them.
+[Current text delivery contract](PDF.md#searchable-text)
+
 ## Vector PDF blend delivery
 
 The B14 page workflow and W6a.3 require artwork to survive PDF delivery.
