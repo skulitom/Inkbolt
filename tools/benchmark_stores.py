@@ -65,7 +65,9 @@ def retained_asset_store(case,resources):
     """Require a complete store of the independently encoded original image bytes."""
     root=case.root.resolve();wanted={sha(raw)+'.rgba8':raw for raw in resources}
     require(bool(wanted),'Expected at least one pinned image resource')
-    for first in sorted(root.rglob(next(iter(wanted)))):
+    first_name = next(iter(wanted))
+    candidates = (path for path in root.rglob('*.rgba8') if path.match(first_name))
+    for first in sorted(candidates):
         paths=[(first.parent/name,raw) for name,raw in wanted.items()]
         if all(contained_file(root,path) and path.stat().st_size==len(raw) and path.read_bytes()==raw
                for path,raw in paths):

@@ -143,7 +143,6 @@ class VerificationTests(unittest.TestCase):
             'test_verification_runner','test_workload_gates','test_wide_workload_gates',
             'test_agent_benchmark','test_agent_benchmark_handoff',
             'test_agent_benchmark_photo','test_agent_benchmark_recovery','test_benchmark_recovery_external','test_benchmark_handoff_external',
-            'test_benchmark_recovery_judge',  # Retained session/image-store discovery.
             'test_benchmark_driver',  # Captures complete external trial workspaces.
             'test_benchmark_stores',  # Snapshots complete generated resource/receipt folders.
             'test_benchmark_icons','test_benchmark_large_layout',  # Exercise that capture lifecycle.
@@ -153,6 +152,20 @@ class VerificationTests(unittest.TestCase):
             'test_layered_native',  # Snapshots complete generated native resource folders.
             'test_benchmark_photo_large',  # Separate capture identity and generated native stores.
         })
+        # The standalone artifact judges read their own task prompts and helpers.
+        # A change to scoring must still run the judge and its capture tests.
+        graph = inputs.dependency_graph(root, files)
+        for task, regular, judge in [
+                ('large_layout', 'test_benchmark_large_layout', 'test_benchmark_large_layout_judge'),
+                ('screen', 'test_benchmark_screen', 'test_benchmark_screen_judge'),
+                ('recovery', 'test_agent_benchmark_recovery', 'test_benchmark_recovery_judge')]:
+            closure = inputs.python_closure(root, 'tests/' + judge + '.py', files, graph)
+            self.assertIn('tools/benchmark_' + task + '.py', closure)
+            self.assertNotIn('tools/benchmark_driver.py', closure)
+            self.assertNotIn('docs/DEVELOPMENT_STATUS.md', closure)
+            capture = inputs.python_closure(root, 'tests/' + regular + '.py', files, graph)
+            self.assertIn('tools/benchmark_' + task + '.py', capture)
+            self.assertIn('tools/benchmark_driver.py', capture)
         # Refactoring must still invalidate actual shared helper consumers and
         # must not weaken the conservative Rust/unknown-input boundary.
         changed=dict(files);changed['tools/workload_cases.py']='original-helper-change'

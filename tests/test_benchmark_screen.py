@@ -1,6 +1,4 @@
 """B13 exact straight alpha, private metadata and actual duplicate refusal."""
-import copy
-import json
 from pathlib import Path
 import sys
 import tempfile
@@ -10,31 +8,17 @@ from unittest.mock import patch
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from agent_benchmark import run_task
-from benchmark_screen import solve,judge,PROMPT,NOTE,source_document,expected_picture,screen_color,delivery_identity,contains_source_note
-from benchmark_baseline_screen import screen_shape,judge_screen
+from benchmark_baseline_screen import screen_shape
 from benchmark_driver import run_external_task,workspace_files
-from benchmark_runtime import Trial,TaskFailure
+from benchmark_runtime import TaskFailure
 from benchmark_tasks import CHECKS
 from benchmark_screen_client import SVG
 from test_benchmark_driver import driver,fake_tools
-from test_images_cli import png,chunk
+from test_images_cli import png
 from workload_cases import sha
 
 
 class ScreenBenchmarkTests(unittest.TestCase):
-    def prepare(self,root,independent=False):
-        case=Trial(EXE,root,'B13',1,'cli',CHECKS['B13']);self.addCleanup(case.close)
-        case.begin(PROMPT.read_text(encoding='utf-8'))
-        if not independent:solve(case);return case
-        original=case.call
-        def authored(step,command,**arguments):
-            if command=='preset.create':arguments['id']='transparent-poster'
-            if arguments.get('session_id')=='work':arguments['session_id']='poster-session'
-            return original('artist-'+step,command,**arguments)
-        case.call=authored
-        with patch('benchmark_screen.source_document',side_effect=lambda preset:source_document(preset,'artwork','board')):solve(case)
-        return case
-
     def test_original_outcomes_on_cli_and_mcp_with_separate_judge_calls(self):
         for transport in ('cli','mcp'):
             with self.subTest(transport=transport),tempfile.TemporaryDirectory() as directory:
@@ -47,64 +31,6 @@ class ScreenBenchmarkTests(unittest.TestCase):
                 for direction in ('request','response'):
                     self.assertEqual(row[direction+'_bytes']+row['judge_'+direction+'_bytes'],
                         sum(p.stat().st_size for p in (Path(directory)/'reference').glob('*.'+direction+'.json')))
-
-    def test_independently_named_source_passes_without_solver_logs(self):
-        with tempfile.TemporaryDirectory() as directory:
-            case=self.prepare(Path(directory)/'independent',True);case.results.clear();case.begin_judging();judge(case)
-            row=case.finish();self.assertEqual(row['status'],'passed',row);self.assertIsNone(row['first_verified_preview_seconds'])
-
-    def test_source_note_allows_author_keys_but_requires_unchanged_value(self):
-        variants=[({'note':NOTE},True),({'private':{'review':NOTE},'tags':['context']},True),
-                  ({},False),({'note':'lost'},False),({'note':NOTE+' changed'},False)]
-        self.assertFalse(contains_source_note({NOTE:'key only'}))
-        self.assertTrue(contains_source_note({'tags':[NOTE]}))
-        with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);case=self.prepare(root/'workspace');source=json.loads((case.root/'editable.json').read_bytes())
-            case.results.clear();case.begin_judging();original_call=case.call
-            for index,(metadata,valid) in enumerate(variants):
-                with self.subTest(metadata=metadata):
-                    doc=copy.deepcopy(source);doc['metadata']=metadata
-                    (case.root/'editable.json').write_text(json.dumps(doc),encoding='utf-8')
-                    case.checks.clear();case.judge_root=root/str(index);case.judge_root.mkdir()
-                    case.call=lambda step,command,**arguments:original_call(str(index)+'-'+step,command,**arguments)
-                    if valid:
-                        judge(case);self.assertEqual({c['name'] for c in case.checks if c['status']=='pass'},set(CHECKS['B13']))
-                    else:
-                        with self.assertRaises(TaskFailure):judge(case)
-                        self.assertIn('editable-source',[c['name'] for c in case.checks if c['status']=='fail'])
-
-    def test_changed_source_alpha_metadata_identity_and_collision_fail_independent_checks(self):
-        with tempfile.TemporaryDirectory() as directory:
-            case=self.prepare(Path(directory)/'negative');root=Path(directory)
-            pristine={name:(case.root/name).read_bytes() for name in ('editable.json','screen.png','delivery.json')}
-            original_call=case.call;case.results.clear();case.begin_judging()
-            for fault in ('geometry','alpha','private','pixels','metadata','identity','collision'):
-                with self.subTest(fault=fault):
-                    for name,data in pristine.items():(case.root/name).write_bytes(data)
-                    case.checks.clear();case.judge_root=root/fault;case.judge_root.mkdir()
-                    def scoped(step,command,**arguments):
-                        value=original_call(fault+'-'+step,command,**arguments)
-                        if fault=='collision' and step=='judge-collision':(case.judge_root/'judge-protected.png').write_bytes(b'overwritten')
-                        return value
-                    case.call=scoped
-                    if fault in ('geometry','alpha','private'):
-                        value=json.loads(pristine['editable.json'])
-                        if fault=='geometry':value['items'][1]['content']['geometry']['width']=201
-                        elif fault=='alpha':value['items'][1]['content']['fill'][3]=255
-                        else:value['metadata']['private']['note']='lost'
-                        (case.root/'editable.json').write_text(json.dumps(value),encoding='utf-8')
-                    elif fault=='pixels':(case.root/'screen.png').write_bytes(png(1,1,bytes(4)))
-                    elif fault=='metadata':
-                        raw=pristine['screen.png'];raw=raw[:-12]+chunk(b'iTXt',b'note\0\0\0\0\0private')+raw[-12:]
-                        (case.root/'screen.png').write_bytes(raw)
-                        (case.root/'delivery.json').write_text(json.dumps(delivery_identity(raw)),encoding='utf-8')
-                    elif fault=='identity':
-                        value=json.loads(pristine['delivery.json']);value['sha256']='0'*64
-                        (case.root/'delivery.json').write_text(json.dumps(value),encoding='utf-8')
-                    try:judge(case)
-                    except TaskFailure:pass
-                    expected='editable-source' if fault in ('geometry','alpha','private') else 'transparent-pixels' if fault=='pixels' else 'screen-color' if fault=='metadata' else 'no-overwrite'
-                    self.assertIn(expected,[c['name'] for c in case.checks if c['status']=='fail'],case.checks)
 
     def test_external_capture_can_be_rejudged_without_writing_into_solver_workspace(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -136,28 +62,5 @@ class ScreenBenchmarkTests(unittest.TestCase):
                         SVG.replace('#145096','#0a284b'),SVG.replace('original private source note','lost'),
                         SVG.replace('<rect ','<rect href="../external" '),'< !DOCTYPE svg>'.replace('< !','<!')+SVG):
             with self.subTest(changed=changed),self.assertRaises((TaskFailure,ValueError)):screen_shape(changed.encode())
-
-    def test_color_oracle_rejects_missing_duplicate_invalid_tags_and_private_records(self):
-        raw=png(1,1,bytes([20,80,150,128]));screen_color(raw)
-        with self.assertRaises(TaskFailure):screen_color(png(1,1,bytes(4),tagged=False))
-        for kind,data in ((b'sRGB',b'\0'),(b'iCCP',b'profile'),(b'tEXt',b'note\0private'),(b'iTXt',b'note\0\0\0\0\0private'),
-                          (b'zTXt',b'compressed'),(b'eXIf',b'private'),(b'acTL',bytes(8))):
-            with self.subTest(kind=kind),self.assertRaises(TaskFailure):screen_color(raw[:-12]+chunk(kind,data)+raw[-12:])
-        for data in (b'',b'\x04',b'\0\0'):
-            raw=png(1,1,bytes(4),tagged=False,extra=((b'sRGB',data),))
-            with self.subTest(data=data),self.assertRaises(TaskFailure):screen_color(raw)
-
-    def test_separate_workspace_is_judge_only_confined_and_explicitly_measured(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);case=Trial(EXE,root/'workspace','B13',1,'cli',[]);self.addCleanup(case.close)
-            case.begin('Original workspace boundary fixture')
-            with self.assertRaises(TaskFailure):case.call('task-override','capabilities',judge_workspace=case.root)
-            case.begin_judging()
-            with self.assertRaises(TaskFailure):case.call('outside','capabilities',judge_workspace=root)
-            case.judge_root=root/'judge';case.judge_root.mkdir()
-            case.call('owned','capabilities',judge_workspace=case.judge_root)
-            row=case.calls[-1];self.assertEqual(row['phase'],'judge');self.assertEqual(row['transport'],'cli')
-            self.assertEqual(row['judge_workspace'],str(case.judge_root.resolve()))
-
 
 if __name__=='__main__':unittest.main()
