@@ -36,6 +36,51 @@ def save(bundle,root):
 
 
 class HandoffTests(unittest.TestCase):
+    def test_discovered_sequence_quickstart_round_trips_a_linked_graphic(self):
+        query = self.invoke('schema.lookup', name='index')['handoff_quickstart']
+        guide = self.invoke(**query)
+        self.assertLess(len(json.dumps(guide, separators=(',', ':')).encode()), 4096)
+        for extra in ({'full': True}, {'select': 'sequence'}):
+            self.invoke(**query, **extra, error='INVALID_REQUEST')
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with closing(Client(('--tools', 'essentials'), workspace=root)) as client:
+                client.initialize()
+                self.assertEqual(client.success('schema.lookup', name=query['name']), guide)
+            self.assertEqual(list(root.iterdir()), [])
+            prepared = self.invoke(**guide['prepare_sequence'])['document']
+            self.assertEqual([v['value'] for v in prepared['variants']['base']], [True, True])
+            self.assertEqual([v['visible'] for v in prepared['items']], [True, False])
+            export = guide['export_sequence']
+            session = export['document']['session_id']
+            self.invoke('session.create', workspace=root, session_id=session, request_id='create',
+                        document=prepared)
+            bundle = self.invoke(**export, workspace=root)
+            pin = bundle['handoff']
+            (root / 'first').mkdir()
+            save(bundle, root / 'first')
+            self.assertEqual(set(pin), {'sha256', 'manifest'})
+            report = self.invoke('handoff.inspect', workspace=root, handoff=pin, input_root='first',
+                                 include_schedule=True)
+            self.assertTrue(report['files_verified'])
+            self.assertEqual(report['selected_frames'], [0, 0, 1, 1, 1, 1] * 2)
+            frames = pin['manifest']['frames']
+            for frame, color in zip(frames, ['f29122ff', '654618ff'], strict=True):
+                image = (root / 'first' / frame['image']['path']).read_bytes()
+                self.assertEqual(png_pixels(image)[:3], (3, 1, bytes.fromhex(color * 2) + bytes(4)))
+
+            self.invoke('session.apply', workspace=root, session_id=session, request_id='dim-later',
+                        expected_revision=0, action=dict(type='edit', operations=[
+                            dict(op='sequence_retime', id='frame-0', delay=dict(numerator=1, denominator=6))]))
+            follow = dict(export, document=dict(session_id=session, revision=1), previous=pin)
+            revised = self.invoke(**follow, workspace=root)['handoff']
+            self.assertEqual(revised['manifest']['previous'], dict(sha256=pin['sha256'], source_revision=0))
+            self.assertEqual([f['image'] for f in revised['manifest']['frames']], [f['image'] for f in frames])
+            self.assertEqual(self.invoke('handoff.inspect', handoff=revised, include_schedule=True)['selected_frames'],
+                             ([0] * 4 + [1] * 4) + [0] * 4)
+            self.assertTrue(self.invoke('handoff.inspect', workspace=root, handoff=pin, input_root='first')['files_verified'])
+
     def invoke(self,command,error=None,workspace=None,**args):
         argv=[str(EXE)]+([] if workspace is None else ['--workspace',str(workspace)])
         p=subprocess.run(argv,input=json.dumps(dict(command=command,**args)).encode(),

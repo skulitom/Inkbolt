@@ -312,7 +312,10 @@ pub(crate) fn lookup_in_workspace(
             ),
         ));
     }
-    if matches!(name, "index" | "vector.quickstart" | "image.quickstart") {
+    if matches!(
+        name,
+        "index" | "vector.quickstart" | "image.quickstart" | "handoff.quickstart"
+    ) {
         if select.is_some() || force_full {
             return Err(Error::new(
                 "INVALID_REQUEST",
@@ -325,11 +328,15 @@ pub(crate) fn lookup_in_workspace(
         if name == "image.quickstart" {
             return Ok(examples::image_quickstart());
         }
+        if name == "handoff.quickstart" {
+            return Ok(examples::handoff_quickstart());
+        }
         return Ok(
             json!({"detail":"index", "commands":commands().collect::<Vec<_>>(),
             "types":TYPES.iter().map(|(alias, _)| alias).collect::<Vec<_>>(),
             "example_queries":examples::queries(), "vector_quickstart":lookup_request("vector.quickstart", None),
             "image_quickstart":lookup_request("image.quickstart", None),
+            "handoff_quickstart":lookup_request("handoff.quickstart", None),
             "usage":"Choose a command or type as name. Large schemas list field and variant selectors and reachable definitions. Use full:true for a validation schema."}),
         );
     }

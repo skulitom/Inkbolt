@@ -81,6 +81,33 @@ pub(super) fn image_quickstart() -> Value {
     })
 }
 
+pub(super) fn handoff_quickstart() -> Value {
+    json!({
+        "name":"handoff.quickstart","detail":"examples",
+        "prepare_sequence":{
+            "command":"document.edit","expected_revision":0,
+            "document":{"schema_version":2,"id":"signal","kind":"raster","color_space":"srgb","width":3,"height":1,
+                "items":[
+                    {"id":"lit","content":{"type":"raster","width":3,"height":1,"rgba_hex":"f29122fff29122ff00000000"}},
+                    {"id":"dim","content":{"type":"raster","width":3,"height":1,"rgba_hex":"654618ff654618ff00000000"}}
+                ]},
+            "operations":[
+                {"op":"sequence_from_layers","ids":["lit","dim"],"plays":0,"delay":{"numerator":1,"denominator":12}},
+                {"op":"sequence_retime","id":"frame-1","delay":{"numerator":1,"denominator":6}}
+            ]
+        },
+        "export_sequence":{"command":"handoff.export","document":{"session_id":"signal","revision":0},
+            "options":{"link_key":"signal","selection":{"type":"sequence"},"duration":{"num":1,"den":2},
+                "frame_rate":{"num":24,"den":1},"timing":"strict","end":"loop","alpha":{"type":"transparent"}}},
+        "usage":[
+            "Run in one selected workspace. Set the canvas and each raster layer to your dimensions. rgba_hex holds row-major straight RGBA8 bytes in hex. Start both layers visible. sequence_from_layers records that base visibility and selects the first frame. Use sequence_retime for individual holds.",
+            "Pass prepare_sequence's result.document to session.create as document, with a fresh session_id and request_id. The saved sequence starts at revision 0. Use its session_id and revision in export_sequence.",
+            "Decode each result.files entry's data to its path in a fresh delivery directory, checking bytes and sha256. Create files without overwriting and write result.manifest_file.path last. Save just result.handoff (sha256 and manifest) as the pin. Run handoff.inspect with handoff set to that pin and input_root set to the delivery directory.",
+            "After a saved edit, export the new revision with the same link_key and the saved pin as previous. Write and inspect the new delivery separately. Use the scene at result.handoff.manifest.scene.path for the explicit relink in the destination timeline."
+        ]
+    })
+}
+
 fn example(kind: &str, value: Value, requires: &[&str], usage: &str) -> Value {
     json!({"kind":kind,"value":value,"requires":requires,"usage":usage})
 }

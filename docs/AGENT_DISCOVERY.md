@@ -50,6 +50,14 @@ and begin discovery without one on a new connection. Discovery mode and order
 are fixed for the lifetime of the process; no environment variable silently
 changes an existing client.
 
+## Linked graphics
+
+Use `{"command":"schema.lookup","name":"handoff.quickstart"}` for a working
+two-frame raster example. It builds frames from visible layers, sets their
+individual holds and exports a saved revision for a video timeline. Adapt
+the pixels, dimensions and timings to your artwork. The reply also shows
+which part of the export to keep for a later revision. [Graphics handoff](HANDOFF.md)
+
 ## Vector quickstart
 
 For a new vector graphic, request the following from a source build.

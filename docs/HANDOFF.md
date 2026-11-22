@@ -71,6 +71,13 @@ not transferred by the flattened PNGs; keep the source master.
 
 ## Linked revisions
 
+For an executable two-frame example on a source build, look up
+`handoff.quickstart` with `schema.lookup`. To retain an export pin from the
+CLI, read the JSON reply and save the object at `reply["result"]["handoff"]`.
+That object contains `sha256` and `manifest`. Pass it directly as `handoff`
+when inspecting the delivery and as `previous` when exporting its successor.
+The adjacent `files` array carries the bytes to write to the delivery folder.
+
 Pass the complete previous pinned `handoff` as `previous` when exporting an edited
 source. The engine verifies its manifest digest and contract, requires the same
 `link_key` and source document ID, and requires a strictly greater source revision.
