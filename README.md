@@ -34,6 +34,10 @@ inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools essentials
 The agent starts with ten tools and can look up editing commands as it works.
 A desktop extension is also available for Windows. [Installation and client setup](docs/INSTALLATION.md)
 
+If your agent uses the CLI, pass `--workspace` with the same absolute folder
+path on every request. That lets a later process reopen the saved edit or
+recover its receipt. [CLI scripting example](docs/AGENT_WORKSPACE.md)
+
 ## What you can make
 
 | Saved diagram | After one edit |

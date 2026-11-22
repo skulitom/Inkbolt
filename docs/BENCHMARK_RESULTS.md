@@ -34,7 +34,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B14 Deliver a print page | 5/5 | 3/5 | 4/5 | 531,200 / 97,120 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
-| B17 Recover a lost response | 5/5 | 5/5 | n/a | 222,485 / n/a | [c3fd51f](#b17-at-c3fd51f-saving-a-recovered-receipt) |
+| B17 Recover a lost response | 5/5 | 5/5 | n/a | 178,056 / n/a | [77c6a17](#b17-with-the-workspace-in-the-cli-launch-command) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
 | B19 Recover an interrupted export | 4/5 | 4/5 | n/a | 569,666.5 / n/a | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
 | B20 Revise a linked video graphic | 3/5 | 3/5 | 5/5 | 1,065,545 / 280,910 | [f61d952](#b19b20-at-f61d952-recovery-pilot-and-five-pair-handoff-follow-up) |
@@ -98,6 +98,39 @@ runs retain the executable itself for exact-binary replay.
 | Rebuilt reader for both judges | `a419381a990f6b8d2d998aba789bda6acc3e67e443187a8cdf4d54c695e7cf51` |
 | Earlier judge replay | `cb2b39be41d0f3a0d2123e6cb5f4e39fea3dd906ba85e64899dece93e1ac886b` |
 | Corrected judge replay | `f6eb7a7161c5d7127bc4a20c9152ae0132ba5444067786d2ca8e8060de007351` |
+
+## B17 with the workspace in the CLI launch command
+
+All five agents recovered the original edit receipt on their first receipt
+request when the client supplied the executable and its workspace arguments
+together. All five also delivered the correct preview, restored the document
+with undo and retried the original edit without disturbing the restored state.
+[Recovery task](../tools/benchmark_prompts/B17.md) · [CLI workspace example](AGENT_WORKSPACE.md)
+
+| Five Windows attempts per batch | Complete workflows | Attempts with a missing session root | Median input + output tokens | Median client seconds |
+| --- | ---: | ---: | ---: | ---: |
+| [Bare CLI executable at c3fd51f](#b17-at-c3fd51f-saving-a-recovered-receipt) | 5/5 | 5/5 | 222,485 | 87.2 |
+| Executable with workspace arguments at 77c6a17 | 5/5 | 0/5 | 178,056 | 75.1 |
+
+The prompt, fixtures, judge, engine executable and client/model settings were
+the same across batches. The direct CLI tool description changed. All ten
+agents chose the CLI with core MCP also available. The five earlier attempts
+used `--result-only`. The new attempts read the result from the usual JSON
+response. The first receipt calls in the new transcripts used the selected
+workspace, including one through a saved PowerShell helper.
+
+Median tokens fell 20.0% and median client time fell 13.9% in this task.
+The two sequential batches ran on a shared host. Five attempts per batch leave
+the size and repeatability of the cost difference uncertain. B17 has no
+no-engine counterpart. Engine-call counts, traffic, retries, first verified
+preview time and engine-only memory remain unmeasured.
+
+The comparison verified both sets of workspace, transcript, result and
+contract hashes. Replaying the five previous captures with the identical
+engine executable passed all six checks per attempt. The fresh evaluation
+report SHA-256 is `82d5809e15d032f2a4301d571084362f876459a1ef8c567d3bef8b4c6a218401`.
+The previous-capture replay report SHA-256 is
+`cac6498874161bfebb9adad22df236c42dfb276057a7c823709feb35b407377a`.
 
 ## B17 at c3fd51f: saving a recovered receipt
 
