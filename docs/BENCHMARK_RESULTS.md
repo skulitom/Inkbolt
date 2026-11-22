@@ -28,7 +28,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 327,734 / 43,824 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 354,590 / 43,008 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
-| B11 Revise a mixed composition | 3/5 | 3/5 | 5/5 | 395,699 / 72,214 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
+| B11 Revise a mixed composition | 3/5 | 3/5 | 5/5 | 513,525 / 58,445 | [Source-layer lock](#mixed-composition-and-the-source-layer-lock) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 313,210 / 41,717 | [7a07f07](#b10b13-at-7a07f07-five-matched-pairs-with-retained-capture-corrections) |
 | B14 Deliver a print page | 5/5 | 3/5 | 4/5 | 531,200 / 97,120 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
@@ -65,6 +65,42 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Mixed composition and the source-layer lock
+
+All five Inkbolt agents rendered the requested revised pixels. Three preserved
+the full editable composition. In attempts four and five, the agent also locked
+the source image layer when creating revision zero. The task specified default
+layer properties. The image identity and original PNG were correct in both
+failures. The same property differed in two of the five earlier attempts.
+[Earlier B11 results](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants)
+
+| Five attempts per arm | Inkbolt | No-engine baseline |
+| --- | ---: | ---: |
+| Accepted editable compositions | 3/5 | 5/5 |
+| Correct revised PNGs | 5/5 | 5/5 |
+| Median seconds to the observed revised PNG | 76.3 | 39.7 |
+| Median total client seconds | 98.9 | 48.5 |
+| Median input + output tokens, including failures | 513,525 | 58,445 |
+
+These timings use the first completed client event that observed the exact
+delivered `preview.png` bytes. Inkbolt also required a historical preview.
+The baseline retained the editable image, mask and effect manifest. Three
+pairs passed all applicable checks in both arms, below the threshold for a
+paired cost ratio.
+
+Five fresh attempts per arm ran sequentially on the shared Windows workstation
+at `432cbd9`, Inkbolt first. Both used the unchanged B11 prompt and judge,
+Codex CLI 0.160.0 and externally configured `gpt-6.1-sol` at medium reasoning.
+All ten captures replayed with identical check outcomes, timing observations
+and workspace and transcript identities. The results identify a repeatable
+editing error. They do not establish how often other clients or models make it.
+
+| Retained report | SHA-256 |
+| --- | --- |
+| Inkbolt | `3f3184c3d2699278e5bd2fe5d74de24c50e15dda98ab7f84784175bb69e9d32f` |
+| Baseline | `ea09e0fc4bb4798478f83746faa5da38ecaa6e694c4df30bacf2a26ac5524086` |
+| Matched comparison | `01f44bf0720c58bf3d18b919d06a0fbb38c31cc511546e924f9b73d32c441ed1` |
 
 ## Diagram authoring with the vector quickstart
 
