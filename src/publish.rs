@@ -264,7 +264,7 @@ pub fn export_with_render_options(
                     "Layered delivery requires scale 1 and explicit stripped descriptive metadata",
                 ));
             }
-            crate::layered::export_with_fonts(
+            crate::layered::export_with_roots(
                 document,
                 crate::layered::Compression::Rle,
                 if matches!(format, ExportFormat::LayeredLarge) {
@@ -273,6 +273,7 @@ pub fn export_with_render_options(
                     crate::layered::Version::Standard
                 },
                 layered_options.unwrap_or(&crate::layered::ExportOptions::default()),
+                resources.asset_root.as_deref(),
                 resources.font_root.as_deref(),
                 control.unwrap_or(&Control::default()),
             )

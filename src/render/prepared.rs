@@ -483,6 +483,8 @@ impl Prepared {
                                     grid,
                                     asset_root,
                                     crate::hdr::linear(document),
+                                    crate::backgrounds::fixed_pixels(document)
+                                        .filter(|id| *id == item.id),
                                     control,
                                 )
                                 .map(|reader| Some((item.id.clone(), reader)))

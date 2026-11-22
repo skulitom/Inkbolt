@@ -52,7 +52,18 @@ external clipping references continue to name the original root. The matte uses
 the canvas size at conversion, so later canvas expansion can reveal transparency.
 No pixels are flattened or resampled. Ordinary hierarchy and item limits apply.
 
-Locks remain explicit. A locked background or locked descendant blocks conversion,
+A background imported from a layered RGB file can carry `fixed_pixel_bounds` in
+`[x,y,width,height]` order. These protect source position, extent, alpha and
+appearance while allowing opaque pixel edits and visibility changes. A canvas
+crop or extension translates the source and its fixed coordinates together.
+The optional `inactive_fill_byte` retains a fixed background's fill setting.
+A `properties` edit can change it using an exact byte fraction. The paint stays
+opaque. Restoring the source releases the protections and restores full fill.
+Rust callers constructing a `Background` literal can set
+`fixed_pixel_bounds: None` and `inactive_fill_byte: None` for the original
+reversible role. [Layered background exchange](LAYERED.md#editable-opaque-backgrounds)
+
+Whole-layer locks remain explicit. A locked background or locked descendant blocks conversion,
 removal and edits affecting it. Replacing a background checks both old and new
 subtrees. Duplication retains the copied source and its explicit lock state but
 does not copy the document's background role; editing an unlocked duplicate leaves

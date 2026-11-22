@@ -288,6 +288,21 @@ pub(crate) fn edit(
             edited.push(i);
         }
     }
+    // Reframing translates the coordinate system of a fixed pixel surface
+    // along with the canvas. Its extent and samples are unchanged.
+    if sampling.is_none()
+        && let Some(bounds) = document
+            .background
+            .as_mut()
+            .and_then(|b| b.fixed_pixel_bounds.as_mut())
+    {
+        bounds[0] = bounds[0]
+            .checked_add(transform[4] as i32)
+            .ok_or_else(|| limit("Fixed background origin exceeds coordinate bounds"))?;
+        bounds[1] = bounds[1]
+            .checked_add(transform[5] as i32)
+            .ok_or_else(|| limit("Fixed background origin exceeds coordinate bounds"))?;
+    }
     for i in edited {
         let item = &mut document.items[i];
         if item.parent.is_none() {

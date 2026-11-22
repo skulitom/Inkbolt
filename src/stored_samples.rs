@@ -286,10 +286,15 @@ impl Reader {
         grid: &Grid,
         root: Option<&Path>,
         linear: bool,
+        fixed_background: Option<&str>,
         control: &Control,
     ) -> Result<Self, Error> {
+        let candidate = grid.prepare(root, control)?;
+        if let Some(owner) = fixed_background {
+            crate::backgrounds::verify_opaque_blocks(owner, &candidate, root, control)?;
+        }
         Ok(Self {
-            candidate: grid.prepare(root, control)?,
+            candidate,
             root: root.map(Path::to_owned),
             profile: grid.profile.clone(),
             linear,

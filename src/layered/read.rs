@@ -28,12 +28,19 @@ struct Layer {
     visible: bool,
     id: Option<u32>,
     locked: bool,
+    background_protection: bool,
     kind: Kind,
     mask: Option<super::mask::Record>,
     placement: Option<super::objects::Placement>,
     text: Option<super::text_import::Prepared>,
 }
 impl Layer {
+    fn rgb_pixels_without_alpha(&self) -> bool {
+        self.kind == Kind::Pixel
+            && self.placement.is_none()
+            && self.text.is_none()
+            && !self.channels.iter().any(|&(channel, _)| channel == -1)
+    }
     fn identity(&self, index: usize) -> String {
         self.id.map_or_else(
             || format!("record-{}", index + 1),
@@ -144,6 +151,7 @@ fn record(
         visible: flags & 2 == 0,
         id: None,
         locked: false,
+        background_protection: false,
         kind: Kind::Pixel,
         mask,
         placement: None,
@@ -277,12 +285,13 @@ fn record(
             b"lspf" => {
                 let locks = data.word()?;
                 data.end()?;
-                if ![0, 7].contains(&locks) {
+                if ![0, 7, 13].contains(&locks) {
                     return Err(unsupported(
                         "Partial layer locks have no whole-item lock equivalent",
                     ));
                 }
                 layer.locked = locks == 7;
+                layer.background_protection = locks == 13;
             }
             b"knko" => {
                 layer.knockout_target = match data.byte()? {
@@ -360,11 +369,7 @@ fn record(
     if layer.text.is_some() && (layer.kind != Kind::Pixel || layer.placement.is_some()) {
         return Err(malformed());
     }
-    if flags & 1 != 0 && !layer.locked {
-        return Err(unsupported(
-            "Transparency-only locking has no whole-item lock equivalent",
-        ));
-    }
+    layer.background_protection |= flags & 1 != 0 && !layer.locked;
     if !layer.knockout_target.is_none()
         && (layer.kind != Kind::Pixel
             || layer.clipped
@@ -765,6 +770,76 @@ pub(super) fn document_parts(
         }
         records.push(r);
     }
+    let links = hierarchy(&records)?;
+    let bottom = &records[0];
+    let physical = bottom.rgb_pixels_without_alpha()
+        && links[0].parent.is_none()
+        && bottom.mask.is_none()
+        && !bottom.clipped
+        && bottom.opacity == 255
+        && bottom.blend == BlendMode::Normal;
+    let background = if physical {
+        let [top, left, bottom_edge, right] = bottom.bounds;
+        if left < 0
+            || top < 0
+            || right > width as i32
+            || bottom_edge > height as i32
+            || !bottom.knockout_target.is_none()
+        {
+            return Err(unsupported(
+                "The RGB-only bottom layer has off-canvas pixels or a knockout on the background itself. Its native background appearance cannot be preserved.",
+            ));
+        }
+        Some(crate::backgrounds::Background {
+            item_id: bottom.identity(0),
+            matte: [255; 3],
+            fixed_pixel_bounds: Some([left, top, right - left, bottom_edge - top]),
+            inactive_fill_byte: (bottom.fill != 255).then_some(bottom.fill),
+        })
+    } else {
+        None
+    };
+    if records
+        .iter()
+        .enumerate()
+        .any(|(i, record)| record.background_protection && !(i == 0 && physical))
+    {
+        return Err(unsupported(
+            "Partial layer locks outside an opaque native background have no supported editable mapping",
+        ));
+    }
+    let mut pixel_bounds = Vec::with_capacity(records.len());
+    let mut white_extensions = Vec::new();
+    for (index, record) in records.iter().enumerate() {
+        let [top, left, bottom, right] = record.bounds;
+        let mut output = record.bounds;
+        // RGB has no transparent exterior. A fixed background supplies white
+        // through its canvas matte. Ordinary pixel layers need those samples.
+        if record.rgb_pixels_without_alpha() && !(index == 0 && physical) {
+            output = [
+                top.min(0),
+                left.min(0),
+                bottom.max(height as i32),
+                right.max(width as i32),
+            ];
+            if output != record.bounds {
+                let expanded = size(
+                    (output[3] - output[1]) as u32,
+                    (output[2] - output[0]) as u32,
+                    retained_maximum,
+                    version,
+                )?;
+                total += expanded - (right - left) as usize * (bottom - top) as usize;
+                white_extensions.push(json!({"item_id":record.identity(index),"source_bounds":record.bounds,"pixel_bounds":output}));
+            }
+        }
+        pixel_bounds.push(output);
+    }
+    if total > retained_maximum {
+        return Err(limit(
+            "Opaque RGB layer extensions exceed the retained pixel budget",
+        ));
+    }
     budget.pixels += total + canvas;
     budget.retained_pixels += total;
     if options.native && budget.retained_pixels > retained_maximum {
@@ -782,21 +857,6 @@ pub(super) fn document_parts(
             "Nested layered source, mask and merged cache samples exceed {} MiB",
             decoded_maximum / (1024 * 1024)
         )));
-    }
-    let links = hierarchy(&records)?;
-    // A bottom RGB-only pixel record can become a native Background, even
-    // with an ordinary name and no lock tag. Knockout reveals that surface.
-    if let Some(bottom) = records.first()
-        && bottom.kind == Kind::Pixel
-        && links[0].parent.is_none()
-        && !bottom.channels.iter().any(|&(id, _)| id == -1)
-        && records
-            .iter()
-            .any(|record| !record.knockout_target.is_none())
-    {
-        return Err(unsupported(
-            "Knockout over a native RGB-only background requires retaining its opaque background role",
-        ));
     }
     let editable = records.iter().filter(|r| r.kind != Kind::Boundary).count();
     budget.items += editable;
@@ -819,12 +879,18 @@ pub(super) fn document_parts(
         control.check()?;
         let w = (r.bounds[3] - r.bounds[1]) as usize;
         let h = (r.bounds[2] - r.bounds[0]) as usize;
+        let [top, left, bottom, right] = pixel_bounds[index];
+        let layout = super::native::PixelLayout {
+            source: [w, h],
+            output: [(right - left) as usize, (bottom - top) as usize],
+            offset: [(r.bounds[1] - left) as usize, (r.bounds[0] - top) as usize],
+        };
         let native_pixel =
             options.native && r.kind == Kind::Pixel && r.placement.is_none() && r.text.is_none();
         let mut rgba = if native_pixel {
             Vec::new()
         } else {
-            vec![255; w * h * 4]
+            vec![255; layout.output[0] * layout.output[1] * 4]
         };
         let mut native_channels = Vec::new();
         let mut mask = None;
@@ -835,7 +901,7 @@ pub(super) fn document_parts(
                 let values = super::rows::Rows::new(encoded, record.width, record.height, version)
                     .and_then(|rows| rows.collect(control))
                     .map_err(|e| context(e, "Mask samples"))?;
-                mask = Some(record.document_mask(&values, [r.bounds[1], r.bounds[0]]));
+                mask = Some(record.document_mask(&values, [left, top]));
                 continue;
             }
             if native_pixel {
@@ -846,8 +912,19 @@ pub(super) fn document_parts(
                 .and_then(|rows| rows.collect(control))
                 .map_err(|e| context(e, "Layer samples"))?;
             let c = if channel == -1 { 3 } else { channel as usize };
-            for (p, v) in rgba.as_chunks_mut::<4>().0.iter_mut().zip(values) {
-                p[c] = v;
+            if w != 0 {
+                for (row, values) in values.chunks_exact(w).enumerate() {
+                    let start =
+                        ((row + layout.offset[1]) * layout.output[0] + layout.offset[0]) * 4;
+                    for (p, v) in rgba[start..start + w * 4]
+                        .as_chunks_mut::<4>()
+                        .0
+                        .iter_mut()
+                        .zip(values)
+                    {
+                        p[c] = *v;
+                    }
+                }
             }
         }
         if r.kind == Kind::Boundary {
@@ -881,7 +958,7 @@ pub(super) fn document_parts(
                     .as_mut()
                     .ok_or_else(malformed)?
                     .layer(
-                        [w, h],
+                        layout,
                         native_channels,
                         version,
                         profile.as_deref().filter(|_| convert),
@@ -891,14 +968,17 @@ pub(super) fn document_parts(
             )
             .map_err(|_| malformed())?,
             Kind::Pixel => {
-                json!({"type":"raster","width":w,"height":h,"rgba_hex":crate::render::hex(&rgba)})
+                json!({"type":"raster","width":layout.output[0],"height":layout.output[1],"rgba_hex":crate::render::hex(&rgba)})
             }
             Kind::Group { isolated } => json!({"type":"group","isolated":isolated}),
             Kind::Boundary => unreachable!(),
         };
         let identity = |i: usize| records[i].identity(i);
-        let mut item:Item=serde_json::from_value(json!({"id":r.identity(index),"parent":links[index].parent.map(identity),"clip_to":links[index].clip_base.map(identity),"name":r.name,"visible":r.visible,"locked":r.locked,"opacity":r.opacity as f64/255.0,"fill_opacity":r.fill as f64/255.0,"transform":[1,0,0,1,r.bounds[1],r.bounds[0]],"mask":mask,"content":content})).map_err(|_|malformed())?;
+        let mut item:Item=serde_json::from_value(json!({"id":r.identity(index),"parent":links[index].parent.map(identity),"clip_to":links[index].clip_base.map(identity),"name":r.name,"visible":r.visible,"locked":r.locked,"opacity":r.opacity as f64/255.0,"fill_opacity":r.fill as f64/255.0,"transform":[1,0,0,1,left,top],"mask":mask,"content":content})).map_err(|_|malformed())?;
         item.blend = r.blend;
+        if index == 0 && physical {
+            item.fill_opacity = 1.0;
+        }
         item.knockout_target = r.knockout_target;
         if let Some(text) = &r.text {
             if let Some(mask) = &mut item.mask
@@ -1000,12 +1080,16 @@ pub(super) fn document_parts(
                 MAX_DECODED_BYTES as f64 / 1_048_576.0
             )));
         }
-        source_receipts.push(json!({"source_id":source_id,"filename":source.filename,"record_version":source.version,
+        let mut receipt = json!({"source_id":source_id,"filename":source.filename,"record_version":source.version,
             "native_source_sha256":assets::sha256(source.bytes),"native_source_bytes":source.bytes.len(),
             "snapshot_sha256":assets::sha256(snapshot.as_bytes()),"width":d.width,"height":d.height,
             "resolution_ppi":d.resolution_ppi,"interpretation":imported["interpretation"],
             "omitted_nonappearance_records":imported["omitted_nonappearance_records"],"embedded_zero_padding":imported["embedded_zero_padding"],
-            "nested_sources":imported["embedded_sources"],"text":imported["text"]}));
+            "nested_sources":imported["embedded_sources"],"text":imported["text"]});
+        if let Some(extensions) = imported.get("opaque_rgb_extensions") {
+            receipt["opaque_rgb_extensions"] = extensions.clone();
+        }
+        source_receipts.push(receipt);
         snapshots.insert(
             source_id.clone(),
             (snapshot, d.width, d.height, d.resolution_ppi),
@@ -1065,7 +1149,7 @@ pub(super) fn document_parts(
             "cached_rgba_sha256":cache_hashes.get(&item.id),"cache_used_for_editable_reconstruction":false,
             "sampling":options.sampling,"sharing":options.sharing}));
     }
-    let document:Document=serde_json::from_value(json!({"schema_version":2,"resource_profile":options.resource_profile,"id":id,"kind":"raster","width":width,"height":height,"resolution_ppi":resolution,"color_space":"srgb","items":items,"fonts":fonts})).map_err(|_|malformed())?;
+    let document:Document=serde_json::from_value(json!({"schema_version":2,"resource_profile":options.resource_profile,"id":id,"kind":"raster","width":width,"height":height,"resolution_ppi":resolution,"color_space":"srgb","items":items,"fonts":fonts,"background":background})).map_err(|_|malformed())?;
     for (i, item) in document.items.iter().enumerate() {
         if crate::scene::unsupported_group_fill(&document, i) {
             return Err(unsupported(
@@ -1078,6 +1162,10 @@ pub(super) fn document_parts(
     control.check()?;
     let mut result = json!({"document":document,"format":if version==Version::Large{"layered_rgb_v2"}else{"layered_rgb_v1"},"file_version":version.number(),"layers":editable,"serialized_records":records.len(),"masked_items":records.iter().filter(|r|r.mask.is_some()).count(),"groups":records.iter().filter(|r|matches!(r.kind,Kind::Group{..})).count(),"source_profile_sha256":profile.as_ref().map(|v|assets::sha256(v)),"interpretation":if convert{"converted_srgb_per_layer"}else if profile.is_some(){"declared_working_srgb"}else{"assumed_srgb"},"merged_cache":{"sample_sha256":merged_hash,"used_for_editable_reconstruction":false},"resolution_declared":density_declared,"omitted_nonappearance_records":ignored,"losses":["Creates new layer identities from numeric file IDs; preserves native pixel extents, sibling order, folder hierarchy, Unicode names, visibility, opacity and supported full locks. Folder expansion state is listed as omitted UI metadata. No file is overwritten.","The merged cache is decoded and validated but editable appearance is recomputed from layers. Descriptive/UI/thumbnail records listed in the receipt are not imported as trusted document metadata.","Explicit conversion to working sRGB changes layer RGB before compositing, preserves alpha and can change profile-space blending. It is not a promise of cross-consumer composite equality."]});
     result["embedded_zero_padding"] = json!(padding);
+    if !white_extensions.is_empty() {
+        result["opaque_rgb_extensions"] = json!(white_extensions);
+        result["losses"].as_array_mut().unwrap().push(json!("RGB-only ordinary pixel layers have an opaque white exterior. Their samples cover the union of the canvas and source rectangle. opaque_rgb_extensions reports both rectangles in top, left, bottom, right order."));
+    }
     if let Some(untagged) = untagged_rgb {
         result["source_declares_untagged_rgb"] = json!(untagged);
     }

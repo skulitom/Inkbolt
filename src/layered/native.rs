@@ -17,6 +17,13 @@ pub(super) struct Import {
     layers: Vec<Prepared>,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct PixelLayout {
+    pub source: [usize; 2],
+    pub output: [usize; 2],
+    pub offset: [usize; 2],
+}
+
 impl Import {
     pub fn new(options: &ImportOptions, control: &Control) -> Result<Option<Self>, Error> {
         if options.resource_profile == ResourceProfile::LargeVector
@@ -45,16 +52,16 @@ impl Import {
 
     pub fn layer(
         &mut self,
-        dimensions: [usize; 2],
+        layout: PixelLayout,
         channels: Vec<(i16, super::input::Plane<'_>)>,
         version: Version,
         profile: Option<&[u8]>,
         control: &Control,
     ) -> Result<Content, Error> {
-        let [width, height] = dimensions;
+        let [width, height] = layout.source;
         let spec = crate::sample_store::Spec {
-            width: width as u32,
-            height: height as u32,
+            width: layout.output[0] as u32,
+            height: layout.output[1] as u32,
             depth: crate::samples::Depth::U8,
             channels: crate::samples::Channels::Rgba,
             encoding: crate::hdr::Encoding::EncodedSrgb,
@@ -76,15 +83,19 @@ impl Import {
             }
         });
         let mut plane = vec![0; width];
-        let candidate = Builder::from_rows(spec, &self.budget, control, |_, rgba| {
+        let candidate = Builder::from_rows(spec, &self.budget, control, |row, rgba| {
             rgba.fill(255);
-            for (component, decoder) in &mut decoders {
-                if *component > 3 {
-                    return Err(malformed());
-                }
-                decoder.row(&mut plane, control)?;
-                for (pixel, sample) in rgba.as_chunks_mut::<4>().0.iter_mut().zip(&plane) {
-                    pixel[*component] = *sample;
+            if (layout.offset[1]..layout.offset[1] + height).contains(&(row as usize)) {
+                let start = layout.offset[0] * 4;
+                let span = &mut rgba[start..start + width * 4];
+                for (component, decoder) in &mut decoders {
+                    if *component > 3 {
+                        return Err(malformed());
+                    }
+                    decoder.row(&mut plane, control)?;
+                    for (pixel, sample) in span.as_chunks_mut::<4>().0.iter_mut().zip(&plane) {
+                        pixel[*component] = *sample;
+                    }
                 }
             }
             if let Some(profile) = &source_profile {

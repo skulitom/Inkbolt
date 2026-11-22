@@ -1072,10 +1072,14 @@ class ResourceLimitTests(unittest.TestCase):
 
         prefix = 'layered_interchange'
         reported = numeric_fields(capabilities()[prefix], prefix)
-        # Version/code enumerations and the single selected frame are format
-        # semantics, not tunable allocation or traversal ceilings.
+        # Fixed format fields have their own expectations outside resource budgets.
+        background = capabilities()[prefix]['opaque_background']
+        self.assertEqual(background['visible_merged_channels'], 3)
+        self.assertEqual(background['hidden_merged_channels'], 4)
         semantics = {
             'file_version', 'additional_file_versions/0',
+            'opaque_background/visible_merged_channels',
+            'opaque_background/hidden_merged_channels',
             'native_import/storage_version',
             'embedded_objects/export_source_record_version',
             *(f'embedded_objects/source_record_versions/{i}' for i in range(8)),

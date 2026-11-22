@@ -191,6 +191,7 @@ pub(super) fn prepare(
             depth: context.depth + 1,
             scope,
             font_root: context.font_root,
+            asset_root: context.asset_root,
         },
     )?;
     let bytes = STANDARD
@@ -285,7 +286,7 @@ pub(super) fn prepare(
     let raster = crate::render::rasterize_controlled(
         &cache_document,
         1,
-        None,
+        context.asset_root,
         context.font_root,
         None,
         context.control,

@@ -689,6 +689,8 @@ pub fn apply_with_resources(
     let mut candidate = document.clone();
     candidate.schema_version = 2;
     let mut changes = Vec::new();
+    let mut checked_background =
+        crate::backgrounds::fixed_grid(document).map(|(_, grid)| grid.base.sha256.clone());
     for (operation_index, operation) in operations.iter().enumerate() {
         control
             .check()
@@ -704,6 +706,16 @@ pub fn apply_with_resources(
         )
         .map_err(|e| e.at_operation(operation_index))?;
         validate_controlled(&candidate, control).map_err(|e| e.at_operation(operation_index))?;
+        if let Some((owner, grid)) = crate::backgrounds::fixed_grid(&candidate)
+            && checked_background.as_ref() != Some(&grid.base.sha256)
+        {
+            let source = grid
+                .prepare(asset_root, control)
+                .map_err(|e| e.at_operation(operation_index))?;
+            crate::backgrounds::verify_opaque_blocks(owner, &source, asset_root, control)
+                .map_err(|e| e.at_operation(operation_index))?;
+            checked_background = Some(grid.base.sha256.clone());
+        }
         if candidate.items.iter().any(|item| {
             item.id == id
                 && matches!(&item.content,
@@ -2090,7 +2102,23 @@ fn apply_one(
                 item.opacity = *value;
             }
             if let Some(value) = fill_opacity {
-                item.fill_opacity = *value;
+                if let Some(bg) = document
+                    .background
+                    .as_mut()
+                    .filter(|b| b.item_id == *id && b.fixed_pixel_bounds.is_some())
+                {
+                    let byte = (value * 255.0).round() as u8;
+                    if f64::from(byte) / 255.0 != *value {
+                        return Err(Error::new(
+                            "INVALID_OPERATION",
+                            "The inactive background fill setting must be an exact byte fraction",
+                        )
+                        .at_item(id));
+                    }
+                    bg.inactive_fill_byte = (byte != 255).then_some(byte);
+                } else {
+                    item.fill_opacity = *value;
+                }
             }
             if let Some(target) = knockout_target {
                 item.knockout_target = *target;

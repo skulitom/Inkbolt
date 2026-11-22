@@ -145,6 +145,7 @@ struct Encoding<'a> {
     depth: usize,
     scope: String,
     font_root: Option<&'a Path>,
+    asset_root: Option<&'a Path>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
@@ -418,6 +419,26 @@ pub fn export_with_fonts(
     font_root: Option<&Path>,
     control: &Control,
 ) -> Result<Value, Error> {
+    export_with_roots(
+        document,
+        compression,
+        version,
+        options,
+        None,
+        font_root,
+        control,
+    )
+}
+
+pub fn export_with_roots(
+    document: &Document,
+    compression: Compression,
+    version: Version,
+    options: &ExportOptions,
+    asset_root: Option<&Path>,
+    font_root: Option<&Path>,
+    control: &Control,
+) -> Result<Value, Error> {
     write::document(
         document,
         compression,
@@ -429,6 +450,7 @@ pub fn export_with_fonts(
             depth: 0,
             scope: "root".into(),
             font_root,
+            asset_root,
         },
     )
 }

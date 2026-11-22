@@ -315,9 +315,27 @@ An unclipped RGB8 pixel layer can retain its own shallow or deep knockout target
 
 For a shallow cut, the receiving layer uses the backdrop at the start of its folder. A deep cut crosses pass-through folders and stops at an isolated boundary or the document background. Native knockout marks on folders, clipped members, text and embedded objects require additional mappings. [Engine compositing rules](KNOCKOUT.md#knocking-out-one-pixel-layer)
 
-A bottom RGB-only pixel record can become a native opaque background regardless of its name or lock tag. Files that combine this background with knockout currently require a separate background mapping. A bottom layer with an explicit alpha channel can be punched through even when every pixel is opaque.
+A deep knockout can reveal a [native opaque background](#editable-opaque-backgrounds). A bottom layer with an explicit alpha channel can be punched through even when every pixel is opaque.
 
 Windows and Linux produced byte-identical exports from 89 original files. An independent editor reopened all 178 exports and matched its original alpha and visible color samples exactly. Inkbolt's own rendering agreed within one 8-bit level for alpha and premultiplied color. The cases included nested isolated and pass-through folders, two independently flagged siblings, Normal, Multiply and Screen blending, and separate layer opacity and fill. The editor also changed one layer from shallow to deep and saved the new target.
+
+### Editable opaque backgrounds
+
+Both RGB8 containers retain an opaque background beneath editable layers. Inkbolt recognizes the bottom root pixel record by its RGB channels, normal blend, full opacity and lack of a mask. The layer name can be anything. Its source rectangle must lie inside the canvas. A smaller rectangle keeps its pixels and offset, with white covering the rest of the canvas. A hidden background keeps its source and contributes no paint.
+
+The imported document records `background.item_id`, its white matte and `fixed_pixel_bounds` in `[x,y,width,height]` order. An agent can paint opaque RGB pixels or hide the layer. Moving its pixels, changing their alpha or applying appearance controls requires converting the background to an ordinary layer. Use `{"op":"background","id":"layer-1","action":{"type":"restore_source"}}` with the imported item ID. Revision history includes both the paint and the role. [Background edits](BACKGROUNDS.md)
+
+Layered delivery writes three color channels for the background and preserves its source rectangle. A receiver can expand that rectangle to the full canvas. A visible background gives the merged preview three RGB channels. A hidden background gives it a separate transparency channel. Inline or stored RGBA8 sources are eligible under the existing layer and canvas output limits. White-matte engine backgrounds with equivalent opaque pixel content can also be delivered. Reopening gives their pixels fixed positions.
+
+Native backgrounds retain a nondefault fill byte as `background.inactive_fill_byte`. A `properties` edit can change it in exact byte fractions. Its value has no visual effect while the background is fixed. Releasing the source restores full fill.
+
+An ordinary RGB-only pixel record can occur inside a folder, above other artwork, or at the root with reduced opacity. Its opaque white exterior covers the union of its source bounds and the canvas. Inkbolt retains every supplied RGB sample and reports both rectangles in `opaque_rgb_extensions` when padding is needed. Inline and native-block storage charge the expanded area to the retained-pixel budget. Files with an explicit transparency plane keep their original extents.
+
+Strict import reports off-canvas candidates for the protected background role. Strict delivery reports a custom extension matte, source transparency, or an additional whole-layer lock that the native role cannot retain. Whole-layer locks on ordinary artwork keep their existing behavior.
+
+Of 186 layered files tested, Inkbolt opened 166 and exported 164 in both containers. Windows and Linux produced identical bytes for all 328 exports. An independent editor reopened all 184 distinct output files and reproduced the visible color and alpha of each original exactly. It recognized 114 exports as protected, paintable backgrounds and 214 as ordinary artwork. Painting a reopened background and saving it preserved its position and transparency protections.
+
+Inkbolt’s own rendering matched the independent editor within one 8-bit level in straight color and alpha. In one masked pixel, rounding in both color and alpha produced a 1.173-level difference in premultiplied color. The same difference appeared after the independent editor saved the source again.
 
 ### Editable layer clipping
 

@@ -242,12 +242,104 @@ class GroupLayeredTests(unittest.TestCase):
             error=self.read(f.make(records),1,color_policy='assume_srgb')
             self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
             self.assertIn('knockout',error['message'])
+
+    def test_fixed_background_roundtrip_paint_visibility_and_protection(self):
+        paper = dict(name='paper',width=1,height=1,xy=(1,0),rgba=bytes.fromhex('c2497fff'),
+                     channel_ids=[0,1,2],flags=9,extra=f.tag(b'lspf',f.U32(13)))
+        ink = dict(name='ink',width=3,height=1,rgba=bytes.fromhex('63819cff')*3)
+        cut = dict(ink,name='cut',extra=f.tag(b'knko',bytes([2,0,0,0]))+f.tag(b'iOpa',bytes(4)))
         for version in (1,2):
-            root = pixel('ordinary name',channel_ids=[0,1,2])
-            cut = pixel('cut',extra=tag+f.tag(b'iOpa',bytes(4)))
-            error = self.read(f.make([root,cut],version=version),1,color_policy='assume_srgb')
+            source = f.make([paper,ink,cut],w=3,h=1,version=version)
+            doc = self.read(source,color_policy='assume_srgb')['document']
+            bg = doc['items'][0]['id']
+            self.assertEqual(doc['background'],dict(item_id=bg,matte=[255]*3,fixed_pixel_bounds=[1,0,1,1]))
+            self.assertFalse(doc['items'][0]['locked'])
+            self.assertEqual(self.pixels(doc),'ffffffffc2497fffffffffff')
+            def edit(d,operation,expected=0):
+                result = self.invoke(dict(command='document.edit',document=d,expected_revision=d['revision'],
+                                          operations=[dict(id=bg,**operation)]),expected)
+                return result if expected else result['document']
+            fill = dict(op='pixel_fill',rect=dict(x=0,y=0,width=1,height=1))
+            painted = edit(doc,dict(fill,color=[31,79,201,255]))
+            extend = dict(op='canvas',action=dict(type='extent',width=5,height=1,anchor='center'))
+            expanded = self.invoke(dict(command='document.edit',document=painted,expected_revision=1,operations=[extend]))['document']
+            self.assertEqual(expanded['background']['fixed_pixel_bounds'],[2,0,1,1])
+            self.assertEqual(self.pixels(expanded),'ffffffff'*2+'1f4fc9ff'+'ffffffff'*2)
+            self.assertEqual(self.pixels(self.read(base64.b64decode(self.export(expanded,version)['data']))['document']),self.pixels(expanded))
+            for op in [dict(fill,color=[31,79,201,127]),dict(op='properties',opacity=.5),
+                       dict(op='transform',matrix=[1,0,0,1,2,0])]:
+                error = edit(painted,op,1)
+                self.assertEqual((error['code'],error['item_id']),('BACKGROUND_PROTECTED',bg))
+            for shown in (True,False):
+                changed = edit(painted,dict(op='properties',visible=shown))
+                raw = base64.b64decode(self.export(changed,version)['data'])
+                parsed = f.parse(raw)
+                self.assertEqual(parsed['channels'],3 if shown else 4)
+                record = parsed['layers'][0]
+                self.assertEqual(([c for c,_ in record['channels']],record['tags'][b'lspf']),([0,1,2],f.U32(13)))
+                self.assertEqual((record['rgba'],record['bounds']),(bytes([31,79,201,255]),[0,1,1,2]))
+                reopened = self.read(raw)['document']
+                self.assertEqual(reopened['background']['fixed_pixel_bounds'],[1,0,1,1])
+                self.assertEqual(self.pixels(reopened),'ffffffff1f4fc9ffffffffff' if shown else '00'*12)
+            regular = edit(painted,dict(op='background',action=dict(type='restore_source')))
+            self.assertNotIn('background',regular)
+            self.assertEqual(edit(regular,dict(fill,color=[1,2,3,4]))['items'][0]['content']['rgba_hex'],'01020304')
+
+    def test_background_role_depends_on_bottom_pixel_semantics(self):
+        rgb = pixel('misleading name',channel_ids=[0,1,2])
+        for record in [dict(rgb,opacity=127),dict(rgb,blend=b'mul '),pixel('Background')]:
+            d = self.read(f.make([record],w=2,h=1),color_policy='assume_srgb')['document']
+            self.assertNotIn('background',d)
+        for bad in [dict(rgb,xy=(-1,0)),pixel('Background',extra=f.tag(b'lspf',f.U32(13)))]:
+            error = self.read(f.make([bad],w=2,h=1),1,color_policy='assume_srgb')
             self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
-            self.assertIn('background',error['message'])
+        d = self.document(2,1)
+        d['items'] = [dict(id='base',content=dict(type='raster',width=2,height=1,rgba_hex='fd784bff'*2))]
+        d['background'] = dict(item_id='base',matte=[255]*3)
+        self.assertEqual(self.export(d)['layered']['background_source_id'],'base')
+        d['background']['matte']=[1,2,3]
+        self.assertEqual(self.export(d,expected=1)['item_id'],'base')
+        d['background']['matte']=[255]*3
+        d['items'][0]['content']['rgba_hex']='fd784bfffd784b03'
+        self.assertEqual(self.export(d,expected=1)['item_id'],'base')
+
+    def test_background_retains_inactive_fill_until_released(self):
+        base = pixel('paper',channel_ids=[0,1,2],extra=f.tag(b'iOpa',bytes([96,0,0,0])))
+        for version in (1,2):
+            doc = self.read(f.make([base],w=2,h=1,version=version),color_policy='assume_srgb')['document']
+            self.assertEqual(doc['background']['inactive_fill_byte'],96)
+            expected = '11dd67ffbe1f4fff'
+            self.assertEqual(self.pixels(doc),expected)
+            owner = doc['items'][0]['id']
+            edit = dict(op='properties',id=owner,fill_opacity=0)
+            changed = self.invoke(dict(command='document.edit',document=doc,expected_revision=0,operations=[edit]))['document']
+            self.assertEqual(changed['background']['inactive_fill_byte'],0)
+            self.assertEqual(self.pixels(changed),expected)
+            raw = base64.b64decode(self.export(changed,version)['data'])
+            self.assertEqual(f.parse(raw)['layers'][0]['tags'][b'iOpa'],bytes(4))
+            self.assertEqual(self.read(raw)['document']['background']['inactive_fill_byte'],0)
+            release = dict(op='background',id=owner,action=dict(type='restore_source'))
+            ordinary = self.invoke(dict(command='document.edit',document=changed,expected_revision=1,operations=[release]))['document']
+            self.assertNotIn('background',ordinary)
+            self.assertEqual(self.pixels(ordinary),expected)
+
+    def test_cropped_rgb_without_transparency_keeps_white_exterior_and_original_samples(self):
+        paper = dict(name='paper',width=1,height=1,rgba=[254,65,32,255],channel_ids=[0,1,2],xy=(1,0),opacity=128)
+        for records in ([paper],[marker(3),paper,marker(1)]):
+            result = self.read(f.make(records,w=3,h=1),color_policy='assume_srgb')
+            doc = result['document']
+            item = next(i for i in doc['items'] if i['name']=='paper')
+            self.assertEqual(result['opaque_rgb_extensions'],[dict(item_id=item['id'],source_bounds=[0,1,1,2],pixel_bounds=[0,0,1,3])])
+            self.assertEqual(item['content']['rgba_hex'],'fffffffffe4120ffffffffff')
+            self.assertEqual(self.pixels(doc),'ffffff80fe412080ffffff80')
+            self.assertEqual(self.pixels(self.read(base64.b64decode(self.export(doc)['data']))['document']),self.pixels(doc))
+        # The source rectangle and the canvas can extend past one another.
+        offset=dict(paper,xy=(-1,1))
+        result=self.read(f.make([offset],w=3,h=2),color_policy='assume_srgb')
+        self.assertEqual(result['opaque_rgb_extensions'][0]['pixel_bounds'],[0,-1,2,3])
+        self.assertEqual(result['document']['items'][0]['content']['rgba_hex'],'ffffffff'*4+'fe4120ff'+'ffffffff'*3)
+        error=self.read(f.make([paper],w=257,h=256,compression=2),1,color_policy='assume_srgb')
+        self.assertEqual(error['code'],'RESOURCE_LIMIT')
 
     def test_vector_pdf_preflight_identifies_the_layer_that_would_lose_its_knockout(self):
         doc = self.document(1,1)

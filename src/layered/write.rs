@@ -39,10 +39,11 @@ pub(super) fn controls(item: &Item) -> Result<(), Error> {
 fn original(
     item: &Item,
     world: Matrix,
-    native_objects: bool,
+    version: Version,
+    context: &Encoding<'_>,
 ) -> Result<(u32, u32, Vec<u8>), Error> {
     controls(item)?;
-    if native_objects
+    if (context.options.embedded_objects.is_some() || context.options.text.is_some())
         && matches!(
             item.content,
             Content::Group {
@@ -65,6 +66,14 @@ fn original(
         Content::Group { knockout:false,role:GroupRole::Group,.. } => Ok((0,0,Vec::new())),
         Content::Raster{width,height,rgba_hex,sampling} if *sampling==assets::Sampling::Nearest => Ok((*width,*height,crate::render::unhex(rgba_hex))),
         Content::Samples{grid} if grid.depth==crate::samples::Depth::U8 && grid.channels==crate::samples::Channels::Rgba && grid.encoding==crate::hdr::Encoding::EncodedSrgb && grid.sampling==assets::Sampling::Nearest && grid.profile.is_none() => Ok((grid.width,grid.height,crate::render::unhex(&grid.data_hex))),
+        Content::StoredSamples{grid} if grid.base.spec.depth==crate::samples::Depth::U8 && grid.base.spec.channels==crate::samples::Channels::Rgba && grid.base.spec.encoding==crate::hdr::Encoding::EncodedSrgb && grid.sampling==assets::Sampling::Nearest && grid.profile.is_none() => {
+            let spec = grid.base.spec;
+            size(spec.width,spec.height,MAX_STORED_PIXELS,version)?;
+            let source = grid.prepare(context.asset_root, context.control)?;
+            let region = crate::sample_store::Region { x:0, y:0, width:spec.width, height:spec.height };
+            let rgba = source.read_region(context.asset_root,region,context.control)?;
+            Ok((spec.width,spec.height,rgba))
+        }
         _=>Err(unsupported("Layered basic delivery requires original RGBA8 pixel layers; use explicit engine expansion for other sources").at_item(&item.id)),
     }
 }
@@ -96,7 +105,6 @@ pub(super) fn document(
     crate::validate(document)?;
     if document.kind != DocumentKind::Raster
         || document.color_space != ColorSpace::Srgb
-        || document.background.is_some()
         || document.output_profile.is_some()
         || document.vector_canvas.is_some()
         || document.ink_recipe.is_some()
@@ -141,10 +149,36 @@ pub(super) fn document(
     let mut text_receipts = Vec::new();
     let mut stored_pixels = 0;
     order(document, None, &mut ordered);
-    short(&mut records, (-(ordered.len() as i16)) as u16);
+    let merged_channels = if crate::backgrounds::visible_matte(document).is_some() {
+        3
+    } else {
+        4
+    };
+    let count = ordered.len() as i16;
+    short(
+        &mut records,
+        if merged_channels == 3 { count } else { -count } as u16,
+    );
     for &(index, boundary) in &ordered {
         let item = &document.items[index];
         control.check()?;
+        let background = crate::backgrounds::matte(document, &item.id);
+        if let Some(matte) = background
+            && (matte != [255; 3]
+                || item.locked
+                || item.opacity != 1.
+                || item.fill_opacity != 1.
+                || item.blend != BlendMode::Normal
+                || item.mask.is_some()
+                || !matches!(
+                    item.content,
+                    Content::Raster { .. }
+                        | Content::Samples { .. }
+                        | Content::StoredSamples { .. }
+                ))
+        {
+            return Err(unsupported("A native background requires opaque RGB pixels and a white extension matte, normal blend, full fill and opacity, and no mask or whole-layer lock. Restore the source to an ordinary layer to retain other controls.").at_item(&item.id));
+        }
         let world = crate::scene::world_transform(document, index)?;
         let object = matches!(item.content, Content::Object { .. });
         let text = matches!(item.content, Content::Text { .. });
@@ -178,11 +212,7 @@ pub(super) fn document(
         } else if let Some(p) = &mut typed {
             (p.width, p.height, std::mem::take(&mut p.rgba))
         } else {
-            original(
-                item,
-                world,
-                context.options.embedded_objects.is_some() || context.options.text.is_some(),
-            )?
+            original(item, world, version, context)?
         };
         let group = matches!(item.content, Content::Group { .. });
         if !group {
@@ -199,6 +229,15 @@ pub(super) fn document(
             });
         let [left, top] = origin;
         let bounds = [top, left, top + h as i32, left + w as i32];
+        if background.is_some()
+            && (top < 0
+                || left < 0
+                || bounds[2] > document.height as i32
+                || bounds[3] > document.width as i32
+                || rgba.as_chunks::<4>().0.iter().any(|p| p[3] != 255))
+        {
+            return Err(unsupported("Native background delivery requires opaque source pixels entirely inside the canvas.").at_item(&item.id));
+        }
         if bounds
             .iter()
             .any(|&value| !(-(MAX_COORDINATE as i32)..=MAX_COORDINATE as i32).contains(&value))
@@ -239,8 +278,16 @@ pub(super) fn document(
                 MAX_DECODED_BYTES as f64 / 1_048_576.0
             )));
         }
-        short(&mut records, 4 + u16::from(mask.is_some()));
-        for channel in [-1_i16, 0, 1, 2] {
+        let channels: &[i16] = if background.is_some() {
+            &[0, 1, 2]
+        } else {
+            &[-1, 0, 1, 2]
+        };
+        short(
+            &mut records,
+            channels.len() as u16 + u16::from(mask.is_some()),
+        );
+        for &channel in channels {
             let c = if channel == -1 { 3 } else { channel as usize };
             let plane = rgba
                 .as_chunks::<4>()
@@ -276,7 +323,7 @@ pub(super) fn document(
                 native_byte(item.opacity)?
             },
             u8::from(!boundary && item.clip_to.is_some()),
-            8 | if boundary || item.visible { 0 } else { 2 },
+            8 | u8::from(background.is_some()) | if boundary || item.visible { 0 } else { 2 },
             0,
         ]);
         let mut extra = Vec::new();
@@ -301,10 +348,23 @@ pub(super) fn document(
         tagged(
             &mut extra,
             b"lspf",
-            &(if !boundary && item.locked { 7u32 } else { 0u32 }).to_be_bytes(),
+            &(if background.is_some() {
+                13u32
+            } else if !boundary && item.locked {
+                7u32
+            } else {
+                0u32
+            })
+            .to_be_bytes(),
         );
         let fill = if boundary {
             255
+        } else if background.is_some() {
+            document
+                .background
+                .as_ref()
+                .and_then(|b| b.inactive_fill_byte)
+                .unwrap_or(255)
         } else {
             native_byte(item.fill_opacity)?
         };
@@ -376,7 +436,7 @@ pub(super) fn document(
     let mut bytes = b"8BPS".to_vec();
     short(&mut bytes, version.number());
     bytes.extend([0; 6]);
-    short(&mut bytes, 4);
+    short(&mut bytes, merged_channels);
     word(&mut bytes, document.height);
     word(&mut bytes, document.width);
     short(&mut bytes, 8);
@@ -385,10 +445,16 @@ pub(super) fn document(
     section(&mut bytes, &resources);
     framed_section(&mut bytes, &layers, version);
     control.check()?;
-    let raster =
-        crate::render::rasterize_controlled(document, 1, None, context.font_root, None, control)?;
+    let raster = crate::render::rasterize_controlled(
+        document,
+        1,
+        context.asset_root,
+        context.font_root,
+        None,
+        control,
+    )?;
     let mut composite = Vec::with_capacity(raster.rgba.len());
-    for c in 0..4 {
+    for c in 0..usize::from(merged_channels) {
         composite.extend(raster.rgba.as_chunks::<4>().0.iter().map(|p| {
             if c == 3 {
                 p[3]
@@ -411,9 +477,24 @@ pub(super) fn document(
             MAX_FILE_BYTES / (1024 * 1024)
         )));
     }
-    let mut result = json!({"media_type":"application/octet-stream","encoding":"base64","data":STANDARD.encode(&bytes),"layered":{"version":version.number(),"mode":"rgb8","compression":compression,"layers":receipts,"empty_name_source_ids":document.items.iter().filter(|i|i.name.is_empty()).map(|i|&i.id).collect::<Vec<_>>(),"serialized_records":ordered.len(),"order":"bottom_to_top","source_composite_rgba_sha256":assets::sha256(&raster.rgba),"merged_planes_sha256":assets::sha256(&composite),"merged_color":"white_matted_rgb_plus_straight_alpha","profile_sha256":assets::sha256(&profile),"resolution_ppi":density as f64/65536.0,"source_changed":false},"losses":["Native pixel bytes, extents, names, visibility, exact byte opacity, supported blend modes and folder hierarchy are retained. Folder transforms are resolved to absolute pixel placements; imported folder transforms are identity, and source documents are unchanged. File layer IDs are independently generated; source IDs appear only in the delivery receipt. Empty names are encoded exactly, but native consumers may generate names for them; empty_name_source_ids identifies those items. Name items explicitly for stable external names.","The merged cache stores RGB composited against white plus a separate alpha plane. Unmatting this 8-bit cache can lose straight RGB precision at low alpha. Editable source pixels remain separate; consumer compositing and rounding can differ.","Physical density rounds to unsigned 16.16 pixels per inch. Engine history, variants and private metadata are not embedded as an editable engine snapshot."]});
+    let (merged_color, merged_note) = if merged_channels == 3 {
+        (
+            "opaque_rgb",
+            "The merged cache stores the opaque composite as three RGB planes. Editable source pixels remain separate.",
+        )
+    } else {
+        (
+            "white_matted_rgb_plus_straight_alpha",
+            "The merged cache stores RGB composited against white plus a separate alpha plane. Unmatting this 8-bit cache can lose straight RGB precision at low alpha. Editable source pixels remain separate; consumer compositing and rounding can differ.",
+        )
+    };
+    let mut result = json!({"media_type":"application/octet-stream","encoding":"base64","data":STANDARD.encode(&bytes),"layered":{"version":version.number(),"mode":"rgb8","compression":compression,"layers":receipts,"empty_name_source_ids":document.items.iter().filter(|i|i.name.is_empty()).map(|i|&i.id).collect::<Vec<_>>(),"serialized_records":ordered.len(),"order":"bottom_to_top","source_composite_rgba_sha256":assets::sha256(&raster.rgba),"merged_planes_sha256":assets::sha256(&composite),"merged_color":merged_color,"profile_sha256":assets::sha256(&profile),"resolution_ppi":density as f64/65536.0,"source_changed":false},"losses":["Native pixel bytes, extents, names, visibility, exact byte opacity, supported blend modes and folder hierarchy are retained. Folder transforms are resolved to absolute pixel placements; imported folder transforms are identity, and source documents are unchanged. File layer IDs are independently generated; source IDs appear only in the delivery receipt. Empty names are encoded exactly, but native consumers may generate names for them; empty_name_source_ids identifies those items. Name items explicitly for stable external names.",merged_note,"Physical density rounds to unsigned 16.16 pixels per inch. Engine history, variants and private metadata are not embedded as an editable engine snapshot."]});
     result["layered"]["embedded_objects"] = json!(embedded_receipts);
     result["layered"]["text"] = json!(text_receipts);
+    if let Some(background) = &document.background {
+        result["layered"]["background_source_id"] = json!(background.item_id);
+        result["losses"].as_array_mut().unwrap().push(json!("The native background protects pixel position and transparency while leaving RGB painting and visibility editable. Receivers can expand a cropped background to the canvas with white pixels. Its original source extent remains in the layer record."));
+    }
     if !text_receipts.is_empty() {
         result["losses"].as_array_mut().unwrap().push(json!("Explicit native text reconstruction retains text, character ranges, font face references and point/paragraph geometry. Font binaries and licenses remain external; the receiving consumer must resolve the face names and may use different bytes. Native shaping, kerning, line breaking, baselines, hinting and antialiasing can differ after recomposition or editing. Automatic engine leading becomes explicit per-style values. Tracking rounds to integral thousandths of em (nearest, ties away from zero); receipts record each changed source and delivered value. Point text does not retain the engine's nominal frame bounds. The supplied geometry-extension owner is consumer-specific data; an unrecognized owner may prevent native paragraph geometry from being reconstructed. Caches are separate engine previews, never editable text sources."));
     }

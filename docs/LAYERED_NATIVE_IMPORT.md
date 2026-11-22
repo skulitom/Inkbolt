@@ -44,7 +44,11 @@ only files within its original 32 MiB limit.
 The resulting document works with native edits, snapshots, pinned session
 references, undo/redo and the existing image export paths. Saving a snapshot or
 session does not embed all pixel data: preserve its asset store as well.
-Native layers are not yet supported by layered-format export. Large masks,
+Both layered formats can deliver nearest-sampled working-sRGB RGBA8 blocks
+inside their existing aggregate output ceiling of 65,536 retained layer and mask
+pixels. Pass the asset root or use the saved workspace resources. The encoder
+reads the selected revision's blocks, including hidden RGB, and uses the same
+resources for the merged preview. Large layered exports, large masks,
 higher-depth layered channels and broader appearance semantics remain separate
 work; unsupported inputs fail explicitly.
 

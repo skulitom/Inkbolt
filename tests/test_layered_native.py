@@ -57,6 +57,55 @@ class NativeLayeredTests(unittest.TestCase):
             self.assertEqual(doc['items'][1]['knockout_target'],'deep')
             self.assertEqual(self.cli('document.render',document=doc)['data'],'8a47ceff8a47ce7f')
 
+    def test_fixed_background_native_edit_retry_reopen_and_undo(self):
+        rgba = bytes.fromhex('2a718effc86c42ff')
+        base = dict(name='paper',width=2,height=1,rgba=rgba,channel_ids=[0,1,2],
+                    flags=9,extra=f.tag(b'lspf',f.U32(13)))
+        cut = dict(name='cut',width=2,height=1,rgba=bytes.fromhex('a04936ff')*2,
+                   extra=f.tag(b'knko',bytes([2,0,0,0]))+f.tag(b'iOpa',bytes(4)))
+        raw = f.make([base,cut],w=2,h=1)
+        doc = self.imported(raw)['document']
+        self.assert_grid(doc['items'][0],rgba,2,1)
+        self.cli('session.create',session_id='bg',document=doc,request_id='start')
+        region = dict(x=0,y=0,width=1,height=1)
+        action = dict(type='edit',operations=[dict(op='sample_replace',id='layer-1',region=region,data_hex='153eab7f')])
+        originals = {p:p.read_bytes() for p in (self.root/'.inkbolt/assets').glob('*.native-tile')}
+        with closing(Client(workspace=self.root)) as client:
+            client.initialize()
+            error = self.cli('session.apply',session_id='bg',request_id='alpha',expected_revision=0,
+                             action=action,error='BACKGROUND_PROTECTED')
+            self.assertEqual(error['item_id'],'layer-1')
+            self.assertEqual(set((self.root/'.inkbolt/assets').glob('*.native-tile')),set(originals))
+            action['operations'][0]['data_hex']='153eabff'
+            args=dict(session_id='bg',request_id='paint',expected_revision=0,action=action)
+            edited=client.success('session.apply',**args)['document']
+            self.assertEqual(client.success('session.apply',**args)['document'],edited)
+            for fmt,name in [('layered','paint.psd'),('layered_large','paint.psb')]:
+                output=dict(file_name=name,format=fmt)
+                publication=client.success('document.publish',document=dict(session_id='bg',revision=1),output=output)
+                saved=(self.root/name).read_bytes()
+                self.assertEqual(hashlib.sha256(saved).hexdigest(),publication['sha256'])
+                reopened=client.success('layered.import',source_path=name,id='read')['document']
+                self.assertEqual(reopened['background']['fixed_pixel_bounds'],[0,0,2,1])
+                self.assertEqual(self.cli('document.render',document=reopened)['data'],'153eabffc86c42ff')
+            undo=client.success('session.apply',session_id='bg',request_id='undo',expected_revision=1,action=dict(type='undo'))['document']
+            self.assertEqual(undo,dict(doc,revision=2))
+        for path,data in originals.items():
+            self.assertEqual(path.read_bytes(),data)
+        self.assertEqual((self.root/'original.layered').read_bytes(),raw)
+
+    def test_rgb_exterior_streams_into_native_tiles_at_shifted_origin(self):
+        base = dict(name='ink',width=2,height=2,xy=(-1,1),rgba=bytes.fromhex('010203ff040506ff070809ff101112ff'),
+                    channel_ids=[0,1,2],opacity=144)
+        row = bytes([255])*4*4
+        expected = row + base['rgba'][:8] + row[8:] + base['rgba'][8:] + row[8:]
+        for version in (1,2):
+            doc=self.imported(f.make([base],w=3,h=3,version=version,compression=2))['document']
+            self.assert_grid(doc['items'][0],expected,4,3)
+            self.assertEqual(doc['items'][0]['transform'],[1,0,0,1,-1,0])
+            export=self.cli('document.export',document=doc,format='layered_large')
+            self.assertEqual(f.parse(base64.b64decode(export['data']))['layers'][0]['rgba'],expected)
+
     def assert_grid(self, item, rgba, w, h):
         self.assertEqual(item['content']['type'], 'stored_samples')
         grid = item['content']['grid']
