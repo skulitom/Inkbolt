@@ -110,6 +110,7 @@ pub(super) struct Registry {
     embedded_fonts: usize,
     embedded_glyphs: usize,
     gradient_clusters: usize,
+    independent_glyph_state: Option<usize>,
 }
 impl Registry {
     pub(super) fn receipt(&self, mode: TextDelivery) -> Option<(&'static str, Value)> {
@@ -176,6 +177,65 @@ impl PaintedGlyph<'_> {
     }
 }
 
+fn strong_rtl(c: char) -> bool {
+    matches!(
+        unicode_bidi::bidi_class(c),
+        unicode_bidi::BidiClass::R | unicode_bidi::BidiClass::AL
+    )
+}
+
+fn rtl_line_fallback(
+    line: &[PaintedGlyph],
+    source: &str,
+    first_char: usize,
+    world: Matrix,
+) -> Option<&'static str> {
+    if line
+        .iter()
+        .any(|p| p.glyph.direction != crate::text::Direction::Rtl)
+    {
+        return Some("right_to_left_run");
+    }
+    // A reader can reverse the scalars of a multi-character cluster, drop
+    // controls or move edge punctuation to the opposite end of the line.
+    if !source.split(' ').all(|word| {
+        !word.is_empty()
+            && word
+                .chars()
+                .all(|c| strong_rtl(c) && !crate::text::bidi::is_control(c))
+    }) {
+        return Some("right_to_left_source");
+    }
+    let baseline = line[0].glyph.origin[1];
+    if world[0] <= 0.0
+        || world[3] <= 0.0
+        || world[1] != 0.0
+        || world[2] != 0.0
+        || line
+            .iter()
+            .any(|p| p.glyph.path.is_some() || p.glyph.tracked || p.glyph.origin[1] != baseline)
+    {
+        return Some("right_to_left_geometry");
+    }
+    if source.chars().count() != line.len()
+        || line.iter().rev().enumerate().any(|(i, p)| {
+            p.glyph.start != first_char + i
+                || p.glyph.end != p.glyph.start + 1
+                || p.glyph.advance <= 0.0
+        })
+    {
+        return Some("right_to_left_cluster");
+    }
+    // Native ink can change rendering intent for subsequent text draws.
+    if line
+        .iter()
+        .any(|p| matches!(p.paint(), Some(Paint::Named(_))))
+    {
+        return Some("right_to_left_ink");
+    }
+    None
+}
+
 fn drawn(glyph: &Glyph) -> bool {
     glyph.path.as_ref().is_none_or(|p| p.drawn)
 }
@@ -217,6 +277,7 @@ pub(super) fn paint_text(
         painted.push(PaintedGlyph { glyph: g, path });
     }
     let groups = || painted.chunk_by(|a, b| a.span() == b.span());
+    let lines = || painted.chunk_by(|a, b| a.glyph.line == b.glyph.line);
     let mut kinds = BTreeMap::new();
     let mut spans = BTreeSet::new();
     let mut boundaries = BTreeMap::new();
@@ -239,9 +300,6 @@ pub(super) fn paint_text(
         if g.generated.is_some() {
             return fallback(writer, item, resources.text, "generated_glyphs");
         }
-        if g.direction == crate::text::Direction::Rtl {
-            return fallback(writer, item, resources.text, "right_to_left_run");
-        }
         let Some(text) = source(document, item, g) else {
             return fallback(writer, item, resources.text, "missing_source_range");
         };
@@ -257,12 +315,7 @@ pub(super) fn paint_text(
         let cluster = &text[offsets[g.start]..offsets[g.end]];
         // Single-run layout can paint strong RTL characters left to right.
         // Readers may then reverse their Unicode even though the glyphs match.
-        if cluster.chars().any(|c| {
-            matches!(
-                unicode_bidi::bidi_class(c),
-                unicode_bidi::BidiClass::R | unicode_bidi::BidiClass::AL
-            )
-        }) {
+        if g.direction != crate::text::Direction::Rtl && cluster.chars().any(strong_rtl) {
             return fallback(writer, item, resources.text, "right_to_left_source");
         }
         // Each CMap destination is a PDF string. Bound UTF-16 bytes before
@@ -281,10 +334,65 @@ pub(super) fn paint_text(
             entry.insert(font_kind);
         }
     }
-    for group in groups() {
-        let g = group[0].glyph;
-        let text = source(document, item, g).expect("validated source range");
+    for line in lines().filter(|l| {
+        l.iter()
+            .any(|p| p.glyph.direction == crate::text::Direction::Rtl)
+    }) {
+        let g = line[0].glyph;
+        let range = &layout.lines[g.line];
         let offsets = &boundaries[&g.paragraph];
+        let text = source(document, item, g).expect("validated source range");
+        let Some(end) = offsets.get(range.end) else {
+            return fallback(writer, item, resources.text, "missing_source_range");
+        };
+        let text = &text[offsets[range.start]..*end];
+        if let Some(reason) = rtl_line_fallback(line, text, range.start, world) {
+            return fallback(writer, item, resources.text, reason);
+        }
+    }
+    for line in lines() {
+        let g = line[0].glyph;
+        let text = source(document, item, g).expect("validated source range");
+        paint_line(
+            writer,
+            stream,
+            line,
+            world,
+            &kinds,
+            text,
+            &boundaries[&g.paragraph],
+        )?;
+    }
+    Ok(true)
+}
+
+fn paint_line(
+    writer: &mut Writer,
+    stream: &mut Stream,
+    line: &[PaintedGlyph],
+    world: Matrix,
+    kinds: &BTreeMap<&str, Kind>,
+    text: &str,
+    offsets: &[usize],
+) -> Result<(), Error> {
+    let rtl = line[0].glyph.direction == crate::text::Direction::Rtl;
+    // One text object preserves RTL word order. With text knockout disabled,
+    // overlapping glyphs composite independently just as their outlines do.
+    if rtl {
+        stream.content.push_str("q\n");
+        let state = match writer.text.independent_glyph_state {
+            Some(id) => id,
+            None => {
+                let id = writer.add("<< /Type /ExtGState /TK false >>")?;
+                writer.text.independent_glyph_state = Some(id);
+                id
+            }
+        };
+        stream.use_resource("ExtGState", state, "gs");
+        stream.content.push_str("BT\n");
+    }
+    for group in line.chunk_by(|a, b| a.span() == b.span()) {
+        let g = group[0].glyph;
         let cluster = &text[offsets[g.start]..offsets[g.end]];
         let font_kind = kinds[g.font_id.as_str()];
         let gradient = group
@@ -299,7 +407,7 @@ pub(super) fn paint_text(
                     writer,
                     group,
                     cluster,
-                    &kinds,
+                    kinds,
                     stream,
                     colored,
                     gradient.then_some(world),
@@ -311,8 +419,17 @@ pub(super) fn paint_text(
             .iter()
             .find_map(PaintedGlyph::paint)
             .unwrap_or(&Paint::Solid([0, 0, 0, 255]));
-        let m = geometry::multiply(world, glyph_matrix(g));
-        stream.content.push_str("q\n");
+        let mut cell = glyph_matrix(g);
+        if rtl && gradient {
+            // The color font uses a 1000-unit cell. Place its exact advance in
+            // the matrix so readers that truncate Type 3 widths select the
+            // same horizontal interval as the shaped glyph.
+            cell[0] = g.advance;
+        }
+        let m = geometry::multiply(world, cell);
+        if !rtl {
+            stream.content.push_str("q\n");
+        }
         if colored {
             // The charproc paints each component at its own opacity. Applying
             // the first component's opacity to the whole cluster would double it.
@@ -320,15 +437,20 @@ pub(super) fn paint_text(
         } else {
             flat_paint(writer, stream, paint)?;
         }
-        stream.content.push_str("BT\n");
+        if !rtl {
+            stream.content.push_str("BT\n");
+        }
         stream.use_resource("Font", font, "1 Tf");
         stream.content.push_str(&format!("{} Tm\n", numbers(&m)?));
-        let actual = group.len() > 1
-            || cluster.chars().count() > 1
-            || matches!(
-                font_kind,
-                Kind::SubsetCff | Kind::WholeNamedCff | Kind::WholeCidCff
-            );
+        // A plain RTL character already has its exact ToUnicode entry. Adding
+        // redundant replacement text can displace its selection vertically.
+        let actual = !rtl
+            && (group.len() > 1
+                || cluster.chars().count() > 1
+                || matches!(
+                    font_kind,
+                    Kind::SubsetCff | Kind::WholeNamedCff | Kind::WholeCidCff
+                ));
         if actual {
             stream.content.push_str(&format!(
                 "/Span << /ActualText <FEFF{}> >> BDC\n",
@@ -339,10 +461,15 @@ pub(super) fn paint_text(
         if actual {
             stream.content.push_str("EMC\n");
         }
-        stream.content.push_str("ET\nQ\n");
+        if !rtl {
+            stream.content.push_str("ET\nQ\n");
+        }
         writer.text.embedded_glyphs += group.len();
     }
-    Ok(true)
+    if rtl {
+        stream.content.push_str("ET\nQ\n");
+    }
+    Ok(())
 }
 
 fn register(

@@ -139,10 +139,9 @@ the embedded source font, subject to the same permissions as solid text.
 `pdf.text_delivery.gradient_color_glyphs` counts these painted characters
 when present. [Rendering and extraction checks](DEVELOPMENT_STATUS.md#searchable-gradient-text-in-exported-pdfs)
 
-Right-to-left runs, generated glyphs and text
-on knockout pages use the fallback. A left-to-right frame containing strong
-right-to-left source characters also falls back (`right_to_left_source`).
-This preserves the drawn label when a reader would reverse the copied text.
+Generated glyphs and text on knockout pages use the fallback. A left-to-right
+run containing strong right-to-left source characters also falls back
+(`right_to_left_source`). See the right-to-left line contract below.
 Flattened print, prepress and ink-recipe exports reject the searchable option.
 The PDF carries positioned text. Paragraph structure, accessibility tags and
 editable layout remain outside this contract.
@@ -152,6 +151,37 @@ the requested mode, embedded glyph and font-program counts, and outlined items
 by reason. Counts accumulate across the selected pages. Items on one page
 share a font program when they use the same font and axis settings. The snapshot retains the original text,
 styles and linked stories.
+
+### Searchable right-to-left labels
+
+Source builds after v0.84.0 can export a Hebrew or Arabic label such as
+`אב באב` or `بت تبت` with `pdf_options.text` set to `require_searchable`.
+Use `bidi:"unicode"` and `direction:"auto"` on the text frame. Readers can find
+a word in the PDF and copy its letters in reading order. A frame can contain
+both left-to-right and right-to-left lines. Each line keeps its shaped glyph
+positions, fonts and paints. Overlapping translucent letters blend in the same
+order as their outlines.
+
+This applies to upright horizontal lines with one advancing glyph per source scalar.
+Words can contain strong right-to-left characters (Unicode classes R and AL)
+with a single ordinary space between words. Translation and positive
+axis-aligned scaling are supported. Mixed directions on one line, combining
+marks, multi-character ligatures, bidi controls, neutral punctuation,
+repeated or edge spaces, custom tracking, individually shifted baselines,
+path text, rotation, reflection and named ink use the outline fallback.
+`searchable` preserves the entire item's outlines and reports the reason.
+`require_searchable` reports the item before publication. Command-line text
+extractors can add directional controls around a correctly ordered line.
+
+Windows and Linux produced byte-identical searchable PDFs for 18 Hebrew and
+Arabic labels with solid, axial and radial fills. The fixtures used original
+TrueType and CFF geometry fonts and DejaVu Sans 2.37. MuPDF and PDFium found
+all 18 labels and copied their words from the intended page regions. Across
+36 word selections, the largest difference between MuPDF's horizontal search
+bounds and Inkbolt's shaped advances was 0.015 points (rounded up). At 288 dpi
+MuPDF's total glyph coverage differed from the outlined controls by at most
+0.74%. Over MCP, both platforms preflighted a pinned editable source, published
+the predicted PDF hash and preserved the file on a second publication attempt.
 
 ### Searchable variable TrueType instances
 

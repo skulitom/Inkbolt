@@ -426,6 +426,10 @@ pub enum Generated {
 #[derive(Clone, Debug, Serialize)]
 pub struct Glyph {
     #[serde(skip)]
+    pub(crate) line: usize,
+    #[serde(skip)]
+    pub(crate) tracked: bool,
+    #[serde(skip)]
     pub(crate) em_size: Point,
     #[serde(skip)]
     pub(crate) paragraph: Option<usize>,
@@ -748,6 +752,8 @@ fn append_glyphs(
             None
         };
         result.glyphs.push(Glyph {
+            line: result.lines.len() - 1,
+            tracked: s.tracking != 0.0,
             em_size: [s.size * s.horizontal_scale, s.size * s.vertical_scale],
             paragraph: None,
             glyph_id: g.id,
@@ -858,6 +864,8 @@ fn path_layout(
             }
         }
         result.glyphs.push(Glyph {
+            line: 0,
+            tracked: s.tracking != 0.0,
             em_size: [s.size * s.horizontal_scale, s.size * s.vertical_scale],
             paragraph: None,
             glyph_id: g.id,

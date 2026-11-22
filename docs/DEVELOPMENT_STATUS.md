@@ -463,9 +463,10 @@ All 40 experimental pages kept the same rendered pixels in MuPDF at 288 dpi.
 Both readers still missed the full Hebrew label with a combining accent in
 the original painting order. Mixed-direction word selection also depended on
 the reader. The command-line text extractors added directional controls to the
-plain labels. Inkbolt therefore continues to use outlines for these runs and
-refuses them in strict searchable export.
-[Current text delivery contract](PDF.md#searchable-text)
+plain labels. At the time of that experiment all of these runs used outlines.
+Current source builds admit plain, single-direction lines after checking the
+shaped glyphs and their source ranges. Marked and mixed-direction lines still
+use the fallback. [Current text delivery contract](PDF.md#searchable-right-to-left-labels)
 
 ## Vector PDF blend delivery
 

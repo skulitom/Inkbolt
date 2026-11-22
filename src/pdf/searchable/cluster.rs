@@ -89,7 +89,11 @@ pub(super) fn font(
     gradient_world: Option<Matrix>,
 ) -> Result<usize, Error> {
     let base = group[0].glyph;
-    let [w, h] = base.em_size;
+    let rtl_cell = gradient_world.is_some() && base.direction == crate::text::Direction::Rtl;
+    let [mut w, h] = base.em_size;
+    if rtl_cell {
+        w = base.advance;
+    }
     let [x, y] = base.path.as_ref().map_or([1.0, 0.0], |p| p.tangent);
     // Project onto the first glyph's tangent and normal, then undo its em scales.
     // Subtract its origin separately so placement on the page cancels out.
@@ -101,7 +105,11 @@ pub(super) fn font(
             [point[0] - base.origin[0], point[1] - base.origin[1]],
         )
     };
-    let width = number(group.iter().map(|p| p.glyph.advance).sum::<f64>() * (1000.0 / w))?;
+    let width = if rtl_cell {
+        String::from("1000")
+    } else {
+        number(group.iter().map(|p| p.glyph.advance).sum::<f64>() * (1000.0 / w))?
+    };
     let bounds = ink_bounds(group, offset);
     let bbox = if colored {
         enclosing_box(bounds)?

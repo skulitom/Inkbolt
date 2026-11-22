@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from pdf_reader import Pdf, multiply
 from synthetic_font import pack, checksum
@@ -430,6 +431,116 @@ class SearchablePdfTests(unittest.TestCase):
                 )
                 self.assertEqual(error["code"], "UNSUPPORTED")
                 self.assertFalse(target.exists())
+
+    def test_searchable_rtl_lines_keep_reading_order_and_word_positions(self):
+        gradient = dict(type="linear", start=[0, 0], end=[95, 0], stops=[
+            dict(offset=0, color=[25, 185, 10, 160]), dict(offset=1, color=[220, 20, 75, 210])])
+        for cff, permissions, source, paint in itertools.product(
+                (False, True), (8, 0x108), ("אב באב", "بت تبت"), ([20, 110, 90, 177], gradient)):
+            with self.subTest(cff=cff, permissions=permissions, source=source, gradient=paint==gradient):
+                self.install(font_bytes(cff, permissions))
+                doc = self.document(text=source, width=125, height=40, wrap=False, bidi="unicode",
+                                    direction="auto", style=dict(font_id="geometry", size=16, fill=paint))
+                doc.update(width=125, height=40, resolution_ppi=72)
+                glyphs = self.inspect(doc)["layout"]["glyphs"]
+                result = self.export(doc, "require_searchable")
+                self.assertEqual(result["pdf"]["text"], "searchable")
+                pdf = Pdf(result)
+                mapped = pdf.text_glyphs()
+                self.assertEqual([c for c, _ in mapped], list(reversed(source)))
+                for (c, matrix), glyph in zip(mapped, glyphs):
+                    self.assertAlmostEqual(matrix[4], glyph["origin"][0])
+                    self.assertAlmostEqual(matrix[5], doc["height"] - glyph["origin"][1])
+                    if paint == gradient and c != " ":
+                        self.assertAlmostEqual(matrix[0], glyph["advance"])
+                if paint == gradient:
+                    color_fonts = [obj for obj in pdf.objects.values()
+                                   if isinstance(obj, dict) and obj.get("Subtype") == "Type3"]
+                    self.assertEqual(len(color_fonts), len(source.replace(" ", "")))
+                    self.assertTrue(all(f["Widths"] == [1000] for f in color_fonts))
+                self.assertTrue(any(isinstance(obj, dict) and obj.get("TK") is False
+                                    for obj in pdf.objects.values()))
+                self.assertFalse(any(b"/ActualText" in s for s in pdf.streams.values()))
+                if shutil.which("pdftotext"):
+                    # Command-line readers can wrap RTL output in bidi display controls.
+                    self.assertEqual(re.sub("[\u202a-\u202e]", "", extracted_text(pdf.data)), source)
+                if pymupdf:
+                    with pymupdf.open(stream=pdf.data, filetype="pdf") as opened:
+                        page = opened[0]
+                        self.assertEqual(page.get_text().rstrip("\r\n"), source)
+                        self.assertTrue(page.search_for(source))
+                        for word in re.finditer(r"\S+", source):
+                            placed = [g for g in glyphs if word.start() <= g["start"] < word.end()]
+                            left = min(g["origin"][0] for g in placed)
+                            right = max(g["origin"][0] + g["advance"] for g in placed)
+                            hits = [h for h in page.search_for(word.group())
+                                    if h.x0 >= left - 0.02 and h.x1 <= right + 0.02]
+                            self.assertTrue(hits)
+                            self.assertAlmostEqual(min(h.x0 for h in hits), left, delta=.02)
+                            self.assertAlmostEqual(max(h.x1 for h in hits), right, delta=.02)
+                            box = pymupdf.Rect(left + .05, min(h.y0 for h in hits),
+                                               right - .05, max(h.y1 for h in hits))
+                            self.assertEqual(page.get_textbox(box), word.group())
+
+    def test_separate_rtl_and_ltr_lines_preserve_their_own_reading_order(self):
+        self.install(font_bytes())
+        for source in ("אב\nبت", "AB\nאב", "אב\nAB"):
+            with self.subTest(source=source):
+                doc = self.document(text=source, wrap=False, direction="auto", bidi="unicode")
+                pdf = Pdf(self.export(doc, "require_searchable"))
+                self.assertEqual("".join(c for c, _ in pdf.text_glyphs()),
+                                 "".join(s if s=="AB" else s[::-1] for s in source.splitlines()))
+                if pymupdf:
+                    with pymupdf.open(stream=pdf.data, filetype="pdf") as opened:
+                        self.assertEqual(opened[0].get_text().rstrip("\r\n"), source)
+
+    def test_overlapping_rtl_glyphs_keep_separate_translucent_paints(self):
+        def overhang(gid):
+            return (0, 0, 1100, 600) if gid in (17, 18) else rectangle(gid)
+
+        with patch("synthetic_unicode_font.rectangle", overhang):
+            self.install(font_bytes())
+        red = dict(font_id="geometry", size=20, fill=[250, 50, 0, 128])
+        blue = dict(font_id="geometry", size=20, fill=[20, 80, 240, 128])
+        doc = self.document(text="אב", bidi="unicode", direction="auto", wrap=False,
+                            style=red, ranges=[dict(start=0, end=1, style=blue)])
+        doc["resolution_ppi"] = 72
+        pdf = Pdf(self.export(doc, "require_searchable"))
+        self.assertEqual([s for s, _ in pdf.text_glyphs()], ["ב", "א"])
+        if pymupdf:
+            with pymupdf.open(stream=pdf.data, filetype="pdf") as actual, pymupdf.open(
+                    stream=Pdf(self.export(doc)).data, filetype="pdf") as control:
+                self.assertEqual(actual[0].get_text().strip(), "אב")
+                pixels = actual[0].get_pixmap(alpha=True)
+                outlines = control[0].get_pixmap(alpha=True)
+                for x in (5, 17, 28):
+                    self.assertEqual(pixels.pixel(x, 14), outlines.pixel(x, 14))
+                # The two half-opacity glyphs overlap from x=14 to x=22.
+                self.assertAlmostEqual(pixels.pixel(17, 14)[3], 191, delta=2)
+                self.assertGreater(pixels.pixel(17, 14)[2], pixels.pixel(17, 14)[0])
+
+    def test_complex_rtl_falls_back_for_the_whole_item(self):
+        self.install(font_bytes())
+        for source,extra,transform,reason in [
+            ("א\u0301ב", {}, None, "right_to_left_source"),
+            ("אב באב,", {}, None, "right_to_left_source"),
+            ("אב  באב", {}, None, "right_to_left_source"),
+            ("אב\nA بت", {}, None, "right_to_left_run"),
+            ("\u202bאב\u202c", {}, None, "right_to_left_source"),
+            ("אב באב", dict(path=curved()), None, "right_to_left_geometry"),
+            ("אב באב", {}, [-1,0,0,1,65,0], "right_to_left_geometry"),
+            ("אב באב", {}, [0,1,-1,0,65,0], "right_to_left_geometry"),
+            ("אב באב", dict(style=dict(font_id="geometry", size=16, fill=[0,0,0,255], tracking=3)),
+             None, "right_to_left_geometry"),
+        ]:
+            with self.subTest(source=source, reason=reason):
+                doc = self.document(text=source, width=140, wrap=False, direction="auto", bidi="unicode", **extra)
+                if transform:
+                    doc["items"][0]["transform"] = transform
+                result = self.export(doc, "searchable")
+                self.assertEqual(result["pdf"]["text_delivery"]["outlined_items_by_reason"], {reason: 1})
+                self.assertEqual(Pdf(result).data, Pdf(self.export(doc)).data)
+                self.assertIn(reason, self.export(doc, "require_searchable", 1)["message"])
 
     def test_rtl_source_respects_searchable_delivery_in_both_layout_modes(self):
         self.install(font_bytes())
