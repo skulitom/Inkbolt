@@ -1205,7 +1205,7 @@ fn draw_items(
                         .map(|s| coverage.shape(pixel, s[pixel]))
                         .transpose()?
                         .unwrap_or(0.0);
-                    let weight = coverage.at(pixel)?;
+                    let weight = coverage.at(pixel)? * item.fill_opacity;
                     if let Some(initial) = &initial {
                         let b = &initial[pixel * 4..pixel * 4 + 4];
                         for c in 0..4 {

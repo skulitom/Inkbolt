@@ -123,17 +123,23 @@ pub(crate) fn validate(document: &Document) -> Result<(), Error> {
         if !item.fill_opacity.is_finite() || !(0.0..=1.0).contains(&item.fill_opacity) {
             return Err(invalid("Fill opacity must be in 0..=1").at_item(&item.id));
         }
-        if (item.fill_opacity != 1.0 || !item.effects.is_empty() || !item.coverage.is_smooth())
+        if crate::scene::unsupported_group_fill(document, i) {
+            return Err(Error::new("UNSUPPORTED", "This pass-through group fill requires backdrop-dependent blending or knockout; use full fill or an isolated group").at_item(&item.id));
+        }
+        let decorations = !item.effects.is_empty() || !item.coverage.is_smooth();
+        if (item.fill_opacity != 1.0 || decorations)
             && (matches!(
                 item.content,
-                Content::WorkPath { .. }
-                    | Content::MaskSource {}
-                    | Content::Adjustment { .. }
-                    | Content::Group {
-                        isolated: false,
-                        ..
-                    }
-            ) || crate::artwork_masks::source_owner(document, i)?.is_some())
+                Content::WorkPath { .. } | Content::MaskSource {} | Content::Adjustment { .. }
+            ) || crate::artwork_masks::source_owner(document, i)?.is_some()
+                || (decorations
+                    && matches!(
+                        item.content,
+                        Content::Group {
+                            isolated: false,
+                            ..
+                        }
+                    )))
         {
             return Err(Error::new("UNSUPPORTED","Fill, layer effects and coverage controls require an independently composited printable item outside a mask source").at_item(&item.id));
         }

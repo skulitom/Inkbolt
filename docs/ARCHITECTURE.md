@@ -465,7 +465,7 @@ Capability-report construction stays in a separate non-inlined function. Its man
 
 `layered::mask` decodes independent authored scalar rectangles and controls before channel allocation, charges retained samples alongside layer pixels, and maps linked placement through item origins. Explicit constant planes retain uniform outside coverage without fabricated samples. The writer emits separate mask channels and receipts; profile conversion touches only RGB. Unknown, combined and nonzero native feather semantics fail explicitly.
 
-Native layered exchange maps nested normal/pass-through folders to explicit parent references, validates balanced boundaries and keeps empty groups without manufacturing pixels. Native import/export, declared loss receipts and durable agent workflows share this contract. Extended interchange remains partial and uncredited; larger axes, remaining mask controls, text and full embedded-object exchange are still required.
+Native layered exchange maps folder boundaries to parent references and keeps empty groups editable. Both RGB8 containers store folder opacity and fill separately on the opening folder record. Import resolves the hierarchy before checking whether intermediate pass-through fill depends on the external backdrop. The reader, writer and edit validator share the [folder fill contract](LAYERED.md#editable-folder-fill).
 
 `layered::Version` controls only version-dependent lengths and axis limits. Bounded 64-bit section/channel readers and 32-bit row tables share the original codecs; selected tagged keys retain their specified field widths. Standard and large containers use one source-preserving engine mapping and publication path.
 

@@ -51,7 +51,6 @@ fn original(
                 ..
             }
         )
-        && item.fill_opacity == 1.0
     {
         return Ok((0, 0, Vec::new()));
     }
@@ -63,7 +62,7 @@ fn original(
         .at_item(&item.id));
     }
     match &item.content {
-        Content::Group { knockout:false,role:GroupRole::Group,.. } if item.fill_opacity == 1.0 => Ok((0,0,Vec::new())),
+        Content::Group { knockout:false,role:GroupRole::Group,.. } => Ok((0,0,Vec::new())),
         Content::Raster{width,height,rgba_hex,sampling} if *sampling==assets::Sampling::Nearest => Ok((*width,*height,crate::render::unhex(rgba_hex))),
         Content::Samples{grid} if grid.depth==crate::samples::Depth::U8 && grid.channels==crate::samples::Channels::Rgba && grid.encoding==crate::hdr::Encoding::EncodedSrgb && grid.sampling==assets::Sampling::Nearest && grid.profile.is_none() => Ok((grid.width,grid.height,crate::render::unhex(&grid.data_hex))),
         _=>Err(unsupported("Layered basic delivery requires original RGBA8 pixel layers; use explicit engine expansion for other sources").at_item(&item.id)),
@@ -304,11 +303,12 @@ pub(super) fn document(
             b"lspf",
             &(if !boundary && item.locked { 7u32 } else { 0u32 }).to_be_bytes(),
         );
-        tagged(
-            &mut extra,
-            b"iOpa",
-            &[native_byte(item.fill_opacity)?, 0, 0, 0],
-        );
+        let fill = if boundary {
+            255
+        } else {
+            native_byte(item.fill_opacity)?
+        };
+        tagged(&mut extra, b"iOpa", &[fill, 0, 0, 0]);
         if let Content::Group { isolated, .. } = item.content {
             let mut divider = Vec::new();
             word(&mut divider, if boundary { 3 } else { 1 });

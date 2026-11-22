@@ -53,6 +53,7 @@ pub(crate) fn needs_buffer(item: &Item) -> bool {
             }
         ) && (item.content.is_knockout()
             || item.opacity != 1.0
+            || item.fill_opacity != 1.0
             || item.clip.as_ref().is_some_and(|c| c.enabled)
             || item.mask.as_ref().is_some_and(|m| m.enabled)
             || item.artwork_mask.as_ref().is_some_and(|m| m.enabled))

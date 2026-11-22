@@ -26,7 +26,7 @@ Bound adjustments immediately after a base affect that base before its clipped m
 
 ## Pass-through groups
 
-Isolated groups render children against transparency and composite the result once. Pass-through groups (`isolated:false`) let child blends and backdrop adjustments see the surrounding backdrop. With pass-through group opacity, a grayscale mask or a geometric clip, Inkbolt retains the original backdrop `P`, evaluates the children to `Q`, and interpolates all four premultiplied channels as `P + weight*(Q-P)`. The weight is the group opacity times its enabled masks/clips. Outside that coverage, the original backdrop remains unchanged.
+Isolated groups render children against transparency and composite the result once. Pass-through groups (`isolated:false`) let child blends and backdrop adjustments see the surrounding backdrop. With pass-through group opacity, a grayscale mask or a geometric clip, Inkbolt retains the original backdrop `P`, evaluates the children to `Q`, and interpolates all four premultiplied channels as `P + weight*(Q-P)`. The weight combines group opacity, group fill and enabled mask or clip coverage. Intermediate pass-through fill requires children that compose independently of the outside backdrop. Zero fill suppresses child color while preserving editable content. Outside that coverage, the original backdrop remains unchanged.
 
 Group transforms position descendants and linked masks normally. Pass-through groups require normal group blending; child normal/multiply/screen modes remain available. Filters on pass-through groups still fail explicitly; use an isolated container for filters. Active group effects, clipping membership or isolation dependencies prevent appearance-losing ungrouping.
 

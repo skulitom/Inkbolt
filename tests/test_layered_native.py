@@ -144,18 +144,21 @@ class NativeLayeredTests(unittest.TestCase):
             self.assertEqual(actual, expected)
 
     def test_stored_pixels_and_blended_folder_render_from_original_channels(self):
-        raw = f.make(blended_sheet('overlay', grouped=True), w=4, h=1, version=2)
+        layers = blended_sheet('overlay', grouped=True)
+        layers[-1]['extra'] += f.tag(b'iOpa',bytes([128,0,0,0]))
+        raw = f.make(layers, w=4, h=1, version=2)
         doc = self.imported(raw)['document']
         back, first, second, folder = doc['items']
         for item, samples in zip((back, first, second), (BACK, FIRST, SECOND), strict=True):
             self.assert_grid(item, samples, 4, 1)
         self.assertEqual(folder['blend'], 'overlay')
+        self.assertEqual((folder['fill_opacity'], folder['opacity']), (128/255, 173/255))
         self.assertTrue(folder['content']['isolated'])
         self.assertEqual(second['blend'], 'screen')
         self.assertEqual(first['parent'], folder['id'])
         self.assertEqual(second['parent'], folder['id'])
         actual = bytes.fromhex(self.cli('document.render', document=doc)['data'])
-        expected = expected_strip('overlay', grouped=True)
+        expected = expected_strip('overlay', grouped=True, fill=128)
         self.assertLessEqual(max(abs(a-b) for a,b in zip(actual, expected, strict=True)), 1)
 
     def test_malformed_late_data_and_invalid_document_publish_nothing(self):

@@ -13,6 +13,8 @@ omitted from snapshots; existing snapshots keep their original meaning. The
 Both work through the Rust library, JSON CLI and MCP, with locks, atomic
 validation, inspection, semantic comparisons and persistent undo.
 
+Pass-through folders also accept fill under the [group compositing rules](LAYER_CLIPPING.md#pass-through-groups).
+
 ## Evaluation order
 
 1. Render geometry, pixel/image sampling or children; evaluate editable filters

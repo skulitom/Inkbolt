@@ -150,6 +150,7 @@ fn record(
     let mut unicode_name = None;
     let mut keys = BTreeSet::new();
     let mut legacy = None;
+    let mut minimum_reader = None;
     while extra.left() > 0 {
         if extra.left() < 12 {
             extra.zero_padding(3)?;
@@ -214,12 +215,8 @@ fn record(
                 data.end()?;
             }
             b"lyvr" => {
-                let minimum = data.word()?;
+                minimum_reader = Some(data.word()?);
                 data.end()?;
-                if ![70, 80, 110].contains(&minimum) {
-                    return Err(unsupported("Unknown minimum layer-reader version"));
-                }
-                ignored.insert(format!("lyvr:minimum_reader_{minimum}"));
             }
             b"lsct" => {
                 if ![4, 12, 16].contains(&count) {
@@ -334,6 +331,18 @@ fn record(
             return Err(malformed());
         }
     }
+    if let Some(minimum) = minimum_reader {
+        match minimum {
+            70 | 80 | 110 => {}
+            130 if matches!(layer.kind, Kind::Group { .. }) => {}
+            _ => {
+                return Err(unsupported(
+                    "Unknown minimum layer-reader version for this layer type",
+                ));
+            }
+        }
+        ignored.insert(format!("lyvr:minimum_reader_{minimum}"));
+    }
     if layer.placement.is_some() && layer.kind != Kind::Pixel {
         return Err(malformed());
     }
@@ -398,10 +407,8 @@ fn record(
                 "Folder records with cached pixel extents require an explicit cache mapping",
             ));
         }
-        if layer.fill != 255 {
-            return Err(unsupported(
-                "Folder fill opacity requires independent native compositing verification",
-            ));
+        if layer.fill != 255 && matches!(layer.kind, Kind::Boundary) {
+            return Err(unsupported("A folder boundary cannot own fill opacity"));
         }
     }
     Ok(layer)
@@ -1023,6 +1030,14 @@ pub(super) fn document_parts(
             "sampling":options.sampling,"sharing":options.sharing}));
     }
     let document:Document=serde_json::from_value(json!({"schema_version":2,"resource_profile":options.resource_profile,"id":id,"kind":"raster","width":width,"height":height,"resolution_ppi":resolution,"color_space":"srgb","items":items,"fonts":fonts})).map_err(|_|malformed())?;
+    for (i, item) in document.items.iter().enumerate() {
+        if crate::scene::unsupported_group_fill(&document, i) {
+            return Err(unsupported(
+                "Intermediate fill on this pass-through folder depends on the external backdrop",
+            )
+            .at_item(&item.id));
+        }
+    }
     crate::validate(&document)?;
     control.check()?;
     let mut result = json!({"document":document,"format":if version==Version::Large{"layered_rgb_v2"}else{"layered_rgb_v1"},"file_version":version.number(),"layers":editable,"serialized_records":records.len(),"masked_items":records.iter().filter(|r|r.mask.is_some()).count(),"groups":records.iter().filter(|r|matches!(r.kind,Kind::Group{..})).count(),"source_profile_sha256":profile.as_ref().map(|v|assets::sha256(v)),"interpretation":if convert{"converted_srgb_per_layer"}else if profile.is_some(){"declared_working_srgb"}else{"assumed_srgb"},"merged_cache":{"sample_sha256":merged_hash,"used_for_editable_reconstruction":false},"resolution_declared":density_declared,"omitted_nonappearance_records":ignored,"losses":["Creates new layer identities from numeric file IDs; preserves native pixel extents, sibling order, folder hierarchy, Unicode names, visibility, opacity and supported full locks. Folder expansion state is listed as omitted UI metadata. No file is overwritten.","The merged cache is decoded and validated but editable appearance is recomputed from layers. Descriptive/UI/thumbnail records listed in the receipt are not imported as trusted document metadata.","Explicit conversion to working sRGB changes layer RGB before compositing, preserves alpha and can change profile-space blending. It is not a promise of cross-consumer composite equality."]});

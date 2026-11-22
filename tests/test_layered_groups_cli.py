@@ -40,13 +40,13 @@ def blended_sheet(mode, grouped):
     return [back, strip('ink', FIRST, blend=key, opacity=173, extra=f.tag(b'iOpa',bytes([191,0,0,0])))]
 
 
-def expected_strip(mode, grouped):
+def expected_strip(mode, grouped, fill=255, upper_mode='screen'):
     result = bytearray()
     for offset in range(0,len(BACK),4):
         back, first, second = (reference.premul(raw[offset:offset+4]) for raw in (BACK,FIRST,SECOND))
         if grouped:
-            folder = reference.over(first, second, mode='screen')
-            color = reference.over(back, folder, Fraction(173,255), mode)
+            folder = reference.over(first, second, mode=upper_mode)
+            color = reference.over(back, folder, Fraction(173*fill,255**2), mode)
         else:
             color = reference.over(back, first, Fraction(173*191,255**2), mode)
         result.extend(round(v) for v in reference.encoded(color))
@@ -100,6 +100,8 @@ class GroupLayeredTests(unittest.TestCase):
                 for grouped in (False, True):
                     with self.subTest(version=version, mode=mode, grouped=grouped):
                         layers = blended_sheet(mode, grouped)
+                        if grouped:
+                            layers[-1]['extra'] += f.tag(b'iOpa',bytes([63,0,0,0]))
                         raw = f.make(layers, w=4, h=1, version=version)
                         doc = self.read(raw, color_policy='assume_srgb')['document']
                         target = doc['items'][-1]
@@ -109,7 +111,7 @@ class GroupLayeredTests(unittest.TestCase):
                             self.assertEqual(doc['items'][2]['parent'], target['id'])
                             self.assertEqual(doc['items'][2]['blend'], 'screen')
                         pixels = bytes.fromhex(self.pixels(doc))
-                        oracle = expected_strip(mode, grouped)
+                        oracle = expected_strip(mode, grouped, fill=63)
                         self.assertLessEqual(max(abs(a-b) for a,b in zip(pixels, oracle, strict=True)), 1)
                         encoded = base64.b64decode(self.export(doc,version)['data'])
                         parsed = f.parse(encoded)
@@ -117,11 +119,54 @@ class GroupLayeredTests(unittest.TestCase):
                         if grouped:
                             self.assertEqual(parsed['layers'][-1]['tags'][b'lsct'], f.U32(1)+b'8BIM'+key)
                             self.assertEqual(parsed['layers'][1]['blend'], b'norm')
+                            self.assertEqual(parsed['layers'][1]['tags'][b'iOpa'][0], 255)
+                            self.assertEqual(parsed['layers'][-1]['tags'][b'iOpa'][0], 63)
+                            self.assertEqual(parsed['layers'][-1]['opacity'], 173)
                         self.assertEqual([r['rgba'] for r in parsed['layers'] if r['rgba']],
                                          [BACK,FIRST,SECOND] if grouped else [BACK,FIRST])
                         again = self.read(encoded)['document']
                         self.assertEqual(self.pixels(again), pixels.hex())
                         self.assertEqual(again['items'][-1]['blend'], mode)
+
+    def test_pass_through_folder_fill_preserves_pixels_and_editable_controls(self):
+        for version in (1, 2):
+            for fill, upper_mode in [(128,'normal'), (0,'screen'), (128,'screen')]:
+                with self.subTest(version=version, fill=fill, upper_mode=upper_mode):
+                    layers = blended_sheet('multiply', True)
+                    layers[-2]['blend'] = b'norm' if upper_mode == 'normal' else b'scrn'
+                    folder = marker(1, 'folder', mode=b'pass', opacity=173)
+                    folder['extra'] += f.tag(b'iOpa', bytes([fill,0,0,0]))
+                    layers[-1] = folder
+                    # Non-normal children can blend against their own isolated
+                    # group while the outer pass-through group stays editable.
+                    if fill and upper_mode == 'screen':
+                        layers.insert(2, marker(3))
+                        layers.insert(-1, marker(1, 'inner'))
+                    source = f.make(layers, w=4, h=1, version=version)
+                    doc = self.read(source, color_policy='assume_srgb')['document']
+                    expected = expected_strip('normal', True, fill, upper_mode)
+                    actual = bytes.fromhex(self.pixels(doc))
+                    self.assertLessEqual(max(abs(a-b) for a,b in zip(actual,expected,strict=True)), 1)
+                    encoded = base64.b64decode(self.export(doc, version)['data'])
+                    records = f.parse(encoded)['layers']
+                    self.assertEqual([layer['rgba'] for layer in records if layer['rgba']], [BACK,FIRST,SECOND])
+                    outer = self.read(encoded)['document']['items'][-1]
+                    self.assertFalse(outer['content']['isolated'])
+                    self.assertEqual((outer['opacity'],outer['fill_opacity']), (173/255,fill/255))
+
+    def test_intermediate_pass_through_fill_rejects_backdrop_blend_in_file_and_edit(self):
+        layers = blended_sheet('multiply', True)
+        layers[-1] = marker(1, 'outer', mode=b'pass')
+        full = self.read(f.make(layers,w=4,h=1), color_policy='assume_srgb')['document']
+        group = full['items'][-1]
+        operation = dict(op='properties', id=group['id'], fill_opacity=128/255)
+        error = self.invoke(dict(command='document.edit', document=full, expected_revision=full['revision'], operations=[operation]),1)
+        self.assertEqual(error['code'],'UNSUPPORTED')
+        self.assertIn('backdrop', error['message'])
+        layers[-1]['extra'] += f.tag(b'iOpa', bytes([128,0,0,0]))
+        error = self.read(f.make(layers,w=4,h=1),1,color_policy='assume_srgb')
+        self.assertEqual(error['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
+        self.assertIn('backdrop', error['message'])
 
     def test_folder_blend_header_fallback_and_conflicting_or_unknown_modes(self):
         for header, divider in [(b'mul ', f.U32(2)), (b'norm',f.U32(2)+b'8BIMmul '),
@@ -140,8 +185,11 @@ class GroupLayeredTests(unittest.TestCase):
             folder=marker(1);folder['extra']=f.tag(b'lsct',extra);self.assertEqual(self.read(f.make([marker(3),folder]),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
         for extra in [b'',b'\0'*5,f.U32(1)+b'BAD!norm']:
             folder=marker(1);folder['extra']=f.tag(b'lsct',extra);self.assertEqual(self.read(f.make([marker(3),folder]),1,color_policy='assume_srgb')['code'],'INVALID_LAYERED_FILE')
-        for folder in [dict(marker(1),width=1,height=1,rgba=[1,2,3,4]),dict(marker(1),mask=bytes(17)+b'\4\0\0'),dict(marker(1),extra=marker(1)['extra']+f.tag(b'iOpa',b'\x80\0\0\0'))]:
+        for folder in [dict(marker(1),width=1,height=1,rgba=[1,2,3,4]),dict(marker(1),mask=bytes(17)+b'\4\0\0')]:
             self.assertEqual(self.read(f.make([marker(3),folder]),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
+        boundary=marker(3)
+        boundary['extra']+=f.tag(b'iOpa',b'\x80\0\0\0')
+        self.assertEqual(self.read(f.make([boundary,marker(1)]),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
         bad=marker(1,channel_data=[b'\0\0x']*4);self.assertEqual(self.read(f.make([marker(3),bad]),1,color_policy='assume_srgb')['code'],'INVALID_LAYERED_FILE')
     def test_folder_record_budget_is_separate_from_editable_items_and_depth(self):
         cap = capabilities()['layered_interchange']
@@ -167,8 +215,15 @@ class GroupLayeredTests(unittest.TestCase):
     def test_nonpixel_flags_and_ordinary_channel_validation_are_not_weakened(self):
         for minimum in [70,80]:
             self.assertIn('lyvr:minimum_reader_'+str(minimum),self.read(f.make([pixel(extra=f.tag(b'lyvr',f.U32(minimum)))]),color_policy='assume_srgb')['omitted_nonappearance_records'])
-        for minimum in [0,69,81,2**32-1]:
+        for minimum in [0,69,81,130,2**32-1]:
             self.assertEqual(self.read(f.make([pixel(extra=f.tag(b'lyvr',f.U32(minimum)))]),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
+        compatibility = f.tag(b'lyvr',f.U32(130))
+        folder = marker(1)
+        folder['extra'] = compatibility + folder['extra']
+        self.assertIn('lyvr:minimum_reader_130',self.read(f.make([marker(3),folder]),color_policy='assume_srgb')['omitted_nonappearance_records'])
+        boundary = marker(3)
+        boundary['extra'] += compatibility
+        self.assertEqual(self.read(f.make([boundary,marker(1)]),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
         for channel_ids in [[],[0],[0,1],[-1,0,1]]:
             self.assertEqual(self.read(f.make([pixel(channel_ids=channel_ids)]),1,color_policy='assume_srgb')['code'],'UNSUPPORTED_LAYERED_SEMANTICS')
         for change in [dict(flags=24),dict(blend=b'pass'),dict(width=0,height=0,rgba=[])]:
@@ -182,9 +237,10 @@ class GroupLayeredTests(unittest.TestCase):
             try:
                 capabilities=c.success('capabilities')['layered_interchange'];self.assertEqual(capabilities['groups']['serialized_records'],512);self.assertIn('empty_name_source_ids',capabilities['empty_layer_names'])
                 imported=c.success('layered.import',source_path=str(source),id='folders',expected_sha256=hashlib.sha256(encoded).hexdigest())['document'];g=next(i['id'] for i in imported['items'] if i['name']=='inner')
-                c.success('session.create',**s,request_id='create',document=imported);edit=dict(expected_revision=0,request_id='blend',action=dict(type='edit',operations=[dict(op='properties',id=g,blend='screen')]));changed=c.success('session.apply',**s,**edit)
+                c.success('session.create',**s,request_id='create',document=imported);edit=dict(expected_revision=0,request_id='blend',action=dict(type='edit',operations=[dict(op='properties',id=g,blend='screen',fill_opacity=63/255)]));changed=c.success('session.apply',**s,**edit)
                 c.success('session.publish',**s,expected_revision=1,output=dict(output_root=root,file_name='edited.psb',format='layered_large'));reopened=c.success('layered.import',source_path=str(Path(root)/'edited.psb'),id='reopened')['document'];self.assertEqual(tree(reopened),tree(changed['document']))
-                self.assertEqual(next(i for i in reopened['items'] if i['name']=='inner')['blend'],'screen')
+                folder = next(i for i in reopened['items'] if i['name']=='inner')
+                self.assertEqual((folder['blend'],folder['fill_opacity'],folder['opacity']),('screen',63/255,128/255))
                 undo=c.success('session.apply',**s,expected_revision=1,request_id='undo',action=dict(type='undo'));self.assertEqual(self.pixels(undo['document']),self.pixels(imported));self.assertTrue(c.success('session.apply',**s,**edit)['replayed']);self.assertTrue(c.success('session.verify',**s)['valid']);self.assertEqual(source.read_bytes(),encoded)
                 self.assertEqual(next(i for i in undo['document']['items'] if i['id']==g)['blend'],'multiply')
             finally:c.close()

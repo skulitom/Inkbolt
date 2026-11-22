@@ -233,8 +233,11 @@ class EffectsCoverageTests(unittest.TestCase):
         locked=self.edit(d,[dict(op='properties',id='art',locked=True)])
         for op in [dict(op='effects',id='art',effects=[e]),dict(op='properties',id='art',fill_opacity=.5),dict(op='properties',id='art',coverage=dict(type='dissolve',seed=1)),dict(op='properties',id='art',locked=False,fill_opacity=.5)]:
             self.assertEqual(self.edit(locked,[op],1)['code'],'LOCKED')
-        for content in [dict(type='group',isolated=False),dict(type='adjustment',adjustment=dict(operators=[dict(type='invert')]))]:
-            for settings in [dict(fill_opacity=.5),dict(effects=[e]),dict(coverage=dict(type='dissolve',seed=1))]:
+        pass_group = dict(type='group',isolated=False)
+        adjustment = dict(type='adjustment',adjustment=dict(operators=[dict(type='invert')]))
+        decorations = [dict(effects=[e]),dict(coverage=dict(type='dissolve',seed=1))]
+        for content, invalid in [(pass_group, decorations), (adjustment, [dict(fill_opacity=.5), *decorations])]:
+            for settings in invalid:
                 self.assertEqual(self.edit(d,[dict(op='add',item=dict(id='bad',content=content,**settings))],1)['code'],'UNSUPPORTED')
         for coverage in [dict(type='dissolve',seed=-1),dict(type='dissolve',seed=2**32),dict(type='dissolve'),dict(type='smooth',seed=1)]:
             self.assertEqual(self.edit(d,[dict(op='properties',id='art',coverage=coverage)],1)['code'],'INVALID_REQUEST')

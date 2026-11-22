@@ -293,13 +293,21 @@ The command is available in the Rust library, JSON CLI and MCP stdio. Ordinary c
 
 ## Nested folders
 
-Isolated and pass-through groups retain sibling order, parentage, Unicode and duplicate names, visibility, exact byte opacity and whole-object locks. Empty and hidden folders remain editable. Import pairs folder boundaries before returning a document. It rejects malformed nesting, more than 16 ancestor levels, more than 256 editable items or more than 512 serialized records. Group fill opacity below full, knockout, clipped folders, layer-role containers and folder records with cached pixel extents remain unsupported.
+Isolated and pass-through groups retain sibling order, parentage, Unicode and duplicate names, visibility, exact byte opacity and whole-object locks. Empty and hidden folders remain editable. Import pairs folder boundaries before returning a document. It rejects malformed nesting, more than 16 ancestor levels, more than 256 editable items or more than 512 serialized records. Knockout, clipped folders, layer-role containers and folder records with cached pixel extents remain unsupported.
 
 Native pixel positions are absolute. Export evaluates integer translations through the parent hierarchy without changing the source document; import uses identity group transforms and the equivalent absolute pixel positions. Scaling, rotation and fractional placements of plain pixel layers fail. With the explicit embedded-object or text delivery policy below, folder transforms may be resolved into child object or text placements; masks still need supported integer bounds. Folder open/closed state is identified as omitted UI metadata. Known minimum-reader compatibility values are checked and listed in the omission receipt; unknown versions and unknown appearance records fail.
 
 Empty names are stored exactly in the file, but native consumers can generate names on opening or saving. The delivery receipt lists `empty_name_source_ids`, and its losses explain this behavior. Assign explicit names when stable external names matter. Original file bytes and engine source documents remain unchanged.
 
 This completes a verified unit of extended interchange, not the entire checkpoint. Remaining mask controls, editable text, full embedded-object exchange, larger axes and the remaining group semantics retain their original acceptance requirements.
+
+### Editable folder fill
+
+Both RGB8 containers preserve folder fill and folder opacity as separate 8-bit settings. For example, an agent can import an isolated folder with fill 63/255 and opacity 173/255, change only its fill with a `properties` edit, and reopen both settings after export. This works with every supported isolated-folder blend mode and keeps original child pixels and masks editable.
+
+Pass-through folders accept full fill and zero fill with blended children. Intermediate fill works when children compose independently of the artwork outside the folder. Normal pixel layers qualify, as does a nested Normal isolated folder containing its own blended layers. A Multiply layer that blends directly against the outer backdrop makes intermediate fill unsupported. Import and editing report that dependency.
+
+Windows and Linux exported the same bytes for 58 original 24 × 24 fixtures in both containers. An independent editor reopened all 116 exports and reproduced its rendering of the corresponding originals on every alpha and visible color sample. The fixtures cover translucent pixels, independent fill and opacity, all 15 isolated-folder modes, pass-through children and grayscale masks. Both platforms refused the same 10 intermediate-fill fixtures whose child blend used the outside backdrop.
 
 ### Editable layer clipping
 

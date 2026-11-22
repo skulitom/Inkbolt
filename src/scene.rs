@@ -346,3 +346,19 @@ pub(crate) fn backdrop_dependent(document: &Document, i: usize) -> bool {
             .iter()
             .any(|&c| backdrop_dependent(document, c)))
 }
+
+pub(crate) fn unsupported_group_fill(document: &Document, i: usize) -> bool {
+    let item = &document.items[i];
+    let Content::Group {
+        isolated: false,
+        knockout,
+        ..
+    } = item.content
+    else {
+        return false;
+    };
+    // Zero fill contributes no child color, even when a child blends with
+    // the backdrop. An intermediate fill needs an independent group result.
+    item.fill_opacity != 1.0
+        && (knockout || (item.fill_opacity != 0.0 && backdrop_dependent(document, i)))
+}
