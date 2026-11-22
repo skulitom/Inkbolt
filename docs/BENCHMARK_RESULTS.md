@@ -2,11 +2,12 @@
 
 ## Results by task
 
-For mixed composition and linked-graphic revision, the model
-completed three of five attempts per task with Inkbolt. It completed all five
-per task with the no-engine baseline. Across the 17 tasks with a baseline, Inkbolt
-matched its artifact success count on 13, scored higher on two and lower on
-two. Median recorded token use was higher with Inkbolt on all 17.
+Both arms completed all five mixed compositions once the shared prompt
+specified that the image layer must remain movable. Linked-graphic revision
+still passed three of five attempts with Inkbolt and five with the baseline.
+Across the 17 tasks with a baseline, Inkbolt matched its artifact success
+count on 14, scored higher on two and lower on one. Median recorded token use
+was higher with Inkbolt on all 17.
 
 Each row uses the latest documented five-attempt batch for the standard task.
 The evidence links give the prompts, independent checks, trial conditions and
@@ -28,7 +29,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 327,734 / 43,824 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 354,590 / 43,008 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
-| B11 Revise a mixed composition | 3/5 | 3/5 | 5/5 | 375,355 / 57,938 | [Image quickstart](#mixed-composition-with-the-image-quickstart) |
+| B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 367,710 / 72,324 | [Movable source layer](#mixed-composition-with-a-movable-source-layer) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 313,210 / 41,717 | [7a07f07](#b10b13-at-7a07f07-five-matched-pairs-with-retained-capture-corrections) |
 | B14 Deliver a print page | 5/5 | 3/5 | 4/5 | 531,200 / 97,120 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
@@ -65,6 +66,45 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Mixed composition with a movable source layer
+
+All five Inkbolt attempts kept the source layer movable, changed only the
+shadow offset and delivered the correct historical and revised previews.
+All five baseline attempts preserved the original file and delivered the
+correct editable controls and revised PNG. The three earlier Inkbolt batches
+each had two unwanted layer locks. Version 2 of the shared prompt specifies
+both the original file's byte identity and the ability to move the layer in a
+later edit. The fixtures, editing requirements and both judges stayed the same.
+[Version 2 prompt](../tools/benchmark_prompts/B11.md) · [Previous five pairs](#mixed-composition-with-the-image-quickstart)
+
+| Five attempts per arm | Inkbolt | No-engine baseline |
+| --- | ---: | ---: |
+| Complete workflows | 5/5 | 5/5 |
+| Median seconds to the observed revised PNG | 65.1 | 41.9 |
+| Median total client seconds | 93.5 | 53.8 |
+| Median input + output tokens | 367,710 | 72,324 |
+| Median completed shell commands | 11 | 3 |
+
+Inkbolt used 5.08 times the baseline's median tokens across the five successful
+pairs. Every Inkbolt agent read the image placement guide. Shell commands that
+mentioned `schema.lookup` produced a median of 84,448 UTF-8 bytes of combined
+console output per Inkbolt attempt. Some commands requested several schemas at
+once. The figure covers the captured shell output, including any other work in
+those commands. Full engine traffic and model-call counts remain unmeasured.
+
+The ten attempts ran sequentially on Windows at `0deed82`, Inkbolt first,
+with the preceding batch's driver, model settings and baseline tools. The
+new build also included single-frame timing edits. All ten captures replayed
+with identical checks, recorded timings, token counts and workspace identities.
+Preview times use the first completed client event with the delivered revised
+PNG's hash. Five pairs establish the result for this batch.
+
+| Retained report | SHA-256 |
+| --- | --- |
+| Inkbolt | `df8033f94efe1e9127d99cc1e931659efdd3be4f8fc37b3e26d2a42faccfe22b` |
+| Baseline | `39597b47aba07016aae34f90cb0ae6dd61c8ce7a705727965385ae02164eac42` |
+| Matched comparison | `25302a47dc05eb9ff3b6c3a26c43f4f611ae6e5ca12b17acbfb8a1f56c04c44f` |
 
 ## Mixed composition with the image quickstart
 
