@@ -49,12 +49,13 @@ class BenchmarkDriverTests(unittest.TestCase):
                 launched,build=retained_engine(args,live)
             self.assertEqual(launched,binary)
             binary.write_bytes(b'new build')
-            saved=live/build['retained_file']
+            # Exercise a directory alias even on hosts with canonical temp paths.
+            saved=replay/'..'/live.name/build['retained_file']
             self.assertEqual(sha(saved.read_bytes()),digest)
             (live/'inputs.json').write_text(json.dumps(dict(arm='model',git_commit='original',build=build)))
             args.import_engine=saved;args.import_root=live
             second,metadata=retained_engine(args,replay)
-            self.assertEqual(second,saved)
+            self.assertEqual(second,saved.resolve(strict=True))
             self.assertEqual((replay/metadata['retained_file']).read_bytes(),saved.read_bytes())
             self.assertEqual(metadata['original_commit'],'original')
             with self.assertRaises(FileExistsError):retained_engine(args,replay)
