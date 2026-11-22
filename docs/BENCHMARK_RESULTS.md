@@ -25,7 +25,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 206,924 / 57,528 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
 | B05 Recolor a shared palette | 5/5 | 5/5 | 5/5 | 270,958 / 54,973 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
 | B06 Repair linked text overflow | 5/5 | 5/5 | 5/5 | 337,131 / 76,580 | [a7e034e](#b06b07-at-a7e034e-captured-trials-rejudged) |
-| B07 Multilingual typography | 5/5 | 5/5 | 0/5 | 405,058 / 218,798 | [a7e034e](#b06b07-at-a7e034e-captured-trials-rejudged) |
+| B07 Multilingual typography | 5/5 | 5/5 | 4/5 | 240,831 / 217,180 | [Glyph order within a cluster](#glyph-order-within-a-cluster) |
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 327,734 / 43,824 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 354,590 / 43,008 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
@@ -56,8 +56,8 @@ specified how to supply the font and position the labels. The earlier baseline
 scored 0/5 on source-format checks despite producing the requested pixels.
 [Original diagrams and rendering check](#b01-source-rendering-check)
 
-In B07, both arms rendered the expected pixels. The baseline failed the
-ordering check for a base glyph and its mark inside one cluster. In B14,
+In B07, all ten attempts rendered the expected pixels. One baseline attempt
+reversed a base glyph and its mark in the accompanying shaping report. In B14,
 Inkbolt produced all five requested print artifacts but selected the wrong
 publication receipt twice.
 
@@ -66,6 +66,35 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Glyph order within a cluster
+
+Prompt version 2 asks both arms to retain the shaping engine's glyph sequence
+within each directional run, including when a mark is drawn to the right of
+the glyph that follows it. Windows and Linux HarfBuzz builds independently
+agreed on the order for the supplied font. The fixture and acceptance checks
+are the same as in the [earlier batch](#b06b07-at-a7e034e-captured-trials-rejudged).
+
+| Five Windows attempts per arm | Inkbolt | Baseline |
+| --- | ---: | ---: |
+| Correct rendered image | 5/5 | 5/5 |
+| Exact glyph and cluster report | 5/5 | 4/5 |
+| Median tokens | 240,831 | 217,180 |
+| Median time to client-observed preview | 59.8 s | 99.3 s |
+| Median solve time | 77.7 s | 126.6 s |
+
+Baseline attempt two reversed the two adjacent entries for the Hebrew base
+and its mark. The earlier baseline reversed those entries in all five attempts.
+All five new pairs matched in the comparison, and replay reproduced every
+check and reported timing. Both batches used the same pinned client and model
+settings. Changes to the engine and driver between batches limit what can be
+attributed to the wording alone.
+
+| Evidence at `8c87af0` | SHA-256 |
+| --- | --- |
+| Inkbolt attempts | `1c9252acd6a1e94230e597339e38974c1f8e19234309b2fc393c3edfb1b428f3` |
+| Baseline attempts | `71626f61f850f1e638f48fca475b67a6be59401c92923e0a6bbd7569a36aeab4` |
+| Matched comparison | `fe4f1d8926d7fbfab5d528d6dd6b5fcdb0f03518471ff336c20cdaa576803abe` |
 
 ## Interrupted export recovery with a vector fill edit
 
