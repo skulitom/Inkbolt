@@ -65,6 +65,23 @@ Save the assembled document in a session, then use its ID and revision to
 publish the snapshot and PNG. Each publication needs a fresh output filename.
 Reading the examples leaves the workspace untouched.
 
+## Place an image
+
+For a composition that starts with an image, request the image quickstart.
+
+```json
+{"command":"schema.lookup","name":"image.quickstart"}
+```
+
+Run the returned `import_image` request with your own source path. Copy
+`result.asset` into `save_session.document.assets.photo` and use its width
+and height for the image item. Use the same dimensions for the canvas to fit
+the original. The descriptor pins the pixels by SHA-256. You can move or
+resize the placed layer while both the original file and the stored image
+retain their contents. Set the item's `locked` field when you want to prevent
+those edits. Add any other items, save the session, and publish the desired
+revision using the returned snapshot and PNG requests.
+
 ## Focused schemas
 
 For CLI discovery, `inkbolt --help` (or `-h`) returns one successful JSON envelope

@@ -15,6 +15,7 @@ from test_sessions_cli import EXE, invoke
 from synthetic_font import geometric_font
 from mcp_artifacts import restore
 from test_editing_cli import png_pixels
+from test_images_cli import png as source_png
 from external_workspace import files as workspace_files
 
 
@@ -30,6 +31,57 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_image_quickstart_keeps_the_source_and_its_placement_editable(self):
+        lookup = invoke(dict(command='schema.lookup', name='index'))['result']['image_quickstart']
+        guide = invoke(lookup)['result']
+        self.assertLess(len(json.dumps(guide, separators=(',', ':')).encode()), 4096)
+        for extra in ({'full': True}, {'select': 'image'}):
+            self.assertEqual(invoke(dict(lookup, **extra))['error']['code'], 'INVALID_REQUEST')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with closing(Client(('--tools', 'essentials'), workspace=root)) as client:
+                client.initialize()
+                self.assertEqual(client.success('schema.lookup', name=lookup['name']), guide)
+                self.assertEqual(list(root.iterdir()), [])
+
+                def run(request):
+                    args = {k: v for k, v in request.items() if k != 'command'}
+                    reply = restore(client.tool('run', command=request['command'], arguments=args))
+                    self.assertTrue(reply['ok'], reply)
+                    return reply['result']
+
+                pixels = bytes([201, 60, 20, 255, 18, 77, 111, 255])
+                original = source_png(2, 1, pixels)
+                path = root / guide['import_image']['source_path']
+                path.write_bytes(original)
+                asset = run(guide['import_image'])['asset']
+                self.assertEqual(asset['provenance']['source_sha256'], hashlib.sha256(original).hexdigest())
+                save = guide['save_session']
+                doc = save['document']
+                item = doc['items'][0]
+                content = item['content']
+                doc['assets'][content['asset_id']] = asset
+                for field in ('width', 'height'):
+                    content[field] = doc[field] = asset[field]
+                run(save)
+                run(guide['publish_snapshot'])
+                snapshot = json.loads((root / guide['publish_snapshot']['output']['file_name']).read_bytes())
+                self.assertEqual(snapshot['assets'], doc['assets'])
+                self.assertFalse(snapshot['items'][0]['locked'])
+                move = dict(op='transform', id=item['id'], matrix=[1, 0, 0, 1, 1, 0], space='world')
+                run(dict(command='session.apply', session_id=save['session_id'], expected_revision=0,
+                         request_id='move', action=dict(type='edit', operations=[move])))
+                publish = guide['publish_png']
+                run(publish)
+                self.assertEqual(png_pixels((root / publish['output']['file_name']).read_bytes())[:3],
+                                 (2, 1, pixels))
+                publish['document']['revision'] = 1
+                publish['output']['file_name'] = 'moved.png'
+                run(publish)
+                self.assertEqual(png_pixels((root / 'moved.png').read_bytes())[:3],
+                                 (2, 1, bytes(4) + pixels[:4]))
+                self.assertEqual(path.read_bytes(), original)
+
     def test_vector_quickstart_discovery_and_editable_png_delivery(self):
         lookup = invoke(dict(command='schema.lookup', name='index'))['result']['vector_quickstart']
         guide = invoke(lookup)['result']

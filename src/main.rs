@@ -39,9 +39,10 @@ fn run(args: &[OsString], workspace: Option<&Workspace>) -> Result<Value, Error>
                     "failure":"One JSON line with ok:false and error containing code and message; exit code 1.",
                     "result_only":"Add --result-only before the command or request file to emit only the successful result. Errors go to stderr as JSON with exit code 1. Accepts stdin and can be combined with --workspace.",
                     "mcp":"MCP stdio protocol instead of CLI envelopes; use --tools essentials for the smallest catalog, core for more direct tools."},
-                "discovery":"For a new vector graphic, start with schema.lookup name vector.quickstart for editable shapes, text, fonts, saved revisions and PNG delivery in one reply. For individual types and commands use the index.",
+                "discovery":"Use schema.lookup name vector.quickstart for editable shapes and text, or image.quickstart to place an imported image in an editable composition. Both include saved revisions and PNG delivery. For individual types and commands use the index.",
                 "examples":[
                     {"command":"schema.lookup","name":"vector.quickstart"},
+                    {"command":"schema.lookup","name":"image.quickstart"},
                     {"command":"schema.lookup","name":"index"},
                     {"command":"schema.lookup","name":"document.create"},
                     {"command":"schema.lookup","name":"operation","select":"reorder"},

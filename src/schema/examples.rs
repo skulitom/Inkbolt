@@ -33,28 +33,52 @@ fn import_font() -> Value {
     json!({"command":"font.import","source_path":"typeface.ttf","license_path":"typeface-license.txt"})
 }
 
-fn save_session() -> Value {
+fn save_session(document: Value) -> Value {
     json!({"command":"session.create","session_id":"example","request_id":"create",
-        "document":document(),"response_mode":"compact"})
+        "document":document,"response_mode":"compact"})
 }
 
 pub(super) fn vector_quickstart() -> Value {
     let postcard: Value = serde_json::from_str(include_str!("../../examples/first-png.json"))
         .expect("bundled postcard is valid JSON");
-    let snapshot: Value =
-        serde_json::from_str(include_str!("../../examples/publish-snapshot.json"))
-            .expect("bundled snapshot request is valid JSON");
     json!({"name":"vector.quickstart","detail":"examples",
     "publish_png":postcard,
     "import_font":import_font(),
     "text_item":{"id":"caption","transform":[1,0,0,1,12,8],"content":{"type":"text","frame":frame()}},
-    "save_session":save_session(),
-    "publish_snapshot":snapshot,
+    "save_session":save_session(document()),
+    "publish_snapshot":publish_snapshot(),
     "usage":[
         "Run requests with one selected workspace. Adapt publish_png.document and its items to your canvas and artwork. Geometry uses canvas units and fills use RGBA bytes.",
         "For text, run import_font with your own font and license paths. Set document.fonts.face to the returned result descriptor and append text_item to document.items. Its translation places the frame's top left.",
         "To keep the edit, put that document in save_session.document and use a fresh session ID. Use the saved session ID and revision as the document in publish_snapshot and publish_png. Choose unused output filenames."
     ]})
+}
+
+fn publish_snapshot() -> Value {
+    serde_json::from_str(include_str!("../../examples/publish-snapshot.json"))
+        .expect("bundled snapshot request is valid JSON")
+}
+
+pub(super) fn image_quickstart() -> Value {
+    let snapshot = publish_snapshot();
+    let artwork = json!({
+        "schema_version":2,"id":"artwork","kind":"raster","color_space":"srgb",
+        "width":320,"height":240,"assets":{},
+        "items":[{"id":"picture","content":{"type":"image","asset_id":"photo","width":320,"height":240}}]
+    });
+    json!({
+        "name":"image.quickstart","detail":"examples",
+        "import_image":{"command":"asset.import","source_path":"photo.png"},
+        "save_session":save_session(artwork),
+        "publish_png":{"command":"document.publish","document":snapshot["document"],
+            "output":{"format":"png","file_name":"artwork.png"}},
+        "publish_snapshot":snapshot,
+        "usage":[
+            "Use one selected workspace. Run import_image with your source path. Copy result.asset into save_session.document.assets.photo. Its sha256 pins the imported pixels and provenance.source_sha256 identifies the original file bytes.",
+            "For native size, set the image content width and height from the asset descriptor. To fit the canvas to the image, set the document width and height to those dimensions too. The image item starts at the origin and stays editable. Set locked:true only when you want to prevent layer edits.",
+            "Add other artwork to document.items and choose the document kind and resource profile for your canvas. Run save_session with a fresh session ID. Use that ID and the desired saved revision in publish_snapshot and publish_png with unused filenames."
+        ]
+    })
 }
 
 fn example(kind: &str, value: Value, requires: &[&str], usage: &str) -> Value {
@@ -131,7 +155,7 @@ pub(super) fn for_schema(name: &str, selected: Option<&str>, schema: &Value) -> 
         )),
         "session.create" => Some(example(
             "request",
-            save_session(),
+            save_session(document()),
             &[
                 "An existing selected workspace",
                 "An unused session ID example",
