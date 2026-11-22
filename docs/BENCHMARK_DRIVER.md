@@ -250,6 +250,9 @@ client provides observed data, replace null with an object containing
   records a `file` from the request's `preview_files`, its lowercase `sha256`
   and elapsed `seconds` on the same clock as `agent_seconds`. Supply the first
   sample of each distinct filename and digest in time order, up to 64 entries.
+  If the request sets `preview_subfolders:true`, the file can be inside a
+  delivery folder. Record its exact workspace-relative path using forward
+  slashes, for example `print output/preview.png`.
   After judging, `client_event_preview_seconds` and `client_event_preview_file`
   identify the earliest observation whose filename and digest match a passing
   deliverable. A corrected file or another passing board can qualify when an

@@ -117,10 +117,11 @@ class PrintBenchmarkTests(unittest.TestCase):
     def test_external_capture_rejudges_after_original_workspace_moves(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);configuration=driver('--custom-session-store','--custom-receipt-store',
-                '--print-labels','--print-delivery-folder','--print-extra-losses','--preview-usage')
+                '--print-labels','--print-delivery-folder','--print-extra-losses','--file-preview-events')
             row=run_external_task(EXE,root/'live','B14',1,'model',configuration)
             self.assertEqual(row['status'],'passed',row);before=workspace_files(root/'live/workspace')
-            self.assertEqual(row['first_verified_preview_seconds'],.5)
+            self.assertEqual((row['client_event_preview_file'],row['first_verified_preview_seconds']),
+                             ('print output/preview.png',.75))
             self.assertFalse((root/'live/workspace/print.pdf').exists())
             snapshot=json.loads((root/'live/workspace/print output/editable.json').read_bytes())
             self.assertEqual({key:value['name'] for key,value in snapshot['swatches'].items()},
@@ -132,7 +133,8 @@ class PrintBenchmarkTests(unittest.TestCase):
             (root/'live').rename(root/'moved')
             imported=run_external_task(EXE,root/'import','B14',1,'model',configuration,import_source=root/'moved')
             self.assertEqual(imported['status'],'passed',imported);self.assertFalse(imported['model_trials'])
-            self.assertEqual(imported['first_verified_preview_seconds'],.5)
+            self.assertEqual((imported['client_event_preview_file'],imported['first_verified_preview_seconds']),
+                             ('print output/preview.png',.75))
             self.assertEqual(before,workspace_files(root/'moved/workspace'));self.assertEqual(before,workspace_files(root/'import/workspace'))
 
     def test_custom_history_and_receipt_stores_must_be_unique_and_intact(self):

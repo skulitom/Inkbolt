@@ -456,7 +456,8 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
         observed=dict(source='client_reported',agent_seconds=1.5,first_preview_seconds=.5,
                       first_preview_sha256=hashlib.sha256(preview.read_bytes()).hexdigest())
     if '--file-preview-events' in sys.argv:
-        assert preview_name in request['preview_files']
+        assert Path(preview_name).name in request['preview_files']
+        assert '/' not in preview_name or request.get('preview_subfolders') is True
         observed=dict(source='client_reported',agent_seconds=1.5,completed_event_previews=[
             dict(file=preview_name,seconds=.25,sha256=hashlib.sha256(b'superseded').hexdigest()),
             dict(file=preview_name,seconds=.75,sha256=hashlib.sha256((root/preview_name).read_bytes()).hexdigest())])

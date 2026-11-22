@@ -2,6 +2,18 @@
 
 SUITE = 'agent-tasks-v1'
 VARIANTS = ('standard','photo-50mp-v1')
+PREVIEWS_IN_SUBFOLDERS = {'B14'}
+
+
+def allowed_preview_file(file, names, *, subfolders=False):
+    """Match the declared filename and keep a canonical workspace-relative identity."""
+    if not isinstance(file, str):
+        return False
+    parts = file.split('/')
+    return ((subfolders or len(parts) == 1) and parts[-1] in names and not any(c in file for c in ('\\', ':', '\0'))
+            and all(part not in ('', '.', '..') for part in parts))
+
+
 # These outcomes are copied from the accepted readiness plan. An absent adapter
 # remains a visible not_implemented result, never a reduced benchmark denominator.
 TASKS = {

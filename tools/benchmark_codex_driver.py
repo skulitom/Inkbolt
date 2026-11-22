@@ -21,6 +21,7 @@ MAX_TRANSCRIPT = 64 * 1024 * 1024
 MAX_EVENT = 8 * 1024 * 1024
 MAX_PREVIEW_BYTES = 16 * 1024 * 1024
 MAX_PREVIEW_SAMPLES = 64
+MAX_PREVIEW_SEARCH_ENTRIES = 4096
 MCP_APPROVAL_MODES = ('auto', 'prompt', 'writes', 'approve')
 DISABLED_FEATURES = ('apps', 'plugins', 'remote_plugin', 'browser_use',
     'browser_use_external', 'computer_use', 'image_generation', 'multi_agent',
@@ -86,11 +87,14 @@ def file_digest(path, limit):
 class PreviewSampler:
     """Time the first observation of each delivered PNG identity at completed events."""
 
-    def __init__(self, workspace, names):
+    def __init__(self, workspace, names, *, subfolders=False):
         require(isinstance(names, list) and len(names) <= 8 and
                 all(isinstance(n, str) and re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}\.png', n)
                     for n in names) and len(set(names)) == len(names), 'Invalid preview filenames')
-        self.paths = [workspace / name for name in names]
+        require(type(subfolders) is bool, 'Invalid preview folder search')
+        self.workspace = workspace.resolve(strict=True)
+        self.names = names
+        self.subfolders = subfolders
         self.last_stat = {}
         self.first_seen = {}
 
@@ -98,13 +102,41 @@ class PreviewSampler:
     def identity(info):
         return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
+    def paths(self):
+        for name in self.names:
+            yield self.workspace / name
+        if not self.subfolders or not self.names:
+            return
+        directories = [self.workspace]
+        remaining = MAX_PREVIEW_SEARCH_ENTRIES
+        while directories and remaining:
+            directory = directories.pop()
+            try:
+                if directory.resolve(strict=True) != directory:
+                    continue
+                with os.scandir(directory) as entries:
+                    for entry in entries:
+                        if not remaining:
+                            return
+                        remaining -= 1
+                        if entry.is_dir(follow_symlinks=False):
+                            if '\\' in entry.name or ':' in entry.name:
+                                continue
+                            info = entry.stat(follow_symlinks=False)
+                            if not getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+                                directories.append(Path(entry.path))
+                        elif directory != self.workspace and entry.name in self.names:
+                            yield Path(entry.path)
+            except (OSError, RuntimeError):
+                continue
+
     def sample(self, started):
-        for path in self.paths:
+        for path in self.paths():
             if len(self.first_seen) >= MAX_PREVIEW_SAMPLES:
                 return
             try:
                 info = path.lstat()
-                if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or
+                if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or path.resolve(strict=True) != path or
                         getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT or
                         not 0 < info.st_size <= MAX_PREVIEW_BYTES):
                     continue
@@ -114,16 +146,18 @@ class PreviewSampler:
                 flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_BINARY', 0)
                 with os.fdopen(os.open(path, flags), 'rb') as stream:
                     before = os.fstat(stream.fileno())
-                    if not stat.S_ISREG(before.st_mode) or not os.path.samestat(info, before):
+                    if (not stat.S_ISREG(before.st_mode) or not os.path.samestat(info, before)
+                            or path.resolve(strict=True) != path):
                         continue
                     raw = stream.read(info.st_size + 1)
                     if len(raw) != info.st_size or self.identity(os.fstat(stream.fileno())) != self.identity(before):
                         continue
-                if self.identity(path.lstat()) != identity:
+                if self.identity(path.lstat()) != identity or path.resolve(strict=True) != path:
                     continue
                 self.last_stat[path] = identity
-                self.first_seen.setdefault((path.name, digest(raw)), time.perf_counter() - started)
-            except OSError:
+                relative = path.relative_to(self.workspace).as_posix()
+                self.first_seen.setdefault((relative, digest(raw)), time.perf_counter() - started)
+            except (OSError, RuntimeError):
                 # A file may be unpublished, in use or replaced between events.
                 continue
 
@@ -270,7 +304,8 @@ def run(request_path, executable, mcp_approval_mode=None, mcp_tools='core'):
     require(evidence.is_dir() and result_path.resolve() == evidence/'driver-result.json', 'Unexpected result path')
     require(not result_path.exists(), 'Driver result already exists')
     transcript = evidence/'codex-events.jsonl'
-    sampler = PreviewSampler(workspace, request.get('preview_files', []))
+    sampler = PreviewSampler(workspace, request.get('preview_files', []),
+                             subfolders=request.get('preview_subfolders', False))
     events = []; size = 0; started = time.perf_counter()
     with transcript.open('xb') as stream, tempfile.TemporaryFile() as solver_input:
         header = canonical(dict(type='inkbolt.client_request', contract_sha256=request['contract_sha256'],

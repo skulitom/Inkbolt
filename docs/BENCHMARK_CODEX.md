@@ -112,10 +112,13 @@ prompt. The judge reports the earliest sample matching both the delivered file
 and a passing artwork check. This gives an upper bound on when accepted bytes
 became available on disk. The time at which the agent saw the image is unknown.
 
-Sampling covers up to eight named files at the workspace root, 16 MiB per
-file and 64 distinct observations per trial. Linked files are skipped.
-A B14 print preview delivered in a subfolder can pass its artwork check with
-unknown timing. B19 samples the review and recovered PNGs. Both B20 arms
+Sampling covers up to eight named files, 16 MiB per file and 64 distinct
+observations per trial. The adapter checks the workspace root first. B14 also
+accepts a print preview in a delivery folder, so each completed event searches
+up to 4,096 workspace entries for that filename. It skips links and records
+the full relative path. A copy observed in another folder has its own clock.
+If the accepted file was never observed, its timing remains unknown.
+B19 samples the review and recovered PNGs. Both B20 arms
 sample the revised graphic. The model arms also retain their separate bridge
 measurements. [Timing fields](BENCHMARK_DRIVER.md)
 

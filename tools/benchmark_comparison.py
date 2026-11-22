@@ -6,7 +6,7 @@ from pathlib import Path
 import statistics
 
 from benchmark_tasks import (SUITE, TASKS, CHECKS, ARTIFACT_CHECKS, ENGINE_CHECKS, VARIANTS,
-                             BASELINE_NOT_APPLICABLE, check_class)
+                             BASELINE_NOT_APPLICABLE, PREVIEWS_IN_SUBFOLDERS, allowed_preview_file, check_class)
 
 
 # Fixed before model trials; changes require a new policy identity, not retroactive tuning.
@@ -121,7 +121,8 @@ def retained_contract(root, row, provenance):
     seconds=row.get('client_event_preview_seconds')
     if file is not None or seconds is not None:
         elapsed=row.get('agent_seconds')
-        require(isinstance(file,str) and file in request.get('preview_files',[]) and
+        require(allowed_preview_file(file,request.get('preview_files',[]),
+                    subfolders=task in PREVIEWS_IN_SUBFOLDERS and request.get('preview_subfolders') is True) and
                 type(seconds) in (float,int) and type(elapsed) in (float,int) and 0<=seconds<=elapsed,
                 'Invalid client file preview observation')
         expected=dict(file=file,seconds=seconds,sha256=capture['workspace_files'].get(file))

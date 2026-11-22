@@ -154,9 +154,9 @@ class BenchmarkDriverTests(unittest.TestCase):
     def test_preview_event_samples_require_declared_files_unique_hashes_and_ordered_client_times(self):
         sample=dict(file='preview.png',sha256='a'*64,seconds=.5)
         later=dict(sample,sha256='b'*64,seconds=.7)
-        def observe(samples,**extra):
+        def observe(samples,subfolders=False,**extra):
             return observations(dict(observations=dict(source='client_reported',agent_seconds=1,
-                                completed_event_previews=samples,**extra)), ('preview.png',))
+                                completed_event_previews=samples,**extra)), ('preview.png',),subfolders=subfolders)
         self.assertEqual(observe([sample,later])['completed_event_previews'],[sample,later])
         for invalid in ([sample,sample],[later,sample],[dict(sample,file='../preview.png')],
                         [dict(sample,seconds=2)],[dict(sample,seconds=True)],[dict(sample,seconds=float('nan'))],
@@ -165,6 +165,14 @@ class BenchmarkDriverTests(unittest.TestCase):
                 observe(invalid)
         with self.assertRaises(TaskFailure):
             observe([sample],first_preview_seconds=.1,first_preview_sha256=sample['sha256'])
+        nested=dict(sample,file='print output/preview.png')
+        self.assertEqual(observe([nested],subfolders=True)['completed_event_previews'],[nested])
+        with self.assertRaises(TaskFailure):
+            observe([nested])
+        for file in ('/preview.png','../preview.png','a/./preview.png','a//preview.png',
+                     'C:/preview.png','a\\b/preview.png','a/other.png'):
+            with self.subTest(file=file),self.assertRaises(TaskFailure):
+                observe([dict(sample,file=file)],subfolders=True)
 
     def test_baseline_runs_without_an_engine_and_marks_engine_checks_not_applicable(self):
         with tempfile.TemporaryDirectory() as directory:

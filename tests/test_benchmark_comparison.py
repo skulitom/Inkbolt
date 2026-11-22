@@ -22,7 +22,7 @@ def save(path,value):
     path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(canonical(value))
 
 
-def suite(root,arm,tasks=('B01',),reps=5,kind='synthetic',edit=None):
+def suite(root,arm,tasks=('B01',),reps=5,kind='synthetic',edit=None,preview='preview.png'):
     candidates={'original.py':H};driver=dict(config_sha256=H,files={'client.py':dict(sha256=H)})
     p=dict(arm=arm,suite=SUITE,client=dict(id='original-metadata-fixture',version='1'),model=dict(id='fixture',settings={}),
         driver_kind=kind,driver=driver,candidate_files=candidates,candidate_sha256=digest(canonical(candidates)),
@@ -49,9 +49,11 @@ def suite(root,arm,tasks=('B01',),reps=5,kind='synthetic',edit=None):
             if edit:edit(row,contract,usage)
             identity=digest(canonical(contract));result=dict(schema_version=1,contract_sha256=identity,kind=kind,client=p['client'],
                 model=p['model'],transcript='transcript.jsonl',observations=usage)
-            evidence=base/'evidence';save(evidence/'request.json',dict(contract=contract,contract_sha256=identity,preview_files=['preview.png']))
+            evidence=base/'evidence';request=dict(contract=contract,contract_sha256=identity,preview_files=['preview.png'])
+            if task=='B14':request['preview_subfolders']=True
+            save(evidence/'request.json',request)
             save(evidence/'driver-result.json',result);(evidence/'transcript.jsonl').write_bytes(b'{"fixture":true}\n')
-            execution=dict(status='passed',seconds=3);workspace={'original.txt':H,'preview.png':H}
+            execution=dict(status='passed',seconds=3);workspace={'original.txt':H,preview:H}
             capture=dict(contract=contract,result_sha256=digest(canonical(result)),transcript_sha256=digest(b'{"fixture":true}\n'),
                 execution=execution,host=p['environment'],workspace_files=workspace,driver_identity=driver)
             save(evidence/'capture.json',capture)
@@ -155,6 +157,15 @@ class ComparisonTests(unittest.TestCase):
         result=self.compare(dict(reps=4),dict(reps=4))
         self.assertTrue(result['tasks'][0]['comparable']);self.assertFalse(result['tasks'][0]['minimum_repetitions_met'])
         self.assertFalse(result['losing_tasks'])
+
+    def test_print_event_matches_the_final_workspace_relative_path(self):
+        def sampled(row,contract,usage):
+            file='other/preview.png' if row['repetition']==2 else 'print output/preview.png'
+            usage['completed_event_previews']=[dict(file=file,seconds=.75,sha256=H)]
+            row.update(client_event_preview_file=file,client_event_preview_seconds=.75)
+        data=load_report(suite(self.root/'print','model',tasks=('B14',),reps=2,
+                               edit=sampled,preview='print output/preview.png'),'model')
+        self.assertEqual(set(data['issues']),{('B14',2)})
 
     def test_full_metadata_gate_requires_genuine_kind_and_all_fixed_tasks(self):
         # These files only exercise acceptance logic; no model was executed.

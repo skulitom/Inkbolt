@@ -6,7 +6,7 @@ Both arms completed all five mixed compositions and all five linked-graphic
 revisions in their latest batches. Each linked-graphic agent using Inkbolt
 found the timed sequence example through the discovery index.
 Across the 17 tasks with a baseline, Inkbolt matched its artifact success
-count on 15 and scored higher on two. Median recorded token use
+count on 16 and scored higher on one. Median recorded token use
 was higher with Inkbolt on all 17.
 
 Each row uses the latest documented five-attempt batch for the standard task.
@@ -32,7 +32,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 367,710 / 72,324 | [Movable source layer](#mixed-composition-with-a-movable-source-layer) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 313,210 / 41,717 | [7a07f07](#b10b13-at-7a07f07-five-matched-pairs-with-retained-capture-corrections) |
-| B14 Deliver a print page | 5/5 | 3/5 | 4/5 | 531,200 / 97,120 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
+| B14 Deliver a print page | 5/5 | 5/5 | 5/5 | 466,033 / 95,336 | [Print publication receipts](#identifying-the-delivered-print-pdf) |
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 178,056 / n/a | [77c6a17](#b17-with-the-workspace-in-the-cli-launch-command) |
@@ -58,14 +58,42 @@ scored 0/5 on source-format checks despite producing the requested pixels.
 
 In B07, all ten attempts rendered the expected pixels. One baseline attempt
 reversed a base glyph and its mark in the accompanying shaping report. In B14,
-Inkbolt produced all five requested print artifacts but selected the wrong
-publication receipt twice.
+all five Inkbolt agents identified the completed publication for the delivered
+PDF. The earlier batch pointed to an editable snapshot twice.
 
 The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 [three five-pair 50 MP photo evaluations](B10_LARGE.md#five-matched-windows-trials) and [earlier evaluations](#b02-at-c7d9f30-initial-five-matched-icon-sheet-trials)
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Identifying the delivered print PDF
+
+In the [earlier B14 batch](#b14b15-at-7d31cf9-print-delivery-and-resource-repair),
+each session ledger contained a completed publication for the exact PDF.
+Two agents selected the completed snapshot publication from the same revision.
+Prompt version 2 asks for the request ID whose PDF hash matches the delivery.
+All five new Inkbolt agents supplied it. Both arms produced five accepted
+print deliveries. The earlier baseline passed four.
+
+The original judge rejected the fourth Inkbolt snapshot because it omitted
+default fields such as visibility and explicitly set knockout on the fills.
+Reopening that file yielded exactly the required document. The corrected
+judge compares the complete validated source with the reference and saved
+session. All ten retained deliveries were rejudged against their original
+inputs. The corrected check admitted this one additional workflow.
+
+| Five Windows attempts per arm at `93ebea4` | Inkbolt | Baseline |
+| --- | ---: | ---: |
+| Median tokens | 466,033 | 95,336 |
+| Median solve time | 115.2 s | 90.9 s |
+| Median time to client-observed preview | 74.7 s (5/5 observed) | 85.4 s (3/5 observed) |
+
+Two accepted baseline previews were saved in a delivery folder, beyond the
+root-only timing of this batch. The historical and new batches used the same
+client binary and model settings. Engine and driver versions differed.
+The matched comparison after rejudging at `c54a7f6` has SHA-256
+`32c3cf3213c888cf988091b2f82a686e973ff491b0089c9c3a9750b6a5b8e6c9`.
 
 ## Glyph order within a cluster
 

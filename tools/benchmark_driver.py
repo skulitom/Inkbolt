@@ -7,7 +7,7 @@ import traceback
 
 from benchmark_runtime import Trial, require, safe_name, strict_json
 from benchmark_stores import recorded_path
-from benchmark_tasks import TASKS, CHECKS, BASELINE_NOT_APPLICABLE
+from benchmark_tasks import TASKS, CHECKS, BASELINE_NOT_APPLICABLE, PREVIEWS_IN_SUBFOLDERS, allowed_preview_file
 import benchmark_diagram
 import benchmark_icons
 import benchmark_large_layout
@@ -133,7 +133,7 @@ def transcript(evidence, name):
     return path
 
 
-def observations(result, preview_files=()):
+def observations(result, preview_files=(), *, subfolders=False):
     value=result.get('observations')
     if value is None: return dict(token_usage=None,model_calls=None,agent_seconds=None)
     require(isinstance(value,dict) and value.get('source') == 'client_reported', 'Observations must be reported by the client')
@@ -169,7 +169,7 @@ def observations(result, preview_files=()):
         previous=0
         for sample in samples:
             require(isinstance(sample,dict) and set(sample)=={'file','sha256','seconds'}
-                    and sample['file'] in preview_files, 'Unexpected sampled preview file')
+                    and allowed_preview_file(sample['file'],preview_files,subfolders=subfolders), 'Unexpected sampled preview file')
             digest=sample['sha256']; seconds=sample['seconds']
             require(isinstance(digest,str) and len(digest)==64 and all(c in '0123456789abcdef' for c in digest)
                     and (sample['file'],digest) not in seen, 'Invalid sampled preview identity')
@@ -308,7 +308,8 @@ def validate_result(evidence, request_contract, capture, files):
         require(result[key]==request_contract[key], 'Driver changed '+key)
     raw=transcript(evidence,result['transcript'])
     adapter=migration(request_contract['task'],request_contract.get('benchmark_variant','standard'))[0]
-    observed=observations(result,tuple(adapter.PREVIEW_FILES.values()))
+    observed=observations(result,tuple(adapter.PREVIEW_FILES.values()),
+                          subfolders=request_contract['task'] in PREVIEWS_IN_SUBFOLDERS)
     require(capture['workspace_files']==files and capture['contract']==request_contract and
             capture['result_sha256']==file_hash(evidence/'driver-result.json') and
             capture['transcript_sha256']==file_hash(raw), 'Captured evidence identity mismatch')
@@ -388,6 +389,8 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
         request['engine_executable']=str(case.executable.resolve())
     if hasattr(adapter,'configure_request'):adapter.configure_request(case,request)
     request['preview_files']=sorted(set(adapter.PREVIEW_FILES.values()))
+    if task in PREVIEWS_IN_SUBFOLDERS:
+        request['preview_subfolders']=True
     if request.get('engine_executable'):
         cli = [request['engine_executable'], '--workspace', request['workspace']]
         request['engine_cli_argv'] = cli

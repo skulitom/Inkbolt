@@ -222,6 +222,41 @@ class CodexDriverTests(unittest.TestCase):
     def test_missing_usage_stays_unknown(self):
         self.assertIsNone(driver.observed_usage([dict(type='turn.started'),dict(type='turn.completed')]))
 
+    def test_folder_observations_bind_the_path_and_ignore_directory_links(self):
+        sampler = driver.PreviewSampler(self.workspace, ['preview.png'], subfolders=True)
+        root_only = driver.PreviewSampler(self.workspace, ['preview.png'])
+        first = self.workspace/'first copy'/'preview.png'
+        final = self.workspace/'pages'/'print sheet'/'preview.png'
+        first.parent.mkdir()
+        final.parent.mkdir(parents=True)
+        first.write_bytes(b'accepted pixels')
+        first_digest = driver.digest(first.read_bytes())
+        outside = self.workspace.parent/'other print'
+        outside.mkdir()
+        (outside/'preview.png').write_bytes(b'outside')
+        link = self.workspace/'alias'
+        if sys.platform == 'win32':
+            subprocess.run(['cmd','/d','/c','mklink','/J',str(link),str(outside)],
+                           check=True,capture_output=True,timeout=10)
+        else:
+            link.symlink_to(outside,target_is_directory=True)
+        with patch.object(driver.time,'perf_counter',side_effect=[11,14,17]):
+            sampler.sample(10)
+            final.write_bytes(b'draft')
+            sampler.sample(10)
+            final.write_bytes(first.read_bytes())
+            sampler.sample(10)
+            root_only.sample(10)
+        self.assertEqual(sampler.observations(),[
+            dict(file='first copy/preview.png',sha256=first_digest,seconds=1),
+            dict(file='pages/print sheet/preview.png',sha256=driver.digest(b'draft'),seconds=4),
+            dict(file='pages/print sheet/preview.png',sha256=first_digest,seconds=7)])
+        self.assertEqual(root_only.observations(),[])
+        with patch.object(driver,'MAX_PREVIEW_SEARCH_ENTRIES',0):
+            limited = driver.PreviewSampler(self.workspace,['preview.png'],subfolders=True)
+            limited.sample(10)
+            self.assertEqual(limited.observations(),[])
+
     def test_failed_incomplete_duplicate_and_malformed_usage_cannot_pass(self):
         start = dict(type='turn.started'); done = dict(type='turn.completed',usage=dict(input_tokens=2))
         for events in ([start], [done], [start,done,done], [start,done,dict(type='error')],
