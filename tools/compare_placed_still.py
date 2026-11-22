@@ -48,6 +48,15 @@ def expected(paper, badge, position):
     return bytes(image)
 
 
+def preview_rgba(path, ffmpeg):
+    with path.open('rb') as stream:
+        header = stream.read(24)
+    require(header == b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR' + struct.pack('>II', WIDTH, HEIGHT),
+            'Incorrect PNG dimensions or signature')
+    return subprocess.run([str(ffmpeg), '-nostdin', '-v', 'error', '-i', str(path), '-frames:v', '1', '-f',
+                           'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], check=True, capture_output=True, timeout=30).stdout
+
+
 def inkbolt(case, observe):
     def item(name, width, height, position):
         return dict(id=name, transform=[1, 0, 0, 1, *position],
@@ -142,10 +151,8 @@ def run_trial(case, engine, ffmpeg, report):
     for step, position in [('before', BEFORE), ('after', AFTER), ('historical', BEFORE)]:
         path = case.root / (step + '.png')
         raw = path.read_bytes()
-        require(sha(raw) == previews[step]['png_sha256'] and raw[:16] == b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR'
-                and raw[16:24] == struct.pack('>II', WIDTH, HEIGHT), 'Changed preview or incorrect PNG dimensions')
-        rgba = subprocess.run([str(ffmpeg), '-nostdin', '-v', 'error', '-i', str(path), '-frames:v', '1', '-f', 'rawvideo',
-                               '-pix_fmt', 'rgba', 'pipe:1'], check=True, capture_output=True, timeout=30).stdout
+        require(sha(raw) == previews[step]['png_sha256'], 'Changed preview')
+        rgba = preview_rgba(path, ffmpeg)
         require(rgba == expected(paper, badge, position), 'Preview pixels differ at step ' + step)
         previews[step]['rgba_sha256'] = sha(rgba)
     require(all(sha((case.root / name).read_bytes()) == digest for name, digest in case.sources.items()),

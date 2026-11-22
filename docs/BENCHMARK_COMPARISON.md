@@ -219,3 +219,36 @@ python tools/compare_placed_still.py --inkbolt /path/to/inkbolt --cutbolt /path/
 | Arch Linux report | `8070cc8b483e674a9107f9c0e449187f185b60ba02b5044038d2ca2235a50814` |
 | Decoded original and historical RGBA bytes | `e69f5b8ece217991a76f9312975fae53150c65b6e9023d4f29c4c80de6da1977` |
 | Decoded moved RGBA bytes | `7179693f9b0916765c92815ce94d4e626a5fa2844be7bf7b9549141ec767a255` |
+
+### Run the placement task with a model
+
+The model starts with the two image files, the requested positions and preview
+filenames, and a launcher for one native engine. It discovers the commands,
+saves two revisions in the same session and draws the earlier revision again
+after the move. Both arms use the same task, driver configuration and deadline.
+The engine name in the launch instructions changes between arms. Supply the
+model and reasoning settings in the [external driver configuration](BENCHMARK_DRIVER.md).
+
+```sh
+python tools/run_placed_still_models.py --driver-config /path/to/driver.json --inkbolt /path/to/inkbolt --cutbolt /path/to/cutbolt --ffmpeg /path/to/ffmpeg --ffprobe /path/to/ffprobe --output /path/to/new-capture
+python tools/judge_placed_still_models.py --capture /path/to/new-capture --inkbolt /path/to/inkbolt --cutbolt /path/to/cutbolt --ffmpeg /path/to/ffmpeg --ffprobe /path/to/ffprobe --output /path/to/new-judgment.json
+```
+
+Collection alternates the starting engine in five sequential pairs by default.
+The recorder runs inside the client's workspace and retains native CLI
+arguments, JSON inputs, stdout, stderr and exit status. Repetition counts a
+second identical parsed JSON request or an identical invocation with the same
+non-JSON input. A repeated read of an unchanged schema counts here. Failed
+commands and unfinished calls have separate fields. CLI stdout is the full
+native reply. For the Codex driver the judge also counts completed shell
+commands, the output returned in those events and client-reported tokens.
+One shell command can issue several native calls or trim their output.
+
+The judge checks the captured file hashes and compares each delivered PNG
+against the pixel oracle. It then uses the pinned engine to reopen the
+declared original revision, the moved revision and the current session head.
+A passing delivery must keep the two input files intact. The first-preview
+measurement requires a matching filename and SHA-256 at a completed client
+event. The report also records when the CLI trace shows a successful render of
+the original saved revision after the move with bytes matching `historical.png`.
+Rejudging a capture uses a new output file and does not call the model.
