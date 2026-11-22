@@ -65,9 +65,10 @@ The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
 Apple silicon and Intel Macs. Background export jobs currently require Windows.
 [Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
 
-On Windows and Linux, v0.84.0 can move a placed image over a background and
-reopen either arrangement with the original files intact.
-[Verified image placement](docs/BENCHMARK_COMPARISON.md#move-a-placed-still-and-review-the-original)
+In five Windows trials, an agent using v0.84.0 previewed a placed image,
+moved it and rendered the original revision again without undoing the move.
+All 15 PNGs matched the expected pixels. The same workflow
+also passed scripted checks on Linux. [Model trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-placement-pairs-on-windows) · [Cross-platform checks](docs/BENCHMARK_COMPARISON.md#move-a-placed-still-and-review-the-original)
 
 Source builds from `main` can export PDF labels that readers can search and
 copy, including curved labels and translucent letters with combining accents.

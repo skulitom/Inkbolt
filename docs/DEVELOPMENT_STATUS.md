@@ -365,8 +365,17 @@ the largest sampled overlap error from 50 to 1 for the axial gradient and
 from 48 to 1 for the radial gradient, on an 8-bit color channel. Poppler
 matched the outlined control at every sampled position in both cases.
 
-These were hand-assembled reader fixtures in untagged RGB. Engine acceptance
-still needs exported files, including repeated clusters at different positions,
+The two fixtures above used untagged RGB. A third experiment used an axial
+gradient on sRGB, linear sRGB and Display P3 pages. Applying the opacity mask
+in page coordinates outside each isolated component matched the outlined color
+at every sampled position, including inside the overlap, in both renderers.
+Both extraction tools on each host recovered the accented letter once. On a
+transparent page at 288 dpi, MuPDF's total alpha coverage was 5.55% lower than
+the outline in all three profiles. The coverage difference persists when the
+embedded glyph uses a shading pattern for its fill.
+
+Engine acceptance still needs exported files that preserve coverage and
+gradient placement, including repeated clusters at different positions,
 calibrated pages, other supported fonts and curved text. The existing 17
 searchable PDF tests passed with the external readers enabled on Windows and
 Ubuntu. [Current text export contract](PDF.md#searchable-text)
