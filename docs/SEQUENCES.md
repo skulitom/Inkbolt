@@ -27,7 +27,11 @@ of a second. The edit receipt reports the previous and new delay fractions.
 
 For a new animation, use `sequence_from_layers` with a common delay, then
 retime individual frames in the same edit. Inkbolt captures the layers'
-original visibility before selecting the first frame.
+original visibility before selecting the first frame. For example, two
+initially visible layers appear one at a time during playback. Selecting
+the null dataset restores both. In an inline snapshot, `variants.base`
+stores the values to restore in binding order, while the items themselves
+show the currently selected frame. [Variant selection](VARIANTS.md)
 
 Delays retain their original unsigned 16-bit numerator/denominator. A zero denominator means 100; a zero numerator requests the consumer's fastest advance. `plays: 0` means indefinite repetition. `sequence.inspect` returns original fractions and cumulative start/end/total times as exact rational **decimal strings**, avoiding numeric overflow from unrelated denominators. It does not promise wall-clock playback precision.
 

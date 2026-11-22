@@ -3,8 +3,8 @@
 ## Results by task
 
 Both arms completed all five mixed compositions once the shared prompt
-specified that the image layer must remain movable. Linked-graphic revision
-still passed three of five attempts with Inkbolt and five with the baseline.
+specified that the image layer must remain movable. The latest linked-graphic
+batch passed zero of five attempts with Inkbolt and five with the baseline.
 Across the 17 tasks with a baseline, Inkbolt matched its artifact success
 count on 14, scored higher on two and lower on one. Median recorded token use
 was higher with Inkbolt on all 17.
@@ -38,7 +38,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 178,056 / n/a | [77c6a17](#b17-with-the-workspace-in-the-cli-launch-command) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
 | B19 Recover an interrupted export | 4/5 | 4/5 | n/a | 569,666.5 / n/a | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
-| B20 Revise a linked video graphic | 3/5 | 3/5 | 5/5 | 1,065,545 / 280,910 | [f61d952](#b19b20-at-f61d952-recovery-pilot-and-five-pair-handoff-follow-up) |
+| B20 Revise a linked video graphic | 0/5 | 0/5 | 5/5 | 1,067,109 / 288,988 | [Single-frame editing available](#linked-graphics-with-single-frame-editing-available) |
 
 Artifact checks cover the requested delivery and source preservation. A complete
 Inkbolt workflow also requires the specified editing history, receipts or
@@ -46,7 +46,8 @@ recovery behavior. Baseline artifact and workflow counts coincide in these
 batches. B17–B19 exercise engine-specific recovery and have no baseline arm.
 
 Token medians include all attempts with reported usage, including failures, and
-count cached input once. B19 has usage for four of five attempts. Five trials
+count cached input once. B19 has usage for four of five attempts and the
+B20 Inkbolt arm has usage for three of five. Five trials
 give wide uncertainty. For example, five successes give a 95% Wilson interval
 of 56.6%–100%. Full model-call counts, engine-only model-trial memory and
 preview timing across the entire suite remain open. [Comparison policy](BENCHMARK_COMPARISON.md)
@@ -66,6 +67,47 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Linked graphics with single-frame editing available
+
+At `4bf68f9`, five agents tried to create and revise a two-frame graphic in
+Inkbolt and relink it in a saved Cutbolt timeline. None finished the full
+workflow under the version 3 prompt. All five no-Inkbolt attempts passed.
+The preceding batch with this prompt passed 3/5 and 5/5 respectively.
+[Version 3 prompt](https://github.com/skulitom/Inkbolt/blob/4bf68f9/tools/benchmark_prompts/B20.md) · [Earlier results](#b19b20-at-f61d952-recovery-pilot-and-five-pair-handoff-follow-up)
+
+Four native attempts saved the second layer as hidden in the base state.
+That layer needed to be visible again when the frame selection was cleared.
+One of those four also used a different editable pixel representation and
+failed the timeline undo/retry check. The other native attempt passed all
+16 individual checks, but repeated a consumer discovery label and failed
+the protocol gate. Two native attempts in total repeated discovery labels.
+Those attempts have no validated capture or solve metrics.
+
+All five native attempts fetched Inkbolt's full schema. Each reply was
+204,962 bytes. None issued a `sequence_retime` edit. Making that edit
+available did not establish that agents would find or use it.
+
+| Windows, five attempts per arm | Inkbolt | Baseline |
+| --- | ---: | ---: |
+| Accepted artifacts and complete workflows | 0/5 | 5/5 |
+| Attempts with validated solve metrics | 3/5 | 5/5 |
+| Median input + output tokens, observed attempts | 1,067,109 | 288,988 |
+| Median client seconds, observed attempts | 211.0 | 113.5 |
+| Median combined engine commands, observed attempts | 58 | 19 |
+| Median combined response bytes, observed attempts | 629,136 | 136,034 |
+
+The arms ran sequentially with the same externally selected client, model
+settings, 600-second deadline and pinned consumer tools. Independent imports
+reproduced the eight validated captures, including their outcomes and original
+measurements. The other two attempts remain in the denominator. No attempt
+provided a verified preview time. The new client file observation requires
+a fresh trial with sampling enabled.
+
+The comparison report has SHA-256
+`cd7cdd808138dc9f9ecff5b00468683ecdb83b9250465c0b2ec2008d7fc2b90a`.
+The replay review has SHA-256
+`7d2f28d8b26dc32ee89b7b400677d27e0de8409930a5a368e4d3d37f4720b3a1`.
 
 ## Mixed composition with a movable source layer
 

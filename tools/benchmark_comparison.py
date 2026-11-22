@@ -22,7 +22,7 @@ POLICY = dict(version=1, minimum_repetitions=5, cost_ratio=2,
               interval='95% Wilson score; independent Bernoulli trials assumed')
 METRICS = ('model_calls','input_output_tokens','input_tokens','output_tokens',
            'cached_input_tokens','reasoning_tokens','engine_commands','invalid_calls',
-           'retries','request_bytes','response_bytes','first_verified_preview_seconds',
+           'retries','request_bytes','response_bytes','first_verified_preview_seconds','client_event_preview_seconds',
            'agent_seconds','harness_wall_seconds','engine_roundtrip_seconds',
            'total_engine_commands','total_engine_retries','total_request_bytes',
            'total_response_bytes','total_engine_roundtrip_seconds','peak_commit_bytes',
@@ -114,9 +114,20 @@ def retained_contract(root, row, provenance):
             driver['workspace_sha256']==digest(canonical(capture['workspace_files'])),'Captured execution/workspace metadata differs')
     # Imported trials retain the original driver; matching uses the original hashes too.
     require(capture['driver_identity']==provenance['driver'],'Captured driver differs from configured driver')
+    recorded=result.get('observations') or {}
     for key in ('model_calls','token_usage','agent_seconds'):
-        require(row.get(key)==driver['observations'].get(key)==(result.get('observations') or {}).get(key),
-                'Client observation differs: '+key)
+        require(row.get(key)==driver['observations'].get(key)==recorded.get(key),'Client observation differs: '+key)
+    file=row.get('client_event_preview_file')
+    seconds=row.get('client_event_preview_seconds')
+    if file is not None or seconds is not None:
+        elapsed=row.get('agent_seconds')
+        require(isinstance(file,str) and file in request.get('preview_files',[]) and
+                type(seconds) in (float,int) and type(elapsed) in (float,int) and 0<=seconds<=elapsed,
+                'Invalid client file preview observation')
+        expected=dict(file=file,seconds=seconds,sha256=capture['workspace_files'].get(file))
+        require(hash_string(expected['sha256']) and expected in (recorded.get('completed_event_previews') or [])
+                and recorded['completed_event_previews']==driver['observations'].get('completed_event_previews'),
+                'Client file preview differs from captured event or final file')
     valid=not row.get('driver_failure') and driver['execution'].get('status')=='passed' and row['status'] in ('passed','failed')
     require(row['status']!='passed' or valid,'Passing trial has an incomplete captured execution')
     return contract,valid

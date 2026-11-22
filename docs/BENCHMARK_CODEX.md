@@ -104,7 +104,7 @@ traffic and retries require separate observations. Wall duration includes
 client startup and tool work. Failed runs
 retain their emitted transcript but never receive a successful driver result.
 
-For ordinary tasks in either arm, the adapter checks the requested preview
+For external tasks in either arm, the adapter checks the requested preview
 filenames after each completed client item and at turn completion. It records
 elapsed time on the solve clock when it first reads each distinct file and SHA-256
 pair. These filenames come from the task adapter and stay outside the model
@@ -115,7 +115,9 @@ became available on disk. The time at which the agent saw the image is unknown.
 Sampling covers up to eight named files at the workspace root, 16 MiB per
 file and 64 distinct observations per trial. Linked files are skipped.
 A B14 print preview delivered in a subfolder can pass its artwork check with
-unknown timing. B19 and B20 keep their separate bridge measurements.
+unknown timing. B19 samples the review and recovered PNGs. Both B20 arms
+sample the revised graphic. The model arms also retain their separate bridge
+measurements. [Timing fields](BENCHMARK_DRIVER.md)
 
 The interface follows the public [non-interactive client contract](https://learn.chatgpt.com/docs/non-interactive-mode)
 and [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).

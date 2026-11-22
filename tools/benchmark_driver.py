@@ -226,7 +226,8 @@ class ExternalTrial(Trial):
         observed=evidence.get('observations',{})
         matches=[]
         samples=observed.get('completed_event_previews',[])
-        for check,filename in migration(self.task,getattr(self,'benchmark_variant','standard'))[0].PREVIEW_FILES.items():
+        adapter=migration(self.task,getattr(self,'benchmark_variant','standard'))[0]
+        for check,filename in adapter.PREVIEW_FILES.items():
             if not (samples or observed.get('first_preview_sha256')):
                 break
             if not any(c['name']==check and c['status']=='pass' for c in self.checks):
@@ -240,12 +241,17 @@ class ExternalTrial(Trial):
                 matches.extend((sample['seconds'],name,'client_completed_event') for sample in samples
                                if sample['file']==name and sample['sha256']==digest)
         preview,preview_file,source=min(matches,default=(None,None,None))
+        event_file=preview_file if source=='client_completed_event' else None
+        # The controlled model arms report their bridge clock in the legacy
+        # preview fields. Keep the client file observation on its own clock.
+        bridge_clock=self.arm=='model' and hasattr(adapter,'execute_client')
         return dict(driver=evidence,driver_failure=self.driver_failure,model_trials=evidence.get('kind')=='model',
             harness_setup=evidence.get('harness_setup',self.setup),
             token_usage=observed.get('token_usage'),model_calls=observed.get('model_calls'),
             agent_seconds=observed.get('agent_seconds'),scripted_wall_seconds=None,
             first_verified_preview_seconds=preview,preview_timing_source=source,
-            first_verified_preview_file=preview_file if source=='client_completed_event' else None,
+            first_verified_preview_file=event_file if not bridge_clock else None,
+            client_event_preview_file=event_file,client_event_preview_seconds=preview if event_file else None,
             engine_commands=observed.get('engine_commands'),request_bytes=observed.get('request_bytes'),
             response_bytes=observed.get('response_bytes'),invalid_calls=observed.get('invalid_calls'),
             retries=observed.get('retries'),engine_roundtrip_seconds=None,
@@ -302,8 +308,7 @@ def validate_result(evidence, request_contract, capture, files):
         require(result[key]==request_contract[key], 'Driver changed '+key)
     raw=transcript(evidence,result['transcript'])
     adapter=migration(request_contract['task'],request_contract.get('benchmark_variant','standard'))[0]
-    preview_files=() if hasattr(adapter,'execute_client') else tuple(adapter.PREVIEW_FILES.values())
-    observed=observations(result,preview_files)
+    observed=observations(result,tuple(adapter.PREVIEW_FILES.values()))
     require(capture['workspace_files']==files and capture['contract']==request_contract and
             capture['result_sha256']==file_hash(evidence/'driver-result.json') and
             capture['transcript_sha256']==file_hash(raw), 'Captured evidence identity mismatch')
@@ -382,8 +387,7 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
     if arm=='model':
         request['engine_executable']=str(case.executable.resolve())
     if hasattr(adapter,'configure_request'):adapter.configure_request(case,request)
-    if not hasattr(adapter,'execute_client'):
-        request['preview_files']=sorted(set(adapter.PREVIEW_FILES.values()))
+    request['preview_files']=sorted(set(adapter.PREVIEW_FILES.values()))
     if request.get('engine_executable'):
         cli = [request['engine_executable'], '--workspace', request['workspace']]
         request['engine_cli_argv'] = cli

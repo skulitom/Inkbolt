@@ -47,6 +47,7 @@ class HandoffBoundaryTests(unittest.TestCase):
                     self.assertIsNone(request['mcp_config']);self.assertNotIn('engine_executable',request)
                     self.assertNotIn('engine_cli_argv',request)
                     self.assertIn('consumer_tools',request['contract']);self.assertIn('handoff_bridge',request)
+                    self.assertEqual(request['preview_files'],['preview.png'])
                     self.assertFalse((root/'prepared/evidence/control-channel').exists())
                 else:
                     with self.assertRaisesRegex(TaskFailure,'requires Windows'):
@@ -76,13 +77,15 @@ class HandoffExternalTests(unittest.TestCase):
 
     def test_model_bridge_keeps_measured_costs_and_rejudges_a_moved_capture(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);flags=('--handoff-cli','--handoff-names','--probe-error','--preview-usage',
+            root=Path(directory);flags=('--handoff-cli','--handoff-names','--probe-error','--file-preview-events',
                 '--handoff-custom-session','--handoff-review-envelope','--handoff-compact-source')
             row=self.run_trial(root/'live',flags=flags)
             self.assertEqual(row['status'],'passed',{k:row.get(k) for k in ('error','driver_failure','checks')})
             self.assertEqual((row['engine_commands'],row['consumer']['commands'],row['total_engine_commands']),(16,22,38))
             self.assertEqual(row['invalid_calls'],1);self.assertTrue(row['memory_complete']);self.assertFalse(row['model_trials'])
             self.assertEqual(row['preview_timing_source'],'harness_observed');self.assertGreater(row['first_verified_preview_seconds'],0)
+            self.assertIsNone(row['first_verified_preview_file'])
+            self.assertEqual((row['client_event_preview_file'],row['client_event_preview_seconds']),('preview.png',.75))
             self.assertEqual(row['judge_engine_commands'],11);self.assertEqual(row['consumer']['judge_engine_commands'],9)
             before=workspace_files(root/'live/workspace');(root/'live').rename(root/'moved')
             with patch('benchmark_handoff_external.execute_client',side_effect=AssertionError('Import ran the client')):
@@ -90,6 +93,7 @@ class HandoffExternalTests(unittest.TestCase):
             self.assertEqual(imported['status'],'passed',{k:imported.get(k) for k in ('error','driver_failure','checks')})
             self.assertEqual(imported['harness_handoff'],row['harness_handoff'])
             self.assertEqual(imported['first_verified_preview_seconds'],row['first_verified_preview_seconds'])
+            self.assertEqual(imported['client_event_preview_seconds'],.75)
             self.assertEqual(before,workspace_files(root/'moved/workspace'));self.assertEqual(before,workspace_files(root/'import/workspace'))
             evidence=root/'moved/evidence';path=evidence/'handoff-control.json';original=path.read_bytes()
             value=json.loads(original);bad=copy.deepcopy(row['harness_handoff'])
@@ -103,18 +107,22 @@ class HandoffExternalTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
             with patch('benchmark_handoff_external.Trial.call',side_effect=AssertionError('Baseline called Inkbolt')):
-                row=self.run_trial(root/'live','baseline');before=workspace_files(root/'live/workspace')
+                row=self.run_trial(root/'live','baseline',('--file-preview-events',));before=workspace_files(root/'live/workspace')
                 self.assertEqual(row['status'],'passed',{k:row.get(k) for k in ('error','driver_failure','checks')})
                 (root/'live').rename(root/'moved')
                 imported=self.run_trial(root/'import','baseline',source=root/'moved')
             self.assertEqual(imported['status'],'passed',imported.get('driver_failure'))
+            for attempt in (row,imported):
+                self.assertEqual(attempt['preview_timing_source'],'client_completed_event')
+                self.assertEqual((attempt['client_event_preview_file'],attempt['client_event_preview_seconds']),('preview.png',.75))
             self.assertEqual(row['engine_commands'],0);self.assertEqual(row['consumer']['commands'],6)
             self.assertIsNone(row['peak_commit_bytes']);self.assertFalse(row['memory_complete']);self.assertFalse(row['model_trials'])
             self.assertEqual(len([c for c in row['checks'] if c['status']=='not_applicable']),8)
             self.assertEqual(before,workspace_files(root/'moved/workspace'));self.assertEqual(before,workspace_files(root/'import/workspace'))
             self.assertEqual(row['harness_handoff'],imported['harness_handoff'])
-            wrong=self.run_trial(root/'wrong','baseline',('--wrong-image',))
+            wrong=self.run_trial(root/'wrong','baseline',('--wrong-image','--file-preview-events'))
             self.assertEqual(wrong['status'],'failed');self.assertIsNone(wrong['driver_failure'])
+            self.assertIsNone(wrong['client_event_preview_seconds']);self.assertIsNone(wrong['client_event_preview_file'])
             self.assertIn('revised-preview',[c['name'] for c in wrong['checks'] if c['status']=='fail'])
 
     def test_rejected_baseline_engine_and_outside_store_commands_remain_failures(self):

@@ -49,9 +49,9 @@ def suite(root,arm,tasks=('B01',),reps=5,kind='synthetic',edit=None):
             if edit:edit(row,contract,usage)
             identity=digest(canonical(contract));result=dict(schema_version=1,contract_sha256=identity,kind=kind,client=p['client'],
                 model=p['model'],transcript='transcript.jsonl',observations=usage)
-            evidence=base/'evidence';save(evidence/'request.json',dict(contract=contract,contract_sha256=identity))
+            evidence=base/'evidence';save(evidence/'request.json',dict(contract=contract,contract_sha256=identity,preview_files=['preview.png']))
             save(evidence/'driver-result.json',result);(evidence/'transcript.jsonl').write_bytes(b'{"fixture":true}\n')
-            execution=dict(status='passed',seconds=3);workspace={'original.txt':H}
+            execution=dict(status='passed',seconds=3);workspace={'original.txt':H,'preview.png':H}
             capture=dict(contract=contract,result_sha256=digest(canonical(result)),transcript_sha256=digest(b'{"fixture":true}\n'),
                 execution=execution,host=p['environment'],workspace_files=workspace,driver_identity=driver)
             save(evidence/'capture.json',capture)
@@ -135,6 +135,21 @@ class ComparisonTests(unittest.TestCase):
         self.assertTrue(row['cost_comparison']['model_calls']['excessive'])
         self.assertFalse(row['cost_comparison']['input_output_tokens']['complete'])
         self.assertEqual(row['arms']['model']['metrics']['input_output_tokens']['all_attempts']['unknown'],5)
+
+    def test_file_preview_time_requires_the_recorded_event_and_final_file(self):
+        def sampled(row,contract,usage):
+            rep=row['repetition']
+            if rep==5:  # An older capture did not observe the file.
+                return
+            usage['completed_event_previews']=[dict(file='preview.png',seconds=.75,sha256=H if rep!=3 else digest(b'earlier PNG'))]
+            row.update(client_event_preview_file='preview.png',client_event_preview_seconds=.5 if rep==2 else .75)
+        data=load_report(suite(self.root/'model','model',edit=sampled),'model')
+        self.assertEqual(set(data['issues']),{('B01',2),('B01',3)})
+        other=load_report(suite(self.root/'baseline','baseline'),'baseline')
+        arms=compare(data,other)['tasks'][0]['arms']
+        timing=arms['model']['metrics']['client_event_preview_seconds']['all_attempts']
+        self.assertEqual((timing['observed'],timing['unknown'],timing['median']),(2,3,.75))
+        self.assertEqual(arms['baseline']['metrics']['client_event_preview_seconds']['all_attempts']['unknown'],5)
 
     def test_four_trials_cannot_emit_losing_signals(self):
         result=self.compare(dict(reps=4),dict(reps=4))
