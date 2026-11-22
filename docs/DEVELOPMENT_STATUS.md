@@ -424,6 +424,11 @@ both accented letters exactly on each host. Regression tests also exercise varia
 TrueType, curved text and strict publication with a restricted font.
 [Export contract](PDF.md#searchable-text) · [Regression tests](../tests/test_pdf_searchable.py)
 
+PDFium 149.0.7802.0 also found and copied the complete accented label on all
+32 pages per host. At 288 dpi, each of the 16 radial gradients matched its
+outlined control pixel for pixel. Across the 16 axial gradients, the largest
+difference was two levels in an 8-bit channel. Windows and Linux agreed.
+
 A restarted MCP server reopened a saved session with the rotated, accented
 label and its original CFF font. On both Windows and Linux, strict publication
 wrote the same 15,429-byte PDF as the direct CLI export. A repeated publication
@@ -447,9 +452,19 @@ advances to 0.02 points. For the mixed lines, copying the expected ranges
 returned the exact source in only three of eight cases with a left-to-right
 base and six of eight with a right-to-left base.
 
-The independent text extractors on Windows and Linux also added directional
-controls to the single-direction lines. The engine continues to report an
-outline fallback for these labels, and strict searchable export refuses them.
+A second experiment used the engine's own PDF exporter with its right-to-left
+fallback temporarily lifted. With each cluster in its own PDF text object,
+MuPDF copied the two words of plain Hebrew and Arabic labels in reverse order.
+Putting the glyphs for each label in one text object let MuPDF and PDFium find
+and copy the full source in all 16 plain cases on Windows and Linux. These
+covered two font formats, solid and gradient fills, and both painting orders.
+All 40 experimental pages kept the same rendered pixels in MuPDF at 288 dpi.
+
+Both readers still missed the full Hebrew label with a combining accent in
+the original painting order. Mixed-direction word selection also depended on
+the reader. The command-line text extractors added directional controls to the
+plain labels. Inkbolt therefore continues to use outlines for these runs and
+refuses them in strict searchable export.
 [Current text delivery contract](PDF.md#searchable-text)
 
 ## Vector PDF blend delivery
