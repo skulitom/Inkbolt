@@ -6,7 +6,7 @@ Both arms completed all five mixed compositions and all five linked-graphic
 revisions in their latest batches. Each linked-graphic agent using Inkbolt
 found the timed sequence example through the discovery index.
 Across the 17 tasks with a baseline, Inkbolt matched its artifact success
-count on 16 and scored higher on one. Median recorded token use
+count on 15 and scored higher on two. Median recorded token use
 was higher with Inkbolt on all 17.
 
 Each row uses the latest documented five-attempt batch for the standard task.
@@ -32,7 +32,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 367,710 / 72,324 | [Movable source layer](#mixed-composition-with-a-movable-source-layer) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 313,210 / 41,717 | [7a07f07](#b10b13-at-7a07f07-five-matched-pairs-with-retained-capture-corrections) |
-| B14 Deliver a print page | 5/5 | 5/5 | 5/5 | 466,033 / 95,336 | [Print publication receipts](#identifying-the-delivered-print-pdf) |
+| B14 Deliver a print page | 5/5 | 5/5 | 4/5 | 384,883 / 79,691 | [Print delivery and preview timing](#observing-print-previews-in-delivery-folders) |
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 178,056 / n/a | [77c6a17](#b17-with-the-workspace-in-the-cli-launch-command) |
@@ -66,6 +66,45 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Observing print previews in delivery folders
+
+All five Inkbolt attempts published the requested PDF and identified its
+receipt. Four baseline PDFs passed. The remaining PDF set
+`/UseBlackPtComp false` on its paints. Its pixels passed, but the required
+PDF value for disabling black-point compensation is the name `/OFF`.
+[PDF Association application note](https://pdfa.org/download-area/publications/PDF20_AN001-BPC.pdf#page=4)
+
+The client recorded all ten accepted previews, including three delivered as
+`delivery/preview.png`. Each timestamp matched the final file's relative
+path and SHA-256 and a passing pixel check. Replay reproduced all outcomes
+and timestamps, including the preview of the failed PDF delivery.
+
+| Median across five attempts per arm | Inkbolt | Baseline |
+| --- | ---: | ---: |
+| Time to client-observed preview | 66.8 s | 88.6 s |
+| Solve time | 100.2 s | 93.1 s |
+| Tokens | 384,883 | 79,691 |
+| Completed client shell commands | 10 | 5 |
+| Captured shell output, UTF-8 bytes | 103,926 | 1,032 |
+
+A shell command can contain several engine requests. Commands whose text
+included `schema.lookup` produced a median of 79,553 bytes of captured
+output per Inkbolt attempt. These measurements describe what the client
+received from its shell. Engine wire traffic and internal model-call counts
+remain unknown for this task.
+
+The [preceding five pairs](#identifying-the-delivered-print-pdf) used the
+same engine binary, prompt, fixtures, client binary, model settings and
+baseline tools. Changing the observer allows a timestamp for a file in a
+subfolder. Differences in solve time or tokens between the two small batches
+cannot be attributed to it.
+
+| Evidence at `ee27237` | SHA-256 |
+| --- | --- |
+| Five Inkbolt attempts | `37c22037c9d74a09b26ff481654899e00193a5d199d3b6039e18898cb5b6a68e` |
+| Five baseline attempts | `c01759effd9e71e5f88ced535811494aca463a82540326fb36b893f11f586df8` |
+| Matched comparison | `ef4ad367db6d89200bb3c92dff5f3e1792ca96e4d60587e6dc027cde1ebef428` |
 
 ## Identifying the delivered print PDF
 
