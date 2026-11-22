@@ -259,6 +259,10 @@ impl PendingRunner {
     pub fn identity(&self) -> ProcessIdentity {
         self.runner.identity
     }
+    #[cfg(test)]
+    pub(super) fn poll(&mut self) -> Result<Option<Report>, Error> {
+        self.runner.poll()
+    }
     /// Release the one-byte start gate only after durable ownership is recorded.
     pub fn start(mut self) -> Result<Runner, Error> {
         let mut gate =

@@ -528,15 +528,19 @@ fn cooperative_lease_exit_also_releases_the_same_persistent_file() {
 #[test]
 fn an_unreleased_start_gate_also_has_a_deadline() {
     let owned = Owned::new();
-    let pending = owned.runner(
+    let mut pending = owned.runner(
         "hold",
         Limits {
             lifetime_ms: 1500,
             ..Default::default()
         },
     );
-    owned.wait_file("waiting");
+    // The deadline starts at launch, including time before the worker runs its first instruction.
     wait_gone(pending.identity());
+    assert_eq!(
+        pending.poll().unwrap().unwrap().stop_requested,
+        Some(StopReason::Deadline)
+    );
     assert!(!owned.root.join("started").exists());
     drop(pending);
 }
