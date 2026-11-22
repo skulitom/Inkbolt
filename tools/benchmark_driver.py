@@ -133,12 +133,12 @@ def transcript(evidence, name):
     return path
 
 
-def observations(result):
+def observations(result, preview_files=()):
     value=result.get('observations')
     if value is None: return dict(token_usage=None,model_calls=None,agent_seconds=None)
     require(isinstance(value,dict) and value.get('source') == 'client_reported', 'Observations must be reported by the client')
     allowed={'source','token_usage','model_calls','agent_seconds','engine_commands','request_bytes','response_bytes',
-             'invalid_calls','retries','first_preview_seconds','first_preview_sha256'}
+             'invalid_calls','retries','first_preview_seconds','first_preview_sha256','completed_event_previews'}
     require(set(value)<=allowed, 'Unknown observation field')
     answer={key:None for key in ('token_usage','model_calls','agent_seconds','engine_commands','request_bytes','response_bytes','invalid_calls','retries')}
     for key in answer.keys()-{'token_usage'}:
@@ -160,6 +160,24 @@ def observations(result):
         require(isinstance(value.get('first_preview_sha256'),str) and len(value['first_preview_sha256'])==64,
                 'Preview timing needs an artifact identity')
         answer.update(first_preview_seconds=seconds,first_preview_sha256=value['first_preview_sha256'])
+    if 'completed_event_previews' in value:
+        samples=value['completed_event_previews']
+        require(isinstance(samples,list) and len(samples)<=64 and bool(preview_files)
+                and answer['agent_seconds'] is not None and value.get('first_preview_seconds') is None,
+                'Invalid completed-event preview observations')
+        seen=set()
+        previous=0
+        for sample in samples:
+            require(isinstance(sample,dict) and set(sample)=={'file','sha256','seconds'}
+                    and sample['file'] in preview_files, 'Unexpected sampled preview file')
+            digest=sample['sha256']; seconds=sample['seconds']
+            require(isinstance(digest,str) and len(digest)==64 and all(c in '0123456789abcdef' for c in digest)
+                    and (sample['file'],digest) not in seen, 'Invalid sampled preview identity')
+            require(type(seconds) in (int,float) and previous<=seconds<=answer['agent_seconds'],
+                    'Invalid sampled preview timestamp')
+            seen.add((sample['file'],digest))
+            previous=seconds
+        answer['completed_event_previews']=samples
     return answer
 
 
@@ -206,17 +224,28 @@ class ExternalTrial(Trial):
     def extra_results(self):
         evidence=self.driver_evidence or {}
         observed=evidence.get('observations',{})
-        preview=None
+        matches=[]
+        samples=observed.get('completed_event_previews',[])
         for check,filename in migration(self.task,getattr(self,'benchmark_variant','standard'))[0].PREVIEW_FILES.items():
-            if any(c['name']==check and c['status']=='pass' for c in self.checks):
-                path=self.root/getattr(self,'preview_paths',{}).get(filename,filename)
-                if path.is_file() and observed.get('first_preview_sha256')==file_hash(path):
-                    preview=observed.get('first_preview_seconds')
+            if not (samples or observed.get('first_preview_sha256')):
+                break
+            if not any(c['name']==check and c['status']=='pass' for c in self.checks):
+                continue
+            name=getattr(self,'preview_paths',{}).get(filename,filename)
+            path=self.root/name
+            if path.is_file():
+                digest=file_hash(path)
+                if observed.get('first_preview_sha256')==digest:
+                    matches.append((observed['first_preview_seconds'],name,'client_reported'))
+                matches.extend((sample['seconds'],name,'client_completed_event') for sample in samples
+                               if sample['file']==name and sample['sha256']==digest)
+        preview,preview_file,source=min(matches,default=(None,None,None))
         return dict(driver=evidence,driver_failure=self.driver_failure,model_trials=evidence.get('kind')=='model',
             harness_setup=evidence.get('harness_setup',self.setup),
             token_usage=observed.get('token_usage'),model_calls=observed.get('model_calls'),
             agent_seconds=observed.get('agent_seconds'),scripted_wall_seconds=None,
-            first_verified_preview_seconds=preview,
+            first_verified_preview_seconds=preview,preview_timing_source=source,
+            first_verified_preview_file=preview_file if source=='client_completed_event' else None,
             engine_commands=observed.get('engine_commands'),request_bytes=observed.get('request_bytes'),
             response_bytes=observed.get('response_bytes'),invalid_calls=observed.get('invalid_calls'),
             retries=observed.get('retries'),engine_roundtrip_seconds=None,
@@ -272,7 +301,9 @@ def validate_result(evidence, request_contract, capture, files):
     for key in ('kind','client','model'):
         require(result[key]==request_contract[key], 'Driver changed '+key)
     raw=transcript(evidence,result['transcript'])
-    observed=observations(result)
+    adapter=migration(request_contract['task'],request_contract.get('benchmark_variant','standard'))[0]
+    preview_files=() if hasattr(adapter,'execute_client') else tuple(adapter.PREVIEW_FILES.values())
+    observed=observations(result,preview_files)
     require(capture['workspace_files']==files and capture['contract']==request_contract and
             capture['result_sha256']==file_hash(evidence/'driver-result.json') and
             capture['transcript_sha256']==file_hash(raw), 'Captured evidence identity mismatch')
@@ -285,7 +316,6 @@ def validate_result(evidence, request_contract, capture, files):
     if 'solve_workspace' in capture:
         recorded_path(capture['solve_workspace'])
         validated['solve_workspace'] = capture['solve_workspace']
-    adapter=migration(request_contract['task'],request_contract.get('benchmark_variant','standard'))[0]
     if hasattr(adapter,'validate_capture'):
         key=getattr(adapter,'CAPTURE_KEY','harness_recovery')
         validated[key]=adapter.validate_capture(evidence,capture.get(key))
@@ -352,6 +382,8 @@ def run_external_task(executable, base, task, repetition, arm, configuration, to
     if arm=='model':
         request['engine_executable']=str(case.executable.resolve())
     if hasattr(adapter,'configure_request'):adapter.configure_request(case,request)
+    if not hasattr(adapter,'execute_client'):
+        request['preview_files']=sorted(set(adapter.PREVIEW_FILES.values()))
     if request.get('engine_executable'):
         cli = [request['engine_executable'], '--workspace', request['workspace']]
         request['engine_cli_argv'] = cli

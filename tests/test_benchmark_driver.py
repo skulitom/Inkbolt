@@ -151,6 +151,21 @@ class BenchmarkDriverTests(unittest.TestCase):
             with self.subTest(client_key=key),self.assertRaises(TaskFailure):
                 observations(dict(observations=dict(source='client_reported',**{key:valid})))
 
+    def test_preview_event_samples_require_declared_files_unique_hashes_and_ordered_client_times(self):
+        sample=dict(file='preview.png',sha256='a'*64,seconds=.5)
+        later=dict(sample,sha256='b'*64,seconds=.7)
+        def observe(samples,**extra):
+            return observations(dict(observations=dict(source='client_reported',agent_seconds=1,
+                                completed_event_previews=samples,**extra)), ('preview.png',))
+        self.assertEqual(observe([sample,later])['completed_event_previews'],[sample,later])
+        for invalid in ([sample,sample],[later,sample],[dict(sample,file='../preview.png')],
+                        [dict(sample,seconds=2)],[dict(sample,seconds=True)],[dict(sample,seconds=float('nan'))],
+                        [dict(sample,sha256='x'*64)], [sample]*65):
+            with self.subTest(invalid=invalid[0]),self.assertRaises(TaskFailure):
+                observe(invalid)
+        with self.assertRaises(TaskFailure):
+            observe([sample],first_preview_seconds=.1,first_preview_sha256=sample['sha256'])
+
     def test_baseline_runs_without_an_engine_and_marks_engine_checks_not_applicable(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)

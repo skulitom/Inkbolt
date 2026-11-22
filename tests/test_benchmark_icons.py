@@ -106,6 +106,19 @@ class BenchmarkIconTests(unittest.TestCase):
                 self.assertFalse(row['model_trials'])
                 self.assertEqual({c['name']:c['status'] for c in row['checks']}['editable-source'], 'not_applicable')
 
+    def test_completed_event_times_match_both_file_and_passing_check_on_replay(self):
+        for incorrect in (False,True):
+            with self.subTest(incorrect=incorrect), tempfile.TemporaryDirectory() as directory:
+                root=Path(directory)
+                configuration=driver('--board-preview-events', *(['--wrong-image'] if incorrect else []))
+                live=run_external_task(EXE,root/'live','B02',1,'model',configuration)
+                replay=run_external_task(EXE,root/'replay','B02',1,'model',configuration,import_source=root/'live')
+                for row in (live,replay):
+                    self.assertEqual(row['status'],'failed' if incorrect else 'passed',row)
+                    self.assertEqual(row['preview_timing_source'],'client_completed_event')
+                    self.assertEqual(row['first_verified_preview_seconds'],.7 if incorrect else .3)
+                    self.assertEqual(row['first_verified_preview_file'],'board-2.png' if incorrect else 'board-1.png')
+
     def test_svg_admission_retains_independent_viewports_and_rejects_wrong_sources(self):
         self.assertEqual(len(svg_boards(ICONS_SVG.encode())), 3)
         # The task requires hidden viewport overflow. Declaring it on the

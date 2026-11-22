@@ -245,6 +245,16 @@ client provides observed data, replace null with an object containing
 - `agent_seconds`: observed nonnegative finite duration.
 - `first_preview_seconds` and `first_preview_sha256`: a paired observation. Timing
   is accepted only when those PNG bytes pass the independent artifact judge.
+- Drivers that sample delivered files at completed client events can supply
+  `completed_event_previews` in place of the scalar timing pair. Each entry
+  records a `file` from the request's `preview_files`, its lowercase `sha256`
+  and elapsed `seconds` on the same clock as `agent_seconds`. Supply the first
+  sample of each distinct filename and digest in time order, up to 64 entries.
+  After judging, `first_verified_preview_file` identifies the earliest match
+  and `preview_timing_source` records `client_completed_event`. A corrected
+  file or another passing board can qualify even when an earlier sample fails.
+  Import reuses the captured observations. Historical runs without timings
+  retain an unknown value. [Codex sampling and bounds](BENCHMARK_CODEX.md)
 
 Do not estimate unavailable metrics. Engine-only memory and engine round-trip
 timing remain unknown unless a task's harness observes them separately, as in

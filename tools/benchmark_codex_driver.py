@@ -8,6 +8,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -17,6 +19,8 @@ import time
 MAX_METADATA = 1024 * 1024
 MAX_TRANSCRIPT = 64 * 1024 * 1024
 MAX_EVENT = 8 * 1024 * 1024
+MAX_PREVIEW_BYTES = 16 * 1024 * 1024
+MAX_PREVIEW_SAMPLES = 64
 MCP_APPROVAL_MODES = ('auto', 'prompt', 'writes', 'approve')
 DISABLED_FEATURES = ('apps', 'plugins', 'remote_plugin', 'browser_use',
     'browser_use_external', 'computer_use', 'image_generation', 'multi_agent',
@@ -77,6 +81,55 @@ def file_digest(path, limit):
             require(total <= limit, 'Input grew beyond its bound')
             result.update(chunk)
     return result.hexdigest()
+
+
+class PreviewSampler:
+    """Time the first observation of each delivered PNG identity at completed events."""
+
+    def __init__(self, workspace, names):
+        require(isinstance(names, list) and len(names) <= 8 and
+                all(isinstance(n, str) and re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}\.png', n)
+                    for n in names) and len(set(names)) == len(names), 'Invalid preview filenames')
+        self.paths = [workspace / name for name in names]
+        self.last_stat = {}
+        self.first_seen = {}
+
+    @staticmethod
+    def identity(info):
+        return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+    def sample(self, started):
+        for path in self.paths:
+            if len(self.first_seen) >= MAX_PREVIEW_SAMPLES:
+                return
+            try:
+                info = path.lstat()
+                if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or
+                        getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT or
+                        not 0 < info.st_size <= MAX_PREVIEW_BYTES):
+                    continue
+                identity = self.identity(info)
+                if identity == self.last_stat.get(path):
+                    continue
+                flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_BINARY', 0)
+                with os.fdopen(os.open(path, flags), 'rb') as stream:
+                    before = os.fstat(stream.fileno())
+                    if not stat.S_ISREG(before.st_mode) or not os.path.samestat(info, before):
+                        continue
+                    raw = stream.read(info.st_size + 1)
+                    if len(raw) != info.st_size or self.identity(os.fstat(stream.fileno())) != self.identity(before):
+                        continue
+                if self.identity(path.lstat()) != identity:
+                    continue
+                self.last_stat[path] = identity
+                self.first_seen.setdefault((path.name, digest(raw)), time.perf_counter() - started)
+            except OSError:
+                # A file may be unpublished, in use or replaced between events.
+                continue
+
+    def observations(self):
+        return [dict(file=name, sha256=sha256, seconds=seconds)
+                for (name, sha256), seconds in self.first_seen.items()]
 
 
 def bridge_directory(request, workspace):
@@ -217,6 +270,7 @@ def run(request_path, executable, mcp_approval_mode=None, mcp_tools='core'):
     require(evidence.is_dir() and result_path.resolve() == evidence/'driver-result.json', 'Unexpected result path')
     require(not result_path.exists(), 'Driver result already exists')
     transcript = evidence/'codex-events.jsonl'
+    sampler = PreviewSampler(workspace, request.get('preview_files', []))
     events = []; size = 0; started = time.perf_counter()
     with transcript.open('xb') as stream, tempfile.TemporaryFile() as solver_input:
         header = canonical(dict(type='inkbolt.client_request', contract_sha256=request['contract_sha256'],
@@ -237,6 +291,8 @@ def run(request_path, executable, mcp_approval_mode=None, mcp_tools='core'):
                     stream.write(line); stream.flush()
                     event = strict_json(line)
                     require(isinstance(event, dict) and isinstance(event.get('type'), str), 'Malformed client event')
+                    if event['type'] in ('item.completed', 'turn.completed'):
+                        sampler.sample(started)
                     # Retain raw events on disk; only small completion metadata in memory.
                     if event['type'] in ('turn.started', 'turn.completed', 'turn.failed', 'error'):
                         events.append(event)
@@ -249,6 +305,8 @@ def run(request_path, executable, mcp_approval_mode=None, mcp_tools='core'):
         kind=contract['kind'], client=contract['client'], model=contract['model'],
         transcript=transcript.name, observations=dict(source='client_reported',
             token_usage=usage, model_calls=None, agent_seconds=time.perf_counter()-started))
+    if sampler.paths:
+        result['observations']['completed_event_previews'] = sampler.observations()
     with result_path.open('xb') as stream:
         stream.write(canonical(result) + b'\n')
 

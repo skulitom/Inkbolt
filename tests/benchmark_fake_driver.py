@@ -455,6 +455,13 @@ Image.composite(layer,Image.new('RGBA',(16,16)),mask).save(root/'preview.png')
         preview=root/preview_name
         observed=dict(source='client_reported',agent_seconds=1.5,first_preview_seconds=.5,
                       first_preview_sha256=hashlib.sha256(preview.read_bytes()).hexdigest())
+    if '--board-preview-events' in sys.argv:
+        board0,board1,board2=request['preview_files']
+        samples=[(board0,.1,b'superseded'),(board0,.2,(root/board2).read_bytes()),
+                 (board1,.3,(root/board1).read_bytes()),(board2,.7,(root/board2).read_bytes())]
+        observed=dict(source='client_reported',agent_seconds=1,
+                      completed_event_previews=[dict(file=name,seconds=seconds,sha256=hashlib.sha256(data).hexdigest())
+                                                for name,seconds,data in samples])
     if '--invalid-usage' in sys.argv: observed=dict(source='client_reported',model_calls=True)
     result=dict(schema_version=1,contract_sha256=request['contract_sha256'],kind='synthetic',
         client=request['contract']['client'],model=request['contract']['model'],transcript='transcript.jsonl',observations=observed)

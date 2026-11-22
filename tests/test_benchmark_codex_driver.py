@@ -183,6 +183,9 @@ class CodexDriverTests(unittest.TestCase):
             dict(type='item.completed',item=dict(type='agent_message',text='A synthetic result.')),
             dict(type='turn.completed',usage=dict(input_tokens=120,output_tokens=30,
                 cached_input_tokens=90,reasoning_output_tokens=10))]
+        self.request['preview_files'] = ['board-1.png']
+        self.bind()
+        (self.workspace/'board-1.png').write_bytes(b'delivered bytes')
         _, launch = self.invoke(events)
         result = json.loads((self.evidence/'driver-result.json').read_bytes())
         self.assertEqual(result['kind'],'synthetic')
@@ -190,11 +193,31 @@ class CodexDriverTests(unittest.TestCase):
         self.assertEqual(result['observations']['token_usage'],dict(input_tokens=120,output_tokens=30,
             cached_input_tokens=90,reasoning_tokens=10))
         self.assertIsNone(result['observations']['model_calls'])
+        samples = result['observations']['completed_event_previews']
+        self.assertEqual(len(samples), 1)
+        self.assertEqual((samples[0]['file'], samples[0]['sha256']), ('board-1.png', driver.digest(b'delivered bytes')))
+        self.assertLessEqual(samples[0]['seconds'], result['observations']['agent_seconds'])
         transcript = [json.loads(line) for line in (self.evidence/result['transcript']).read_bytes().splitlines()]
         self.assertEqual(transcript[1:],events)
         self.assertEqual(transcript[0]['contract_sha256'],self.request['contract_sha256'])
+        self.assertNotIn('board-1.png', transcript[0]['prompt'])
         self.assertNotIn('shell',launch.call_args.kwargs)
         self.assertEqual(launch.call_args.kwargs['cwd'],self.workspace)
+
+    def test_preview_revisions_keep_first_observation_and_skip_oversized_or_unsafe_paths(self):
+        path = self.workspace/'board.png'
+        sampler = driver.PreviewSampler(self.workspace, ['board.png'])
+        for invalid in [['../board.png'], ['C:/board.png'], ['board.png','board.png'], ['source.json']]:
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                driver.PreviewSampler(self.workspace, invalid)
+        with patch.object(driver, 'MAX_PREVIEW_BYTES', 8), patch.object(driver.time, 'perf_counter', side_effect=[11, 14, 18]):
+            for data in (b'oversized file', b'first', b'first', b'second', b'first'):
+                if not path.exists() or data != path.read_bytes():
+                    path.write_bytes(data)
+                sampler.sample(10)
+        self.assertEqual(sampler.observations(), [
+            dict(file='board.png',sha256=driver.digest(b'first'),seconds=1),
+            dict(file='board.png',sha256=driver.digest(b'second'),seconds=4)])
 
     def test_missing_usage_stays_unknown(self):
         self.assertIsNone(driver.observed_usage([dict(type='turn.started'),dict(type='turn.completed')]))

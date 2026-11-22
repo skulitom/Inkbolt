@@ -99,11 +99,23 @@ turn without a failure/error event. Its final message never supplies a verdict;
 the independent artifact judge still decides success.
 
 Input, output, cached-input and reasoning tokens are retained only when the
-completion event reports them. Missing usage stays unknown. A completed agent
-turn is not an underlying model-call count: model calls, engine traffic, retries
-and preview timing stay unknown unless separately observed by the harness.
-Wall duration is observed; it includes client startup and tool work. Failed runs
+completion event reports them. Missing usage stays unknown. Model calls, engine
+traffic and retries require separate observations. Wall duration includes
+client startup and tool work. Failed runs
 retain their emitted transcript but never receive a successful driver result.
+
+For ordinary tasks in either arm, the adapter checks the requested preview
+filenames after each completed client item and at turn completion. It records
+elapsed time on the solve clock when it first reads each distinct file and SHA-256
+pair. These filenames come from the task adapter and stay outside the model
+prompt. The judge reports the earliest sample matching both the delivered file
+and a passing artwork check. This gives an upper bound on when accepted bytes
+became available on disk. The time at which the agent saw the image is unknown.
+
+Sampling covers up to eight named files at the workspace root, 16 MiB per
+file and 64 distinct observations per trial. Linked files are skipped.
+A B14 print preview delivered in a subfolder can pass its artwork check with
+unknown timing. B19 and B20 keep their separate bridge measurements.
 
 The interface follows the public [non-interactive client contract](https://learn.chatgpt.com/docs/non-interactive-mode)
 and [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).
