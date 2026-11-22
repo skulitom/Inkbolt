@@ -7,6 +7,13 @@ Windows retains its durable background-job implementation. Linux job commands
 return `UNSUPPORTED_PLATFORM` before writing a queue or output;
 `capabilities.jobs.supported_here` and `job_process.supported_here` are false.
 
+A Windows mixed-composition session was backed up at revision 1, recovered on
+native Linux under WSL2, and returned to Windows. Explicit resource rebinding
+created revisions 2 and 3. Each recovery retained the backup's logical history
+hash, and both hosts rendered the same 32 × 24 image after reimporting the
+original PNG. Windows also recovered a child history created on Linux and
+retained its parent link. [Cross-platform recovery](SESSION_BACKUPS.md#resources-and-portability)
+
 The release workflow on `main` builds separate native macOS archives for
 Apple silicon and Intel. Each runner verifies its Rust host target and tests
 the extracted executable. Maintainers can select `macos_intel_only` in the

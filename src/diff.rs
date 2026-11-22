@@ -129,12 +129,12 @@ pub fn compare(
     control: &Control,
 ) -> Result<Value, Error> {
     control.check()?;
-    before_resources.validate()?;
-    after_resources.validate()?;
     if compare_pixels {
         control.check_resource_paths(before_resources)?;
         control.check_resource_paths(after_resources)?;
     }
+    before_resources.validate_stored()?;
+    after_resources.validate_stored()?;
     crate::model::validate_controlled(before, control)?;
     crate::model::validate_controlled(after, control)?;
     // Transport payloads are not authored differences. Compare/hash exactly

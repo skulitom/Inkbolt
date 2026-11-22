@@ -41,7 +41,15 @@ Recovery reads the supplied regular, non-symlink file once into an exclusively c
 
 Image/font stores remain external. Receipts explicitly report `resources_copied:false` and `external_resources_verified:false`. A valid history backup is not a self-contained artwork archive or evidence that its fonts/images are currently available. Stored absolute paths remain exact; no automatic relinking or substituted content occurs.
 
-When restoring in a different workspace, old resource paths can remain outside its allowed runtime boundary. Session reads can inspect those stored bindings, but rendering/editing that accesses them must satisfy the current workspace rules. Import the intended original resources into the new workspace, then use an explicit `resources` actionâ€”optionally through `session.dry_run` and `session.apply_proposal`â€”to rebind them as a new revision. Pure structural proposal comparisons do not access external roots. Old history and its original bindings remain available. Local backup and restoration are tested on Windows and Linux; stored resource paths still require explicit rebinding when they differ across operating systems.
+You can recover a Windows history on Linux, or a Linux history on Windows. `session.verify`, `session.read` and `session.receipt` retain the original bindings and history hashes. When a saved root uses the other operating system's path syntax, an operation that needs that binding returns `RESOURCE_REBIND_REQUIRED`. A native path outside the selected workspace still returns `PATH_OUTSIDE_WORKSPACE`.
+
+Import the original image or font into a store in the destination workspace. Use a `resources` action to bind the store at a new revision. For example, a session that only uses images can use this action with `session.dry_run` and `session.apply_proposal`.
+
+```json
+{"type":"resources","resources":{"asset_root":".inkbolt/assets","font_root":null}}
+```
+
+Structural comparisons can inspect the old bindings. Pixel comparisons require accessible roots on both sides. To render a historical document reference with a relocated store, pass the appropriate local roots explicitly. Rebinding the head preserves the earlier bindings and receipts.
 
 ## Publication, interruption and limits
 

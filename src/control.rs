@@ -93,12 +93,9 @@ impl Control {
         &self,
         resources: &crate::sessions::Resources,
     ) -> Result<(), Error> {
-        if let Some(workspace) = &self.workspace {
-            for root in resources
-                .asset_root
-                .iter()
-                .chain(resources.font_root.iter())
-            {
+        for root in resources.paths() {
+            crate::sessions::require_local_binding(root)?;
+            if let Some(workspace) = &self.workspace {
                 workspace.resolve(root)?;
             }
         }

@@ -247,8 +247,8 @@ pub fn compare(
     crate::finite::check(options)
         .map_err(|_| invalid("Comparison option numbers must be finite"))?;
     for (document, resources) in [(before, before_resources), (after, after_resources)] {
-        resources.validate()?;
         control.check_resource_paths(resources)?;
+        resources.validate()?;
         crate::model::validate_controlled(document, control)?;
     }
     if before.id != after.id || before.kind != after.kind {

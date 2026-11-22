@@ -126,20 +126,33 @@ pub(crate) fn describe_arguments(schema: &mut Value) {
     }
 }
 
-fn merge_resources(value: &mut Value, resources: &Resources) {
+fn inherited_root(root: &Option<PathBuf>) -> Result<Value, Error> {
+    if let Some(path) = root {
+        sessions::require_local_binding(path)?;
+    }
+    Ok(json!(root))
+}
+
+fn merge_resources(value: &mut Value, resources: &Resources) -> Result<(), Error> {
     if let Some(object) = value.as_object_mut() {
         for (name, root) in [
             ("asset_root", &resources.asset_root),
             ("font_root", &resources.font_root),
         ] {
             if !object.contains_key(name) {
-                object.insert(name.into(), json!(root));
+                object.insert(name.into(), inherited_root(root)?);
             }
         }
     }
+    Ok(())
 }
 
-fn bind(value: &mut Value, argument_schema: &Value, field: &str, resources: &Resources) {
+fn bind(
+    value: &mut Value,
+    argument_schema: &Value,
+    field: &str,
+    resources: &Resources,
+) -> Result<(), Error> {
     let nested = match field {
         "before" => Some("before_resources"),
         "after" => Some("after_resources"),
@@ -148,17 +161,18 @@ fn bind(value: &mut Value, argument_schema: &Value, field: &str, resources: &Res
     };
     if let Some(name) = nested {
         let object = value.as_object_mut().unwrap();
-        merge_resources(object.entry(name).or_insert_with(|| json!({})), resources);
+        merge_resources(object.entry(name).or_insert_with(|| json!({})), resources)?;
     } else if field == "document" {
         for (name, root) in [
             ("asset_root", &resources.asset_root),
             ("font_root", &resources.font_root),
         ] {
             if argument_schema["properties"].get(name).is_some() && value.get(name).is_none() {
-                value[name] = json!(root);
+                value[name] = inherited_root(root)?;
             }
         }
     }
+    Ok(())
 }
 
 pub fn execute(
@@ -277,7 +291,7 @@ pub fn execute(
             context.check()?;
         }
         value[&field] = json!(state.document);
-        bind(&mut value, argument_schema, &field, &state.resources);
+        bind(&mut value, argument_schema, &field, &state.resources)?;
     }
     if let Some(w) = workspace {
         // Missing resource containers also receive defaults; explicit null is left for type validation.

@@ -299,6 +299,10 @@ pub(crate) fn prepare_recovery(
 
 pub(super) fn validate_source(source: &Source) -> Result<(), Error> {
     checked_path(&source.file_path)?;
+    validate_source_identity(source)
+}
+
+pub(super) fn validate_source_identity(source: &Source) -> Result<(), Error> {
     if source.bytes == 0
         || source.bytes > MAX_DATABASE_BYTES
         || source.sha256.len() != 64

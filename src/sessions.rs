@@ -58,8 +58,15 @@ pub struct Resources {
     pub font_root: Option<PathBuf>,
 }
 impl Resources {
+    pub(crate) fn paths(&self) -> impl Iterator<Item = &Path> {
+        self.asset_root
+            .iter()
+            .chain(self.font_root.iter())
+            .map(PathBuf::as_path)
+    }
+
     pub(crate) fn validate(&self) -> Result<(), Error> {
-        for p in self.asset_root.iter().chain(self.font_root.iter()) {
+        for p in self.paths() {
             assets::absolute(p)?;
             if p.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
                 return Err(limit("Resource root path is too long"));
@@ -67,6 +74,46 @@ impl Resources {
         }
         Ok(())
     }
+
+    pub(crate) fn validate_stored(&self) -> Result<(), Error> {
+        self.paths().try_for_each(validate_stored_path)
+    }
+}
+
+/// Stored paths participate in history checksums. Inspect their spelling without resolving them.
+fn validate_stored_path(path: &Path) -> Result<(), Error> {
+    if path.as_os_str().len() > crate::limits::paths::MAX_PATH_UNITS {
+        return Err(limit("Saved path is too long"));
+    }
+    if path.is_absolute() {
+        return Ok(());
+    }
+    let name = path.to_str().unwrap_or_default();
+    let drive_absolute =
+        matches!(name.as_bytes(), [letter, b':', b'/' | b'\\', ..] if letter.is_ascii_alphabetic());
+    let unc_absolute = name.strip_prefix(r"\\").is_some_and(|rest| {
+        let mut parts = rest.split(['\\', '/']);
+        parts.next().is_some_and(|s| !s.is_empty()) && parts.next().is_some_and(|s| !s.is_empty())
+    });
+    if name.starts_with('/') || drive_absolute || unc_absolute {
+        Ok(())
+    } else {
+        Err(Error::new(
+            "INVALID_REQUEST",
+            "Saved paths must be absolute",
+        ))
+    }
+}
+
+pub(crate) fn require_local_binding(path: &Path) -> Result<(), Error> {
+    if !path.is_absolute() {
+        validate_stored_path(path)?;
+        return Err(Error::new(
+            "RESOURCE_REBIND_REQUIRED",
+            "Saved resource root belongs to another platform. Supply local roots or apply a resources action to rebind the session.",
+        ));
+    }
+    Ok(())
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -447,7 +494,7 @@ fn load_state(db: &Connection, state_id: u32) -> Result<(State, String), Error> 
         .map_err(|_| corrupt("Saved document fails its model invariants"))?;
     state
         .resources
-        .validate()
+        .validate_stored()
         .map_err(|_| corrupt("Saved resource bindings are invalid"))?;
     Ok((state, hash))
 }
@@ -719,11 +766,14 @@ fn create_prepared(
     };
     save_request(&tx, fingerprint, &receipt)?;
     let result = response(&tx, &meta, receipt, false)?;
-    crate::stored_samples::publish_document(
-        &state.document,
-        state.resources.asset_root.as_deref(),
-        control,
-    )?;
+    // A continuation came from a verified durable state. Its external stores may be on another host.
+    if origin.is_none() {
+        crate::stored_samples::publish_document(
+            &state.document,
+            state.resources.asset_root.as_deref(),
+            control,
+        )?;
+    }
     control.check()?;
     tx.commit().map_err(sql)?;
     db.close().map_err(|(_, e)| sql(e))?;
@@ -893,8 +943,6 @@ fn capture_pair(
     let meta = read_meta(&tx, session_id)?;
     let before = revision_state(&tx, from_revision, &meta)?;
     let after = revision_state(&tx, to_revision, &meta)?;
-    control.check_resource_paths(&before.resources)?;
-    control.check_resource_paths(&after.resources)?;
     // Release the read lock before rendering; both captured states remain immutable.
     drop(tx);
     drop(db);
@@ -1711,6 +1759,95 @@ mod tests {
             &Control::default(),
         )
         .unwrap();
+    }
+    #[test]
+    fn foreign_session_bindings_survive_recovery_and_explicit_rebinding() {
+        let root = TestRoot::new();
+        let control = Control::default();
+        initial(&root.0);
+        let mut state = capture(&root.0, "recovery", 0).unwrap();
+        let foreign = if cfg!(windows) {
+            "/var/art/assets"
+        } else {
+            r"\\?\C:\art\assets"
+        };
+        state.resources.asset_root = Some(foreign.into());
+        assert!(state.resources.validate().is_err());
+        for path in [
+            "/var/art",
+            r"C:\art",
+            "D:/art",
+            r"\\server\share\art",
+            r"\\?\C:\art",
+        ] {
+            validate_stored_path(Path::new(path)).unwrap();
+        }
+        for path in ["", "art", "C:art", r"\art"] {
+            assert!(validate_stored_path(Path::new(path)).is_err(), "{path}");
+        }
+        // Write a synthetic state as its originating platform would, including a valid creation fingerprint.
+        let fingerprint = assets::sha256(
+            &encode(
+                &json!({"type":"create","document":state.document,"resources":state.resources}),
+            )
+            .unwrap(),
+        );
+        create_prepared(
+            &root.0,
+            "portable",
+            "create",
+            state,
+            &fingerprint,
+            None,
+            &control,
+        )
+        .unwrap();
+        let backup = backup::create(
+            &root.0,
+            "portable",
+            0,
+            &backup::Output {
+                output_root: root.0.clone(),
+                file_name: "history.sqlite3".into(),
+            },
+            &control,
+        )
+        .unwrap();
+        let source = serde_json::from_value(backup["backup"].clone()).unwrap();
+        let workspace = crate::workspace::Workspace::open(&root.0).unwrap();
+        let restored_root = root.0.join(".inkbolt").join("sessions");
+        let restored = backup::recover(&restored_root, "portable", &source, &control).unwrap();
+        assert_eq!(restored["session"], backup["session"]);
+        let run = |value| crate::request::execute(value, Some(&workspace), &control);
+        let saved = json!({"session_id":"portable","revision":0});
+        let render = |revision| json!({"command":"document.render","document":{"session_id":"portable","revision":revision}});
+        assert_eq!(run(render(0)).unwrap_err().code, "RESOURCE_REBIND_REQUIRED");
+        assert!(
+            run(json!({"command":"document.render","document":saved,"asset_root":null})).is_ok()
+        );
+        let action =
+            json!({"type":"resources","resources":{"asset_root":"images","font_root":null}});
+        let proposal = run(json!({"command":"session.dry_run","session_id":"portable","request_id":"rebind","expected_revision":0,"action":action})).unwrap();
+        assert_eq!(proposal["difference"]["resource_bindings_changed"], true);
+        let apply = json!({"command":"session.apply_proposal","proposal":proposal["proposal"],"action":action});
+        let committed = run(apply.clone()).unwrap();
+        let replay = run(apply).unwrap();
+        assert_eq!(committed["receipt"], replay["receipt"]);
+        assert!(replay["replayed"].as_bool().unwrap());
+        assert!(run(render(1)).is_ok());
+        assert_eq!(
+            capture(&restored_root, "portable", 0)
+                .unwrap()
+                .resources
+                .asset_root
+                .as_deref(),
+            Some(Path::new(foreign))
+        );
+        assert!(
+            run(json!({"command":"session.verify","session_id":"portable"})).unwrap()["valid"]
+                .as_bool()
+                .unwrap()
+        );
     }
     fn large_action() -> Action {
         // 512 KiB of original data forces dirty-page spill beyond the test cache.

@@ -2219,6 +2219,11 @@ fn capability_report() -> Value {
     capabilities["native_prepress"]["color_buffer_values"] =
         json!(limits::prepress::COLOR_BUFFER_VALUES);
     capabilities["session_backups"]["lock_wait_ms"] = json!(limits::sqlite::BUSY_TIMEOUT_MS);
+    capabilities["session_backups"]["cross_platform_recovery"] = json!({
+        "stored_paths": "preserved_verbatim",
+        "foreign_runtime_binding": "RESOURCE_REBIND_REQUIRED",
+        "rebind_action": "resources"
+    });
     capabilities["session_backups"]["retry_interval_ms"] =
         json!(limits::sessions::BACKUP_RETRY_INTERVAL_MS);
     capabilities["jobs"]["launch_lock_timeout_ms"] = json!(limits::jobs::LAUNCH_LOCK_TIMEOUT_MS);

@@ -38,10 +38,6 @@ If your agent uses the CLI, pass `--workspace` with the same absolute folder
 path on every request. That lets a later process reopen the saved edit or
 recover its receipt. [CLI scripting example](docs/AGENT_WORKSPACE.md)
 
-On builds from `main`, the vector quickstart gives an agent editable shapes,
-a text label and the requests to save and export them in one lookup.
-[Vector quickstart](docs/AGENT_DISCOVERY.md#vector-quickstart)
-
 ## What you can make
 
 | Saved diagram | After one edit |
@@ -71,6 +67,11 @@ Apple silicon and Intel Macs. Background export jobs currently require Windows.
 Source builds from `main` can export searchable text on curved labels, keep
 the paths around group cutouts as vectors in a PDF, and preserve spot inks on
 separate printing plates. [PDF export](docs/PDF.md) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
+
+On `main`, an agent can also start a diagram from one vector quickstart or
+carry a saved edit between Windows and Linux. Copy the checked session backup,
+bring the original assets and fonts, and bind them in the new workspace.
+[Vector quickstart](docs/AGENT_DISCOVERY.md#vector-quickstart) · [Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability)
 
 ## Explore the project
 

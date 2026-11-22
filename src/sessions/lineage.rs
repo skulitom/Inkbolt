@@ -16,7 +16,8 @@ pub struct Parent {
 }
 impl Parent {
     fn validate(&self) -> Result<(), Error> {
-        backup::validate_source(&self.source)?;
+        validate_stored_path(&self.source.file_path)?;
+        backup::validate_source_identity(&self.source)?;
         id(&self.session_id)?;
         if self.revision >= MAX_REQUESTS as u64 {
             return Err(Error::new(
@@ -152,6 +153,7 @@ pub fn continue_from(
 ) -> Result<Value, Error> {
     backup::checked_path(root)?;
     id(request_id)?;
+    backup::checked_path(&parent.source.file_path)?;
     parent.validate()?;
     if parent.session_id == session_id {
         return Err(Error::new(
