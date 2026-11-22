@@ -28,6 +28,28 @@ required editable diagram. Median time to the accepted PNG fell from 52.6 to
 lookup for vector authoring. The fresh baseline delivered five correct diagrams
 in a median 17.7 seconds to first preview. [Matched trials](BENCHMARK_RESULTS.md#diagram-authoring-with-the-vector-quickstart)
 
+## Transparent PNG export in development builds
+
+The B13 screen fixture places a translucent 200 × 100 rectangle on a clear
+1920 × 1080 artboard. The renderer now skips blending when the source alpha is
+zero. It also computes dissolve coordinates only for a partially covered
+sample in dissolve mode.
+
+These are median wall times for three runs of each default debug build, with
+the run order alternated. The comparison used the renderer before and after
+the change in `d2d9830`. Each export produced the same PNG bytes on both
+platforms. An independent check compared every decoded pixel with the expected
+rectangle and transparent background.
+
+| Timed operation | Windows before | Windows after | WSL Linux before | WSL Linux after |
+| --- | ---: | ---: | ---: | ---: |
+| Publish one PNG through the CLI | 2.38 s | 1.24 s | 2.87 s | 1.54 s |
+| Run the B13 CLI and MCP regression, including its independent checks | 26.22 s | 15.58 s | 20.08 s | 15.14 s |
+
+To run the same end-to-end check, use
+`python tools/verify.py --only test_benchmark_screen.ScreenBenchmarkTests.test_original_outcomes_on_cli_and_mcp_with_separate_judge_calls`.
+Use `tools/verify_wsl.py` for the native Linux build. [B13 fixture and checks](../tools/benchmark_screen.py)
+
 ## Linux memory budget for large raster edits
 
 The four scale-v2 workloads already have independent output checks. On Linux
@@ -401,6 +423,13 @@ matched solid text in every case. MuPDF and a second text extractor recovered
 both accented letters exactly on each host. Regression tests also exercise variable
 TrueType, curved text and strict publication with a restricted font.
 [Export contract](PDF.md#searchable-text) · [Regression tests](../tests/test_pdf_searchable.py)
+
+A restarted MCP server reopened a saved session with the rotated, accented
+label and its original CFF font. On both Windows and Linux, strict publication
+wrote the same 15,429-byte PDF as the direct CLI export. A repeated publication
+to the same filename preserved that PDF. A request with a stale revision
+returned `REVISION_CONFLICT` before creating its file. The saved history and
+source font were unchanged throughout.
 
 ## Vector PDF blend delivery
 
