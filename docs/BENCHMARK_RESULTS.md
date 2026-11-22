@@ -1167,9 +1167,16 @@ their original reports; no model was rerun and no attempt was added or discarded
 All five baseline B07 failures remain. Each mapping lists a Hebrew base glyph
 before its zero-advance mark within the shared scalar interval [2,4); the fixed
 oracle lists the mark first. The entries, glyph IDs, source intervals, origins
-and advances otherwise match. Review this within-cluster ordering convention
-before drawing general reliability conclusions. The results show no rendering
-advantage for either arm on this sheet.
+and advances otherwise match. Both arms rendered this sheet correctly.
+
+Independent shaping of the same font resolved the sequence question.
+HarfBuzz 8.3.0 on Windows and 2.7.4 on Linux shaped the Hebrew run
+right-to-left and emitted glyphs 18, 6, 17. The mark (6) and base (17)
+share the same source interval. Their positioned frame origins are (380, 50)
+and (320, 200), respectively. Sorting by x therefore reverses the pair.
+Prompt version 2 asks both arms for the shaped sequence and the positioned
+origins separately. The authored glyph records and full-image checks are
+unchanged.
 
 All twenty transcripts and generated command/script bodies were reviewed. No
 repository/judge reads, extra engines/models or baseline Inkbolt access were
