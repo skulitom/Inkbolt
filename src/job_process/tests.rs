@@ -326,23 +326,18 @@ fn process_memory_limit_rejects_actual_commit_and_records_peak() {
 #[test]
 fn deadline_is_enforced_without_polling_and_cancel_and_drop_reap_owned_children() {
     let owned = Owned::new();
-    let mut runner = owned
-        .runner(
-            "hold",
-            Limits {
-                lifetime_ms: 1500,
-                ..Default::default()
-            },
-        )
-        .start()
-        .unwrap();
-    owned.wait_file("started");
+    let limits = Limits {
+        lifetime_ms: 1500,
+        ..Default::default()
+    };
+    let mut runner = owned.runner("hold", limits).start().unwrap();
     let identity = runner.identity();
-    wait_gone(identity); // Does not call Runner.poll: the watchdog must stop it.
-    assert_eq!(
-        report(&mut runner).stop_requested,
-        Some(StopReason::Deadline)
-    );
+    // Lifetime includes process startup. The child can expire before writing a marker.
+    wait_gone(identity); // Observe OS process exit without polling the runner.
+    let outcome = report(&mut runner);
+    assert_eq!(outcome.process, identity);
+    assert_eq!(outcome.stop_requested, Some(StopReason::Deadline));
+    assert!(outcome.observed_elapsed_ms >= limits.lifetime_ms);
 
     let owned_cancel = Owned::new();
     let mut cancelled = owned_cancel
