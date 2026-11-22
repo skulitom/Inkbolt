@@ -2,13 +2,11 @@
 
 ## Results by task
 
-Both arms completed all five mixed compositions once the shared prompt
-specified that the image layer must remain movable. On the linked-graphic
-task, three of five Inkbolt attempts passed, compared with four of five
-baseline attempts. The preceding batch scored 0/5 with Inkbolt and 5/5
-with the baseline.
+Both arms completed all five mixed compositions and all five linked-graphic
+revisions in their latest batches. Each linked-graphic agent using Inkbolt
+found the timed sequence example through the discovery index.
 Across the 17 tasks with a baseline, Inkbolt matched its artifact success
-count on 14, scored higher on two and lower on one. Median recorded token use
+count on 15 and scored higher on two. Median recorded token use
 was higher with Inkbolt on all 17.
 
 Each row uses the latest documented five-attempt batch for the standard task.
@@ -40,7 +38,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 178,056 / n/a | [77c6a17](#b17-with-the-workspace-in-the-cli-launch-command) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
 | B19 Recover an interrupted export | 4/5 | 4/5 | n/a | 569,666.5 / n/a | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
-| B20 Revise a linked video graphic | 3/5 | 3/5 | 4/5 | 1,057,499 / 335,799 | [Explicit layer visibility](#linked-graphics-with-explicit-layer-visibility) |
+| B20 Revise a linked video graphic | 5/5 | 5/5 | 5/5 | 921,483 / 284,822 | [Timed sequence example](#timed-sequence-handoff-with-one-discovery-example) |
 
 Artifact checks cover the requested delivery and source preservation. A complete
 Inkbolt workflow also requires the specified editing history, receipts or
@@ -48,8 +46,7 @@ recovery behavior. Baseline artifact and workflow counts coincide in these
 batches. B17–B19 exercise engine-specific recovery and have no baseline arm.
 
 Token medians include all attempts with reported usage, including failures, and
-count cached input once. B19 has usage for four of five attempts and the
-B20 Inkbolt arm has usage for three of five. Five trials
+count cached input once. B19 has usage for four of five attempts. Five trials
 give wide uncertainty. For example, five successes give a 95% Wilson interval
 of 56.6%–100%. Full model-call counts, engine-only model-trial memory and
 preview timing across the entire suite remain open. [Comparison policy](BENCHMARK_COMPARISON.md)
@@ -69,6 +66,46 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Timed sequence handoff with one discovery example
+
+All five Inkbolt attempts created a two-frame graphic, moved one layer and
+relinked only its clip in the saved timeline. All five baselines delivered
+the required artwork and video. Version 5 of the shared prompt gives a
+working Cutbolt schema query and identifies the `result.handoff` field
+to save. Each Inkbolt agent found `handoff.quickstart` in the index and
+used the layer sequence and retiming operations to set the initial holds.
+All five preserved those holds through the subsequent artwork revision.
+[Evaluated prompt](https://github.com/skulitom/Inkbolt/blob/d153e39/tools/benchmark_prompts/B20.md) · [Handoff example](AGENT_DISCOVERY.md#linked-graphics)
+
+| Windows, five measured attempts per arm | Inkbolt | Baseline |
+| --- | ---: | ---: |
+| Accepted artifacts and complete workflows | 5/5 | 5/5 |
+| Median client observation of the delivered preview, seconds | 131.7 | 77.1 |
+| Median client runtime, seconds | 192.6 | 106.0 |
+| Median input + output tokens | 921,483 | 284,822 |
+| Median combined engine commands | 74 | 17 |
+| Median combined response bytes | 269,427 | 102,387 |
+
+The preceding batch passed 3/5 and 4/5 respectively. Its three successful
+Inkbolt attempts made 28–31 focused Inkbolt lookups. The five new attempts
+made 16–19 each. They also made 15–20 Cutbolt schema calls apiece. The
+remaining cost gap is 3.24 times the baseline's median tokens. The guide
+and prompt changed together, so the comparison measures their combined use.
+
+The sequential trials used the same external client, model settings, deadline
+and consumer binaries as the preceding batch. Imports reproduced all ten
+outcomes and measurements and matched the hashes of the deliveries and recorded
+traffic. All ten clients observed the accepted final PNG. Four Inkbolt attempts
+also supplied a matching preview from the engine, at a median of 113.1 seconds.
+
+| Evidence at `d153e39` | SHA-256 |
+| --- | --- |
+| Evaluated Inkbolt executable | `b19d35b8d7ec03a359920418a2d0acec2d8433998564640fa894df765a536f3f` |
+| Inkbolt report | `ace3fc380e104bf1f4207d0dfca926faaf353e5d3901c71c54089941c917807b` |
+| Baseline report | `808159fe9821a79a0e3cc5086155ba8d167d8b50aecc4829f79f483f02593ef6` |
+| Comparison report | `61df82dd3dad3431c5f3e80dc2a71872375be6a0ba06c5ce5e2e90e426754edf` |
+| Replay audit | `f286aba1b73653cc3912a72638472f003a961a2b62592ad8caf7dde59fce495e` |
 
 ## Linked graphics with explicit layer visibility
 
