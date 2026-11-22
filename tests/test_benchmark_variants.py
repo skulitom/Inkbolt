@@ -1,8 +1,9 @@
 """B12 independent state, resource, viewport and durable publication checks."""
 import copy
-from contextlib import closing
+from contextlib import closing, ExitStack
 import json
 from pathlib import Path
+import shutil
 import struct
 import sqlite3
 import sys
@@ -79,38 +80,74 @@ class VariantBenchmarkTests(unittest.TestCase):
             locator=json.loads((case.root/'session.json').read_bytes())
             self.assertEqual(locator['session_id'],'family-session');self.assertEqual(locator['revisions']['restored'],6)
 
+    @staticmethod
+    def damage(case, fault):
+        name='base.json' if fault in ('binding','binding-target','inheritance') else 'restored.json' if fault=='restored' else 'source-square.json'
+        path=case.root/name;data=json.loads(path.read_bytes())
+        if fault=='binding':data['variants']['definition']['bindings'][0]['key']='other'
+        elif fault=='binding-target':data['variants']['definition']['bindings'][0]['item_id']='image'
+        elif fault=='inheritance':data['variants']['definition']['datasets']['square'].pop('parent')
+        elif fault=='restored':data['items'][1]['content']['frame']['style']['size']=21
+        elif fault=='board':data['items'][5]['content']['frame']['width']=33
+        elif fault in ('image','font'):
+            p=next((case.root/('.inkbolt/assets' if fault=='image' else '.inkbolt/fonts')).glob('*.rgba8' if fault=='image' else '*.font'))
+            raw=bytearray(p.read_bytes());raw[-1]^=1;p.write_bytes(raw)
+        elif fault=='preview':(case.root/'square.png').write_bytes(png(1,1,bytes(4)))
+        elif fault=='output-hash':
+            p=case.root/'outputs.json';value=json.loads(p.read_bytes());value['wide']='0'*64;p.write_text(json.dumps(value),encoding='utf-8')
+        elif fault=='receipt-bytes':
+            with closing(sqlite3.connect(case.root/'.inkbolt/publications/publications.sqlite3')) as db:
+                db.execute("UPDATE publications SET sha256=?",('0'*64,));db.commit()
+        elif fault in ('receipt','old-state'):
+            p=case.root/'session.json';value=json.loads(p.read_bytes())
+            if fault=='receipt':value['publications']['wide']=value['publications']['square']
+            else:value['revisions']['wide']=1
+            p.write_text(json.dumps(value),encoding='utf-8')
+        elif fault=='new-head':case.call('later','session.apply',session_id='work',request_id='later',expected_revision=5,
+            action=dict(type='edit',operations=[dict(op='variant_select',dataset='wide')]),response_mode='compact')
+        elif fault=='missing':(case.root/'tall.png').unlink()
+        path.write_text(json.dumps(data),encoding='utf-8')
+
     def test_damaged_controls_resources_deliveries_receipts_and_head_reject(self):
-        for fault in ('binding','binding-target','inheritance','restored','board','image','font','preview','output-hash','receipt','receipt-bytes','old-state','new-head','missing'):
-            with self.subTest(fault=fault),tempfile.TemporaryDirectory() as directory:
-                case=self.prepare(Path(directory)/fault)
-                name='base.json' if fault in ('binding','binding-target','inheritance') else 'restored.json' if fault=='restored' else 'source-square.json'
-                path=case.root/name;data=json.loads(path.read_bytes())
-                if fault=='binding':data['variants']['definition']['bindings'][0]['key']='other'
-                elif fault=='binding-target':data['variants']['definition']['bindings'][0]['item_id']='image'
-                elif fault=='inheritance':data['variants']['definition']['datasets']['square'].pop('parent')
-                elif fault=='restored':data['items'][1]['content']['frame']['style']['size']=21
-                elif fault=='board':data['items'][5]['content']['frame']['width']=33
-                elif fault in ('image','font'):
-                    p=next((case.root/('.inkbolt/assets' if fault=='image' else '.inkbolt/fonts')).glob('*.rgba8' if fault=='image' else '*.font'))
-                    raw=bytearray(p.read_bytes());raw[-1]^=1;p.write_bytes(raw)
-                elif fault=='preview':(case.root/'square.png').write_bytes(png(1,1,bytes(4)))
-                elif fault=='output-hash':
-                    p=case.root/'outputs.json';value=json.loads(p.read_bytes());value['wide']='0'*64;p.write_text(json.dumps(value),encoding='utf-8')
-                elif fault=='receipt-bytes':
-                    with closing(sqlite3.connect(case.root/'.inkbolt/publications/publications.sqlite3')) as db:
-                        db.execute("UPDATE publications SET sha256=?",('0'*64,));db.commit()
-                elif fault in ('receipt','old-state'):
-                    p=case.root/'session.json';value=json.loads(p.read_bytes())
-                    if fault=='receipt':value['publications']['wide']=value['publications']['square']
-                    else:value['revisions']['wide']=1
-                    p.write_text(json.dumps(value),encoding='utf-8')
-                elif fault=='new-head':case.call('later','session.apply',session_id='work',request_id='later',expected_revision=5,
-                    action=dict(type='edit',operations=[dict(op='variant_select',dataset='wide')]),response_mode='compact')
-                elif fault=='missing':(case.root/'tall.png').unlink()
-                path.write_text(json.dumps(data),encoding='utf-8');case.begin_judging()
-                try:judge(case)
-                except (TaskFailure,ValueError,KeyError) as error:case.error=str(error)
-                self.assertEqual(case.finish()['status'],'failed',fault)
+        faults = {
+            'intact': None,
+            'binding': 'Expected exactly the label, place and image binding keys',
+            'binding-target': 'INVALID_VARIANT',
+            'inheritance': 'The complete base layout or variant definition changed',
+            'restored': 'The complete base was not restored',
+            'board': 'Selection changed bindings or unrelated shared state: square',
+            'image': 'Missing intact workspace image store',
+            'font': 'Missing intact workspace font store',
+            'preview': 'Delivered image dimensions changed',
+            'output-hash': 'Earlier output differs from its completed publication receipt: wide',
+            'receipt': 'Earlier output differs from its completed publication receipt: wide',
+            'receipt-bytes': 'PUBLICATION_CORRUPT',
+            'old-state': 'revisions must be in increasing order',
+            'new-head': 'History must bind every selected snapshot and the restored current head',
+            'missing': 'Missing or external deliverable: tall.png',
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            solved = self.prepare(Path(directory) / 'work')
+            template = solved.root.rename(Path(directory) / 'template')
+            for fault, reason in faults.items():
+                with self.subTest(fault=fault), ExitStack() as cleanup:
+                    # Receipts bind the original absolute path. Restore there for each judge.
+                    shutil.copytree(template, solved.root)
+                    cleanup.callback(shutil.rmtree, solved.root)
+                    case = copy.deepcopy(solved)
+                    if reason is not None:
+                        self.damage(case, fault)
+                    case.begin_judging()
+                    try:judge(case)
+                    except (TaskFailure,ValueError,KeyError) as error:case.error=str(error)
+                    row = case.finish()
+                    if reason is None:
+                        self.assertEqual(row['status'], 'passed', row)
+                    else:
+                        self.assertEqual(row['status'], 'failed', row)
+                        errors = [row['error'] or '']
+                        errors.extend(c['error'] for c in row['checks'] if c['status'] == 'fail')
+                        self.assertTrue(any(reason in message for message in errors), errors)
 
     def test_external_capture_rejudges_moved_workspaces_without_modifying_inputs(self):
         with tempfile.TemporaryDirectory() as directory:
