@@ -3,8 +3,10 @@
 ## Results by task
 
 Both arms completed all five mixed compositions once the shared prompt
-specified that the image layer must remain movable. The latest linked-graphic
-batch passed zero of five attempts with Inkbolt and five with the baseline.
+specified that the image layer must remain movable. On the linked-graphic
+task, three of five Inkbolt attempts passed, compared with four of five
+baseline attempts. The preceding batch scored 0/5 with Inkbolt and 5/5
+with the baseline.
 Across the 17 tasks with a baseline, Inkbolt matched its artifact success
 count on 14, scored higher on two and lower on one. Median recorded token use
 was higher with Inkbolt on all 17.
@@ -38,7 +40,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 178,056 / n/a | [77c6a17](#b17-with-the-workspace-in-the-cli-launch-command) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
 | B19 Recover an interrupted export | 4/5 | 4/5 | n/a | 569,666.5 / n/a | [447bbc2](#b10b17b19-at-447bbc2-request-guidance-follow-up) |
-| B20 Revise a linked video graphic | 0/5 | 0/5 | 5/5 | 1,067,109 / 288,988 | [Single-frame editing available](#linked-graphics-with-single-frame-editing-available) |
+| B20 Revise a linked video graphic | 3/5 | 3/5 | 4/5 | 1,057,499 / 335,799 | [Explicit layer visibility](#linked-graphics-with-explicit-layer-visibility) |
 
 Artifact checks cover the requested delivery and source preservation. A complete
 Inkbolt workflow also requires the specified editing history, receipts or
@@ -68,6 +70,57 @@ retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
 
+## Linked graphics with explicit layer visibility
+
+The agent sets the timing of two frames, moves one layer four pixels, then
+relinks one clip in a saved Cutbolt timeline. Both frame durations and the
+other clip must survive the edit. Version 4 of the prompt specifies how to
+preserve the editable pixel layers and their visibility when frame selection
+is cleared. It also points to focused Inkbolt schema lookup and describes
+how to give each bridge call a unique label. This batch used the same engine
+binary, Codex CLI 0.160.0, model settings, consumer tools and 600-second
+deadline as the preceding batch. The ten attempts ran sequentially on Windows.
+[Evaluated prompt at `efcd3c9`](https://github.com/skulitom/Inkbolt/blob/efcd3c9/tools/benchmark_prompts/B20.md)
+
+| Five attempts per arm | Inkbolt | Baseline |
+| --- | ---: | ---: |
+| Accepted artifacts and complete workflows | 3/5 | 4/5 |
+| Attempts with validated solve metrics | 3/5 | 5/5 |
+| Median client observation of the delivered preview, seconds | 139.8 | 85.9 |
+| Median client runtime, seconds | 195.2 | 107.8 |
+| Median input + output tokens | 1,057,499 | 335,799 |
+| Median combined engine commands | 86 | 21 |
+| Median combined response bytes | 279,136 | 109,463 |
+
+Both Inkbolt failures put a second `command` field inside the arguments of
+a Cutbolt schema request. A successful query in the same batch used
+`"command":"schema"` with `"arguments":{"name":"session.create"}`. One
+disqualified attempt passed all 16 individual checks. The other also saved
+the complete export reply where the handoff pin was required. The baseline
+failure omitted both handoff inventories and passed the preview check.
+
+All five Inkbolt attempts used focused lookups, between 17 and 31 per
+attempt, and none fetched Inkbolt's full schema. The median combined
+response fell from 629,136 to 279,136 bytes across measured attempts in
+the two batches. Inkbolt still used 3.15 times the baseline's median tokens
+in the new batch. Each median uses every validated capture in its arm,
+including the baseline failure. The two protocol-invalid Inkbolt attempts
+count toward the success rate and have no validated timings or token counts.
+
+Client preview time records the first completed client event that observed
+the final, pixel-checked `preview.png`. The native engine returned those
+pixels sooner, at a median of 124.6 seconds. Imports reproduced the checks
+and measurements of all eight validated captures. The replay audit also
+matched the hashes of their delivered files and recorded engine traffic.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| Evaluated Inkbolt executable | `d1290802199821ee0633f658233df3eab226f2a1c9ad2891df707e138bcff121` |
+| Inkbolt report | `43e81fd5e70e1396414c3f33cce47e213d49ef5a7d391ddd298396020644fa6a` |
+| Baseline report | `4774172212c8d365a2820c311567305cfedfbbf2f758812d60f2911f46294e72` |
+| Comparison report | `f9f8ef5a6c910be0b1b8b688d73a44a0d825a92e3f7487d83d53e0eb302d7874` |
+| Replay audit | `c131ed3a3460c8eae16cdc8fa79bf17c3cc44ff547244174f64dac2f9f3b886a` |
+
 ## Linked graphics with single-frame editing available
 
 At `4bf68f9`, five agents tried to create and revise a two-frame graphic in
@@ -85,8 +138,9 @@ the protocol gate. Two native attempts in total repeated discovery labels.
 Those attempts have no validated capture or solve metrics.
 
 All five native attempts fetched Inkbolt's full schema. Each reply was
-204,962 bytes. None issued a `sequence_retime` edit. Making that edit
-available did not establish that agents would find or use it.
+204,962 bytes. None issued a `sequence_retime` edit. B20 requires the
+initial holds to be preserved through the revision. Discovering how to
+change an existing frame's duration would require a separate task.
 
 | Windows, five attempts per arm | Inkbolt | Baseline |
 | --- | ---: | ---: |

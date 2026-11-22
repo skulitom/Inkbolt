@@ -53,6 +53,7 @@ fill. Undo restored the starting SVG byte for byte. [Restored SVG](https://skuli
 | Cut or join shapes | Combine filled paths, circles and ellipses in one undoable edit. The resulting Bézier handles stay editable. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
 | Retouch an image | Select a region, feather a mask or repair a patch. Keep 16-bit samples and share unchanged image data across revisions. [Selections](docs/NATIVE_SELECTIONS.md) · [Image repair](docs/NATIVE_REPAIR.md) |
 | Review and deliver artwork | Compare revisions, undo a change, and preflight a PNG, JPEG, TIFF, SVG or PDF before saving it. For multi-page PDFs, select the artboards to deliver and include their bleed. [Sessions](docs/AGENT_WORKSPACE.md) · [PDF export](docs/PDF.md) · [Runnable examples](examples/README.md) |
+| Use artwork in a video | Send a still or timed sequence to Cutbolt. When the artwork changes, relink the intended clip and keep the earlier delivery available. [Linked graphics](docs/HANDOFF.md#linked-revisions) |
 
 ## Builds and platform support
 
