@@ -20,6 +20,45 @@ class SequenceTests(unittest.TestCase):
     invoke=editing.EditingCliTests.invoke
     edit=variants.VariantTests.edit
 
+    def test_retime_one_frame_preserves_selected_artwork_base_visibility_and_history(self):
+        source = variants.VariantTests.document(self)
+        common = dict(numerator=1, denominator=12)
+        new_delay = dict(numerator=3, denominator=0)
+        layers = dict(op='sequence_from_layers', ids=['tile', 'badge'], plays=4, delay=common)
+        retime = dict(op='sequence_retime', id='frame-1', delay=new_delay)
+        before = self.edit(source, layers)
+        wanted = copy.deepcopy(before)
+        wanted['variants']['sequence']['frames'][1]['delay'] = new_delay
+        self.assertEqual(self.edit(source, layers, retime), wanted)
+        self.assertEqual(self.edit(source, retime, expected=1)['code'], 'INVALID_SEQUENCE')
+        self.assertEqual([v['value'] for v in wanted['variants']['base']], [True, True])
+        self.assertEqual([v['visible'] for v in wanted['items']], [True, False])
+        info = self.invoke(dict(command='sequence.inspect', document=wanted))
+        self.assertEqual(info['duration_seconds'], dict(numerator='17', denominator='150'))
+
+        with tempfile.TemporaryDirectory() as directory:
+            session = dict(session_root=directory, session_id='holds')
+            created = self.invoke(dict(command='session.create', **session, request_id='start', document=before))
+            action = dict(type='edit', operations=[retime])
+            bad = dict(type='edit', operations=[retime, dict(retime, id='absent')])
+            denied = self.invoke(dict(command='session.apply', **session, request_id='bad',
+                                      expected_revision=0, action=bad), 1)
+            self.assertEqual(denied['code'], 'INVALID_SEQUENCE')
+            self.assertEqual(self.invoke(dict(command='session.read', **session))['document'], created['document'])
+
+            review = self.invoke(dict(command='session.dry_run', **session, request_id='change',
+                                      expected_revision=0, action=action))
+            apply = dict(command='session.apply_proposal', session_root=directory, action=action,
+                         proposal=review['proposal'])
+            saved = self.invoke(apply)
+            self.assertEqual(saved['document'], dict(wanted, revision=1))
+            self.assertEqual(saved['receipt']['changes'][0]['details'],
+                             dict(frame_id='frame-1', previous_delay=common, delay=new_delay, artwork_unchanged=True))
+            undone = self.invoke(dict(command='session.apply', **session, expected_revision=1,
+                                      request_id='undo', action=dict(type='undo')))
+            self.assertEqual(undone['document'], dict(before, revision=2))
+            self.assertEqual(self.invoke(apply)['receipt'], saved['receipt'])
+
     def imported(self,root,data,**kw):
         path=Path(root)/'input.png';path.write_bytes(data)
         space=kw.pop('compositing_space','linear_srgb')

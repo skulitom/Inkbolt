@@ -1641,7 +1641,8 @@ fn capability_report() -> Value {
     });
     capabilities["sequences"] = json!({
         "commands":["sequence.import","sequence.inspect","sequence.open","sequence.export"],
-        "storage":"document.variants.sequence","edits":["sequence_set","sequence_frame","sequence_from_layers"],
+        "storage":"document.variants.sequence","edits":["sequence_set","sequence_frame","sequence_from_layers","sequence_retime"],
+        "layer_authoring":"Use sequence_from_layers to capture the layers' original visibility and select the first frame. Add sequence_retime operations in the same edit for frames with different holds.",
         "imports":["explicit_ordered_png_jpeg_tiff_files","apng_rgba8_palette_gray_rgb_expansion"],
         "exports":["ordered_png_artifacts_with_timing_receipt","apng_full_canvas_rgba8"],
         "apng_compositing":{"default":"linear_srgb","options":["linear_srgb","encoded_srgb"],"alpha":"straight_over;nearest_byte_after_each_frame","disposal":["none","background","previous"],"interlace":"Adam7","separate_default_image":"hidden_poster_retained_not_reexported"},

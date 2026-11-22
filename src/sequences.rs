@@ -112,6 +112,20 @@ pub(crate) fn select(d: &mut Document, id: &str) -> Result<Value, Error> {
     let view = variants::select(d, Some(frame.dataset.clone()))?;
     Ok(json!({"frame":frame,"selection":view}))
 }
+pub(crate) fn retime(d: &mut Document, id: &str, delay: Delay) -> Result<Value, Error> {
+    let timeline = d
+        .variants
+        .as_mut()
+        .and_then(|s| s.sequence.as_mut())
+        .ok_or_else(|| error("Document has no frame sequence"))?;
+    let frame = timeline
+        .frames
+        .iter_mut()
+        .find(|frame| frame.id == id)
+        .ok_or_else(|| error("Sequence frame does not exist"))?;
+    let previous = std::mem::replace(&mut frame.delay, delay);
+    Ok(json!({"frame_id":id,"previous_delay":previous,"delay":delay,"artwork_unchanged":true}))
+}
 pub fn open(d: &Document, id: &str) -> Result<Value, Error> {
     crate::validate(d)?;
     let frame = timeline(d)?

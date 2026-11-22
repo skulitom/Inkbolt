@@ -187,8 +187,8 @@ def solve(case):
            for name,raw in [('art',first),('other',second)]]
     doc=case.call('animate','document.edit',document=doc,expected_revision=0,operations=[
         *[dict(op='add',item=item) for item in items],dict(op='sequence_from_layers',ids=['art','other'],
-            delay=dict(numerator=2,denominator=25),plays=0)])['document']
-    doc['variants']['sequence']['frames'][0]['delay']=dict(numerator=3,denominator=25)
+            delay=dict(numerator=2,denominator=25),plays=0),
+        dict(op='sequence_retime',id='frame-0',delay=dict(numerator=3,denominator=25))])['document']
     saved=store(case,doc);before=source_snapshot(case,saved,'before')
     options=dict(link_key='graphic',selection=dict(type='sequence'),duration=DURATION,frame_rate=RATE,
                  timing='strict',end='loop',alpha=dict(type='transparent'))

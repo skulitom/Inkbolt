@@ -210,6 +210,12 @@ pub enum Operation {
     SequenceFrame {
         id: String,
     },
+    /// Change one frame's exact hold by ID, preserving its dataset and the current selection.
+    SequenceRetime {
+        id: String,
+        delay: crate::sequences::Delay,
+    },
+    /// Capture the layers' base visibility and select the first frame. Follow with sequence_retime for individual holds.
     SequenceFromLayers {
         ids: Vec<String>,
         delay: crate::sequences::Delay,
@@ -1095,6 +1101,10 @@ fn apply_one(
         Operation::SequenceFrame { id } => {
             *details = Some(crate::sequences::select(document, id)?);
             Ok((id.clone(), "sequence_frame_selected"))
+        }
+        Operation::SequenceRetime { id, delay } => {
+            *details = Some(crate::sequences::retime(document, id, *delay)?);
+            Ok((id.clone(), "sequence_retimed"))
         }
         Operation::SequenceFromLayers { ids, delay, plays } => {
             *details = Some(crate::sequences::from_layers(

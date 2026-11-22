@@ -17,6 +17,18 @@ Agents can import an explicitly ordered image collection or animated PNG, retain
 
 `sequence_from_layers` takes an explicit ordered `ids` list, one `delay` and optional `plays` (default zero). It requires no existing variant table and 1–32 unique unlocked independent printable roots. It creates visibility datasets and selects the first frame. Selected roots are shown one at a time; unlisted objects retain their current visibility and may supply a shared backdrop. Source content and captured base visibility remain editable. Group subtrees are supported; clipped roots, adjustment layers and nonprinting definitions cannot become independent frames.
 
+To give one existing frame a different hold, use its frame ID in a
+`sequence_retime` edit. For example, this holds `frame-1` for one eighth
+of a second. The edit receipt reports the previous and new delay fractions.
+
+```json
+{"op":"sequence_retime","id":"frame-1","delay":{"numerator":1,"denominator":8}}
+```
+
+For a new animation, use `sequence_from_layers` with a common delay, then
+retime individual frames in the same edit. Inkbolt captures the layers'
+original visibility before selecting the first frame.
+
 Delays retain their original unsigned 16-bit numerator/denominator. A zero denominator means 100; a zero numerator requests the consumer's fastest advance. `plays: 0` means indefinite repetition. `sequence.inspect` returns original fractions and cumulative start/end/total times as exact rational **decimal strings**, avoiding numeric overflow from unrelated denominators. It does not promise wall-clock playback precision.
 
 ## Import
