@@ -37,7 +37,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 178,056 / n/a | [77c6a17](#b17-with-the-workspace-in-the-cli-launch-command) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
-| B19 Recover an interrupted export | 5/5 | 5/5 | n/a | 614,476 / n/a | [Vector fill and export recovery](#interrupted-export-recovery-with-a-vector-fill-edit) |
+| B19 Recover an interrupted export | 5/5 | 5/5 | n/a | 530,157 / n/a | [Command discovery during export recovery](#command-discovery-during-export-recovery) |
 | B20 Revise a linked video graphic | 5/5 | 5/5 | 5/5 | 921,483 / 284,822 | [Timed sequence example](#timed-sequence-handoff-with-one-discovery-example) |
 
 Artifact checks cover the requested delivery and source preservation. A complete
@@ -95,6 +95,47 @@ attributed to the wording alone.
 | Inkbolt attempts | `1c9252acd6a1e94230e597339e38974c1f8e19234309b2fc393c3edfb1b428f3` |
 | Baseline attempts | `71626f61f850f1e638f48fca475b67a6be59401c92923e0a6bbd7569a36aeab4` |
 | Matched comparison | `fe4f1d8926d7fbfab5d528d6dd6b5fcdb0f03518471ff336c20cdaa576803abe` |
+
+## Command discovery during export recovery
+
+Five Windows agents recovered the interrupted export from its pinned revision.
+Each agent recolored the newer revision on its first edit. All nine checks
+passed in every attempt, including cancellation, source preservation and
+single publication. Replay reproduced the checks, receipts and measured values.
+Both batches used B19 prompt version 5, the same pinned CLI executable for the
+model client, the same driver configuration and the same model settings.
+
+| Median per attempt, five per batch | [Previous](#interrupted-export-recovery-with-a-vector-fill-edit) | With grouped field lookup available |
+| --- | ---: | ---: |
+| Engine commands | 43 | 28 |
+| Request bytes | 3,476 | 3,487 |
+| Response bytes | 220,327 | 224,505 |
+| Invalid calls / retries | 4 / 3 | 2 / 3 |
+| Tokens | 614,476 | 530,157 |
+| Time to verified engine preview | 64.3 s | 67.1 s |
+| Time to client-observed preview | 71.9 s | 78.1 s |
+| Solve time | 141.2 s | 142.8 s |
+
+The [grouped lookup](AGENT_DISCOVERY.md#focused-schemas) exposes input names
+for related commands in one response. In ten earlier B19 and B20 attempts,
+agents made 148 schema queries. No attempt repeated the exact same query.
+Of these, 91 asked about an individual command without a field selector or a
+full-schema override. Across those attempts, 26 family queries would cover the
+same top-level field names. Individual responses also supply types, allowed
+values or examples that a field list cannot supply.
+
+In the new B19 batch, two agents opened the index and made 25 and 19 schema
+queries respectively. The other three completed the task without a schema
+lookup. None requested the grouped field list. The lower command and token
+medians cannot be attributed to that lookup. Further discovery changes need
+evidence of a specific input that agents struggle to supply.
+
+| Evidence at `2d4d7d8` | SHA-256 |
+| --- | --- |
+| Evaluated Inkbolt executable | `eb0b5ebf939e06cb728a8b01172215b4ac65d7769bcae95ae9c03cd7367c1beb` |
+| Five attempts | `9e16e364a678be7e2334c86989ed6061a9e5d15b129c1e96287fa2824f30dead` |
+| Capture replay | `7b94e01e7f6cc26217155ebca2399658b908867019a1894620b14d63dae89ff3` |
+| Field comparison across 96 commands with and without workspace defaults | `bd4a16b354b333401896b184453b9a8afdd28e466aec448669878bac1db941b2` |
 
 ## Interrupted export recovery with a vector fill edit
 
