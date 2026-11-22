@@ -79,7 +79,8 @@ PDF exports support searchable labels on curves and separate spot-ink plates.
 ## Explore the project
 
 - To connect an agent or script an edit, see the [agent interface](docs/AGENT_INTERFACE.md), [tool discovery](docs/AGENT_DISCOVERY.md) and [guide to saving CLI receipts](docs/AGENT_RESPONSES.md).
-- [Implemented capabilities](docs/IMPLEMENTATION.md) and [agent benchmarks](docs/BENCHMARK_RESULTS.md) describe supported behavior and measured task outcomes.
+- Across 17 Windows tasks tested on several builds, agents using Inkbolt matched the no-engine baseline’s artifact success count on 15 and exceeded it on two. They used more tokens and shell commands at the median on all 17. [Results by task](docs/BENCHMARK_RESULTS.md#results-by-task) · [Tool use](docs/BENCHMARK_RESULTS.md#shell-and-mcp-activity-across-twenty-tasks)
+- The [capability reference](docs/IMPLEMENTATION.md) describes which editing and export operations are implemented.
 - The [development plan](FIX_PLAN.md) tracks remaining work. The [development guide](docs/DEVELOPMENT_LOOP.md) explains the 2–3 minute feedback loop and full milestone checks.
 - [Architecture](docs/ARCHITECTURE.md) and [source requirements](docs/RESEARCH.md) are the starting points for contributors.
 - The [vector editing MCP comparison](https://skulitom.github.io/Inkbolt/compare/svg-vector-editing-mcp-servers/) covers Inkbolt and eight other tools as reviewed on 18 October 2026.

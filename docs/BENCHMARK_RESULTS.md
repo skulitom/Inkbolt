@@ -61,7 +61,8 @@ reversed a base glyph and its mark in the accompanying shaping report. In B14,
 all five Inkbolt agents identified the completed publication for the delivered
 PDF. The earlier batch pointed to an editable snapshot twice.
 
-The [five-pair smaller-model diagram evaluation](#b01-with-luna),
+The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna),
+[five-pair smaller-model diagram evaluation](#b01-with-luna),
 [three five-pair 50 MP photo evaluations](B10_LARGE.md#five-matched-windows-trials) and [earlier evaluations](#b02-at-c7d9f30-initial-five-matched-icon-sheet-trials)
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
@@ -129,6 +130,58 @@ Windows and Linux produced the same tool-activity report, SHA-256
 It binds the comparison method, source reports, individual transcript hashes
 and measured counts. The B10 tool events come from the original solves whose
 saved photo stores were [rejudged separately](#b10-rejudging-the-saved-photo-stores).
+
+## Transparent screen delivery with Luna
+
+Luna completed the transparent PNG task in **three of five attempts with
+Inkbolt and five of five with the no-engine baseline**. All ten PNGs had the
+requested straight-alpha samples at every pixel. To complete the task, the
+agent also had to retain the editable source and its private note, deliver a
+PNG tagged as sRGB, and verify that publishing twice preserved the first file.
+
+| Measurement | Inkbolt | No-engine baseline |
+| --- | ---: | ---: |
+| Accepted artifacts and complete workflows | 3/5 | 5/5 |
+| PNGs with all 2,073,600 pixels correct | 5/5 | 5/5 |
+| PNGs with the required sRGB declaration | 4/5 | 5/5 |
+| Median completed shell commands | 20 | 3 |
+| Median shell output, UTF-8 bytes | 230,399 | 373 |
+| Median input + output tokens | 627,750 | 54,013 |
+| Median solve time | 150.1 s | 45.3 s |
+| Median time to a judge-verified preview | 93.5 s (3 observed) | 30.8 s (5 observed) |
+
+One Inkbolt attempt delivered an SVG instead of the requested editable JSON,
+and its PNG lacked the sRGB declaration. Another left the rectangle outside
+the artboard hierarchy and omitted the private note from the JSON. All ten
+delivery receipts matched their original PNG hashes. Every agent used the
+shell. Commands containing `schema.lookup` returned a median of 53,865 bytes
+per Inkbolt attempt. The next delivery experiment should measure whether a
+short path from the screen preset to an editable source and a PNG reduces
+these lookups while preserving the delivery checks.
+
+The original judge accepted only one Inkbolt workflow. It required an empty
+rectangle name and looked for the private note only on the document. The
+prompt leaves object names and the location of source metadata to the agent.
+The corrected judge accepts names and notes on the document's artboard or
+rectangle, checks the reopened source, freshly renders it, and repeats
+publication into a protected copy. Rejudging the ten retained workspaces
+admitted two more Inkbolt deliveries. Baseline results stayed at five. A
+separate pixel check read all ten original PNGs with pinned Pillow.
+
+Both arms used Codex CLI 0.160.0, `gpt-6-luna` with medium reasoning, the
+same B13 prompt and one Windows host. Five Inkbolt attempts ran first, then
+five baseline attempts. Model selection came from the external driver
+configuration. Source [`03126e5`](https://github.com/skulitom/Inkbolt/commit/03126e53d590efbc4616d0ba8fbfb1f40a7fdc02)
+produced the retained engine. Timing reflects uncontrolled host load. Cost
+medians include failures. Only three pairs passed in both arms, below the
+five required for a paired cost ratio.
+
+| Retained evidence | SHA-256 |
+| --- | --- |
+| Original comparison | `f3816543980b02c5d2e3179894a9c3199a0cd46d3d6cdd63d05d3f3fcdfd7055` |
+| Original-judge replay | `7b4117d214d85ce847eab26550dab09b533abd678446b69218279ef2c5171a22` |
+| Corrected comparison | `4cf73ab774f12ae0c2cc896858407d00c84d2b8fe752fe07e3a9beb4cdc862dd` |
+| Independent pixel and transcript checks | `d051d77a45acde2dd9767b1a33e8ddddad8021acee0882f9f641a3252ba91927` |
 
 ## Observing print previews in delivery folders
 

@@ -73,10 +73,16 @@ def judge(case):
         kind='vector',background=dict(type='transparent')))
     require(len(actual['items'])==2,'Expected an artboard and one editable rectangle')
     expected=source_document(preset,actual['items'][1]['id'],actual['items'][0]['id']);expected['revision']=actual['revision']
-    expected['items'][0]['name']=actual['items'][0].get('name')
     expected['metadata']=actual.get('metadata')
+    # The prompt allows a descriptive name and a note on either editable item.
+    source_metadata = [actual.get('metadata')]
+    for template, item in zip(expected['items'], actual['items']):
+        template['name'] = item.get('name')
+        if 'metadata' in item:
+            template['metadata'] = item['metadata']
+            source_metadata.append(item['metadata'])
     normalized=case.call('judge-template','document.validate',document=expected)
-    require(case.check('editable-source',lambda:require(actual==normalized==reopened and contains_source_note(actual.get('metadata')),
+    require(case.check('editable-source',lambda:require(actual==normalized==reopened and contains_source_note(source_metadata),
         'Editable geometry, private note or screen document controls changed')),'The editable screen source was not admitted')
     directory=getattr(case,'judge_root',case.root)
     target=directory/'judge-screen.png';protected=directory/'judge-protected.png'

@@ -35,16 +35,22 @@ class ScreenJudgeTests(unittest.TestCase):
             row=case.finish();self.assertEqual(row['status'],'passed',row);self.assertIsNone(row['first_verified_preview_seconds'])
 
     def test_source_note_allows_author_keys_but_requires_unchanged_value(self):
-        variants=[({'note':NOTE},True),({'private':{'review':NOTE},'tags':['context']},True),
-                  ({},False),({'note':'lost'},False),({'note':NOTE+' changed'},False)]
+        variants=[('document',{'note':NOTE},True),('document',{'private':{'review':NOTE},'tags':['context']},True),
+                  ('frame',{'tags':[NOTE]},True),('rectangle',{'note':NOTE},True),('document',{},False),
+                  ('rectangle',{'note':'lost'},False),('frame',{'note':NOTE+' changed'},False)]
         self.assertFalse(contains_source_note({NOTE:'key only'}))
         self.assertTrue(contains_source_note({'tags':[NOTE]}))
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);case=self.prepare(root/'workspace');source=json.loads((case.root/'editable.json').read_bytes())
             case.results.clear();case.begin_judging();original_call=case.call
-            for index,(metadata,valid) in enumerate(variants):
-                with self.subTest(metadata=metadata):
-                    doc=copy.deepcopy(source);doc['metadata']=metadata
+            for index,(owner,metadata,valid) in enumerate(variants):
+                with self.subTest(owner=owner,metadata=metadata):
+                    doc=copy.deepcopy(source);del doc['metadata']
+                    target={'document':doc,'frame':doc['items'][0],'rectangle':doc['items'][1]}[owner]
+                    target['metadata']=metadata
+                    doc['items'][0]['name']='Screen artboard'
+                    # A label may be chosen freely, but cannot stand in for a metadata note.
+                    doc['items'][1]['name']=NOTE
                     (case.root/'editable.json').write_text(json.dumps(doc),encoding='utf-8')
                     case.checks.clear();case.judge_root=root/str(index);case.judge_root.mkdir()
                     case.call=lambda step,command,**arguments:original_call(str(index)+'-'+step,command,**arguments)
