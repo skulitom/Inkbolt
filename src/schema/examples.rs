@@ -29,6 +29,34 @@ fn text_edit() -> Value {
     json!({"op":"text","id":"label","frame":frame()})
 }
 
+fn import_font() -> Value {
+    json!({"command":"font.import","source_path":"typeface.ttf","license_path":"typeface-license.txt"})
+}
+
+fn save_session() -> Value {
+    json!({"command":"session.create","session_id":"example","request_id":"create",
+        "document":document(),"response_mode":"compact"})
+}
+
+pub(super) fn vector_quickstart() -> Value {
+    let postcard: Value = serde_json::from_str(include_str!("../../examples/first-png.json"))
+        .expect("bundled postcard is valid JSON");
+    let snapshot: Value =
+        serde_json::from_str(include_str!("../../examples/publish-snapshot.json"))
+            .expect("bundled snapshot request is valid JSON");
+    json!({"name":"vector.quickstart","detail":"examples",
+    "publish_png":postcard,
+    "import_font":import_font(),
+    "text_item":{"id":"caption","transform":[1,0,0,1,12,8],"content":{"type":"text","frame":frame()}},
+    "save_session":save_session(),
+    "publish_snapshot":snapshot,
+    "usage":[
+        "Run requests with one selected workspace. Adapt publish_png.document and its items to your canvas and artwork. Geometry uses canvas units and fills use RGBA bytes.",
+        "For text, run import_font with your own font and license paths. Set document.fonts.face to the returned result descriptor and append text_item to document.items. Its translation places the frame's top left.",
+        "To keep the edit, put that document in save_session.document and use a fresh session ID. Use the saved session ID and revision as the document in publish_snapshot and publish_png. Choose unused output filenames."
+    ]})
+}
+
 fn example(kind: &str, value: Value, requires: &[&str], usage: &str) -> Value {
     json!({"kind":kind,"value":value,"requires":requires,"usage":usage})
 }
@@ -92,8 +120,7 @@ pub(super) fn for_schema(name: &str, selected: Option<&str>, schema: &Value) -> 
     match name {
         "font.import" => Some(example(
             "request",
-            json!({"command":"font.import",
-            "source_path":"typeface.ttf","license_path":"typeface-license.txt"}),
+            import_font(),
             &[
                 "An existing selected workspace",
                 "Original typeface.ttf and typeface-license.txt files in that workspace",
@@ -104,8 +131,7 @@ pub(super) fn for_schema(name: &str, selected: Option<&str>, schema: &Value) -> 
         )),
         "session.create" => Some(example(
             "request",
-            json!({"command":"session.create",
-            "session_id":"example","request_id":"create","document":document(),"response_mode":"compact"}),
+            save_session(),
             &[
                 "An existing selected workspace",
                 "An unused session ID example",

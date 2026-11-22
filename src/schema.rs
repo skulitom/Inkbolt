@@ -312,17 +312,20 @@ pub(crate) fn lookup_in_workspace(
             ),
         ));
     }
-    if name == "index" {
+    if matches!(name, "index" | "vector.quickstart") {
         if select.is_some() || force_full {
             return Err(Error::new(
                 "INVALID_REQUEST",
-                "The schema index has no select or full option",
+                format!("The schema {name} has no select or full option"),
             ));
+        }
+        if name == "vector.quickstart" {
+            return Ok(examples::vector_quickstart());
         }
         return Ok(
             json!({"detail":"index", "commands":commands().collect::<Vec<_>>(),
             "types":TYPES.iter().map(|(alias, _)| alias).collect::<Vec<_>>(),
-            "example_queries":examples::queries(),
+            "example_queries":examples::queries(), "vector_quickstart":lookup_request("vector.quickstart", None),
             "usage":"Choose a command or type as name. Large schemas list field and variant selectors and reachable definitions. Use full:true for a validation schema."}),
         );
     }

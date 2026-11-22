@@ -5,6 +5,23 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## Getting from CLI help to a first vector preview
+
+In the [five timed B01 diagram trials](BENCHMARK_RESULTS.md#time-to-the-first-accepted-diagram-preview),
+each agent read CLI help and requested focused schemas. Across those trials,
+shell commands mentioning `schema.lookup` returned 57,925–111,336 UTF-8 bytes
+of captured console text per attempt. Some commands grouped several requests.
+Those byte counts describe what appeared in the transcript.
+
+Test an opt-in lookup that brings the shipped postcard, font and text examples,
+session creation and snapshot publication together. The proposed improvement
+is fewer discovery steps between CLI help and an editable first image. Keep
+the B01 prompt, fixtures, checks, client settings and preview clock fixed.
+Compare five fresh attempts per arm with the timed batch. Retain the shortcut
+if the engine delivers all five workflows with lower median time to the first
+accepted preview and lower median token usage. Otherwise revisit its placement
+or remove it before extending it to other workflows.
+
 ## Linux memory budget for large raster edits
 
 The four scale-v2 workloads already have independent output checks. On Linux

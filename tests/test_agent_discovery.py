@@ -30,6 +30,49 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_vector_quickstart_discovery_and_editable_png_delivery(self):
+        lookup = invoke(dict(command='schema.lookup', name='index'))['result']['vector_quickstart']
+        guide = invoke(lookup)['result']
+        self.assertLess(len(json.dumps(guide, separators=(',', ':')).encode()), 4096)
+        self.assertEqual(guide['detail'], 'examples')
+        for extra in ({'full': True}, {'select': 'document'}):
+            self.assertEqual(invoke(dict(lookup, **extra))['error']['code'], 'INVALID_REQUEST')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with closing(Client(('--tools', 'essentials'), workspace=root)) as client:
+                client.initialize()
+                self.assertEqual(client.success('schema.lookup', name=lookup['name']), guide)
+                self.assertEqual(list(root.iterdir()), [])
+
+                def run(request):
+                    args = {k: v for k, v in request.items() if k != 'command'}
+                    reply = restore(client.tool('run', command=request['command'], arguments=args))
+                    self.assertTrue(reply['ok'], reply)
+                    return reply['result']
+
+                (root/'typeface.ttf').write_bytes(geometric_font())
+                (root/'typeface-license.txt').write_text('Original test font license.', encoding='utf-8')
+                font = run(guide['import_font'])
+                png = guide['publish_png']
+                doc = png['document']
+                doc['fonts'] = {'face': font}
+                doc['items'].append(guide['text_item'])
+                session = dict(guide['save_session'], document=doc)
+                run(session)
+                saved = guide['publish_snapshot']
+                run(saved)
+                run(dict(png, document=saved['document']))
+                snapshot = json.loads((root/'editable.json').read_bytes())
+                self.assertEqual(snapshot['fonts']['face'], font)
+                self.assertEqual(snapshot['items'][-1]['content']['frame']['text'], 'A')
+                width, height, pixels, _ = png_pixels((root/'postcard.png').read_bytes())
+                self.assertEqual((width, height), (240, 144))
+                self.assertEqual(pixels[:4], bytes([251,225,179,255]))
+                def pixel(x, y):
+                    start = 4 * (y * width + x)
+                    return pixels[start:start+4]
+                self.assertIn(bytes([20,80,150,255]), {pixel(x,y) for x in range(12,44) for y in range(8,32)})
+
     def test_first_lookup_describes_document_inputs_with_current_workspace_roots(self):
         with tempfile.TemporaryDirectory() as directory:
             for workspace in (None, directory):
