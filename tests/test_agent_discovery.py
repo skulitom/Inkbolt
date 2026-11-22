@@ -31,6 +31,42 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_command_fields_match_cli_mcp_and_the_workspace_validation_schema(self):
+        index = invoke(dict(command='schema.lookup', name='index'))['result']
+        query = index['command_fields']
+        self.assertEqual(query, dict(command='schema.lookup', name='command.fields', select='session'))
+        with tempfile.TemporaryDirectory() as directory:
+            for workspace in (None, directory):
+                prefix = ['--workspace', workspace] if workspace else []
+                def lookup(**fields):
+                    request = dict(command='schema.lookup', **fields)
+                    p = subprocess.run([str(EXE), *prefix], input=json.dumps(request).encode(),
+                                       capture_output=True, check=True, timeout=20)
+                    return json.loads(p.stdout)['result']
+                all_rows = lookup(name='command.fields')
+                self.assertEqual(set(all_rows['commands']), set(index['commands']))
+                with closing(Client(('--tools', 'essentials'), workspace=workspace)) as client:
+                    client.initialize()
+                    session = lookup(name='command.fields', select='session')
+                    self.assertEqual(session, client.success('schema.lookup', name='command.fields', select='session'))
+                    self.assertEqual(session['workspace'], workspace is not None)
+                    self.assertEqual(session['commands'], {k:v for k,v in all_rows['commands'].items()
+                                                           if k.startswith('session.')})
+                    for name in ('session.read', 'session.apply', 'session.dry_run', 'job.wait', 'schema.lookup', 'schema'):
+                        schema = lookup(name=name, full=True)['schema']
+                        required = set(schema.get('required', []))
+                        self.assertEqual(all_rows['commands'][name],
+                                         dict(required=sorted(required),
+                                              optional=sorted(set(schema['properties']) - required)))
+                    roots = session['commands']['session.read']
+                    self.assertIn('session_root', roots['optional' if workspace else 'required'])
+                    self.assertIn('response_mode', session['commands']['session.apply']['optional'])
+                    self.assertIn('review_output', session['commands']['session.dry_run']['optional'])
+            self.assertEqual(list(Path(directory).iterdir()), [])
+        for options in (dict(select='unknown'), dict(select='session.read'), dict(full=True)):
+            self.assertEqual(invoke(dict(command='schema.lookup', name='command.fields', **options))
+                             ['error']['code'], 'INVALID_REQUEST')
+
     def test_image_quickstart_keeps_the_source_and_its_placement_editable(self):
         lookup = invoke(dict(command='schema.lookup', name='index'))['result']['image_quickstart']
         guide = invoke(lookup)['result']

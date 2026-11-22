@@ -117,13 +117,17 @@ fn complete(mut value: Value, compact: bool) -> Value {
     value
 }
 
-pub(crate) fn typed_arguments(command: &str, compact: bool) -> Option<Value> {
+fn argument_root(command: &str) -> Option<Value> {
     let mut value = request_variant(command)?.clone();
     value["properties"].as_object_mut()?.remove("command");
     if let Some(required) = value.get_mut("required").and_then(Value::as_array_mut) {
         required.retain(|v| v != "command");
     }
-    Some(complete(value, compact))
+    Some(value)
+}
+
+pub(crate) fn typed_arguments(command: &str, compact: bool) -> Option<Value> {
+    Some(complete(argument_root(command)?, compact))
 }
 
 pub(crate) fn request_variant(command: &str) -> Option<&'static Value> {
@@ -133,11 +137,45 @@ pub(crate) fn request_variant(command: &str) -> Option<&'static Value> {
         .find(|v| v["properties"]["command"]["const"] == command)
 }
 
-pub fn arguments(command: &str, compact: bool) -> Option<Value> {
-    let mut value = typed_arguments(command, false)?;
+fn described_root(command: &str) -> Option<Value> {
+    let mut value = argument_root(command)?;
     crate::request::describe_arguments(&mut value);
     crate::responses::describe(command, &mut value);
-    Some(complete(value, compact))
+    Some(value)
+}
+
+pub fn arguments(command: &str, compact: bool) -> Option<Value> {
+    Some(complete(described_root(command)?, compact))
+}
+
+fn command_fields(family: Option<&str>, workspace: bool) -> Result<Value, Error> {
+    let mut rows = Map::new();
+    for name in commands().filter(|name| family.is_none() || name.split('.').next() == family) {
+        let mut root = described_root(name).expect("listed command has an argument schema");
+        if workspace {
+            crate::workspace::describe_essentials(&mut root);
+        }
+        let required = root["required"].as_array();
+        let (required, optional): (Vec<_>, Vec<_>) = root["properties"]
+            .as_object()
+            .expect("command arguments are an object")
+            .keys()
+            .partition(|key| required.is_some_and(|list| list.iter().any(|v| v == key.as_str())));
+        rows.insert(
+            name.into(),
+            json!({"required":required,"optional":optional}),
+        );
+    }
+    if rows.is_empty() {
+        return Err(Error::new(
+            "INVALID_REQUEST",
+            "Unknown command family. Choose the part before the first dot in a command listed by schema.lookup with name index.",
+        ));
+    }
+    Ok(
+        json!({"name":"command.fields","select":family,"detail":"command_fields","workspace":workspace,
+        "commands":rows,"usage":"For types, defaults and nested choices, look up the command by name. Select field:NAME for one input."}),
+    )
 }
 
 /// Keep command fields and small scalar choices visible while moving the
@@ -312,6 +350,15 @@ pub(crate) fn lookup_in_workspace(
             ),
         ));
     }
+    if name == "command.fields" {
+        if force_full {
+            return Err(Error::new(
+                "INVALID_REQUEST",
+                "Look up a command by name for its full validation schema",
+            ));
+        }
+        return command_fields(select, workspace);
+    }
     if matches!(
         name,
         "index" | "vector.quickstart" | "image.quickstart" | "handoff.quickstart"
@@ -337,7 +384,8 @@ pub(crate) fn lookup_in_workspace(
             "example_queries":examples::queries(), "vector_quickstart":lookup_request("vector.quickstart", None),
             "image_quickstart":lookup_request("image.quickstart", None),
             "handoff_quickstart":lookup_request("handoff.quickstart", None),
-            "usage":"Choose a command or type as name. Large schemas list field and variant selectors and reachable definitions. Use full:true for a validation schema."}),
+            "command_fields":lookup_request("command.fields", Some("session")),
+            "usage":"Use command.fields with select job or session for required and optional input names. Look up a command or type by name for details. Use full:true for a validation schema."}),
         );
     }
     let mut value = if let Some((_, definition)) = TYPES.iter().find(|(alias, _)| *alias == name) {

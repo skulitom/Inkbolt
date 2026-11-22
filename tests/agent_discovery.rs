@@ -99,6 +99,7 @@ fn essentials_catalog_budget_routes_and_deferred_schemas() {
 #[test]
 fn focused_schemas_are_complete_and_outlines_are_explicit() {
     let index = schema::lookup("index", None, false).unwrap();
+    let fields = schema::lookup("command.fields", None, false).unwrap();
     for name in index["types"]
         .as_array()
         .unwrap()
@@ -108,6 +109,21 @@ fn focused_schemas_are_complete_and_outlines_are_explicit() {
         let result = schema::lookup(name.as_str().unwrap(), None, true).unwrap();
         assert_eq!(result["detail"], "full");
         check_refs(&result["schema"], &result["schema"]);
+        if index["commands"].as_array().unwrap().contains(name) {
+            let entry = &fields["commands"][name.as_str().unwrap()];
+            let required = result["schema"]["required"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            let (expected_required, expected_optional): (Vec<_>, Vec<_>) =
+                result["schema"]["properties"]
+                    .as_object()
+                    .unwrap()
+                    .keys()
+                    .partition(|key| required.iter().any(|v| v == key.as_str()));
+            assert_eq!(entry["required"], json!(expected_required), "{name}");
+            assert_eq!(entry["optional"], json!(expected_optional), "{name}");
+        }
     }
     let outline = schema::lookup("operation", None, false).unwrap();
     assert_eq!(outline["detail"], "outline");

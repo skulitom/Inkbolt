@@ -92,6 +92,23 @@ revision using the returned snapshot and PNG requests.
 
 ## Focused schemas
 
+In current source builds, one lookup shows the inputs for a family of commands.
+
+```json
+{"command":"schema.lookup","name":"command.fields","select":"session"}
+```
+
+This example lists each session command with its required and optional fields.
+Use the part before the first dot in a command name to select a family, such
+as `job`, `document` or `handoff`. Omit `select` for all commands. With an
+active workspace, the field lists reflect its default roots. For a field's
+type, allowed values and nested inputs, look up its command with
+`select:"field:NAME"`.
+
+With a workspace selected, the compact JSON CLI response is 799 bytes for
+`job`, 1,999 bytes for `session` and 9,287 bytes for all 96 commands,
+including the response envelope and excluding the trailing newline.
+
 For CLI discovery, `inkbolt --help` (or `-h`) returns one successful JSON envelope
 with compact usage, request examples and the focused lookup path. It does not
 read stdin or execute those examples. `--workspace ABSOLUTE_DIRECTORY` may precede
