@@ -53,8 +53,31 @@ class HandoffOracleTests(unittest.TestCase):
             ('session.undo',dict(request_id='undo'),0),('session.get',{},3),
             ('session.apply',dict(request_id='relink'),0),('session.get',{},3)]
         rows=[dict(step=str(i),command=command) for i,(command,_,_) in enumerate(events)]
-        original={str(i):dict(request=request,response=dict(ok=i!=8,result=dict(revision=revision)))
-            for i,(_,request,revision) in enumerate(events)}
+        original={}
+        for i,(command,request,revision) in enumerate(events):
+            if command.startswith('session.'):
+                request=dict(project_id='linked',store_root='cutbolt-store',**request)
+            original[str(i)]=dict(request=request,response=dict(ok=i!=8,result=dict(revision=revision)))
+        # Agents may read an older revision before reading the restored head.
+        # Include misleading reads on either side of retry, with arbitrary labels.
+        for offset,role in ((11,'restored'),(13,'after-retry')):
+            step=str(offset)
+            for fault in ('old','wrong-selector','wrong-project','wrong-store','boolean'):
+                with self.subTest(role=role,fault=fault):
+                    records=copy.deepcopy(original)
+                    decoy=copy.deepcopy(records[step])
+                    if fault=='old':
+                        decoy['request']['revision']=1
+                        decoy['response']['result']['revision']=1
+                    elif fault=='wrong-selector':decoy['request']['revision']=1
+                    elif fault=='wrong-project':decoy['request']['project_id']='other'
+                    elif fault=='wrong-store':decoy['request']['store_root']='another-store'
+                    else:decoy['response']['result']['revision']=True
+                    records['incidental']=decoy
+                    calls=rows[:offset]+[dict(step='incidental',command='session.get')]+rows[offset:]
+                    self.assertEqual(consumer_roles(dict(calls=calls),records)[role],step)
+                    with self.assertRaisesRegex(TaskFailure,'Missing observed consumer workflow role: '+role):
+                        consumer_roles(dict(calls=[c for c in calls if c['step']!=step]),records)
         for variant in ('head','explicit','wrapped','wrong-head','wrong-selector','missing-revision','boolean',
                 'failed-read','after-undo','wrong-historical'):
             with self.subTest(variant=variant):
@@ -219,6 +242,8 @@ class HandoffDurableTests(unittest.TestCase):
                                 document=dict(file_path=name,sha256=sha((case.root/name).read_bytes())))
                     judge(case,**values)
                     self.assertIn(expected,[row['name'] for row in case.checks if row['status']=='fail'],case.checks)
+                    if fault=='observation':
+                        self.assertEqual([row['name'] for row in case.checks if row['status']=='fail'],[expected])
             case.close()
 
     def test_equivalent_sources_and_reviews_keep_strict_revision_and_history_checks(self):

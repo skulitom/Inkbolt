@@ -38,7 +38,7 @@ def check_stale_request(stale,relink):
         bool(stale['operations']),'Stale request must target the linked project at revision 1 with a mutation')
 
 
-def consumer_roles(report,records):
+def consumer_roles(report,records,*,require_snapshots=True):
     """Locate workflow observations by requests/order, never client step names."""
     from pathlib import Path
     rows=report['calls'];roles={}
@@ -50,6 +50,8 @@ def consumer_roles(report,records):
         matches=[i for i,row in enumerate(rows) if after<i<(len(rows) if before is None else before) and
             row['command']==command and row['step'] in records and records[row['step']]['response'].get('ok') is (not error) and
             predicate(records[row['step']]['request']) and (revision is None or returned_revision(records[row['step']]))]
+        if not matches and command=='session.get' and not require_snapshots:
+            return None  # The individual check that needs this snapshot reports its absence.
         require(matches,'Missing observed consumer workflow role: '+role)
         index=matches[0];roles[role]=rows[index]['step'];return index
     initial=pick('initial','session.apply',lambda r:r.get('request_id')=='initial')
@@ -59,14 +61,18 @@ def consumer_roles(report,records):
     undo=pick('undo','session.undo',lambda r:r.get('request_id')=='undo',after=relink)
     retry=pick('retry','session.apply',lambda r:r.get('request_id')=='relink',after=undo)
     pick('stale','session.apply',lambda r:r.get('request_id')=='stale',after=relink,before=undo,error=True)
-    for role,after,before in (('timeline-before',initial,compiled),('before-relink',compiled,reviewed),
-        ('after-review',reviewed,relink),('restored',undo,retry),('after-retry',retry,None)):
-        pick(role,'session.get',after=after,before=before)
-    # Reading the current head between relink and undo is equivalent to an
-    # explicit revision-2 read. Bind either form to the actual returned revision.
-    pick('timeline-after','session.get',lambda r:'revision' not in r or r['revision']==2,
-        after=relink,before=undo,revision=2)
-    pick('historical','session.get',lambda r:r.get('revision')==1,after=relink,revision=1)
+    target=records[roles['relink']]['request']
+    for role,revision,after,before in (
+        ('timeline-before',1,initial,compiled),('before-relink',1,compiled,reviewed),
+        ('after-review',1,reviewed,relink),('timeline-after',2,relink,undo),
+        ('restored',3,undo,retry),('after-retry',3,retry,None),('historical',1,relink,None)):
+        def requested(request):
+            if any(request.get(key)!=target.get(key) for key in ('project_id','store_root')):
+                return False
+            if 'revision' not in request:
+                return role!='historical'
+            return type(request['revision']) is int and request['revision']==revision
+        pick(role,'session.get',requested,after=after,before=before,revision=revision)
     return roles
 
 
@@ -107,8 +113,10 @@ def judge(case,**inputs):
 
 def judge_content(case,observed,original,receipts,current,history,final,before,historical,preview,inspections,projects,head,saved,checked,movies):
     records=observed['records'];report=observed['consumer'];attempts=read_json(case,'consumer-attempts.json')
-    roles=consumer_roles(report,records)
-    def record(role):return records[roles[role]]
+    roles=consumer_roles(report,records,require_snapshots=False)
+    def record(role):
+        require(role in roles,'Missing observed consumer workflow role: '+role)
+        return records[roles[role]]
     require(set(attempts)=={'initial','review','relink','stale','undo','retry'},'Unexpected retained consumer attempts')
     def response(step,error=False):
         value=record(step)['response'];require(value.get('ok') is (not error),'Unexpected observed consumer response')

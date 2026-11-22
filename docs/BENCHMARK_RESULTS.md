@@ -78,8 +78,8 @@ The preceding batch with this prompt passed 3/5 and 5/5 respectively.
 
 Four native attempts saved the second layer as hidden in the base state.
 That layer needed to be visible again when the frame selection was cleared.
-One of those four also used a different editable pixel representation and
-failed the timeline undo/retry check. The other native attempt passed all
+One of those four also used a different editable pixel representation.
+Its saved timeline and retry receipt were correct. The other native attempt passed all
 16 individual checks, but repeated a consumer discovery label and failed
 the protocol gate. Two native attempts in total repeated discovery labels.
 Those attempts have no validated capture or solve metrics.
@@ -108,6 +108,15 @@ The comparison report has SHA-256
 `cd7cdd808138dc9f9ecff5b00468683ecdb83b9250465c0b2ec2008d7fc2b90a`.
 The replay review has SHA-256
 `7d2f28d8b26dc32ee89b7b400677d27e0de8409930a5a368e4d3d37f4720b3a1`.
+
+The original judge marked the fifth Inkbolt attempt's undo/retry check as
+failed. Between undo and retry the agent read historical revision 1, then
+the restored revision 3. The judge selected the first read. It now checks the
+requested project and store, the requested and returned revision, and where
+the read occurred in the sequence of calls. An additional replay of the eight
+validated captures changed only that check to a pass. Both workflow totals
+and every original solve measurement stayed the same. The correction audit
+has SHA-256 `21d4a80905e2defb2b0fc75c7f6bde422e730c602d61ace32e9bfbcc9695cbce`.
 
 ## Mixed composition with a movable source layer
 
