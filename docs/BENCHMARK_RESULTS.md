@@ -1817,10 +1817,17 @@ All ten captures were imported and rejudged without launching a client or
 repairing artifacts. Original solve metrics and all 4,171 original evidence files
 were checked unchanged. The new reports retain the two remaining native failures:
 attempts 4 and 5 changed `/variants/base/1/value` from `true` to `false` in the
-required source base. This violates exact source/history preservation. Both runs
-retain all twelve observed delivery files unchanged; the reported immutable-file
-failure cascades from an earlier source assertion preventing complete inventory
-collection. It is not evidence that delivered files were overwritten.
+required source base. This violates exact source/history preservation.
+
+The judge now checks delivery-file preservation independently of the source and
+pixel comparisons. It reads the required names and hashes from each delivery's
+inventory, then rehashes every file observed at compilation, including optional
+diagnostics. Previously a source mismatch stopped the inventory collection.
+Rechecking this one criterion against the ten original captures passed for all
+112 observed files. It corrected the file-preservation result for native attempts
+4 and 5. Both still fail the editable-source checks, so workflow scores stay at
+3/5 for Inkbolt and 5/5 for the baseline. The retained recheck report has SHA-256
+`f853787f3329ff81bb01affc9a23704eee63f48aeac92e606fbc2bc03244d3a1`.
 
 ### Outcomes and costs
 

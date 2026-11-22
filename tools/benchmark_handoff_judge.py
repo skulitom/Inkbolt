@@ -5,7 +5,7 @@ import json
 
 from benchmark_diagram import delivered
 from benchmark_handoff import (WIDTH,HEIGHT,RATE,DURATION,SCHEDULE,original_frames,shifted,
-    consumer_rgba,over_black,decode_movie,check_decoded,check_delivery_preservation)
+    consumer_rgba,over_black,decode_movie,check_decoded,check_handoff_preservation)
 from benchmark_graphics import png_check
 from benchmark_large_layout import retained_session_store
 from benchmark_resources import reported_review
@@ -95,12 +95,17 @@ def durable_inputs(case):
         inspections=inspections,projects=projects,head=head,saved=saved,checked=checked,movies=movies)
 
 
-def judge_retained(case,original,receipts,current,history,final,before,historical,preview,inspections,projects,head,saved,checked,movies):
+def judge(case,**inputs):
     evidence=getattr(case,'judge_root',case.root)/'handoff-observations.json'
     require(evidence.is_file() and not evidence.is_symlink() and evidence.stat().st_size<=16*1024*1024,'Missing or oversized harness observations')
     observed=strict_json(evidence.read_bytes())
     require(set(observed)=={'schema_version','consumer','records','delivery_files'} and observed['schema_version']==1,
         'Unexpected handoff observation fields')
+    case.check('immutable-deliveries',lambda:check_handoff_preservation(case,observed['delivery_files'],native=True))
+    judge_content(case,observed,**(inputs or durable_inputs(case)))
+
+
+def judge_content(case,observed,original,receipts,current,history,final,before,historical,preview,inspections,projects,head,saved,checked,movies):
     records=observed['records'];report=observed['consumer'];attempts=read_json(case,'consumer-attempts.json')
     roles=consumer_roles(report,records)
     def record(role):return records[roles[role]]
@@ -137,16 +142,14 @@ def judge_retained(case,original,receipts,current,history,final,before,historica
             png_check(raw,WIDTH,HEIGHT,moved)
         case.verified_preview(delivered(case,'preview.png'))
     case.check('revised-preview',picture)
-    required_files={}
     def bundle(index):
         folder=f'delivery-{index}/';pin=pins[index];manifest=pin['manifest']
         raw=delivered(case,folder+'handoff-'+pin['sha256']+'.json')
         require(sha(raw)==pin['sha256'] and strict_json(raw)==manifest,'Pinned manifest differs from its delivered bytes')
-        required_files[folder+'handoff-'+pin['sha256']+'.json']=sha(raw)
         def file(value):
             name=folder+safe_name(value['path']);data=delivered(case,name)
             require(len(data)==value['bytes'] and sha(data)==value['sha256'],'Handoff file identity differs')
-            required_files[name]=sha(data);return data
+            return data
         require(strict_json(file(manifest['source']['snapshot']))==(original if index==0 else wanted),'Editable handoff source changed')
         require(len(manifest['frames'])==2 and inspections[index]['files_verified'] and
             inspections[index]['selected_frames']==list(SCHEDULE),'Pinned frame schedule changed')
@@ -155,7 +158,6 @@ def judge_retained(case,original,receipts,current,history,final,before,historica
         scene=strict_json(file(manifest['scene']))
         require(scene['transparent'] and scene['color']=='srgb_straight_encoded' and
             scene['layers'][0]['alpha_mode']=='straight','Handoff color or alpha interpretation changed')
-        required_files[folder+'compiled.mkv']=sha(delivered(case,folder+'compiled.mkv'))
         check_decoded(movies['delivery-'+str(index)],old_frames if index==0 else new_frames)
     for index in range(2):case.check(f'delivery-{index}-pixels-clock',lambda i=index:bundle(i))
     case.check('pinned-successor',lambda:require(pins[1]['manifest']['previous']['sha256']==pins[0]['sha256'] and
@@ -207,7 +209,6 @@ def judge_retained(case,original,receipts,current,history,final,before,historica
         revision('historical-source.json',0)
         require(receipts['create']['document']==original==historical,'Original Inkbolt revision changed')
     case.check('old-source-history',old_source)
-    case.check('immutable-deliveries',lambda:check_delivery_preservation(case,observed['delivery_files'],required_files,12))
     case.check('history-valid',lambda:require(history['valid'] and history['revision']==current['revision']==current['current_revision']==1 and
         receipts['create']['receipt']['revision']==0 and receipts['move']['receipt']['from_revision']==0 and
         current['state_sha256']==receipts['move']['receipt']['state_sha256'] and
@@ -232,6 +233,3 @@ def judge_retained(case,original,receipts,current,history,final,before,historica
         require(all(r['status']=='success' and r['memory_available'] for r in case.consumer.result()['judge_calls']),
             'Independent consumer queries failed')
     case.check('consumer-processes',processes)
-
-
-def judge(case):judge_retained(case,**durable_inputs(case))

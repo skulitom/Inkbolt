@@ -10,9 +10,9 @@ import unittest
 
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
-from benchmark_handoff import (HandoffTrial,fixture,solve,judge,PROMPT,original_frames,consumer_rgba,check_decoded,
+from benchmark_handoff import (HandoffTrial,fixture,solve,PROMPT,original_frames,consumer_rgba,check_decoded,
     check_delivery_preservation)
-from benchmark_handoff_judge import durable_inputs,judge_retained,consumer_roles,check_stale_request
+from benchmark_handoff_judge import durable_inputs,judge,consumer_roles,check_stale_request
 from benchmark_runtime import Trial,TaskFailure
 from benchmark_tasks import CHECKS
 from workload_cases import sha
@@ -176,6 +176,14 @@ class HandoffDurableTests(unittest.TestCase):
     def test_changed_retained_artifacts_and_observations_cannot_supply_a_pass(self):
         with tempfile.TemporaryDirectory() as directory:
             case=self.prepare(Path(directory)/'negative');durable=durable_inputs(case)
+            different_base=copy.deepcopy(durable)
+            different_base['original']['variants']['base'][1]['value']=False
+            judge(case,**different_base)
+            checks={row['name']:row['status'] for row in case.checks}
+            self.assertEqual(checks['reviewed-source-only'],'fail')
+            self.assertEqual(checks['delivery-0-pixels-clock'],'fail')
+            self.assertEqual(checks['delivery-1-pixels-clock'],'fail')
+            self.assertEqual(checks['immutable-deliveries'],'pass')
             names=['after.json','review.json','preview.png','delivery-1-handoff.json','before-relink.json',
                 'timeline-after.json','consumer-attempts.json','handoff-observations.json']
             originals={name:(case.root/name).read_bytes() for name in names}
@@ -209,7 +217,7 @@ class HandoffDurableTests(unittest.TestCase):
                         if fault=='source':
                             values['final']=case.call('reopen-changed-source','document.validate',
                                 document=dict(file_path=name,sha256=sha((case.root/name).read_bytes())))
-                    judge_retained(case,**values)
+                    judge(case,**values)
                     self.assertIn(expected,[row['name'] for row in case.checks if row['status']=='fail'],case.checks)
             case.close()
 
@@ -230,7 +238,7 @@ class HandoffDurableTests(unittest.TestCase):
                         path.write_text(json.dumps(value),encoding='utf-8');values=copy.deepcopy(durable)
                         values[field]=case.call('reopen-'+field+'-'+fault,'document.validate',
                             document=dict(file_path=name,sha256=sha(path.read_bytes())))
-                        case.checks.clear();judge_retained(case,**values)
+                        case.checks.clear();judge(case,**values)
                         failures=[row['name'] for row in case.checks if row['status']=='fail']
                         if fault=='none':self.assertEqual(failures,[],case.checks)
                         else:self.assertIn('old-source-history' if field=='historical' else 'reviewed-source-only',failures)
@@ -247,7 +255,7 @@ class HandoffDurableTests(unittest.TestCase):
                     elif fault=='different-proposal':value['result']['proposal']['result_state_sha256']='0'*64
                     elif fault=='array':value=[]
                     path.write_text(json.dumps(value),encoding='utf-8');case.checks.clear()
-                    judge_retained(case,**copy.deepcopy(durable))
+                    judge(case,**copy.deepcopy(durable))
                     failures=[row['name'] for row in case.checks if row['status']=='fail']
                     self.assertEqual(failures,[] if fault=='none' else ['reviewed-source-only'],case.checks)
             path.write_bytes(original)

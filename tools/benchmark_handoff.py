@@ -7,7 +7,7 @@ from pathlib import Path
 
 from benchmark_consumer import Consumer
 from benchmark_graphics import ref, source_snapshot, store, png_check
-from benchmark_runtime import Trial, require, safe_name
+from benchmark_runtime import Trial, require, safe_name, strict_json
 from workload_cases import save, save_json, sha
 
 
@@ -92,6 +92,31 @@ def check_delivery_preservation(case,observed,required,count):
         require(len(parts)==2 and parts[0] in ('delivery-0','delivery-1'), 'Invalid observed delivery path')
         safe_name(parts[1])
         require(sha(delivered(case,name))==digest, 'An initially observed delivery file changed: '+name)
+
+
+def check_handoff_preservation(case,observed,*,native):
+    """Identify the required files without judging their picture, timeline or editing semantics."""
+    from benchmark_diagram import delivered
+    required={}
+    for index in range(2):
+        delivery=f'delivery-{index}'
+        pin=strict_json(delivered(case,delivery+'-handoff.json'))
+        if native:
+            manifest=pin['manifest']
+            required[delivery+'/'+safe_name('handoff-'+pin['sha256']+'.json')]=pin['sha256']
+            source=manifest['source']['snapshot']
+        else:
+            manifest=pin
+            source=manifest['source']
+        require(len(manifest['frames'])==2,'Expected both frame files in the delivery inventory')
+        entries=[source,manifest['scene']]
+        entries.extend(frame['image'] for frame in manifest['frames'])
+        for entry in entries:
+            required[delivery+'/'+safe_name(entry['path'])]=entry['sha256']
+        movie=delivery+'/compiled.mkv'
+        # The compiler supplies this identity. The preservation check rehashes its final bytes.
+        required[movie]=observed[movie]
+    check_delivery_preservation(case,observed,required,12 if native else 10)
 
 
 def write_bundle(bundle, root):

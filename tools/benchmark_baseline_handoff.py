@@ -4,7 +4,7 @@ import subprocess
 from benchmark_baseline_mixed import same_controls
 from benchmark_diagram import delivered
 from benchmark_handoff import (WIDTH,HEIGHT,RATE,DURATION,SCHEDULE,original_frames,shifted,
-    consumer_rgba,over_black,decode_movie,check_decoded,check_delivery_preservation)
+    consumer_rgba,over_black,decode_movie,check_decoded,check_handoff_preservation)
 from benchmark_graphics import png_check
 from benchmark_runtime import require,strict_json,safe_name
 from benchmark_tasks import ENGINE_CHECKS
@@ -32,6 +32,8 @@ print(json.dumps(frames))
 
 def judge_handoff(case,tools):
     require(tools is not None,'B20 baseline requires pinned image tools')
+    proof=strict_json((case.judge_root/'handoff-observations.json').read_bytes())
+    case.check('immutable-deliveries',lambda:check_handoff_preservation(case,proof['delivery_files'],native=False))
     before=strict_json(delivered(case,'before.json'));after=strict_json(delivered(case,'after.json'))
     original=manifest(case.sources['original.rgba']);wanted=manifest(case.sources['original.rgba'],4)
     # Validate all controls before handing the delivered data to Pillow.
@@ -45,7 +47,6 @@ def judge_handoff(case,tools):
         base_sha256=sha(delivered(case,'before.json')),action=dict(frame='art',translate=[4,0]),
         proposed_sha256=sha(delivered(case,'after.json'))),'Baseline review or editable source differs'))
     case.check('revised-preview',lambda:png_check(delivered(case,'preview.png'),WIDTH,HEIGHT,current[0]))
-    proof=strict_json((case.judge_root/'handoff-observations.json').read_bytes());inventory={}
     old_frames=[consumer_rgba((first,second)[i]) for i in SCHEDULE]
     new_frames=[consumer_rgba((moved,second)[i]) for i in SCHEDULE]
     def delivery(index):
@@ -56,7 +57,7 @@ def judge_handoff(case,tools):
             require(set(entry)=={'path','bytes','sha256'},'Invalid baseline file identity')
             name=folder+safe_name(entry['path']);raw=delivered(case,name)
             require(len(raw)==entry['bytes'] and sha(raw)==entry['sha256'],'Baseline delivery file differs from its identity')
-            inventory[name]=sha(raw);return raw
+            return raw
         require(same_controls(strict_json(file(value['source'])),original if index==0 else wanted),'Editable delivery source changed')
         for row,hold,pixels in zip(value['frames'],(dict(num=3,den=25),dict(num=2,den=25)),(first if index==0 else moved,second),strict=True):
             require(set(row)=={'hold','image'} and row['hold']==hold,'Baseline animation hold changed')
@@ -64,12 +65,11 @@ def judge_handoff(case,tools):
         scene=strict_json(file(value['scene']))
         require(scene['width']==WIDTH and scene['height']==HEIGHT and scene['duration']==DURATION and scene['frame_rate']==RATE and
             scene['transparent'] is True and scene['color']=='srgb_straight_encoded','Baseline scene interpretation changed')
-        movie=case.root/(folder+'compiled.mkv');inventory[folder+'compiled.mkv']=sha(delivered(case,folder+'compiled.mkv'))
+        movie=case.root/(folder+'compiled.mkv')
         check_decoded(decode_movie(case.consumer,'judge-delivery-'+str(index),movie),old_frames if index==0 else new_frames)
     for index in range(2):case.check(f'delivery-{index}-pixels-clock',lambda i=index:delivery(i))
     for name,frames in (('original',old_frames*2),('revised',new_frames+old_frames)):
         case.check(name+'-timeline',lambda n=name,f=frames:check_decoded(decode_movie(case.consumer,'judge-'+n,case.root/(n+'.mkv')),
             [over_black(v) for v in f]))
-    case.check('immutable-deliveries',lambda:check_delivery_preservation(case,proof['delivery_files'],inventory,10))
     for name in ENGINE_CHECKS['B20']:
         case.not_applicable(name,'The baseline supplies independently authored files and video artifacts; Inkbolt handoff/session and managed consumer-history guarantees are outside its arm.')
