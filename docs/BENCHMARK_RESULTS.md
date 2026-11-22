@@ -87,7 +87,7 @@ property accounts for the two failures in each of three five-attempt Inkbolt
 batches. The shared prompt asks for a “pinned original image” and default
 remaining properties. A future paired trial should specify directly that the
 file's bytes are fixed and the placed layer must remain movable.
-[Prompt used in every batch](../tools/benchmark_prompts/B11.md) · [Previous batch](#mixed-composition-and-the-source-layer-lock)
+[Version 1 prompt used in these batches](https://github.com/skulitom/Inkbolt/blob/6605ca293f7ae33a218b4f85c86b84e5e1b9da79/tools/benchmark_prompts/B11.md) · [Previous batch](#mixed-composition-and-the-source-layer-lock)
 
 At `6605ca2` both arms ran sequentially on Windows with the preceding batch's
 prompt, judge, client and external model settings. The guide was opt-in. Its
