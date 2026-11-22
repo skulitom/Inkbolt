@@ -18,7 +18,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
 | Task | Inkbolt artifact | Inkbolt workflow | Baseline passes | Median tokens, Inkbolt / baseline | Evidence |
 | --- | ---: | ---: | ---: | ---: | --- |
-| B01 Labelled diagram | 5/5 | 5/5 | 5/5 | 284,237 / 42,600 | [c5d9e13](#b01-at-c5d9e13-font-delivery) |
+| B01 Labelled diagram | 5/5 | 5/5 | 5/5 | 268,880 / 42,310 | [First accepted diagram preview](#time-to-the-first-accepted-diagram-preview) |
 | B02 Aligned icon sheet | 5/5 | 5/5 | 5/5 | 313,114 / 57,582 | [8586e82](#b02-at-8586e82-cli-help-and-sibling-index-guidance) |
 | B03 Edit a 5,000-object layout | 5/5 | 5/5 | 5/5 | 296,450 / 69,288 | [81e8830](BENCHMARK_ESSENTIALS.md) |
 | B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 206,924 / 57,528 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
@@ -65,6 +65,43 @@ The [five-pair smaller-model diagram evaluation](#b01-with-luna),
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Time to the first accepted diagram preview
+
+All ten agents delivered editable labelled diagrams with the requested pixels
+and font. The median time from client startup to the first observation of the
+accepted PNG was 52.6 seconds with Inkbolt and 18.5 seconds with the no-engine
+baseline. The independent judge matched the delivered bytes against the
+artwork check. [Diagram task](../tools/benchmark_prompts/B01.md) · [Timing method](BENCHMARK_CODEX.md)
+
+| Five attempts per arm at `ff66486` | Inkbolt | No-engine baseline |
+| --- | ---: | ---: |
+| Accepted diagrams and complete applicable workflows | 5/5 | 5/5 |
+| Median seconds to first observed accepted PNG | 52.6 | 18.5 |
+| Observed range in seconds | 46.9–60.8 | 18.2–20.2 |
+| Median total client seconds | 62.3 | 23.0 |
+| Median input + output tokens | 268,880 | 42,310 |
+
+Both arms used Codex CLI 0.160.0 and the same externally selected model and
+settings. Five Inkbolt attempts ran first, followed by five baseline attempts
+with resvg 0.47.0 and Pillow 12.3.0 on the same shared Windows host. The Inkbolt
+transcripts recorded 8–27 completed shell commands per attempt. Each baseline
+transcript recorded four. A shell command can group several operations, so
+the number of engine or model calls remains unknown. A separate one-pair pilot
+passed before this batch and is excluded from the table.
+
+The driver sampled files at completed client events. Each time is an upper
+bound on when the delivered bytes first became available and includes setup,
+discovery and editing. Five pairs show a gap worth addressing on this task.
+They cannot attribute the delay to a particular engine operation. Replaying
+all ten captures reproduced every verdict, file identity and timestamp using
+the archived Inkbolt executable for the native arm.
+
+| Retained report | SHA-256 |
+| --- | --- |
+| Inkbolt | `fbf7dae4cb810b64a0c1cb7c5e980cef3d7922344ffe4cba8082ca75b370b568` |
+| Baseline | `bfb631d35fe2e67287dbb35859475c49d7472dce3865bc26ff1ea1121bb6333b` |
+| Matched comparison | `8b318e7902089917f9c59f1b3865c3433ab66ea84ef9ccae11cf6e56bce3b9ac` |
 
 ## B10 rejudging the saved photo stores
 
