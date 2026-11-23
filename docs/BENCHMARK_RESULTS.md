@@ -6,14 +6,15 @@ Both arms completed all five mixed compositions and all five linked-graphic
 revisions in their latest batches. Each linked-graphic agent using Inkbolt
 found the timed sequence example through the discovery index.
 Across the 17 tasks with a baseline, Inkbolt matched its artifact success
-count on 15 and scored higher on two. Median recorded token use
+count on 16 and scored higher on print delivery. Median recorded token use
 was higher with Inkbolt on all 17.
 
-Each row uses the latest documented five-attempt batch for the standard task.
+Each row uses the latest five model trials per arm for the standard task.
+B07 also records the client starts that ended before a trial could be judged.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Five tasks now share one 0.85.1 executable. The other fifteen rows
+library. Six tasks now share one 0.85.1 executable. The other fourteen rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -25,7 +26,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 185,397 / 59,300 | [0.85.1 SVG receipt recheck](#diagram-svg-and-recovery-trials-on-0851) |
 | B05 Recolor a shared palette | 5/5 | 5/5 | 5/5 | 270,958 / 54,973 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
 | B06 Repair linked text overflow | 5/5 | 5/5 | 5/5 | 337,131 / 76,580 | [a7e034e](#b06b07-at-a7e034e-captured-trials-rejudged) |
-| B07 Multilingual typography | 5/5 | 5/5 | 4/5 | 240,831 / 217,180 | [Glyph order within a cluster](#glyph-order-within-a-cluster) |
+| B07 Multilingual typography | 5/5 | 5/5 | 5/5 | 298,013 / 214,257 | [Typography on 0.85.1](#multilingual-typography-on-0851) |
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 327,734 / 43,824 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 354,590 / 43,008 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
@@ -56,8 +57,8 @@ specified how to supply the font and position the labels. The earlier baseline
 scored 0/5 on source-format checks despite producing the requested pixels.
 [Original diagrams and rendering check](#b01-source-rendering-check)
 
-In B07, all ten attempts rendered the expected pixels. One baseline attempt
-reversed a base glyph and its mark in the accompanying shaping report. In B14,
+In B07, all ten completed attempts rendered the expected pixels and reported
+the correct glyph and cluster order. In B14,
 all ten previews passed. Three baseline PDFs omitted the explicit black point
 compensation setting required for print delivery.
 
@@ -67,6 +68,43 @@ The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Multilingual typography on 0.85.1
+
+Each arm delivered five editable typography sheets and five correct glyph
+reports. Independently decoding the ten PNGs reproduced the same 1000 × 960
+RGBA image as the accepted reference. All ten reports matched its four rows,
+including logical source intervals, glyph sequence, positioned origins and
+advances. The Hebrew base and combining mark follow the order independently
+observed with HarfBuzz on Windows and Linux. [Earlier typography trials and HarfBuzz check](#glyph-order-within-a-cluster)
+
+| Median per completed trial | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Shell commands | 13 | 8 |
+| Shell output, UTF-8 bytes | 65,682 | 13,270 |
+| Input plus output tokens | 298,013 | 214,257 |
+| Seconds to first verified preview on disk | 69.9 | 97.9 |
+| Solve time, seconds | 87.2 | 133.4 |
+
+Both arms used the same client settings and task fixtures. The Inkbolt arm
+used the executable from the screen and print trials. On the first five
+scheduled launches per arm, four completed and passed in each arm. The fifth
+Inkbolt launch hit a provider rate limit and its first retry hit a capacity
+limit. The fifth baseline launch also hit a capacity limit. A subsequent
+launch for each arm completed with the same prompt, settings and task
+contract. In total, five of seven Inkbolt launches and five of six baseline
+launches produced judged trials. Capture replay reproduced all ten verdicts
+and their recorded usage. Timings in the table cover completed solves and
+exclude the waits between launches.
+
+The previous five-pair batch scored 5/5 for Inkbolt and 4/5 for the baseline.
+That difference disappeared on this build. Across the latest batches, print
+delivery accounts for the one remaining difference in artifact success. A
+broader efficiency claim still needs results from the remaining tasks on the
+same executable. The capture and replay audit has SHA-256
+`23b617f93f80a098371a68f2da9b58c0bfcba7a89548513751f1e00d5b2bea62`. The independent
+pixel and glyph check has SHA-256
+`c7cd34629f84f50722a667284383cf8980e8a4004924697253ffafa404018e91`.
 
 ## Native print controls on 0.85.1
 

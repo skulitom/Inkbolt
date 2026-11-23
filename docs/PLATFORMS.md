@@ -18,7 +18,47 @@ The release workflow on `main` builds separate native macOS archives for
 Apple silicon and Intel. Each runner verifies its Rust host target and tests
 the extracted executable. Maintainers can select `macos_intel_only` in the
 Verify workflow to run the full source suite on Intel without repeating the
-three regular CI jobs. The v0.85.0 release provides downloads for both Mac architectures.
+three regular CI jobs. The release includes archives for both Mac architectures.
+
+## v0.85.1 platform checks
+
+All four platforms passed 297 source verification stages at the tagged commit
+`a546eef`, including the regression for simultaneous publication requests.
+Each extracted archive passed eight installation checks and all 292 Python
+test modules. Windows and Linux under WSL2 also passed the full source suite
+locally. The counts below separate executed tests from platform skips.
+[Release workflow](https://github.com/skulitom/Inkbolt/actions/runs/45138196715)
+
+| Platform | Source Rust tests | Source Python executed / skipped | Installed Python executed / skipped |
+| --- | ---: | ---: | ---: |
+| Windows x64 | [331](https://github.com/skulitom/Inkbolt/actions/runs/45119138551/job/137508648778) | 3,028 / 66 | [3,028 / 66](https://github.com/skulitom/Inkbolt/actions/runs/45138196715/job/137569439688) |
+| Linux x64 | [297](https://github.com/skulitom/Inkbolt/actions/runs/45119138551/job/137508648851) | 2,999 / 95 | [2,999 / 95](https://github.com/skulitom/Inkbolt/actions/runs/45138196715/job/137569439832) |
+| macOS, Apple silicon | [297](https://github.com/skulitom/Inkbolt/actions/runs/45119138551/job/137508648422) | 2,984 / 110 | [2,984 / 110](https://github.com/skulitom/Inkbolt/actions/runs/45138196715/job/137569439463) |
+| macOS, Intel | [297](https://github.com/skulitom/Inkbolt/actions/runs/45119146217/job/137538677613) | 2,984 / 110 | [2,984 / 110](https://github.com/skulitom/Inkbolt/actions/runs/45138196715/job/137569439892) |
+
+The first Intel source run passed the receipt regression but exceeded the
+20-second deadline for refusing a dense Boolean operation. The table links
+the full rerun on identical source with the original deadline.
+[First Intel run](https://github.com/skulitom/Inkbolt/actions/runs/45119146217/attempts/1)
+
+On each of Windows and Linux, 320 concurrent CLI callers exercised session
+exports, backups, restores and migrations in groups of four. Exactly one
+caller per request received the original success. Each retry identified
+the saved result. Both v0.85.0 and v0.85.1 read the other version's completed
+receipts after the source session was removed. The ledger, PNG and backup
+retained their original bytes. [Publication receipts](PUBLICATION_RECEIPTS.md)
+
+The released Windows and Linux binaries produced the same postcard as their
+locked Cargo installations. Both also ran the README’s SVG editing example.
+An independent SVG renderer matched all 1,536 expected pixels in each export,
+including the red shape that stayed in place. [SVG example](SVG_IMPORT.md#move-one-object-and-export-the-result)
+
+A mixed-artwork session travelled from Windows to
+Linux and back. Explicit resource rebinding preserved the rendered pixels and
+Windows recovered the child history created on Linux. All eleven downloads
+matched their published digests. The four archives, four dependency inventories
+and Windows extension passed tag-bound provenance checks.
+[Release downloads and checksums](https://github.com/skulitom/Inkbolt/releases/tag/v0.85.1)
 
 ## v0.85.0 platform checks
 

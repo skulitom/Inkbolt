@@ -86,6 +86,38 @@ complete A5 acceptance or full nonlocal filtering support.
 
 `tests/test_tiled_filters.py` checks an independent rational alpha convolution across tile and viewport edges, stacked container filters, masks, padding, supersampling, spatial selection, native precision and shortened floating-point TIFF bands. Its original 1920x1080 RGBA16 workload checks every channel against integer 3x3 convolution before and after a four-block-boundary patch and in historical output. Source bytes remain unchanged. The separate `native-filter-v1` measurements and regression budget retain the original unsupported-output failure; they do not replace the other scale suites or establish complete A5 acceptance.
 
+## Compositing over a transparent backdrop
+
+When a pixel in the backdrop is fully transparent, its blend-mode contribution
+has zero weight. Inkbolt skips that calculation and composites the source at
+its effective opacity. This applies to the first visible paint on a clear
+canvas and to clear pixels in an intermediate surface.
+
+Five alternating runs of each development build measured the time from
+starting the CLI to receiving the complete tiled PNG export. Both used the
+same native filesystem. Each page contained a solid rectangle filling the
+canvas. [Renderer change](https://github.com/skulitom/Inkbolt/commit/1601603df4288007666012f848553e8454d61a85)
+
+| Canvas | Windows before, s | Windows after, s | Linux before, s | Linux after, s |
+| --- | ---: | ---: | ---: | ---: |
+| 1080 × 1080 | 1.204 | 0.800 | 1.195 | 0.793 |
+| 2480 × 3508 | 8.870 | 5.861 | 8.854 | 5.870 |
+
+Every pixel in both page sizes matched its independently specified RGBA value.
+Another 52 requests exercised all 26 blend modes with transparent and partly
+painted backdrops. For all 54 cases, the complete JSON responses and encoded
+PNGs were byte-identical across the two builds on Windows and Linux.
+
+Windows and Linux each passed all 297 local verification stages. The earlier
+Intel Mac source run exceeded the existing 20-second deadline for
+the print export. The tag for v0.85.1 predates this optimization. To rerun
+the same check locally, use the following selector. On WSL, substitute
+`tools/verify_wsl.py`. [Earlier Intel source run](https://github.com/skulitom/Inkbolt/actions/runs/45130139707)
+
+```sh
+python tools/verify.py --only test_tiled_render.TiledRenderTests.test_social_and_print_dimensions_are_fully_evaluated
+```
+
 ## Tiled layer effects
 
 Tiled composition also supports the existing `shadow`, `lit_shadow`, `stroke` and `overlay` operators with retained fill/overall opacity, effect scale, contour, lighting, enable state and paints. Effects share the original immutable alpha: the maximum effect support adds to sequential filter support and cumulative ancestor support. Expanded regions preserve global paint/mask coordinates, clipping, knockout shape and the true viewport boundary. Actual selected tile visits and shortened native TIFF bands contribute to the existing effect, total-work and memory bounds.

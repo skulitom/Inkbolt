@@ -39,6 +39,12 @@ with the same selector.
 python tools/verify.py --only test_boolean_spatial_cli.SpatialBooleanTests.test_dense_coincidence_still_refuses_the_work_budget
 ```
 
+The geometry change passed all 297 hosted stages on Windows, Linux and Apple
+silicon. Intel macOS passed all five spatial Boolean tests in 9.92 seconds.
+Its full run passed 296 of 297 stages. The outstanding failure was a
+[print-size PNG export](RENDER_QUALITY.md#compositing-over-a-transparent-backdrop).
+[Three-platform CI](https://github.com/skulitom/Inkbolt/actions/runs/45130131884) · [Intel source run](https://github.com/skulitom/Inkbolt/actions/runs/45130139707)
+
 ## Matched measurements
 
 Five repetitions per build and workload alternate the preceding `415771d`
