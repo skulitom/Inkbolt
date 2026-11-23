@@ -122,12 +122,12 @@ platform, including the overlap and the area painted by the letter alone.
 Repeated letters with the same positioned accent and fill shared a font
 resource on each page.
 
-For a variable TrueType font with permission to subset,
+For a variable TrueType or CFF2 font with permission to subset,
 Inkbolt embeds a static font at each set of axis settings used on the page.
 For example, a regular label and a wide label can share one source font,
 keep their different shapes and advances, and both copy as their original
 text. The editable document retains the original font and axis settings.
-Variable fonts that require whole-font embedding and CFF2 fonts use outlines.
+Variable fonts that require whole-font embedding use outlines.
 
 Source builds can also deliver searchable text with axial or radial gradients.
 Use pad spread and encoded-sRGB interpolation. Each painted character or
@@ -197,6 +197,31 @@ permissions and Unicode mappings. In a separate four-setting comparison,
 two PDF readers extracted `AB fi`, including the two characters of the ligature.
 At 288 dpi the maximum difference in total glyph coverage between searchable
 and outlined output was 0.12% across those four samples.
+
+### Searchable CFF2 text
+
+Both static and variable monochrome CFF2 faces can supply searchable labels.
+For example, set `pdf_options.text` to `require_searchable` to keep a print
+label selectable at its chosen weight and optical size. The saved document
+retains its pinned source font and design axes. On export, each used instance
+becomes an embedded static TrueType subset with its shaped advances and
+source Unicode.
+
+Inkbolt resolves each glyph's local font dictionary and variation coordinates.
+It subdivides cubic segments until a quadratic fits within 0.25 font units
+on each axis, then rounds the controls and endpoints to integer font units.
+The resulting curves stay within 0.75 font units per axis of the evaluated
+outlines. Embedding requires permission to include a subset. In permissive
+mode, faces that require their whole program use outlines.
+
+The verification covers a static face, a two-axis fixture with separate local
+glyph dictionaries, and a production serif face at four weight and optical-size
+settings. Across 16 PDFs with solid or gradient text, MuPDF and PDFium each
+found both words and returned the expected text from all 32 selected regions.
+An independent font reader compared 40 nonempty glyphs with the source at the
+same axes. Their bounds differed by at most 0.5 font units. At 288 dpi the largest
+difference in total rendered coverage from an outlined PDF was 0.21%. Individual
+edge pixels differ, especially on light strokes.
 
 ## Appearance contract
 

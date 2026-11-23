@@ -108,6 +108,72 @@ def font_bytes(cff=False, permissions=8, *, mark_anchor=(300, 750)):
     return sfnt(data, 0x4F54544F if cff else 0x10000)
 
 
+def cff2_font(permissions=8, variable=True):
+    """An arch with a rectangular counter and a weight-dependent cubic crown."""
+    def index(entries):
+        return pack("I", len(entries)) + cff_index(entries)[2:] if entries else pack("I", 0)
+
+    def operand(n):
+        return b"\x1c" + pack("h", n)
+
+    def height(value, delta):
+        if variable:
+            return operand(value) + operand(delta) + operand(1) + b"\x10"  # blend
+        return operand(value)
+
+    programs = []
+    for gid in range(len(ADVANCES)):
+        if gid in (0, 1):
+            programs.append(b"")
+            continue
+        width = 260 + 5 * gid
+        # Start at a fractional coordinate, follow the baseline and arch back.
+        drawing = b"\xff" + pack("i", int(50.375*65536)) + operand(0) + b"\x15" + operand(width) + b"\x06"
+        drawing += (operand(0) + height(400, 200) + operand(-width) + operand(0) +
+                    operand(0) + height(-400, -200) + b"\x08")
+        drawing += operand(90) + operand(40) + b"\x15"
+        drawing += b"".join(operand(n) for n in (0, 60, 50, 0, 0, -60, -50, 0)) + b"\x05"
+        programs.append(drawing)
+    # A and B call local subroutine zero in different font dictionaries.
+    locals_by_font = [index([programs[2]]), index([programs[3]])]
+    programs[2] = programs[3] = operand(-107) + b"\x0a"
+    chars = index(programs)
+    select = bytes([0] + [int(gid == 3) for gid in range(len(programs))])
+    # One positive weight region and one empty item data table for blend operands.
+    region = pack("HHhhhhhh", 2, 1, 0, 16384, 16384, 0, 0, 0)
+    store = pack("HIHI", 1, 12, 1, 12 + len(region)) + region + pack("HHHH", 0, 0, 1, 0)
+    variations = pack("H", len(store)) + store if variable else b""
+    def long(n):
+        return b"\x1d" + pack("I", n)
+    def top(chars_offset, fd_offset, select_offset, var_offset):
+        return (long(chars_offset) + b"\x11" + long(fd_offset) + b"\x0c\x24" +
+                long(select_offset) + b"\x0c\x25" +
+                (long(var_offset) + b"\x18" if variable else b""))
+    private = long(6) + b"\x13"  # local subroutines follow the Private DICT
+    def fd(first, second):
+        return index([operand(len(private)) + long(pos) + b"\x12" for pos in (first, second)])
+    top_size = len(top(0, 0, 0, 0))
+    start = 5 + top_size + 4
+    select_offset = start + len(chars)
+    fd_offset = select_offset + len(select)
+    var_offset = fd_offset + len(fd(0, 0))
+    first = var_offset + len(variations)
+    second = first + len(private) + len(locals_by_font[0])
+    cff = (pack("BBBH", 2, 0, 5, top_size) + top(start, fd_offset, select_offset, var_offset) +
+           index([]) + chars + select + fd(first, second) + variations +
+           private + locals_by_font[0] + private + locals_by_font[1])
+    data = tables(variable_font(avar=True, hvar=True, metrics=True))
+    for tag in (b"glyf", b"loca", b"gvar"):
+        del data[tag]
+    if not variable:
+        for tag in (b"fvar", b"avar", b"HVAR", b"MVAR"):
+            del data[tag]
+    rights = bytearray(data[b"OS/2"])
+    struct.pack_into(">H", rights, 8, permissions)
+    data.update({b"CFF2": cff, b"maxp": pack("IH", 0x5000, len(ADVANCES)), b"OS/2": bytes(rights)})
+    return sfnt(data, 0x4F54544F)
+
+
 class SearchablePdfTests(unittest.TestCase):
     setUp = text_cli.TextCliTests.setUp
     invoke = text_cli.TextCliTests.invoke
@@ -327,6 +393,80 @@ class SearchablePdfTests(unittest.TestCase):
         self.assertEqual(Pdf(fallback).data, Pdf(self.export(doc)).data)
         self.assertIn("variable_font", self.export(doc, "require_searchable", 1)["message"])
         self.assertEqual(self.source.read_bytes(), original)
+
+    def test_cff2_curves_and_counters_survive_searchable_pdf_instances(self):
+        for variable, weight, height, advance in [(False, 400, 400, 600),
+                (True, 400, 400, 600), (True, 650, 550, 750), (True, 900, 600, 800)]:
+            with self.subTest(variable=variable, weight=weight):
+                original = cff2_font(variable=variable)
+                self.install(original)
+                style = dict(font_id="geometry", size=40, fill=[20, 80, 135, 255])
+                if variable:
+                    style["font_variations"] = {"geometry": {"wght": weight}}
+                doc = self.document(text="AB", width=100, height=75, wrap=False, style=style)
+                doc.update(resolution_ppi=72, width=100, height=75)
+                layout = self.inspect(doc, include_outlines=True)["layout"]
+                glyph = layout["glyphs"][0]
+                x, y = glyph["origin"]
+                curve = next(c for c in layout["paths"][0]["geometry"]["commands"] if c["verb"] == "cubic")
+                self.assertAlmostEqual(curve["control1"][0], x + 320.375 * .04)
+                self.assertAlmostEqual(curve["control2"][0], x + 50.375 * .04)
+                self.assertEqual(curve["control1"][1], y - height * .04)
+                self.assertEqual(curve["control2"][1], y - height * .04)
+                result = self.export(doc, "require_searchable")
+                pdf = Pdf(result)
+                self.assertEqual(result["pdf"]["text_delivery"]["embedded_font_programs"], 1)
+                font = next(v for v in pdf.objects.values() if isinstance(v, dict) and v.get("Subtype") == "CIDFontType2")
+                self.assertEqual(font["W"], [1, [advance], 2, [advance + 50]])
+                descriptor = pdf.get(font["FontDescriptor"])
+                self.assertEqual(descriptor["FontBBox"], [50, 0, 325, int(.75 * height + .5)])
+                embedded = pdf.streams[descriptor["FontFile2"]]
+                data = tables(embedded)
+                self.assertEqual(checksum(embedded), 0xB1B0AFBA)
+                self.assertEqual(data[b"OS/2"][8:10], pack("H", 8))
+                self.assertEqual(struct.unpack_from(">H", data[b"maxp"], 4)[0], 3)
+                self.assertIn(b"glyf", data)
+                self.assertFalse({b"CFF2", b"fvar", b"HVAR"} & data.keys())
+                self.assertEqual([s for s, _ in pdf.text_glyphs()], ["A", "B"])
+                if shutil.which("pdftotext"):
+                    self.assertEqual(extracted_text(pdf.data), "AB")
+                if pymupdf:
+                    with pymupdf.open(stream=pdf.data, filetype="pdf") as actual, pymupdf.open(
+                        stream=Pdf(self.export(doc)).data, filetype="pdf"
+                    ) as reference:
+                        self.assertEqual(actual[0].get_text().strip(), "AB")
+                        a, b = [page[0].get_pixmap(dpi=288, alpha=True) for page in (actual, reference)]
+                        self.assert_cluster_raster(a, b, 0.01)
+                        # The counter at (160, 70) stays clear. Ink surrounds it.
+                        for fx, fy, alpha in [(160, 70, 0), (110, 70, 255), (160, 170, 255)]:
+                            self.assertEqual(a.pixel(round(4*(x+fx*.04)), round(4*(y-fy*.04)))[3], alpha)
+                self.assertEqual(self.source.read_bytes(), original)
+
+    def test_cff2_embedding_obeys_font_rights_before_publication(self):
+        for variable, permissions, reason in [(True, 0x108, "variable_font"),
+                (False, 0x108, "whole_cff2_font"), (True, 2, "restricted_embedding")]:
+            self.install(cff2_font(permissions, variable))
+            doc = self.document(text="AB fi", wrap=False)
+            fallback = self.export(doc, "searchable")
+            self.assertEqual(fallback["pdf"]["text_delivery"]["outlined_items_by_reason"], {reason: 1})
+            self.assertEqual(Pdf(fallback).data, Pdf(self.export(doc)).data)
+            result = self.invoke(dict(command="document.publish", document=doc, resources=dict(font_root=str(self.store)),
+                                      output=dict(format="pdf", file_name="letters.pdf", output_root=str(self.directory),
+                                                  pdf_options=dict(text="require_searchable"))), 1)
+            self.assertIn(reason, result["message"])
+            self.assertFalse((self.directory / "letters.pdf").exists())
+
+    def test_cff2_ligature_maps_to_its_word_without_duplicate_replacement_text(self):
+        self.install(cff2_font())
+        for fill in ([20, 80, 135, 255], dict(type="linear", start=[0, 0], end=[90, 0],
+                stops=[dict(offset=0, color=[0, 0, 0, 255]), dict(offset=1, color=[95, 20, 80, 255])])):
+            doc = self.document(text="AB fi", wrap=False, width=120,
+                                style=dict(font_id="geometry", size=25, fill=fill))
+            pdf = Pdf(self.export(doc, "require_searchable"))
+            self.assertEqual([s for s, _ in pdf.text_glyphs()], ["A", "B", " ", "fi"])
+            self.assertFalse(any(b"/ActualText" in content for content in pdf.streams.values()))
+            if shutil.which("pdftotext"):
+                self.assertEqual(extracted_text(pdf.data), "AB fi")
 
     def test_variable_advances_from_phantom_points_or_metrics_only_font(self):
         for only_metrics in (False, True):

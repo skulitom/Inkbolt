@@ -120,7 +120,7 @@ pub(super) fn embed(
     codes.sort_by_key(|(_, code)| *code);
     let subset = matches!(
         font.kind,
-        Kind::VariableTrueType | Kind::SubsetCff | Kind::SubsetTrueType
+        Kind::StaticInstance | Kind::SubsetCff | Kind::SubsetTrueType
     );
     let cff = matches!(
         font.kind,
@@ -136,7 +136,7 @@ pub(super) fn embed(
             .table(Tag::from_bytes(b"OS/2"))
             .ok_or_else(|| unsupported("Missing font embedding permissions"))?;
         writer.control.check()?;
-        Cow::Owned(if font.kind == Kind::VariableTrueType {
+        Cow::Owned(if font.kind == Kind::StaticInstance {
             instance::program(data, index, &face, axes, &mapper, &writer.control)?
         } else {
             let raw = subsetter::subset(data, index, &mapper)
@@ -171,7 +171,7 @@ pub(super) fn embed(
         GLYPH_COLLECTION.into()
     };
     let metrics = |v: i16| f64::from(v) * 1000.0 / f64::from(face.units_per_em());
-    let r = if font.kind == Kind::VariableTrueType {
+    let r = if font.kind == Kind::StaticInstance {
         Face::parse(&bytes, 0)
             .map_err(|_| unsupported("Unreadable static PDF instance"))?
             .global_bounding_box()

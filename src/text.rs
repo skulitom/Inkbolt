@@ -722,11 +722,12 @@ fn append_glyphs(
             limit: MAX_OUTLINE_COMMANDS - *command_count,
             exceeded: false,
         };
-        let bounds = face.outline_glyph(rustybuzz::ttf_parser::GlyphId(g.id), &mut builder);
+        let outlined =
+            fonts::draw_outline(&face, rustybuzz::ttf_parser::GlyphId(g.id), &mut builder)?;
         if builder.exceeded {
             return Err(limit("Text outlines exceed command limit"));
         }
-        let ink = if bounds.is_some() && !builder.commands.is_empty() {
+        let ink = if outlined && !builder.commands.is_empty() {
             let geometry = Geometry::Path {
                 commands: builder.commands,
             };
@@ -839,11 +840,12 @@ fn path_layout(
                 limit: MAX_OUTLINE_COMMANDS - command_count,
                 exceeded: false,
             };
-            let bounds = face.outline_glyph(rustybuzz::ttf_parser::GlyphId(g.id), &mut builder);
+            let outlined =
+                fonts::draw_outline(&face, rustybuzz::ttf_parser::GlyphId(g.id), &mut builder)?;
             if builder.exceeded {
                 return Err(limit("Path text outlines exceed command limit"));
             }
-            if bounds.is_some() && !builder.commands.is_empty() {
+            if outlined && !builder.commands.is_empty() {
                 command_count += builder.commands.len();
                 let mut geometry = Geometry::Path {
                     commands: builder.commands,

@@ -30,6 +30,74 @@ pub struct Font {
     pub bytes: u64,
 }
 pub type Cache = BTreeMap<String, Vec<u8>>;
+
+/// Draw the selected instance in font units. CFF2 needs the local subroutines
+/// of each glyph's own font dictionary, even when there is no variation store.
+pub(crate) fn draw_outline(
+    face: &rustybuzz::ttf_parser::Face<'_>,
+    gid: rustybuzz::ttf_parser::GlyphId,
+    builder: &mut impl rustybuzz::ttf_parser::OutlineBuilder,
+) -> Result<bool, Error> {
+    use write_fonts::read::{
+        model::pen::OutlinePen,
+        ps::{cff::CffFontRef, cs::NopFilterSink, transform::Transform},
+    };
+    use write_fonts::types::{F2Dot14, GlyphId};
+
+    let Some(bytes) = face
+        .raw_face()
+        .table(rustybuzz::ttf_parser::Tag::from_bytes(b"CFF2"))
+    else {
+        return Ok(face.outline_glyph(gid, builder).is_some());
+    };
+    struct Pen<'a, B>(&'a mut B);
+    impl<B: rustybuzz::ttf_parser::OutlineBuilder> OutlinePen for Pen<'_, B> {
+        fn move_to(&mut self, x: f32, y: f32) {
+            self.0.move_to(x, y);
+        }
+        fn line_to(&mut self, x: f32, y: f32) {
+            self.0.line_to(x, y);
+        }
+        fn quad_to(&mut self, cx: f32, cy: f32, x: f32, y: f32) {
+            self.0.quad_to(cx, cy, x, y);
+        }
+        fn curve_to(&mut self, bx: f32, by: f32, cx: f32, cy: f32, x: f32, y: f32) {
+            self.0.curve_to(bx, by, cx, cy, x, y);
+        }
+        fn close(&mut self) {
+            self.0.close();
+        }
+    }
+    let invalid = || {
+        Error::new(
+            "INVALID_FONT",
+            format!("Unable to read CFF2 glyph {}", gid.0),
+        )
+    };
+    let font =
+        CffFontRef::new_cff2(bytes, Some(i32::from(face.units_per_em()))).map_err(|_| invalid())?;
+    let coords: Vec<_> = face
+        .variation_coordinates()
+        .iter()
+        .map(|c| F2Dot14::from_bits(c.get()))
+        .collect();
+    let gid = GlyphId::from(gid.0);
+    let subfont = font
+        .subfont(font.subfont_index(gid).ok_or_else(invalid)?, &coords)
+        .map_err(|_| invalid())?;
+    let mut pen = Pen(builder);
+    if font.transform(&subfont, None) == Transform::IDENTITY {
+        // Charstring coordinates already use the document font's units. Keep
+        // fractional blends until the receiving renderer chooses its precision.
+        font.evaluate_charstring(&subfont, gid, &coords, &mut NopFilterSink::new(&mut pen))
+            .map_err(|_| invalid())?;
+    } else {
+        font.draw(&subfont, gid, &coords, None, &mut pen)
+            .map_err(|_| invalid())?;
+    }
+    Ok(true)
+}
+
 pub fn valid_hash(s: &str) -> bool {
     s.len() == 64
         && s.bytes()

@@ -26,7 +26,7 @@ impl TextDelivery {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
-    VariableTrueType,
+    StaticInstance,
     SubsetTrueType,
     WholeTrueType,
     SubsetCff,
@@ -45,11 +45,17 @@ fn kind(data: &[u8], index: u32) -> Result<Kind, &'static str> {
     if !os2.is_outline_embedding_allowed() {
         return Err("bitmap_only_embedding");
     }
-    if face.is_variable() {
-        if face.tables().glyf.is_some() && os2.is_subsetting_allowed() {
-            return Ok(Kind::VariableTrueType);
+    if face.is_variable() || face.tables().cff2.is_some() {
+        if (face.tables().glyf.is_some() || face.tables().cff2.is_some())
+            && os2.is_subsetting_allowed()
+        {
+            return Ok(Kind::StaticInstance);
         }
-        return Err("variable_font");
+        return Err(if face.is_variable() {
+            "variable_font"
+        } else {
+            "whole_cff2_font"
+        });
     }
     let whole = !os2.is_subsetting_allowed();
     if whole && data.starts_with(b"ttcf") {
@@ -442,9 +448,11 @@ fn paint_line(
         }
         stream.use_resource("Font", font, "1 Tf");
         stream.content.push_str(&format!("{} Tm\n", numbers(&m)?));
-        // A plain RTL character already has its exact ToUnicode entry. Adding
-        // redundant replacement text can displace its selection vertically.
+        // RTL characters and static instances already map these character codes
+        // to their source. Redundant replacement text can move word selection
+        // away from the painted glyph (including a multi-character ligature).
         let actual = !rtl
+            && font_kind != Kind::StaticInstance
             && (group.len() > 1
                 || cluster.chars().count() > 1
                 || matches!(

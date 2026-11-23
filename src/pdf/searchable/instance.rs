@@ -1,6 +1,5 @@
 //! Turn the same positioned font instance used by the layout engine into a
-//! static PDF font. Retain quadratic contours in font units and write only the
-//! used glyphs, their metrics and the source embedding permissions.
+//! static PDF font. Write the used contours, metrics and embedding permissions.
 use super::*;
 use rustybuzz::ttf_parser::OutlineBuilder;
 use subsetter::GlyphRemapper;
@@ -24,6 +23,8 @@ use write_fonts::{
 struct Pen {
     glyph: SimpleGlyph,
     contour: Vec<CurvePoint>,
+    current: [f64; 2],
+    reverse_winding: bool,
     points: usize,
     invalid: bool,
 }
@@ -42,9 +43,12 @@ impl Pen {
         })
     }
 
-    fn point(&mut self, x: f32, y: f32, on_curve: bool) {
-        let (x, y) = (x.round(), y.round());
-        let units = f32::from(i16::MIN)..=f32::from(i16::MAX);
+    fn point(&mut self, point: [f64; 2], on_curve: bool) {
+        if on_curve {
+            self.current = point;
+        }
+        let [x, y] = point.map(f64::round);
+        let units = f64::from(i16::MIN)..=f64::from(i16::MAX);
         if self.points >= usize::from(u16::MAX) || !units.contains(&x) || !units.contains(&y) {
             self.invalid = true;
             return;
@@ -53,21 +57,55 @@ impl Pen {
             .push(CurvePoint::new(x as i16, y as i16, on_curve));
         self.points += 1;
     }
+
+    fn cubic(&mut self, [a, b, c, d]: [[f64; 2]; 4]) {
+        if self.invalid {
+            return;
+        }
+        // Elevating a quadratic back to cubic gives two inner controls.
+        // Choose the quadratic control that balances their errors. Bounding
+        // each control error bounds the entire curve by convexity.
+        let q = std::array::from_fn(|i| (3.0 * (b[i] + c[i]) - a[i] - d[i]) / 4.0);
+        if (0..2).all(|i| {
+            ((a[i] + 2.0 * q[i]) / 3.0 - b[i]).abs() <= 0.25
+                && ((d[i] + 2.0 * q[i]) / 3.0 - c[i]).abs() <= 0.25
+        }) {
+            self.point(q, false);
+            self.point(d, true);
+            return;
+        }
+        let mid = |p: [f64; 2], r: [f64; 2]| [(p[0] + r[0]) * 0.5, (p[1] + r[1]) * 0.5];
+        let (ab, bc, cd) = (mid(a, b), mid(b, c), mid(c, d));
+        let (abc, bcd) = (mid(ab, bc), mid(bc, cd));
+        let center = mid(abc, bcd);
+        self.cubic([a, ab, abc, center]);
+        self.cubic([center, bcd, cd, d]);
+    }
 }
 impl OutlineBuilder for Pen {
     fn move_to(&mut self, x: f32, y: f32) {
         self.close();
-        self.point(x, y, true);
+        self.point([x.into(), y.into()], true);
     }
     fn line_to(&mut self, x: f32, y: f32) {
-        self.point(x, y, true);
+        self.point([x.into(), y.into()], true);
     }
     fn quad_to(&mut self, cx: f32, cy: f32, x: f32, y: f32) {
-        self.point(cx, cy, false);
-        self.point(x, y, true);
+        self.point([cx.into(), cy.into()], false);
+        self.point([x.into(), y.into()], true);
     }
-    fn curve_to(&mut self, _: f32, _: f32, _: f32, _: f32, _: f32, _: f32) {
-        self.invalid = true; // The admitted TrueType glyf table contains quadratics.
+    fn curve_to(&mut self, bx: f32, by: f32, cx: f32, cy: f32, x: f32, y: f32) {
+        let points = [
+            self.current,
+            [bx.into(), by.into()],
+            [cx.into(), cy.into()],
+            [x.into(), y.into()],
+        ];
+        if points.iter().flatten().all(|v| v.is_finite()) {
+            self.cubic(points);
+        } else {
+            self.invalid = true;
+        }
     }
     fn close(&mut self) {
         if self.contour.len() > 1 && self.contour.first() == self.contour.last() {
@@ -75,6 +113,10 @@ impl OutlineBuilder for Pen {
             self.points -= 1;
         }
         if !self.contour.is_empty() {
+            if self.reverse_winding {
+                // CFF and TrueType use opposite directions for filled contours.
+                self.contour[1..].reverse();
+            }
             self.glyph
                 .contours
                 .push(std::mem::take(&mut self.contour).into());
@@ -119,10 +161,13 @@ pub(super) fn program(
     let mut advance_max = 0;
     for gid in mapper.remapped_gids().map(GlyphId) {
         control.check()?;
-        let mut pen = Pen::default();
-        let outline_bounds = face.outline_glyph(gid, &mut pen);
+        let mut pen = Pen {
+            reverse_winding: face.tables().cff2.is_some(),
+            ..Pen::default()
+        };
+        let outlined = crate::fonts::draw_outline(face, gid, &mut pen)?;
         pen.close();
-        if !pen.encodable() || (outline_bounds.is_none() && pen.points > 0) {
+        if !pen.encodable() || (!outlined && pen.points > 0) {
             return Err(invalid());
         }
         point_count += pen.points;
@@ -223,5 +268,39 @@ mod tests {
         pen.line_to(20000.0, 25.0);
         pen.close();
         assert!(!pen.encodable());
+    }
+
+    #[test]
+    fn cubic_reduction_bounds_rounded_quadratics_at_the_same_parameter() {
+        let [a, b, c, d] = [
+            [1.25, -17.5],
+            [-337.75, 862.5],
+            [781.0, -421.25],
+            [66.5, 72.25],
+        ];
+        let mut pen = Pen::default();
+        pen.point(a, true);
+        pen.cubic([a, b, c, d]);
+        assert!(pen.encodable());
+        let segments = (pen.contour.len() - 1) / 2;
+        assert!(segments > 1 && segments.is_power_of_two());
+        for (index, piece) in pen.contour.windows(3).step_by(2).enumerate() {
+            assert!(piece[0].on_curve && !piece[1].on_curve && piece[2].on_curve);
+            for sample in 0..=128 {
+                let u = f64::from(sample) / 128.0;
+                let t = (index as f64 + u) / segments as f64;
+                for axis in 0..2 {
+                    let value = |p: &CurvePoint| f64::from(if axis == 0 { p.x } else { p.y });
+                    let quadratic = (1.0 - u).powi(2) * value(&piece[0])
+                        + 2.0 * u * (1.0 - u) * value(&piece[1])
+                        + u * u * value(&piece[2]);
+                    let cubic = (1.0 - t).powi(3) * a[axis]
+                        + 3.0 * t * (1.0 - t).powi(2) * b[axis]
+                        + 3.0 * t * t * (1.0 - t) * c[axis]
+                        + t.powi(3) * d[axis];
+                    assert!((quadratic - cubic).abs() <= 0.75);
+                }
+            }
+        }
     }
 }
