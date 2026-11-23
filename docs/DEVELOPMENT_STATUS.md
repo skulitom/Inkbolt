@@ -75,6 +75,22 @@ space through the final judge response. Both transports delivered the same
 TIFFs and PNG as the earlier unrestricted Linux and Windows references.
 The benchmark retains its separate peak-commit verdict.
 
+## Reopening print colors for editing
+
+Inkbolt and ReportLab each wrote two single-path print pages with the same
+ink values, one process CMYK and one spot at 62.5% tint. The current importer
+refused both Inkbolt exports at the CMYK transparency group. It refused the
+other process page at its fill operator and the other spot page at its
+Separation color space. Both spot pages describe the same tint ramp using
+different PDF function types. An independent CMYK rendering of each pair
+gave identical center samples and unpainted corners.
+
+Use those four files to test W6a.5. Recover the native color components,
+spot identity and tint as editable paints. Recolor one shape and compare its
+delivery and the unchanged surroundings in an independent separation reader.
+The page-interchange checkpoint also requires fonts and encapsulated pages.
+[Editable page import](PDF.md#reopen-a-page-for-editing)
+
 ## Knockout groups in vector PDF
 
 At `347000d` the vector PDF writer refused a group that Inkbolt could preview

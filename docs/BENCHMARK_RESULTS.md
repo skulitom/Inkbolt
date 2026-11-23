@@ -2,9 +2,9 @@
 
 ## Results by task
 
-On the thirteen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
-completed 65 of 65 workflows. Agents using the baseline completed 57 of
-60 applicable attempts. Three print PDFs omitted a required color setting.
+On the fourteen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
+completed 70 of 70 workflows. Agents using the baseline completed 62 of
+65 applicable attempts. Three print PDFs omitted a required color setting.
 Lost-reply recovery has no baseline. Across all 20 tasks, including the
 earlier builds, median token use was lower for the baseline on all 17
 tasks where both approaches were evaluated.
@@ -16,7 +16,7 @@ B07 also records the client starts that ended before a trial could be judged.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Thirteen tasks now share one 0.85.1 executable. The other seven rows
+library. Fourteen tasks now share one 0.85.1 executable. The other six rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -32,7 +32,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 287,596 / 44,219 | [Foreground masks on 0.85.1](#linked-text-and-foreground-masks-on-0851) |
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 281,627 / 43,023 | [Local image repair on 0.85.1](#local-image-repair-on-0851) |
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 460,584 / 75,451 | [16-bit photo edits on 0.85.1](#editing-a-16-bit-photo-on-0851) |
-| B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 367,710 / 72,324 | [Movable source layer](#mixed-composition-with-a-movable-source-layer) |
+| B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 362,423 / 58,323 | [Masked compositions on 0.85.1](#revising-a-masked-composition-on-0851) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 134,535 / 41,369 | [0.85.1 source build](#transparent-screen-artwork-on-0851) |
 | B14 Deliver a print page | 5/5 | 5/5 | 2/5 | 712,198 / 94,435 | [Native print controls on 0.85.1](#native-print-controls-on-0851) |
@@ -71,6 +71,41 @@ retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
 
+## Revising a masked composition on 0.85.1
+
+Five Inkbolt agents and five baseline agents changed only the shadow offset
+in a 32 × 24 composition. An independent calculation using the original
+image, fill alpha, group mask and opacity matched every delivered pixel.
+The change affected 100 of the 768 pixels. All five Inkbolt agents also
+recovered the original preview from the saved revision.
+[Shared task and required editing controls](../tools/benchmark_prompts/B11.md)
+
+| Median per attempt | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Input plus output tokens | 362,423 | 58,323 |
+| Shell commands | 10 | 3 |
+| Shell output, UTF-8 bytes | 103,764 | 602 |
+| Seconds to first verified preview | 70.7 | 38.8 |
+| Solve time, seconds | 94.8 | 47.6 |
+
+The Inkbolt trials ran first on Windows, followed by the baseline trials
+with the same client settings. All five Inkbolt agents used the CLI.
+Commands that included a schema lookup produced 446,406 of their 518,307
+shell-output bytes. In each trial the largest reply came from such a command.
+Several commands grouped lookups with other work.
+
+In a separate follow-up on Windows and Linux, each of the five saved
+Inkbolt documents accepted a second edit moving the source image three pixels
+right and two down. The mask, shadow and other objects retained their
+settings. All five new previews on each platform matched an independent
+calculation, including the newly transparent pixels at the canvas edges.
+[Earlier trials that exposed unwanted layer locks](#mixed-composition-with-a-movable-source-layer)
+
+The combined replay covers 135 genuine attempts on fourteen tasks. Six
+standard tasks still use earlier builds. B11 trial and replay audit SHA-256
+`7cfbec5ad06f7438fe2baf05baef16d270e0c12a78f8556013187dea4feb060b`.
+Combined audit SHA-256 `a790b614425ae149dd2d7b0046dabfd99c1d742168d6e1da0cc14bbd0b940172`.
+
 ## Editing a 16-bit photo on 0.85.1
 
 Ten agents cloned the requested 12 × 14 patch in a 1920 × 1080 RGBA16
@@ -107,8 +142,8 @@ contained the full review. Applying the returned proposal produced the same
 edited tile manifest as the agent. [Save a review to a file](SESSION_PROPOSALS.md#save-the-review-to-a-file)
 
 Replaying all 125 genuine attempts in the thirteen standard tasks
-reproduced their verdicts and recorded usage. Seven tasks still use earlier
-executables. B10 trial and replay audit SHA-256
+reproduced their verdicts and recorded usage. At that stage seven tasks still
+used earlier executables. B10 trial and replay audit SHA-256
 `41e7f83bf36ebe5bf94c6ebb7033336498f484d27f797ddd3d1fc43e3b0b7c7d`.
 Independent sample check SHA-256 `3b9dd8b39101e2b17220b2287f8bc0cefa98544980735c4f19e00c397cfa46e4`.
 Combined audit SHA-256 `a31c50f352b08dc59b2db6f1b5f19009f0dcb19da46301cd852d9218127d3ab6`.
