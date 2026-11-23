@@ -274,8 +274,50 @@ Rejudging all ten captures reproduced every check, usage count and preview
 time. An independent renderer also reproduced the requested 768 pixels from
 every delivered SVG. All ten PNGs matched and each original file survived.
 Both groups used the CLI throughout. This trial measured direct exposure to
-the example. Whether agents find it unaided is still open. The audit has
+the example. The audit has
 SHA-256 `6a3882a10514f62d14441f17324cd788e17b1cda6d00165f75f917d7fd2c0689`.
+
+## Finding the SVG editing example unaided
+
+All five agents on the new build found `svg.quickstart` in CLI help and
+requested it while revising an existing SVG. Each transcript contains the
+returned guide. The agents received the ordinary B04 task in a fresh
+workspace. The prompt gave them neither the example nor its lookup name.
+
+Five pairs used the same Windows host, fixture and judge. The client was
+Codex CLI 0.160.0 with `gpt-6.1-sol` and medium reasoning. The build
+order alternated between pairs, with one solve at a
+time. The earlier build was `4c4e4af`. The new build was `b5d678e`, which
+added discovery for the example. Usage and timing figures are medians.
+
+| Measure | Earlier build | With discoverable guide |
+| --- | ---: | ---: |
+| Complete workflows | 5/5 | 5/5 |
+| Input plus output tokens | 206,797 | 144,578 |
+| Shell commands | 8 | 6 |
+| Shell output, UTF-8 bytes | 68,099 | 20,513 |
+| Seconds to first verified preview on disk | 44.0 | 33.0 |
+| Solve time, seconds | 59.9 | 52.3 |
+
+Every pair used fewer tokens and returned fewer shell bytes on the new
+build. Median token use fell 30.1% and median shell output fell 69.9%.
+Both builds preserved the original SVG and delivered an editable revision
+with the requested path still in its group. An independent SVG renderer
+and a PNG pixel check matched all 768 expected pixels on all ten attempts.
+Capture replay reproduced the judges' checks, usage and timings.
+
+These ten trials cover one task and one model configuration. All used the
+CLI. The source at `b5d678e` also passed all 297 verification stages on
+Windows and WSL Linux.
+
+| Retained evidence | SHA-256 |
+| --- | --- |
+| Earlier executable | `ecb8a3dc8e775109792d7b84df8bf454457c5733a09967bf385860b54e64e075` |
+| Executable with the guide | `3ade0dc20605fb046c5125730a08fd0938ce573a5218a5a3f4de36882f4f3f13` |
+| Capture and replay audit | `3df46c9f5302ac1d56853c560eb9f82dd115b642c4ca2d06f3cf73483bbd98c0` |
+| Independent artifact checks | `ca4af7f386ba6af4464ac47a5dcadc7d9894d7d7716e24c360cb9e6e5e0cb422` |
+
+[Runnable guide](SVG_EDIT_EXAMPLE.md) · [Results across twenty tasks](#results-by-task)
 
 ## Shell and MCP activity across twenty tasks
 
