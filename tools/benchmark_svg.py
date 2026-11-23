@@ -133,7 +133,11 @@ def judge(case):
     receipt=strict_json(delivered(case,'import-receipt.json'))
     raw=delivered(case,'editable.json');actual=strict_json(raw)
     artifact=svg_artifact(delivered(case,'revised.svg'),report['mapping'])
-    imported=case.call('judge-import','svg.import',id=receipt['document']['id'],source=dict(kind='file',source_path='original.svg'))
+    options = {}
+    if receipt.get('unsupported') == 'omit_and_report':
+        options['unsupported'] = 'omit_and_report'
+    imported=case.call('judge-import','svg.import',id=receipt['document']['id'],
+                       source=dict(kind='file',source_path='original.svg'),**options)
     mapped={row['source_id']:row['item_id'] for row in imported['mapping'] if row.get('source_id')}
     expected=copy.deepcopy(imported['document'])
     expected['revision']=actual['revision']
@@ -146,8 +150,7 @@ def judge(case):
     case.check('imported-structure',structure)
     def losses():
         declared_losses(case,report,artifact)
-        require(receipt.keys()==imported.keys() and all(receipt[key]==imported[key]
-            for key in ('losses','approximations','definitions')), 'The original import loss receipt must remain complete')
+        require(receipt==imported, 'The original import loss receipt must remain complete')
     case.check('declared-losses',losses)
     reopened=case.call('judge-reopen','document.validate',document=dict(file_path='editable.json',sha256=sha(raw)))
     svg=case.call('judge-svg','svg.import',id='judge-svg',source=dict(kind='file',source_path='revised.svg'))

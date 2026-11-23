@@ -54,6 +54,29 @@ class BenchmarkSvgTests(unittest.TestCase):
             self.assertEqual(row['status'],'passed',row)
             self.assertIsNone(row['first_verified_preview_seconds'])
 
+    def test_omission_report_is_reproduced_from_the_original_svg(self):
+        for change in ('none', 'invented-omission', 'missing-omissions', 'changed-reuse'):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as directory:
+                trial = self.prepare(Path(directory)/'review')
+                path = trial.root/'import-receipt.json'
+                document_id = json.loads(path.read_bytes())['document']['id']
+                receipt = trial.call('import-with-report', 'svg.import', id=document_id,
+                                     source=dict(kind='file', source_path='original.svg'),
+                                     unsupported='omit_and_report')
+                self.assertEqual(receipt['omissions'], [])
+                if change == 'invented-omission':
+                    receipt['omissions'].append({'element': 'path'})
+                elif change == 'missing-omissions':
+                    del receipt['omissions']
+                elif change == 'changed-reuse':
+                    receipt['reuse'] = None
+                path.write_text(json.dumps(receipt), encoding='utf-8')
+                trial.begin_judging()
+                judge(trial)
+                verdicts = {c['name']: c['status'] for c in trial.finish()['checks']}
+                self.assertEqual(verdicts['declared-losses'], 'pass' if change == 'none' else 'fail')
+                self.assertEqual(verdicts['revised-pixels'], 'pass')
+
     def test_good_solver_logs_cannot_hide_altered_files_or_dishonest_receipts(self):
         for alteration in ('mapping','source-hash','losses','receipt-loss','receipt-source','receipt-definitions',
                            'controls','parent','svg-path','svg-paint','svg-transform','svg-layer','png','missing','source','prompt'):
