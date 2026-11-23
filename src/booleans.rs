@@ -234,6 +234,24 @@ fn parameter(p: &P, e: &Segment) -> R {
     (&p[axis] - &e[0][axis]) / (&e[1][axis] - &e[0][axis])
 }
 fn intersections(a: &Segment, b: &Segment) -> Vec<(R, R)> {
+    if a == b {
+        return vec![(n(0), n(0)), (n(1), n(1))];
+    }
+    if a[0] == b[1] && a[1] == b[0] {
+        return vec![(n(0), n(1)), (n(1), n(0))];
+    }
+    for (i, endpoint) in a.iter().enumerate() {
+        if let Some(j) = b.iter().position(|p| p == endpoint) {
+            // To overlap beyond a common endpoint the two segments must
+            // extend along the same ray, with the same sign on both axes.
+            let same_direction = (0..2).all(|axis| {
+                a[1 - i][axis].cmp(&endpoint[axis]) == b[1 - j][axis].cmp(&endpoint[axis])
+            });
+            if !same_direction {
+                return vec![(n(i as i32), n(j as i32))];
+            }
+        }
+    }
     let u = sub(&a[1], &a[0]);
     let v = sub(&b[1], &b[0]);
     let offset = sub(&b[0], &a[0]);

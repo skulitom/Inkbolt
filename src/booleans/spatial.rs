@@ -141,6 +141,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn exact_parameters_distinguish_shared_points_from_partial_overlaps() {
+        let start = [n(1) / n(3), n(-1) / n(7)];
+        let point = |x: i32, y: i32| [&start[0] + n(x), &start[1] + n(y)];
+        let edge = [start.clone(), point(4, 2)];
+        let reversed = [edge[1].clone(), edge[0].clone()];
+        assert_eq!(
+            intersections(&edge, &edge),
+            vec![(n(0), n(0)), (n(1), n(1))]
+        );
+        assert_eq!(
+            intersections(&edge, &reversed),
+            vec![(n(0), n(1)), (n(1), n(0))]
+        );
+
+        // Opposite ray, perpendicular, and a different slope in the same quadrant.
+        for end in [point(-2, -1), point(2, -4), point(1, 3)] {
+            let other = [end, start.clone()];
+            assert_eq!(intersections(&edge, &other), vec![(n(0), n(1))]);
+            assert_eq!(intersections(&other, &reversed), vec![(n(1), n(1))]);
+        }
+        let shorter = [start.clone(), point(2, 1)];
+        assert_eq!(
+            intersections(&edge, &shorter),
+            vec![(n(0), n(0)), (n(1) / n(2), n(1))]
+        );
+        let crossing = [point(0, 2), point(4, 0)];
+        assert_eq!(
+            intersections(&edge, &crossing),
+            vec![(n(1) / n(2), n(1) / n(2))]
+        );
+    }
+
+    #[test]
     fn both_winding_rays_agree_with_independent_rectangle_membership() {
         let corners = [[n(-2), n(-1)], [n(5), n(-1)], [n(5), n(3)], [n(-2), n(3)]];
         let edges = loop_edges(&corners);
