@@ -14,14 +14,14 @@ B07 also records the client starts that ended before a trial could be judged.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Six tasks now share one 0.85.1 executable. The other fourteen rows
+library. Seven tasks now share one 0.85.1 executable. The other thirteen rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
 | Task | Inkbolt artifact | Inkbolt workflow | Baseline passes | Median tokens, Inkbolt / baseline | Evidence |
 | --- | ---: | ---: | ---: | ---: | --- |
 | B01 Labelled diagram | 5/5 | 5/5 | 5/5 | 110,522 / 42,491 | [0.85.1 diagram trials](#diagram-svg-and-recovery-trials-on-0851) |
-| B02 Aligned icon sheet | 5/5 | 5/5 | 5/5 | 313,114 / 57,582 | [8586e82](#b02-at-8586e82-cli-help-and-sibling-index-guidance) |
+| B02 Aligned icon sheet | 5/5 | 5/5 | 5/5 | 176,022 / 55,384 | [Aligned icon sheets on 0.85.1](#aligned-icon-sheets-on-0851) |
 | B03 Edit a 5,000-object layout | 5/5 | 5/5 | 5/5 | 296,450 / 69,288 | [81e8830](BENCHMARK_ESSENTIALS.md) |
 | B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 185,397 / 59,300 | [0.85.1 SVG receipt recheck](#diagram-svg-and-recovery-trials-on-0851) |
 | B05 Recolor a shared palette | 5/5 | 5/5 | 5/5 | 270,958 / 54,973 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
@@ -68,6 +68,32 @@ The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Aligned icon sheets on 0.85.1
+
+Five agents using Inkbolt and five using the baseline each delivered an
+editable three-board sheet and three separately cropped PNGs. Replaying all
+ten captures reproduced every check. An independent decoder matched every
+pixel in all 30 PNGs against the requested local position, size, fill and
+transparent background.
+
+| Median per attempt | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Shell commands | 8 | 2 |
+| Shell output, UTF-8 bytes | 35,552 | 430 |
+| Input plus output tokens | 176,022 | 55,384 |
+| Seconds to first verified preview on disk | 46.5 | 27.2 |
+| Solve time, seconds | 63.2 | 35.7 |
+
+The five Inkbolt trials ran first, using the same client, model settings and
+engine executable as the other 0.85.1 tasks. Each requested the vector
+quickstart through the CLI. Neither arm made a direct MCP call. Both arms
+also passed 5/5 in the earlier batch. The Inkbolt token median fell from
+313,114 on that build to 176,022 here, still 3.18 times the new baseline.
+The batches differ in build and host conditions. [Earlier icon-sheet trials](#b02-at-8586e82-cli-help-and-sibling-index-guidance)
+
+The capture and replay audit has SHA-256
+`4b3f2e36ac050dd11c630e787370095aba1d5b29da45f2d9d5b881824d94a649`.
 
 ## Multilingual typography on 0.85.1
 
@@ -217,7 +243,7 @@ attempts used the CLI. Host load was uncontrolled.
 ## Shell and MCP activity across twenty tasks
 
 This earlier survey covers 100 Inkbolt and 85 baseline transcripts. It
-predates the four 0.85.1 batches above. Among the 17 paired tasks, the Inkbolt
+predates the single-build trials above. Among the 17 paired tasks, the Inkbolt
 agents used more shell commands at the median on every task. Across those
 85 attempts per arm, they ran 1,069 commands with 75 nonzero exits. Baseline
 agents ran 371 commands with eight nonzero exits. All exit codes were recorded.
