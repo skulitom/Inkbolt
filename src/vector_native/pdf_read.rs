@@ -76,10 +76,10 @@ pub(crate) fn inflate_bytes(
     Ok(out)
 }
 
-fn space(b: u8) -> bool {
+pub(crate) fn space(b: u8) -> bool {
     matches!(b, 0 | 9 | 10 | 12 | 13 | 32)
 }
-fn delimiter(b: u8) -> bool {
+pub(crate) fn delimiter(b: u8) -> bool {
     space(b) || b"()<>[]{}/%".contains(&b)
 }
 struct Parser<'a, 'b> {
@@ -87,6 +87,22 @@ struct Parser<'a, 'b> {
     at: usize,
     nodes: &'b mut usize,
     control: &'b Control,
+}
+pub(crate) fn object_at(
+    data: &[u8],
+    at: &mut usize,
+    nodes: &mut usize,
+    control: &Control,
+) -> Result<Value, Error> {
+    let mut parser = Parser {
+        data,
+        at: *at,
+        nodes,
+        control,
+    };
+    let value = parser.value(0)?;
+    *at = parser.at;
+    Ok(value)
 }
 impl Parser<'_, '_> {
     fn skip(&mut self) {

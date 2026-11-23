@@ -147,7 +147,7 @@ MuPDF agreed on the predicted and plain sources in every case. Its re-export
 comparisons were exact on opaque images and within one 8-bit channel level on
 images with alpha.
 
-Painted text, inline images, stencil masks, interpolated
+Unsupported text operators, inline images, stencil masks, interpolated
 images, preblended soft masks, shadings, CMYK images, remapped color
 spaces, graphics-state masks, knockout, annotations and unsupported blend modes return an error.
 Content errors identify the selected page and object, with a byte offset for
@@ -155,6 +155,30 @@ drawing operators. Import applies the classic container reader's object and
 page limits, a 16 MiB source and cumulative decoded-stream budget, and the
 selected vector profile's native item and document limits. The same checks
 apply when a form is invoked repeatedly. [PDF graphics specification](https://pdfa.org/resource/iso-32000-2/)
+
+### Editing a painted label
+
+Source builds after v0.85.1 can reopen a horizontal PDF label as native text.
+When `pdf.import` returns `PDF_FONT_NOT_BOUND`, its details give the embedded
+program's `embedded_sha256` and the PDF font object number. Run `font.import`
+on the licensed editable font and its license. Retry `pdf.import` with
+`font_root` set to that store and an entry in `font_bindings` containing the
+reported `embedded_sha256`, a document-local `font_id` and the returned
+descriptor in `font`. A PDF subset and the original face can have different
+digests. The importer checks the Unicode clusters, glyph positions, advances
+and visible outlines against the bound face before accepting the label.
+
+Each nonempty `Tj` string becomes one editable frame. Use its mapped item ID
+with `text_range` to change a word. A writer that positioned every glyph
+separately produces separate frames. The `font_sources` receipt associates
+each PDF font and embedded program object with the selected font ID.
+
+Supported labels use opaque gray or RGB fill, an explicit ToUnicode map and
+a static TrueType or OpenType CFF program. Horizontal matrices, line moves
+and leading are retained. Symbolic byte-encoded TrueType, horizontal CID
+TrueType, explicitly named CFF glyphs and horizontal CID CFF are supported.
+Text clipping, vertical writing, manually spaced `TJ` arrays and unsupported
+encodings return a located error. [Recovery measurements](DEVELOPMENT_STATUS.md#reopening-searchable-labels-for-editing)
 
 ### Editing process and spot fills
 
@@ -183,8 +207,7 @@ Some PDF writers select a default font and line spacing before drawing
 anything. Source builds after v0.85.1 open pages containing that setup
 (`BT`, `Tf`, `TL`, `ET`) and an empty page-transition dictionary.
 The receipt records the unpainted setup and the default transition.
-Showing or clipping glyphs, and nonempty transition dictionaries, still
-produce a located error.
+Glyph clipping and nonempty transition dictionaries produce a located error.
 
 Page content, forms, palettes and image planes can use `ASCII85Decode`
 alone or before `FlateDecode`. A JPEG image or JPEG soft mask can use it
@@ -701,8 +724,8 @@ PDF parsing and rendering against original geometry/image oracles. Source
 snapshots remain unchanged. The basic page and extended vector typography
 criteria cover these declared contracts. Native spot output is covered by
 [INK_DELIVERY.md](INK_DELIVERY.md); combined trim/bleed/ink preparation is covered
-by [PREPRESS.md](PREPRESS.md). The extended page criterion still includes encapsulated-page
-placement and [editable recovery of painted text](DEVELOPMENT_STATUS.md#reopening-searchable-labels-for-editing).
+by [PREPRESS.md](PREPRESS.md). The extended page criterion still requires
+encapsulated-page placement. [Editable text recovery](DEVELOPMENT_STATUS.md#reopening-searchable-labels-for-editing)
 
 Public format reference: [ISO 32000-1 entry](https://committee.iso.org/standard/51502.html)
 and [PDF specification archive](https://pdfa.org/resource/pdf-specification-archive/).

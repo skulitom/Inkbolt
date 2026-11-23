@@ -8,7 +8,8 @@ pub(super) struct Drawing<'a> {
     page_size: [f64; 2],
     pub control: &'a Control,
     pub profile: ResourceProfile,
-    pub items: Vec<Item>,
+    pub document: Document,
+    pub fonts: text::Fonts,
     pub mapping: Vec<serde_json::Value>,
     pub images: image::Images,
     pub swatches: print::Swatches,
@@ -24,6 +25,9 @@ pub(super) struct Drawing<'a> {
 }
 #[derive(Clone)]
 pub(super) struct State {
+    pub font: Option<Id>,
+    pub font_size: f64,
+    pub leading: f64,
     pub matrix: Matrix,
     pub values: [f64; 4],
     pub space: color::FillSpace,
@@ -121,7 +125,8 @@ impl<'a> Drawing<'a> {
         pdf: &'a Container<'a>,
         page_index: usize,
         page_size: [f64; 2],
-        profile: ResourceProfile,
+        document: Document,
+        fonts: text::Fonts,
         control: &'a Control,
     ) -> Self {
         Self {
@@ -129,8 +134,9 @@ impl<'a> Drawing<'a> {
             page_index,
             page_size,
             control,
-            profile,
-            items: vec![],
+            profile: document.resource_profile,
+            document,
+            fonts,
             mapping: vec![],
             images: Default::default(),
             swatches: Default::default(),
@@ -154,10 +160,10 @@ impl<'a> Drawing<'a> {
         transform: Matrix,
         loc: (Id, usize),
     ) -> Result<String, Error> {
-        if self.items.len() >= self.profile.items() {
+        if self.document.items.len() >= self.profile.items() {
             return Err(limit("PDF editable item limit exceeded"));
         }
-        let id = format!("pdf-{}", self.items.len() + 1);
+        let id = format!("pdf-{}", self.document.items.len() + 1);
         let native_compatible = match &content {
             Content::Group { .. } => true,
             Content::Vector {
@@ -172,7 +178,7 @@ impl<'a> Drawing<'a> {
         if !native_compatible || opacity != 1. || blend != BlendMode::Normal {
             self.first_display_or_transparent.get_or_insert(loc);
         }
-        self.items.push(Item {
+        self.document.items.push(Item {
             hdr_grade: None,
             pixel_warp: None,
             metadata: None,
@@ -288,6 +294,9 @@ impl<'a> Drawing<'a> {
             program.append(id, self.decode(id)?);
         }
         let state = State {
+            font: None,
+            font_size: 0.,
+            leading: 0.,
             matrix,
             alpha: 1.,
             values: [0.; 4],

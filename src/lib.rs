@@ -430,6 +430,10 @@ pub enum Request {
         /// Zero-based index in the PDF page tree.
         #[serde(default)]
         page_index: usize,
+        #[serde(default)]
+        font_bindings: Vec<pdf_import::FontBinding>,
+        #[serde(default)]
+        font_root: Option<PathBuf>,
         color_policy: vector_native::ColorPolicy,
         #[serde(default)]
         resource_profile: model::ResourceProfile,
@@ -1384,6 +1388,7 @@ fn capability_report() -> Value {
         "content_filters":["raw","FlateDecode","ASCII85Decode","ASCII85Decode+FlateDecode"],
         "presentation":"absent_null_or_empty_page_transition",
         "text_objects":"unpainted_BT_ET_with_Tf_and_TL",
+        "editable_text":{"operators":["Tj","Tf","TL","Tm","Td","TD","T*"],"storage":"one_native_text_frame_per_nonempty_shown_string","paint":"opaque_normal_gray_or_rgb","static_fonts":["symbolic_TrueType_Mac_byte_codes","Identity-H_CIDFontType2","explicit_name_keyed_OpenType_CFF","horizontal_CID_keyed_OpenType_CFF"],"requires":["explicit_ToUnicode","licensed_font_binding_by_embedded_sha256","matching_cluster_placement_advances_and_outlines"],"receipt":"font_sources"},
         "blend_modes":blending::MODES.iter().filter_map(|mode| pdf::blend_name(*mode)).collect::<Vec<_>>(),
         "color_burn_and_dodge":"PDF_2.0_header_or_catalog_version",
         "images":{"samples":"DeviceGray_DeviceRGB_or_Indexed","bits_per_component":[1,2,4,8],
@@ -2716,15 +2721,21 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
             id,
             source_path,
             page_index,
+            font_bindings,
+            font_root,
             color_policy,
             resource_profile,
             control,
-        } => pdf_import::import(
+        } => pdf_import::import_with_fonts(
             id,
             &source_path,
             page_index,
             color_policy,
             resource_profile,
+            pdf_import::FontOptions {
+                font_bindings,
+                font_root,
+            },
             &context.scoped(&control)?,
         ),
         Request::MeshInspect {

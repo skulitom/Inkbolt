@@ -103,22 +103,29 @@ encapsulated page placement remain open.
 
 ## Reopening searchable labels for editing
 
-Eight original Inkbolt PDFs provide controls for the next editable import
-test. They contain “AB fi” or its edit “BA fi”, using whole and subset
-TrueType and CFF programs. MuPDF 1.28.0 and Xpdf 4.06 extracted both words
-in all eight files. Both whole programs matched their original font bytes.
-The two subset programs omitted the Unicode character map present in the
-original fonts. The PDF supplies the mapping from visible codes to text.
-The current importer refuses each file at its first text matrix. Editable
-recovery needs to preserve the source words, glyph placement and retained
-font identity through the edit. [Searchable PDF export](PDF.md#searchable-text)
+Ten reference pages cover “AB fi” and “BA fi” in five configurations.
+Inkbolt wrote whole and subset TrueType and CFF programs. ReportLab 4.4.7
+wrote a fifth configuration with a subset font and an unrelated green
+rectangle. The importer recovered one editable frame for each ReportLab
+label. The Inkbolt PDFs positioned each glyph separately and reopened as
+four frames, including a two-character ligature. Each uses the licensed
+local face matched to the PDF font program.
 
-Two ReportLab 4.4.7 pages provide an independent writer control. They use
-the same original synthetic font subset to draw “AB fi” and “BA fi” above
-a green rectangle. MuPDF, Xpdf and Ghostscript extracted both words from
-both pages. At 144 dpi, MuPDF on Windows and Ghostscript on Linux each
-found pixel changes only inside the first word. The second word and the
-rectangle provide controls for accidental changes when text import lands.
+On Windows and Linux, each of the five original pages was also edited
+through `document.edit`. The ReportLab page used a single range replacement.
+On the four glyph-positioned pages the edit replaced both letters and
+moved the second one by the difference in their advances. The remaining
+items and all font descriptors were unchanged. The ten reopened documents
+and five edited documents, and their fifteen searchable PDFs, were
+byte-identical across the two hosts.
+
+MuPDF 1.28.0, Xpdf 4.06 and Ghostscript 9.55 recovered both expected words
+in all fifteen deliveries. At 144 dpi Ghostscript matched all reference
+pixels. MuPDF matched all twelve whole/subset font comparisons exactly.
+On the three ReportLab comparisons the largest difference was one 8-bit
+channel level and the word boxes differed by less than 0.000002 pt.
+Both renderers confined changes from the range edit to the first word.
+[Editable label contract](PDF.md#editing-a-painted-label)
 
 ## Knockout groups in vector PDF
 

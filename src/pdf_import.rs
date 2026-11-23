@@ -5,6 +5,8 @@ mod filters;
 mod image;
 mod print;
 mod program;
+mod text;
+pub use text::{FontBinding, FontOptions};
 
 use crate::{
     Document, Error,
@@ -143,8 +145,28 @@ pub fn import(
     id: String,
     source_path: &Path,
     page_index: usize,
+    color_policy: vector_native::ColorPolicy,
+    profile: ResourceProfile,
+    control: &Control,
+) -> Result<serde_json::Value, Error> {
+    import_with_fonts(
+        id,
+        source_path,
+        page_index,
+        color_policy,
+        profile,
+        FontOptions::default(),
+        control,
+    )
+}
+
+pub fn import_with_fonts(
+    id: String,
+    source_path: &Path,
+    page_index: usize,
     _color_policy: vector_native::ColorPolicy,
     profile: ResourceProfile,
+    options: FontOptions,
     control: &Control,
 ) -> Result<serde_json::Value, Error> {
     control.check()?;
@@ -191,7 +213,7 @@ pub fn import(
             ),
         )
     })?;
-    let mut result = read_page(&pdf, lineage, id, page_index, profile, control)
+    let mut result = read_page(&pdf, lineage, id, page_index, profile, options, control)
         .map_err(|e| located(e, page_index, *page_id, None))?;
     result["source"] = json!({"sha256":crate::assets::sha256(&bytes),"bytes":bytes.len(),"page_index":page_index,"pages":tree.pages.len(),"modified":false});
     if let Some(generation) = pdf.nonstandard_free_head_generation {
@@ -207,6 +229,7 @@ fn read_page(
     id: String,
     page_index: usize,
     profile: ResourceProfile,
+    options: FontOptions,
     control: &Control,
 ) -> Result<serde_json::Value, Error> {
     let (&page, parents) = lineage.split_last().unwrap();
@@ -302,7 +325,7 @@ fn read_page(
     } else {
         [t - b, r - l]
     };
-    let mut canvas = crate::vector_canvas::Canvas {
+    let canvas = crate::vector_canvas::Canvas {
         origin_px: [0.; 2],
         size_px: size,
         unit: crate::dimensions::Unit::Pt,
@@ -314,21 +337,28 @@ fn read_page(
         .map(|v| pdf.resolve(v)?.dict())
         .transpose()?
         .unwrap_or(&empty);
-    let mut drawing = drawing::Drawing::new(pdf, page_index, size, profile, control);
+    let document: Document = serde_json::from_value(
+        json!({"schema_version":2,"id":id,"kind":"vector","color_space":"srgb","resolution_ppi":72,
+        "width":width,"height":height,"vector_canvas":canvas,"resource_profile":profile}),
+    )
+    .map_err(|e| invalid(&e.to_string()))?;
+    let mut drawing = drawing::Drawing::new(
+        pdf,
+        page_index,
+        size,
+        document,
+        text::Fonts::new(options, control)?,
+        control,
+    );
     if let Some(v) = page.get(b"Group".as_slice()) {
         drawing.group(v)?;
     }
     drawing.page(page.get(b"Contents".as_slice()), resources, matrix)?;
     let native = drawing.native_page()?;
-    if native {
+    let mut document = drawing.document;
+    if native && let Some(canvas) = &mut document.vector_canvas {
         canvas.process_space = crate::vector_canvas::ProcessSpace::Cmyk;
     }
-    let mut document: Document = serde_json::from_value(
-        json!({"schema_version":2,"id":id,"kind":"vector","color_space":"srgb","resolution_ppi":72,
-        "width":width,"height":height,"vector_canvas":canvas,"resource_profile":profile}),
-    )
-    .map_err(|e| invalid(&e.to_string()))?;
-    document.items = drawing.items;
     drawing
         .swatches
         .retain(|id, _| drawing.painted_swatches.contains(id));
@@ -383,6 +413,9 @@ fn read_page(
     }
     if !drawing.images.sources.is_empty() {
         result["image_sources"] = json!(drawing.images.sources);
+    }
+    if !drawing.fonts.sources.is_empty() {
+        result["font_sources"] = json!(drawing.fonts.sources);
     }
     Ok(result)
 }

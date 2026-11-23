@@ -98,9 +98,14 @@ impl Program {
             start: None,
             clip: None,
             in_text: false,
+            text_matrix: crate::model::identity(),
+            line_matrix: crate::model::identity(),
+            painted_text: false,
         };
         let mut at = 0;
         let mut operands = Vec::new();
+        let mut string = None;
+        let mut string_nodes = 0;
         while let Some(&c) = self.bytes.get(at) {
             if space(c) {
                 at += 1;
@@ -121,6 +126,24 @@ impl Program {
             at += 1;
             let loc = self.location(start);
             let fail = |e| located(e, drawing.page_index, loc.0, Some(loc.1));
+            if matches!(c, b'(' | b'<') && self.bytes.get(start..start + 2) != Some(b"<<") {
+                if !execution.in_text || string.is_some() || !operands.is_empty() {
+                    return Err(fail(unsupported("Unsupported PDF string operand")));
+                }
+                at = start;
+                let value = vector_native::pdf_read::object_at(
+                    &self.bytes,
+                    &mut at,
+                    &mut string_nodes,
+                    drawing.control,
+                )
+                .map_err(fail)?;
+                let Value::Bytes(bytes) = value else {
+                    return Err(fail(invalid("Expected a PDF text string")));
+                };
+                string = Some(bytes);
+                continue;
+            }
             if c != b'/' && delimiter(c) {
                 return Err(fail(unsupported(
                     "Unsupported PDF drawing operand or delimiter",
@@ -140,6 +163,9 @@ impl Program {
                 return Err(fail(limit("PDF content token limit exceeded")));
             }
             if c == b'/' || c.is_ascii_digit() || matches!(c, b'.' | b'+' | b'-') {
+                if string.is_some() {
+                    return Err(fail(invalid("Unexpected PDF operand after a text string")));
+                }
                 if operands.len() >= crate::limits::vector_native::MAX_OPERANDS {
                     return Err(fail(limit("PDF drawing operand limit exceeded")));
                 }
@@ -152,12 +178,23 @@ impl Program {
                 return Err(fail(limit("PDF drawing operation limit exceeded")));
             }
             let page = drawing.page_index;
+            if string.is_some() && token != b"Tj" {
+                return Err(fail(unsupported("Unsupported PDF string operator")));
+            }
             execution
-                .step(drawing, resources, token, &operands, loc)
+                .step(
+                    drawing,
+                    resources,
+                    token,
+                    &operands,
+                    string.take().as_deref(),
+                    loc,
+                )
                 .map_err(|e| located(e, page, loc.0, Some(loc.1)))?;
             operands.clear();
         }
-        if !operands.is_empty()
+        if string.is_some()
+            || !operands.is_empty()
             || !execution.saved.is_empty()
             || !execution.path.is_empty()
             || execution.clip.is_some()
@@ -177,6 +214,9 @@ impl Program {
 
 struct Execution {
     in_text: bool,
+    text_matrix: crate::model::Matrix,
+    line_matrix: crate::model::Matrix,
+    painted_text: bool,
     state: State,
     saved: Vec<State>,
     path: Vec<PathCommand>,
@@ -213,6 +253,7 @@ impl Execution {
         resources: &Dict,
         op: &[u8],
         operands: &[&[u8]],
+        string: Option<&[u8]>,
         loc: (Id, usize),
     ) -> Result<(), Error> {
         if self.clip.is_some() && !matches!(op, b"f" | b"F" | b"f*" | b"n") {
@@ -221,12 +262,11 @@ impl Execution {
             ));
         }
         if self.in_text {
-            // These parameters affect only later text painting, which is refused
-            // throughout the page and its forms. No raster or path uses them.
             match op {
                 b"ET" => {
                     args::<0>(operands)?;
                     self.in_text = false;
+                    d.used_text_setup |= !self.painted_text;
                 }
                 b"Tf" => {
                     let [font, size] = operands else {
@@ -237,14 +277,42 @@ impl Execution {
                     if !d.pdf.resolve(field(dict, b"Type")?)?.named(b"Font") {
                         return Err(invalid("Expected a PDF font resource"));
                     }
-                    scalar(size)?;
+                    self.state.font = match font {
+                        Value::Ref(id) => Some(*id),
+                        _ => None,
+                    };
+                    self.state.font_size = scalar(size)?;
                 }
                 b"TL" => {
-                    args::<1>(operands)?;
+                    self.state.leading = args::<1>(operands)?[0];
+                }
+                b"Tm" => {
+                    self.text_matrix = args(operands)?;
+                    self.line_matrix = self.text_matrix;
+                }
+                b"Td" | b"TD" | b"T*" => {
+                    let [x, y] = if op == b"T*" {
+                        args::<0>(operands)?;
+                        [0., -self.state.leading]
+                    } else {
+                        args(operands)?
+                    };
+                    if op == b"TD" {
+                        self.state.leading = -y;
+                    }
+                    self.line_matrix = multiply(self.line_matrix, [1., 0., 0., 1., x, y]);
+                    self.text_matrix = self.line_matrix;
+                }
+                b"Tj" => {
+                    args::<0>(operands)?;
+                    let bytes = string.ok_or_else(|| invalid("Expected one PDF text string"))?;
+                    let advance = d.show_text(&self.state, self.text_matrix, bytes, loc)?;
+                    self.painted_text |= !bytes.is_empty();
+                    self.text_matrix = multiply(self.text_matrix, [1., 0., 0., 1., advance, 0.]);
                 }
                 _ => {
                     return Err(unsupported(
-                        "Only unpainted font and leading setup is supported inside PDF text objects",
+                        "Unsupported operator in editable PDF text object",
                     ));
                 }
             }
@@ -257,7 +325,9 @@ impl Execution {
                     return Err(invalid("PDF text object inside an unfinished path"));
                 }
                 self.in_text = true;
-                d.used_text_setup = true;
+                self.text_matrix = crate::model::identity();
+                self.line_matrix = self.text_matrix;
+                self.painted_text = false;
             }
             b"m" => {
                 let [x, y] = args(operands)?;

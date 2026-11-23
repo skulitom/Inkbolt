@@ -123,6 +123,11 @@ fn face(bytes: &[u8], index: u32) -> Result<rustybuzz::Face<'_>, Error> {
             "Font does not contain a readable requested SFNT face",
         )
     })?;
+    require_outline_face(&face)?;
+    Ok(face)
+}
+
+pub(crate) fn require_outline_face(face: &rustybuzz::ttf_parser::Face<'_>) -> Result<(), Error> {
     for tag in [b"COLR", b"CBDT", b"sbix", b"SVG "] {
         if face
             .raw_face()
@@ -142,7 +147,7 @@ fn face(bytes: &[u8], index: u32) -> Result<rustybuzz::Face<'_>, Error> {
             "Text requires scalable outline glyphs",
         ));
     }
-    Ok(face)
+    Ok(())
 }
 struct Temporary(PathBuf);
 impl Drop for Temporary {
