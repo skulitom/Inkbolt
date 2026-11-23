@@ -113,6 +113,13 @@ The current importer refuses each file at its first text matrix. Editable
 recovery needs to preserve the source words, glyph placement and retained
 font identity through the edit. [Searchable PDF export](PDF.md#searchable-text)
 
+Two ReportLab 4.4.7 pages provide an independent writer control. They use
+the same original synthetic font subset to draw “AB fi” and “BA fi” above
+a green rectangle. MuPDF, Xpdf and Ghostscript extracted both words from
+both pages. At 144 dpi, MuPDF on Windows and Ghostscript on Linux each
+found pixel changes only inside the first word. The second word and the
+rectangle provide controls for accidental changes when text import lands.
+
 ## Knockout groups in vector PDF
 
 At `347000d` the vector PDF writer refused a group that Inkbolt could preview

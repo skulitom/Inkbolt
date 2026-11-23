@@ -2,9 +2,9 @@
 
 ## Results by task
 
-On the sixteen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
-completed 80 of 80 workflows. Agents using the baseline completed 72 of
-75 applicable attempts. Three print PDFs omitted a required color setting.
+On the seventeen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
+completed 85 of 85 workflows. Agents using the baseline completed 77 of
+80 applicable attempts. Three print PDFs omitted a required color setting.
 Lost-reply recovery has no baseline. Across all 20 tasks, including the
 earlier builds, median token use was lower for the baseline on all 17
 tasks where both approaches were evaluated.
@@ -16,7 +16,7 @@ B07 and B12 also record the client starts that ended before a trial could be jud
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Sixteen tasks now share one 0.85.1 executable. The other four rows
+library. Seventeen tasks now share one 0.85.1 executable. The other three rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -37,7 +37,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 134,535 / 41,369 | [0.85.1 source build](#transparent-screen-artwork-on-0851) |
 | B14 Deliver a print page | 5/5 | 5/5 | 2/5 | 712,198 / 94,435 | [Native print controls on 0.85.1](#native-print-controls-on-0851) |
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 262,081 / 56,846 | [Resource repair on 0.85.1](#repairing-broken-image-bindings-on-0851) |
-| B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
+| B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 345,850 / 129,980 | [Text repair on 0.85.1](#repairing-an-overflowing-text-frame-on-0851) |
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 263,170 / n/a | [0.85.1 recovery trials](#diagram-svg-and-recovery-trials-on-0851) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
 | B19 Recover an interrupted export | 5/5 | 5/5 | n/a | 530,157 / n/a | [Command discovery during export recovery](#command-discovery-during-export-recovery) |
@@ -71,6 +71,38 @@ retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
 
+## Repairing an overflowing text frame on 0.85.1
+
+All ten agents widened the text frame from 12 to 24 pixels and retained both
+letters, the original font and the unrelated green rectangle. Every reviewed
+preview matched the final delivery pixel for pixel, and each recorded
+preflight hash matched its PNG. All five Inkbolt agents also retained the
+original revision and the committed one-operation repair.
+[Text repair task](../tools/benchmark_prompts/B16.md)
+
+| Median per attempt | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Input plus output tokens | 345,850 | 129,980 |
+| Shell commands | 11 | 6 |
+| Shell output, UTF-8 bytes | 76,954 | 6,294 |
+| Seconds to first verified preview | 76.7 | 64.4 |
+| Solve time, seconds | 104.3 | 86.0 |
+
+Each Inkbolt agent's largest shell reply came from a command containing a
+schema lookup. Together those commands returned 287,110 of the
+390,135 shell-output bytes across the five attempts.
+
+Each saved Inkbolt document was reopened on Windows and Linux. Adding a
+third letter made the frame overflow again. Both hosts identified the text
+item, accepted a 36-pixel width and rendered the three expected glyphs
+without moving the rectangle. The second edit used a copy of each document.
+
+The combined replay covers 165 judged attempts on seventeen tasks. The
+remaining three are conflict recovery, interrupted publication and linked
+video graphics. B16 capture and replay audit SHA-256
+`a90e37f53d8a508c68f297d50affc6f2cba04d85b62dd5a03eb785c574da65b9`.
+Combined audit SHA-256 `2b4a8c40e0fe1624229d27f9114f743236683cf1142c75fc9f458d42ac65217a`.
+
 ## Repairing broken image bindings on 0.85.1
 
 All five Inkbolt agents and all five baseline agents located one corrupt
@@ -94,7 +126,7 @@ directories. Changing one byte of the second repaired image made the check
 identify precisely `/assets/asset-1` as corrupt. Restoring the byte cleared
 the error and the historical directory still reported both original issues.
 
-The combined replay covers 155 judged attempts on sixteen tasks using one
+That combined replay covered 155 judged attempts on sixteen tasks using one
 Inkbolt executable. B15 capture and replay audit SHA-256
 `6adf931f9e4de615dfe0140823ba40f5c9496958c7f4b79fb81298bd194f4d2c`.
 Combined audit SHA-256 `045d23161176c746348c2bc95fd738b69da39ea247561b0eb5b3532fdd1c83e2`.
