@@ -160,7 +160,7 @@ pub fn import(
         ));
     }
     let bytes = crate::assets::read_bounded(source_path, vector_native::MAX_SOURCE_BYTES as u64)?;
-    let pdf = Container::read(&bytes, control)?;
+    let pdf = Container::read_for_page_import(&bytes, control)?;
     let catalog = pdf.catalog()?;
     allowed(
         catalog,
@@ -192,6 +192,9 @@ pub fn import(
     let mut result = read_page(&pdf, lineage, id, page_index, profile, control)
         .map_err(|e| located(e, page_index, *page_id, None))?;
     result["source"] = json!({"sha256":crate::assets::sha256(&bytes),"bytes":bytes.len(),"page_index":page_index,"pages":tree.pages.len(),"modified":false});
+    if let Some(generation) = pdf.nonstandard_free_head_generation {
+        result["source"]["free_head_generation"] = json!(generation);
+    }
     control.check()?;
     Ok(result)
 }

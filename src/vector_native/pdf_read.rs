@@ -331,9 +331,20 @@ pub struct Container<'a> {
     bytes: &'a [u8],
     objects: BTreeMap<Id, Object>,
     root: Id,
+    pub(crate) nonstandard_free_head_generation: Option<usize>,
 }
 impl<'a> Container<'a> {
     pub fn read(bytes: &'a [u8], control: &Control) -> Result<Self, Error> {
+        Self::parse(bytes, control, false)
+    }
+    pub(crate) fn read_for_page_import(bytes: &'a [u8], control: &Control) -> Result<Self, Error> {
+        Self::parse(bytes, control, true)
+    }
+    fn parse(
+        bytes: &'a [u8],
+        control: &Control,
+        allow_free_head_65536: bool,
+    ) -> Result<Self, Error> {
         control.check()?;
         if !bytes.starts_with(b"%PDF-") {
             return Err(unsupported("Native vector source requires a PDF container"));
@@ -365,6 +376,7 @@ impl<'a> Container<'a> {
         }
         let mut offsets = BTreeMap::new();
         let mut ids = BTreeSet::new();
+        let mut nonstandard_free_head_generation = None;
         loop {
             p.skip();
             if p.data.get(p.at..p.at + 7) == Some(b"trailer") {
@@ -380,11 +392,22 @@ impl<'a> Container<'a> {
                 let at = p.unsigned()?;
                 let generation = p.unsigned()?;
                 let flag = p.word()?;
-                let generation =
-                    u16::try_from(generation).map_err(|_| invalid("Invalid PDF generation"))?;
                 if !ids.insert(id) {
                     return Err(invalid("Duplicate cross-reference entry"));
                 }
+                // Some page writers put 65536 on the unused free-list head.
+                // It cannot be resolved as an object or supply an in-use offset.
+                if allow_free_head_65536
+                    && id == 0
+                    && at == 0
+                    && flag == b"f"
+                    && generation == 65536
+                {
+                    nonstandard_free_head_generation = Some(generation);
+                    continue;
+                }
+                let generation =
+                    u16::try_from(generation).map_err(|_| invalid("Invalid PDF generation"))?;
                 match flag {
                     b"n" => {
                         if id == 0
@@ -470,6 +493,7 @@ impl<'a> Container<'a> {
             bytes,
             objects,
             root,
+            nonstandard_free_head_generation,
         };
         for object in doc.objects.values() {
             if let Some((start, end)) = object.stream {

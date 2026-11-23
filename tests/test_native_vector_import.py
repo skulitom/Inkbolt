@@ -43,6 +43,10 @@ class NativeVectorImport(unittest.TestCase):
             self.assertEqual(len(result['losses']), 4)
         return result
 
+    def test_native_container_requires_a_valid_generation_on_free_entries(self):
+        data = fixture.source().replace(b'0000000000 65535 f', b'0000000000 65536 f')
+        self.assertIn('generation', self.read(data, 1)['message'])
+
     def pixels(self, document, visible=True, opacity=1):
         rows = self.exports(document)['artifacts']
         self.assertEqual([r['name'] for r in rows], ['first','detail'])

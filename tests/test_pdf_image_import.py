@@ -125,6 +125,33 @@ class PdfImageImport(unittest.TestCase):
         rgba = bytes([255,255,255,0, 254,254,254,128, 0,0,0,255])
         self.assertEqual(result['document']['assets'][key]['sha256'],identity(3,1,rgba))
 
+    def test_ascii_hex_images_and_exact_length_termination(self):
+        space = b'[/Indexed /DeviceGray 2 <0a809f>]'
+        for payload, end in [(b' 0\n0\r\n0\t1\x0c0\x002 > ', 'marker'), (b'000102', 'stream_length')]:
+            result = self.read(document(image(3,1,payload,space=space,extra=b'/Filter [/ASCIIHexDecode] /DecodeParms [null] /SMask 6 0 R'),
+                                        mask=image(3,1,b'ff800>',space='DeviceGray',extra=b'/Filter /ASCIIHexDecode')))
+            key, = result['document']['assets']
+            src = result['image_sources'][key]
+            self.assertEqual((src['filter'],src['ascii_hex_end']),('ASCIIHexDecode',end))
+            self.assertEqual(src['soft_mask']['ascii_hex_end'],'marker')
+            self.assertEqual(result['document']['assets'][key]['sha256'],
+                             identity(3,1,bytes([10,10,10,255,128,128,128,128,159,159,159,0])))
+        for payload in [b'00010', b'00010Z', b'0001020>', b'000102>FF', b'00>', b'00 01 02>>']:
+            error = self.read(document(image(3,1,payload,space=space,extra=b'/Filter /ASCIIHexDecode')),1)
+            self.assertEqual(error['details']['object'],5)
+
+    def test_nonstandard_generation_only_applies_to_unused_free_list_head(self):
+        data = document(image(1,1,b'123456>',extra=b'/Filter /ASCIIHexDecode'))
+        free = b'0000000000 65535 f'
+        self.assertNotIn('free_head_generation', self.read(data)['source'])
+        row = self.read(data.replace(free,b'0000000000 65536 f'))
+        self.assertEqual(row['source']['free_head_generation'],65536)
+        self.assertEqual(next(iter(row['document']['assets'].values()))['sha256'],
+                         identity(1,1,bytes.fromhex('123456ff')))
+        for replacement in [b'0000000000 65536 n',b'0000000001 65536 f',b'0000000000 65537 f']:
+            self.assertIn('generation', self.read(data.replace(free,replacement),1)['message'])
+        self.assertIn('generation', self.read(data.replace(b' 00000 n ',b' 65536 n ',1),1)['message'])
+
     def test_device_color_key_checks_all_encoded_channels_before_decode(self):
         bitmap = image(3,1,bytes([25,51,75, 25,52,75, 24,51,75]),
                        extra=b'/Mask [25 30 49 51 70 80] /Decode [1 0 0 1 1 0]')

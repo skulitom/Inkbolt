@@ -109,7 +109,56 @@ fn color_key(
 #[derive(Clone, Copy)]
 enum Encoding {
     Samples { predictor: usize },
+    AsciiHex,
     Jpeg { transform: bool },
+}
+
+fn hex_samples(
+    bytes: &[u8],
+    expected: usize,
+    control: &Control,
+) -> Result<(Vec<u8>, &'static str), Error> {
+    let mut out = Vec::with_capacity(expected);
+    let mut high = None;
+    let mut ended = false;
+    for chunk in bytes.chunks(16384) {
+        control.check()?;
+        for &byte in chunk {
+            if matches!(byte, 0 | 9 | 10 | 12 | 13 | 32) {
+                continue;
+            }
+            if ended {
+                return Err(invalid("Unexpected data after ASCIIHex image end marker"));
+            }
+            if byte == b'>' {
+                ended = true;
+                if let Some(v) = high.take() {
+                    out.push(v << 4);
+                }
+                continue;
+            }
+            if out.len() == expected {
+                return Err(invalid("ASCIIHex image exceeds its sample count"));
+            }
+            let digit = match byte {
+                b'0'..=b'9' => byte - b'0',
+                b'a'..=b'f' => byte - b'a' + 10,
+                b'A'..=b'F' => byte - b'A' + 10,
+                _ => return Err(invalid("Invalid digit in ASCIIHex image")),
+            };
+            if let Some(v) = high.take() {
+                out.push(v << 4 | digit);
+            } else {
+                high = Some(digit);
+            }
+        }
+    }
+    // Accept a writer's length-delimited image only at a complete byte and
+    // exactly the known row extent. Odd nibble padding requires the marker.
+    if high.is_some() || out.len() != expected {
+        return Err(invalid("Incomplete ASCIIHex image samples"));
+    }
+    Ok((out, if ended { "marker" } else { "stream_length" }))
 }
 
 fn encoding(
@@ -131,6 +180,12 @@ fn encoding(
         None | Some(Value::Null) => None,
         Some(value) => Some(value.dict()?),
     };
+    if filter.is_some_and(|v| v.named(b"ASCIIHexDecode")) {
+        if let Some(params) = params {
+            allowed(params, &[])?;
+        }
+        return Ok(Encoding::AsciiHex);
+    }
     let integer = |key: &[u8], default| {
         params
             .and_then(|p| p.get(key))
@@ -299,12 +354,12 @@ impl Plane {
         control: &Control,
         rgba: &mut [u8],
         alpha: bool,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<&'static str>, Error> {
         let samples = self.size[0] as usize * self.components;
         let row = (samples * self.bits).div_ceil(8);
         let predictor = match self.encoding {
             Encoding::Samples { predictor } => predictor,
-            Encoding::Jpeg { .. } => 1,
+            Encoding::AsciiHex | Encoding::Jpeg { .. } => 1,
         };
         let png = predictor >= 10;
         let stride = row + usize::from(png);
@@ -312,8 +367,14 @@ impl Plane {
         if expected > *remaining {
             return Err(limit("PDF decoded stream budget exceeded"));
         }
+        let mut hex_end = None;
         let mut data = match self.encoding {
             Encoding::Samples { .. } => pdf.inflated_stream(&Value::Ref(id), expected, control)?,
+            Encoding::AsciiHex => {
+                let (samples, end) = hex_samples(pdf.stream_bytes(id)?, expected, control)?;
+                hex_end = Some(end);
+                samples
+            }
             Encoding::Jpeg { transform } => crate::sample_import::pdf_samples(
                 pdf.stream_bytes(id)?,
                 self.size,
@@ -379,7 +440,7 @@ impl Plane {
             }
             previous = row;
         }
-        Ok(())
+        Ok(hex_end)
     }
 }
 
@@ -442,8 +503,12 @@ impl Images {
                 return Err(limit("PDF document image pixel budget exceeded"));
             }
             let mut rgba = vec![255; count as usize * 4];
-            plane.unpack(pdf, id, remaining, control, &mut rgba, false)?;
+            let hex_end = plane.unpack(pdf, id, remaining, control, &mut rgba, false)?;
             let mut source = json!({"object":id.0,"generation":id.1,"components":plane.components,"bits_per_component":plane.bits});
+            if let Some(end) = hex_end {
+                source["filter"] = json!("ASCIIHexDecode");
+                source["ascii_hex_end"] = json!(end);
+            }
             if let Some(palette) = &plane.palette {
                 source["palette_entries"] = json!(palette.entries);
             }
@@ -475,8 +540,12 @@ impl Images {
                     }
                     mask.unpack(pdf, mask_id, remaining, control, &mut rgba, true)
                 };
-                decode_mask().map_err(|e| located(e, page, mask_id, None))?;
+                let mask_hex_end = decode_mask().map_err(|e| located(e, page, mask_id, None))?;
                 source["soft_mask"] = json!({"object":mask_id.0,"generation":mask_id.1});
+                if let Some(end) = mask_hex_end {
+                    source["soft_mask"]["filter"] = json!("ASCIIHexDecode");
+                    source["soft_mask"]["ascii_hex_end"] = json!(end);
+                }
                 if d.contains_key(b"Mask".as_slice()) {
                     source["mask_overridden_by_soft_mask"] = json!(true);
                 }

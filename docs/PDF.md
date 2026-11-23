@@ -86,6 +86,24 @@ its rendering of an explicit `Decode [0 2]` selected a different palette
 entry at 16 pixels. It matched the RGB controls on all opaque re-exports.
 On the soft-masked re-exports, six pixels differed by one 8-bit level.
 
+Palette, grayscale and RGB pages saved by Pillow 12.0.0 and 12.3.0 can be
+opened directly within the image contracts above. For an
+`ASCIIHexDecode` image, the importer accepts the standard `>` end marker
+or a stream ending exactly after the last complete sample byte. An odd
+final digit needs the marker. The image receipt records which ending it
+read. Some writers put generation 65536 on the empty cross-reference
+free-list head. Page import reports this in `source.free_head_generation`
+when it encounters that entry. Every live object still needs a valid
+generation and matching file offset.
+
+Each Pillow version wrote four original pages. The opaque palette pages
+re-exported pixel for pixel in MuPDF and Poppler. RGB palette samples also
+matched exactly under transparency. The JPEG-encoded alpha and grayscale
+pages differed by at most one 8-bit level. On full-color JPEGs the maximum
+page difference was two levels in MuPDF and one in Poppler.
+Linux reopened the same eight source files and produced the same image
+identities and re-exported PDFs byte for byte as Windows.
+
 Source builds after v0.85.1 also reopen JPEG-compressed image objects
 (`DCTDecode`). The importer accepts 8-bit
 baseline and progressive Huffman-coded grayscale and RGB frames. The JPEG
