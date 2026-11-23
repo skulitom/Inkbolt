@@ -48,10 +48,14 @@ def strict_json(raw):
                       parse_constant=lambda value: (_ for _ in ()).throw(ValueError('Nonfinite response')))
 
 
-def read_json(path):
+def read_metadata_bytes(path):
     require(path.is_file() and not path.is_symlink() and path.stat().st_size <= MAX_METADATA,
             'Missing, linked or oversized driver metadata')
-    return strict_json(path.read_bytes())
+    return path.read_bytes()
+
+
+def read_json(path):
+    return strict_json(read_metadata_bytes(path))
 
 
 def canonical(value):

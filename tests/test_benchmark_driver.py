@@ -44,7 +44,7 @@ class BenchmarkDriverTests(unittest.TestCase):
             replay=root/'replay';replay.mkdir()
             binary=root/'compiled';binary.write_bytes(b'original bytes')
             digest=sha(binary.read_bytes())
-            args=SimpleNamespace(import_engine=None,import_root=None)
+            args=SimpleNamespace(import_engine=None,import_root=None,engine_from=None)
             with patch('benchmark_external_cli.release_build',return_value=(binary,dict(executable_sha256=digest))):
                 launched,build=retained_engine(args,live)
             self.assertEqual(launched,binary)
@@ -61,6 +61,38 @@ class BenchmarkDriverTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):retained_engine(args,replay)
             args.import_engine=binary
             with self.assertRaisesRegex(ValueError,'differs'):retained_engine(args,replay)
+
+    def test_fresh_trials_pin_an_earlier_build_without_replaying_its_transcripts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            previous = root/'previous'
+            previous.mkdir()
+            name = 'evaluated-inkbolt.exe' if os.name == 'nt' else 'evaluated-inkbolt'
+            binary = previous/name
+            binary.write_bytes(b'original release executable')
+            record = dict(arm='model', git_commit='previous-judge', build=dict(
+                original_commit='engine-commit', executable_sha256=sha(binary.read_bytes()), retained_file=name))
+            manifest = previous/'inputs.json'
+            args = SimpleNamespace(engine_from=previous, import_root=None, import_engine=None)
+            bad = root/'refused'
+            bad.mkdir()
+            for changes in [dict(retained_file='../outside'), dict(executable_sha256='0'*64)]:
+                manifest.write_text(json.dumps(dict(record, build=dict(record['build'], **changes))))
+                with self.assertRaises(ValueError):
+                    retained_engine(args, bad)
+                self.assertEqual(list(bad.iterdir()), [])
+            manifest.write_text(json.dumps(record))
+            fresh = root/'fresh'
+            fresh.mkdir()
+            with patch('benchmark_external_cli.release_build', side_effect=AssertionError('unexpected build')):
+                launched, evidence = retained_engine(args, fresh)
+            self.assertEqual(launched, fresh/name)
+            self.assertEqual(evidence['original_commit'], 'engine-commit')
+            self.assertEqual(evidence['source'], 'retained_engine')
+            self.assertEqual((fresh/'engine-inputs.json').read_bytes(), manifest.read_bytes())
+            self.assertEqual(evidence['source_inputs_sha256'], sha(manifest.read_bytes()))
+            binary.write_bytes(b'later build')
+            self.assertEqual(sha(launched.read_bytes()), record['build']['executable_sha256'])
 
     def test_diagram_accepts_relocated_custom_font_store_but_requires_intact_pinned_copies(self):
         with tempfile.TemporaryDirectory() as directory:

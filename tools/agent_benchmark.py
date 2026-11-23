@@ -85,6 +85,7 @@ def main(argv=None):
     parser.add_argument('--driver-config',type=Path,help='External client/model settings; credentials stay in the environment')
     parser.add_argument('--import-root',type=Path,help='Previously captured external trial root')
     parser.add_argument('--import-engine',type=Path,help='Trusted original Inkbolt binary for rejudging a captured model run')
+    parser.add_argument('--engine-from',type=Path,help='Reuse the checked executable from a trusted earlier model-run directory for fresh trials')
     parser.add_argument('--prepare-only',action='store_true',help='Write external-client requests and fixtures without launching a client')
     parser.add_argument('--baseline-tools',type=Path,help='External pinned resvg and Pillow Python executable paths')
     parser.add_argument('--task',action='append',choices=list(TASKS),dest='tasks')
@@ -96,6 +97,8 @@ def main(argv=None):
     args=parser.parse_args(argv)
     if args.import_engine and (args.arm!='model' or not args.import_root or args.prepare_only):
         parser.error('--import-engine requires --arm model and --import-root')
+    if args.engine_from and (args.arm != 'model' or args.import_root or args.import_engine):
+        parser.error('--engine-from selects a build for fresh model trials or preparation only')
     if sys.flags.optimize: parser.error('Independent oracles require assertions; do not use -O')
     if not args.conditions.strip() or len(args.conditions)>4096: parser.error('Provide bounded nonempty conditions')
     if args.tasks and len(set(args.tasks))!=len(args.tasks): parser.error('Task selections must be distinct')

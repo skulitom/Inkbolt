@@ -7,6 +7,7 @@ import traceback
 
 from benchmark_driver import (config,driver_identity,read_json,run_external_task,model_run_complete,MIGRATED_TASKS)
 from benchmark_baseline import tool_identity,file_hash
+from benchmark_runtime import read_metadata_bytes, strict_json
 from benchmark_tasks import TASKS,SUITE,CHECKS,check_class
 from benchmark_consumer import tool_identities
 from measure_workloads import ROOT,candidate_identity,release_build,save_json,sha
@@ -14,21 +15,37 @@ import measurement_host
 
 
 def retained_engine(args, output):
-    if args.import_engine:
-        executable=args.import_engine.resolve(strict=True)
-        original=read_json(args.import_root/'inputs.json')
+    filename = 'evaluated-inkbolt.exe' if os.name == 'nt' else 'evaluated-inkbolt'
+    if args.engine_from or args.import_engine:
+        manifest = (args.engine_from or args.import_root) / 'inputs.json'
+        manifest_bytes = read_metadata_bytes(manifest)
+        original = strict_json(manifest_bytes)
+        if args.engine_from:
+            executable = args.engine_from / filename
+            if (original.get('build') or {}).get('retained_file') != filename or executable.is_symlink() or not executable.is_file():
+                raise ValueError('Expected the retained native executable alongside the model-run manifest')
+        else:
+            executable = args.import_engine
+        executable = executable.resolve(strict=True)
         if original['arm']!='model' or file_hash(executable)!=original['build']['executable_sha256']:
             raise ValueError('Supplied engine differs from the original model run')
-        build=dict(source='imported_engine', original_commit=original['build'].get('original_commit',original['git_commit']),
+        build=dict(source='retained_engine' if args.engine_from else 'imported_engine',
+                   original_commit=original['build'].get('original_commit',original['git_commit']),
                    executable_sha256=original['build']['executable_sha256'])
+        if args.engine_from:
+            build['source_inputs_sha256'] = sha(manifest_bytes)
     else:
         executable,build=release_build(output)
-    retained=output/('evaluated-inkbolt.exe' if os.name=='nt' else 'evaluated-inkbolt')
+    retained=output/filename
     with executable.open('rb') as source, retained.open('xb') as destination:
         shutil.copyfileobj(source,destination)
     retained.chmod(retained.stat().st_mode | 0o100)
     if file_hash(retained)!=build['executable_sha256']:
         raise ValueError('Retained engine differs from the selected binary')
+    if args.engine_from:
+        with (output/'engine-inputs.json').open('xb') as source_inputs:
+            source_inputs.write(manifest_bytes)
+        executable = retained
     return executable,dict(build,retained_file=retained.name)
 
 
@@ -72,6 +89,7 @@ def run_suite(args, output, aggregate):
                driver==driver_identity(configuration) and (tools is None or tools==tool_identity(baseline_config)) and
                (executable is None or
                 file_hash(executable)==build['executable_sha256']==file_hash(output/build['retained_file'])) and
+               (not args.engine_from or file_hash(output/'engine-inputs.json') == build['source_inputs_sha256']) and
                (not consumer_tools or consumer_identity==tool_identities(consumer_tools)))
     success=all(row['status'] in (('prepared','not_applicable') if args.prepare_only else ('passed','not_applicable')) for row in rows)
     report=dict(schema_version=2,suite=SUITE,arm=args.arm,transport='external-client',benchmark_variant=variant,

@@ -61,6 +61,15 @@ path to your trusted retained executable. The harness checks its digest against
 the original run before judging and checks each imported trial's contract.
 The new report records the original engine commit and the judge commit.
 
+To run a new task against the same binary after development moves on, pass
+`--arm model --engine-from PATH_TO_EARLIER_MODEL_RUN` with the usual driver,
+task and new output directory. Use a trusted run from the same platform.
+The harness reads its `inputs.json`, checks the retained native executable
+against its recorded SHA-256 and launches a fresh copy in the new run. It
+records the original engine commit and retains the source manifest as
+`engine-inputs.json`. Each trial gets a new workspace, prompt contract,
+transcript and verdict. The earlier traces stay in their original directory.
+
 For B01, B06 and B07 native snapshots, the agent may choose any font store inside the captured
 workspace. The judge finds a complete content-addressed font/license pair there,
 checks both lengths and hashes against the original inputs, and supplies that

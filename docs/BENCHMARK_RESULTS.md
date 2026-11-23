@@ -31,7 +31,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
 | B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 367,710 / 72,324 | [Movable source layer](#mixed-composition-with-a-movable-source-layer) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
-| B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 313,210 / 41,717 | [7a07f07](#b10b13-at-7a07f07-five-matched-pairs-with-retained-capture-corrections) |
+| B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 134,535 / 41,369 | [0.85.1 source build](#transparent-screen-artwork-on-0851) |
 | B14 Deliver a print page | 5/5 | 5/5 | 4/5 | 384,883 / 79,691 | [Print delivery and preview timing](#observing-print-previews-in-delivery-folders) |
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
@@ -67,6 +67,37 @@ The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Transparent screen artwork on 0.85.1
+
+Five agents using Inkbolt and five using the no-engine baseline each delivered
+the requested 1920 × 1080 transparent PNG, editable source and creation
+receipt. Replaying the ten captured workspaces reproduced every verdict. An
+independent pixel check matched every delivered pixel and confirmed the sRGB
+declaration on all ten PNGs.
+
+| Median per attempt | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Shell commands | 7 | 2 |
+| Shell output, UTF-8 bytes | 12,200 | 180 |
+| Input plus output tokens | 134,535 | 41,369 |
+| Seconds to first verified preview on disk | 47.4 | 30.2 |
+| Solve time, seconds | 85.2 | 35.4 |
+
+All five Inkbolt agents used the CLI and looked up both `screen.quickstart`
+and `vector.quickstart`. Together those two replies accounted for 4,741 bytes
+per agent. The baseline matched artifact success, and the Inkbolt arm used
+3.25 times as many tokens at the median. Measure how often agents need
+multiple guides on the other tasks before expanding the default catalog.
+
+Both arms used Codex CLI 0.160.0, `gpt-6.1-sol` and medium reasoning on one
+Windows host. The five engine attempts preceded the five baseline attempts.
+The model and settings came from an external evaluation configuration. The
+locally optimized binary from commit `a546eef` had SHA-256
+`277681785bf7f47bc155bad7ef9c6bd3ffd2139f987cc801923a627bfd79db39`.
+The baseline used resvg 0.47.0 and Pillow 12.3.0. The capture and replay audit
+has SHA-256 `52cc076d4e09a2a147060bae2ce080c533dfadf8993c665e828e32663ee80cff`.
+The remaining nineteen tasks still need a comparison on the same release.
 
 ## Shell and MCP activity across twenty tasks
 
