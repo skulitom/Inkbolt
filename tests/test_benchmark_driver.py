@@ -61,6 +61,14 @@ class BenchmarkDriverTests(unittest.TestCase):
             self.assertEqual(pins['index_sha256'], sha(index.read_bytes()))
             with self.assertRaisesRegex(ValueError, 'outside'):
                 select(root/'first/01-B01/workspace/replay')
+            sibling = root/'sibling'
+            sibling.mkdir()
+            with self.assertRaisesRegex(ValueError, 'outside'):
+                select(sibling/'..'/'first'/'replay')
+            if (root/'FIRST').is_dir():
+                with self.assertRaisesRegex(ValueError, 'outside'):
+                    select(root/'FIRST'/'replay')
+            self.assertEqual(select(root/'first'/'..'/'sibling'/'replay')[0], sources)
             for update in [{'build':{'executable_sha256':'e'*64}}, {'driver':{}}, {'arm':'baseline'},
                            {'repetitions':4}, {'benchmark_variant':'photo-50mp-v1'}, {'selected_tasks':['B02']},
                            {'conditions':' '}, {'candidate_sha256':'0'*64}, {'imported_cohorts':{}}]:

@@ -51,6 +51,8 @@ def retained_engine(args, output, cohort=None):
 
 def cohort_sources(args, output, client, driver, baseline, consumer):
     """Validate the archive selection before opening the first judge workspace."""
+    output = output.resolve()
+    output_parents = [path for path in (output, *output.parents) if path.is_dir()]
     index_path = args.import_cohorts
     index_bytes = read_metadata_bytes(index_path)
     index = strict_json(index_bytes)
@@ -65,7 +67,7 @@ def cohort_sources(args, output, client, driver, baseline, consumer):
         if not isinstance(index[task], str) or not index[task].strip():
             raise ValueError(f'{task} needs an archived run directory')
         directory = (index_path.parent / index[task]).resolve(strict=True)
-        if output.is_relative_to(directory):
+        if any(parent.samefile(directory) for parent in output_parents):
             raise ValueError('Replay output must be outside each source archive')
         raw = read_metadata_bytes(directory / 'inputs.json')
         prior = strict_json(raw)
