@@ -16,7 +16,7 @@ B07 also records the client starts that ended before a trial could be judged.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Nine tasks now share one 0.85.1 executable. The other eleven rows
+library. Eleven tasks now share one 0.85.1 executable. The other nine rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -27,9 +27,9 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B03 Edit a 5,000-object layout | 5/5 | 5/5 | 5/5 | 266,993 / 70,417 | [5,000-object layouts on 0.85.1](#large-layouts-and-shared-palettes-on-0851) |
 | B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 185,397 / 59,300 | [0.85.1 SVG receipt recheck](#diagram-svg-and-recovery-trials-on-0851) |
 | B05 Recolor a shared palette | 5/5 | 5/5 | 5/5 | 204,832 / 41,573 | [Shared palettes on 0.85.1](#large-layouts-and-shared-palettes-on-0851) |
-| B06 Repair linked text overflow | 5/5 | 5/5 | 5/5 | 337,131 / 76,580 | [a7e034e](#b06b07-at-a7e034e-captured-trials-rejudged) |
+| B06 Repair linked text overflow | 5/5 | 5/5 | 5/5 | 293,389 / 76,247 | [Linked text on 0.85.1](#linked-text-and-foreground-masks-on-0851) |
 | B07 Multilingual typography | 5/5 | 5/5 | 5/5 | 298,013 / 214,257 | [Typography on 0.85.1](#multilingual-typography-on-0851) |
-| B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 327,734 / 43,824 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
+| B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 287,596 / 44,219 | [Foreground masks on 0.85.1](#linked-text-and-foreground-masks-on-0851) |
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 354,590 / 43,008 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
 | B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 367,710 / 72,324 | [Movable source layer](#mixed-composition-with-a-movable-source-layer) |
@@ -70,6 +70,58 @@ The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Linked text and foreground masks on 0.85.1
+
+Five Inkbolt agents and five baseline agents repaired the linked story. All
+ten identified the first overflowing character at offset 8 and preserved the
+twelve characters, their reading order, the font and the unrelated artwork.
+An independent check read the five saved session databases, checked their
+state hashes and matched both revisions to the source and delivery. All ten
+previews and five fresh baseline SVG renders matched the expected glyphs at
+every pixel.
+
+On the mask task, all ten retained the full 16 × 16 layer. A separate
+point-in-polygon check found the same 56 selected pixels in every delivered
+selection and mask. Each preview hid the other 200 pixels. All five Inkbolt
+sessions also reopened the original unmasked layer.
+
+| Median per attempt | Text, Inkbolt | Text, no engine | Mask, Inkbolt | Mask, no engine |
+| --- | ---: | ---: | ---: | ---: |
+| Input plus output tokens | 293,389 | 76,247 | 287,596 | 44,219 |
+| Shell commands | 10 | 4 | 9 | 3 |
+| Shell output, UTF-8 bytes | 84,291 | 6,460 | 77,851 | 2,543 |
+| Seconds to first verified preview | 65.4 | 31.9 | 61.7 | 33.7 |
+| Solve time, seconds | 82.1 | 49.8 | 91.0 | 38.1 |
+
+The trials used the same optimized 0.85.1 Windows binary, external model
+settings and baseline programs as the earlier icon-sheet trials. Within
+each task, the five Inkbolt attempts ran first. Host and network load varied
+and local verification overlapped some solves. Both tasks cost more tokens
+with Inkbolt in these batches.
+
+In all ten Inkbolt transcripts, the largest shell reply came from a command
+that included a schema lookup. Those commands accounted for 347,321 of
+446,974 shell-output bytes on text and 326,179 of 387,641 bytes on masks.
+Some commands also performed other work. On the same binary, a
+`schema.lookup` with `name="operation"` and `select="story/Slot"` returned
+the six slot fields in 534 bytes. Selecting
+`selection_shape/field:boundary/polygon` returned the polygon schema in
+429 bytes, and `mask_from_selection` returned its operation schema in 411
+bytes. These are measured CLI replies. Their effect on model usage has
+yet to be tested. [Schema selectors](AGENT_DISCOVERY.md#focused-schemas)
+
+| Task | Capture and replay audit SHA-256 | Independent artifact check SHA-256 |
+| --- | --- | --- |
+| Linked text | `540f7a254ef1c8cb1bd4de9dcab05ae75b6013f541f2cce1e0e7e2a7609f7471` | `9c73749edd8d771e2b5c74f1828dcd0777b3afb13278efef6bb04426edbe79a6` |
+| Foreground mask | `a1895405f0bc22840aea45c80f92fcab45e80eeb3e570847e7c8e1e7702c0f9b` | `916f70a8e4203138a3a3de8a7828f30c1876a87bc25072f0b7b933ae261339c5` |
+
+A combined replay covered 105 genuine attempts on eleven tasks. All 55
+Inkbolt workflows passed. The baseline passed 47 of its 50 applicable
+attempts, with all three failures on print delivery. Lost-reply recovery
+requires an Inkbolt receipt and has no baseline arm. Nine standard tasks
+still use earlier binaries. The combined audit SHA-256 is
+`ac4461425209e6be3ef36a572ada6b91c0b2b7436c8abf5c2ef8bde67711b038`.
 
 ## Large layouts and shared palettes on 0.85.1
 
