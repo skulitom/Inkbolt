@@ -5,6 +5,22 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## Finding edits for a foreground mask
+
+All five standard B08 agents requested both the operation outline and the
+session publication schema. The five operation outlines returned 49,250
+bytes of compact CLI JSON. The publication schemas returned 55,440 bytes.
+Both measurements exclude newlines and count complete replies preserved
+in the transcripts. [Original mask trials](BENCHMARK_RESULTS.md#linked-text-and-foreground-masks-on-0851)
+
+Test a compact way to search edit names and see their required and optional
+inputs. Compare five fresh attempts on the original engine with five on the
+candidate, alternating their order within each pair. Keep the B08 prompt,
+client settings, fixtures and judges fixed. Count actual lookups, tokens,
+shell and MCP response bytes, time to the first accepted preview and every
+failed attempt. Retain the new interface if agents find it, all five candidate
+workflows pass and both median tokens and median response bytes fall.
+
 ## Reducing discovery cost for layout variants
 
 The twenty-task comparison found its largest matched token ratio on B12.
