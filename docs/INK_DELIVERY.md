@@ -36,8 +36,10 @@ the existing RGB appearance contract. Combine native ink mode with the ordinary
 When using this mode, select a single page through `pdf_options.artboards` rather
 than publication's shorthand `artboard_id`.
 
-- Spots use PDF Separation color spaces. Their names are `Inkbolt.<base_id>`;
-  duplicate labels stay distinct and reserved output names cannot be introduced.
+- Spots use PDF Separation color spaces. Authored spots default to
+  `Inkbolt.<base_id>`. A spot reopened from a PDF retains its plate name in
+  `pdf_colorant`, including spaces and escaped characters. Document validation
+  rejects duplicate plate identities and reserved process or registration names.
   The same ink resource is reused across pages. Nested tint amounts multiply
   without changing stored values. Alternate sRGB/encoded gray, CMYK or D50 Lab
   values remain explicit; no display preview is required.

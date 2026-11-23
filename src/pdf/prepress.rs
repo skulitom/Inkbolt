@@ -106,7 +106,18 @@ pub(super) fn export(
             ));
         }
         let alternates = prepared.alternates()?;
-        let space = super::combined::channel_space(&mut writer, icc, &alternates)?;
+        let colorants = alternates
+            .iter()
+            .map(|(id, v)| {
+                (
+                    page.swatches
+                        .get(id)
+                        .map_or_else(|| format!("Inkbolt.{id}"), |swatch| swatch.pdf_name(id)),
+                    *v,
+                )
+            })
+            .collect::<Vec<_>>();
+        let space = super::combined::channel_space(&mut writer, icc, &colorants)?;
         let image=writer.stream(&format!("/Type /XObject /Subtype /Image /Width {} /Height {} /ColorSpace {space} 0 R /BitsPerComponent 8 /Interpolate false /Intent /RelativeColorimetric",prepared.dimensions[0],prepared.dimensions[1]),&prepared.samples)?;
         let bleed = if options.include_bleed {
             selected

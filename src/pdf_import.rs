@@ -3,6 +3,7 @@ mod color;
 mod drawing;
 mod filters;
 mod image;
+mod print;
 mod program;
 
 use crate::{
@@ -301,29 +302,37 @@ fn read_page(
     } else {
         [t - b, r - l]
     };
-    let canvas = crate::vector_canvas::Canvas {
+    let mut canvas = crate::vector_canvas::Canvas {
         origin_px: [0.; 2],
         size_px: size,
         unit: crate::dimensions::Unit::Pt,
         process_space: Default::default(),
     };
     let [width, height] = canvas.dimensions()?;
-    if let Some(v) = page.get(b"Group".as_slice()) {
-        drawing::group(pdf, v)?;
-    }
     let empty = Dict::new();
     let resources = inherit(b"Resources")
         .map(|v| pdf.resolve(v)?.dict())
         .transpose()?
         .unwrap_or(&empty);
     let mut drawing = drawing::Drawing::new(pdf, page_index, size, profile, control);
+    if let Some(v) = page.get(b"Group".as_slice()) {
+        drawing.group(v)?;
+    }
     drawing.page(page.get(b"Contents".as_slice()), resources, matrix)?;
+    let native = drawing.native_page()?;
+    if native {
+        canvas.process_space = crate::vector_canvas::ProcessSpace::Cmyk;
+    }
     let mut document: Document = serde_json::from_value(
         json!({"schema_version":2,"id":id,"kind":"vector","color_space":"srgb","resolution_ppi":72,
         "width":width,"height":height,"vector_canvas":canvas,"resource_profile":profile}),
     )
     .map_err(|e| invalid(&e.to_string()))?;
     document.items = drawing.items;
+    drawing
+        .swatches
+        .retain(|id, _| drawing.painted_swatches.contains(id));
+    document.swatches = drawing.swatches;
     document.assets = drawing.images.assets;
     crate::model::validate_controlled(&document, control)?;
     if serde_json::to_vec(&document)
@@ -369,6 +378,9 @@ fn read_page(
     }
     let mut result = json!({"document":document,"mapping":drawing.mapping,"page":{"boxes":boxes,"user_unit":unit,"rotation":rotate,"source_to_document":matrix},
         "color_policy":"caller_declared_encoded_srgb","losses":losses});
+    if native {
+        result["color_policy"] = json!("native_cmyk_and_spot_no_display_conversion");
+    }
     if !drawing.images.sources.is_empty() {
         result["image_sources"] = json!(drawing.images.sources);
     }

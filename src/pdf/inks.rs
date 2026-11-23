@@ -2,6 +2,19 @@
 use super::*;
 use crate::swatches::{Overprint, Process, Reference};
 
+pub(super) fn pdf_name(value: &str) -> String {
+    use std::fmt::Write;
+    let mut result = String::from("/");
+    for b in value.bytes() {
+        if b.is_ascii_alphanumeric() || b"._-".contains(&b) {
+            result.push(char::from(b));
+        } else {
+            write!(result, "#{b:02X}").expect("writing to a string");
+        }
+    }
+    result
+}
+
 pub(super) fn device_space(
     writer: &mut Writer,
     encoding: &crate::profiles::device::Endpoint,
@@ -167,16 +180,14 @@ pub(super) fn paint(
         let resource = if let Some(&resource) = writer.ink_spaces.get(id) {
             resource
         } else {
-            // IDs contain only portable ASCII characters. The owned prefix also
-            // prevents reserved colorant names such as All, None and Cyan.
+            let colorant = pdf_name(&writer.swatches[id].pdf_name(id));
             let function = writer.add(format!(
                 "<< /FunctionType 2 /Domain [0 1] /C0 [{}] /C1 [{}] /N 1 >>",
                 numbers(&white)?,
                 numbers(&components)?
             ))?;
-            let resource = writer.add(format!(
-                "[/Separation /Inkbolt.{id} {space} {function} 0 R]"
-            ))?;
+            let resource =
+                writer.add(format!("[/Separation {colorant} {space} {function} 0 R]"))?;
             writer.ink_spaces.insert(id.clone(), resource);
             resource
         };

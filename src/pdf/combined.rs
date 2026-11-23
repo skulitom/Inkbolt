@@ -15,7 +15,7 @@ pub(super) fn space(
             .inks
             .iter()
             .zip(&inks.alternates)
-            .map(|(ink, values)| (ink.id.clone(), *values))
+            .map(|(ink, values)| (format!("Inkbolt.{}", ink.id), *values))
             .collect::<Vec<_>>(),
     )
 }
@@ -28,20 +28,17 @@ pub(super) fn channel_space(
     let alternate = format!("[/ICCBased {profile} 0 R]");
     let mut names = String::from("/Cyan /Magenta /Yellow /Black");
     let mut colorants = String::new();
+    let mut unique = std::collections::BTreeSet::new();
     for (id, values) in alternates {
+        if !unique.insert(id) {
+            return Err(Error::new(
+                "INVALID_SWATCH",
+                "Distinct spot channels have the same PDF colorant",
+            ));
+        }
         // Retained objects qualify document-local ink IDs with slash-separated
         // placement paths. Escape name-token bytes, preserving decoded identity.
-        let encoded: String = id
-            .bytes()
-            .map(|b| {
-                if b.is_ascii_alphanumeric() || b"._-".contains(&b) {
-                    (b as char).to_string()
-                } else {
-                    format!("#{b:02X}")
-                }
-            })
-            .collect();
-        let name = format!("/Inkbolt.{encoded}");
+        let name = super::inks::pdf_name(id);
         names.push_str(&format!(" {name}"));
         let function = writer.add(format!(
             "<< /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [{}] /N 1 >>",

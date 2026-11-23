@@ -1379,6 +1379,7 @@ fn capability_report() -> Value {
     capabilities["pdf"]["editable_import"] = json!({
         "command":"pdf.import","selection":"one_page_by_zero_based_index",
         "colors":"device_gray_and_rgb_as_encoded_srgb","paint":"editable_line_and_cubic_fills",
+        "print_fills":{"spaces":["DeviceCMYK","Separation_with_DeviceCMYK_alternate"],"tint":"linear_paper_to_full_ink;Type_2_or_proven_linear_Type_4","max_calculator_bytes":limits::vector_native_pdf_read::MAX_TINT_FUNCTION_BYTES,"page":"opaque_normal_native_fills;no_RGB_groups_or_overprint","storage":"editable_named_swatches;source_spot_colorant_preserved","export":"pdf_options.color=native_inks","display_preview":"requires_explicit_color_conversion_or_preview"},
         "indexed_fills":{"base":["DeviceGray","DeviceRGB"],"entries":256,"lookup":["literal_string","hex_string","raw_stream","FlateDecode","ASCII85Decode","ASCII85Decode+FlateDecode"],"storage":"resolved_editable_fill"},
         "content_filters":["raw","FlateDecode","ASCII85Decode","ASCII85Decode+FlateDecode"],
         "presentation":"absent_null_or_empty_page_transition",

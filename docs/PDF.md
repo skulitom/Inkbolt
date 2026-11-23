@@ -148,13 +148,34 @@ comparisons were exact on opaque images and within one 8-bit channel level on
 images with alpha.
 
 Painted text, inline images, stencil masks, interpolated
-images, preblended soft masks, shadings, CMYK, named inks, remapped color
+images, preblended soft masks, shadings, CMYK images, remapped color
 spaces, graphics-state masks, knockout, annotations and unsupported blend modes return an error.
 Content errors identify the selected page and object, with a byte offset for
 drawing operators. Import applies the classic container reader's object and
 page limits, a 16 MiB source and cumulative decoded-stream budget, and the
 selected vector profile's native item and document limits. The same checks
 apply when a form is invoked repeatedly. [PDF graphics specification](https://pdfa.org/resource/iso-32000-2/)
+
+### Editing process and spot fills
+
+Source builds after v0.85.1 can reopen a page made of opaque DeviceCMYK and
+named spot fills. Each distinct process color becomes a swatch with its four
+original components. A spot swatch carries its original PDF plate name in
+`pdf_colorant`, its full-strength CMYK alternate and a separate tint on each
+paint. When replacing a spot declaration with the `swatch` operation, keep
+its `pdf_colorant` to retain the plate name. A swatch edit changes every path
+using that ink. A `fill` edit can
+change the tint of a single path. To deliver the revised print page, use
+`document.export` with `"format":"pdf","pdf_options":{"color":"native_inks"}`.
+
+The import receipt reports `native_cmyk_and_spot_no_display_conversion`.
+Display rendering requires an explicit preview or color conversion. The
+supported Separation functions run linearly from paper to full ink. Inkbolt
+reads type 2 declarations and recognizes type 4 expressions whose four
+outputs it can establish symbolically. A page combining RGB imagery with
+native fills, painted transparency, overprint, conflicting plate definitions
+or a different tint curve receives an error.
+[Independent plate checks](DEVELOPMENT_STATUS.md#reopening-print-colors-for-editing)
 
 ### Opening writer-generated drawing and image pages
 

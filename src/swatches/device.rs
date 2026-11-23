@@ -130,6 +130,7 @@ pub(crate) fn apply(
     color.validate()?;
     let after = Swatch {
         name: before.name.clone(),
+        pdf_colorant: before.pdf_colorant.clone(),
         definition: match before.definition {
             Definition::Process { .. } => Definition::Process { color },
             Definition::Spot { .. } => Definition::Spot { alternate: color },

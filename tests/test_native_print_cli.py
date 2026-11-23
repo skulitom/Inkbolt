@@ -105,6 +105,17 @@ class NativePrintTests(unittest.TestCase):
             _,expected=self.plate_bytes(d,settings)
             pdf=pdf_reader.Pdf(self.export(d,settings));self.assertEqual(page_image(pdf)[1],expected)
 
+    def test_explicit_spot_names_follow_the_plate_bytes_and_cannot_collide(self):
+        doc = self.document(2)
+        before = pdf_reader.Pdf(self.export(doc))
+        doc['swatches']['s0']['pdf_colorant'] = 'Sheet violet'
+        artifact = self.export(doc)
+        self.assertIn(b'/Sheet#20violet', base64.b64decode(artifact['data']))
+        self.assertEqual(page_image(pdf_reader.Pdf(artifact))[1], page_image(before)[1])
+        for bad in ('Inkbolt.s1', 'Cyan', 'None', 'bad\nlabel'):
+            doc['swatches']['s0']['pdf_colorant'] = bad
+            self.assertEqual(self.export(doc, expected=1)['code'], 'INVALID_SWATCH')
+
     def test_declared_spot_alternates_and_calculator_have_independent_color_equations(self):
         d=self.document(4)
         declarations=[dict(space='cmyk',components=[.1,.2,.3,.4]),dict(space='srgb',components=[.2,.4,.7]),dict(space='gray',component=.4),dict(space='lab',components=[55,15,-20])]

@@ -5,7 +5,6 @@ use super::{
 use crate::{
     geometry::{map, multiply},
     model::{Content, FillRule, Geometry, PathCommand, Point},
-    paint::{Paint, Precise},
 };
 
 #[derive(Default)]
@@ -19,7 +18,7 @@ fn space(b: u8) -> bool {
 fn delimiter(b: u8) -> bool {
     space(b) || b"()<>[]{}/%".contains(&b)
 }
-fn scalar(token: &[u8]) -> Result<f64, Error> {
+pub(super) fn scalar(token: &[u8]) -> Result<f64, Error> {
     let digits = token
         .strip_prefix(b"+")
         .or_else(|| token.strip_prefix(b"-"))
@@ -323,14 +322,11 @@ impl Execution {
                     if op != b"n" {
                         d.used_indexed_fill |=
                             matches!(self.state.space, color::FillSpace::Indexed(_));
-                        let [r, g, b] = self.state.rgb;
-                        let rgba = [r, g, b, self.state.alpha];
-                        let bytes = rgba.map(|v| (v * 255.).round() as u8);
-                        let paint = if bytes.map(|v| f64::from(v) / 255.) == rgba {
-                            Paint::Solid(bytes)
-                        } else {
-                            Paint::Precise(Precise { rgba })
-                        };
+                        let paint = self.state.space.paint(
+                            self.state.values,
+                            self.state.alpha,
+                            &mut d.swatches,
+                        )?;
                         d.add(
                             self.state.parent.clone(),
                             Content::Vector {
@@ -396,31 +392,35 @@ impl Execution {
                     d.pdf,
                     resources,
                     &cs,
+                    &mut d.swatches,
                     &mut d.remaining_bytes,
                     d.control,
                 )?;
-                self.state.rgb = self.state.space.initial();
+                self.state.values = self.state.space.initial();
             }
-            b"rg" | b"g" | b"sc" | b"scn" => {
+            b"rg" | b"g" | b"k" | b"sc" | b"scn" => {
                 match op {
                     b"g" => self.state.space = color::FillSpace::Gray,
                     b"rg" => self.state.space = color::FillSpace::Rgb,
+                    b"k" => self.state.space = color::FillSpace::Cmyk,
                     _ => {}
                 }
-                let rgb = match &self.state.space {
-                    color::FillSpace::Gray => [args::<1>(operands)?[0]; 3],
-                    color::FillSpace::Rgb => args::<3>(operands)?,
-                    color::FillSpace::Indexed(table) => {
-                        let index = args::<1>(operands)?[0]
-                            .round()
-                            .clamp(0., (table.len() - 1) as f64);
-                        table[index as usize].map(|v| f64::from(v) / 255.)
+                let values = match &self.state.space {
+                    color::FillSpace::Gray
+                    | color::FillSpace::Indexed(_)
+                    | color::FillSpace::Spot(_) => [args::<1>(operands)?[0], 0., 0., 0.],
+                    color::FillSpace::Cmyk => args::<4>(operands)?,
+                    color::FillSpace::Rgb => {
+                        let [r, g, b] = args(operands)?;
+                        [r, g, b, 0.]
                     }
                 };
-                if rgb.iter().any(|v| !(0. ..=1.).contains(v)) {
+                if !matches!(self.state.space, color::FillSpace::Indexed(_))
+                    && values.iter().any(|v| !(0. ..=1.).contains(v))
+                {
                     return Err(unsupported("PDF color components outside the unit range"));
                 }
-                self.state.rgb = rgb;
+                self.state.values = values;
             }
             b"gs" => drawing::graphics_state(d.pdf, resources, &name(operands)?, &mut self.state)?,
             b"Do" => d.xobject(resources, &name(operands)?, &self.state, loc)?,

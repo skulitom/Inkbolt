@@ -130,6 +130,7 @@ BINDINGS = {
     'objects/surface_scale/1': 'render_quality.MAX_SCALE',
     'pdf/image_pixels': 'pdf.MAX_IMAGE_PIXELS',
     'pdf/editable_import/images/max_pixels_per_image': 'pdf.MAX_IMAGE_PIXELS',
+    'pdf/editable_import/print_fills/max_calculator_bytes': 'vector_native_pdf_read.MAX_TINT_FUNCTION_BYTES',
     'pdf/knockout_groups/max_attenuation_depth_including_ancestors': 'pdf.MAX_KNOCKOUT_DEPTH',
     'pdf/knockout_groups/max_external_backdrop_form_visits': 'pdf.MAX_BACKDROP_FORM_VISITS',
     'pdf/knockout_groups/max_form_and_mask_depth': 'pdf.MAX_KNOCKOUT_FORM_DEPTH',

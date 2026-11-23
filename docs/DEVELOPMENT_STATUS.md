@@ -77,19 +77,20 @@ The benchmark retains its separate peak-commit verdict.
 
 ## Reopening print colors for editing
 
-Inkbolt and ReportLab each wrote two single-path print pages with the same
-ink values, one process CMYK and one spot at 62.5% tint. The current importer
-refused both Inkbolt exports at the CMYK transparency group. It refused the
-other process page at its fill operator and the other spot page at its
-Separation color space. Both spot pages describe the same tint ramp using
-different PDF function types. An independent CMYK rendering of each pair
-gave identical center samples and unpainted corners.
+Windows and Linux reopened four single-path pages from Inkbolt and ReportLab
+4.4.7. The two process pages retained CMYK (25%, 50%, 0%, 12.5%). Each
+spot page retained its distinct plate name, that same alternate and a 62.5%
+tint. One writer used a type 2 tint function and the other a type 4 function.
 
-Use those four files to test W6a.5. Recover the native color components,
-spot identity and tint as editable paints. Recolor one shape and compare its
-delivery and the unchanged surroundings in an independent separation reader.
-The page-interchange checkpoint also requires fonts and encapsulated pages.
-[Editable page import](PDF.md#reopen-a-page-for-editing)
+Both hosts exported the original paths, then edited the process swatches to
+(12.5%, 25%, 75%, 0%) or reduced the spot tint to 37.5%. All eight PDF
+deliveries were byte-identical across hosts. Ghostscript 9.55.0 compared
+each original delivery to its source and each edit to a separately authored
+control. Every pixel matched on all 36 process and spot plate comparisons at
+144 dpi, including the blank area around the path. Strict reader errors were
+enabled and an installed font supplied for the writer's unpainted font setup.
+Painted text, mixed-space pages and encapsulated page placement remain open.
+[Print fill editing contract](PDF.md#editing-process-and-spot-fills)
 
 ## Knockout groups in vector PDF
 

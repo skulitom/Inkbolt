@@ -50,6 +50,79 @@ class EditablePdfPage(unittest.TestCase):
     def rgba(self, doc, scale=1):
         return bytes.fromhex(self.invoke(dict(command='document.render', document=doc, scale=scale))['data'])
 
+    def test_print_fills_survive_edits_and_native_delivery(self):
+        ramp = b'<< /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [.25 .5 0 .125] /N 1 >>'
+        plate = b'Ink#20#23#2F#C3#A9'
+        objects = page_objects(
+            b'/Process cs 0 0 2 2 re f q .25 .5 0 .125 k 2 0 2 2 re f '
+            b'/Color cs 4 0 2 2 re f q .625 scn 6 0 2 2 re f Q 8 0 2 2 re f Q 10 0 2 2 re f',
+            resources=b'<< /ColorSpace << /Process /DeviceCMYK /Color [/Separation /'+plate+b' /DeviceCMYK 5 0 R] >> >>',
+            fields=b'/Group << /S /Transparency /CS /DeviceCMYK /I true /K false >>')
+        objects[5] = ramp
+        for function in (ramp, stream(b'{dup .25 mul exch dup .5 mul exch 0 exch .125 mul}',
+                                      b'/FunctionType 4 /Domain [0 1] /Range [0 1 0 1 0 1 0 1]', compress=True)):
+            with self.subTest(function=function[:30]):
+                objects[5] = function
+                result = self.read(pdf(objects))
+                self.assertEqual(result['color_policy'], 'native_cmyk_and_spot_no_display_conversion')
+                doc = result['document']
+                self.assertEqual(doc['vector_canvas']['process_space'], 'cmyk')
+                shapes = [i for i in doc['items'] if i['content']['type'] == 'vector']
+                paints = [i['content']['fill'] for i in shapes]
+                black, process, spot = (p['swatch'] for p in paints[:3])
+                self.assertEqual([p['swatch'] for p in paints], [black, process, spot, spot, spot, black])
+                self.assertEqual([p['tint'] for p in paints], [1, 1, 1, .625, 1, 1])
+                values = dict(space='cmyk', components=[.25, .5, 0, .125])
+                self.assertEqual(doc['swatches'][black]['definition']['color']['components'], [0, 0, 0, 1])
+                self.assertEqual(doc['swatches'][process]['definition']['color'], values)
+                self.assertEqual(doc['swatches'][spot]['definition']['alternate'], values)
+                self.assertEqual(doc['swatches'][spot]['pdf_colorant'], 'Ink #/é')
+                revised = self.edit(doc, [dict(op='fill', id=shapes[3]['id'], paint=dict(swatch=spot, tint=.375))])
+                artifact = self.invoke(dict(command='document.export', format='pdf', document=revised,
+                                            pdf_options=dict(color='native_inks')))
+                self.assertEqual(artifact['swatches']['pages'][0]['spots'][0]['pdf_name'], 'Ink #/é')
+                raw = base64.b64decode(artifact['data'])
+                self.assertIn(b'/Separation /'+plate, raw)
+                saved = self.read(raw)['document']
+                self.assertEqual(saved['swatches'], doc['swatches'])
+                self.assertEqual([i['content']['fill']['tint'] for i in saved['items']
+                                  if i['content']['type'] == 'vector'], [1, 1, 1, .375, 1, 1])
+
+    def test_print_color_refusals_do_not_relabel_plates_or_approximate_tints(self):
+        ramp = b'<< /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [.25 .5 0 .125] /N 1 >>'
+        calc = b'/FunctionType 4 /Domain [0 1] /Range [0 1 0 1 0 1 0 1]'
+        resources = b'<< /ColorSpace << /P [/Separation /Violet /DeviceCMYK 5 0 R] >> >>'
+        for bad in (ramp.replace(b'/N 1', b'/N 2'), ramp.replace(b'/Domain [0 1]', b'/Domain [0 .5]'),
+                    ramp.replace(b'/C0 [0', b'/C0 [.1'), stream(b'{dup mul dup dup dup}', calc),
+                    stream(b'{pop .2 .3 .4 .5}', calc), stream(b'{dup dup exch}', calc),
+                    stream(b'{dup dup dup if}', calc), stream(b'{' + b' '*4096 + b'}', calc)):
+            objects = page_objects(b'/P cs .5 scn 0 0 4 4 re f', resources=resources)
+            objects[5] = bad
+            err = self.read(pdf(objects), 1)
+            self.assertIn(err['code'], ('UNSUPPORTED', 'RESOURCE_LIMIT'))
+            self.assertEqual(err['details']['object'], 4)
+        for name in (b'All', b'None', b'Cyan', b'Magenta', b'Yellow', b'Black', b'Bad#FF'):
+            objects = page_objects(b'/P cs', resources=resources.replace(b'Violet', name))
+            objects[5] = ramp
+            self.assertEqual(self.read(pdf(objects), 1)['code'], 'UNSUPPORTED')
+        other = b'/Q [/Separation /Violet /DeviceCMYK 6 0 R]'
+        objects = page_objects(b'/P cs 0 0 1 1 re f /Q cs 1 0 1 1 re f',
+                               resources=resources.replace(b' >> >>', b' '+other+b' >> >>'))
+        objects[5] = objects[6] = ramp
+        self.assertEqual(len(self.read(pdf(objects))['document']['swatches']), 1)
+        objects[6] = ramp.replace(b'.25', b'.75')
+        self.assertEqual(self.read(pdf(objects), 1)['code'], 'UNSUPPORTED')
+        for body, extra in [(b'1 0 0 rg 2 0 1 1 re f', b''), (b'/G gs 1 0 0 0 k 2 0 1 1 re f', b''),
+                            (b'', b'/Group << /S /Transparency /CS /DeviceRGB >>')]:
+            objects = page_objects(b'0 1 0 0 k 0 0 1 1 re f '+body, fields=extra,
+                                   resources=b'<< /ExtGState << /G << /ca .5 >> >> >>')
+            self.assertEqual(self.read(pdf(objects), 1)['code'], 'UNSUPPORTED')
+        objects = page_objects(b'/P cs 0 g 0 0 1 1 re f', resources=resources)
+        objects[5] = ramp
+        display = self.read(pdf(objects))
+        self.assertNotIn('swatches', display['document'])
+        self.assertEqual(display['color_policy'], 'caller_declared_encoded_srgb')
+
     def test_unpainted_text_and_wrapped_content_preserve_editable_form_and_stream_location(self):
         resources = b'<< /Font << /Heading 7 0 R >> /XObject << /Box 6 0 R >> >>'
         objects = page_objects(b'', fields=b'/Trans 8 0 R', resources=resources)
@@ -252,7 +325,7 @@ class EditablePdfPage(unittest.TestCase):
         self.assertEqual(self.read(data,1,page_index=2)['code'],'INVALID_REQUEST')
 
     def test_refusals_identify_page_stream_and_decoded_offset(self):
-        for suffix in [b'BT',b'/Missing Do',b'Q',b'1 2 m S',b'0 1 0 0 k',b'notAnOperator']:
+        for suffix in [b'BT',b'/Missing Do',b'Q',b'1 2 m S',b'0 1 0 0 K',b'notAnOperator']:
             with self.subTest(suffix=suffix):
                 data=pdf(page_objects(b'0 g 1 2 3 4 re f '+suffix))
                 error=self.read(data,1)

@@ -815,6 +815,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `vector_native_pdf_read.MAX_OBJECTS` | `usize` | 4096 | `4096` |
 | `vector_native_pdf_read.MAX_PAGES` | `usize` | 32 | `32` |
 | `vector_native_pdf_read.MAX_STRING_STEPS` | `usize` | 65536 | `65536` |
+| `vector_native_pdf_read.MAX_TINT_FUNCTION_BYTES` | `usize` | 4096 | `4096` |
 | `vector_native_pdf_read.MAX_TOKEN_BYTES` | `usize` | 128 | `128` |
 | `vector_native_tokens.MAX_CONTAINER_DEPTH` | `usize` | 32 | `32` |
 | `vector_native_tokens.MAX_STRING_BYTES` | `usize` | 65536 | `65536` |

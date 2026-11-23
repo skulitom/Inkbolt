@@ -1780,7 +1780,12 @@ pub fn export_controlled(
         result["losses"][2] = json!(
             "Native PDF color conversion, edge antialiasing and image sampling depend on the consumer; this is not an output-profile proof or exact-pixel guarantee."
         );
-        result["swatches"] = json!({"native_ink_preservation":true,"ink_identity":"Inkbolt.<base_swatch_id>","editable_source":"snapshot","pages":ink_pages,"overprint":"explicit_OP_op_OPM;native_PDF_consumers_required","separations":"declared_spot_and_process_instructions;no_plate_raster_or_output_profile_proof"});
+        let ink_identity = if document.swatches.values().any(|s| s.pdf_colorant.is_some()) {
+            "explicit_pdf_colorant_or_Inkbolt.<base_swatch_id>"
+        } else {
+            "Inkbolt.<base_swatch_id>"
+        };
+        result["swatches"] = json!({"native_ink_preservation":true,"ink_identity":ink_identity,"editable_source":"snapshot","pages":ink_pages,"overprint":"explicit_OP_op_OPM;native_PDF_consumers_required","separations":"declared_spot_and_process_instructions;no_plate_raster_or_output_profile_proof"});
         result["losses"].as_array_mut().unwrap().push(json!("Native ink output retains spot identity, exact tints, CMYK/Lab declarations and overprint instructions. Display colors and unnamed RGB paints may require consumer conversion. This is not a profile-driven print proof or a plate-coverage report."));
     } else {
         crate::swatches::annotate(source, &mut result)?;

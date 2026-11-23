@@ -116,6 +116,16 @@ pub enum Definition {
 pub struct Swatch {
     pub name: String,
     pub definition: Definition,
+    /// Original plate identity for a spot imported from a PDF.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pdf_colorant: Option<String>,
+}
+impl Swatch {
+    pub(crate) fn pdf_name(&self, id: &str) -> String {
+        self.pdf_colorant
+            .clone()
+            .unwrap_or_else(|| format!("Inkbolt.{id}"))
+    }
 }
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -406,14 +416,38 @@ fn variants(
     }
     Ok(())
 }
+pub(crate) fn valid_pdf_colorant(plate: &str) -> bool {
+    name(plate)
+        && plate.len() <= crate::limits::vector_native_pdf_read::MAX_NAME_BYTES
+        && !matches!(
+            plate,
+            "All" | "None" | "Cyan" | "Magenta" | "Yellow" | "Black"
+        )
+}
+
 pub fn validate(d: &Document) -> Result<(), Error> {
     if d.swatches.len() > MAX_SWATCHES {
         return Err(limit(&format!(
             "Document exceeds {MAX_SWATCHES} named swatches"
         )));
     }
-    for id in d.swatches.keys() {
+    let mut plates = BTreeSet::new();
+    for (id, swatch) in &d.swatches {
         resolve(&d.swatches, id)?;
+        if let Some(plate) = &swatch.pdf_colorant
+            && (!matches!(swatch.definition, Definition::Spot { .. }) || !valid_pdf_colorant(plate))
+        {
+            return Err(invalid(
+                "An explicit PDF colorant requires a nonreserved printable spot name",
+            ));
+        }
+        if matches!(swatch.definition, Definition::Spot { .. })
+            && !plates.insert(swatch.pdf_name(id))
+        {
+            return Err(invalid(
+                "Multiple spot definitions use the same PDF colorant",
+            ));
+        }
     }
     let mut check = |p: &mut Paint| {
         if let Paint::Named(reference) = p {
@@ -745,6 +779,11 @@ pub(crate) fn convert(
     color.validate()?;
     let after = Swatch {
         name: before.name.clone(),
+        pdf_colorant: if matches!(kind, ConvertKind::Spot) {
+            before.pdf_colorant.clone()
+        } else {
+            None
+        },
         definition: match kind {
             ConvertKind::Process => Definition::Process { color },
             ConvertKind::Spot => Definition::Spot { alternate: color },
@@ -775,7 +814,7 @@ pub(crate) fn ink_diagnostics(d: &Document) -> Result<Value, Error> {
                     Process::Lab { .. } => "lab",
                 };
                 if let Some(id) = &p.spot_id {
-                    spots.insert(id.clone(), json!({"id":id,"name":d.swatches[id].name,"pdf_name":format!("Inkbolt.{id}"),"alternate":p.color}));
+                    spots.insert(id.clone(), json!({"id":id,"name":d.swatches[id].name,"pdf_name":d.swatches[id].pdf_name(id),"alternate":p.color}));
                 } else {
                     process_spaces.insert(space);
                 }
@@ -793,8 +832,13 @@ pub(crate) fn ink_diagnostics(d: &Document) -> Result<Value, Error> {
             Ok(())
         })?;
     }
+    let ink_identity = if d.swatches.values().any(|s| s.pdf_colorant.is_some()) {
+        "explicit_pdf_colorant_or_Inkbolt.<base_swatch_id>;labels_do_not_merge_inks"
+    } else {
+        "Inkbolt.<base_swatch_id>;labels_do_not_merge_inks"
+    };
     Ok(
-        json!({"scope":"structural_named_paints_including_hidden_resources;not_plate_coverage_or_export_preflight","spots":spots.values().collect::<Vec<_>>(),"process_spaces":process_spaces,"overprint_items":overprint_items,"paints":paints,"other_display_paints":display_paints,"rgb_lab_process_separation":"requires_consumer_color_conversion;no_profile_proof","ink_identity":"Inkbolt.<base_swatch_id>;labels_do_not_merge_inks","saved_variants":"inventory_uses_current_item_paints;swatch_entries_report_saved_variant_dependents"}),
+        json!({"scope":"structural_named_paints_including_hidden_resources;not_plate_coverage_or_export_preflight","spots":spots.values().collect::<Vec<_>>(),"process_spaces":process_spaces,"overprint_items":overprint_items,"paints":paints,"other_display_paints":display_paints,"rgb_lab_process_separation":"requires_consumer_color_conversion;no_profile_proof","ink_identity":ink_identity,"saved_variants":"inventory_uses_current_item_paints;swatch_entries_report_saved_variant_dependents"}),
     )
 }
 pub(crate) fn dependency_hash(d: &Document, i: usize) -> Result<Option<String>, Error> {

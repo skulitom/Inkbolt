@@ -2095,6 +2095,8 @@ pub mod variants {
 
 /// Limits for `src/vector_native/pdf_read.rs`.
 pub mod vector_native_pdf_read {
+    /// Maximum decoded bytes in a Separation calculator tint function.
+    pub const MAX_TINT_FUNCTION_BYTES: usize = 4096;
     /// Maximum bytes scanned for a PDF keyword or numeric token.
     pub const MAX_TOKEN_BYTES: usize = 128;
     /// Maximum decoded bytes in one PDF name.

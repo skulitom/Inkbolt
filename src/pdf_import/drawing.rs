@@ -11,6 +11,11 @@ pub(super) struct Drawing<'a> {
     pub items: Vec<Item>,
     pub mapping: Vec<serde_json::Value>,
     pub images: image::Images,
+    pub swatches: print::Swatches,
+    pub painted_swatches: BTreeSet<String>,
+    device_rgb_group: bool,
+    device_cmyk_group: bool,
+    first_display_or_transparent: Option<(Id, usize)>,
     pub used_indexed_fill: bool,
     pub used_text_setup: bool,
     active: BTreeSet<Id>,
@@ -20,7 +25,7 @@ pub(super) struct Drawing<'a> {
 #[derive(Clone)]
 pub(super) struct State {
     pub matrix: Matrix,
-    pub rgb: [f64; 3],
+    pub values: [f64; 4],
     pub space: color::FillSpace,
     pub blend: BlendMode,
     pub alpha: f64,
@@ -28,28 +33,61 @@ pub(super) struct State {
     depth: usize,
     clip_bounds: [f64; 4],
 }
-pub(super) fn group(pdf: &Container, value: &Value) -> Result<bool, Error> {
-    let d = pdf.resolve(value)?.dict()?;
-    allowed(d, &[b"Type", b"S", b"CS", b"I", b"K"])?;
-    if !field(d, b"S")?.named(b"Transparency")
-        || d.get(b"Type".as_slice())
-            .is_some_and(|v| !v.named(b"Group"))
-        || d.get(b"CS".as_slice())
-            .is_some_and(|v| !v.named(b"DeviceRGB"))
-    {
-        return Err(unsupported(
-            "Unsupported PDF transparency group color space or subtype",
-        ));
+impl Drawing<'_> {
+    pub fn group(&mut self, value: &Value) -> Result<bool, Error> {
+        let d = self.pdf.resolve(value)?.dict()?;
+        allowed(d, &[b"Type", b"S", b"CS", b"I", b"K"])?;
+        if !field(d, b"S")?.named(b"Transparency")
+            || d.get(b"Type".as_slice())
+                .is_some_and(|v| !v.named(b"Group"))
+        {
+            return Err(unsupported(
+                "Unsupported PDF transparency group color space or subtype",
+            ));
+        }
+        if let Some(cs) = d.get(b"CS".as_slice()) {
+            let cs = self.pdf.resolve(cs)?;
+            if cs.named(b"DeviceRGB") {
+                self.device_rgb_group = true;
+            } else if cs.named(b"DeviceCMYK") {
+                self.device_cmyk_group = true;
+            } else {
+                return Err(unsupported(
+                    "Unsupported PDF transparency group color space",
+                ));
+            }
+        }
+        if matches!(d.get(b"K".as_slice()),Some(v) if !matches!(v,Value::Bool(false))) {
+            return Err(unsupported(
+                "PDF knockout groups cannot yet be reopened as editable artwork",
+            ));
+        }
+        match d.get(b"I".as_slice()) {
+            None | Some(Value::Bool(false)) => Ok(false),
+            Some(Value::Bool(true)) => Ok(true),
+            _ => Err(invalid("Invalid PDF group isolation")),
+        }
     }
-    if matches!(d.get(b"K".as_slice()),Some(v) if !matches!(v,Value::Bool(false))) {
-        return Err(unsupported(
-            "PDF knockout groups cannot yet be reopened as editable artwork",
-        ));
-    }
-    match d.get(b"I".as_slice()) {
-        None | Some(Value::Bool(false)) => Ok(false),
-        Some(Value::Bool(true)) => Ok(true),
-        _ => Err(invalid("Invalid PDF group isolation")),
+    pub fn native_page(&self) -> Result<bool, Error> {
+        let native = self.device_cmyk_group || !self.painted_swatches.is_empty();
+        if native {
+            if let Some((id, offset)) = self.first_display_or_transparent {
+                return Err(located(
+                    unsupported(
+                        "Native PDF fills require opaque normal process or spot artwork throughout the page",
+                    ),
+                    self.page_index,
+                    id,
+                    Some(offset),
+                ));
+            }
+            if self.device_rgb_group {
+                return Err(unsupported(
+                    "Native PDF fills inside explicit RGB blending groups are unsupported",
+                ));
+            }
+        }
+        Ok(native)
     }
 }
 
@@ -95,6 +133,11 @@ impl<'a> Drawing<'a> {
             items: vec![],
             mapping: vec![],
             images: Default::default(),
+            swatches: Default::default(),
+            painted_swatches: Default::default(),
+            device_rgb_group: false,
+            device_cmyk_group: false,
+            first_display_or_transparent: None,
             used_indexed_fill: false,
             used_text_setup: false,
             active: BTreeSet::new(),
@@ -115,6 +158,20 @@ impl<'a> Drawing<'a> {
             return Err(limit("PDF editable item limit exceeded"));
         }
         let id = format!("pdf-{}", self.items.len() + 1);
+        let native_compatible = match &content {
+            Content::Group { .. } => true,
+            Content::Vector {
+                fill: Some(crate::paint::Paint::Named(reference)),
+                ..
+            } => {
+                self.painted_swatches.insert(reference.swatch.clone());
+                reference.opacity == 1.
+            }
+            _ => false,
+        };
+        if !native_compatible || opacity != 1. || blend != BlendMode::Normal {
+            self.first_display_or_transparent.get_or_insert(loc);
+        }
         self.items.push(Item {
             hdr_grade: None,
             pixel_warp: None,
@@ -233,7 +290,7 @@ impl<'a> Drawing<'a> {
         let state = State {
             matrix,
             alpha: 1.,
-            rgb: [0.; 3],
+            values: [0.; 4],
             space: color::FillSpace::Gray,
             blend: Default::default(),
             parent: None,
@@ -315,7 +372,7 @@ impl<'a> Drawing<'a> {
         let corners = [[l, b], [r, b], [r, t], [l, t]].map(|p| map(next.matrix, p));
         let is_group = d
             .get(b"Group".as_slice())
-            .map(|v| group(pdf, v))
+            .map(|v| self.group(v))
             .transpose()?;
         if is_group == Some(false) && state.blend != BlendMode::Normal {
             return Err(unsupported(
