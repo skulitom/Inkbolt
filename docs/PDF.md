@@ -110,12 +110,24 @@ Source builds after v0.85.1 also reopen JPEG-compressed image objects
 (`DCTDecode`). The importer accepts 8-bit
 baseline and progressive Huffman-coded grayscale and RGB frames. The JPEG
 dimensions and component count must match the PDF dictionary. A three-component
-frame uses the PDF color transform (YCbCr by default, or direct RGB with
-`/ColorTransform 0`). PDF decode ranges apply to those decoded components.
+frame uses YCbCr by default. A PDF `/ColorTransform 0` requests direct RGB.
+If the JPEG carries a supported APP14 marker, its transform takes precedence
+over either setting. The image receipt reports `app14_color_transform` and
+the resulting component interpretation. A grayscale soft mask retains its
+own marker in the nested receipt. PDF decode ranges apply to the decoded components.
 The page transformation sets the orientation, including for JPEGs that carry
 an EXIF orientation. A grayscale JPEG can also supply the soft mask. The
 importer checks scans and decoded working storage before invoking the codec.
-JPEGs with APP14 transform markers or embedded profiles are outside this subset.
+Marker versions 100 and 101 support codes 0 and 1 with zero required flags.
+Embedded profiles and four-component JPEGs remain outside this subset.
+[DCT marker format, section 18](https://pdfa.org/norm-refs/5116.DCT_Filter.pdf)
+
+Pillow 12.0 wrote baseline and progressive direct-RGB PDFs. Four more
+pages paired direct RGB or YCbCr JPEGs with an opposing PDF dictionary
+setting. All six re-exports differed from the corresponding source by at
+most two 8-bit channel levels in both MuPDF and Poppler. The four standalone
+JPEGs produced the same asset samples as their embedded counterparts.
+Windows and Linux produced byte-identical exports on all six pages.
 
 Six synthetic JPEGs covered baseline and progressive grayscale, full-resolution
 color and 4:2:0 color. Windows and Linux recovered identical samples. Grayscale

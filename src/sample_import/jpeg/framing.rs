@@ -1,4 +1,6 @@
-//! Complete marker/entropy admission before allocating a decoded JPEG frame.
+const APP14_SIGNATURE: &[u8; 5] = b"Adobe";
+
+// Complete marker/entropy admission before allocating a decoded JPEG frame.
 use super::{exif, malformed, unsupported};
 use crate::{Error, control::Control, limits::sample_import as bounds, model::limit};
 use std::{
@@ -11,6 +13,8 @@ pub(super) struct Plan {
     pub height: u32,
     pub channels: usize,
     pub progressive: bool,
+    pub app14_transform: Option<bool>,
+    pub jfif: bool,
     pub exif: Option<exif::Metadata>,
     pub output_bytes: usize,
     pub estimated_working_bytes: u64,
@@ -82,6 +86,8 @@ fn frame(body: &[u8], progressive: bool, max_pixels: usize) -> Result<Plan, Erro
         height,
         channels,
         progressive,
+        app14_transform: None,
+        jfif: false,
         exif: None,
         output_bytes: output as usize,
         estimated_working_bytes: working,
@@ -195,6 +201,7 @@ pub(super) fn inspect<R: Read + Seek>(
     let mut pending = None;
     let mut scanned = false;
     let mut jfif = false;
+    let mut app14_transform = None;
     loop {
         let marker = match pending.take() {
             Some(marker) => marker,
@@ -205,20 +212,25 @@ pub(super) fn inspect<R: Read + Seek>(
             if !scanned || reader.position != length {
                 return Err(malformed());
             }
-            if jfif && plan.rgb_components {
+            if jfif && plan.rgb_components && app14_transform.is_none() {
                 return Err(unsupported(
                     "JPEG component identifiers conflict with JFIF color interpretation",
                 ));
             }
             if let Some(meta) = &metadata {
                 let meta: &exif::Metadata = meta;
+                let photometric = match (
+                    plan.channels,
+                    app14_transform.unwrap_or(!plan.rgb_components),
+                ) {
+                    (1, _) => 1,
+                    (_, false) => 2,
+                    (_, true) => 6,
+                };
                 if meta
                     .samples
                     .is_some_and(|n| usize::from(n) != plan.channels)
-                    || meta.photometric.is_some_and(|n| match plan.channels {
-                        1 => n != 1,
-                        _ => n != if plan.rgb_components { 2 } else { 6 },
-                    })
+                    || meta.photometric.is_some_and(|n| n != photometric)
                 {
                     return Err(unsupported(
                         "JPEG EXIF component interpretation conflicts with the coded image",
@@ -226,6 +238,8 @@ pub(super) fn inspect<R: Read + Seek>(
                 }
             }
             plan.exif = metadata;
+            plan.app14_transform = app14_transform;
+            plan.jfif = jfif;
             return Ok(plan);
         }
         if matches!(marker, 0 | 0xd0..=0xd8) {
@@ -282,6 +296,20 @@ pub(super) fn inspect<R: Read + Seek>(
                     return Err(malformed());
                 }
                 jfif = true;
+            }
+            0xee if body.starts_with(APP14_SIGNATURE) => {
+                if scanned || app14_transform.is_some() || body.len() != 12 {
+                    return Err(malformed());
+                }
+                // Standard APP14 flags0 are advisory. Set flags1 bits require
+                // additional decoder behavior (DCT filter specification §18).
+                let version = u16::from_be_bytes([body[5], body[6]]);
+                if !matches!(version, 100 | 101) || body[9..11] != [0, 0] || body[11] > 1 {
+                    return Err(unsupported(
+                        "Unsupported JPEG APP14 version, flags or color transform",
+                    ));
+                }
+                app14_transform = Some(body[11] == 1);
             }
             0xe0..=0xef => {
                 return Err(unsupported(

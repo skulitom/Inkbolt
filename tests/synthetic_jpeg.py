@@ -1,13 +1,16 @@
-"""Original DC-only JPEG fixtures; no encoder/library or external image inputs.
+APP14_SIGNATURE = b"Adobe"
 
-An 8x8 constant block has only a DC coefficient, exactly 8*(sample-128),
-with unit quantization. Thus decoded samples have an independent exact oracle.
-"""
+# Original DC-only JPEG fixtures. An 8x8 constant block has only a DC
+# coefficient, exactly 8*(sample-128) with unit quantization.
 import struct
 
 
 def segment(marker, body):
     return bytes([255, marker]) + struct.pack('>H', len(body) + 2) + body
+
+
+def app14(transform, *, version=100, advisory=0, required=0):
+    return segment(0xee, APP14_SIGNATURE + struct.pack('>HHHB', version, advisory, required, transform))
 
 
 def exif(orientation=None, *, little=True, srgb=False, thumbnail=None):

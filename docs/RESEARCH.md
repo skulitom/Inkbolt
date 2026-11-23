@@ -28,3 +28,8 @@ installed commit hook still require a valid private policy; neither missing
 policy nor CI environment variables enable public mode. WSL development keeps
 the private guard on both sides. A public pass is not private publication
 clearance or a provenance determination.
+
+The private guard admits the standard JPEG APP14 signature in two reviewed
+first-line declarations, one in the JPEG parser and one in the synthetic
+fixture. Both candidate and staged checks bind the exact path and declaration.
+All other private patterns still apply to those lines.

@@ -24,6 +24,17 @@ the source. The native result uses unsigned 8-bit samples with opaque alpha;
 grayscale remains native gray/alpha. Explicit document resolution still governs
 physical size; source density does not resize the result.
 
+For a JPEG carrying a standard APP14 color marker, `sample.import` uses
+code 0 for direct samples and code 1 for YCbCr-to-RGB on three-component
+images. Grayscale stays single-channel. The normalization receipt records
+`app14_color_transform`. The marker may precede the first scan once, use
+version 100 or 101, and carry advisory flags. Unknown required flags and
+four-component images return an error. Standalone import also rejects a
+direct RGB marker paired with a three-component JFIF declaration, or an
+EXIF photometric declaration that contradicts the selected transform.
+The separate color policy still
+determines how to interpret the resulting RGB values.
+
 Retain the existing explicit sRGB interpretation contract. Recognized sRGB
 declarations may establish declared sRGB; otherwise untagged samples require
 `assume_srgb`. Reject unsupported embedded profiles, color transforms, component

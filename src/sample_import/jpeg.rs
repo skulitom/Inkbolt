@@ -73,6 +73,11 @@ pub(super) fn decode<R: Read + Seek>(
     control: &Control,
 ) -> Result<(DecodedSource, Interpretation, Value), Error> {
     let plan = framing::inspect(&mut input, length, max_pixels, control)?;
+    if plan.jfif && plan.channels == 3 && plan.app14_transform == Some(false) {
+        return Err(unsupported(
+            "Direct RGB JPEG marker conflicts with JFIF color interpretation",
+        ));
+    }
     entropy::validate(&mut input, length, &plan, control)?;
     let declared = plan.exif.as_ref().is_some_and(|m| m.srgb);
     let interpretation = if declared {
@@ -107,7 +112,10 @@ pub(super) fn decode<R: Read + Seek>(
         encoding: Encoding::EncodedSrgb,
     };
     spec.validate()?;
-    let decoded = decode_frame(input, &plan, None, control)?;
+    let transform = plan
+        .app14_transform
+        .map(|v| component_transform(plan.channels, v).0);
+    let decoded = decode_frame(input, &plan, transform, control)?;
     let normalize = |y: u32, row: &mut [u8]| -> Result<(), Error> {
         control.check()?;
         for (x, pixel) in row.chunks_exact_mut(spec.channels.count()).enumerate() {
@@ -132,7 +140,7 @@ pub(super) fn decode<R: Read + Seek>(
         }
         DecodedPixels::Bytes(bytes)
     };
-    let normalization = json!({"input_depth":8,"input_color":if plan.channels==1 {"grayscale"} else {"rgb"},
+    let mut normalization = json!({"input_depth":8,"input_color":if plan.channels==1 {"grayscale"} else {"rgb"},
         "coding":if plan.progressive {"progressive"} else {"baseline"},
         "decode_storage":if staging.is_some() {"complete_codec_frame_to_private_native_rows"} else {"complete_decoded_frame"},
         "normalization":"decoded_8bit_channels;missing_alpha_opaque;explicit_orientation_mapping",
@@ -141,6 +149,9 @@ pub(super) fn decode<R: Read + Seek>(
         "decoder":{"whole_frame":true,"entropy_validation":"strict_huffman_scans","output_bytes":plan.output_bytes,"estimated_working_bytes":plan.estimated_working_bytes,
             "scans":plan.scans,"scan_work":plan.scan_work},
         "other_exif_metadata_retained":false,"source_exif_tags":plan.exif.as_ref().map_or(0,|m|m.tags)});
+    if let Some(transform) = plan.app14_transform {
+        normalization["app14_color_transform"] = json!(u8::from(transform));
+    }
     Ok((
         DecodedSource {
             width,
@@ -154,7 +165,20 @@ pub(super) fn decode<R: Read + Seek>(
     ))
 }
 
-/// A PDF image dictionary supplies its component interpretation and placement.
+fn component_transform(
+    channels: usize,
+    ycbcr: bool,
+) -> (jpeg_decoder::ColorTransform, &'static str) {
+    use jpeg_decoder::ColorTransform;
+    match (channels, ycbcr) {
+        (1, _) => (ColorTransform::Grayscale, "gray"),
+        (3, false) => (ColorTransform::RGB, "direct_rgb"),
+        (3, true) => (ColorTransform::YCbCr, "ycbcr_to_rgb"),
+        _ => unreachable!("validated JPEG frame is grayscale or three-component"),
+    }
+}
+
+/// A PDF image dictionary supplies placement and the fallback color transform.
 /// Embedded orientation metadata does not transform the sample grid.
 pub(crate) fn pdf_samples(
     bytes: &[u8],
@@ -162,7 +186,7 @@ pub(crate) fn pdf_samples(
     components: usize,
     transform: bool,
     control: &Control,
-) -> Result<Vec<u8>, Error> {
+) -> Result<(Vec<u8>, Value), Error> {
     let mut input = io::Cursor::new(bytes);
     let length = bytes.len() as u64;
     let pixels = size[0] as usize * size[1] as usize;
@@ -174,13 +198,12 @@ pub(crate) fn pdf_samples(
         ));
     }
     entropy::validate(&mut input, length, &plan, control)?;
-    let color = match (components, transform) {
-        (1, _) => jpeg_decoder::ColorTransform::Grayscale,
-        (3, false) => jpeg_decoder::ColorTransform::RGB,
-        (3, true) => jpeg_decoder::ColorTransform::YCbCr,
-        _ => return Err(unsupported("Unsupported PDF JPEG component count")),
-    };
-    decode_frame(input, &plan, Some(color), control)
+    let (color, name) = component_transform(components, plan.app14_transform.unwrap_or(transform));
+    let mut source = json!({"filter":"DCTDecode","jpeg_components":name});
+    if let Some(marker) = plan.app14_transform {
+        source["app14_color_transform"] = json!(u8::from(marker));
+    }
+    Ok((decode_frame(input, &plan, Some(color), control)?, source))
 }
 
 fn decode_frame<R: Read + Seek>(

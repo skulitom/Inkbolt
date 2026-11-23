@@ -265,7 +265,8 @@ class PdfImageImport(unittest.TestCase):
         formats = self.invoke(dict(command='capabilities'))['pdf']['editable_import']['images']
         self.assertIn('DCTDecode', formats['filters'])
         self.assertEqual(formats['jpeg']['color_transform'], [0, 1])
-        self.assertFalse(formats['jpeg']['app14'])
+        self.assertTrue(formats['jpeg']['app14'])
+        self.assertEqual(formats['jpeg']['transform_precedence'], ['APP14', 'ColorTransform', 'PDF_default'])
         width, height = 17, 9
         encoded = jpeg.jpeg(width, height, subsampling=(2, 2))
         for params, converted in [(b'', True), (b'/DecodeParms << /ColorTransform 1 >>', True),
@@ -288,6 +289,29 @@ class PdfImageImport(unittest.TestCase):
         sample = self.rgba(result['document'])[(33*48+2)*4:(33*48+3)*4]
         self.assertEqual((sample[0], sample[2], sample[3]), (255, 0, 255))
         self.assertLessEqual(abs(sample[1]-87), 1)
+
+    def test_embedded_jpeg_transform_precedes_pdf_dictionary_and_reports_each_plane(self):
+        gray = jpeg.jpeg(8, 8, channels=1, extras=jpeg.app14(0), sample=lambda x,y,c: 192)
+        alpha = image(8, 8, gray, space='DeviceGray', extra=b'/Filter /DCTDecode /Decode [1 0]')
+        for progressive in (False, True):
+            for marker, rgb, interpretation in [(0, (80,128,128), 'direct_rgb'),
+                                                 (1, (80,80,80), 'ycbcr_to_rgb')]:
+                with self.subTest(progressive=progressive, marker=marker):
+                    jfif = jpeg.segment(0xe0, b'JFIF\0\1\2\0\0\1\0\1\0\0')
+                    encoded = jpeg.jpeg(8, 8, progressive=progressive,
+                                        extras=jfif + jpeg.app14(marker, version=101, advisory=0x8000),
+                                        sample=lambda x,y,c: (80,128,128)[c])
+                    for params in (b'', f'/DecodeParms << /ColorTransform {1-marker} >>'.encode()):
+                        bitmap = image(8, 8, encoded, extra=b'/Filter /DCTDecode /SMask 6 0 R '+params)
+                        result = self.read(document(bitmap, mask=alpha))
+                        key, = result['document']['assets']
+                        expected = bytes([*rgb,63])*64
+                        self.assertEqual(result['document']['assets'][key]['sha256'], identity(8, 8, expected))
+                        source = result['image_sources'][key]
+                        self.assertEqual(source['jpeg_components'], interpretation)
+                        self.assertEqual(source['app14_color_transform'], marker)
+                        self.assertEqual(source['soft_mask']['jpeg_components'], 'gray')
+                        self.assertEqual(source['soft_mask']['app14_color_transform'], 0)
 
     def test_jpeg_dimensions_components_depth_and_coding_are_checked_at_the_source_object(self):
         color = jpeg.jpeg(8, 4)

@@ -354,7 +354,7 @@ impl Plane {
         control: &Control,
         rgba: &mut [u8],
         alpha: bool,
-    ) -> Result<Option<&'static str>, Error> {
+    ) -> Result<serde_json::Value, Error> {
         let samples = self.size[0] as usize * self.components;
         let row = (samples * self.bits).div_ceil(8);
         let predictor = match self.encoding {
@@ -367,13 +367,17 @@ impl Plane {
         if expected > *remaining {
             return Err(limit("PDF decoded stream budget exceeded"));
         }
-        let mut hex_end = None;
-        let mut data = match self.encoding {
-            Encoding::Samples { .. } => pdf.inflated_stream(&Value::Ref(id), expected, control)?,
+        let (mut data, mut source) = match self.encoding {
+            Encoding::Samples { .. } => (
+                pdf.inflated_stream(&Value::Ref(id), expected, control)?,
+                json!({}),
+            ),
             Encoding::AsciiHex => {
                 let (samples, end) = hex_samples(pdf.stream_bytes(id)?, expected, control)?;
-                hex_end = Some(end);
-                samples
+                (
+                    samples,
+                    json!({"filter":"ASCIIHexDecode","ascii_hex_end":end}),
+                )
             }
             Encoding::Jpeg { transform } => crate::sample_import::pdf_samples(
                 pdf.stream_bytes(id)?,
@@ -440,7 +444,9 @@ impl Plane {
             }
             previous = row;
         }
-        Ok(hex_end)
+        source["object"] = json!(id.0);
+        source["generation"] = json!(id.1);
+        Ok(source)
     }
 }
 
@@ -503,25 +509,14 @@ impl Images {
                 return Err(limit("PDF document image pixel budget exceeded"));
             }
             let mut rgba = vec![255; count as usize * 4];
-            let hex_end = plane.unpack(pdf, id, remaining, control, &mut rgba, false)?;
-            let mut source = json!({"object":id.0,"generation":id.1,"components":plane.components,"bits_per_component":plane.bits});
-            if let Some(end) = hex_end {
-                source["filter"] = json!("ASCIIHexDecode");
-                source["ascii_hex_end"] = json!(end);
-            }
+            let mut source = plane.unpack(pdf, id, remaining, control, &mut rgba, false)?;
+            source["components"] = json!(plane.components);
+            source["bits_per_component"] = json!(plane.bits);
             if let Some(palette) = &plane.palette {
                 source["palette_entries"] = json!(palette.entries);
             }
             if let Some(key) = &plane.color_key {
                 source["color_key"] = json!(key);
-            }
-            if let Encoding::Jpeg { transform } = plane.encoding {
-                source["filter"] = json!("DCTDecode");
-                source["jpeg_components"] = json!(match (plane.components, transform) {
-                    (1, _) => "gray",
-                    (_, true) => "ycbcr_to_rgb",
-                    (_, false) => "direct_rgb",
-                });
             }
             if let Some(v) = d.get(b"SMask".as_slice()) {
                 let mask_id = reference(v)?;
@@ -540,12 +535,7 @@ impl Images {
                     }
                     mask.unpack(pdf, mask_id, remaining, control, &mut rgba, true)
                 };
-                let mask_hex_end = decode_mask().map_err(|e| located(e, page, mask_id, None))?;
-                source["soft_mask"] = json!({"object":mask_id.0,"generation":mask_id.1});
-                if let Some(end) = mask_hex_end {
-                    source["soft_mask"]["filter"] = json!("ASCIIHexDecode");
-                    source["soft_mask"]["ascii_hex_end"] = json!(end);
-                }
+                source["soft_mask"] = decode_mask().map_err(|e| located(e, page, mask_id, None))?;
                 if d.contains_key(b"Mask".as_slice()) {
                     source["mask_overridden_by_soft_mask"] = json!(true);
                 }

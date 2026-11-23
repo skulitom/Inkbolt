@@ -41,6 +41,31 @@ class RepositoryGuardTests(unittest.TestCase):
         self.git("add", ".")
         self.assertEqual(guard.check_repository(self.root, staged=True)[0], [])
 
+    def test_app14_signature_is_limited_to_two_exact_declarations(self):
+        policy = self.root / '.git/private-content-policy.json'
+        for name in ('src/sample_import/jpeg/framing.rs', 'tests/synthetic_jpeg.py'):
+            declaration = (ROOT / name).read_bytes().splitlines()[0]
+            signature = declaration.split(b'"')[1]
+            policy.write_text(json.dumps({'patterns':[signature.decode().lower()]}))
+            self.write(name, declaration + b'\n')
+            self.git('add', name)
+            for staged in (False, True):
+                self.assertEqual(guard.check_repository(self.root, staged=staged)[0], [])
+            patterns = guard.local_patterns(self.root)
+            for forbidden in (b'// ' + declaration, b'# ' + declaration,
+                              declaration + b' // note', declaration.replace(signature, signature.lower()),
+                              b'"""\n' + declaration + b'\n"""', declaration + b'\n' + declaration):
+                self.assertTrue(guard.inspect_file(name, forbidden, patterns))
+            self.assertTrue(guard.inspect_file('elsewhere/' + Path(name).name, declaration, patterns))
+            self.write(name, declaration + b'\n# ' + signature)
+            self.git('add', name)
+            self.write(name, declaration + b'\n')
+            self.assertEqual(guard.check_repository(self.root)[0], [])
+            self.assertTrue(guard.check_repository(self.root, staged=True)[0])
+            self.git('add', name)
+            policy.write_text(json.dumps({'patterns':[signature.decode().lower(), 'APP14_SIGNATURE']}))
+            self.assertTrue(guard.check_repository(self.root, staged=True)[0])
+
     def test_actual_index_bytes_checked_despite_clean_working_copy(self):
         self.write("README.md", b"BlockedVendorToken\n")
         self.git("add", "README.md")

@@ -1,5 +1,6 @@
 """Check candidate or indexed material; this is not proof of copyright provenance."""
 import argparse
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -19,6 +20,14 @@ PRIVATE_PARTS = {
     "private-research", "captures", "ghidra-projects", "audit-private", "research", "audits", "private",
 }
 MAX_BYTES = 1024 * 1024
+
+# The standardized JPEG APP14 identifier is also a private policy word. Only
+# these two reviewed declarations may spell it. Binding the complete first
+# line keeps the exception out of comments, strings and duplicate occurrences.
+APP14_DECLARATIONS = {
+    "src/sample_import/jpeg/framing.rs": "09265eb6e2c9081b98b5cf08fa3adb0b18ab3627d05745a27961ca6d7d1dc089",
+    "tests/synthetic_jpeg.py": "33cca6a7e0c68332b024bd1efda0c959417599964b97b90eac9f08f1983bdd50",
+}
 
 
 def git(root, *args, input_data=None, allowed=(0,)):
@@ -60,7 +69,12 @@ def inspect_file(name, content, patterns):
     if any(pattern.search(name) for pattern in patterns):
         issues.append(f"Private content restriction in path: {name}")
     for number, line in enumerate(text.splitlines(), 1):
-        if any(pattern.search(line) for pattern in patterns):
+        active = patterns
+        if number == 1 and name in APP14_DECLARATIONS:
+            if hashlib.sha256(line.encode()).hexdigest() == APP14_DECLARATIONS[name]:
+                signature = line.split('"')[1].casefold()
+                active = [pattern for pattern in patterns if pattern.pattern.casefold() != signature]
+        if any(pattern.search(line) for pattern in active):
             # Do not print private text into public verification output.
             issues.append(f"Private content restriction: {name}:{number}")
     return issues

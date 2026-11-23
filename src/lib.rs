@@ -1386,7 +1386,7 @@ fn capability_report() -> Value {
             "storage":"self_contained_sRGB_PNG_shared_per_image_XObject","sampling":"nearest",
             "filters":["raw","FlateDecode","DCTDecode","ASCIIHexDecode"],"predictors":["none","TIFF_2","PNG_10_to_15"],
             "ascii_hex_end":"explicit_marker_or_exact_whole_byte_sample_extent",
-            "jpeg":{"coding":["baseline_huffman","progressive_huffman"],"depth":8,"color_transform":[0,1],"placement":"PDF_image_matrix","app14":false},
+            "jpeg":{"coding":["baseline_huffman","progressive_huffman"],"depth":8,"color_transform":[0,1],"placement":"PDF_image_matrix","app14":true,"transform_precedence":["APP14","ColorTransform","PDF_default"]},
             "decode":"identity_or_inversion_per_device_component","indexed":"DeviceGray_or_DeviceRGB_palette_with_interpolated_Decode",
             "alpha":"encoded_sample_color_key_or_same_size_grayscale_SMask_without_Matte",
             "max_pixels_per_image":pdf::MAX_IMAGE_PIXELS},
@@ -2194,6 +2194,7 @@ fn capability_report() -> Value {
     capabilities["sample_precision"]["import"]["jpeg"] = json!({
         "depth":"u8","coding":["baseline","progressive"],"channels":["rgba","gray_alpha"],
         "orientation_required":true,"orientation_policies":["apply","ignore"],
+        "app14_color_transform":[0,1],
         "orientation_metadata":"bounded_primary_EXIF;all_eight_mappings;thumbnail_orientation_not_applied",
         "color":"EXIF_sRGB_declaration_or_explicit_assume_srgb;other_profiles_and_transforms_refused",
         "decoder":"jpeg-decoder_0.3.2;whole_frame_output;preflight_allocation_and_scan_work_admission",

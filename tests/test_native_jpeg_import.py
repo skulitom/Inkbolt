@@ -163,6 +163,12 @@ class NativeJpegImportTests(unittest.TestCase):
             (data[:-2], 'INVALID_IMAGE'), (data + b'x', 'INVALID_IMAGE'),
             (data[:-2] + fixture.segment(0xfe, b'INKBOLT-META\0\0\1\0\1{}') + data[-2:], 'UNSUPPORTED'),
             (fixture.jpeg(extras=fixture.segment(0xe2, b'unsupported profile')), 'UNSUPPORTED'),
+            (fixture.jpeg(extras=fixture.app14(2)), 'UNSUPPORTED'),
+            (fixture.jpeg(extras=fixture.app14(0, required=1)), 'UNSUPPORTED'),
+            (fixture.jpeg(extras=fixture.app14(0, version=200)), 'UNSUPPORTED'),
+            (fixture.jpeg(extras=fixture.app14(0) + fixture.app14(1)), 'INVALID_IMAGE'),
+            (data[:-2] + fixture.app14(1) + data[-2:], 'INVALID_IMAGE'),
+            (fixture.jpeg(extras=fixture.segment(0xee, fixture.APP14_SIGNATURE)), 'INVALID_IMAGE'),
             (fixture.jpeg(extras=fixture.exif(0)), 'INVALID_IMAGE'),
             (fixture.jpeg(extras=fixture.exif(9)), 'INVALID_IMAGE'),
             (fixture.jpeg(extras=fixture.exif(1) + fixture.exif(2)), 'INVALID_IMAGE'),
@@ -175,6 +181,17 @@ class NativeJpegImportTests(unittest.TestCase):
         # Invalid orientation remains an error when explicitly ignored.
         self.imported(fixture.jpeg(extras=fixture.exif(9)), orientation='ignore', error='INVALID_IMAGE')
         self.assertFalse((self.root / '.inkbolt').exists())
+
+    def test_declared_transform_drives_stored_and_inline_samples(self):
+        for marker, rgb in [(0, (80,128,128)), (1, (80,80,80))]:
+            data = fixture.jpeg(8, 8, extras=fixture.app14(marker), sample=lambda x,y,c: (80,128,128)[c])
+            with self.subTest(marker=marker):
+                expected = bytes([*rgb,255])*64
+                out = self.imported(data)
+                self.check_blocks(out, 8, 8, 8, 4, expected)
+                self.assertEqual(out['normalization']['app14_color_transform'], marker)
+                inline = self.imported(data, stored=False)
+                self.assertEqual(bytes.fromhex(inline['document']['items'][0]['content']['grid']['data_hex']), expected)
 
     def test_premature_end_marker_does_not_turn_truncated_entropy_into_pixels(self):
         for progressive in (False, True):
@@ -238,10 +255,12 @@ class NativeJpegImportTests(unittest.TestCase):
         profile = tagged(34675, 7, 4, b'ICC!')
         wrong_photo = tagged(262, 3, 1, b'\6\0\0\0')
         jfif = fixture.segment(0xe0, b'JFIF\0\1\2\0\0\1\0\1\0\0')
-        for extra in (profile, wrong_photo, jfif):
+        for extra in (profile, wrong_photo, jfif, jfif + fixture.app14(0), wrong_photo + fixture.app14(0)):
             self.imported(fixture.jpeg(extras=extra), error='UNSUPPORTED')
             self.assertFalse((self.root / '.inkbolt').exists())
         right_photo = tagged(262, 3, 1, b'\2\0\0\0')
+        self.imported(fixture.jpeg(extras=right_photo + fixture.app14(1)), error='UNSUPPORTED')
+        self.imported(fixture.jpeg(extras=wrong_photo + fixture.app14(1)), stored=False)
         out = self.imported(fixture.jpeg(extras=right_photo))
         self.check_blocks(out, 17, 9, 8, 4, fixture.pixels(17, 9, 3))
 
