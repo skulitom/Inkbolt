@@ -102,6 +102,9 @@ class EditablePdfPage(unittest.TestCase):
                         b'[/Indexed /DeviceCMYK 0 <00000000>]', b'[/Indexed /DeviceGray 1 9]'):
             objects = page_objects(b'/P cs 1 sc 0 0 48 40 re f', resources=b'<< /ColorSpace << /P '+palette+b' >> >>')
             self.assertEqual(self.read(pdf(objects), 1)['details']['object'], 4)
+        objects = page_objects(b'/P cs 255 sc 0 0 48 40 re f', resources=b'<< /ColorSpace << /P [/Indexed /DeviceGray 255 5 0 R] >> >>')
+        objects[5] = stream(bytes(range(256)))
+        self.assertEqual(self.read(pdf(objects))['document']['items'][0]['content']['fill'], [255]*4)
 
     def test_transparency_form_owns_invocation_blend_and_alpha(self):
         resources = b'<< /ExtGState << /Mix << /BM /Multiply /ca .5 >> >> /XObject << /F 5 0 R >> >>'

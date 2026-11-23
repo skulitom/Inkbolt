@@ -843,6 +843,7 @@ class ResourceLimitTests(unittest.TestCase):
                  'objects/surface_scale/0':1, 'pdf/scale':1,
                  'pdf/grid_masks/prepared_sample_bits':16,
                  'pdf/editable_import/images/jpeg/depth':8,
+                 'pdf/editable_import/indexed_fills/entries':256,
                  'pdf/editable_import/images/jpeg/color_transform/0':0,
                  'pdf/editable_import/images/jpeg/color_transform/1':1,
                  'render_quality/padding_document_units/0':0,
