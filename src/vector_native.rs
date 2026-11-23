@@ -2,7 +2,7 @@
 mod artwork;
 mod boards;
 mod names;
-mod pdf_read;
+pub(crate) mod pdf_read;
 mod tokens;
 mod write;
 pub use crate::limits::vector_native::MAX_BLOCKS;

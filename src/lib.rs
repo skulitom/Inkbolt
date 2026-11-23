@@ -52,6 +52,7 @@ pub mod paint;
 pub mod path_text;
 pub mod paths;
 pub mod pdf;
+pub mod pdf_import;
 pub mod pixel_brush;
 pub mod pixel_warps;
 pub mod prepress;
@@ -416,6 +417,19 @@ pub enum Request {
     VectorImport {
         id: String,
         source_path: PathBuf,
+        color_policy: vector_native::ColorPolicy,
+        #[serde(default)]
+        resource_profile: model::ResourceProfile,
+        #[serde(default)]
+        control: control::Options,
+    },
+    #[serde(rename = "pdf.import")]
+    PdfImport {
+        id: String,
+        source_path: PathBuf,
+        /// Zero-based index in the PDF page tree.
+        #[serde(default)]
+        page_index: usize,
         color_policy: vector_native::ColorPolicy,
         #[serde(default)]
         resource_profile: model::ResourceProfile,
@@ -1084,6 +1098,7 @@ fn capability_report() -> Value {
         "mesh.inspect",
         "svg.import",
         "vector.import",
+        "pdf.import",
         "document.boolean",
         "channel.export",
         "document.diff",
@@ -1346,7 +1361,7 @@ fn capability_report() -> Value {
         .push(json!("pdf_native_paths_and_pages"));
     capabilities["supported"]["text"]["pdf"] =
         json!("outlines_by_default_or_embedded_searchable_text");
-    capabilities["pdf"] = json!({"version":"1.7;2.0_for_managed_colour_calibrated_page_color_burn_dodge_or_independent_knockout_fields","format":"pdf","page_selection":"pdf_options.artboards_all_ids_or_range;omitted_canvas","scale":1,"physical_units":"72_points_per_inch_from_document_resolution","boxes":["MediaBox","CropBox","BleedBox","TrimBox"],"bleed":"pdf_options.include_bleed_requires_artboards","coordinates":"bottom_left_pdf_user_units","user_unit":format!("ceil_largest_physical_dimension_divided_by_{}_minimum_1", limits::pdf::MAX_PAGE_COORDINATE),"maximum_user_unit":limits::pdf::MAX_USER_UNIT,"maximum_page_coordinate":limits::pdf::MAX_PAGE_COORDINATE,"pages":boards::MAX_ARTBOARDS,"path_commands":pdf::MAX_COMMANDS,"objects":pdf::MAX_OBJECTS,"image_pixels":pdf::MAX_IMAGE_PIXELS,"output_bytes":publish::MAX_OUTPUT_BYTES,"text":"outlines_by_default_or_pinned_font_instances_with_unicode_mappings","color":"pdf_options.color:display_DeviceRGB_or_native_inks_DeviceCMYK_blending","paints":["solid","axial_pad_srgb_constant_alpha","radial_pad_srgb_constant_alpha","axial_pad_srgb_varying_alpha","radial_pad_srgb_varying_alpha"],"images":"verified_crops_nearest_rgb_with_gray8_soft_mask","groups":"isolated_pass_through_and_bounded_RGB_or_native_CMYK_knockout","display_blend_modes":blending::MODES.iter().filter(|mode| pdf::blend_name(**mode).is_some()).collect::<Vec<_>>(),"clips":"geometric_and_frame","strokes":"shared_generated_outlines","metadata":"selected_page_public_or_strip_packets_in_RDF_XML","output_profile":"explicit_RGB_ICCBased_page_and_isolated_groups;DefaultRGB_srgb;PDF2_BPC_OFF","unsupported":["nonstandard_blends","non_normal_blends_with_native_inks_or_nonworking_profiles","knockout_with_calibrated_native_inks_or_nonworking_RGB","effects","filters","dissolve","pixel_warps","layer_clipping","adjustments","dither","other_gradient_semantics","non_nearest_images","editable_reimport","encapsulated_pages"],"publication":"create_only_after_complete_export"});
+    capabilities["pdf"] = json!({"version":"1.7;2.0_for_managed_colour_calibrated_page_color_burn_dodge_or_independent_knockout_fields","format":"pdf","page_selection":"pdf_options.artboards_all_ids_or_range;omitted_canvas","scale":1,"physical_units":"72_points_per_inch_from_document_resolution","boxes":["MediaBox","CropBox","BleedBox","TrimBox"],"bleed":"pdf_options.include_bleed_requires_artboards","coordinates":"bottom_left_pdf_user_units","user_unit":format!("ceil_largest_physical_dimension_divided_by_{}_minimum_1", limits::pdf::MAX_PAGE_COORDINATE),"maximum_user_unit":limits::pdf::MAX_USER_UNIT,"maximum_page_coordinate":limits::pdf::MAX_PAGE_COORDINATE,"pages":boards::MAX_ARTBOARDS,"path_commands":pdf::MAX_COMMANDS,"objects":pdf::MAX_OBJECTS,"image_pixels":pdf::MAX_IMAGE_PIXELS,"output_bytes":publish::MAX_OUTPUT_BYTES,"text":"outlines_by_default_or_pinned_font_instances_with_unicode_mappings","color":"pdf_options.color:display_DeviceRGB_or_native_inks_DeviceCMYK_blending","paints":["solid","axial_pad_srgb_constant_alpha","radial_pad_srgb_constant_alpha","axial_pad_srgb_varying_alpha","radial_pad_srgb_varying_alpha"],"images":"verified_crops_nearest_rgb_with_gray8_soft_mask","groups":"isolated_pass_through_and_bounded_RGB_or_native_CMYK_knockout","display_blend_modes":blending::MODES.iter().filter(|mode| pdf::blend_name(**mode).is_some()).collect::<Vec<_>>(),"clips":"geometric_and_frame","strokes":"shared_generated_outlines","metadata":"selected_page_public_or_strip_packets_in_RDF_XML","output_profile":"explicit_RGB_ICCBased_page_and_isolated_groups;DefaultRGB_srgb;PDF2_BPC_OFF","unsupported":["nonstandard_blends","non_normal_blends_with_native_inks_or_nonworking_profiles","knockout_with_calibrated_native_inks_or_nonworking_RGB","effects","filters","dissolve","pixel_warps","layer_clipping","adjustments","dither","other_gradient_semantics","non_nearest_images","general_editable_reimport","encapsulated_pages"],"publication":"create_only_after_complete_export"});
     capabilities["pdf"]["text_delivery"] = json!({
         "option":"pdf_options.text","default":"outlines","modes":["outlines","searchable","require_searchable"],
         "scope":"vector_pages","embedded":["static_truetype","static_cff","variable_truetype_as_static_subsets","cff2_as_static_truetype_subsets"],
@@ -1360,6 +1375,12 @@ fn capability_report() -> Value {
         "permissions":"installable_or_editable;subset_when_permitted;whole_standalone_static_font_when_subsetting_is_forbidden",
         "fallback":"searchable_outlines_unadmitted_text_items_and_counts_reasons;require_searchable_fails_before_publication",
         "receipt":"pdf.text_delivery","editable_source":"snapshot_and_pinned_fonts"
+    });
+    capabilities["pdf"]["editable_import"] = json!({
+        "command":"pdf.import","selection":"one_page_by_zero_based_index",
+        "colors":"device_gray_and_rgb_as_encoded_srgb","paint":"editable_line_and_cubic_fills",
+        "forms":"local_form_resources_bounds_transforms_and_normal_opacity",
+        "source":"read_only_classic_xref_pdf","unsupported":"located_refusal"
     });
     capabilities["pdf"]["content_streams"] = json!({
         "scope":["page_contents","form_xobjects"],"filter":"FlateDecode",
@@ -1676,7 +1697,7 @@ fn capability_report() -> Value {
         "print_jobs": false,
         "calibrated_page":"document_RGB_output_profile;managed_source_profiles;explicit_PDF2_BPC_OFF",
         "prepared_plates":"pdf_options.prepress;flattened_process_and_spot_planes_with_marks",
-        "unsupported": ["editable_PDF_reimport", "embedded_text_fonts"]
+        "unsupported": ["editable_native_ink_PDF_reimport", "embedded_text_fonts"]
     });
     capabilities["print_cmyk"] = json!({
         "delivery":"pdf_options.print;flattened_ICCBased_CMYK8_images",
@@ -2671,6 +2692,21 @@ pub fn execute_controlled(request: Request, context: &control::Control) -> Resul
         } => vector_native::import(
             id,
             &source_path,
+            color_policy,
+            resource_profile,
+            &context.scoped(&control)?,
+        ),
+        Request::PdfImport {
+            id,
+            source_path,
+            page_index,
+            color_policy,
+            resource_profile,
+            control,
+        } => pdf_import::import(
+            id,
+            &source_path,
+            page_index,
             color_policy,
             resource_profile,
             &context.scoped(&control)?,

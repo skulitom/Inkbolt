@@ -1,5 +1,52 @@
 # PDF appearance and page delivery
 
+## Reopen a page for editing
+
+Use `pdf.import` to open a page of filled vector artwork. For example, this
+request opens the first page of a local file in a CLI or MCP workspace.
+
+```json
+{"command":"pdf.import","id":"proof","source_path":"artwork.pdf","page_index":0,"color_policy":"encoded_srgb"}
+```
+
+The result contains a native `document`, the source file's SHA-256, the page
+count, boxes and rotation, and a `mapping` from new item IDs to the PDF
+object and decoded byte offset that produced them. Use the document in
+`session.create`, recolor a path with the `fill` operation, or edit its cubic
+control points. Publish a revised PDF under a new name.
+
+The importer reads classic cross-reference tables and raw or Flate-compressed
+page and form streams. It follows the page tree and inherited resources. The
+intersection of the crop and media boxes sets the canvas, including fractional
+dimensions, page rotation in quarter turns and physical `UserUnit` scaling.
+One document unit is one point. Omit `page_index` to open page zero.
+
+The drawing subset includes line and cubic paths, rectangles, compound fills
+with either winding rule, graphics-state save and restore, transforms, clipping
+paths, and repeated Form XObjects with local resources and bounding boxes.
+Normal transparency groups retain fill and group opacity. DeviceGray and
+DeviceRGB use the requested encoded-sRGB interpretation. Painted contours
+remain editable. A path may have originated as a rectangle, an expanded stroke
+or lettering. Its PDF geometry cannot identify the original editing operation.
+The receipt records this loss and the source file remains available.
+
+Text operators, image XObjects, shadings, CMYK, named inks, remapped color
+spaces, masks, knockout, annotations and non-normal blends return an error.
+Content errors identify the selected page and object, with a byte offset for
+drawing operators. Import applies the classic container reader's object and
+page limits, a 16 MiB source and cumulative decoded-stream budget, and the
+selected vector profile's native item and document limits. The same checks
+apply when a form is invoked repeatedly. [PDF graphics specification](https://pdfa.org/resource/iso-32000-2/)
+
+Five original source fixtures cover a rectangle, an equivalent authored path,
+a renamed item, a transformed translucent cubic and overlapping shapes. On
+Windows and WSL, all five pages reproduced the source pixels at 1× and 2×.
+Recoloring a recovered path matched the corresponding edit in the source.
+MuPDF and PDFium each rendered all ten reopened and recolored deliveries
+pixel-for-pixel identically to their respective controls at 288 dpi. The
+synthetic suite also checks nested form resources, clipping, opacity across
+overlapping fills, rotated pages, session retry, undo and create-only delivery.
+
 Print-mark ranges and omitted-option defaults are reported in
 `capabilities.pdf.mark_limits`. Marked, process and ink-recipe writers share the
 same page-coordinate and UserUnit bounds as ordinary PDF delivery.
@@ -489,7 +536,8 @@ snapshots remain unchanged. The basic page and extended vector typography
 criteria cover these declared contracts. Native spot output is covered by
 [INK_DELIVERY.md](INK_DELIVERY.md); combined trim/bleed/ink preparation is covered
 by [PREPRESS.md](PREPRESS.md). Broader searchable typography, encapsulated page
-input and editable PDF reimport remain open under the extended page criterion.
+input and editable reimport beyond the filled-path subset remain open under
+the extended page criterion.
 
 Public format reference: [ISO 32000-1 entry](https://committee.iso.org/standard/51502.html)
 and [PDF specification archive](https://pdfa.org/resource/pdf-specification-archive/).

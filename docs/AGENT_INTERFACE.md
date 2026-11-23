@@ -1,5 +1,9 @@
 # Agent interface
 
+Use `pdf.import` to recover editable filled paths and groups from a selected
+PDF page. The receipt identifies the original file, page and source operators.
+[Reopen a page for editing](PDF.md#reopen-a-page-for-editing)
+
 Use `vector.import` with a local source and explicit `color_policy:"encoded_srgb"`
 for the admitted native vector subset: editable flat layers, closed paths and
 shared artboards. The source is unchanged; retain the loss receipt. Native

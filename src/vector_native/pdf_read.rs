@@ -8,17 +8,17 @@ pub use crate::limits::vector_native_pdf_read::MAX_OBJECTS;
 use crate::limits::vector_native_pdf_read::{
     MAX_DEPTH, MAX_HEX_DIGITS, MAX_NAME_BYTES, MAX_PAGES, MAX_STRING_STEPS, MAX_TOKEN_BYTES,
 };
-type Id = (u32, u16);
+pub(crate) type Id = (u32, u16);
 #[derive(Debug)]
 pub enum Value {
     Integer(i64),
-    Real,
+    Real(f64),
     Name(Vec<u8>),
     Bytes,
     Array(Vec<Value>),
     Dict(BTreeMap<Vec<u8>, Value>),
     Ref(Id),
-    Bool,
+    Bool(bool),
     Null,
 }
 impl Value {
@@ -36,7 +36,7 @@ impl Value {
             Err(invalid("Expected a PDF integer"))
         }
     }
-    fn named(&self, name: &[u8]) -> bool {
+    pub(crate) fn named(&self, name: &[u8]) -> bool {
         matches!(self,Self::Name(v) if v==name)
     }
 }
@@ -223,7 +223,7 @@ impl Parser<'_, '_> {
                 self.at -= 1;
                 let word = self.word()?.to_vec();
                 if word == b"true" || word == b"false" {
-                    return Ok(Value::Bool);
+                    return Ok(Value::Bool(word == b"true"));
                 }
                 if word == b"null" {
                     return Ok(Value::Null);
@@ -237,10 +237,12 @@ impl Parser<'_, '_> {
                     return Err(invalid("Unsupported PDF value token"));
                 }
                 if text.contains('.') {
-                    if !text.parse::<f64>().is_ok_and(f64::is_finite) {
-                        return Err(invalid("Invalid PDF real"));
-                    }
-                    return Ok(Value::Real);
+                    return text
+                        .parse::<f64>()
+                        .ok()
+                        .filter(|v| v.is_finite())
+                        .map(Value::Real)
+                        .ok_or_else(|| invalid("Invalid PDF real"));
                 }
                 let number = text
                     .parse::<i64>()
@@ -525,7 +527,15 @@ impl<'a> Container<'a> {
             _ => Err(unsupported("Unsupported editable-vector block filter")),
         }
     }
-    pub fn editable(&self) -> Result<(&BTreeMap<Vec<u8>, Value>, usize), Error> {
+    pub(crate) fn stream_dict(&self, id: Id) -> Result<&BTreeMap<Vec<u8>, Value>, Error> {
+        self.objects
+            .get(&id)
+            .filter(|o| o.stream.is_some())
+            .ok_or_else(|| invalid("Expected an indirect PDF stream"))?
+            .value
+            .dict()
+    }
+    pub(crate) fn catalog(&self) -> Result<&BTreeMap<Vec<u8>, Value>, Error> {
         let root = self
             .resolve(
                 &self
@@ -538,6 +548,10 @@ impl<'a> Container<'a> {
         if !field(root, b"Type")?.named(b"Catalog") {
             return Err(invalid("Invalid PDF catalog"));
         }
+        Ok(root)
+    }
+    pub fn editable(&self) -> Result<(&BTreeMap<Vec<u8>, Value>, usize), Error> {
+        let root = self.catalog()?;
         let mut found = BTreeSet::new();
         self.pieces(root, &mut found)?;
         let mut seen = BTreeSet::new();
