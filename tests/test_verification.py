@@ -124,6 +124,15 @@ class VerificationTests(unittest.TestCase):
         missing = inputs.fingerprints(self.root, self.files(), 'same', names)
         self.assertNotEqual(after['rust'], missing['rust'])
 
+    def test_embedded_svg_guide_invalidates_build_and_engine_callers(self):
+        self.write('tests/test_one.py', 'value=1')
+        self.write('docs/SVG_EDIT_EXAMPLE.md', 'first guide')
+        before = inputs.fingerprints(self.root, self.files(), 'same', ['test_one'])
+        self.write('docs/SVG_EDIT_EXAMPLE.md', 'updated guide')
+        after = inputs.fingerprints(self.root, self.files(), 'same', ['test_one'])
+        self.assertEqual({name for name in before if before[name] != after[name]},
+                         {'build', 'fmt', 'clippy', 'rust', 'test_one'})
+
     def test_failed_deferred_and_different_inputs_never_reuse(self):
         for status in ('failed', 'deferred', 'reused'):
             self.assertFalse(verify.reusable(dict(status=status, fingerprint='same'), 'same'))

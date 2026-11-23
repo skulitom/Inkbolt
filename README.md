@@ -34,6 +34,10 @@ inkbolt --workspace PATH_TO_EXISTING_FOLDER mcp --tools essentials
 The agent starts with ten tools and can look up editing commands as it works.
 A desktop extension is also available for Windows. [Installation and client setup](docs/INSTALLATION.md) · [First vector edit](docs/AGENT_DISCOVERY.md#vector-quickstart)
 
+Already have an SVG? This example moves one path inside a group, leaves its
+sibling in place and saves both an editable SVG and a PNG preview. It runs
+with the v0.85.1 download. [Move one object in an SVG](docs/SVG_EDIT_EXAMPLE.md)
+
 For CLI scripts, pass the same absolute `--workspace` on every request.
 If an edit succeeds but its reply is lost, the next process can recover the
 receipt using the original request ID. [CLI scripting example](docs/AGENT_WORKSPACE.md) · [Recovering an edit](docs/SESSIONS.md#retries-and-conflicts)
@@ -49,7 +53,7 @@ fill. Undo restored the starting SVG byte for byte. [Restored SVG](https://skuli
 
 | Task | How Inkbolt helps |
 | --- | --- |
-| Draw a diagram or illustration | Arrange shapes, text, images and artboards. Import editable SVG artwork, including reusable symbols and positioned text. [Move one object in an SVG](docs/SVG_IMPORT.md#move-one-object-and-export-the-result) |
+| Draw a diagram or illustration | Arrange shapes, text, images and artboards. Import editable SVG artwork, including reusable symbols and positioned text. [SVG import](docs/SVG_IMPORT.md) |
 | Cut or join shapes | Combine filled paths, circles and ellipses in one undoable edit. The resulting Bézier handles stay editable. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
 | Retouch an image | Select a region, feather a mask or repair a patch. Keep 16-bit samples and share unchanged image data across revisions. [Selections](docs/NATIVE_SELECTIONS.md) · [Image repair](docs/NATIVE_REPAIR.md) |
 | Reopen a PDF page | Edit supported filled paths, curves and embedded RGB or grayscale images. Move one copy of a placed image independently of the others. [PDF import and its limits](docs/PDF.md#reopen-a-page-for-editing) |

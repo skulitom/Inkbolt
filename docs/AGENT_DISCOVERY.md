@@ -73,9 +73,12 @@ Save the assembled document in a session, then use its ID and revision to
 publish the snapshot and PNG. Each publication needs a fresh output filename.
 Reading the examples leaves the workspace untouched.
 
-For an existing SVG, use the source-to-item mapping from `svg.import` to
-identify the path to edit. This example moves one path inside a group, then
-publishes the edited revision as SVG and PNG. [Move one object in an SVG](SVG_IMPORT.md#move-one-object-and-export-the-result)
+For an existing SVG, source builds offer
+`{"command":"schema.lookup","name":"svg.quickstart"}` through the CLI and MCP.
+The `svg.import` lookup links to it. The guide includes a two-shape fixture
+and a Python script that finds one path by its source ID, moves it and
+publishes both formats from the saved revision. The same example runs with
+the v0.85.1 download. [Move one object in an SVG](SVG_EDIT_EXAMPLE.md)
 
 ## Screen artwork
 

@@ -387,6 +387,7 @@ pub(crate) fn lookup_in_workspace(
         name,
         "index"
             | "vector.quickstart"
+            | "svg.quickstart"
             | "image.quickstart"
             | "screen.quickstart"
             | "handoff.quickstart"
@@ -399,6 +400,10 @@ pub(crate) fn lookup_in_workspace(
         }
         if name == "vector.quickstart" {
             return Ok(examples::vector_quickstart());
+        }
+        if name == "svg.quickstart" {
+            return Ok(json!({"name":name,"detail":"examples",
+                "guide":include_str!("../docs/SVG_EDIT_EXAMPLE.md")}));
         }
         if name == "image.quickstart" {
             return Ok(examples::image_quickstart());
@@ -413,6 +418,7 @@ pub(crate) fn lookup_in_workspace(
             json!({"detail":"index", "commands":commands().collect::<Vec<_>>(),
             "types":TYPES.iter().map(|(alias, _)| alias).collect::<Vec<_>>(),
             "example_queries":examples::queries(), "vector_quickstart":lookup_request("vector.quickstart", None),
+            "svg_quickstart":lookup_request("svg.quickstart", None),
             "image_quickstart":lookup_request("image.quickstart", None),
             "screen_quickstart":lookup_request("screen.quickstart", None),
             "handoff_quickstart":lookup_request("handoff.quickstart", None),

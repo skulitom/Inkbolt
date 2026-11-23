@@ -235,6 +235,9 @@ pub(super) fn for_schema(name: &str, selected: Option<&str>, schema: &Value) -> 
 }
 
 pub(super) fn attach(mut result: Value, example: Option<Value>) -> Result<Value, Error> {
+    if result["name"] == "svg.import" && result["select"].is_null() {
+        result["svg_quickstart"] = super::lookup_request("svg.quickstart", None);
+    }
     if let Some(example) = example {
         if serde_json::to_vec(&example).unwrap().len() > crate::limits::schema::EXAMPLE_BYTES {
             return Err(Error::new(

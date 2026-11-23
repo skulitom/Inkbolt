@@ -123,6 +123,8 @@ def fingerprints(root, files, environment, modules):
     # Unclassified files, lockfiles, configuration and examples invalidate all
     # engine checks. Markdown is selected through fixture references instead.
     engine = {p for p in files if not p.startswith(('tests/', 'tools/')) and not p.endswith('.md')}
+    # The CLI and MCP embed this runnable guide in their shared discovery reply.
+    engine |= {p for p in files if p == 'docs/SVG_EDIT_EXAMPLE.md'}
     rust = engine | {p for p in files if p.startswith('tests/') and p.endswith('.rs')}
     # The limit unit test embeds this generated reference with include_str!.
     # Its bytes must invalidate Cargo checks even when no Rust file changed.

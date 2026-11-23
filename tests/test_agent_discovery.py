@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import runpy
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -33,6 +34,49 @@ def catalog(client):
 
 
 class AgentDiscoveryTests(unittest.TestCase):
+    def test_svg_import_discovers_and_executes_the_editing_guide(self):
+        schema = dict(command='schema.lookup', name='svg.import')
+        lookup = invoke(schema)['result']['svg_quickstart']
+        self.assertEqual(invoke(dict(schema, full=True))['result']['svg_quickstart'], lookup)
+        self.assertEqual(invoke(dict(schema, name='index'))['result']['svg_quickstart'], lookup)
+        self.assertNotIn('svg_quickstart', invoke(dict(schema, name='session.create'))['result'])
+        guide = invoke(lookup)['result']
+        self.assertEqual(guide['guide'], (ROOT / 'docs/SVG_EDIT_EXAMPLE.md').read_text(encoding='utf-8'))
+        self.assertLess(len(json.dumps(guide).encode()), 4096)
+        for fields in ({'select': 'path'}, {'full': True}):
+            self.assertEqual(invoke(dict(lookup, **fields))['error']['code'], 'INVALID_REQUEST')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with closing(Client(('--tools', 'essentials'), workspace=root)) as client:
+                client.initialize()
+                self.assertEqual(client.success('schema.lookup', name='svg.import')['svg_quickstart'], lookup)
+                self.assertEqual(client.success('schema.lookup', name=lookup['name']), guide)
+            self.assertEqual(list(root.iterdir()), [])
+            svg = guide['guide'].split('```svg\n', 1)[1].split('```', 1)[0].encode()
+            script = guide['guide'].split('```python\n', 1)[1].split('```', 1)[0]
+            source = root / 'diagram.svg'
+            source.write_bytes(svg)
+            env = dict(os.environ, PATH=os.pathsep.join([str(EXE.resolve().parent), os.environ['PATH']]))
+            subprocess.run([sys.executable, '-c', script], cwd=root, env=env, check=True,
+                           capture_output=True, timeout=30)
+            receipt = json.loads((root / 'import-receipt.json').read_bytes())
+            self.assertEqual(source.read_bytes(), svg)
+            self.assertEqual(receipt['source']['sha256'], hashlib.sha256(svg).hexdigest())
+            ids = {row['source_id']: row['item_id'] for row in receipt['mapping']}
+            self.assertNotEqual(ids['badge'], ids['stop'])
+            revised = (root / 'revised.svg').read_text(encoding='utf-8')
+            for key in ('badge', 'stop'):
+                self.assertIn(f'id="{ids[key]}"', revised)
+            width, height, pixels, _ = png_pixels((root / 'preview.png').read_bytes())
+            self.assertEqual((width, height), (48, 32))
+            expected = bytearray(width * height * 4)
+            for x, y, w, h, color in ((13, 8, 8, 5, (23, 101, 171, 255)),
+                                      (33, 4, 5, 4, (202, 66, 50, 255))):
+                for row in range(y, y + h):
+                    offset = (row * width + x) * 4
+                    expected[offset:offset + w * 4] = bytes(color) * w
+            self.assertEqual(pixels, expected)
+
     def test_screen_quickstart_publishes_editable_source_and_pinned_png(self):
         lookup = invoke(dict(command='schema.lookup', name='index'))['result']['screen_quickstart']
         guide = invoke(lookup)['result']
