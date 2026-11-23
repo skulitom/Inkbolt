@@ -2,23 +2,20 @@
 
 ## Results by task
 
-On the seventeen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
-completed 85 of 85 workflows. Agents using the baseline completed 77 of
-80 applicable attempts. Three print PDFs omitted a required color setting.
-Lost-reply recovery has no baseline. Across all 20 tasks, including the
-earlier builds, median token use was lower for the baseline on all 17
-tasks where both approaches were evaluated.
+On one Inkbolt 0.85.1 executable, agents passed all 100 workflows in the
+standard five-trial batches. The no-engine baseline passed 82 of 85 applicable
+deliveries. Three print PDFs omitted a required color setting. Five additional
+Inkbolt attempts failed because the client could not start the interrupted-export
+bridge. Including those attempts gives 100 successes in 105 started Inkbolt
+trials. The baseline used fewer median tokens on all 17 comparable tasks.
+[Twenty-task comparison and retained failures](#twenty-tasks-on-one-inkbolt-build)
 
-Each row uses the latest standard five-trial comparison, or the latest
-standard engine run for tasks without a baseline. Experiments that vary the
-instructions have their own results below.
-B07 and B12 also record the client starts that ended before a trial could be judged.
-The evidence links give the prompts, independent checks, trial conditions and
-judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
-reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Seventeen tasks now share one 0.85.1 executable. The other three rows
-use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
-measures catalog size, receipt recovery and retry traffic on Windows and Linux.
+Both arms used Codex CLI 0.160.0 with the externally selected `gpt-6.1-sol`
+and medium reasoning on Windows. The baseline used resvg 0.47.0 and Pillow
+12.3.0. Each task used the same prompt, fixtures and client settings across
+arms. The linked-graphic task also used the same video consumer. The table
+gives the standard five-trial batches. Smaller-model and instruction experiments
+are reported separately below. [Comparison with Cutbolt](BENCHMARK_COMPARISON.md)
 
 | Task | Inkbolt artifact | Inkbolt workflow | Baseline passes | Median tokens, Inkbolt / baseline | Evidence |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -39,20 +36,20 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 262,081 / 56,846 | [Resource repair on 0.85.1](#repairing-broken-image-bindings-on-0851) |
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 345,850 / 129,980 | [Text repair on 0.85.1](#repairing-an-overflowing-text-frame-on-0851) |
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 263,170 / n/a | [0.85.1 recovery trials](#diagram-svg-and-recovery-trials-on-0851) |
-| B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
-| B19 Recover an interrupted export | 5/5 | 5/5 | n/a | 530,157 / n/a | [Command discovery during export recovery](#command-discovery-during-export-recovery) |
-| B20 Revise a linked video graphic | 5/5 | 5/5 | 5/5 | 921,483 / 284,822 | [Timed sequence example](#timed-sequence-handoff-with-one-discovery-example) |
+| B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 237,154 / n/a | [Conflict recovery on 0.85.1](#twenty-tasks-on-one-inkbolt-build) |
+| B19 Recover an interrupted export | 5/5 | 5/5 | n/a | 640,407 / n/a | [5/10 including bridge failures](#twenty-tasks-on-one-inkbolt-build) |
+| B20 Revise a linked video graphic | 5/5 | 5/5 | 5/5 | 751,340 / 326,774 | [Linked delivery on 0.85.1](#twenty-tasks-on-one-inkbolt-build) |
 
 Artifact checks cover the requested delivery and source preservation. A complete
 Inkbolt workflow also requires the specified editing history, receipts or
 recovery behavior. Baseline artifact and workflow counts coincide in these
 batches. B17–B19 exercise engine-specific recovery and have no baseline arm.
 
-Token medians include all attempts with reported usage, including failures, and
-count cached input once. Five trials
-give wide uncertainty. For example, five successes give a 95% Wilson interval
-of 56.6%–100%. Full model-call counts, engine-only model-trial memory and
-preview timing across the entire suite remain open. [Comparison policy](BENCHMARK_COMPARISON.md)
+Token medians use every observed usage in each standard batch, including failed
+deliveries, and count cached input once. Five successes in five trials give a
+95% Wilson interval of 56.6%–100%. Each of the 185 completed client turns has a
+timestamp for a file subsequently accepted by the preview judge. Inference-call
+counts and engine-only memory across the suite remain open. [Comparison policy](BENCHMARK_COMPARISON.md)
 
 In B01, both arms delivered five accepted editable diagrams once the prompt
 specified how to supply the font and position the labels. The earlier baseline
@@ -70,6 +67,85 @@ The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Twenty tasks on one Inkbolt build
+
+The public cohort importer reran the independent judges on all 185 captured
+workspaces. It reproduced every verdict, check, client token count and
+observed preview time. Seventeen tasks provided five matched pairs each. The
+three recovery tasks provided five Inkbolt trials each. An independent audit
+traced each workspace to its original run and checked its prompt contract,
+transcript, candidate, client settings and conditions. The trials ran over
+several days on a shared Windows host. [Replay instructions](BENCHMARK_DRIVER.md#replay-tasks-captured-in-separate-runs)
+
+| Task and arm, five trials | Median shell commands | Median shell output, bytes | Median seconds to client observation of an accepted preview | Median solve time, seconds |
+| --- | ---: | ---: | ---: | ---: |
+| B18 conflicting edits, Inkbolt | 9 | 47,514 | 70.0 | 86.7 |
+| B19 interrupted export, Inkbolt with working bridge | 19 | 229,801 | 91.1 | 148.0 |
+| B20 linked graphic, Inkbolt | 15 | 161,406 | 130.0 | 203.6 |
+| B20 linked graphic, no engine | 15 | 74,111 | 101.8 | 124.9 |
+
+The preview column uses the same client clock throughout. The recovery bridge
+also observed a verified preview in all five B19 runs, at a median 80.8 seconds.
+The handoff bridge observed one in three B20 Inkbolt runs, at a median 121.0
+seconds. In both other runs the client observed the accepted file.
+
+For B18, all five agents rejected the stale proposal and retained the other
+writer's edit. Copies of all five final session databases then underwent a
+second conflict on both Windows and Linux. After explicit resource rebinding,
+both systems rejected the stale edit and replayed the fresh commit receipt.
+All 40 historical and revised previews matched the expected pixels. The five
+original databases remained byte-identical. [Conflict task](../tools/benchmark_prompts/B18.md)
+
+For B19, five clients reported 57,523–74,447 tokens apiece while trying to
+start the bridge. Windows denied access to its Python interpreter. They made zero engine
+calls. Repeating with the previously verified interpreter recovered all five
+exports under the original interruption, cancellation and no-overwrite checks.
+That gives 5/10 for B19 across both batches. B07 also retained two Inkbolt
+and one baseline provider refusals before a completed turn. B12 retained one
+such baseline refusal. [Interrupted-export task](../tools/benchmark_prompts/B19.md)
+
+For B20, all ten agents preserved the old delivery and published the revised
+animation. The judge decoded both timelines and checked the frame samples and
+timing. All five Inkbolt runs also verified the pinned successor, explicit
+consumer revision, undo and retry. [Linked-graphic task](../tools/benchmark_prompts/B20.md)
+
+**Where Inkbolt costs more.** The preset losing-task rule flagged B01–B13,
+B15, B16 and B20. Both arms passed all five artifacts on each of these 16
+tasks. Median Inkbolt tokens were at least twice baseline on 15 of them.
+B07 was the exception at 1.39×. B14 favored Inkbolt on print correctness,
+5/5 to 2/5. Only two print pairs had successful artifacts on both sides, too
+few for the five-pair cost rule. B17–B19 have no baseline counterpart.
+[Decision rule](BENCHMARK_COMPARISON.md#fixed-comparison-policy)
+
+| Measurement on the same 85 applicable attempts per arm | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Accepted deliveries | 85 | 82 |
+| Input plus output tokens, total | 29,309,239 | 7,524,177 |
+| Shell commands, total | 981 | 376 |
+| Shell commands with nonzero exit | 49 | 6 |
+| Shell output, UTF-8 bytes | 12,047,729 | 1,340,394 |
+| Direct MCP calls | 0 | 0 |
+| Median seconds to client observation of an accepted preview | 65.3 | 35.2 |
+| Median solve time, seconds | 92.8 | 44.5 |
+| Median peak committed bytes for the Windows client process tree | 143,134,720 | 118,337,536 |
+
+Client memory includes the launcher and its children. Shell exits can include
+intentional probes. The controlled Inkbolt bridges additionally observed native
+engine calls, retries and process memory on B19 and B20.
+
+B12 had the largest paired token ratio at 6.98×. Commands containing schema
+lookups returned 615,994 of its 739,117 shell-output bytes. The next experiment
+tests whether focused lookups reduce those costs while preserving editable
+variants, all three rendered artboards and restoration of the original layout.
+[B12 trial measurements](#selecting-and-restoring-layout-variants-on-0851)
+
+| Retained identity | SHA-256 |
+| --- | --- |
+| Evaluated Windows engine | `277681785bf7f47bc155bad7ef9c6bd3ffd2139f987cc801923a627bfd79db39` |
+| Rejudged Inkbolt report | `dbfbb8b34f14b27202e9ea9ae8fab864e1a7ce751769ec3fe55f12f93e7d1bd7` |
+| Rejudged baseline report | `83465a555c0cf3a37f96bce119769b5b4bd12edd35e9c658d3b1ec5fbcf0215a` |
+| Matched comparison at `6d6b28d` | `12cd324c628c2aa171cf9183b68d520ede34fbe043577eea8e7f5ea09a311c7d` |
 
 ## Repairing an overflowing text frame on 0.85.1
 
@@ -97,9 +173,8 @@ third letter made the frame overflow again. Both hosts identified the text
 item, accepted a 36-pixel width and rendered the three expected glyphs
 without moving the rectangle. The second edit used a copy of each document.
 
-The combined replay covers 165 judged attempts on seventeen tasks. The
-remaining three are conflict recovery, interrupted publication and linked
-video graphics. B16 capture and replay audit SHA-256
+At this intermediate milestone the combined replay covered 165 judged
+attempts on seventeen tasks. B16 capture and replay audit SHA-256
 `a90e37f53d8a508c68f297d50affc6f2cba04d85b62dd5a03eb785c574da65b9`.
 Combined audit SHA-256 `2b4a8c40e0fe1624229d27f9114f743236683cf1142c75fc9f458d42ac65217a`.
 

@@ -2,8 +2,9 @@
 
 The W2 external lifecycle supports B01-B20. B19 and B20 require Windows for
 their measured process controls. The baseline reports B17-B19 as
-`not_applicable` with engine-specific reasons. This is not a
-complete model benchmark or evidence that Inkbolt beats the baseline.
+`not_applicable` with engine-specific reasons. The completed comparison
+used one 0.85.1 executable and retained the original trial workspaces.
+[Observed results](BENCHMARK_RESULTS.md#twenty-tasks-on-one-inkbolt-build)
 
 ## Configure a client
 

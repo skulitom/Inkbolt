@@ -5,20 +5,21 @@ external-client trials for the fixed
 B01-B20 tasks in [the readiness plan](AGENT_READINESS.md). Twenty
 adapters exercise real CLI and compact MCP commands with independent output,
 structure, resource, history and source-preservation checks. B20 also exercises
-an explicitly selected local Cutbolt installation. This advances A1; it does not establish
-autonomous agent success, a matched Cutbolt comparison or complete readiness.
+an explicitly selected local Cutbolt installation.
 `--arm reference` is the existing default. B01-B16 and B20 support `--arm model` and
 `--arm baseline`, with an [external driver/capture contract](BENCHMARK_DRIVER.md).
 B17-B19 support the model arm; their engine-specific baselines remain explicitly not
-applicable. B19 and B20 external execution requires Windows. Full matched-trial
-acceptance remains open.
+applicable. B19 and B20 external execution requires Windows.
 
 Use the [matched comparison tool](BENCHMARK_COMPARISON.md) to compare retained
 external model/baseline reports. It preserves all task IDs and failures, separates
 artifact checks from engine guarantees, and keeps missing usage unknown.
 Synthetic comparisons cannot establish model performance or the W2 acceptance gate.
-The [recorded genuine B02 results](BENCHMARK_RESULTS.md) cover two five-pair evaluations;
-the remaining task inventory and full acceptance are still open.
+On one Inkbolt 0.85.1 executable, the public importer rejudged five genuine
+model trials for each of the twenty tasks and five baseline trials for each
+of the seventeen applicable tasks. The results include the print failures,
+the separate failed recovery launches and the comparison that sets the next
+interface priority. [Results by task](BENCHMARK_RESULTS.md#twenty-tasks-on-one-inkbolt-build)
 
 ## Running and preserving evidence
 

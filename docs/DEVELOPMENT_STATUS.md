@@ -5,6 +5,24 @@ current priorities. Update these milestone summaries in place; use Git history
 for individual changes. Completed infrastructure does not establish whole-goal
 or additional engine-checkpoint completion.
 
+## Reducing discovery cost for layout variants
+
+The twenty-task comparison found its largest matched token ratio on B12.
+Inkbolt and baseline agents each delivered five correct editable layouts.
+Inkbolt used 6.98 times the median tokens. Each Inkbolt agent's largest shell
+reply came from a command containing schema lookups. One such command fetched
+ten complete type schemas. [B12 measurements](BENCHMARK_RESULTS.md#selecting-and-restoring-layout-variants-on-0851)
+
+Test whether pointing agents to the existing binding and selection lookups
+reduces both median tokens and median shell-plus-MCP response bytes. Compare
+five fresh standard runs with five fresh runs given the focused lookups,
+alternating which condition runs first. Use the same executable, original
+prompt, fixtures, independent judges and externally selected client settings.
+Report the first observed accepted preview, shell and MCP traffic, and every
+failed start or workflow. Keep the guidance only if both medians fall and all
+five guided trials pass the original delivery, editability and restoration
+checks. Broad catalog changes and automatic examples stay outside this test.
+
 ## Getting from CLI help to a first vector preview
 
 In the [five timed B01 diagram trials](BENCHMARK_RESULTS.md#time-to-the-first-accepted-diagram-preview),

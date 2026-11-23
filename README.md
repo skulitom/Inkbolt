@@ -73,7 +73,7 @@ Background export jobs currently require Windows.
 ## Explore the project
 
 - To connect an agent or script an edit, see the [agent interface](docs/AGENT_INTERFACE.md), [tool discovery](docs/AGENT_DISCOVERY.md) and [guide to saving CLI receipts](docs/AGENT_RESPONSES.md).
-- See what agents delivered on 20 editing, export and recovery tasks, how many attempts passed, and how much time and model usage each approach took. [Results by task](docs/BENCHMARK_RESULTS.md#results-by-task) · [Tool use](docs/BENCHMARK_RESULTS.md#shell-and-mcp-activity-across-twenty-tasks)
+- See what agents delivered on 20 editing, export and recovery tasks with Inkbolt and a no-engine baseline. The comparison records successes, failures, time to preview and token use on one tested build. [Results by task](docs/BENCHMARK_RESULTS.md#results-by-task) · [Time and tool use](docs/BENCHMARK_RESULTS.md#twenty-tasks-on-one-inkbolt-build)
 - For a direct comparison with Cutbolt on moving an image and recovering a saved session receipt, see the [matched agent trials](docs/BENCHMARK_COMPARISON.md#five-model-driven-placement-pairs-on-windows).
 - The [capability reference](docs/IMPLEMENTATION.md) describes which editing and export operations are implemented.
 - The [development plan](FIX_PLAN.md) tracks remaining work. The [development guide](docs/DEVELOPMENT_LOOP.md) explains the 2–3 minute feedback loop and full milestone checks.
