@@ -89,6 +89,12 @@ each original delivery to its source and each edit to a separately authored
 control. Every pixel matched on all 36 process and spot plate comparisons at
 144 dpi, including the blank area around the path. Strict reader errors were
 enabled and an installed font supplied for the writer's unpainted font setup.
+
+A fifth page overlaid two spot colors on process paint, repainted a process
+strip above both spots and included a zero-tint knockout. Recoloring one spot
+path preserved the other spot, the process plates and unpainted regions.
+Both hosts emitted identical PDFs. All twelve additional plate comparisons
+matched the original sheet or its independently authored edit at 144 dpi.
 Painted text, mixed-space pages and encapsulated page placement remain open.
 [Print fill editing contract](PDF.md#editing-process-and-spot-fills)
 

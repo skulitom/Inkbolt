@@ -2,9 +2,9 @@
 
 ## Results by task
 
-On the fourteen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
-completed 70 of 70 workflows. Agents using the baseline completed 62 of
-65 applicable attempts. Three print PDFs omitted a required color setting.
+On the fifteen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
+completed 75 of 75 workflows. Agents using the baseline completed 67 of
+70 applicable attempts. Three print PDFs omitted a required color setting.
 Lost-reply recovery has no baseline. Across all 20 tasks, including the
 earlier builds, median token use was lower for the baseline on all 17
 tasks where both approaches were evaluated.
@@ -12,11 +12,11 @@ tasks where both approaches were evaluated.
 Each row uses the latest standard five-trial comparison, or the latest
 standard engine run for tasks without a baseline. Experiments that vary the
 instructions have their own results below.
-B07 also records the client starts that ended before a trial could be judged.
+B07 and B12 also record the client starts that ended before a trial could be judged.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Fourteen tasks now share one 0.85.1 executable. The other six rows
+library. Fifteen tasks now share one 0.85.1 executable. The other five rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -33,7 +33,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 281,627 / 43,023 | [Local image repair on 0.85.1](#local-image-repair-on-0851) |
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 460,584 / 75,451 | [16-bit photo edits on 0.85.1](#editing-a-16-bit-photo-on-0851) |
 | B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 362,423 / 58,323 | [Masked compositions on 0.85.1](#revising-a-masked-composition-on-0851) |
-| B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
+| B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 431,810 / 61,895 | [Layout variants on 0.85.1](#selecting-and-restoring-layout-variants-on-0851) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 134,535 / 41,369 | [0.85.1 source build](#transparent-screen-artwork-on-0851) |
 | B14 Deliver a print page | 5/5 | 5/5 | 2/5 | 712,198 / 94,435 | [Native print controls on 0.85.1](#native-print-controls-on-0851) |
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
@@ -71,6 +71,42 @@ retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
 
+## Selecting and restoring layout variants on 0.85.1
+
+All five Inkbolt agents and all five baseline agents published wide, square
+and tall layouts from one shared text and image component. An independent
+pixel check used the original font's glyph outline and advance, the supplied
+images and the requested positions. All 30 PNGs matched. Every agent
+restored the original base and retained the square layout's parent dataset.
+[Task, source controls and requested dimensions](../tools/benchmark_prompts/B12.md)
+
+| Median per judged attempt | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Input plus output tokens | 431,810 | 61,895 |
+| Shell commands | 11 | 3 |
+| Shell output, UTF-8 bytes | 115,840 | 5,710 |
+| Seconds to first verified preview | 90.8 | 37.6 |
+| Solve time, seconds | 117.4 | 44.5 |
+
+The same Windows client and settings ran both arms. One additional baseline
+launch hit provider capacity before it ran a command or produced artwork.
+Its replacement kept the same task contract. Capture replay reproduced all
+ten judged outcomes and their usage. All five Inkbolt agents used the CLI.
+Commands containing schema lookups accounted for 615,994 of their 739,117
+shell-output bytes. Each agent's largest reply came from such a command.
+The largest, 231,536 bytes, included ten full document-type lookups.
+
+In a follow-up edit on Windows and Linux, each of the five restored Inkbolt
+documents accepted a change to the parent image position. After removing
+the child's position override, its square layout picked up the new position
+and kept its own text and orange image. All ten previews matched the
+independently calculated pixels.
+
+The combined replay covers 145 judged attempts on fifteen tasks using one
+Inkbolt binary. Five tasks still use earlier binaries. B12 capture and replay
+audit SHA-256 `8f42f5d60d2f6507f142e90133bdd20666c44c9242885fb617b2ebf4e3e556e8`.
+Combined audit SHA-256 `a15dd55d54fbf40a3db003a22823fa9eeb1bc93e02cd9a40d97285895e3dab01`.
+
 ## Revising a masked composition on 0.85.1
 
 Five Inkbolt agents and five baseline agents changed only the shadow offset
@@ -101,8 +137,8 @@ settings. All five new previews on each platform matched an independent
 calculation, including the newly transparent pixels at the canvas edges.
 [Earlier trials that exposed unwanted layer locks](#mixed-composition-with-a-movable-source-layer)
 
-The combined replay covers 135 genuine attempts on fourteen tasks. Six
-standard tasks still use earlier builds. B11 trial and replay audit SHA-256
+That combined replay covered 135 genuine attempts on fourteen tasks. Six
+standard tasks still used earlier builds. B11 trial and replay audit SHA-256
 `7cfbec5ad06f7438fe2baf05baef16d270e0c12a78f8556013187dea4feb060b`.
 Combined audit SHA-256 `a790b614425ae149dd2d7b0046dabfd99c1d742168d6e1da0cc14bbd0b940172`.
 
