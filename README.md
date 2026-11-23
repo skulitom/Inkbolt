@@ -61,15 +61,14 @@ Measured Windows and Linux workflows include a 24 MP JPEG import, a 50 MP
 16-bit edit through undo and TIFF export, A2 delivery at 300 ppi and an
 8192 × 8192 PNG render. [Measured workflows](docs/SCALE_WORKLOADS.md) · [50 MP agent trials](docs/B10_LARGE.md#five-matched-windows-trials) · [Engine limits](docs/LIMITS.md)
 
-The v0.84.0 release includes tested downloads for Windows x64, Linux x64,
-Apple silicon and Intel Macs. Background export jobs currently require Windows.
-[Downloads](https://github.com/skulitom/Inkbolt/releases/tag/v0.84.0) · [Platform test results](docs/PLATFORMS.md#v0840-platform-checks)
+Choose the archive for Windows x64, Linux x64, Apple silicon or Intel Macs.
+Background export jobs currently require Windows.
+[Downloads](https://github.com/skulitom/Inkbolt/releases/latest) · [Platform test results](docs/PLATFORMS.md)
 
-Building from `main` also gives agents a four-request guide to saving editable
-artwork and exporting a transparent PNG from that exact source. Other additions
-include moving a saved edit with its assets and fonts between Windows and Linux,
-editing layer groups, reopening PDF paths and placed images for editing, and exporting
-searchable PDF labels and spot-ink plates.
+In version 0.85, an agent can save editable artwork and export a transparent PNG
+from that revision in four requests. It can also restore a session on Windows or
+Linux and rebind its external assets and fonts, edit layer groups, reopen PDF paths and
+images, and deliver searchable PDF labels and spot-ink plates.
 [Screen artwork guide](docs/AGENT_DISCOVERY.md#screen-artwork) · [Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability) · [Layer groups](docs/LAYERED.md#editable-folder-fill) · [PDF import and export](docs/PDF.md#reopen-a-page-for-editing) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
 ## Explore the project

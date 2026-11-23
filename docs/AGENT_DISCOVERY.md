@@ -75,7 +75,7 @@ Reading the examples leaves the workspace untouched.
 
 ## Screen artwork
 
-Source builds after v0.84.0 include a guide to saving an editable screen
+Version 0.85 includes a guide to saving an editable screen
 graphic and a transparent PNG. Request
 `{"command":"schema.lookup","name":"screen.quickstart"}`. The reply includes a
 256 × 256 beacon example and a short Python function that shows how to assemble

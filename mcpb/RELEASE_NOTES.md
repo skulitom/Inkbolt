@@ -1,23 +1,28 @@
-Inkbolt 0.84 keeps curved shape combinations editable by default and adds native downloads for Intel Macs.
+Inkbolt 0.85 lets an agent reopen PDF artwork, edit placed images and move a saved session between Windows and Linux.
 
-## Editable shape combinations
+## Open and edit a PDF page
 
-Union, intersection, difference and xor now keep Bézier handles on supported curved boundaries. An agent can change the resulting curve after combining shapes. For tangencies that need an approximation, the operation reports the precision it used. Explicit polygon output is still available. Edits and pending proposals saved in 0.83 keep the geometry originally reviewed when committed or retried. [Shape combinations](https://github.com/skulitom/Inkbolt/blob/v0.84.0/docs/BOOLEANS.md)
+Use `pdf.import` to reopen filled paths, curves, groups and embedded RGB or grayscale images from a selected page. Repeated image placements share one asset and can be moved independently. The receipt identifies source objects and retained page coordinates. JPEG streams, embedded text and native print inks are still outside the import subset. [PDF import guide](https://github.com/skulitom/Inkbolt/blob/v0.85.0/docs/PDF.md#reopen-a-page-for-editing)
 
-## Installation and examples
+For PDF export, supported right-to-left labels retain reading order and word selection. CFF2 lettering can remain searchable at the selected font settings. Marked print sheets can carry searchable labels alongside spot-ink plates. [PDF text and print delivery](https://github.com/skulitom/Inkbolt/blob/v0.85.0/docs/PDF.md#searchable-text)
 
-Copy `examples/first-png.json` from the archive into an empty workspace and run
-`inkbolt --workspace "$PWD" first-png.json` there. It creates a four-shape
-mountain postcard using only the downloaded files.
+## Continue a saved edit
 
-- Run `inkbolt --version` for a short JSON response. Run `inkbolt --workspace PATH_TO_EXISTING_FOLDER doctor` to check the platform and access to session, font and other stores. The check leaves the workspace untouched. [Installation guide](https://github.com/skulitom/Inkbolt/blob/v0.84.0/docs/INSTALLATION.md)
-- Python examples can use an installed executable. Set `INKBOLT_EXE` to its full path, or put it on your shell's path when using a checkout without a development build. [Runnable examples](https://github.com/skulitom/Inkbolt/blob/v0.84.0/examples/README.md)
+Back up a session on Windows or Linux and recover its history on the other platform. Transfer referenced image and font stores separately and rebind them at a new revision. A script that loses an edit reply can look up the original receipt by request ID. For new screen artwork, a four-request example creates the document and exports a transparent PNG from the saved revision. [Portable sessions](https://github.com/skulitom/Inkbolt/blob/v0.85.0/docs/SESSION_BACKUPS.md#resources-and-portability) · [Screen artwork](https://github.com/skulitom/Inkbolt/blob/v0.85.0/docs/AGENT_DISCOVERY.md#screen-artwork)
+
+Layered RGB8 files can retain clipping relationships, group fill, pixel-layer knockout and eligible opaque backgrounds through import and export. [Layered artwork](https://github.com/skulitom/Inkbolt/blob/v0.85.0/docs/LAYERED.md)
 
 ## Downloads
 
-Choose the archive for Windows x64, Linux x64, Apple silicon (`aarch64-apple-darwin`) or Intel macOS (`x86_64-apple-darwin`). The Windows desktop extension is also available. Background export jobs require Windows. [Platform support](https://github.com/skulitom/Inkbolt/blob/v0.84.0/docs/PLATFORMS.md)
+Choose the native archive for Windows x64, Linux x64, Apple silicon or Intel Macs. A desktop MCP extension is also available for Windows. The archives include the executable, an editable postcard, licenses and a CycloneDX inventory. Background export jobs require Windows.
 
-Each archive includes a CycloneDX inventory that identifies the executable, its Cargo build dependencies and bundled SQLite. The Windows extension carries the Windows inventory. Compare the download with its digest in `SHA256SUMS`. To verify its GitHub build attestation, substitute the filename in this command.
+Extract the archive and run the following command from its folder to make `postcard.png`. [Installation guide](https://github.com/skulitom/Inkbolt/blob/v0.85.0/docs/INSTALLATION.md)
+
+```sh
+./inkbolt --workspace "$PWD" examples/first-png.json
+```
+
+Use `SHA256SUMS` to check the downloads. For example, verify the Windows extension's build provenance with this command.
 
 ```sh
 gh attestation verify inkbolt-windows-x64.mcpb --repo skulitom/Inkbolt --signer-workflow skulitom/Inkbolt/.github/workflows/release.yml
