@@ -11,8 +11,9 @@ from test_mcp import Client
 
 
 def image(width, height, samples, *, space='DeviceRGB', depth=8, extra=b'', compressed=False):
+    color_space = space if isinstance(space, bytes) else b'/' + space.encode()
     fields = (f'/Type /XObject /Subtype /Image /Width {width} /Height {height} '
-              f'/ColorSpace /{space} /BitsPerComponent {depth} ').encode()
+              f'/BitsPerComponent {depth} /ColorSpace ').encode() + color_space + b' '
     return pages.stream(samples, fields + extra, compressed)
 
 
@@ -83,6 +84,55 @@ class PdfImageImport(unittest.TestCase):
             offset = 4 * (48*37+x)
             self.assertEqual(pixels[offset:offset+4], bytes([*rgb,255]))
 
+    def test_indexed_packed_codes_decode_and_color_key_keep_hidden_rgb(self):
+        colors = [(195,17,32), (48,170,69), (21,57,221)]
+        for decode, indices in [(b'', [0,1,2,2]), (b'/Decode [3 0]', [2,2,1,0]),
+                                (b'/Decode [0 2]', [0,1,1,2]), (b'/Decode [-1.5 2.25]', [0,0,1,2]),
+                                (b'/Decode [-9007199254740992 18014398509481986]', [0,1,2,2])]:
+            with self.subTest(decode=decode):
+                program = b'q 4 0 0 2 0 0 cm /Picture Do Q q 4 0 0 2 5 0 cm /Picture Do Q'
+                objects = pages.page_objects(program, resources=b'<< /XObject << /Picture 5 0 R >> >>')
+                objects[5] = image(4,2,bytes([0x1b, 0xe4]),space=b'6 0 R',depth=2,
+                                   extra=decode+b' /Mask 8 0 R',compressed=True)
+                objects[6] = b'[/Indexed /DeviceRGB 2 7 0 R]'
+                objects[7] = pages.stream(bytes(v for rgb in colors for v in rgb),compress=True)
+                objects[8] = b'[1 2]'
+                result = self.read(pages.pdf(objects))
+                doc = result['document']
+                key, = doc['assets']
+                self.assertEqual([item['content']['asset_id'] for item in doc['items']], [key,key])
+                self.assertEqual(result['image_sources'][key]['palette_entries'],3)
+                self.assertEqual(result['image_sources'][key]['color_key'],[[1,2]])
+                rgba = bytes(v for code in [0,1,2,3,3,2,1,0]
+                             for v in (*colors[indices[code]],0 if code in (1,2) else 255))
+                self.assertEqual(doc['assets'][key]['sha256'],identity(4,2,rgba))
+                moved = self.edit(doc,[dict(op='transform',id=doc['items'][1]['id'],matrix=[1,0,0,1,8,5])])
+                exported = self.invoke(dict(command='document.export',format='pdf',document=moved))
+                reopened = self.read(base64.b64decode(exported['data']))['document']
+                self.assertEqual(self.rgba(reopened), self.rgba(moved))
+                self.assertEqual(next(iter(reopened['assets'].values()))['sha256'],identity(4,2,rgba))
+
+    def test_gray_palette_index_255_and_soft_mask_override(self):
+        palette = bytes(reversed(range(256))).hex().encode()
+        bitmap = image(3,1,bytes([0,1,255]),space=b'[/Indexed /DeviceGray 255 <'+palette+b'>]',
+                       extra=b'/Mask [0 255] /SMask 6 0 R')
+        source = document(bitmap,mask=image(3,1,bytes([0,128,255]),space='DeviceGray'))
+        result = self.read(source)
+        key, = result['document']['assets']
+        self.assertNotIn('color_key',result['image_sources'][key])
+        self.assertTrue(result['image_sources'][key]['mask_overridden_by_soft_mask'])
+        self.assertEqual(result['image_sources'][key]['palette_entries'],256)
+        rgba = bytes([255,255,255,0, 254,254,254,128, 0,0,0,255])
+        self.assertEqual(result['document']['assets'][key]['sha256'],identity(3,1,rgba))
+
+    def test_device_color_key_checks_all_encoded_channels_before_decode(self):
+        bitmap = image(3,1,bytes([25,51,75, 25,52,75, 24,51,75]),
+                       extra=b'/Mask [25 30 49 51 70 80] /Decode [1 0 0 1 1 0]')
+        result = self.read(document(bitmap))
+        asset, = result['document']['assets'].values()
+        rgba = bytes([230,51,180,0, 230,52,180,255, 231,51,180,255])
+        self.assertEqual(asset['sha256'],identity(3,1,rgba))
+
     def test_packed_samples_reset_padding_each_row_and_apply_tiff_prediction(self):
         for bits in (1,2,4,8):
             for components in (1,3):
@@ -142,7 +192,10 @@ class PdfImageImport(unittest.TestCase):
         for bitmap in [image(3,2,b'\0'*17), image(3,2,b'\0'*19,compressed=True),
                        image(1,1,b'\0',space='DeviceCMYK'),image(1,1,b'\0'*6,depth=16),
                        image(1,1,b'\0'*3,extra=b'/Interpolate true'),
-                       image(1,1,b'\0'*3,extra=b'/Mask [0 0 0 0 0 0]'),
+                       image(1,1,b'\0'*3,extra=b'/Mask [1 0 0 0 0 0]'),
+                       image(1,1,b'\0'*3,extra=b'/Mask [0 1]'),
+                       image(1,1,b'\0',depth=2,space='DeviceGray',extra=b'/Mask [0 4]'),
+                       image(1,1,b'\0',space=b'[/Indexed /DeviceRGB 2 <000000>]'),
                        image(1,1,b'\0'*3,extra=b'/Decode [0 0.5 0 1 0 1]'),
                        image(1,1,b'\7\0\0\0',compressed=True,extra=b'/DecodeParms << /Predictor 15 /Colors 3 >>'),
                        image(32768,32768,b'')]:
@@ -150,6 +203,8 @@ class PdfImageImport(unittest.TestCase):
                 error=self.read(document(bitmap),1)
                 self.assertEqual(error['details']['object'],5)
         for mask in [image(1,2,b'\0\0',space='DeviceGray'),image(1,1,b'\0'*3),
+                     image(1,1,b'\0',space=b'[/Indexed /DeviceGray 0 <ff>]'),
+                     image(1,1,b'\0',space='DeviceGray',extra=b'/Mask [0 0]'),
                      image(1,1,b'\0',space='DeviceGray',extra=b'/Matte [1 1 1]'),
                      image(1,1,b'\0',space='DeviceGray',extra=b'/SMask 6 0 R')]:
             error=self.read(document(image(1,1,b'\0'*3,extra=b'/SMask 6 0 R'),mask=mask),1)

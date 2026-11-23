@@ -337,6 +337,14 @@ fn read_page(
     if !drawing.images.sources.is_empty() {
         losses.push("Image samples and soft-mask alpha are normalized into straight RGBA8 PNG assets. Original image streams, packing and compression remain in the source PDF.");
     }
+    if drawing
+        .images
+        .sources
+        .values()
+        .any(|s| s.get("palette_entries").is_some() || s.get("color_key").is_some())
+    {
+        losses.push("Image palettes and color keys are expanded into straight RGBA8 samples. Their original tables, indices and mask ranges remain in the source PDF.");
+    }
     let mut result = json!({"document":document,"mapping":drawing.mapping,"page":{"boxes":boxes,"user_unit":unit,"rotation":rotate,"source_to_document":matrix},
         "color_policy":"caller_declared_encoded_srgb","losses":losses});
     if !drawing.images.sources.is_empty() {

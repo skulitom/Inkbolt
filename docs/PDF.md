@@ -69,6 +69,23 @@ image soft mask supplies straight alpha. Hidden color samples survive zero alpha
 The per-image limit is 4,194,304 pixels. The document asset, snapshot and
 decoded-stream limits also apply.
 
+Source builds can also reopen palette images with a DeviceGray or DeviceRGB
+base. Packed 1-, 2-, 4- and 8-bit samples select a palette entry. An explicit
+`Decode` array remaps the sample values before the importer rounds and clamps
+each index. Color-key masks use inclusive ranges on the original decoded
+sample codes, before color conversion. If an image also has a soft mask,
+the soft mask supplies the alpha. The receipt records the palette size,
+active color-key ranges and mask precedence. Moving one copy of an image
+preserves its pixels and the placement of every other copy.
+
+Eight independently authored pages exercised both palette bases, packed
+rows, predictors and transparency. Poppler rendered all eight sources,
+their re-exports and their edited placements exactly like the corresponding
+plain RGB controls. MuPDF agreed on seven source pages. On the eighth,
+its rendering of an explicit `Decode [0 2]` selected a different palette
+entry at 16 pixels. It matched the RGB controls on all opaque re-exports.
+On the soft-masked re-exports, six pixels differed by one 8-bit level.
+
 Source builds after v0.85.1 also reopen JPEG-compressed image objects
 (`DCTDecode`). The importer accepts 8-bit
 baseline and progressive Huffman-coded grayscale and RGB frames. The JPEG
@@ -96,7 +113,7 @@ MuPDF agreed on the predicted and plain sources in every case. Its re-export
 comparisons were exact on opaque images and within one 8-bit channel level on
 images with alpha.
 
-Text, inline images, stencil and color-key masks, interpolated
+Text, inline images, stencil masks, interpolated
 images, preblended soft masks, shadings, CMYK, named inks, remapped color
 spaces, graphics-state masks, knockout, annotations and unsupported blend modes return an error.
 Content errors identify the selected page and object, with a byte offset for

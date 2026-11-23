@@ -1,6 +1,8 @@
 use super::*;
 use crate::{assets, model::Content};
 use base64::Engine;
+use num_rational::BigRational;
+use num_traits::ToPrimitive;
 
 #[derive(Default)]
 pub(super) struct Images {
@@ -15,7 +17,93 @@ struct Plane {
     components: usize,
     bits: usize,
     invert: [bool; 3],
+    palette: Option<IndexedSamples>,
+    color_key: Option<Vec<[u8; 2]>>,
     encoding: Encoding,
+}
+
+struct IndexedSamples {
+    entries: usize,
+    by_code: Vec<[u8; 3]>,
+}
+
+impl IndexedSamples {
+    fn new(
+        pdf: &Container,
+        colors: &[[u8; 3]],
+        bits: usize,
+        decode: Option<&Value>,
+    ) -> Result<Self, Error> {
+        let maximum = (1u16 << bits) - 1;
+        let high = colors.len() - 1;
+        let by_code = if let Some(decode) = decode {
+            let Value::Array(values) = pdf.resolve(decode)? else {
+                return Err(invalid("Expected indexed image Decode array"));
+            };
+            let [low, end] = values.as_slice() else {
+                return Err(invalid("Expected two indexed image Decode endpoints"));
+            };
+            let exact = |v| match pdf.resolve(v)? {
+                Value::Integer(i) => Ok(BigRational::from_integer((*i).into())),
+                v => BigRational::from_float(number(v)?)
+                    .ok_or_else(|| invalid("Invalid indexed image Decode endpoint")),
+            };
+            let start = exact(low)?;
+            let step = (exact(end)? - &start) / BigRational::from_integer(maximum.into());
+            let mut value = start;
+            let mut table = Vec::with_capacity(usize::from(maximum) + 1);
+            for _ in 0..=maximum {
+                let index = value.round().to_integer();
+                let index = if index < 0.into() {
+                    0
+                } else {
+                    index.to_usize().unwrap_or(high).min(high)
+                };
+                table.push(colors[index]);
+                value += &step;
+            }
+            table
+        } else {
+            (0..=maximum)
+                .map(|code| colors[usize::from(code).min(high)])
+                .collect()
+        };
+        Ok(Self {
+            entries: colors.len(),
+            by_code,
+        })
+    }
+}
+
+fn color_key(
+    pdf: &Container,
+    mask: &Value,
+    components: usize,
+    bits: usize,
+) -> Result<Vec<[u8; 2]>, Error> {
+    let Value::Array(values) = pdf.resolve(mask)? else {
+        return Err(unsupported(
+            "Explicit PDF image mask streams require stencil image support",
+        ));
+    };
+    if values.len() != 2 * components {
+        return Err(invalid("Wrong number of PDF color key endpoints"));
+    }
+    values
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|[low, high]| {
+            let low = pdf.resolve(low)?.integer()?;
+            let high = pdf.resolve(high)?.integer()?;
+            if low > high || high >= 1 << bits {
+                return Err(invalid(
+                    "PDF color key range exceeds encoded sample levels or is reversed",
+                ));
+            }
+            Ok([low as u8, high as u8])
+        })
+        .collect()
 }
 
 #[derive(Clone, Copy)]
@@ -94,7 +182,12 @@ fn encoding(
 }
 
 impl Plane {
-    fn describe(pdf: &Container, d: &Dict) -> Result<Self, Error> {
+    fn describe(
+        pdf: &Container,
+        d: &Dict,
+        remaining: &mut usize,
+        control: &Control,
+    ) -> Result<Self, Error> {
         allowed(
             d,
             &[
@@ -107,6 +200,7 @@ impl Plane {
                 b"ImageMask",
                 b"Interpolate",
                 b"Decode",
+                b"Mask",
                 b"SMask",
                 b"Length",
                 b"Filter",
@@ -139,24 +233,24 @@ impl Plane {
         if pixels > crate::pdf::MAX_IMAGE_PIXELS {
             return Err(limit("PDF image exceeds the page image pixel budget"));
         }
-        let space = pdf.resolve(field(d, b"ColorSpace")?)?;
-        let components = if space.named(b"DeviceRGB") {
-            3
-        } else if space.named(b"DeviceGray") {
-            1
-        } else {
-            return Err(unsupported(
-                "Editable PDF images require DeviceRGB or DeviceGray",
-            ));
-        };
         let bits = pdf.resolve(field(d, b"BitsPerComponent")?)?.integer()?;
         if !matches!(bits, 1 | 2 | 4 | 8) {
             return Err(unsupported(
                 "PDF image component depth cannot be represented exactly as RGBA8",
             ));
         }
+        let space = pdf.resolve(field(d, b"ColorSpace")?)?;
+        let decode = d.get(b"Decode".as_slice());
+        let (components, palette) = if space.named(b"DeviceRGB") {
+            (3, None)
+        } else if space.named(b"DeviceGray") {
+            (1, None)
+        } else {
+            let colors = color::palette(pdf, space, remaining, control)?;
+            (1, Some(IndexedSamples::new(pdf, &colors, bits, decode)?))
+        };
         let mut invert = [false; 3];
-        if let Some(decode) = d.get(b"Decode".as_slice()) {
+        if let Some(decode) = decode.filter(|_| palette.is_none()) {
             let Value::Array(values) = pdf.resolve(decode)? else {
                 return Err(invalid("Expected PDF image Decode array"));
             };
@@ -178,12 +272,21 @@ impl Plane {
                 };
             }
         }
+        let color_key = if d.contains_key(b"SMask".as_slice()) {
+            None
+        } else {
+            d.get(b"Mask".as_slice())
+                .map(|v| color_key(pdf, v, components, bits))
+                .transpose()?
+        };
         let encoding = encoding(pdf, d, size[0], components, bits)?;
         Ok(Self {
             size,
             components,
             bits,
             invert,
+            palette,
+            color_key,
             encoding,
         })
     }
@@ -242,12 +345,21 @@ impl Plane {
             };
             let mut last = [0u8; 3];
             for (x, pixel) in target.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+                let mut transparent = self.color_key.is_some();
                 for (channel, last) in last[..self.components].iter_mut().enumerate() {
                     let offset = (x * self.components + channel) * self.bits;
                     let mut code = (row[offset / 8] >> (8 - self.bits - offset % 8)) & maximum;
                     if predictor == 2 {
                         code = code.wrapping_add(*last) & maximum;
                         *last = code;
+                    }
+                    if let Some(key) = &self.color_key {
+                        let [low, high] = key[channel];
+                        transparent &= (low..=high).contains(&code);
+                    }
+                    if let Some(palette) = &self.palette {
+                        pixel[..3].copy_from_slice(&palette.by_code[usize::from(code)]);
+                        continue;
                     }
                     if self.invert[channel] {
                         code = maximum - code;
@@ -260,6 +372,9 @@ impl Plane {
                     } else {
                         pixel[channel] = value;
                     }
+                }
+                if transparent {
+                    pixel[3] = 0;
                 }
             }
             previous = row;
@@ -320,7 +435,7 @@ impl Images {
                 return Err(limit("PDF image asset count exceeded"));
             }
             let d = pdf.stream_dict(id)?;
-            let plane = Plane::describe(pdf, d)?;
+            let plane = Plane::describe(pdf, d, remaining, control)?;
             let [width, height] = plane.size;
             let count = u64::from(width) * u64::from(height);
             if self.pixels + count > assets::MAX_ASSET_PIXELS {
@@ -329,6 +444,12 @@ impl Images {
             let mut rgba = vec![255; count as usize * 4];
             plane.unpack(pdf, id, remaining, control, &mut rgba, false)?;
             let mut source = json!({"object":id.0,"generation":id.1,"components":plane.components,"bits_per_component":plane.bits});
+            if let Some(palette) = &plane.palette {
+                source["palette_entries"] = json!(palette.entries);
+            }
+            if let Some(key) = &plane.color_key {
+                source["color_key"] = json!(key);
+            }
             if let Encoding::Jpeg { transform } = plane.encoding {
                 source["filter"] = json!("DCTDecode");
                 source["jpeg_components"] = json!(match (plane.components, transform) {
@@ -341,8 +462,10 @@ impl Images {
                 let mask_id = reference(v)?;
                 let mut decode_mask = || {
                     let d = pdf.stream_dict(mask_id)?;
-                    let mask = Plane::describe(pdf, d)?;
+                    let mask = Plane::describe(pdf, d, remaining, control)?;
                     if mask.components != 1
+                        || mask.palette.is_some()
+                        || d.contains_key(b"Mask".as_slice())
                         || mask.size != plane.size
                         || d.contains_key(b"SMask".as_slice())
                     {
@@ -354,6 +477,9 @@ impl Images {
                 };
                 decode_mask().map_err(|e| located(e, page, mask_id, None))?;
                 source["soft_mask"] = json!({"object":mask_id.0,"generation":mask_id.1});
+                if d.contains_key(b"Mask".as_slice()) {
+                    source["mask_overridden_by_soft_mask"] = json!(true);
+                }
             }
             let png = crate::render::encode_png(width, height, &rgba, 72.)?;
             self.encoded_size += png.len().div_ceil(3) * 4;
