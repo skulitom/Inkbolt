@@ -108,11 +108,15 @@ Another 52 requests exercised all 26 blend modes with transparent and partly
 painted backdrops. For all 54 cases, the complete JSON responses and encoded
 PNGs were byte-identical across the two builds on Windows and Linux.
 
-Windows and Linux each passed all 297 local verification stages. The earlier
-Intel Mac source run exceeded the existing 20-second deadline for
-the print export. The tag for v0.85.1 predates this optimization. To rerun
-the same check locally, use the following selector. On WSL, substitute
-`tools/verify_wsl.py`. [Earlier Intel source run](https://github.com/skulitom/Inkbolt/actions/runs/45130139707)
+Windows and Linux each passed all 297 local verification stages. At the same
+commit, hosted Windows, Linux, Apple silicon and Intel macOS each passed all
+297 source stages. The Intel Mac passed both the print export and the dense
+Boolean refusal within their original deadlines. [Three-platform CI](https://github.com/skulitom/Inkbolt/actions/runs/45141383504) · [Intel Mac source checks](https://github.com/skulitom/Inkbolt/actions/runs/45141403825/job/137580022669)
+
+The preceding Intel run exceeded the 20-second deadline for the print export.
+The v0.85.1 tag predates this optimization. To rerun the print check locally,
+use the following selector. On WSL, substitute `tools/verify_wsl.py`.
+[Earlier Intel source run](https://github.com/skulitom/Inkbolt/actions/runs/45130139707)
 
 ```sh
 python tools/verify.py --only test_tiled_render.TiledRenderTests.test_social_and_print_dimensions_are_fully_evaluated
