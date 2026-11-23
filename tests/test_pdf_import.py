@@ -50,6 +50,21 @@ class EditablePdfPage(unittest.TestCase):
     def rgba(self, doc, scale=1):
         return bytes.fromhex(self.invoke(dict(command='document.render', document=doc, scale=scale))['data'])
 
+    def test_catalog_producer_is_source_metadata(self):
+        objects = page_objects(b'1 0 0 rg 2 3 8 5 re f')
+        catalog = objects[1][:-2]
+        expected = self.read(pdf(objects))['document']
+        for info in (b'<< /Producer (Fixture writer) >>', b'null', b'5 0 R'):
+            with self.subTest(info=info):
+                objects[1] = catalog + b' /Info ' + info + b' >>'
+                objects[5] = b'<< /Producer <616263> >>'
+                receipt = self.read(pdf(objects))
+                self.assertEqual(expected, receipt['document'])
+                self.assertTrue(any('Metadata' in loss for loss in receipt['losses']))
+        for info in (b'<< /Producer 12 >>', b'<< /Other (unexpected) >>'):
+            objects[1] = catalog + b' /Info ' + info + b' >>'
+            self.assertIn(self.read(pdf(objects), 1)['code'], ('INVALID_PDF', 'UNSUPPORTED'))
+
     def test_print_fills_survive_edits_and_native_delivery(self):
         ramp = b'<< /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [.25 .5 0 .125] /N 1 >>'
         plate = b'Ink#20#23#2F#C3#A9'

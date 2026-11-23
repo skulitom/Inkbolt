@@ -104,8 +104,8 @@ impl Program {
         };
         let mut at = 0;
         let mut operands = Vec::new();
-        let mut string = None;
-        let mut string_nodes = 0;
+        let mut text_operand = None;
+        let mut text_nodes = 0;
         while let Some(&c) = self.bytes.get(at) {
             if space(c) {
                 at += 1;
@@ -126,22 +126,20 @@ impl Program {
             at += 1;
             let loc = self.location(start);
             let fail = |e| located(e, drawing.page_index, loc.0, Some(loc.1));
-            if matches!(c, b'(' | b'<') && self.bytes.get(start..start + 2) != Some(b"<<") {
-                if !execution.in_text || string.is_some() || !operands.is_empty() {
-                    return Err(fail(unsupported("Unsupported PDF string operand")));
+            if matches!(c, b'(' | b'<' | b'[') && self.bytes.get(start..start + 2) != Some(b"<<") {
+                if !execution.in_text || text_operand.is_some() || !operands.is_empty() {
+                    return Err(fail(unsupported("Unsupported PDF text operand")));
                 }
                 at = start;
-                let value = vector_native::pdf_read::object_at(
-                    &self.bytes,
-                    &mut at,
-                    &mut string_nodes,
-                    drawing.control,
-                )
-                .map_err(fail)?;
-                let Value::Bytes(bytes) = value else {
-                    return Err(fail(invalid("Expected a PDF text string")));
-                };
-                string = Some(bytes);
+                text_operand = Some(
+                    vector_native::pdf_read::object_at(
+                        &self.bytes,
+                        &mut at,
+                        &mut text_nodes,
+                        drawing.control,
+                    )
+                    .map_err(fail)?,
+                );
                 continue;
             }
             if c != b'/' && delimiter(c) {
@@ -163,8 +161,8 @@ impl Program {
                 return Err(fail(limit("PDF content token limit exceeded")));
             }
             if c == b'/' || c.is_ascii_digit() || matches!(c, b'.' | b'+' | b'-') {
-                if string.is_some() {
-                    return Err(fail(invalid("Unexpected PDF operand after a text string")));
+                if text_operand.is_some() {
+                    return Err(fail(invalid("Unexpected operand after a PDF text operand")));
                 }
                 if operands.len() >= crate::limits::vector_native::MAX_OPERANDS {
                     return Err(fail(limit("PDF drawing operand limit exceeded")));
@@ -178,8 +176,8 @@ impl Program {
                 return Err(fail(limit("PDF drawing operation limit exceeded")));
             }
             let page = drawing.page_index;
-            if string.is_some() && token != b"Tj" {
-                return Err(fail(unsupported("Unsupported PDF string operator")));
+            if text_operand.is_some() && !matches!(token, b"Tj" | b"TJ") {
+                return Err(fail(unsupported("Unsupported PDF text-showing operator")));
             }
             execution
                 .step(
@@ -187,13 +185,13 @@ impl Program {
                     resources,
                     token,
                     &operands,
-                    string.take().as_deref(),
+                    text_operand.take().as_ref(),
                     loc,
                 )
                 .map_err(|e| located(e, page, loc.0, Some(loc.1)))?;
             operands.clear();
         }
-        if string.is_some()
+        if text_operand.is_some()
             || !operands.is_empty()
             || !execution.saved.is_empty()
             || !execution.path.is_empty()
@@ -253,7 +251,7 @@ impl Execution {
         resources: &Dict,
         op: &[u8],
         operands: &[&[u8]],
-        string: Option<&[u8]>,
+        text_operand: Option<&Value>,
         loc: (Id, usize),
     ) -> Result<(), Error> {
         if self.clip.is_some() && !matches!(op, b"f" | b"F" | b"f*" | b"n") {
@@ -303,12 +301,32 @@ impl Execution {
                     self.line_matrix = multiply(self.line_matrix, [1., 0., 0., 1., x, y]);
                     self.text_matrix = self.line_matrix;
                 }
-                b"Tj" => {
+                b"Tj" | b"TJ" => {
                     args::<0>(operands)?;
-                    let bytes = string.ok_or_else(|| invalid("Expected one PDF text string"))?;
-                    let advance = d.show_text(&self.state, self.text_matrix, bytes, loc)?;
-                    self.painted_text |= !bytes.is_empty();
-                    self.text_matrix = multiply(self.text_matrix, [1., 0., 0., 1., advance, 0.]);
+                    let parts = match (op, text_operand) {
+                        (b"Tj", Some(value @ Value::Bytes(_))) => std::slice::from_ref(value),
+                        (b"TJ", Some(Value::Array(parts))) => parts.as_slice(),
+                        _ => return Err(invalid("Tj requires a string and TJ requires an array")),
+                    };
+                    for part in parts {
+                        d.control.check()?;
+                        let advance = match part {
+                            Value::Bytes(bytes) => {
+                                self.painted_text |= !bytes.is_empty();
+                                d.show_text(&self.state, self.text_matrix, bytes, loc)?
+                            }
+                            Value::Integer(_) | Value::Real(_) => {
+                                // Horizontal writing, with default text scaling.
+                                -number(part)? * (self.state.font_size / 1000.)
+                            }
+                            _ => return Err(invalid("TJ accepts only strings and numbers")),
+                        };
+                        self.text_matrix =
+                            multiply(self.text_matrix, [1., 0., 0., 1., advance, 0.]);
+                        if !self.text_matrix.iter().all(|v| v.is_finite()) {
+                            return Err(limit("PDF text matrix overflow"));
+                        }
+                    }
                 }
                 _ => {
                     return Err(unsupported(

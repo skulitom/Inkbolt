@@ -114,6 +114,41 @@ class EditablePdfText(unittest.TestCase):
         x, y = positions[0]
         self.assertEqual(positions[1:], [[x+6, y], [x, y+12], [x, y+24]])
 
+    def test_positioned_array_preserves_each_run_and_advances_only_the_text_matrix(self):
+        font = searchable.font_bytes()
+        self.install(font)
+        show = (br'2 0 0 1 5 21 Tm 10 TL [-50 (\000\002) 200 -75.0 <0003> () 50] TJ '
+                b'[] TJ <0002> Tj T* <0003> Tj')
+        data = pdf(label_objects(font, show))
+        options = self.bind(data)
+        doc = self.open(data, **options)['document']
+        labels = [item for item in doc['items'] if item['content']['type'] == 'text']
+        self.assertEqual([item['content']['frame']['text'] for item in labels], list('ABAB'))
+        y = labels[0]['transform'][5]
+        self.assertEqual([item['transform'][4:] for item in labels], [[6,y],[15.5,y],[27.5,y],[5,y+10]])
+
+        revised = self.edit(doc, [dict(op='text_range', id=labels[1]['id'], start=0, end=1, text='A')])
+        render = lambda d: self.invoke(dict(command='document.render', document=d, font_root=str(self.store)))['data']
+        original_pixels = render(doc)
+        self.assertNotEqual(original_pixels, render(revised))
+        for first_line, actual in [(b'<0003>', doc), (b'<0002>', revised)]:
+            reference = (b'2 0 0 1 6 21 Tm <0002> Tj 2 0 0 1 15.5 21 Tm ' + first_line +
+                         b' Tj 2 0 0 1 27.5 21 Tm <0002> Tj 2 0 0 1 5 11 Tm <0003> Tj')
+            expected = self.open(pdf(label_objects(font, reference)), **options)['document']
+            self.assertEqual(render(actual), render(expected))
+
+    def test_text_array_rejects_mismatched_operators_and_non_text_values(self):
+        font = searchable.font_bytes()
+        self.install(font)
+        options = self.bind(pdf(label_objects(font)))
+        for show in (b'<0002> TJ', b'[<0003>] Tj', b'TJ', b'[<0002> [30]] TJ',
+                     b'[<0002> /Name] TJ', b'[null] TJ', b'[true] TJ', b'[4 0 R] TJ'):
+            with self.subTest(show=show):
+                error = self.open(pdf(label_objects(font, show)), 1, **options)
+                self.assertEqual(error['code'], 'INVALID_PDF')
+                self.assertEqual(error['details']['object'], 4)
+                self.assertIsInstance(error['details']['decoded_byte_offset'], int)
+
     def test_rejects_wrong_width_glyph_unicode_and_unimplemented_text_state(self):
         font = searchable.font_bytes()
         self.install(font)

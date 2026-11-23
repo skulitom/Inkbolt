@@ -193,12 +193,25 @@ pub fn import_with_fonts(
             b"Pages",
             b"Version",
             b"Metadata",
+            b"Info",
             b"Lang",
             b"PageMode",
             b"PageLayout",
             b"ViewerPreferences",
         ],
     )?;
+    // Some writers repeat their producer in the catalog. Admit just this
+    // descriptive string alongside the existing source-only metadata.
+    if let Some(info) = catalog.get(b"Info".as_slice()) {
+        let info = pdf.resolve(info)?;
+        if !matches!(info, Value::Null) {
+            let dict = info.dict()?;
+            allowed(dict, &[b"Producer"])?;
+            if !matches!(pdf.resolve(field(dict, b"Producer")?)?, Value::Bytes(_)) {
+                return Err(invalid("Expected a PDF catalog producer string"));
+            }
+        }
+    }
     let mut tree = PageTree {
         seen: BTreeSet::new(),
         pages: Vec::new(),

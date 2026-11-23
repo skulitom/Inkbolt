@@ -168,16 +168,20 @@ descriptor in `font`. A PDF subset and the original face can have different
 digests. The importer checks the Unicode clusters, glyph positions, advances
 and visible outlines against the bound face before accepting the label.
 
-Each nonempty `Tj` string becomes one editable frame. Use its mapped item ID
-with `text_range` to change a word. A writer that positioned every glyph
-separately produces separate frames. The `font_sources` receipt associates
-each PDF font and embedded program object with the selected font ID.
+Each nonempty string shown with `Tj` or within a `TJ` array becomes one
+editable frame. Use its mapped item ID with `text_range` to change a word.
+Numeric entries in a horizontal `TJ` array position the following text.
+For example, at 12 points, `[(A) 125 (B)] TJ` brings B 1.5 points closer
+to A. A writer that positioned every glyph separately produces separate
+frames. The `font_sources` receipt associates each PDF font and embedded
+program object with the selected font ID. A producer string in a catalog
+`Info` dictionary stays in the original PDF. [PDF text positioning](https://pdf-issues.pdfa.org/32000-2-2020/clause09.html)
 
 Supported labels use opaque gray or RGB fill, an explicit ToUnicode map and
 a static TrueType or OpenType CFF program. Horizontal matrices, line moves
 and leading are retained. Symbolic byte-encoded TrueType, horizontal CID
 TrueType, explicitly named CFF glyphs and horizontal CID CFF are supported.
-Text clipping, vertical writing, manually spaced `TJ` arrays and unsupported
+Text clipping, vertical writing and unsupported
 encodings return a located error. [Recovery measurements](DEVELOPMENT_STATUS.md#reopening-searchable-labels-for-editing)
 
 ### Editing process and spot fills

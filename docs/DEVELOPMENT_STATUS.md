@@ -144,6 +144,21 @@ encapsulated page placement remain open.
 
 ## Reopening searchable labels for editing
 
+PyMuPDF 1.28.0 wrote a page containing “AB fi” and a whole embedded TrueType
+face. The page uses a horizontal `TJ` array and a producer string in the
+catalog. Two additional reference pages use the same font and page, with a
+positive spacing adjustment followed by a negative one. One spells the last
+word “if”. The original page reopens as one editable frame and the adjusted
+pages as three. A native range replacement changed only the last frame.
+
+Windows and Linux produced byte-identical snapshots and searchable PDFs for
+all three inputs and the native edit. Ghostscript 9.55 reproduced every RGB
+pixel in the twelve comparisons at 72, 144 and 288 dpi. MuPDF 1.29 reproduced
+all character origins within 0.000002 points. Its largest 8-bit channel
+difference was three. Both readers and Xpdf 4.06 extracted both words in
+each case. The visible changes stayed inside the edited word.
+[Editable text and spacing](PDF.md#editing-a-painted-label)
+
 Ten reference pages cover “AB fi” and “BA fi” in five configurations.
 Inkbolt wrote whole and subset TrueType and CFF programs. ReportLab 4.4.7
 wrote a fifth configuration with a subset font and an unrelated green
