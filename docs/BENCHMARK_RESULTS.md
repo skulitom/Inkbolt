@@ -71,6 +71,49 @@ retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
 
+## A focused lookup during local image repair
+
+Ten fresh agents repaired the same four pixels with Inkbolt 0.85.1.
+Five received the standard task. Five also received the 246-byte retouch
+example from the discovery guide. Each agent chose its own tools. The
+experiment alternated which condition went first in each pair, using
+the same executable, client, model settings, fixture and judge. All ten
+captures passed on replay. An independent check compared every pixel
+in each saved editable layer, repaired preview and original revision.
+[Example supplied to agents](https://github.com/skulitom/Inkbolt/blob/bc3d238293f91b742e43e9accb9055b9f4a58c4c/docs/AGENT_DISCOVERY.md#focused-schemas)
+
+| Median per attempt | Standard task | With focused lookup |
+| --- | ---: | ---: |
+| Complete workflows | 5/5 | 5/5 |
+| Input plus output tokens | 230,610 | 266,146 |
+| Shell commands | 9 | 9 |
+| Shell output, UTF-8 bytes | 53,381 | 52,286 |
+| Shell output plus serialized MCP replies, bytes | 53,381 | 52,660 |
+| Seconds to first verified preview | 45.6 | 33.2 |
+| Solve time, seconds | 80.7 | 84.7 |
+
+The earlier median preview came with 15.4% higher median token use. Token
+use rose in four pairs. The preset decision required lower medians for
+both tokens and shell output with all workflows passing. Keep the lookup
+available in the guide and leave the default instructions as they are.
+These ten attempts are a separate experiment from the standard benchmark.
+
+One agent given the example made 21 direct MCP calls. It used the intended
+retouch selector and also requested several complete command schemas. Its
+shell returned 8,082 bytes and its MCP calls returned another 115,300 bytes
+of serialized replies. All nine other agents used the CLI alone for Inkbolt.
+
+Replaying that agent's eleven schema lookups with
+`response_format:"structured"` preserved every structured result and
+error flag. The tool results totaled 44,059 bytes, down from 89,522
+with the default format. Windows and Linux returned the same results
+and sizes. This scripted check counts compact UTF-8 tool-result JSON
+before client serialization. It measures transport savings only.
+[MCP response formats](AGENT_INSPECTION.md)
+
+Trial and replay audit SHA-256 `efe78c1a9b4909059ddbbbc2af765c8a1fa9d38ad534223c8fa20b953c10c37e`.
+Independent pixel and paired checks SHA-256 `2562d9d1cdf9a65187446cf52a7e6bea3c0aadb47ac04f7fc0462ab5ef73dae7`.
+
 ## Local image repair on 0.85.1
 
 All ten agents cloned the original 2 × 2 patch onto the four defective
@@ -98,8 +141,7 @@ mentioning schema lookup produced 1,030,186 of their 1,262,527 shell-output
 bytes. Some also ran other commands. On the same release, requesting the
 single `retouch` operation schema described the clone operation, sampling
 and transform in a 1,918-byte CLI reply, including the response envelope
-and excluding the newline. A comparison with fresh agents is
-needed to measure whether directing them to focused lookups reduces cost.
+and excluding the newline. The [five-pair follow-up](#a-focused-lookup-during-local-image-repair) measured what happened when agents received that request.
 
 The combined replay now covers twelve tasks and 115 genuine attempts on
 one executable. All 60 Inkbolt workflows passed. The baseline passed 52

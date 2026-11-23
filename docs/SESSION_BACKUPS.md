@@ -77,6 +77,29 @@ transform as a new edit. Supplying the local `resources` explicitly to
 `document.publish` also let us publish the two earlier revisions. All
 three results matched the corresponding Windows files.
 
+### Moving a 16-bit image with stored tiles
+
+A session backup preserves the edit history. When a raster layer uses native
+tiles, copy its tile files from the original asset store separately.
+Include the tiles referenced by **every revision you want to render**.
+Keep each `.native-tile` filename and verify that its SHA-256 matches the
+filename stem. Recover the session, then pass the destination asset root
+when publishing an earlier revision. For example, this CLI request uses
+a workspace-relative directory and publishes a straight-alpha RGBA16 TIFF.
+
+```json
+{"command":"document.publish","document":{"session_id":"photo","revision":1},"resources":{"asset_root":"tiles","font_root":null},"output":{"format":"tiff","file_name":"repaired.tiff","render_options":{"evaluation":"tiled"},"image_options":{"depth":"u16","channels":"rgba","compression":"none"}}}
+```
+
+A Windows agent repaired 168 pixels in a 1920 × 1080 photo, then undid and
+redid the edit. We transferred its revision-3 backup and 139 distinct tile
+files to Linux. The original used 135 tiles. The repair added four. Linux
+recovered all four request receipts and reproduced the original, edited,
+undone and redone TIFFs byte for byte. With one edited tile missing, the
+original revision still exported. Publishing revision 1 returned
+`SAMPLE_TILE_MISSING` and left its filename available. Supplying that
+tile let the same request succeed.
+
 ## Publication, interruption and limits
 
 The existing limits remain: at most 128 MiB of database pages, 64 MiB of stored content, 256 states, 2048 requests and 32 named snapshots, with the ordinary per-state/model/receipt bounds. Copying uses bounded steps or 64 KiB byte buffers; checksums and validation run before publication. These limits do not imply a peak-memory or latency benchmark result.

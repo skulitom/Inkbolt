@@ -129,6 +129,12 @@ Use `story/Slot` for one linked text frame's layout fields,
 `mask_from_selection` to turn an existing selection into a mask. Each is
 a `select` value for the same request.
 
+In an MCP client that reads `structuredContent`, set
+`response_format:"structured"` in the arguments to `inkbolt_schema_lookup`.
+On 0.85.1 the retouch lookup above returned the same schema in 2,182
+bytes of tool-result JSON, compared with 4,263 using the default format.
+[Measured schema lookups](BENCHMARK_RESULTS.md#a-focused-lookup-during-local-image-repair)
+
 In current source builds, one lookup shows the inputs for a family of commands.
 
 ```json
