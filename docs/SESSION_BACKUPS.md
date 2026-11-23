@@ -51,6 +51,32 @@ Import the original image or font into a store in the destination workspace. Use
 
 Structural comparisons can inspect the old bindings. Pixel comparisons require accessible roots on both sides. To render a historical document reference with a relocated store, pass the appropriate local roots explicitly. Rebinding the head preserves the earlier bindings and receipts.
 
+### Moving artwork with embedded image data
+
+If the document contains only embedded artwork, you can create its session
+without binding it to the workspace's asset and font directories. Include
+both null fields in the `session.create` request.
+
+```json
+{"resources":{"asset_root":null,"font_root":null}}
+```
+
+We opened a PDF with an embedded palette image and JPEG alpha on Windows,
+moved the image and backed up revision 1. A Linux MCP process recovered the
+backup, retried the move with the original request ID and undid it at
+revision 2. Publishing revisions 0, 1 and 2 reproduced the Windows
+original, moved and original PDFs byte for byte. Only the backup was
+copied to the Linux workspace.
+
+If the session was created with the default Windows workspace bindings,
+an undo that would restore those paths on Linux returns
+`RESOURCE_REBIND_REQUIRED`. Rebinding the head leaves the old states'
+paths intact. In a second run we rebound both stores, read the original
+placement with `document.validate` on revision 0, and applied that
+transform as a new edit. Supplying the local `resources` explicitly to
+`document.publish` also let us publish the two earlier revisions. All
+three results matched the corresponding Windows files.
+
 ## Publication, interruption and limits
 
 The existing limits remain: at most 128 MiB of database pages, 64 MiB of stored content, 256 states, 2048 requests and 32 named snapshots, with the ordinary per-state/model/receipt bounds. Copying uses bounded steps or 64 KiB byte buffers; checksums and validation run before publication. These limits do not imply a peak-memory or latency benchmark result.

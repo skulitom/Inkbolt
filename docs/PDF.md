@@ -102,7 +102,9 @@ matched exactly under transparency. The JPEG-encoded alpha and grayscale
 pages differed by at most one 8-bit level. On full-color JPEGs the maximum
 page difference was two levels in MuPDF and one in Poppler.
 Linux reopened the same eight source files and produced the same image
-identities and re-exported PDFs byte for byte as Windows.
+identities and re-exported PDFs byte for byte as Windows. To carry the
+editable image and its revisions to another machine, see
+[moving artwork with embedded image data](SESSION_BACKUPS.md#moving-artwork-with-embedded-image-data).
 
 Source builds after v0.85.1 also reopen JPEG-compressed image objects
 (`DCTDecode`). The importer accepts 8-bit

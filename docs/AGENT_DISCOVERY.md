@@ -116,6 +116,19 @@ revision using the returned snapshot and PNG requests.
 
 ## Focused schemas
 
+If you know which edit you need, request its operation by name. For example,
+this returns the inputs for cloning a patch, including the sampling and
+transform fields.
+
+```json
+{"command":"schema.lookup","name":"operation","select":"retouch"}
+```
+
+Use `story/Slot` for one linked text frame's layout fields,
+`selection_shape/field:boundary/polygon` for polygon points, or
+`mask_from_selection` to turn an existing selection into a mask. Each is
+a `select` value for the same request.
+
 In current source builds, one lookup shows the inputs for a family of commands.
 
 ```json

@@ -2,12 +2,12 @@
 
 ## Results by task
 
-Both arms completed all five mixed compositions and all five linked-graphic
-revisions in their latest batches. Each linked-graphic agent using Inkbolt
-found the timed sequence example through the discovery index.
-Across the 17 tasks with a baseline, Inkbolt matched its artifact success
-count on 16 and scored higher on print delivery. Median recorded token use
-was higher with Inkbolt on all 17.
+On the twelve tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
+completed 60 of 60 workflows. Agents using the baseline completed 52 of
+55 applicable attempts. Three print PDFs omitted a required color setting.
+Lost-reply recovery has no baseline. Across all 20 tasks, including the
+earlier builds, median token use was lower for the baseline on all 17
+tasks where both approaches were evaluated.
 
 Each row uses the latest standard five-trial comparison, or the latest
 standard engine run for tasks without a baseline. Experiments that vary the
@@ -16,7 +16,7 @@ B07 also records the client starts that ended before a trial could be judged.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Eleven tasks now share one 0.85.1 executable. The other nine rows
+library. Twelve tasks now share one 0.85.1 executable. The other eight rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -30,7 +30,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B06 Repair linked text overflow | 5/5 | 5/5 | 5/5 | 293,389 / 76,247 | [Linked text on 0.85.1](#linked-text-and-foreground-masks-on-0851) |
 | B07 Multilingual typography | 5/5 | 5/5 | 5/5 | 298,013 / 214,257 | [Typography on 0.85.1](#multilingual-typography-on-0851) |
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 287,596 / 44,219 | [Foreground masks on 0.85.1](#linked-text-and-foreground-masks-on-0851) |
-| B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 354,590 / 43,008 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
+| B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 281,627 / 43,023 | [Local image repair on 0.85.1](#local-image-repair-on-0851) |
 | B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
 | B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 367,710 / 72,324 | [Movable source layer](#mixed-composition-with-a-movable-source-layer) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
@@ -71,6 +71,46 @@ retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
 
+## Local image repair on 0.85.1
+
+All ten agents cloned the original 2 × 2 patch onto the four defective
+pixels. A separate check reconstructed the patch from the original and
+compared it with every pixel in each editable layer and PNG preview.
+All 252 pixels outside the patch stayed unchanged. Each
+Inkbolt agent also reopened the damaged revision and delivered its
+original pixels.
+
+| Median per attempt | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Input plus output tokens | 281,627 | 43,023 |
+| Shell commands | 9 | 2 |
+| Shell output, UTF-8 bytes | 69,583 | 2,430 |
+| Seconds to first verified preview | 61.8 | 23.8 |
+| Solve time, seconds | 99.5 | 27.5 |
+
+Both arms used the same external client configuration as the linked-text
+and mask trials. The five Inkbolt attempts ran first. Local verification
+overlapped some attempts. Replaying the ten captures reproduced the
+verdicts and recorded usage. In each of the five Inkbolt trials, the largest
+shell reply came from a command that included a schema lookup. Across the
+linked-text, mask and retouch tasks this held for all 15 agents. Commands
+mentioning schema lookup produced 1,030,186 of their 1,262,527 shell-output
+bytes. Some also ran other commands. On the same release, requesting the
+single `retouch` operation schema described the clone operation, sampling
+and transform in a 1,918-byte CLI reply, including the response envelope
+and excluding the newline. A comparison with fresh agents is
+needed to measure whether directing them to focused lookups reduces cost.
+
+The combined replay now covers twelve tasks and 115 genuine attempts on
+one executable. All 60 Inkbolt workflows passed. The baseline passed 52
+of 55 applicable attempts. Its three failures were on print delivery.
+Lost-reply recovery requires an Inkbolt receipt and has no baseline arm.
+Eight standard tasks still use earlier binaries.
+
+Capture and replay audit SHA-256 `033e32bd68b95b3dc890de7c5abd500dfa3861c5decab2935e4793b43f4be6bb`.
+Independent image check SHA-256 `a51f55e9c4945f72ff93a0ab68f13c7c87917a85108879ef5d8998abe990ae4e`.
+Combined audit SHA-256 `f46e4f114f45783fb375bc0370a6b495c1e5d2c6019acd0029dc1ad82c97553f`.
+
 ## Linked text and foreground masks on 0.85.1
 
 Five Inkbolt agents and five baseline agents repaired the linked story. All
@@ -105,10 +145,11 @@ that included a schema lookup. Those commands accounted for 347,321 of
 446,974 shell-output bytes on text and 326,179 of 387,641 bytes on masks.
 Some commands also performed other work. On the same binary, a
 `schema.lookup` with `name="operation"` and `select="story/Slot"` returned
-the six slot fields in 534 bytes. Selecting
+the six slot fields in 554 bytes. Selecting
 `selection_shape/field:boundary/polygon` returned the polygon schema in
-429 bytes, and `mask_from_selection` returned its operation schema in 411
-bytes. These are measured CLI replies. Their effect on model usage has
+449 bytes, and `mask_from_selection` returned its operation schema in 431
+bytes. These sizes include the CLI response envelope and exclude the
+trailing newline. Their effect on model usage has
 yet to be tested. [Schema selectors](AGENT_DISCOVERY.md#focused-schemas)
 
 | Task | Capture and replay audit SHA-256 | Independent artifact check SHA-256 |
@@ -119,8 +160,7 @@ yet to be tested. [Schema selectors](AGENT_DISCOVERY.md#focused-schemas)
 A combined replay covered 105 genuine attempts on eleven tasks. All 55
 Inkbolt workflows passed. The baseline passed 47 of its 50 applicable
 attempts, with all three failures on print delivery. Lost-reply recovery
-requires an Inkbolt receipt and has no baseline arm. Nine standard tasks
-still use earlier binaries. The combined audit SHA-256 is
+requires an Inkbolt receipt and has no baseline arm. The combined audit SHA-256 for those eleven tasks is
 `ac4461425209e6be3ef36a572ada6b91c0b2b7436c8abf5c2ef8bde67711b038`.
 
 ## Large layouts and shared palettes on 0.85.1
