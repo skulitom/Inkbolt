@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import traceback
+from pathlib import Path
 
 from benchmark_driver import (config,driver_identity,read_json,run_external_task,model_run_complete,MIGRATED_TASKS)
 from benchmark_baseline import tool_identity,file_hash
@@ -14,10 +15,10 @@ from measure_workloads import ROOT,candidate_identity,release_build,save_json,sh
 import measurement_host
 
 
-def retained_engine(args, output):
+def retained_engine(args, output, cohort=None):
     filename = 'evaluated-inkbolt.exe' if os.name == 'nt' else 'evaluated-inkbolt'
     if args.engine_from or args.import_engine:
-        manifest = (args.engine_from or args.import_root) / 'inputs.json'
+        manifest = (cohort or args.engine_from or args.import_root) / 'inputs.json'
         manifest_bytes = read_metadata_bytes(manifest)
         original = strict_json(manifest_bytes)
         if args.engine_from:
@@ -32,7 +33,7 @@ def retained_engine(args, output):
         build=dict(source='retained_engine' if args.engine_from else 'imported_engine',
                    original_commit=original['build'].get('original_commit',original['git_commit']),
                    executable_sha256=original['build']['executable_sha256'])
-        if args.engine_from:
+        if args.engine_from or cohort:
             build['source_inputs_sha256'] = sha(manifest_bytes)
     else:
         executable,build=release_build(output)
@@ -42,11 +43,49 @@ def retained_engine(args, output):
     retained.chmod(retained.stat().st_mode | 0o100)
     if file_hash(retained)!=build['executable_sha256']:
         raise ValueError('Retained engine differs from the selected binary')
-    if args.engine_from:
+    if args.engine_from or cohort:
         with (output/'engine-inputs.json').open('xb') as source_inputs:
             source_inputs.write(manifest_bytes)
         executable = retained
     return executable,dict(build,retained_file=retained.name)
+
+
+def cohort_sources(args, output, client, driver, baseline, consumer):
+    """Validate the archive selection before opening the first judge workspace."""
+    index_path = args.import_cohorts
+    index_bytes = read_metadata_bytes(index_path)
+    index = strict_json(index_bytes)
+    if not isinstance(index, dict) or not index or set(index) - TASKS.keys():
+        raise ValueError('Expected a nonempty map of known task IDs to archived run directories')
+    selected = args.tasks or [task for task in TASKS if task in index]
+    if not set(selected) <= index.keys():
+        raise ValueError('A selected task has no archived cohort')
+    sources, hashes = {}, {}
+    engine = None
+    for task in selected:
+        if not isinstance(index[task], str) or not index[task].strip():
+            raise ValueError(f'{task} needs an archived run directory')
+        directory = (index_path.parent / index[task]).resolve(strict=True)
+        if output.is_relative_to(directory):
+            raise ValueError('Replay output must be outside each source archive')
+        raw = read_metadata_bytes(directory / 'inputs.json')
+        prior = strict_json(raw)
+        expected = dict(schema_version=1, suite=SUITE, arm=args.arm, client=client['client'], model=client['model'],
+                        driver_kind=client['kind'], driver=driver, repetitions=args.repetitions, baseline_tools=baseline)
+        if task == 'B20':
+            expected['consumer_tools'] = consumer
+        if (not isinstance(prior, dict) or any(prior.get(k) != v for k, v in expected.items())
+                or prior.get('benchmark_variant', 'standard') != args.variant
+                or not isinstance(prior.get('selected_tasks'), list) or task not in prior['selected_tasks']):
+            raise ValueError(f'{task} archive differs in task, repetition count, arm, variant or tool identities')
+        if args.arm == 'model':
+            digest = (prior.get('build') or {}).get('executable_sha256')
+            if not isinstance(digest, str) or len(digest) != 64 or (engine is not None and digest != engine):
+                raise ValueError(f'{task} archive has a missing or different engine identity')
+            engine = digest
+        sources[task] = directory
+        hashes[task] = sha(raw)
+    return sources, dict(index_sha256=sha(index_bytes), inputs_sha256=hashes, executable_sha256=engine)
 
 
 def run_suite(args, output, aggregate):
@@ -58,13 +97,20 @@ def run_suite(args, output, aggregate):
     consumer_tools={name:getattr(args,name).resolve() for name in ('cutbolt','ffmpeg','ffprobe') if getattr(args,name)}
     consumer_identity=tool_identities(consumer_tools) if consumer_tools else None
     candidates=candidate_identity();environment=measurement_host.identity()
-    executable,build=retained_engine(args,output) if args.arm=='model' else (None,None)
-    selected=tuple(args.tasks or TASKS)
+    sources, archive = {}, None
+    if args.import_cohorts:
+        sources, archive = cohort_sources(args, output, configuration, driver, tools, consumer_identity)
+    executable,build=retained_engine(args,output,next(iter(sources.values()),None)) if args.arm=='model' else (None,None)
+    if archive and build and build['executable_sha256'] != archive['executable_sha256']:
+        raise ValueError('Selected archive engine changed before replay')
+    selected=tuple(args.tasks or sources or TASKS)
     identity=dict(schema_version=1,suite=SUITE,arm=args.arm,benchmark_variant=variant,client=configuration['client'],model=configuration['model'],
         driver_kind=configuration['kind'],driver=driver,baseline_tools=tools,consumer_tools=consumer_identity,build=build,environment=environment,
         conditions=args.conditions,candidate_files=candidates,candidate_sha256=sha(json.dumps(candidates,sort_keys=True,separators=(',',':')).encode()),
         selected_tasks=selected,repetitions=args.repetitions,
         git_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip())
+    if archive:
+        identity['imported_cohorts'] = archive
     save_json(output/'inputs.json',identity)
     save_json(output/'tasks.json',dict(suite=SUITE,tasks=[dict(id=task,title=title,outcome=outcome,
         migrated=task in MIGRATED_TASKS,checks=[dict(name=name,check_class=check_class(task,name)) for name in CHECKS[task]])
@@ -75,8 +121,9 @@ def run_suite(args, output, aggregate):
         for task in selected[offset:]+selected[:offset]:
             name=f'{repetition:02d}-{task}';base=output/name
             try:
+                previous = sources.get(task) or args.import_root
                 row=run_external_task(executable,base,task,repetition,args.arm,configuration,tools,
-                    args.import_root.resolve()/name if args.import_root else None,args.prepare_only,consumer_tools=consumer_tools,variant=variant)
+                    previous.resolve()/name if previous else None,args.prepare_only,consumer_tools=consumer_tools,variant=variant)
             except Exception as error:
                 base.mkdir(exist_ok=True)
                 row=dict(task=task,repetition=repetition,arm=args.arm,status='failed',model_trials=False,
@@ -89,8 +136,12 @@ def run_suite(args, output, aggregate):
                driver==driver_identity(configuration) and (tools is None or tools==tool_identity(baseline_config)) and
                (executable is None or
                 file_hash(executable)==build['executable_sha256']==file_hash(output/build['retained_file'])) and
-               (not args.engine_from or file_hash(output/'engine-inputs.json') == build['source_inputs_sha256']) and
+               (not build or 'source_inputs_sha256' not in build or file_hash(output/'engine-inputs.json') == build['source_inputs_sha256']) and
                (not consumer_tools or consumer_identity==tool_identities(consumer_tools)))
+    if archive:
+        unchanged = (unchanged and sha(read_metadata_bytes(args.import_cohorts)) == archive['index_sha256']
+                     and all(sha(read_metadata_bytes(path/'inputs.json')) == archive['inputs_sha256'][task]
+                             for task, path in sources.items()))
     success=all(row['status'] in (('prepared','not_applicable') if args.prepare_only else ('passed','not_applicable')) for row in rows)
     report=dict(schema_version=2,suite=SUITE,arm=args.arm,transport='external-client',benchmark_variant=variant,
         selected_tasks=selected,all_tasks=list(TASKS),repetitions=args.repetitions,

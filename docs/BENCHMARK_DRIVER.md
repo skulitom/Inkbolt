@@ -70,6 +70,29 @@ records the original engine commit and retains the source manifest as
 `engine-inputs.json`. Each trial gets a new workspace, prompt contract,
 transcript and verdict. The earlier traces stay in their original directory.
 
+### Replay tasks captured in separate runs
+
+Use `--import-cohorts FILE` to rejudge several archived tasks together.
+For example, this JSON file assigns each task to the directory containing
+its original `inputs.json`, workspaces and evidence. Relative paths start
+at the JSON file's directory.
+
+```json
+{"B01":"diagram-run","B18":"conflict-run"}
+```
+
+```text
+python tools/agent_benchmark.py --arm model --driver-config client.json --import-cohorts cohorts.json --import-engine path/to/trusted/inkbolt --output-root path/to/new-report --conditions "Rejudge retained Windows trials"
+```
+
+Use a separate cohort file for the baseline arm and supply its original
+`--baseline-tools`. Include the three pinned consumer tools when selecting
+B20. Each selected archive must have the requested repetition count, task,
+variant, arm and client settings. Model archives must identify the same
+executable. The current judge reopens each capture and records the source
+manifest hashes. An optional `--task B01` limits the replay to that task.
+No model client is launched during replay.
+
 For B01, B06 and B07 native snapshots, the agent may choose any font store inside the captured
 workspace. The judge finds a complete content-addressed font/license pair there,
 checks both lengths and hashes against the original inputs, and supplies that

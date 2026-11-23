@@ -8,7 +8,7 @@ import traceback
 
 from benchmark_tasks import SUITE, TASKS, CHECKS, VARIANTS
 from benchmark_adapters import ADAPTERS
-from benchmark_runtime import Trial
+from benchmark_runtime import TaskFailure, Trial
 from benchmark_recovery_runtime import RecoveryTrial
 from benchmark_handoff import HandoffTrial
 from benchmark_consumer import tool_identities
@@ -89,14 +89,20 @@ def main(argv=None):
     parser.add_argument('--prepare-only',action='store_true',help='Write external-client requests and fixtures without launching a client')
     parser.add_argument('--baseline-tools',type=Path,help='External pinned resvg and Pillow Python executable paths')
     parser.add_argument('--task',action='append',choices=list(TASKS),dest='tasks')
+    parser.add_argument('--import-cohorts', type=Path, metavar='JSON',
+                        help='Rejudge archived tasks from a JSON map of task IDs to run directories')
     parser.add_argument('--variant',choices=VARIANTS,default='standard',help='Separate fixed photo scale; original tasks remain the default')
     parser.add_argument('--linux-address-space-budget', action='store_true',
                         help='Check the 50 MP reference workflow under a 512 MiB per-process Linux address-space limit')
     for name in ('cutbolt','ffmpeg','ffprobe'):
         parser.add_argument('--'+name,type=Path,help='Explicit local consumer executable for B20')
     args=parser.parse_args(argv)
-    if args.import_engine and (args.arm!='model' or not args.import_root or args.prepare_only):
-        parser.error('--import-engine requires --arm model and --import-root')
+    if args.import_cohorts and (args.arm=='reference' or args.prepare_only or args.import_root or args.engine_from):
+        parser.error('--import-cohorts requires an external replay and cannot be combined with another source')
+    if args.import_cohorts and args.arm=='model' and not args.import_engine:
+        parser.error('--arm model --import-cohorts requires a trusted --import-engine executable')
+    if args.import_engine and (args.arm!='model' or not (args.import_root or args.import_cohorts) or args.prepare_only):
+        parser.error('--import-engine requires --arm model and archived trials')
     if args.engine_from and (args.arm != 'model' or args.import_root or args.import_engine):
         parser.error('--engine-from selects a build for fresh model trials or preparation only')
     if sys.flags.optimize: parser.error('Independent oracles require assertions; do not use -O')
@@ -123,7 +129,10 @@ def main(argv=None):
     output.mkdir()
     if args.arm!='reference':
         from benchmark_external_cli import run_suite
-        return run_suite(args,output,aggregate)
+        try:
+            return run_suite(args,output,aggregate)
+        except (OSError, ValueError, TaskFailure) as error:
+            parser.error(str(error))
     candidates=candidate_identity()
     environment=measurement_host.identity()
     executable,build=release_build(output)

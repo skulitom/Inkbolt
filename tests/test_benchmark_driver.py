@@ -12,9 +12,9 @@ from unittest.mock import patch
 from test_cli import EXE,ROOT
 sys.path.insert(0,str(ROOT/'tools'))
 from benchmark_driver import run_external_task,workspace_files,model_run_complete,observations,execution_memory
-from benchmark_external_cli import retained_engine
+from benchmark_external_cli import cohort_sources, retained_engine
 from verify_process import MEMORY_SCOPE,MEMORY_METHOD
-from benchmark_tasks import TASKS,CHECKS,ARTIFACT_CHECKS,ENGINE_CHECKS
+from benchmark_tasks import TASKS,CHECKS,ARTIFACT_CHECKS,ENGINE_CHECKS,SUITE
 from benchmark_diagram import expected_picture
 from benchmark_baseline import svg_diagram
 from benchmark_runtime import TaskFailure
@@ -37,6 +37,39 @@ def fake_tools():
 
 
 class BenchmarkDriverTests(unittest.TestCase):
+    def test_cohort_replay_selects_original_trials_and_requires_one_build_and_configuration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            index = root/'cohorts.json'
+            index.write_text(json.dumps({'B18':'second','B01':'first'}))
+            client = driver()
+            identity = {'config_sha256':'fixture', 'files':{}}
+            inputs = dict(schema_version=1, suite=SUITE, arm='model', benchmark_variant='standard',
+                          repetitions=5, driver=identity, client=client['client'], model=client['model'],
+                          driver_kind=client['kind'], baseline_tools=None, build={'executable_sha256':'f'*64})
+            for task, name in [('B01','first'),('B18','second')]:
+                (root/name).mkdir()
+                (root/name/'inputs.json').write_text(json.dumps(dict(inputs,selected_tasks=[task])))
+            args = SimpleNamespace(import_cohorts=index, tasks=None, arm='model', repetitions=5, variant='standard')
+            def select(output=root/'result'):
+                return cohort_sources(args, output, client, identity, None, None)
+            sources, pins = select()
+            self.assertEqual(list(sources), ['B01','B18'])
+            self.assertEqual(pins['inputs_sha256']['B18'], sha((root/'second/inputs.json').read_bytes()))
+            self.assertEqual(pins['index_sha256'], sha(index.read_bytes()))
+            with self.assertRaisesRegex(ValueError, 'outside'):
+                select(root/'first/01-B01/workspace/replay')
+            for update in [{'build':{'executable_sha256':'e'*64}}, {'driver':{}}, {'arm':'baseline'},
+                           {'repetitions':4}, {'benchmark_variant':'photo-50mp-v1'}, {'selected_tasks':['B02']}]:
+                (root/'second/inputs.json').write_text(json.dumps({**inputs,'selected_tasks':['B18'],**update}))
+                with self.subTest(update=update), self.assertRaises(ValueError):
+                    select()
+            args.tasks = ['B01']
+            self.assertEqual(list(select()[0]), ['B01'])
+            args.tasks = ['B03']
+            with self.assertRaisesRegex(ValueError, 'no archived'):
+                select()
+
     def test_retained_engine_reopens_exact_original_after_build_changes(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
