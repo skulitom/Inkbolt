@@ -18,7 +18,29 @@ The release workflow on `main` builds separate native macOS archives for
 Apple silicon and Intel. Each runner verifies its Rust host target and tests
 the extracted executable. Maintainers can select `macos_intel_only` in the
 Verify workflow to run the full source suite on Intel without repeating the
-three regular CI jobs. The v0.84.0 release provides downloads for both Mac architectures.
+three regular CI jobs. The v0.85.0 release provides downloads for both Mac architectures.
+
+## v0.85.0 platform checks
+
+Each extracted release archive passed eight installation checks and all 292
+Python modules. Windows and Ubuntu under WSL2 also passed all 297 verification
+stages locally with the private repository guard. [Release workflow](https://github.com/skulitom/Inkbolt/actions/runs/45112670917)
+
+The four archives, their four CycloneDX inventories and the Windows extension
+passed provenance verification bound to the release tag, commit and workflow.
+All eleven downloads matched their GitHub digests. [Downloads and checksums](https://github.com/skulitom/Inkbolt/releases/tag/v0.85.0)
+
+At the tagged commit, hosted Windows, Linux and Apple silicon also passed the
+source suite. A separate Intel Mac source run exposed a receipt race. Four
+concurrent callers successfully issued the same history request, but all four
+received `replayed: true`. The stored output survived. A regression test in
+the shared publication path forces a retry to finish while the original caller
+is waiting for the receipt lock. [Three-platform CI](https://github.com/skulitom/Inkbolt/actions/runs/45110403146) · [Intel source run](https://github.com/skulitom/Inkbolt/actions/runs/45111403579)
+
+The released Windows and Linux binaries each rendered the 240 × 144 postcard,
+replayed an edit saved with v0.84 on the other platform, and completed undo
+and redo. Both also reopened PDF image samples at the original physical scale.
+The Windows extension opened an MCP session and created a vector document.
 
 ## v0.84.0 platform checks
 

@@ -3,7 +3,7 @@ use super::*;
 fn execute(value: Value) -> Value {
     crate::execute(serde_json::from_value(value).unwrap()).unwrap()
 }
-fn fixture(root: &Path, kind: &str) -> PathBuf {
+pub(super) fn fixture(root: &Path, kind: &str) -> PathBuf {
     execute(
         json!({"command":"session.create","session_root":root.join("source"),"session_id":"history","request_id":"create",
         "document":{"schema_version":2,"id":"original","kind":"vector","width":2,"height":2,"color_space":"srgb"}}),

@@ -250,7 +250,8 @@ fn resume_transaction(
     control: &Control,
 ) -> Result<Value, Error> {
     if record.phase == Phase::Complete {
-        return Ok(record.result(root, true, true));
+        // A retry can complete the receipt while its creator reacquires the lock.
+        return Ok(record.result(root, replayed, true));
     }
     control.check_path(&record.target)?;
     control.check_path(&record.staging_path)?;

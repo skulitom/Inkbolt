@@ -52,6 +52,7 @@ fill. Undo restored the starting SVG byte for byte. [Restored SVG](https://skuli
 | Draw a diagram or illustration | Arrange shapes, text, images and artboards. Import editable SVG artwork, including reusable symbols and positioned text. [SVG import](docs/SVG_IMPORT.md) |
 | Cut or join shapes | Combine filled paths, circles and ellipses in one undoable edit. The resulting Bézier handles stay editable. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
 | Retouch an image | Select a region, feather a mask or repair a patch. Keep 16-bit samples and share unchanged image data across revisions. [Selections](docs/NATIVE_SELECTIONS.md) · [Image repair](docs/NATIVE_REPAIR.md) |
+| Reopen a PDF page | Edit supported filled paths, curves and embedded RGB or grayscale images. Move one copy of a placed image independently of the others. [PDF import and its limits](docs/PDF.md#reopen-a-page-for-editing) |
 | Review and deliver artwork | Compare revisions, undo a change, and preflight a PNG, JPEG, TIFF, SVG or PDF before saving it. For multi-page PDFs, select the artboards to deliver and include their bleed. [Sessions](docs/AGENT_WORKSPACE.md) · [PDF export](docs/PDF.md) · [Runnable examples](examples/README.md) |
 | Use artwork in a video | Send a still or timed sequence to Cutbolt. When the artwork changes, relink the intended clip and keep the earlier delivery available. [Linked graphics](docs/HANDOFF.md#linked-revisions) |
 
@@ -63,13 +64,7 @@ Measured Windows and Linux workflows include a 24 MP JPEG import, a 50 MP
 
 Choose the archive for Windows x64, Linux x64, Apple silicon or Intel Macs.
 Background export jobs currently require Windows.
-[Downloads](https://github.com/skulitom/Inkbolt/releases/latest) · [Platform test results](docs/PLATFORMS.md)
-
-In version 0.85, an agent can save editable artwork and export a transparent PNG
-from that revision in four requests. It can also restore a session on Windows or
-Linux and rebind its external assets and fonts, edit layer groups, reopen PDF paths and
-images, and deliver searchable PDF labels and spot-ink plates.
-[Screen artwork guide](docs/AGENT_DISCOVERY.md#screen-artwork) · [Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability) · [Layer groups](docs/LAYERED.md#editable-folder-fill) · [PDF import and export](docs/PDF.md#reopen-a-page-for-editing) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
+[Downloads](https://github.com/skulitom/Inkbolt/releases/latest) · [Platform test results](docs/PLATFORMS.md) · [Moving a saved edit between Windows and Linux](docs/SESSION_BACKUPS.md#resources-and-portability)
 
 ## Explore the project
 

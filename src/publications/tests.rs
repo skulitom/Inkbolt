@@ -172,6 +172,11 @@ fn receipt_worker() {
         assert_eq!(result.unwrap_err().code, "CANCELLED");
     } else {
         let result = result.unwrap();
+        fs::write(
+            root.join("worker-result.json"),
+            serde_json::to_vec(&result).unwrap(),
+        )
+        .unwrap();
         assert_eq!(
             result["publication"]["state"],
             if point == "completion_error" {
@@ -182,6 +187,35 @@ fn receipt_worker() {
         );
     }
 }
+#[test]
+fn original_caller_keeps_its_receipt_when_a_retry_finishes_first() {
+    for kind in ["publish", "backup", "recover", "migrate"] {
+        let mut owned = Owned::new();
+        let output = if kind == "publish" {
+            owned.root.join("result.png")
+        } else {
+            history::fixture(&owned.root, kind)
+        };
+        owned.start("after_record", false);
+        let retry = invoke(&owned.root, &Control::default()).unwrap();
+        assert_eq!(retry["publication"]["replayed"], true, "{kind}");
+        let bytes = fs::read(&output).unwrap();
+        owned.finish();
+        let original: Value =
+            serde_json::from_slice(&fs::read(owned.root.join("worker-result.json")).unwrap())
+                .unwrap();
+        let mut expected = retry.clone();
+        expected["publication"]["replayed"] = json!(false);
+        assert_eq!(original, expected, "{kind}");
+        assert_eq!(fs::read(output).unwrap(), bytes, "{kind}");
+        assert_eq!(
+            invoke(&owned.root, &Control::default()).unwrap(),
+            retry,
+            "{kind}"
+        );
+    }
+}
+
 #[test]
 fn process_death_at_every_receipt_and_publication_boundary_recovers_once() {
     for point in [

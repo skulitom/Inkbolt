@@ -14,6 +14,11 @@ Use the same request ID and normalized typed inputs to recover the original publ
 
 The ordinary output receipt includes its byte length, SHA-256, format, source revision, selected artboard and actual encoder loss/colour/metadata details. The added `publication` object identifies the receipt root/request, whether this is a replay, and completion state. Preparing durable output shares the exact existing publication encoder and does not change export semantics or force a format conversion.
 
+When identical requests overlap, the caller that created the durable record
+gets `publication.replayed: false` on success. Other callers get `true`, even
+if a retry finishes publishing the file first. Each receives the same output
+identity. If the original caller lost its reply, a later retry returns `true`.
+
 When you deliver both an editable snapshot and a PDF of the same revision,
 each durable publication has its own request ID. For a print handoff, copy
 `publication.request_id` from the successful PDF publication result. To check
