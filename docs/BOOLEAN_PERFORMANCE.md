@@ -7,6 +7,31 @@ checks, while avoiding work on distant geometry. See [the geometry contract](BOO
 passes all 277 stages per platform on the same audited source. W3c.3 is complete
 within this contract; whole-goal and advanced-checkpoint completion remain open.
 
+## Intersections at shared endpoints
+
+For two identical or reversed segments, the exact intersection parameters are
+their endpoints. Two segments that start at the same point can only overlap
+along the same ray. A difference in sign on either axis, including zero,
+rules out an overlap beyond that point. Inkbolt recognizes these contacts
+before computing rational determinants and divisions. For a partial overlap
+it still calculates each segment's exact split parameters.
+
+Five alternating runs of each development build measured the time from CLI
+launch to the complete response. Both binaries ran on the same native filesystem
+on each host. The repeated-contour case contains 1,024 edges and still returns
+the original work-budget error. [Measured source change](https://github.com/skulitom/Inkbolt/commit/49517f35c78e4c65fb8fa36146973fafe10829c6)
+
+| Median seconds | Windows before | Windows after | Linux before | Linux after |
+| --- | ---: | ---: | ---: | ---: |
+| Repeated contours, work-budget refusal | 7.043 | 1.152 | 6.938 | 1.061 |
+| 256 separate boxes, accepted union | 0.493 | 0.478 | 0.449 | 0.421 |
+| Crossing strips, atomic-edge refusal | 0.469 | 0.465 | 0.465 | 0.458 |
+
+All 51 requests returned byte-identical JSON before and after on both hosts.
+They included reversed paths, a shared corner, a partial overlap, crossings,
+all four combination operations and both output forms. The Rust regression
+also checks contact parameters with a fractional origin. Both platforms passed all 297 local verification stages.
+
 ## Matched measurements
 
 Five repetitions per build and workload alternate the preceding `415771d`
