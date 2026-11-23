@@ -347,8 +347,17 @@ fn composite(dst: &mut [f64], src: [f64; 4], opacity: f64, blend: BlendMode, lin
         return;
     }
     let da = dst[3];
+    if da == 0.0 {
+        // The blend function is weighted by backdrop alpha. On an empty
+        // backdrop only the source contributes to the new color.
+        for c in 0..3 {
+            dst[c] = (1.0 - sa) * dst[c] + sa * src[c];
+        }
+        dst[3] = sa;
+        return;
+    }
     let mixed = crate::hdr::mix(
-        std::array::from_fn(|c| if da == 0.0 { 0.0 } else { dst[c] / da }),
+        std::array::from_fn(|c| dst[c] / da),
         [src[0], src[1], src[2]],
         blend,
         linear,
