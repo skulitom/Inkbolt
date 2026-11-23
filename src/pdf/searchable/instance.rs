@@ -66,9 +66,11 @@ impl Pen {
         // Choose the quadratic control that balances their errors. Bounding
         // each control error bounds the entire curve by convexity.
         let q = std::array::from_fn(|i| (3.0 * (b[i] + c[i]) - a[i] - d[i]) / 4.0);
+        // Rounding controls and endpoints to the nearest font unit uses up to half a unit.
+        let fit_error = crate::limits::pdf::MAX_CFF2_CURVE_ERROR - 0.5;
         if (0..2).all(|i| {
-            ((a[i] + 2.0 * q[i]) / 3.0 - b[i]).abs() <= 0.25
-                && ((d[i] + 2.0 * q[i]) / 3.0 - c[i]).abs() <= 0.25
+            ((a[i] + 2.0 * q[i]) / 3.0 - b[i]).abs() <= fit_error
+                && ((d[i] + 2.0 * q[i]) / 3.0 - c[i]).abs() <= fit_error
         }) {
             self.point(q, false);
             self.point(d, true);

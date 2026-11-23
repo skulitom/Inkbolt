@@ -1113,6 +1113,8 @@ pub mod path_text {
 
 /// Limits for `src/pdf.rs`.
 pub mod pdf {
+    /// Maximum per-axis deviation in font units for a CFF2 cubic converted to an integer TrueType contour.
+    pub const MAX_CFF2_CURVE_ERROR: f64 = 0.75;
     /// Smallest drawing stream considered for compression. Skips tiny per-shape forms.
     pub const MIN_FLATE_CONTENT_BYTES: usize = 128;
     /// Maximum combined scene ancestry and successive PDF knockout attenuation forms.

@@ -426,6 +426,7 @@ Format cardinalities and mathematical definitions remain with their algorithms.
 | `path_text.ROUNDING_EPSILONS` | `u32` | 256 | `256` |
 | `paths.MAX_PATH_UNITS` | `usize` | 4096 | `4096` |
 | `pdf.MAX_BACKDROP_FORM_VISITS` | `usize` | 65536 | `65_536` |
+| `pdf.MAX_CFF2_CURVE_ERROR` | `f64` | 0.75 | `0.75` |
 | `pdf.MAX_COMMANDS` | `usize` | 262144 | `262_144` |
 | `pdf.MAX_IMAGE_PIXELS` | `u64` | 4194304 | `4_194_304` |
 | `pdf.MAX_KNOCKOUT_DEPTH` | `usize` | 24 | `24` |

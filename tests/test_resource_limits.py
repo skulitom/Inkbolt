@@ -79,6 +79,7 @@ BINDINGS = {
     'svg_import/validation_limits/font_size/0': 'text.MIN_FONT_SIZE',
     'svg_import/validation_limits/font_size/1': 'text.MAX_FONT_SIZE',
     'pdf/content_streams/minimum_bytes': 'pdf.MIN_FLATE_CONTENT_BYTES',
+    'pdf/text_delivery/cff2/maximum_curve_error_per_axis_font_units': 'pdf.MAX_CFF2_CURVE_ERROR',
     'pdf/mark_limits/gap_pt/0': 'pdf_marks.MIN_GAP',
     'pdf/mark_limits/gap_pt/1': 'pdf_marks.MAX_GAP',
     'pdf/mark_limits/defaults/gap_pt': 'pdf_marks.DEFAULT_GAP',
