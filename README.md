@@ -53,7 +53,7 @@ fill. Undo restored the starting SVG byte for byte. [Restored SVG](https://skuli
 
 | Task | How Inkbolt helps |
 | --- | --- |
-| Draw a diagram or illustration | Arrange shapes, text, images and artboards. Import editable SVG artwork, including reusable symbols and positioned text. [SVG import](docs/SVG_IMPORT.md) |
+| Draw a diagram or illustration | Arrange shapes, text, images and artboards. In a large drawing, look up a single object's bounds by ID. [SVG import](docs/SVG_IMPORT.md) · [Inspect one object in a 5,000-object layout](docs/LARGE_VECTOR.md#inspect-one-object-in-a-saved-layout) |
 | Cut or join shapes | Combine filled paths, circles and ellipses in one undoable edit. The resulting Bézier handles stay editable. [Shape combinations](docs/BOOLEANS.md#editable-curve-output) |
 | Retouch an image | Select a region, feather a mask or repair a patch. Keep 16-bit samples and share unchanged image data across revisions. [Selections](docs/NATIVE_SELECTIONS.md) · [Image repair](docs/NATIVE_REPAIR.md) |
 | Reopen a PDF page | Edit supported filled paths, curves and embedded RGB or grayscale images. Move one copy of a placed image independently of the others. [PDF import and its limits](docs/PDF.md#reopen-a-page-for-editing) |

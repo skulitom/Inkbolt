@@ -95,7 +95,7 @@ agent scale readiness remains separate. Current totals are tracked in the
 ## Inspect one object in a saved layout
 
 If you know the object's ID, request just its geometry, world transform and
-bounds. Run this Python 3.11+ snippet in the workspace with `inkbolt` on
+bounds. Run this Python 3.8+ snippet in the workspace with `inkbolt` on
 your PATH. Change the filename and ID to match your drawing.
 
 ```python
@@ -106,10 +106,12 @@ from pathlib import Path
 
 workspace = Path.cwd()
 source = workspace / "source.json"
+digest = hashlib.sha256()
 with source.open("rb") as stream:
-    digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    while block := stream.read(65536):
+        digest.update(block)
 request = {"command": "document.inspect.page",
-           "document": {"file_path": source.name, "sha256": digest},
+           "document": {"file_path": source.name, "sha256": digest.hexdigest()},
            "options": {"view": {"collection": "items", "ids": ["cell-2473"],
                                 "fields": ["geometry", "transform", "bounds"]}}}
 subprocess.run(["inkbolt", "--workspace", str(workspace), "--result-only"],

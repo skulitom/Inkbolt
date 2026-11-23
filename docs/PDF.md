@@ -50,7 +50,9 @@ MuPDF 1.28.0 and Poppler 26.07.0 each checked 15 overlapping-color pages
 before and after a foreground recolor. For all 60 comparisons, every pixel
 of the re-export matched a PDF authored directly with the intended colors
 and blend. Linux produced the same 30 re-exported files byte for byte as
-Windows.
+Windows. In a separate MCP test, a second process retried a Hue recolor
+after a disconnect and recovered the edit receipt. The original, edited and
+undone revisions each rendered pixel for pixel like the corresponding reference.
 
 Each admitted image XObject becomes a self-contained PNG asset in the document.
 Repeated placements share its samples and can be moved independently with the
