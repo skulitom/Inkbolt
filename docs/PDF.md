@@ -45,7 +45,8 @@ image soft mask supplies straight alpha. Hidden color samples survive zero alpha
 The per-image limit is 4,194,304 pixels. The document asset, snapshot and
 decoded-stream limits also apply.
 
-For JPEG-compressed image objects (`DCTDecode`), Inkbolt accepts 8-bit
+Source builds after v0.85.1 also reopen JPEG-compressed image objects
+(`DCTDecode`). The importer accepts 8-bit
 baseline and progressive Huffman-coded grayscale and RGB frames. The JPEG
 dimensions and component count must match the PDF dictionary. A three-component
 frame uses the PDF color transform (YCbCr by default, or direct RGB with

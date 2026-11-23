@@ -76,7 +76,9 @@ the published file. Two of five agents using the baseline also passed every
 applicable check. The other three passed the preview and page geometry checks
 but failed the native ink check. An independent MuPDF inspection found that
 those three PDFs omitted `/UseBlackPtComp` from the required paint settings.
-All seven accepted PDFs explicitly set it to `/OFF`.
+All seven accepted PDFs explicitly set it to `/OFF`. Leaving the setting at
+its PDF default lets the print processor choose whether to apply compensation.
+[PDF Association application note, page 3](https://pdfa.org/download-area/publications/PDF20_AN001-BPC.pdf#page=4)
 
 | Median per attempt | Inkbolt | No engine |
 | --- | ---: | ---: |
@@ -149,8 +151,10 @@ the source IDs and description. In four Inkbolt SVG trials, the largest shell
 reply came from looking up several schemas together, including SVG import.
 The fifth combined the import with lookups for starting a session, moving an
 object and publishing. Those replies ranged from 19,116 to 36,124 bytes.
-A compact example for importing, moving and exporting a path is a candidate
-for a measured trial.
+The [SVG editing example](SVG_IMPORT.md#move-one-object-and-export-the-result)
+uses the import mapping and a saved revision to move one path and export it.
+Running the example on Windows and Linux preserved the sibling shape and
+produced matching pixels. Its effect on model usage remains unmeasured.
 
 The original B04 judge recorded 0/5 Inkbolt workflows and 5/5 baseline
 workflows. All five agents had saved the full opt-in omission receipt, including
