@@ -95,8 +95,23 @@ strip above both spots and included a zero-tint knockout. Recoloring one spot
 path preserved the other spot, the process plates and unpainted regions.
 Both hosts emitted identical PDFs. All twelve additional plate comparisons
 matched the original sheet or its independently authored edit at 144 dpi.
-Painted text, mixed-space pages and encapsulated page placement remain open.
+Fresh verification at `e170a98` passed all 297 stages on each host.
+Windows executed 3,075 Python tests and recorded 47 explicit skips.
+Linux executed 3,027 and recorded 95 skips. Mixed-space pages and
+encapsulated page placement remain open.
 [Print fill editing contract](PDF.md#editing-process-and-spot-fills)
+
+## Reopening searchable labels for editing
+
+Eight original Inkbolt PDFs provide controls for the next editable import
+test. They contain “AB fi” or its edit “BA fi”, using whole and subset
+TrueType and CFF programs. MuPDF 1.28.0 and Xpdf 4.06 extracted both words
+in all eight files. Both whole programs matched their original font bytes.
+The two subset programs omitted the Unicode character map present in the
+original fonts. The PDF supplies the mapping from visible codes to text.
+The current importer refuses each file at its first text matrix. Editable
+recovery needs to preserve the source words, glyph placement and retained
+font identity through the edit. [Searchable PDF export](PDF.md#searchable-text)
 
 ## Knockout groups in vector PDF
 

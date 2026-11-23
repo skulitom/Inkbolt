@@ -2,9 +2,9 @@
 
 ## Results by task
 
-On the fifteen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
-completed 75 of 75 workflows. Agents using the baseline completed 67 of
-70 applicable attempts. Three print PDFs omitted a required color setting.
+On the sixteen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
+completed 80 of 80 workflows. Agents using the baseline completed 72 of
+75 applicable attempts. Three print PDFs omitted a required color setting.
 Lost-reply recovery has no baseline. Across all 20 tasks, including the
 earlier builds, median token use was lower for the baseline on all 17
 tasks where both approaches were evaluated.
@@ -16,7 +16,7 @@ B07 and B12 also record the client starts that ended before a trial could be jud
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Fifteen tasks now share one 0.85.1 executable. The other five rows
+library. Sixteen tasks now share one 0.85.1 executable. The other four rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -36,7 +36,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 431,810 / 61,895 | [Layout variants on 0.85.1](#selecting-and-restoring-layout-variants-on-0851) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 134,535 / 41,369 | [0.85.1 source build](#transparent-screen-artwork-on-0851) |
 | B14 Deliver a print page | 5/5 | 5/5 | 2/5 | 712,198 / 94,435 | [Native print controls on 0.85.1](#native-print-controls-on-0851) |
-| B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
+| B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 262,081 / 56,846 | [Resource repair on 0.85.1](#repairing-broken-image-bindings-on-0851) |
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 263,170 / n/a | [0.85.1 recovery trials](#diagram-svg-and-recovery-trials-on-0851) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
@@ -71,6 +71,34 @@ retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
 
+## Repairing broken image bindings on 0.85.1
+
+All five Inkbolt agents and all five baseline agents located one corrupt
+resource and one missing resource. Both arms rebuilt the exact cache files
+from the original PNGs in a new directory and retained the damaged directory.
+All ten delivered previews matched the expected blue and green panels.
+[Resource repair task](../tools/benchmark_prompts/B15.md)
+
+| Median per attempt | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Input plus output tokens | 262,081 | 56,846 |
+| Shell commands | 18 | 3 |
+| Shell output, UTF-8 bytes | 55,008 | 1,843 |
+| Seconds to first verified preview | 78.3 | 38.1 |
+| Solve time, seconds | 96.1 | 41.4 |
+
+Each Inkbolt agent reviewed and committed a resource directory change with
+the document's artwork intact. All used the CLI. In a separate Windows and
+Linux check, each saved document reopened against fresh copies of both
+directories. Changing one byte of the second repaired image made the check
+identify precisely `/assets/asset-1` as corrupt. Restoring the byte cleared
+the error and the historical directory still reported both original issues.
+
+The combined replay covers 155 judged attempts on sixteen tasks using one
+Inkbolt executable. B15 capture and replay audit SHA-256
+`6adf931f9e4de615dfe0140823ba40f5c9496958c7f4b79fb81298bd194f4d2c`.
+Combined audit SHA-256 `045d23161176c746348c2bc95fd738b69da39ea247561b0eb5b3532fdd1c83e2`.
+
 ## Selecting and restoring layout variants on 0.85.1
 
 All five Inkbolt agents and all five baseline agents published wide, square
@@ -102,8 +130,8 @@ the child's position override, its square layout picked up the new position
 and kept its own text and orange image. All ten previews matched the
 independently calculated pixels.
 
-The combined replay covers 145 judged attempts on fifteen tasks using one
-Inkbolt binary. Five tasks still use earlier binaries. B12 capture and replay
+That combined replay covered 145 judged attempts on fifteen tasks using one
+Inkbolt binary. Five tasks still used earlier binaries. B12 capture and replay
 audit SHA-256 `8f42f5d60d2f6507f142e90133bdd20666c44c9242885fb617b2ebf4e3e556e8`.
 Combined audit SHA-256 `a15dd55d54fbf40a3db003a22823fa9eeb1bc93e02cd9a40d97285895e3dab01`.
 

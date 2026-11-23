@@ -701,9 +701,8 @@ PDF parsing and rendering against original geometry/image oracles. Source
 snapshots remain unchanged. The basic page and extended vector typography
 criteria cover these declared contracts. Native spot output is covered by
 [INK_DELIVERY.md](INK_DELIVERY.md); combined trim/bleed/ink preparation is covered
-by [PREPRESS.md](PREPRESS.md). Broader searchable typography, encapsulated page
-input and editable reimport beyond the filled-path subset remain open under
-the extended page criterion.
+by [PREPRESS.md](PREPRESS.md). The extended page criterion still includes encapsulated-page
+placement and [editable recovery of painted text](DEVELOPMENT_STATUS.md#reopening-searchable-labels-for-editing).
 
 Public format reference: [ISO 32000-1 entry](https://committee.iso.org/standard/51502.html)
 and [PDF specification archive](https://pdfa.org/resource/pdf-specification-archive/).
