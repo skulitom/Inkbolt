@@ -14,7 +14,7 @@ pub enum Value {
     Integer(i64),
     Real(f64),
     Name(Vec<u8>),
-    Bytes,
+    Bytes(Vec<u8>),
     Array(Vec<Value>),
     Dict(BTreeMap<Vec<u8>, Value>),
     Ref(Id),
@@ -132,38 +132,7 @@ impl Parser<'_, '_> {
                 }
                 Ok(Value::Name(name))
             }
-            b'(' => {
-                let mut nesting = 1;
-                let mut length = 0;
-                while nesting > 0 {
-                    let b = *self
-                        .data
-                        .get(self.at)
-                        .ok_or_else(|| invalid("Truncated PDF string"))?;
-                    self.at += 1;
-                    length += 1;
-                    if length > MAX_STRING_STEPS {
-                        return Err(super::limit("PDF string exceeds budget"));
-                    }
-                    match b {
-                        b'\\' => {
-                            self.data
-                                .get(self.at)
-                                .ok_or_else(|| invalid("Truncated PDF escape"))?;
-                            self.at += 1;
-                        }
-                        b'(' => {
-                            nesting += 1;
-                            if nesting > MAX_DEPTH {
-                                return Err(super::limit("PDF string nesting exceeds budget"));
-                            }
-                        }
-                        b')' => nesting -= 1,
-                        _ => {}
-                    }
-                }
-                Ok(Value::Bytes)
-            }
+            b'(' => self.literal_string().map(Value::Bytes),
             b'<' if self.data.get(self.at) == Some(&b'<') => {
                 self.at += 1;
                 let mut fields = BTreeMap::new();
@@ -185,6 +154,7 @@ impl Parser<'_, '_> {
             }
             b'<' => {
                 let mut n = 0;
+                let mut bytes = Vec::new();
                 loop {
                     let b = *self
                         .data
@@ -204,8 +174,14 @@ impl Parser<'_, '_> {
                     if n > MAX_HEX_DIGITS {
                         return Err(super::limit("PDF hex string exceeds budget"));
                     }
+                    let digit = (b as char).to_digit(16).unwrap() as u8;
+                    if n % 2 == 1 {
+                        bytes.push(digit << 4);
+                    } else {
+                        *bytes.last_mut().unwrap() |= digit;
+                    }
                 }
-                Ok(Value::Bytes)
+                Ok(Value::Bytes(bytes))
             }
             b'[' => {
                 let mut values = Vec::new();
@@ -260,6 +236,81 @@ impl Parser<'_, '_> {
                 Ok(Value::Integer(number))
             }
         }
+    }
+    fn literal_string(&mut self) -> Result<Vec<u8>, Error> {
+        let mut nesting = 1;
+        let mut length = 0;
+        let mut bytes = Vec::new();
+        while nesting > 0 {
+            let b = *self
+                .data
+                .get(self.at)
+                .ok_or_else(|| invalid("Truncated PDF string"))?;
+            self.at += 1;
+            length += 1;
+            match b {
+                b'\\' => {
+                    let escaped = *self
+                        .data
+                        .get(self.at)
+                        .ok_or_else(|| invalid("Truncated PDF escape"))?;
+                    self.at += 1;
+                    match escaped {
+                        b'\r' if self.data.get(self.at) == Some(&b'\n') => {
+                            self.at += 1;
+                            length += 1;
+                        }
+                        b'\r' => {}
+                        b'\n' => {}
+                        b'0'..=b'7' => {
+                            let mut code = escaped - b'0';
+                            for _ in 0..2 {
+                                let Some(&digit @ b'0'..=b'7') = self.data.get(self.at) else {
+                                    break;
+                                };
+                                code = code.wrapping_mul(8) + (digit - b'0');
+                                self.at += 1;
+                                length += 1;
+                            }
+                            bytes.push(code);
+                        }
+                        other => bytes.push(match other {
+                            b'n' => b'\n',
+                            b'r' => b'\r',
+                            b't' => b'\t',
+                            b'b' => 8,
+                            b'f' => 12,
+                            _ => other,
+                        }),
+                    }
+                }
+                b'(' => {
+                    bytes.push(b);
+                    nesting += 1;
+                    if nesting > MAX_DEPTH {
+                        return Err(super::limit("PDF string nesting exceeds budget"));
+                    }
+                }
+                b')' => {
+                    nesting -= 1;
+                    if nesting > 0 {
+                        bytes.push(b);
+                    }
+                }
+                b'\r' => {
+                    if self.data.get(self.at) == Some(&b'\n') {
+                        self.at += 1;
+                        length += 1;
+                    }
+                    bytes.push(b'\n');
+                }
+                _ => bytes.push(b),
+            }
+            if length > MAX_STRING_STEPS {
+                return Err(super::limit("PDF string exceeds budget"));
+            }
+        }
+        Ok(bytes)
     }
     fn hex_pair(&mut self) -> Result<u8, Error> {
         let pair = self
@@ -445,6 +496,18 @@ impl<'a> Container<'a> {
         }
         Ok(doc)
     }
+    pub(crate) fn declares_pdf_2(&self) -> Result<bool, Error> {
+        // A catalog version can upgrade a classic header, never downgrade it.
+        if self.bytes.starts_with(b"%PDF-2.0") && self.bytes.get(8).is_some_and(|b| space(*b)) {
+            return Ok(true);
+        }
+        self.catalog()?
+            .get(b"Version".as_slice())
+            .map(|v| self.resolve(v).map(|v| v.named(b"2.0")))
+            .transpose()
+            .map(|v| v.unwrap_or(false))
+    }
+
     pub fn resolve<'b>(&'b self, mut value: &'b Value) -> Result<&'b Value, Error> {
         let mut seen = BTreeSet::new();
         while let Value::Ref(id) = value {

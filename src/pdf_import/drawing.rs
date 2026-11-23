@@ -1,6 +1,6 @@
 use super::*;
 use crate::geometry::{map, multiply};
-use crate::model::{Clip, Content, FillRule, Geometry, Item, Matrix, identity};
+use crate::model::{BlendMode, Clip, Content, FillRule, Geometry, Item, Matrix, identity};
 
 pub(super) struct Drawing<'a> {
     pub pdf: &'a Container<'a>,
@@ -11,15 +11,17 @@ pub(super) struct Drawing<'a> {
     pub items: Vec<Item>,
     pub mapping: Vec<serde_json::Value>,
     pub images: image::Images,
+    pub used_indexed_fill: bool,
     active: BTreeSet<Id>,
-    remaining_bytes: usize,
+    pub remaining_bytes: usize,
     pub operations: usize,
 }
 #[derive(Clone)]
 pub(super) struct State {
     pub matrix: Matrix,
     pub rgb: [f64; 3],
-    pub gray_space: bool,
+    pub space: color::FillSpace,
+    pub blend: BlendMode,
     pub alpha: f64,
     pub parent: Option<String>,
     depth: usize,
@@ -92,6 +94,7 @@ impl<'a> Drawing<'a> {
             items: vec![],
             mapping: vec![],
             images: Default::default(),
+            used_indexed_fill: false,
             active: BTreeSet::new(),
             remaining_bytes: vector_native::MAX_DECODED_BYTES,
             operations: 0,
@@ -102,7 +105,7 @@ impl<'a> Drawing<'a> {
         parent: Option<String>,
         content: Content,
         clip: Option<Clip>,
-        opacity: f64,
+        (opacity, blend): (f64, BlendMode),
         transform: Matrix,
         loc: (Id, usize),
     ) -> Result<String, Error> {
@@ -123,7 +126,7 @@ impl<'a> Drawing<'a> {
             knockout_target: Default::default(),
             coverage: Default::default(),
             effects: vec![],
-            blend: Default::default(),
+            blend,
             transform,
             parent,
             clip_to: None,
@@ -143,7 +146,7 @@ impl<'a> Drawing<'a> {
         state: &mut State,
         clip: Option<(Geometry, FillRule)>,
         isolated: bool,
-        opacity: f64,
+        composite: (f64, BlendMode),
         loc: (Id, usize),
     ) -> Result<(), Error> {
         // Several form and path clips can share the fractional page edge.
@@ -156,7 +159,7 @@ impl<'a> Drawing<'a> {
             state.clip_bounds = [left.max(l), bottom.max(b), right.min(r), top.min(t)];
             !(l <= left && b <= bottom && r >= right && t >= top)
         });
-        if clip.is_none() && !isolated && opacity == 1. {
+        if clip.is_none() && !isolated && composite == (1., BlendMode::Normal) {
             return Ok(());
         }
         if state.depth >= bounds::MAX_DEPTH {
@@ -175,7 +178,7 @@ impl<'a> Drawing<'a> {
                 transform: identity(),
                 enabled: true,
             }),
-            opacity,
+            composite,
             identity(),
             loc,
         )?;
@@ -219,7 +222,8 @@ impl<'a> Drawing<'a> {
             matrix,
             alpha: 1.,
             rgb: [0.; 3],
-            gray_space: true,
+            space: color::FillSpace::Gray,
+            blend: Default::default(),
             parent: None,
             depth: 0,
             clip_bounds: [0., 0., self.page_size[0], self.page_size[1]],
@@ -255,7 +259,7 @@ impl<'a> Drawing<'a> {
                 state.parent.clone(),
                 content,
                 None,
-                state.alpha,
+                (state.alpha, state.blend),
                 transform,
                 loc,
             )?;
@@ -300,12 +304,18 @@ impl<'a> Drawing<'a> {
             .get(b"Group".as_slice())
             .map(|v| group(pdf, v))
             .transpose()?;
-        let opacity = if is_group.is_some() {
-            let alpha = next.alpha;
+        if is_group == Some(false) && state.blend != BlendMode::Normal {
+            return Err(unsupported(
+                "A nonisolated PDF transparency group with an invocation blend cannot be represented",
+            ));
+        }
+        let composite = if is_group.is_some() {
+            let composite = (next.alpha, next.blend);
             next.alpha = 1.;
-            alpha
+            next.blend = Default::default();
+            composite
         } else {
-            1.
+            (1., Default::default())
         };
         if corners.iter().flatten().any(|p| !p.is_finite()) {
             return Err(limit("PDF form bounds overflow"));
@@ -319,7 +329,7 @@ impl<'a> Drawing<'a> {
                 FillRule::Nonzero,
             )),
             is_group.unwrap_or(false),
-            opacity,
+            composite,
             loc,
         )?;
         let local = d
@@ -390,7 +400,22 @@ pub(super) fn graphics_state(
                     state.alpha = n;
                 }
             }
-            b"BM" if v.named(b"Normal") || v.named(b"Compatible") => {}
+            b"BM" if v.named(b"Compatible") => state.blend = Default::default(),
+            b"BM" => {
+                state.blend = crate::blending::MODES
+                    .into_iter()
+                    .find(|mode| {
+                        crate::pdf::blend_name(*mode).is_some_and(|name| v.named(name.as_bytes()))
+                    })
+                    .ok_or_else(|| unsupported("Unsupported PDF blend mode"))?;
+                if matches!(state.blend, BlendMode::ColorBurn | BlendMode::ColorDodge)
+                    && !pdf.declares_pdf_2()?
+                {
+                    return Err(unsupported(
+                        "PDF color burn and color dodge require the PDF 2.0 endpoint rules",
+                    ));
+                }
+            }
             b"SMask" if v.named(b"None") => {}
             b"OP" | b"op" if matches!(v, Value::Bool(false)) => {}
             b"OPM" if matches!(v, Value::Integer(0)) => {}

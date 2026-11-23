@@ -1,4 +1,5 @@
 //! Editable page graphics from a bounded classic-xref PDF.
+mod color;
 mod drawing;
 mod image;
 mod program;
@@ -330,6 +331,9 @@ fn read_page(
         "Painted geometry is recovered as editable paths with new item IDs. Original shape types, names, stroke construction and authoring history cannot be inferred.",
         "Selected page artwork is placed in physical points. Page boxes are returned as source coordinates. Metadata and other pages stay in the source file.",
     ];
+    if drawing.used_indexed_fill {
+        losses.push("Indexed PDF fills retain the selected colors. The original palette and its indices remain in the source PDF.");
+    }
     if !drawing.images.sources.is_empty() {
         losses.push("Image samples and soft-mask alpha are normalized into straight RGBA8 PNG assets. Original image streams, packing and compression remain in the source PDF.");
     }

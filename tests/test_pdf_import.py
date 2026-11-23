@@ -50,6 +50,91 @@ class EditablePdfPage(unittest.TestCase):
     def rgba(self, doc, scale=1):
         return bytes.fromhex(self.invoke(dict(command='document.render', document=doc, scale=scale))['data'])
 
+    def test_exported_rgb_blends_reopen_with_editable_colors_and_matching_pixels(self):
+        original = self.invoke(dict(command='document.create', id='colors', kind='vector', width=24, height=16))
+        original['resolution_ppi'] = 72
+        back = self.rectangle('paper', None, 'vector', 0, 0, 24, 16, [143, 82, 173, 255])
+        front = self.rectangle('ink', None, 'vector', 3, 4, 12, 8, [29, 168, 105, 255])
+        original['items'] = [back, front]
+        modes = ('multiply', 'screen', 'darken', 'lighten', 'color_burn', 'color_dodge',
+                 'overlay', 'hard_light', 'soft_light', 'difference', 'exclusion',
+                 'hue', 'saturation', 'color', 'luminosity')
+        caps = self.invoke(dict(command='capabilities'))['pdf']['editable_import']
+        self.assertEqual(len(caps['blend_modes']), len(modes) + 1)
+        self.assertEqual(caps['indexed_fills']['entries'], 256)
+        for mode in modes:
+            with self.subTest(mode=mode):
+                front['blend'] = mode
+                data = base64.b64decode(self.invoke(dict(command='document.export', document=original, format='pdf'))['data'])
+                self.assertIn(b'/Indexed /DeviceRGB', data)
+                result = self.read(data)
+                doc = result['document']
+                shapes = [i for i in doc['items'] if i['content']['type'] == 'vector']
+                self.assertEqual([i['content']['fill'] for i in shapes],
+                                 [back['content']['fill'], front['content']['fill']])
+                by_id = {i['id']: i for i in doc['items']}
+                foreground_group = by_id[shapes[1]['parent']]
+                self.assertTrue(foreground_group['content']['isolated'])
+                self.assertEqual(foreground_group['blend'], mode)
+                self.assertEqual(shapes[1]['blend'], 'normal')
+                self.assertEqual(self.rgba(doc), self.rgba(original))
+                self.assertTrue(any('palette' in loss for loss in result['losses']))
+                revised = self.edit(doc, [dict(op='fill', id=shapes[1]['id'], paint=[10, 13, 210, 255])])
+                output = self.invoke(dict(command='document.export', document=revised, format='pdf'))
+                reopened = self.read(base64.b64decode(output['data']))['document']
+                self.assertEqual(self.rgba(reopened), self.rgba(revised))
+
+    def test_indexed_fill_tables_and_saved_color_state(self):
+        lookup = bytes([41, 92, 10, 13, 128, 255])
+        for table in (b'<295C0A0D80FF>', br'(\)\\\n\r\200\377)', b'8 0 R', b'9 0 R'):
+            with self.subTest(table=table):
+                objects = page_objects(b'/P cs 0 0 1 1 re f q 1 scn 1 0 1 1 re f Q 2 0 1 1 re f '
+                                       b'8 sc 3 0 1 1 re f /G cs .6 sc 4 0 1 1 re f',
+                                       resources=b'<< /ColorSpace << /P 5 0 R /G [/Indexed /DeviceGray 1 <0F8>] >> >>')
+                objects[5] = b'[/Indexed /DeviceRGB 1 ' + table + b']'
+                objects[8] = stream(lookup, compress=True)
+                objects[9] = b'<295c0a0d80ff>'
+                doc = self.read(pdf(objects))['document']
+                self.assertEqual([i['content']['fill'] for i in doc['items']],
+                                 [[41,92,10,255], [13,128,255,255], [41,92,10,255],
+                                  [13,128,255,255], [128,128,128,255]])
+        for palette in (b'[/Indexed /DeviceRGB 256 <>]', b'[/Indexed /DeviceRGB 1 <0102>]',
+                        b'[/Indexed /DeviceCMYK 0 <00000000>]', b'[/Indexed /DeviceGray 1 9]'):
+            objects = page_objects(b'/P cs 1 sc 0 0 48 40 re f', resources=b'<< /ColorSpace << /P '+palette+b' >> >>')
+            self.assertEqual(self.read(pdf(objects), 1)['details']['object'], 4)
+
+    def test_transparency_form_owns_invocation_blend_and_alpha(self):
+        resources = b'<< /ExtGState << /Mix << /BM /Multiply /ca .5 >> >> /XObject << /F 5 0 R >> >>'
+        objects = page_objects(b'1 0 0 rg 0 0 48 40 re f q /Mix gs /F Do Q', resources=resources)
+        body = b'0 1 0 rg 0 0 12 10 re f 0 0 1 rg 6 0 6 10 re f'
+        fields = b'/Subtype /Form /BBox [0 0 48 40] /Group << /S /Transparency /I true >>'
+        objects[5] = stream(body, fields)
+        doc = self.read(pdf(objects))['document']
+        group, = [i for i in doc['items'] if i['content']['type'] == 'group']
+        self.assertEqual((group['blend'], group['opacity']), ('multiply', .5))
+        children = [i for i in doc['items'] if i.get('parent') == group['id']]
+        self.assertEqual(len(children), 2)
+        self.assertTrue(all(i['blend'] == 'normal' for i in children))
+        pixels = self.rgba(doc)
+        for x in (2, 8):
+            offset = 4 * (48 * 35 + x)
+            self.assertIn(pixels[offset:offset+4], (bytes([127,0,0,255]), bytes([128,0,0,255])))
+        objects[5] = stream(body, fields.replace(b'/I true', b'/I false'))
+        error = self.read(pdf(objects), 1)
+        self.assertEqual(error['code'], 'UNSUPPORTED')
+        self.assertIn('object', error['details'])
+
+    def test_burn_and_dodge_require_the_correct_endpoint_rules(self):
+        for mode, back, front in [(b'ColorBurn', 1, 0), (b'ColorDodge', 0, 1)]:
+            contents = f'{back} g 0 0 48 40 re f /G gs {front} g 0 0 48 40 re f'.encode()
+            objects = page_objects(contents, resources=b'<< /ExtGState << /G << /BM /'+mode+b' >> >> >>')
+            original = pdf(objects)
+            self.assertEqual(self.read(original, 1)['code'], 'UNSUPPORTED')
+            objects[1] = objects[1].replace(b'/Catalog', b'/Catalog /Version /2.0')
+            for source in (pdf(objects), original.replace(b'%PDF-1.7', b'%PDF-2.0', 1)):
+                doc = self.read(source)['document']
+                self.assertEqual(self.rgba(doc), bytes([back*255]*3+[255]) * (48*40))
+
     def test_published_curves_opacity_and_an_edit_recover_all_samples(self):
         original = self.invoke(dict(command='document.create', id='paths', kind='vector', width=64, height=48))
         original['resolution_ppi'] = 72

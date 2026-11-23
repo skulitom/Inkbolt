@@ -24,11 +24,33 @@ One document unit is one point. Omit `page_index` to open page zero.
 The drawing subset includes line and cubic paths, rectangles, compound fills
 with either winding rule, graphics-state save and restore, transforms, clipping
 paths, and repeated Form XObjects with local resources and bounding boxes.
-Normal transparency groups retain fill and group opacity. DeviceGray and
+Transparency groups retain fill and group opacity. DeviceGray and
 DeviceRGB use the requested encoded-sRGB interpretation. Painted contours
 remain editable. A path may have originated as a rectangle, an expanded stroke
 or lettering. Its PDF geometry cannot identify the original editing operation.
 The receipt records this loss and the source file remains available.
+
+Source builds also reopen standard RGB blend modes on fills, images and
+isolated transparency groups. For example, a path exported with Multiply
+can be recolored after import and still multiply against the artwork behind
+it. A form with its own transparency group applies the caller's opacity
+and blend once to the assembled group. An ordinary form passes them on
+to its painted objects. A nonisolated group invoked with a non-normal
+blend currently receives a located refusal.
+Color burn and color dodge require a PDF 2.0 header or catalog version so
+their channel endpoints retain the same meaning after editing.
+
+An Indexed fill with a DeviceGray or DeviceRGB base becomes an editable
+solid color. Its palette may contain up to 256 entries in a literal string,
+hexadecimal string, or raw or Flate-compressed stream. The import receipt
+records that the original palette and indices remain in the source file.
+Inkbolt uses these palettes when exporting exact RGB fills on blended pages.
+
+MuPDF 1.28.0 and Poppler 26.07.0 each checked 15 overlapping-color pages
+before and after a foreground recolor. For all 60 comparisons, every pixel
+of the re-export matched a PDF authored directly with the intended colors
+and blend. Linux produced the same 30 re-exported files byte for byte as
+Windows.
 
 Each admitted image XObject becomes a self-contained PNG asset in the document.
 Repeated placements share its samples and can be moved independently with the
@@ -74,7 +96,7 @@ images with alpha.
 
 Text, inline images, stencil and color-key masks, interpolated
 images, preblended soft masks, shadings, CMYK, named inks, remapped color
-spaces, graphics-state masks, knockout, annotations and non-normal blends return an error.
+spaces, graphics-state masks, knockout, annotations and unsupported blend modes return an error.
 Content errors identify the selected page and object, with a byte offset for
 drawing operators. Import applies the classic container reader's object and
 page limits, a 16 MiB source and cumulative decoded-stream budget, and the

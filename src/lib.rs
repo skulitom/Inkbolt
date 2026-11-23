@@ -1379,13 +1379,16 @@ fn capability_report() -> Value {
     capabilities["pdf"]["editable_import"] = json!({
         "command":"pdf.import","selection":"one_page_by_zero_based_index",
         "colors":"device_gray_and_rgb_as_encoded_srgb","paint":"editable_line_and_cubic_fills",
+        "indexed_fills":{"base":["DeviceGray","DeviceRGB"],"entries":256,"lookup":["literal_string","hex_string","raw_stream","FlateDecode"],"storage":"resolved_editable_fill"},
+        "blend_modes":blending::MODES.iter().filter_map(|mode| pdf::blend_name(*mode)).collect::<Vec<_>>(),
+        "color_burn_and_dodge":"PDF_2.0_header_or_catalog_version",
         "images":{"samples":"DeviceGray_or_DeviceRGB","bits_per_component":[1,2,4,8],
             "storage":"self_contained_sRGB_PNG_shared_per_image_XObject","sampling":"nearest",
             "filters":["raw","FlateDecode","DCTDecode"],"predictors":["none","TIFF_2","PNG_10_to_15"],
             "jpeg":{"coding":["baseline_huffman","progressive_huffman"],"depth":8,"color_transform":[0,1],"placement":"PDF_image_matrix","app14":false},
             "decode":"identity_or_inversion_per_component","alpha":"same_size_grayscale_image_SMask_without_Matte",
             "max_pixels_per_image":pdf::MAX_IMAGE_PIXELS},
-        "forms":"local_form_resources_bounds_transforms_and_normal_opacity",
+        "forms":"local_resources_bounds_transforms_opacity_and_isolated_group_blends",
         "source":"read_only_classic_xref_pdf","unsupported":"located_refusal"
     });
     capabilities["pdf"]["content_streams"] = json!({

@@ -69,6 +69,20 @@ class PdfImageImport(unittest.TestCase):
         self.assertEqual(self.rgba(reopened),self.rgba(moved))
         self.assertEqual({a['sha256'] for a in reopened['assets'].values()},{identity(3,2,rgba)})
 
+    def test_image_blend_and_ordinary_form_inheritance(self):
+        objects = pages.page_objects(b'1 0 0 rg 0 0 48 40 re f /Diff gs /F Do',
+            resources=b'<< /XObject << /F 5 0 R /P 6 0 R >> /ExtGState << /Diff << /BM /Difference >> /Reset << /BM /Compatible >> >> >>')
+        objects[5] = pages.stream(b'q 5 0 0 5 0 0 cm /P Do Q /Reset gs 0 0 1 rg 5 0 5 5 re f',
+            b'/Subtype /Form /BBox [0 0 10 5]')
+        objects[6] = image(1, 1, bytes([0,0,255]))
+        doc = self.read(pages.pdf(objects))['document']
+        image_item, = [i for i in doc['items'] if i['content']['type'] == 'image']
+        self.assertEqual(image_item['blend'], 'difference')
+        pixels = self.rgba(doc)
+        for x, rgb in [(2, [255,0,255]), (7, [0,0,255]), (12, [255,0,0])]:
+            offset = 4 * (48*37+x)
+            self.assertEqual(pixels[offset:offset+4], bytes([*rgb,255]))
+
     def test_packed_samples_reset_padding_each_row_and_apply_tiff_prediction(self):
         for bits in (1,2,4,8):
             for components in (1,3):

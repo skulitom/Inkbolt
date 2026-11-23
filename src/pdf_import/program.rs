@@ -280,6 +280,8 @@ impl Execution {
                     let mut commands = std::mem::take(&mut self.path);
                     let clip_rule = self.clip.take();
                     if op != b"n" {
+                        d.used_indexed_fill |=
+                            matches!(self.state.space, color::FillSpace::Indexed(_));
                         let [r, g, b] = self.state.rgb;
                         let rgba = [r, g, b, self.state.alpha];
                         let bytes = rgba.map(|v| (v * 255.).round() as u8);
@@ -303,7 +305,7 @@ impl Execution {
                                 fill_rule: rule(op),
                             },
                             None,
-                            1.,
+                            (1., self.state.blend),
                             crate::model::identity(),
                             loc,
                         )?;
@@ -313,7 +315,7 @@ impl Execution {
                             &mut self.state,
                             Some((Geometry::Path { commands }, rule)),
                             false,
-                            1.,
+                            (1., Default::default()),
                             loc,
                         )?;
                     }
@@ -349,25 +351,35 @@ impl Execution {
             }
             b"cs" => {
                 let cs = name(operands)?;
-                self.state.gray_space = match cs.as_slice() {
-                    b"DeviceRGB" => false,
-                    b"DeviceGray" => true,
-                    _ => return Err(unsupported("Unsupported PDF fill color space")),
-                };
-                self.state.rgb = [0.; 3];
+                self.state.space = color::FillSpace::select(
+                    d.pdf,
+                    resources,
+                    &cs,
+                    &mut d.remaining_bytes,
+                    d.control,
+                )?;
+                self.state.rgb = self.state.space.initial();
             }
             b"rg" | b"g" | b"sc" | b"scn" => {
-                let gray = op == b"g" || (matches!(op, b"sc" | b"scn") && self.state.gray_space);
-                let rgb = if gray {
-                    [args::<1>(operands)?[0]; 3]
-                } else {
-                    args::<3>(operands)?
+                match op {
+                    b"g" => self.state.space = color::FillSpace::Gray,
+                    b"rg" => self.state.space = color::FillSpace::Rgb,
+                    _ => {}
+                }
+                let rgb = match &self.state.space {
+                    color::FillSpace::Gray => [args::<1>(operands)?[0]; 3],
+                    color::FillSpace::Rgb => args::<3>(operands)?,
+                    color::FillSpace::Indexed(table) => {
+                        let index = args::<1>(operands)?[0]
+                            .round()
+                            .clamp(0., (table.len() - 1) as f64);
+                        table[index as usize].map(|v| f64::from(v) / 255.)
+                    }
                 };
                 if rgb.iter().any(|v| !(0. ..=1.).contains(v)) {
                     return Err(unsupported("PDF color components outside the unit range"));
                 }
                 self.state.rgb = rgb;
-                self.state.gray_space = gray;
             }
             b"gs" => drawing::graphics_state(d.pdf, resources, &name(operands)?, &mut self.state)?,
             b"Do" => d.xobject(resources, &name(operands)?, &self.state, loc)?,
