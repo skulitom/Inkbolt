@@ -1,6 +1,7 @@
 //! Editable page graphics from a bounded classic-xref PDF.
 mod color;
 mod drawing;
+mod filters;
 mod image;
 mod program;
 
@@ -236,11 +237,23 @@ fn read_page(
             b"Rotate",
             b"Resources",
             b"Contents",
+            b"Trans",
             b"Group",
             b"UserUnit",
             b"Metadata",
         ],
     )?;
+    let transition = page
+        .get(b"Trans".as_slice())
+        .map(|v| pdf.resolve(v))
+        .transpose()?;
+    let default_transition = match transition {
+        None | Some(Value::Null) => false,
+        Some(v) => {
+            allowed(v.dict()?, &[])?;
+            true
+        }
+    };
     let inherit = |key: &[u8]| lineage.iter().rev().find_map(|d| d.get(key));
     let media = rect(
         pdf,
@@ -334,6 +347,12 @@ fn read_page(
         "Painted geometry is recovered as editable paths with new item IDs. Original shape types, names, stroke construction and authoring history cannot be inferred.",
         "Selected page artwork is placed in physical points. Page boxes are returned as source coordinates. Metadata and other pages stay in the source file.",
     ];
+    if default_transition {
+        losses.push("The empty page transition dictionary has the default replacement effect. Presentation settings remain in the source PDF.");
+    }
+    if drawing.used_text_setup {
+        losses.push("Unpainted PDF text setup produced no editable item. Font selection and line leading remain in the source PDF.");
+    }
     if drawing.used_indexed_fill {
         losses.push("Indexed PDF fills retain the selected colors. The original palette and its indices remain in the source PDF.");
     }

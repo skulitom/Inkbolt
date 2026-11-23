@@ -98,6 +98,7 @@ impl Program {
             current: None,
             start: None,
             clip: None,
+            in_text: false,
         };
         let mut at = 0;
         let mut operands = Vec::new();
@@ -161,6 +162,7 @@ impl Program {
             || !execution.saved.is_empty()
             || !execution.path.is_empty()
             || execution.clip.is_some()
+            || execution.in_text
         {
             let (id, offset) = self.location(self.bytes.len());
             return Err(located(
@@ -175,6 +177,7 @@ impl Program {
 }
 
 struct Execution {
+    in_text: bool,
     state: State,
     saved: Vec<State>,
     path: Vec<PathCommand>,
@@ -218,7 +221,45 @@ impl Execution {
                 "PDF clipping must be followed by an admitted path ending",
             ));
         }
+        if self.in_text {
+            // These parameters affect only later text painting, which is refused
+            // throughout the page and its forms. No raster or path uses them.
+            match op {
+                b"ET" => {
+                    args::<0>(operands)?;
+                    self.in_text = false;
+                }
+                b"Tf" => {
+                    let [font, size] = operands else {
+                        return Err(invalid("Expected a PDF font name and size"));
+                    };
+                    let font = drawing::resource(d.pdf, resources, b"Font", &name(&[*font])?)?;
+                    let dict = d.pdf.resolve(font)?.dict()?;
+                    if !d.pdf.resolve(field(dict, b"Type")?)?.named(b"Font") {
+                        return Err(invalid("Expected a PDF font resource"));
+                    }
+                    scalar(size)?;
+                }
+                b"TL" => {
+                    args::<1>(operands)?;
+                }
+                _ => {
+                    return Err(unsupported(
+                        "Only unpainted font and leading setup is supported inside PDF text objects",
+                    ));
+                }
+            }
+            return Ok(());
+        }
         match op {
+            b"BT" => {
+                args::<0>(operands)?;
+                if !self.path.is_empty() {
+                    return Err(invalid("PDF text object inside an unfinished path"));
+                }
+                self.in_text = true;
+                d.used_text_setup = true;
+            }
             b"m" => {
                 let [x, y] = args(operands)?;
                 self.move_to(self.point(x, y)?);

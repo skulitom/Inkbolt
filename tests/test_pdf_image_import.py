@@ -4,6 +4,7 @@ from contextlib import closing
 import hashlib
 import struct
 import unittest
+import zlib
 
 import test_pdf_import as pages
 import synthetic_jpeg as jpeg
@@ -35,6 +36,41 @@ class PdfImageImport(unittest.TestCase):
     read = pages.EditablePdfPage.read
     edit = pages.EditablePdfPage.edit
     rgba = pages.EditablePdfPage.rgba
+
+    def test_ascii85_packed_samples_predictors_jpeg_and_parallel_parameters(self):
+        for samples in [bytes(4), b'\xff', b'\xff\xff', b'\xff\xff\xff', b'\xff'*4, bytes(range(17))]:
+            with self.subTest(samples=samples):
+                digits = base64.a85encode(samples)
+                payload = b' \r\n'.join(digits[i:i+2] for i in range(0,len(digits),2))+b'~>\n'
+                result = self.read(document(image(len(samples),1,payload,space='DeviceGray',extra=b'/Filter /ASCII85Decode')))
+                key, = result['document']['assets']
+                self.assertEqual(result['image_sources'][key]['filters'], ['ASCII85Decode'])
+                rgba = b''.join(bytes([v,v,v,255]) for v in samples)
+                self.assertEqual(result['document']['assets'][key]['sha256'], identity(len(samples),1,rgba))
+        jpeg_data = jpeg.jpeg(8,8)
+        encoded = base64.a85encode(jpeg_data)+b'~>'
+        flate = zlib.compress(b'\x02'+bytes(range(8))+7*(b'\x02'+bytes(8)))
+        mask = image(8,8,base64.a85encode(flate)+b'~>',space='DeviceGray',
+                     extra=b'/Filter [/ASCII85Decode /FlateDecode] /DecodeParms [null << /Predictor 15 /Columns 8 >>]')
+        reference = self.read(document(image(8,8,jpeg_data,extra=b'/Filter /DCTDecode /DecodeParms << /ColorTransform 0 >> /SMask 6 0 R'),mask=mask))
+        result = self.read(document(image(8,8,encoded,extra=b'/Filter [/ASCII85Decode /DCTDecode] /DecodeParms [<< >> << /ColorTransform 0 >>] /SMask 6 0 R'),mask=mask))
+        self.assertEqual(result['document'], reference['document'])
+        source, = result['image_sources'].values()
+        self.assertEqual(source['filters'], ['ASCII85Decode','DCTDecode'])
+        self.assertEqual(source['soft_mask']['filters'], ['ASCII85Decode','FlateDecode'])
+        plain = self.read(document(image(1,1,b'abc',extra=b'/DecodeParms [null]')))
+        self.assertEqual(plain['document']['assets']['image-5-0']['sha256'], identity(1,1,b'abc\xff'))
+
+    def test_ascii85_rejects_malformed_or_oversize_data_and_wrong_filter_parameters(self):
+        for raw in (b'!~>',b'!z~>',b'uuuuu~>',b'z~ >',b'z~>z',b'z',b'<~z~>',b'v~>',b'zz~>'):
+            with self.subTest(raw=raw):
+                error = self.read(document(image(4,1,raw,space='DeviceGray',extra=b'/Filter /ASCII85Decode')),1)
+                self.assertEqual(error['details']['object'],5)
+        for options in (b'/DecodeParms [<< /Predictor 1 >> null]',b'/DecodeParms [null]',
+                        b'/DecodeParms << /Predictor 1 >>', b'/DecodeParms [null null null]'):
+            raw = base64.a85encode(zlib.compress(bytes(3)))+b'~>'
+            error = self.read(document(image(1,1,raw,extra=b'/Filter [/ASCII85Decode /FlateDecode] '+options)),1)
+            self.assertEqual(error['details']['object'],5)
 
     def test_masked_rgb_two_placements_independent_edit_and_pdf_reopen(self):
         rgb = bytes([255,0,0, 0,255,0, 0,0,255, 11,22,33, 60,80,100, 250,250,0])

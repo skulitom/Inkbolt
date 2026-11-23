@@ -12,6 +12,7 @@ pub(super) struct Drawing<'a> {
     pub mapping: Vec<serde_json::Value>,
     pub images: image::Images,
     pub used_indexed_fill: bool,
+    pub used_text_setup: bool,
     active: BTreeSet<Id>,
     pub remaining_bytes: usize,
     pub operations: usize,
@@ -95,6 +96,7 @@ impl<'a> Drawing<'a> {
             mapping: vec![],
             images: Default::default(),
             used_indexed_fill: false,
+            used_text_setup: false,
             active: BTreeSet::new(),
             remaining_bytes: vector_native::MAX_DECODED_BYTES,
             operations: 0,
@@ -186,8 +188,15 @@ impl<'a> Drawing<'a> {
         state.parent = Some(id);
         Ok(())
     }
-    fn decode(&mut self, v: &Value) -> Result<Vec<u8>, Error> {
-        let bytes = self.pdf.stream(v, self.remaining_bytes, self.control)?;
+    fn decode(&mut self, id: Id) -> Result<Vec<u8>, Error> {
+        let bytes = filters::stream(
+            self.pdf,
+            id,
+            self.remaining_bytes,
+            &mut self.remaining_bytes,
+            self.control,
+        )
+        .map_err(|e| located(e, self.page_index, id, None))?;
         self.remaining_bytes -= bytes.len();
         Ok(bytes)
     }
@@ -214,9 +223,12 @@ impl<'a> Drawing<'a> {
         for v in streams {
             let id = reference(v)?;
             let page = self.page_index;
-            allowed(pdf.stream_dict(id)?, &[b"Length", b"Filter"])
-                .map_err(|e| located(e, page, id, None))?;
-            program.append(id, self.decode(v).map_err(|e| located(e, page, id, None))?);
+            allowed(
+                pdf.stream_dict(id)?,
+                &[b"Length", b"Filter", b"DecodeParms"],
+            )
+            .map_err(|e| located(e, page, id, None))?;
+            program.append(id, self.decode(id)?);
         }
         let state = State {
             matrix,
@@ -283,6 +295,7 @@ impl<'a> Drawing<'a> {
                 b"Resources",
                 b"Length",
                 b"Filter",
+                b"DecodeParms",
                 b"Metadata",
                 b"Name",
             ],
@@ -339,7 +352,7 @@ impl<'a> Drawing<'a> {
             .unwrap_or(resources);
         check_resources(pdf, local)?;
         let mut program = program::Program::default();
-        program.append(id, self.decode(v)?);
+        program.append(id, self.decode(id)?);
         program.run(self, local, next)?;
         self.active.remove(&id);
         Ok(())

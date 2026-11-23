@@ -50,6 +50,39 @@ class EditablePdfPage(unittest.TestCase):
     def rgba(self, doc, scale=1):
         return bytes.fromhex(self.invoke(dict(command='document.render', document=doc, scale=scale))['data'])
 
+    def test_unpainted_text_and_wrapped_content_preserve_editable_form_and_stream_location(self):
+        resources = b'<< /Font << /Heading 7 0 R >> /XObject << /Box 6 0 R >> >>'
+        objects = page_objects(b'', fields=b'/Trans 8 0 R', resources=resources)
+        objects[3] = objects[3].replace(b'4 0 R', b'[4 0 R 5 0 R]')
+        objects[7] = b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+        objects[8] = b'<< >>'
+        path = b'0.5 g 2 3 5 7 re f'
+        plain = self.read(pdf(page_objects(path)))['document']
+        objects[4] = stream(base64.a85encode(b'BT /Hea#64ing') + b'~>', b'/Filter /ASCII85Decode')
+        objects[5] = stream(base64.a85encode(zlib.compress(b'12 Tf 14.4 TL ET /Box Do')) + b'~>',
+                            b'/Filter [/ASCII85Decode /FlateDecode] /DecodeParms [null << >>]')
+        objects[6] = stream(base64.a85encode(zlib.compress(path)) + b'~>',
+                            b'/Subtype /Form /BBox [0 0 48 40] /Filter [/ASCII85Decode /FlateDecode]')
+        result = self.read(pdf(objects))
+        self.assertEqual(result['document']['items'], plain['items'])
+        self.assertEqual(result['mapping'][-1], dict(item_id='pdf-1', object=6, generation=0,
+                                                     decoded_byte_offset=path.index(b'f')))
+        self.assertTrue(any('transition' in s for s in result['losses']))
+        self.assertTrue(any('Unpainted' in s for s in result['losses']))
+        objects[5] = stream(b'')
+        for program in [b'BT /Missing 10 Tf ET', b'BT 1 Tf ET', b'BT /Heading 10 Tf ET BT (x) Tj ET',
+                        b'BT 12 TL', b'BT BT ET ET', b'ET', b'BT 1 2 3 4 re f ET']:
+            with self.subTest(program=program):
+                objects[4] = stream(program)
+                self.assertEqual(self.read(pdf(objects), 1)['details']['object'], 4)
+        for transition in [b'/Trans null', b'/Trans << /S /Dissolve >>']:
+            ok = transition.endswith(b'null')
+            result = self.read(pdf(page_objects(path, fields=transition)), 0 if ok else 1)
+            if ok:
+                self.assertEqual(result['document'], plain)
+            else:
+                self.assertEqual(result['details']['object'], 3)
+
     def test_exported_rgb_blends_reopen_with_editable_colors_and_matching_pixels(self):
         original = self.invoke(dict(command='document.create', id='colors', kind='vector', width=24, height=16))
         original['resolution_ppi'] = 72
@@ -62,6 +95,8 @@ class EditablePdfPage(unittest.TestCase):
         caps = self.invoke(dict(command='capabilities'))['pdf']['editable_import']
         self.assertEqual(len(caps['blend_modes']), len(modes) + 1)
         self.assertEqual(caps['indexed_fills']['entries'], 256)
+        self.assertIn('ASCII85Decode+FlateDecode', caps['content_filters'])
+        self.assertIn('ASCII85Decode+DCTDecode', caps['images']['filters'])
         for mode in modes:
             with self.subTest(mode=mode):
                 front['blend'] = mode
@@ -86,7 +121,7 @@ class EditablePdfPage(unittest.TestCase):
 
     def test_indexed_fill_tables_and_saved_color_state(self):
         lookup = bytes([41, 92, 10, 13, 128, 255])
-        for table in (b'<295C0A0D80FF>', br'(\)\\\n\r\200\377)', b'8 0 R', b'9 0 R'):
+        for table in (b'<295C0A0D80FF>', br'(\)\\\n\r\200\377)', b'8 0 R', b'9 0 R', b'10 0 R'):
             with self.subTest(table=table):
                 objects = page_objects(b'/P cs 0 0 1 1 re f q 1 scn 1 0 1 1 re f Q 2 0 1 1 re f '
                                        b'8 sc 3 0 1 1 re f /G cs .6 sc 4 0 1 1 re f',
@@ -94,6 +129,8 @@ class EditablePdfPage(unittest.TestCase):
                 objects[5] = b'[/Indexed /DeviceRGB 1 ' + table + b']'
                 objects[8] = stream(lookup, compress=True)
                 objects[9] = b'<295c0a0d80ff>'
+                objects[10] = stream(base64.a85encode(zlib.compress(lookup))+b'~>',
+                                     b'/Filter [/ASCII85Decode /FlateDecode]')
                 doc = self.read(pdf(objects))['document']
                 self.assertEqual([i['content']['fill'] for i in doc['items']],
                                  [[41,92,10,255], [13,128,255,255], [41,92,10,255],
@@ -183,6 +220,17 @@ class EditablePdfPage(unittest.TestCase):
         clipped = self.rgba(self.read(pdf(objects))['document'])
         opaque = {(i%48,i//48) for i,x in enumerate(clipped[3::4]) if x}
         self.assertEqual(opaque, {(x,y) for x in range(4,10) for y in range(28,36)}|{(1,38)})
+
+    def test_repeated_forms_charge_intermediate_and_final_filter_output(self):
+        program = b' ' * (128*1024)
+        compressed = zlib.compress(program, level=0)
+        fields = b'/Subtype /Form /BBox [0 0 48 40] '
+        objects = page_objects(b'/Box Do '*65, resources=b'<< /XObject << /Box 5 0 R >> >>')
+        objects[5] = stream(compressed, fields+b'/Filter /FlateDecode')
+        self.assertEqual(self.read(pdf(objects))['document']['items'], [])
+        objects[5] = stream(base64.a85encode(compressed)+b'~>', fields+b'/Filter [/ASCII85Decode /FlateDecode]')
+        error = self.read(pdf(objects), 1)
+        self.assertEqual((error['code'], error['details']['object']), ('RESOURCE_LIMIT',5))
 
     def test_rotated_second_page_inherited_crop_units_and_content_array(self):
         objects=page_objects(b'BT')

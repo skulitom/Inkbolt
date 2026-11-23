@@ -16,7 +16,8 @@ object and decoded byte offset that produced them. Use the document in
 control points. Publish a revised PDF under a new name.
 
 The importer reads classic cross-reference tables and raw or Flate-compressed
-page and form streams. It follows the page tree and inherited resources. The
+page and form streams. Source builds after v0.85.1 also accept ASCII85 around
+either representation. They follow the page tree and inherited resources. The
 intersection of the crop and media boxes sets the canvas, including fractional
 dimensions, page rotation in quarter turns and physical `UserUnit` scaling.
 One document unit is one point. Omit `page_index` to open page zero.
@@ -42,7 +43,8 @@ their channel endpoints retain the same meaning after editing.
 
 An Indexed fill with a DeviceGray or DeviceRGB base becomes an editable
 solid color. Its palette may contain up to 256 entries in a literal string,
-hexadecimal string, or raw or Flate-compressed stream. The import receipt
+hexadecimal string, or raw or Flate-compressed stream, with optional ASCII85
+encoding on either kind of stream. The import receipt
 records that the original palette and indices remain in the source file.
 Inkbolt uses these palettes when exporting exact RGB fills on blended pages.
 
@@ -145,7 +147,7 @@ MuPDF agreed on the predicted and plain sources in every case. Its re-export
 comparisons were exact on opaque images and within one 8-bit channel level on
 images with alpha.
 
-Text, inline images, stencil masks, interpolated
+Painted text, inline images, stencil masks, interpolated
 images, preblended soft masks, shadings, CMYK, named inks, remapped color
 spaces, graphics-state masks, knockout, annotations and unsupported blend modes return an error.
 Content errors identify the selected page and object, with a byte offset for
@@ -153,6 +155,33 @@ drawing operators. Import applies the classic container reader's object and
 page limits, a 16 MiB source and cumulative decoded-stream budget, and the
 selected vector profile's native item and document limits. The same checks
 apply when a form is invoked repeatedly. [PDF graphics specification](https://pdfa.org/resource/iso-32000-2/)
+
+### Opening writer-generated drawing and image pages
+
+Some PDF writers select a default font and line spacing before drawing
+anything. Source builds after v0.85.1 open pages containing that setup
+(`BT`, `Tf`, `TL`, `ET`) and an empty page-transition dictionary.
+The receipt records the unpainted setup and the default transition.
+Showing or clipping glyphs, and nonempty transition dictionaries, still
+produce a located error.
+
+Page content, forms, palettes and image planes can use `ASCII85Decode`
+alone or before `FlateDecode`. A JPEG image or JPEG soft mask can use it
+before `DCTDecode`. Parameters apply to the corresponding stage. Both
+the intermediate bytes and the final decoded stream count against the
+page budget. The decoder requires the `~>` end marker.
+[PDF stream filter specification and errata](https://pdf-issues.pdfa.org/32000-2-2020/clause07.html)
+
+Six ReportLab 4.4.7 pages reopened on Windows and Linux, covering a filled
+path and a placed JPEG in three writer configurations. The six original
+re-exports and six edits were byte-identical across platforms. The edits
+recolored each path or moved each image. Three companion pages containing drawn
+text returned an error. At 72 and 144 dpi, Poppler reproduced the paths
+exactly and MuPDF differed by at most one 8-bit channel level. On the
+JPEG pages Poppler differed by at most three levels and MuPDF by up to 55.
+Plain-RGB controls isolated that difference to how the readers decoded the
+source's 4:2:0 JPEG. Both readers rendered the exported image within three
+levels of samples independently decoded with Pillow, at both placements.
 
 Five original source fixtures cover a rectangle, an equivalent authored path,
 a renamed item, a transformed translucent cubic and overlapping shapes. On

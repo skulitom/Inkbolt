@@ -1,3 +1,4 @@
+use super::filters::{Codec, Filters};
 use super::*;
 use crate::{assets, model::Content};
 use base64::Engine;
@@ -12,7 +13,7 @@ pub(super) struct Images {
     encoded_size: usize,
 }
 
-struct Plane {
+struct Plane<'a> {
     size: [u32; 2],
     components: usize,
     bits: usize,
@@ -20,6 +21,7 @@ struct Plane {
     palette: Option<IndexedSamples>,
     color_key: Option<Vec<[u8; 2]>>,
     encoding: Encoding,
+    filters: Filters<'a>,
 }
 
 struct IndexedSamples {
@@ -163,24 +165,13 @@ fn hex_samples(
 
 fn encoding(
     pdf: &Container,
-    d: &Dict,
+    filters: Filters,
     width: u32,
     components: usize,
     bits: usize,
 ) -> Result<Encoding, Error> {
-    let filter = d
-        .get(b"Filter".as_slice())
-        .map(|v| pdf.single_filter_entry(v))
-        .transpose()?;
-    let params = d
-        .get(b"DecodeParms".as_slice())
-        .map(|v| pdf.single_filter_entry(v))
-        .transpose()?;
-    let params = match params {
-        None | Some(Value::Null) => None,
-        Some(value) => Some(value.dict()?),
-    };
-    if filter.is_some_and(|v| v.named(b"ASCIIHexDecode")) {
+    let params = filters.params;
+    if filters.codec == Codec::Hex {
         if let Some(params) = params {
             allowed(params, &[])?;
         }
@@ -193,7 +184,7 @@ fn encoding(
             .transpose()
             .map(|v| v.unwrap_or(default))
     };
-    if filter.is_some_and(|v| v.named(b"DCTDecode")) {
+    if filters.codec == Codec::Jpeg {
         if bits != 8 {
             return Err(unsupported("PDF JPEG images require 8-bit components"));
         }
@@ -208,11 +199,8 @@ fn encoding(
             transform: transform == 1,
         });
     }
-    if filter.is_some_and(|v| !v.named(b"FlateDecode")) {
-        return Err(unsupported("Unsupported PDF image filter"));
-    }
     if let Some(params) = params {
-        if filter.is_none() {
+        if filters.codec == Codec::Raw && !filters.ascii85 {
             return Err(unsupported("PDF image prediction requires FlateDecode"));
         }
         allowed(
@@ -236,10 +224,10 @@ fn encoding(
     Ok(Encoding::Samples { predictor })
 }
 
-impl Plane {
+impl<'a> Plane<'a> {
     fn describe(
-        pdf: &Container,
-        d: &Dict,
+        pdf: &'a Container,
+        d: &'a Dict,
         remaining: &mut usize,
         control: &Control,
     ) -> Result<Self, Error> {
@@ -334,7 +322,8 @@ impl Plane {
                 .map(|v| color_key(pdf, v, components, bits))
                 .transpose()?
         };
-        let encoding = encoding(pdf, d, size[0], components, bits)?;
+        let filters = Filters::read(pdf, d)?;
+        let encoding = encoding(pdf, filters, size[0], components, bits)?;
         Ok(Self {
             size,
             components,
@@ -343,6 +332,7 @@ impl Plane {
             palette,
             color_key,
             encoding,
+            filters,
         })
     }
 
@@ -367,20 +357,24 @@ impl Plane {
         if expected > *remaining {
             return Err(limit("PDF decoded stream budget exceeded"));
         }
+        // Reserve the final sample plane before unwrapping compressed input.
+        *remaining -= expected;
+        let bytes = self
+            .filters
+            .payload(pdf.stream_bytes(id)?, expected, remaining, control)?;
         let (mut data, mut source) = match self.encoding {
-            Encoding::Samples { .. } => (
-                pdf.inflated_stream(&Value::Ref(id), expected, control)?,
-                json!({}),
-            ),
+            Encoding::Samples { .. } => {
+                (self.filters.samples(bytes, expected, control)?, json!({}))
+            }
             Encoding::AsciiHex => {
-                let (samples, end) = hex_samples(pdf.stream_bytes(id)?, expected, control)?;
+                let (samples, end) = hex_samples(&bytes, expected, control)?;
                 (
                     samples,
                     json!({"filter":"ASCIIHexDecode","ascii_hex_end":end}),
                 )
             }
             Encoding::Jpeg { transform } => crate::sample_import::pdf_samples(
-                pdf.stream_bytes(id)?,
+                &bytes,
                 self.size,
                 self.components,
                 transform,
@@ -392,7 +386,14 @@ impl Plane {
                 "PDF image stream length disagrees with its dimensions",
             ));
         }
-        *remaining -= expected;
+        if self.filters.ascii85 {
+            source["filters"] = match self.filters.codec {
+                Codec::Raw => json!(["ASCII85Decode"]),
+                Codec::Flate => json!(["ASCII85Decode", "FlateDecode"]),
+                Codec::Jpeg => json!(["ASCII85Decode", "DCTDecode"]),
+                Codec::Hex => unreachable!(),
+            };
+        }
         let step = (self.bits * self.components).div_ceil(8);
         let maximum = ((1u16 << self.bits) - 1) as u8;
         let mut previous: &[u8] = &[];

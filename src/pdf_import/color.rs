@@ -77,7 +77,7 @@ pub(super) fn palette(
     }
     let stream;
     let bytes = if matches!(lookup, Value::Ref(id) if pdf.stream_dict(*id).is_ok()) {
-        stream = pdf.stream(lookup, expected, control)?;
+        stream = filters::stream(pdf, reference(lookup)?, expected, remaining, control)?;
         stream.as_slice()
     } else if let Value::Bytes(bytes) = pdf.resolve(lookup)? {
         bytes.as_slice()

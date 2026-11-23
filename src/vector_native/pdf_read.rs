@@ -40,6 +40,42 @@ impl Value {
         matches!(self,Self::Name(v) if v==name)
     }
 }
+pub(crate) fn inflate_bytes(
+    bytes: &[u8],
+    maximum: usize,
+    control: &Control,
+) -> Result<Vec<u8>, Error> {
+    let mut decoder = flate2::Decompress::new(true);
+    let mut out = Vec::new();
+    let mut buffer = [0u8; 16384];
+    loop {
+        control.check()?;
+        let before = (decoder.total_in(), decoder.total_out());
+        let status = decoder
+            .decompress(
+                &bytes[before.0 as usize..],
+                &mut buffer,
+                flate2::FlushDecompress::None,
+            )
+            .map_err(|_| invalid("Invalid compressed PDF stream"))?;
+        let written = (decoder.total_out() - before.1) as usize;
+        if out.len() + written > maximum {
+            return Err(super::limit("Native vector block budget exceeded"));
+        }
+        out.extend_from_slice(&buffer[..written]);
+        if status == flate2::Status::StreamEnd {
+            break;
+        }
+        if before == (decoder.total_in(), decoder.total_out()) {
+            return Err(invalid("Incomplete compressed PDF stream"));
+        }
+    }
+    if decoder.total_in() != bytes.len() as u64 {
+        return Err(invalid("Trailing compressed PDF stream data"));
+    }
+    Ok(out)
+}
+
 fn space(b: u8) -> bool {
     matches!(b, 0 | 9 | 10 | 12 | 13 | 32)
 }
@@ -616,35 +652,7 @@ impl<'a> Container<'a> {
                 Ok(bytes.to_vec())
             }
             Some(value) if self.single_filter_entry(value)?.named(b"FlateDecode") => {
-                let mut decoder = flate2::Decompress::new(true);
-                let mut out = Vec::new();
-                let mut buffer = [0u8; 16384];
-                loop {
-                    control.check()?;
-                    let before = (decoder.total_in(), decoder.total_out());
-                    let status = decoder
-                        .decompress(
-                            &bytes[before.0 as usize..],
-                            &mut buffer,
-                            flate2::FlushDecompress::None,
-                        )
-                        .map_err(|_| invalid("Invalid compressed PDF stream"))?;
-                    let written = (decoder.total_out() - before.1) as usize;
-                    if out.len() + written > maximum {
-                        return Err(super::limit("Native vector block budget exceeded"));
-                    }
-                    out.extend_from_slice(&buffer[..written]);
-                    if status == flate2::Status::StreamEnd {
-                        break;
-                    }
-                    if before == (decoder.total_in(), decoder.total_out()) {
-                        return Err(invalid("Incomplete compressed PDF stream"));
-                    }
-                }
-                if decoder.total_in() != bytes.len() as u64 {
-                    return Err(invalid("Trailing compressed PDF stream data"));
-                }
-                Ok(out)
+                inflate_bytes(bytes, maximum, control)
             }
             _ => Err(unsupported("Unsupported editable-vector block filter")),
         }
