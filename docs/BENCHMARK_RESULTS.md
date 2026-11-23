@@ -9,7 +9,9 @@ Across the 17 tasks with a baseline, Inkbolt matched its artifact success
 count on 16 and scored higher on print delivery. Median recorded token use
 was higher with Inkbolt on all 17.
 
-Each row uses the latest five model trials per arm for the standard task.
+Each row uses the latest standard five-trial comparison, or the latest
+standard engine run for tasks without a baseline. Experiments that vary the
+instructions have their own results below.
 B07 also records the client starts that ended before a trial could be judged.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
@@ -217,8 +219,8 @@ The fifth combined the import with lookups for starting a session, moving an
 object and publishing. Those replies ranged from 19,116 to 36,124 bytes.
 The [SVG editing example](SVG_IMPORT.md#move-one-object-and-export-the-result)
 uses the import mapping and a saved revision to move one path and export it.
-Running the example on Windows and Linux preserved the sibling shape and
-produced matching pixels. Its effect on model usage remains unmeasured.
+A [separate five-pair trial](#giving-agents-the-svg-editing-example) measured
+what happened when agents received that example with their task.
 
 The original B04 judge recorded 0/5 Inkbolt workflows and 5/5 baseline
 workflows. All five agents had saved the full opt-in omission receipt, including
@@ -239,6 +241,41 @@ attempts used the CLI. Host load was uncontrolled.
 | B01 original and replay | `811df9c73a44133ba7be5668b3e9898973ca686d59c5a68749f0327e2d760379` |
 | B04 original and corrected verdicts | `20a2c6ba1c1d7a16689789b11c7901980bf34c9d3402383bd2c348bcb1193811` |
 | B17 original and replay | `56517f4c73028d653c7b6e871cc72d7e5007e1aebab2997d2d32d502ceac7e0c` |
+
+## Giving agents the SVG editing example
+
+Ten agents revised the same SVG with the same Inkbolt executable, tools,
+client and model settings. Five received the usual instructions. Five also
+received the 2,134-byte documentation example, which uses a different
+drawing and movement. The agent still had to identify the requested path,
+preserve its group, disclose import losses and deliver the editable source.
+The pair order alternated so the example ran first in two of five pairs.
+Usage and timing figures are medians across the five attempts.
+[Example given to the agents](https://github.com/skulitom/Inkbolt/blob/2736a42e3fd22a645dde9628c53999ca5d79129f/docs/SVG_IMPORT.md#move-one-object-and-export-the-result)
+
+| Measure | Usual instructions | With example |
+| --- | ---: | ---: |
+| Complete workflows | 5/5 | 5/5 |
+| Input plus output tokens | 213,769 | 162,125 |
+| Shell commands | 8 | 7 |
+| Shell commands mentioning `schema.lookup` | 4 | 2 |
+| Shell output, UTF-8 bytes | 58,626 | 29,952 |
+| Seconds to first verified preview on disk | 44.5 | 27.0 |
+| Solve time, seconds | 68.1 | 48.7 |
+
+Every pair used fewer tokens and reached its first preview sooner with the
+example. Median token use fell 24.2%. Median shell output fell 48.9%, but two
+agents given the example each printed the full `document.publish` schema,
+about 94 KB in one reply. Those two produced more output than their controls.
+The lookup row counts shell commands whose text names `schema.lookup`.
+One command can request several schemas.
+
+Rejudging all ten captures reproduced every check, usage count and preview
+time. An independent renderer also reproduced the requested 768 pixels from
+every delivered SVG. All ten PNGs matched and each original file survived.
+Both groups used the CLI throughout. This trial measured direct exposure to
+the example. Whether agents find it unaided is still open. The audit has
+SHA-256 `6a3882a10514f62d14441f17324cd788e17b1cda6d00165f75f917d7fd2c0689`.
 
 ## Shell and MCP activity across twenty tasks
 
