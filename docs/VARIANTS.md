@@ -6,6 +6,21 @@ One vector or raster document can retain typed data rows that control selected i
 
 ## Define, select and export
 
+To find the operation inputs through the CLI or MCP, request the variant
+definition. The reply includes binding properties and typed dataset values.
+
+```json
+{"command":"schema.lookup","name":"operation","select":"variants_set"}
+```
+
+For just the binding fields, use the selector
+`variants_set/field:definition/field:bindings`. To see how to select a
+dataset or restore the base, use the following request.
+
+```json
+{"command":"schema.lookup","name":"operation","select":"variant_select"}
+```
+
 Use `document.edit` with `variants_set` to capture current values for declared bindings and save named datasets:
 
 ```json

@@ -23,6 +23,13 @@ failed start or workflow. Keep the guidance only if both medians fall and all
 five guided trials pass the original delivery, editability and restoration
 checks. Broad catalog changes and automatic examples stay outside this test.
 
+All ten trials passed. The hint reduced median tokens by 32.8% and median
+response volume by 22.3%. Median time to the accepted preview rose from
+76.2 to 79.9 seconds. Retain the lookups in the variants guide. B08 masking
+is the next candidate for a closer look at discovery costs. Schema-related
+commands accounted for 326,179 of its 387,641 shell-output bytes in the
+standard run. [Layout trial and independent edit checks](BENCHMARK_RESULTS.md#finding-the-layout-variant-operations) · [B08 measurements](BENCHMARK_RESULTS.md#linked-text-and-foreground-masks-on-0851)
+
 ## Getting from CLI help to a first vector preview
 
 In the [five timed B01 diagram trials](BENCHMARK_RESULTS.md#time-to-the-first-accepted-diagram-preview),
@@ -144,6 +151,11 @@ On the three ReportLab comparisons the largest difference was one 8-bit
 channel level and the word boxes differed by less than 0.000002 pt.
 Both renderers confined changes from the range edit to the first word.
 [Editable label contract](PDF.md#editing-a-painted-label)
+
+Fresh full verification at `6d6b28d` passed all 298 stages on Windows and
+WSL Linux. Windows executed 3,083 Python tests with 47 explicit skips.
+Linux executed 3,035 with 95 explicit skips. The focused PDF, benchmark and
+repository guard checks took 69 seconds on Windows and 48 seconds on Linux.
 
 ## Knockout groups in vector PDF
 

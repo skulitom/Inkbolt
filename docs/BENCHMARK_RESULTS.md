@@ -108,7 +108,10 @@ such baseline refusal. [Interrupted-export task](../tools/benchmark_prompts/B19.
 For B20, all ten agents preserved the old delivery and published the revised
 animation. The judge decoded both timelines and checked the frame samples and
 timing. All five Inkbolt runs also verified the pinned successor, explicit
-consumer revision, undo and retry. [Linked-graphic task](../tools/benchmark_prompts/B20.md)
+consumer revision, undo and retry. Windows and Linux subsequently reopened
+each pair of pinned Inkbolt deliveries and produced an identical third
+revision. A native Linux reader independently checked every frame of all
+45 movies across both arms. [Linked-graphic task](../tools/benchmark_prompts/B20.md) · [Cross-platform handoff checks](HANDOFF.md#revising-a-windows-delivery-on-linux)
 
 **Where Inkbolt costs more.** The preset losing-task rule flagged B01–B13,
 B15, B16 and B20. Both arms passed all five artifacts on each of these 16
@@ -135,10 +138,9 @@ intentional probes. The controlled Inkbolt bridges additionally observed native
 engine calls, retries and process memory on B19 and B20.
 
 B12 had the largest paired token ratio at 6.98×. Commands containing schema
-lookups returned 615,994 of its 739,117 shell-output bytes. The next experiment
-tests whether focused lookups reduce those costs while preserving editable
-variants, all three rendered artboards and restoration of the original layout.
-[B12 trial measurements](#selecting-and-restoring-layout-variants-on-0851)
+lookups returned 615,994 of its 739,117 shell-output bytes. The follow-up
+measured the cost of finding the operations needed for this task.
+[B12 standard trials](#selecting-and-restoring-layout-variants-on-0851) · [Focused lookup experiment](#finding-the-layout-variant-operations)
 
 | Retained identity | SHA-256 |
 | --- | --- |
@@ -146,6 +148,43 @@ variants, all three rendered artboards and restoration of the original layout.
 | Rejudged Inkbolt report | `dbfbb8b34f14b27202e9ea9ae8fab864e1a7ce751769ec3fe55f12f93e7d1bd7` |
 | Rejudged baseline report | `83465a555c0cf3a37f96bce119769b5b4bd12edd35e9c658d3b1ec5fbcf0215a` |
 | Matched comparison at `6d6b28d` | `12cd324c628c2aa171cf9183b68d520ede34fbe043577eea8e7f5ea09a311c7d` |
+| Original acquisition manifests and capture audit | `d3347f2e611ad1c421f2bca08d4504492343fa9dd1a9deaf6c4075de31223b79` |
+| B20 Linux decode audit, PyAV 14.2.0 | `c71b5c94db3e8929f8bb2275e99d6e3b1a72b0413872303e58f9ef12b606a55e` |
+
+## Finding the layout-variant operations
+
+Five fresh agents received the standard B12 task. Five received the same
+task plus a short hint naming the variant definition, binding fields and
+dataset-selection lookups. The experiment alternated the starting condition
+within each pair and held the Windows executable, client settings, original
+task, fixtures and judges fixed. The guide is now available to agents and
+scripts working with editable datasets. [Tested lookups](VARIANTS.md#define-select-and-export)
+
+| Five attempts per condition | Standard task | With hint |
+| --- | ---: | ---: |
+| Complete workflows | 5/5 | 5/5 |
+| Median input plus output tokens | 528,656 | 355,207 |
+| Median shell commands | 14 | 11 |
+| Median shell output plus serialized MCP replies, bytes | 105,716 | 82,162 |
+| Median seconds to client observation of an accepted preview | 76.2 | 79.9 |
+| Median solve time, seconds | 124.7 | 110.4 |
+
+Tokens fell in all five pairs, by 32.8% at the median. Response volume fell
+in four pairs, by 22.3% at the median. This met the preset rule for keeping
+the task-specific guidance. The first accepted preview came 3.8 seconds
+later at the median. All ten agents used the CLI. None issued the exact
+nested binding selector as literal command text. The trial measured the
+effect of the combined hint and cannot assign the savings to that selector.
+
+All ten captures passed on replay. Windows and Linux independently checked
+the pixels of all three artboards per trial, verified the restored base, then changed
+the inherited image position in a copy. The revised square retained its own
+label and image. The three suggested CLI lookups returned byte-identical
+JSON on both platforms. Their sizes, excluding the newline, were 8,701 bytes
+for the definition, 581 for bindings and 333 for selection. These ten
+experimental trials are separate from the standard twenty-task comparison.
+Trial, traffic and cross-platform audit SHA-256
+`ef5a65fb74831d937721c949a30d423bfd946b22ede0cbdb58ef95aceb4ef1d8`.
 
 ## Repairing an overflowing text frame on 0.85.1
 

@@ -98,6 +98,27 @@ two pinned still revisions followed by an ordered sequence, verifies the old
 delivery after the edits and checks source history. Optional `--cutbolt EXE`
 inspects and renders all three scenes using that local installation.
 
+## Revising a Windows delivery on Linux
+
+Windows and WSL Linux reopened the original and revised handoffs from all
+five Inkbolt B20 agent trials. Both native executables verified the manifests,
+files and frame schedule. Each then moved the first frame's artwork four
+more pixels to the right and exported revision 2 with revision 1 as its
+explicit predecessor. Reusing revision 1 as its own successor returned
+`HANDOFF_CONFLICT` on both hosts.
+
+Each third delivery contained the same five files byte for byte on both
+hosts. Independent PNG decoding confirmed the new eight-pixel offset, the
+unchanged second frame and the original alpha samples. Both earlier delivery
+directories retained all their original file hashes.
+
+A separate native Linux decoder read all 45 movies produced by the ten
+Windows Inkbolt and no-engine trials. It checked all 700 frames against the
+source colors, alpha, edit and 25 fps clock. The 1,344,000 stereo sample
+frames were silent at 48 kHz. The original, revised and undone timelines
+were checked wherever required by the corresponding task. The model
+sessions and consumer process controls ran on Windows. [Task and comparison](BENCHMARK_RESULTS.md#twenty-tasks-on-one-inkbolt-build)
+
 ## Bounds and evidence
 
 Deliveries contain at most 256 ordered frames, 4096 pixels per axis, eight million
