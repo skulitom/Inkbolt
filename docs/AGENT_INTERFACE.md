@@ -1,6 +1,6 @@
 # Agent interface
 
-Use `pdf.import` to recover editable filled paths and groups from a selected
+Use `pdf.import` to recover editable filled paths, groups and placed images from a selected
 PDF page. The receipt identifies the original file, page and source operators.
 [Reopen a page for editing](PDF.md#reopen-a-page-for-editing)
 

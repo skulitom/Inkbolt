@@ -10,6 +10,7 @@ pub(super) struct Drawing<'a> {
     pub profile: ResourceProfile,
     pub items: Vec<Item>,
     pub mapping: Vec<serde_json::Value>,
+    pub images: image::Images,
     active: BTreeSet<Id>,
     remaining_bytes: usize,
     pub operations: usize,
@@ -90,6 +91,7 @@ impl<'a> Drawing<'a> {
             profile,
             items: vec![],
             mapping: vec![],
+            images: Default::default(),
             active: BTreeSet::new(),
             remaining_bytes: vector_native::MAX_DECODED_BYTES,
             operations: 0,
@@ -101,6 +103,7 @@ impl<'a> Drawing<'a> {
         content: Content,
         clip: Option<Clip>,
         opacity: f64,
+        transform: Matrix,
         loc: (Id, usize),
     ) -> Result<String, Error> {
         if self.items.len() >= self.profile.items() {
@@ -121,7 +124,7 @@ impl<'a> Drawing<'a> {
             coverage: Default::default(),
             effects: vec![],
             blend: Default::default(),
-            transform: identity(),
+            transform,
             parent,
             clip_to: None,
             clip,
@@ -173,6 +176,7 @@ impl<'a> Drawing<'a> {
                 enabled: true,
             }),
             opacity,
+            identity(),
             loc,
         )?;
         state.depth += 1;
@@ -222,7 +226,7 @@ impl<'a> Drawing<'a> {
         };
         program.run(self, resources, state)
     }
-    pub fn form(
+    pub fn xobject(
         &mut self,
         resources: &Dict,
         name: &[u8],
@@ -232,14 +236,36 @@ impl<'a> Drawing<'a> {
         let pdf = self.pdf;
         let v = resource(pdf, resources, b"XObject", name)?;
         let id = reference(v)?;
+        let d = pdf.stream_dict(id)?;
+        if field(d, b"Subtype")?.named(b"Image") {
+            let (content, dimensions) = self
+                .images
+                .placement(
+                    pdf,
+                    id,
+                    &mut self.remaining_bytes,
+                    self.profile,
+                    self.control,
+                    self.page_index,
+                )
+                .map_err(|e| located(e, self.page_index, id, None))?;
+            let [w, h] = dimensions.map(f64::from);
+            let transform = multiply(state.matrix, [1. / w, 0., 0., -1. / h, 0., 1.]);
+            self.add(
+                state.parent.clone(),
+                content,
+                None,
+                state.alpha,
+                transform,
+                loc,
+            )?;
+            return Ok(());
+        }
         if self.active.len() >= bounds::MAX_DEPTH || !self.active.insert(id) {
             return Err(limit("Repeated or deep PDF form invocation"));
         }
-        let d = pdf.stream_dict(id)?;
         if !field(d, b"Subtype")?.named(b"Form") {
-            return Err(unsupported(
-                "Only form XObjects are supported by editable PDF import",
-            ));
+            return Err(unsupported("Unsupported PDF XObject subtype"));
         }
         allowed(
             d,

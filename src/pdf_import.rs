@@ -1,5 +1,6 @@
 //! Editable page graphics from a bounded classic-xref PDF.
 mod drawing;
+mod image;
 mod program;
 
 use crate::{
@@ -306,6 +307,7 @@ fn read_page(
     )
     .map_err(|e| invalid(&e.to_string()))?;
     document.items = drawing.items;
+    document.assets = drawing.images.assets;
     crate::model::validate_controlled(&document, control)?;
     if serde_json::to_vec(&document)
         .map_err(|e| invalid(&e.to_string()))?
@@ -324,10 +326,17 @@ fn read_page(
             boxes[label] = json!(rect(pdf, v)?);
         }
     }
-    Ok(
-        json!({"document":document,"mapping":drawing.mapping,"page":{"boxes":boxes,"user_unit":unit,"rotation":rotate,"source_to_document":matrix},
-        "color_policy":"caller_declared_encoded_srgb",
-        "losses":["Painted geometry is recovered as editable paths with new item IDs. Original shape types, names, stroke construction and authoring history cannot be inferred.",
-            "Selected page artwork is placed in physical points. Page boxes are returned as source coordinates. Metadata and other pages stay in the source file."]}),
-    )
+    let mut losses = vec![
+        "Painted geometry is recovered as editable paths with new item IDs. Original shape types, names, stroke construction and authoring history cannot be inferred.",
+        "Selected page artwork is placed in physical points. Page boxes are returned as source coordinates. Metadata and other pages stay in the source file.",
+    ];
+    if !drawing.images.sources.is_empty() {
+        losses.push("Image samples and soft-mask alpha are normalized into straight RGBA8 PNG assets. Original image streams, packing and compression remain in the source PDF.");
+    }
+    let mut result = json!({"document":document,"mapping":drawing.mapping,"page":{"boxes":boxes,"user_unit":unit,"rotation":rotate,"source_to_document":matrix},
+        "color_policy":"caller_declared_encoded_srgb","losses":losses});
+    if !drawing.images.sources.is_empty() {
+        result["image_sources"] = json!(drawing.images.sources);
+    }
+    Ok(result)
 }

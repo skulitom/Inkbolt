@@ -2,7 +2,7 @@
 
 ## Reopen a page for editing
 
-Use `pdf.import` to open a page of filled vector artwork. For example, this
+Use `pdf.import` to open a page of filled vector artwork and embedded images. This
 request opens the first page of a local file in a CLI or MCP workspace.
 
 ```json
@@ -30,8 +30,33 @@ remain editable. A path may have originated as a rectangle, an expanded stroke
 or lettering. Its PDF geometry cannot identify the original editing operation.
 The receipt records this loss and the source file remains available.
 
-Text operators, image XObjects, shadings, CMYK, named inks, remapped color
-spaces, masks, knockout, annotations and non-normal blends return an error.
+Each admitted image XObject becomes a self-contained PNG asset in the document.
+Repeated placements share its samples and can be moved independently with the
+`transform` edit. Image rows retain their original orientation, including when
+the page or placement is rotated. The `image_sources` receipt maps each asset
+to its PDF object and optional soft-mask object. The asset records the identity
+of the normalized pixels and PNG. The source receipt identifies the original PDF.
+
+Images may use 1-, 2-, 4- or 8-bit DeviceGray or DeviceRGB components, nearest
+sampling, and identity or inverted decode ranges per component. Raw and
+Flate-compressed samples support packed rows. Flate streams can also use TIFF
+horizontal prediction or any of the five PNG row filters. A same-size grayscale
+image soft mask supplies straight alpha. Hidden color samples survive zero alpha.
+The per-image limit is 4,194,304 pixels. The document asset, snapshot and
+decoded-stream limits also apply.
+
+On Windows and Linux, 48 synthetic pages recovered every authored image sample.
+Each page placed an image twice. Moving the rotated copy produced 96 original
+and edited deliveries for comparison. PDFium matched all 96 independently
+authored plain-sample controls at 144 dpi. For 20 comparisons, PDFium rendered
+the packed TIFF-predicted source differently from its own plain-sample control.
+MuPDF agreed on the predicted and plain sources in every case. Its re-export
+comparisons were exact on opaque images and within one 8-bit channel level on
+images with alpha.
+
+Text, JPEG streams, inline images, stencil and color-key masks, interpolated
+images, preblended soft masks, shadings, CMYK, named inks, remapped color
+spaces, graphics-state masks, knockout, annotations and non-normal blends return an error.
 Content errors identify the selected page and object, with a byte offset for
 drawing operators. Import applies the classic container reader's object and
 page limits, a 16 MiB source and cumulative decoded-stream budget, and the

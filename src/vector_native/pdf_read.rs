@@ -462,7 +462,38 @@ impl<'a> Container<'a> {
         }
         Ok(value)
     }
+    /// PDF permits the filter and its parameters to be wrapped in parallel arrays.
+    pub(crate) fn single_filter_entry<'b>(&'b self, value: &'b Value) -> Result<&'b Value, Error> {
+        match self.resolve(value)? {
+            Value::Array(entries) => match entries.as_slice() {
+                [entry] => self.resolve(entry),
+                _ => Err(unsupported("Expected a single PDF stream filter")),
+            },
+            entry => Ok(entry),
+        }
+    }
     pub fn stream(
+        &self,
+        value: &Value,
+        maximum: usize,
+        control: &Control,
+    ) -> Result<Vec<u8>, Error> {
+        let Value::Ref(id) = value else {
+            return Err(invalid("PDF stream must be indirect"));
+        };
+        if self
+            .stream_dict(*id)?
+            .contains_key(b"DecodeParms".as_slice())
+        {
+            return Err(unsupported(
+                "Decode parameters are unsupported in editable vector blocks",
+            ));
+        }
+        self.inflated_stream(value, maximum, control)
+    }
+
+    /// Returns raw or inflated bytes before any image row predictor.
+    pub(crate) fn inflated_stream(
         &self,
         value: &Value,
         maximum: usize,
@@ -481,10 +512,8 @@ impl<'a> Container<'a> {
         let dict = object.value.dict()?;
         let length = self.resolve(field(dict, b"Length")?)?.integer()?;
         let bytes = &self.bytes[start..start + length];
-        if dict.contains_key(b"F".as_slice()) || dict.contains_key(b"DecodeParms".as_slice()) {
-            return Err(unsupported(
-                "External streams and decode parameters are unsupported in editable vector blocks",
-            ));
+        if dict.contains_key(b"F".as_slice()) {
+            return Err(unsupported("External PDF streams are unsupported"));
         }
         match dict.get(b"Filter".as_slice()) {
             None => {
@@ -493,7 +522,7 @@ impl<'a> Container<'a> {
                 }
                 Ok(bytes.to_vec())
             }
-            Some(value) if self.resolve(value)?.named(b"FlateDecode") => {
+            Some(value) if self.single_filter_entry(value)?.named(b"FlateDecode") => {
                 let mut decoder = flate2::Decompress::new(true);
                 let mut out = Vec::new();
                 let mut buffer = [0u8; 16384];

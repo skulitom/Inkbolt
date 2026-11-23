@@ -1379,6 +1379,11 @@ fn capability_report() -> Value {
     capabilities["pdf"]["editable_import"] = json!({
         "command":"pdf.import","selection":"one_page_by_zero_based_index",
         "colors":"device_gray_and_rgb_as_encoded_srgb","paint":"editable_line_and_cubic_fills",
+        "images":{"samples":"DeviceGray_or_DeviceRGB","bits_per_component":[1,2,4,8],
+            "storage":"self_contained_sRGB_PNG_shared_per_image_XObject","sampling":"nearest",
+            "filters":["raw","FlateDecode"],"predictors":["none","TIFF_2","PNG_10_to_15"],
+            "decode":"identity_or_inversion_per_component","alpha":"same_size_grayscale_image_SMask_without_Matte",
+            "max_pixels_per_image":pdf::MAX_IMAGE_PIXELS},
         "forms":"local_form_resources_bounds_transforms_and_normal_opacity",
         "source":"read_only_classic_xref_pdf","unsupported":"located_refusal"
     });

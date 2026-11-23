@@ -129,6 +129,7 @@ BINDINGS = {
     'objects/max_rendered_objects': 'objects.MAX_RENDERED_OBJECTS',
     'objects/surface_scale/1': 'render_quality.MAX_SCALE',
     'pdf/image_pixels': 'pdf.MAX_IMAGE_PIXELS',
+    'pdf/editable_import/images/max_pixels_per_image': 'pdf.MAX_IMAGE_PIXELS',
     'pdf/knockout_groups/max_attenuation_depth_including_ancestors': 'pdf.MAX_KNOCKOUT_DEPTH',
     'pdf/knockout_groups/max_external_backdrop_form_visits': 'pdf.MAX_BACKDROP_FORM_VISITS',
     'pdf/knockout_groups/max_form_and_mask_depth': 'pdf.MAX_KNOCKOUT_FORM_DEPTH',
@@ -845,6 +846,8 @@ class ResourceLimitTests(unittest.TestCase):
                  'render_quality/supersample_factors/0':2,
                  'svg_import/validation_limits/stroke_width/0':0,
                  'print_proof/delta_e76_threshold/0':0}
+        fixed.update({f'pdf/editable_import/images/bits_per_component/{i}': bits
+                      for i, bits in enumerate([1, 2, 4, 8])})
         for path, expected in fixed.items():
             value = capabilities()
             for part in path.split('/'):

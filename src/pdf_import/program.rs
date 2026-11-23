@@ -304,6 +304,7 @@ impl Execution {
                             },
                             None,
                             1.,
+                            crate::model::identity(),
                             loc,
                         )?;
                     }
@@ -369,7 +370,7 @@ impl Execution {
                 self.state.gray_space = gray;
             }
             b"gs" => drawing::graphics_state(d.pdf, resources, &name(operands)?, &mut self.state)?,
-            b"Do" => d.form(resources, &name(operands)?, &self.state, loc)?,
+            b"Do" => d.xobject(resources, &name(operands)?, &self.state, loc)?,
             _ => {
                 return Err(unsupported(&format!(
                     "Unsupported PDF drawing operator {}",

@@ -68,7 +68,7 @@ Apple silicon and Intel Macs. Background export jobs currently require Windows.
 Building from `main` also gives agents a four-request guide to saving editable
 artwork and exporting a transparent PNG from that exact source. Other additions
 include moving a saved edit with its assets and fonts between Windows and Linux,
-editing layer groups, reopening filled PDF paths for editing, and exporting
+editing layer groups, reopening PDF paths and placed images for editing, and exporting
 searchable PDF labels and spot-ink plates.
 [Screen artwork guide](docs/AGENT_DISCOVERY.md#screen-artwork) · [Moving a saved edit](docs/SESSION_BACKUPS.md#resources-and-portability) · [Layer groups](docs/LAYERED.md#editable-folder-fill) · [PDF import and export](docs/PDF.md#reopen-a-page-for-editing) · [Print inks](docs/INK_DELIVERY.md#explicit-pdf-ink-mode)
 
