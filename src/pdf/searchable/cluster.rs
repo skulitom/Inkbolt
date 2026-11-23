@@ -124,16 +124,14 @@ pub(super) fn font(
         // Begin a colored character with a zero-area fill using the caller's
         // color. Readers that cache a self-contained Type 3 glyph as a bitmap
         // otherwise snap its origin and move the document-space gradient.
-        procedure.content.insert_str(
-            0,
-            &format!(
-                "{width} 0 d0\nq\n0 0 m f\n{} cm\n",
-                numbers(&page_to_units)?
-            ),
-        );
+        procedure
+            .content
+            .insert_str(0, &format!("q\n0 0 m f\n{} cm\n", numbers(&page_to_units)?));
         procedure.content.push_str("Q\n");
         writer.text.gradient_clusters += 1;
-        return type3(writer, &procedure, source, &width, &bbox);
+        // This procedure draws paths. Replacement text inside it can add a
+        // second copy of the character to the outer ToUnicode mapping.
+        return type3(writer, procedure, source, &width, &bbox, colored, false);
     }
     let mut glyphs = Vec::with_capacity(group.len());
     for p in group {
@@ -162,7 +160,7 @@ pub(super) fn font(
         content: if colored {
             String::new()
         } else {
-            format!("{width} 0 {bbox} d1\nBT\n")
+            String::from("BT\n")
         },
         ..Default::default()
     };
@@ -179,45 +177,64 @@ pub(super) fn font(
             stream.content.push_str("ET\n");
         }
     }
-    if colored {
-        let metrics = format!("{width} 0 d0\n");
-        if parent.default_rgb.is_some() {
-            // Let the page composite calibrated glyph paints directly against
-            // its backdrop. A plain form introduces no transparency group.
-            let dictionary = format!(
-                "/Type /XObject /Subtype /Form /BBox [{bbox}] /Resources {}",
-                stream.dictionary(None)
-            );
-            let drawing = writer.form(&dictionary, &stream)?;
-            stream = Stream {
-                default_rgb: parent.default_rgb,
-                ..Default::default()
-            };
-            stream.use_resource("XObject", drawing, "Do");
-        }
-        stream.content.insert_str(0, &metrics);
-    } else {
+    if !colored {
         stream.content.push_str("ET\n");
+    } else if parent.default_rgb.is_some() {
+        // Let the page composite calibrated glyph paints directly against
+        // its backdrop. A plain form introduces no transparency group.
+        let dictionary = format!(
+            "/Type /XObject /Subtype /Form /BBox [{bbox}] /Resources {}",
+            stream.dictionary(None)
+        );
+        let drawing = writer.form(&dictionary, &stream)?;
+        stream = Stream {
+            default_rgb: parent.default_rgb,
+            ..Default::default()
+        };
+        stream.use_resource("XObject", drawing, "Do");
     }
-    let id = type3(writer, &stream, source, &width, &bbox)?;
+    let id = type3(
+        writer,
+        stream,
+        source,
+        &width,
+        &bbox,
+        colored,
+        group.len() > 1,
+    )?;
     writer.text.clusters.insert(key, id);
     Ok(id)
 }
 
 fn type3(
     writer: &mut Writer,
-    stream: &Stream,
+    mut stream: Stream,
     source: &str,
     width: &str,
     bbox: &str,
+    colored: bool,
+    replace_component_text: bool,
 ) -> Result<usize, Error> {
+    let unicode = utf16(source);
+    let mut header = if colored {
+        format!("{width} 0 d0\n")
+    } else {
+        format!("{width} 0 {bbox} d1\n")
+    };
+    if replace_component_text {
+        // The component glyphs share one replacement inside the character.
+        // The selectable character on the page uses its own ToUnicode entry.
+        writeln!(header, "/Span << /ActualText <FEFF{unicode}> >> BDC").unwrap();
+        stream.content.push_str("EMC\n");
+    }
+    stream.content.insert_str(0, &header);
     let procedure = writer.content_stream("", stream.content.as_bytes())?;
     let map = program::cmap(
         writer,
         GLYPH_COLLECTION,
         2,
         true,
-        &[format!("<01> <{}>", utf16(source))],
+        &[format!("<01> <{unicode}>")],
     )?;
     let resources = stream.dictionary(None);
     writer.add(format!(

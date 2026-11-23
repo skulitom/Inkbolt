@@ -198,8 +198,10 @@ pub(super) fn embed(
          /StemV 80 /{font_file} {file} 0 R >>"
     ))?;
     let one_byte = font.kind == Kind::WholeNamedCff;
-    let per_font = if one_byte { 255 } else { u16::MAX as usize };
-    for (chunk, id) in codes.chunks(per_font).zip(font.ids) {
+    for (chunk, id) in codes
+        .chunk_by(|a, b| a.1.encoding == b.1.encoding)
+        .zip(font.ids)
+    {
         let mut unicode = vec![];
         let mut enc = vec![];
         let mut gids = vec![0, 0];

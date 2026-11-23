@@ -86,6 +86,22 @@ page scale. For flattened native plates, use the existing
 Rust callers using a full `pdf::Options` struct literal can use `marks: None` and
 `matte: None` for the default display output, or `..Default::default()`.
 
+### Selectable labels on marked sheets
+
+Combine `"marks": {}` and `"text": "require_searchable"` inside `pdf_options`
+to keep labels selectable at their printed positions. This applies to vector
+pages in display color and to supported native-ink text. The margin shifts
+the artwork and its word selections by the same physical distance. For a
+named-ink label, a single glyph can carry several source letters, as in
+the `fi` ligature. Composed clusters painted with a named ink retain the
+item-level fallback.
+
+On twelve sheets with asymmetric bleed, MuPDF and PDFium found and copied all
+29 tested words at their marked positions. At 288 dpi the artwork inside each
+bleed box matched the corresponding unmarked export. A separate plate renderer
+matched all 54 process and spot plates inside the bleed. It also found the
+registration marks on every plate and the named-ink lettering on its spot plate.
+
 ## Searchable text
 
 Set `pdf_options.text` on a vector PDF export, preflight or publication.
@@ -103,6 +119,13 @@ are supported. If a static TrueType or CFF font forbids subsetting, Inkbolt
 embeds the complete standalone font. Restricted, preview-and-print-only and
 bitmap-only permissions fall back to outlines. Supply fonts you have the right
 to distribute.
+
+When two Unicode sequences use the same glyph in a CID-keyed CFF face, each
+sequence retains its own mapping. The PDF shares one embedded font program
+across the required encodings. A letter and its positioned accent have one
+selectable character on the page. A drawing made of text glyphs carries the
+source sequence around those components. A drawing made of gradient-filled
+paths uses the outer character's Unicode mapping.
 
 Left-to-right runs support both ligatures and clusters made of several glyphs.
 For example, a base letter and a separately positioned accent copy together as

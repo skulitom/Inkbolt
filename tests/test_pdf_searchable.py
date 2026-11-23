@@ -236,6 +236,7 @@ class SearchablePdfTests(unittest.TestCase):
                                if isinstance(v, dict) and v.get("Subtype") == "Type3"]
                 self.assertEqual(len(color_fonts), 2)
                 for color in color_fonts:
+                    self.assertNotIn(b"/ActualText", pdf.streams[color["CharProcs"]["Cluster"]])
                     self.assertEqual(len(color["Resources"]["Font"]), 1)
                     [drawing] = color["Resources"]["XObject"].values()
                     self.assertEqual(pdf.streams[drawing].count(b" sh\n"), 2)
@@ -467,6 +468,80 @@ class SearchablePdfTests(unittest.TestCase):
             self.assertFalse(any(b"/ActualText" in content for content in pdf.streams.values()))
             if shutil.which("pdftotext"):
                 self.assertEqual(extracted_text(pdf.data), "AB fi")
+
+    def test_words_on_marked_sheets_keep_their_searchable_positions(self):
+        source = "AB fi A\u0301"
+        for font in (font_bytes(), font_bytes(cff=True), font_bytes(cff=True, permissions=0x108), cff2_font()):
+            self.install(font)
+            doc = self.document(text=source, wrap=False, overflow="visible", width=160,
+                                style=dict(font_id="geometry", size=24, fill=[30, 85, 125, 255]))
+            doc.update(width=180, height=96, resolution_ppi=72)
+            label, = doc["items"]
+            label.update(parent="sheet", transform=[1, 0, 0, 1, 9, 12])
+            board = boards.BoardCliTests.board(self, "sheet", 180, 96,
+                                                bleed=dict(left=4, top=3, right=8, bottom=5))
+            doc["items"].insert(0, board)
+            glyphs = self.inspect(doc)["layout"]["glyphs"]
+            for color in ("display", "native_inks"):
+                options = dict(text="require_searchable", color=color, marks={},
+                               artboards=dict(type="all"), include_bleed=True)
+                result = self.invoke(dict(command="document.export", document=doc, font_root=str(self.store),
+                                          format="pdf", pdf_options=options))
+                pdf = Pdf(result)
+                page = pdf.pages[0]
+                self.assertEqual(page["BleedBox"], [12.25, 12.25, 204.25, 116.25])
+                self.assertEqual(page["TrimBox"], [16.25, 17.25, 196.25, 113.25])
+                self.assertEqual(result["pages"][0]["marks"]["colorant"], "All")
+                self.assertEqual("".join(s for s, _ in pdf.text_glyphs()), source)
+                # Only the composed glyph procedure supplies replacement text.
+                charproc, = [pdf.streams[v["CharProcs"]["Cluster"]] for v in pdf.objects.values()
+                             if isinstance(v, dict) and v.get("Subtype") == "Type3"]
+                self.assertIn(b"/ActualText <FEFF00410301>", charproc)
+                self.assertEqual(sum(s.count(b"/ActualText") for s in pdf.streams.values()), 1)
+                if pymupdf:
+                    with pymupdf.open(stream=pdf.data, filetype="pdf") as opened:
+                        sheet = opened[0]
+                        self.assertEqual(sheet.get_text().strip(), source)
+                        for term in re.finditer(r"\S+", source):
+                            [rect] = sheet.search_for(term.group())
+                            word = [g for g in glyphs if term.start() <= g["start"] < term.end()]
+                            left = 16.25 + 9 + min(g["origin"][0] for g in word)
+                            self.assertAlmostEqual(rect.x0, left, delta=0.02)
+                            self.assertEqual(sheet.get_textbox(rect + (-.1,-.1,.1,.1)).strip(), term.group())
+
+    def test_cff_aliases_use_distinct_encodings_of_one_font_program(self):
+        def check(original):
+            self.install(original)
+            source = "AB XY AB"
+            doc = self.document(text=source, width=160, wrap=False)
+            result = self.export(doc, "require_searchable")
+            pdf = Pdf(result)
+            fonts = [f for f in pdf.objects.values() if isinstance(f, dict) and f.get("Subtype") == "CIDFontType0"]
+            self.assertEqual(len(fonts), 2)
+            self.assertEqual(len({f["FontDescriptor"] for f in fonts}), 1)
+            self.assertEqual(result["pdf"]["text_delivery"]["embedded_font_programs"], 1)
+            self.assertEqual("".join(s for s, _ in pdf.text_glyphs()), source)
+            if pymupdf:
+                with pymupdf.open(stream=pdf.data, filetype="pdf") as opened:
+                    self.assertEqual(opened[0].get_text().strip(), source)
+                    self.assertEqual(len(opened[0].search_for("AB")), 2)
+                    self.assertEqual(len(opened[0].search_for("XY")), 1)
+            if shutil.which("pdftotext"):
+                self.assertEqual(extracted_text(pdf.data), source)
+            return pdf.streams[pdf.get(fonts[0]["FontDescriptor"])["FontFile3"]]
+
+        data = tables(font_bytes(cff=True))
+        data[b"cmap"] = tables(unicode_font(additional_mapping={ord("X"): 2, ord("Y"): 3}))[b"cmap"]
+        cid = tables(check(sfnt(data, 0x4F54544F)))
+        # Use the generated CID-keyed face as a whole-font source. Its subset
+        # numbered A, B and space in their order of first use.
+        cid[b"cmap"] = tables(unicode_font(set(), additional_mapping={
+            ord("A"): 1, ord("B"): 2, ord(" "): 3, ord("X"): 1, ord("Y"): 2}))[b"cmap"]
+        permissions = bytearray(cid[b"OS/2"])
+        struct.pack_into(">H", permissions, 8, 0x108)
+        cid[b"OS/2"] = bytes(permissions)
+        whole = sfnt(cid, 0x4F54544F)
+        self.assertEqual(check(whole), whole)
 
     def test_variable_advances_from_phantom_points_or_metrics_only_font(self):
         for only_metrics in (False, True):

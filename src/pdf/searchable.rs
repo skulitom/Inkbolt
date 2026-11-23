@@ -80,10 +80,52 @@ fn kind(data: &[u8], index: u32) -> Result<Kind, &'static str> {
     Err("unsupported_font_outlines")
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct CharacterCode {
+    encoding: usize,
+    index: usize,
+}
+
 struct PendingFont {
     kind: Kind,
     ids: Vec<usize>,
-    codes: BTreeMap<(u16, String), usize>,
+    codes: BTreeMap<(u16, String), CharacterCode>,
+    cid_alias_count: BTreeMap<u16, usize>,
+    encoding_sizes: Vec<usize>,
+}
+
+impl PendingFont {
+    fn code_for(&mut self, gid: u16, source: &str) -> Result<CharacterCode, Error> {
+        use std::collections::btree_map::Entry;
+        let next = self.codes.len();
+        let entry = match self.codes.entry((gid, source.to_owned())) {
+            Entry::Occupied(entry) => return Ok(*entry.get()),
+            Entry::Vacant(entry) => entry,
+        };
+        if next >= u16::MAX as usize && self.kind != Kind::WholeNamedCff {
+            return Err(limit("PDF font character codes exhausted"));
+        }
+        let (encoding, index) = match self.kind {
+            Kind::SubsetCff | Kind::WholeCidCff => {
+                // A physical CFF glyph has one CID. Some readers resolve
+                // Unicode by CID even when different text codes select it.
+                // Put each additional meaning in its own encoding of the
+                // same embedded program. Other glyphs can share that encoding.
+                let rank = self.cid_alias_count.entry(gid).or_default();
+                let part = *rank;
+                *rank += 1;
+                if part == self.encoding_sizes.len() {
+                    self.encoding_sizes.push(0);
+                }
+                let code = self.encoding_sizes[part];
+                self.encoding_sizes[part] += 1;
+                (part, code)
+            }
+            Kind::WholeNamedCff => (next / 255, next % 255),
+            _ => (0, next),
+        };
+        Ok(*entry.insert(CharacterCode { encoding, index }))
+    }
 }
 
 /// The shaper applies design coordinates as f32. Store their bits in tag order
@@ -448,27 +490,9 @@ fn paint_line(
         }
         stream.use_resource("Font", font, "1 Tf");
         stream.content.push_str(&format!("{} Tm\n", numbers(&m)?));
-        // RTL characters and static instances already map these character codes
-        // to their source. Redundant replacement text can move word selection
-        // away from the painted glyph (including a multi-character ligature).
-        let actual = !rtl
-            && font_kind != Kind::StaticInstance
-            && (group.len() > 1
-                || cluster.chars().count() > 1
-                || matches!(
-                    font_kind,
-                    Kind::SubsetCff | Kind::WholeNamedCff | Kind::WholeCidCff
-                ));
-        if actual {
-            stream.content.push_str(&format!(
-                "/Span << /ActualText <FEFF{}> >> BDC\n",
-                utf16(cluster)
-            ));
-        }
+        // ToUnicode maps this visible character, including a ligature, to its
+        // exact source. A replacement around Tj can displace the selection.
         stream.content.push_str(&format!("<{code}> Tj\n"));
-        if actual {
-            stream.content.push_str("EMC\n");
-        }
         if !rtl {
             stream.content.push_str("ET\nQ\n");
         }
@@ -495,21 +519,16 @@ fn register(
             kind,
             ids: vec![],
             codes: BTreeMap::new(),
+            cid_alias_count: BTreeMap::new(),
+            encoding_sizes: Vec::new(),
         });
-    let next = font.codes.len();
-    let n = *font
-        .codes
-        .entry((g.glyph_id, cluster.to_owned()))
-        .or_insert(next);
-    let (part, code) = if kind == Kind::WholeNamedCff {
-        (n / 255, format!("{:02X}", n % 255 + 1))
+    let CharacterCode { encoding, index } = font.code_for(g.glyph_id, cluster)?;
+    let code = if kind == Kind::WholeNamedCff {
+        format!("{:02X}", index + 1)
     } else {
-        if n >= u16::MAX as usize {
-            return Err(limit("PDF font character codes exhausted"));
-        }
-        (0, format!("{:04X}", n + 1))
+        format!("{:04X}", index + 1)
     };
-    if let Some(&id) = font.ids.get(part) {
+    if let Some(&id) = font.ids.get(encoding) {
         return Ok((id, code));
     }
     let id = writer.add(Vec::new())?;

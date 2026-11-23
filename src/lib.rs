@@ -1353,6 +1353,7 @@ fn capability_report() -> Value {
         "variable_truetype":"static_outlines_and_advances;one_subset_per_used_font_and_design_coordinates_per_page;requires_subset_permission",
         "cff2":{"source":"static_or_variable_monochrome_cubic_outlines","embedding":"static_truetype_subset_at_shaped_coordinates","requires_subsetting_permission":true,"maximum_curve_error_per_axis_font_units":0.75},
         "mapping":"positioned_glyphs_with_source_unicode;left_to_right_including_ligatures;unidirectional_right_to_left_lines_with_one_glyph_per_letter",
+        "word_selection":"page_characters_use_ToUnicode;composed_text_operators_carry_ActualText;gradient_paths_use_outer_character_mapping;CFF_CID_aliases_share_one_program_with_separate_encodings;marked_vector_pages_retain_selection_offsets",
         "right_to_left":{"selection":"one_text_object_per_horizontal_line;independent_glyph_compositing","source":"strong_R_or_AL_scalars_with_single_interior_spaces","fallback":["mixed_direction_line","bidi_controls_or_other_source_characters","complex_clusters","nonhorizontal_or_reflected_line","custom_tracking_or_shifted_glyphs","named_ink"]},
         "multiple_glyphs_per_cluster":"one_searchable_character_draws_positioned_embedded_glyphs;straight_or_curved_baseline;rgb8_or_precise_rgba_with_per_glyph_opacity",
         "gradient_text":"axial_or_radial_pad_srgb;positioned_Type3_color_glyphs_with_source_unicode_and_pinned_font_programs;per_component_stop_opacity",
