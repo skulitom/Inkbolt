@@ -13,7 +13,7 @@ Each row uses the latest documented five-attempt batch for the standard task.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Four tasks now share one 0.85.1 executable. The other sixteen rows
+library. Five tasks now share one 0.85.1 executable. The other fifteen rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -32,7 +32,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 367,710 / 72,324 | [Movable source layer](#mixed-composition-with-a-movable-source-layer) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 134,535 / 41,369 | [0.85.1 source build](#transparent-screen-artwork-on-0851) |
-| B14 Deliver a print page | 5/5 | 5/5 | 4/5 | 384,883 / 79,691 | [Print delivery and preview timing](#observing-print-previews-in-delivery-folders) |
+| B14 Deliver a print page | 5/5 | 5/5 | 2/5 | 712,198 / 94,435 | [Native print controls on 0.85.1](#native-print-controls-on-0851) |
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
 | B17 Recover a lost response | 5/5 | 5/5 | n/a | 263,170 / n/a | [0.85.1 recovery trials](#diagram-svg-and-recovery-trials-on-0851) |
@@ -58,8 +58,8 @@ scored 0/5 on source-format checks despite producing the requested pixels.
 
 In B07, all ten attempts rendered the expected pixels. One baseline attempt
 reversed a base glyph and its mark in the accompanying shaping report. In B14,
-all five Inkbolt agents identified the completed publication for the delivered
-PDF. The earlier batch pointed to an editable snapshot twice.
+all ten previews passed. Three baseline PDFs omitted the explicit black point
+compensation setting required for print delivery.
 
 The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna),
 [five-pair smaller-model diagram evaluation](#b01-with-luna),
@@ -67,6 +67,33 @@ The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Native print controls on 0.85.1
+
+Five agents using Inkbolt delivered the requested A4 print PDF with embedded
+profiles, native process and spot colors, a display preview and a receipt for
+the published file. Two of five agents using the baseline also passed every
+applicable check. The other three passed the preview and page geometry checks
+but failed the native ink check. An independent MuPDF inspection found that
+those three PDFs omitted `/UseBlackPtComp` from the required paint settings.
+All seven accepted PDFs explicitly set it to `/OFF`.
+
+| Median per attempt | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Shell commands | 15 | 4 |
+| Shell output, UTF-8 bytes | 131,751 | 878 |
+| Input plus output tokens | 712,198 | 94,435 |
+| Seconds to first verified preview on disk | 89.4 | 78.0 |
+| Solve time, seconds | 149.7 | 90.4 |
+
+The five engine attempts preceded the five baseline attempts on the same
+Windows host, with the executable and client settings used for screen delivery.
+Replaying all ten captures reproduced the original verdicts and usage.
+The [preceding print batch](#observing-print-previews-in-delivery-folders)
+scored 5/5 and 4/5 respectively. The difference in artifact success appeared
+in both batches, and the baseline used fewer tokens in both. The independent
+PDF inspection record has SHA-256
+`b2f527b2b88ea223a154ee45dbfa0aa3f3582f4a5fc9c546c814684923d4fd8f`.
 
 ## Transparent screen artwork on 0.85.1
 
@@ -118,10 +145,12 @@ All ten diagrams preserved the supplied font and produced the requested pixels.
 Each Inkbolt agent fetched the vector quickstart once. On B04, the revised
 path, editable group and PNG passed in both arms. All five Inkbolt imports
 reported remapped IDs and an omitted description. All five baseline SVGs kept
-the source IDs and description. The largest shell reply in each Inkbolt SVG
-trial came from a command that requested schema information about SVG import.
-Those replies ranged from 19,116 to 36,124 bytes. A compact example for
-importing, moving and exporting a path is a candidate for a measured trial.
+the source IDs and description. In four Inkbolt SVG trials, the largest shell
+reply came from looking up several schemas together, including SVG import.
+The fifth combined the import with lookups for starting a session, moving an
+object and publishing. Those replies ranged from 19,116 to 36,124 bytes.
+A compact example for importing, moving and exporting a path is a candidate
+for a measured trial.
 
 The original B04 judge recorded 0/5 Inkbolt workflows and 5/5 baseline
 workflows. All five agents had saved the full opt-in omission receipt, including

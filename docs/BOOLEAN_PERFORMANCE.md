@@ -30,7 +30,14 @@ the original work-budget error. [Measured source change](https://github.com/skul
 All 51 requests returned byte-identical JSON before and after on both hosts.
 They included reversed paths, a shared corner, a partial overlap, crossings,
 all four combination operations and both output forms. The Rust regression
-also checks contact parameters with a fractional origin. Both platforms passed all 297 local verification stages.
+also checks contact parameters with a fractional origin. Both platforms
+passed all 297 local verification stages. To rerun just the original
+deadline check, use the following command. On WSL, use `tools/verify_wsl.py`
+with the same selector.
+
+```sh
+python tools/verify.py --only test_boolean_spatial_cli.SpatialBooleanTests.test_dense_coincidence_still_refuses_the_work_budget
+```
 
 ## Matched measurements
 
