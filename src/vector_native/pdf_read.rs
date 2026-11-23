@@ -492,6 +492,23 @@ impl<'a> Container<'a> {
         self.inflated_stream(value, maximum, control)
     }
 
+    /// Encoded payload of a local stream whose length was checked by the container reader.
+    pub(crate) fn stream_bytes(&self, id: Id) -> Result<&[u8], Error> {
+        let object = self
+            .objects
+            .get(&id)
+            .ok_or_else(|| invalid("Missing PDF stream"))?;
+        let (start, _) = object
+            .stream
+            .ok_or_else(|| invalid("Expected PDF stream"))?;
+        let dict = object.value.dict()?;
+        let length = self.resolve(field(dict, b"Length")?)?.integer()?;
+        if dict.contains_key(b"F".as_slice()) {
+            return Err(unsupported("External PDF streams are unsupported"));
+        }
+        Ok(&self.bytes[start..start + length])
+    }
+
     /// Returns raw or inflated bytes before any image row predictor.
     pub(crate) fn inflated_stream(
         &self,
@@ -502,19 +519,8 @@ impl<'a> Container<'a> {
         let Value::Ref(id) = value else {
             return Err(invalid("PDF stream must be indirect"));
         };
-        let object = self
-            .objects
-            .get(id)
-            .ok_or_else(|| invalid("Missing PDF stream"))?;
-        let (start, _) = object
-            .stream
-            .ok_or_else(|| invalid("Expected PDF stream"))?;
-        let dict = object.value.dict()?;
-        let length = self.resolve(field(dict, b"Length")?)?.integer()?;
-        let bytes = &self.bytes[start..start + length];
-        if dict.contains_key(b"F".as_slice()) {
-            return Err(unsupported("External PDF streams are unsupported"));
-        }
+        let bytes = self.stream_bytes(*id)?;
+        let dict = self.stream_dict(*id)?;
         match dict.get(b"Filter".as_slice()) {
             None => {
                 if bytes.len() > maximum {

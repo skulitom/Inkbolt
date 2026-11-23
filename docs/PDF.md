@@ -45,6 +45,23 @@ image soft mask supplies straight alpha. Hidden color samples survive zero alpha
 The per-image limit is 4,194,304 pixels. The document asset, snapshot and
 decoded-stream limits also apply.
 
+For JPEG-compressed image objects (`DCTDecode`), Inkbolt accepts 8-bit
+baseline and progressive Huffman-coded grayscale and RGB frames. The JPEG
+dimensions and component count must match the PDF dictionary. A three-component
+frame uses the PDF color transform (YCbCr by default, or direct RGB with
+`/ColorTransform 0`). PDF decode ranges apply to those decoded components.
+The page transformation sets the orientation, including for JPEGs that carry
+an EXIF orientation. A grayscale JPEG can also supply the soft mask. The
+importer checks scans and decoded working storage before invoking the codec.
+JPEGs with APP14 transform markers or embedded profiles are outside this subset.
+
+Six synthetic JPEGs covered baseline and progressive grayscale, full-resolution
+color and 4:2:0 color. Windows and Linux recovered identical samples. Grayscale
+and full-resolution color matched an independent JPEG decoder exactly. For the
+two 4:2:0 images, its largest channel difference was 2 on the 8-bit scale.
+With and without a soft mask, MuPDF and PDFium each compared 24 original and
+edited page deliveries. Every channel was within 2 of the source rendering.
+
 On Windows and Linux, 48 synthetic pages recovered every authored image sample.
 Each page placed an image twice. Moving the rotated copy produced 96 original
 and edited deliveries for comparison. PDFium matched all 96 independently
@@ -54,7 +71,7 @@ MuPDF agreed on the predicted and plain sources in every case. Its re-export
 comparisons were exact on opaque images and within one 8-bit channel level on
 images with alpha.
 
-Text, JPEG streams, inline images, stencil and color-key masks, interpolated
+Text, inline images, stencil and color-key masks, interpolated
 images, preblended soft masks, shadings, CMYK, named inks, remapped color
 spaces, graphics-state masks, knockout, annotations and non-normal blends return an error.
 Content errors identify the selected page and object, with a byte offset for

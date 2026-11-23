@@ -262,7 +262,7 @@ fn description(command: &str) -> String {
         "vector.import" => {
             "Import supported native vector layers, closed RGB line/cubic paths and shared artboards from a local file. Requires an explicit encoded_srgb color interpretation. Returns editable objects and source hashes without writing files. Uses the editable data stream, never PDF preview artwork; unknown semantics and malformed framing fail explicitly. Native delivery and broader interoperability remain incomplete."
         }
-        "pdf.import" => "Open one PDF page as filled paths, groups and placed images. Supply a read-only source_path, optional zero-based page_index and color_policy encoded_srgb. Returns source identity, page boxes, item and image locations, and normalization losses. Unsupported drawing semantics return a located error.",
+        "pdf.import" => "Open one PDF page as filled paths, groups and placed images, including supported grayscale and RGB JPEGs. Supply a read-only source_path, optional zero-based page_index and color_policy encoded_srgb. Returns source identity, page boxes, item and image locations, and normalization losses. Unsupported drawing semantics return a located error.",
         "capabilities" => {
             "Inspect implemented graphics features, command names, limits and explicit unsupported semantics before planning work."
         }

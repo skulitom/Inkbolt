@@ -15,6 +15,7 @@ use std::{
 use tiff::tags::Tag;
 mod jpeg;
 pub use jpeg::Orientation;
+pub(crate) use jpeg::pdf_samples;
 pub(crate) mod pixels;
 mod png_passes;
 pub(crate) mod source;

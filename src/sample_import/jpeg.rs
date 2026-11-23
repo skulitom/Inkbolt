@@ -107,33 +107,7 @@ pub(super) fn decode<R: Read + Seek>(
         encoding: Encoding::EncodedSrgb,
     };
     spec.validate()?;
-    input.rewind().map_err(|_| malformed())?;
-    let mut decoder = jpeg_decoder::Decoder::new(BufReader::with_capacity(
-        bounds::INPUT_BUFFER_BYTES,
-        Checked { input, control },
-    ));
-    decoder.set_max_decoding_buffer_size(bounds::MAX_JPEG_OUTPUT_BYTES);
-    decoder.read_info().map_err(|e| decoded_error(e, control))?;
-    let info = decoder.info().ok_or_else(malformed)?;
-    let expected_format = if plan.channels == 1 {
-        jpeg_decoder::PixelFormat::L8
-    } else {
-        jpeg_decoder::PixelFormat::RGB24
-    };
-    if u32::from(info.width) != plan.width
-        || u32::from(info.height) != plan.height
-        || info.pixel_format != expected_format
-    {
-        return Err(malformed());
-    }
-    control.check()?;
-    let decoded = decoder.decode().map_err(|e| decoded_error(e, control))?;
-    // Progressive coefficients belong to the decoder, not the native staging phase.
-    drop(decoder);
-    control.check()?;
-    if decoded.len() != plan.output_bytes {
-        return Err(malformed());
-    }
+    let decoded = decode_frame(input, &plan, None, control)?;
     let normalize = |y: u32, row: &mut [u8]| -> Result<(), Error> {
         control.check()?;
         for (x, pixel) in row.chunks_exact_mut(spec.channels.count()).enumerate() {
@@ -178,4 +152,70 @@ pub(super) fn decode<R: Read + Seek>(
         interpretation,
         normalization,
     ))
+}
+
+/// A PDF image dictionary supplies its component interpretation and placement.
+/// Embedded orientation metadata does not transform the sample grid.
+pub(crate) fn pdf_samples(
+    bytes: &[u8],
+    size: [u32; 2],
+    components: usize,
+    transform: bool,
+    control: &Control,
+) -> Result<Vec<u8>, Error> {
+    let mut input = io::Cursor::new(bytes);
+    let length = bytes.len() as u64;
+    let pixels = size[0] as usize * size[1] as usize;
+    let plan = framing::inspect(&mut input, length, pixels, control)?;
+    if [plan.width, plan.height] != size || plan.channels != components {
+        return Err(Error::new(
+            "INVALID_PDF",
+            "JPEG frame disagrees with the PDF image dimensions or components",
+        ));
+    }
+    entropy::validate(&mut input, length, &plan, control)?;
+    let color = match (components, transform) {
+        (1, _) => jpeg_decoder::ColorTransform::Grayscale,
+        (3, false) => jpeg_decoder::ColorTransform::RGB,
+        (3, true) => jpeg_decoder::ColorTransform::YCbCr,
+        _ => return Err(unsupported("Unsupported PDF JPEG component count")),
+    };
+    decode_frame(input, &plan, Some(color), control)
+}
+
+fn decode_frame<R: Read + Seek>(
+    mut input: R,
+    plan: &framing::Plan,
+    transform: Option<jpeg_decoder::ColorTransform>,
+    control: &Control,
+) -> Result<Vec<u8>, Error> {
+    input.rewind().map_err(|_| malformed())?;
+    let mut decoder = jpeg_decoder::Decoder::new(BufReader::with_capacity(
+        bounds::INPUT_BUFFER_BYTES,
+        Checked { input, control },
+    ));
+    decoder.set_max_decoding_buffer_size(bounds::MAX_JPEG_OUTPUT_BYTES);
+    if let Some(transform) = transform {
+        decoder.set_color_transform(transform);
+    }
+    decoder.read_info().map_err(|e| decoded_error(e, control))?;
+    let info = decoder.info().ok_or_else(malformed)?;
+    let expected_format = if plan.channels == 1 {
+        jpeg_decoder::PixelFormat::L8
+    } else {
+        jpeg_decoder::PixelFormat::RGB24
+    };
+    if u32::from(info.width) != plan.width
+        || u32::from(info.height) != plan.height
+        || info.pixel_format != expected_format
+    {
+        return Err(malformed());
+    }
+    control.check()?;
+    let decoded = decoder.decode().map_err(|e| decoded_error(e, control))?;
+    control.check()?;
+    if decoded.len() != plan.output_bytes {
+        return Err(malformed());
+    }
+    Ok(decoded)
 }

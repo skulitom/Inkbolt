@@ -15,7 +15,82 @@ struct Plane {
     components: usize,
     bits: usize,
     invert: [bool; 3],
-    predictor: usize,
+    encoding: Encoding,
+}
+
+#[derive(Clone, Copy)]
+enum Encoding {
+    Samples { predictor: usize },
+    Jpeg { transform: bool },
+}
+
+fn encoding(
+    pdf: &Container,
+    d: &Dict,
+    width: u32,
+    components: usize,
+    bits: usize,
+) -> Result<Encoding, Error> {
+    let filter = d
+        .get(b"Filter".as_slice())
+        .map(|v| pdf.single_filter_entry(v))
+        .transpose()?;
+    let params = d
+        .get(b"DecodeParms".as_slice())
+        .map(|v| pdf.single_filter_entry(v))
+        .transpose()?;
+    let params = match params {
+        None | Some(Value::Null) => None,
+        Some(value) => Some(value.dict()?),
+    };
+    let integer = |key: &[u8], default| {
+        params
+            .and_then(|p| p.get(key))
+            .map(|v| pdf.resolve(v)?.integer())
+            .transpose()
+            .map(|v| v.unwrap_or(default))
+    };
+    if filter.is_some_and(|v| v.named(b"DCTDecode")) {
+        if bits != 8 {
+            return Err(unsupported("PDF JPEG images require 8-bit components"));
+        }
+        if let Some(params) = params {
+            allowed(params, &[b"ColorTransform"])?;
+        }
+        let transform = integer(b"ColorTransform", usize::from(components == 3))?;
+        if transform > 1 {
+            return Err(unsupported("PDF JPEG ColorTransform must be zero or one"));
+        }
+        return Ok(Encoding::Jpeg {
+            transform: transform == 1,
+        });
+    }
+    if filter.is_some_and(|v| !v.named(b"FlateDecode")) {
+        return Err(unsupported("Unsupported PDF image filter"));
+    }
+    if let Some(params) = params {
+        if filter.is_none() {
+            return Err(unsupported("PDF image prediction requires FlateDecode"));
+        }
+        allowed(
+            params,
+            &[b"Predictor", b"Colors", b"BitsPerComponent", b"Columns"],
+        )?;
+    }
+    let predictor = integer(b"Predictor", 1)?;
+    if !matches!(predictor, 1 | 2 | 10..=15) {
+        return Err(unsupported("Unknown PDF image predictor"));
+    }
+    if predictor != 1
+        && (integer(b"Colors", 1)? != components
+            || integer(b"BitsPerComponent", 8)? != bits
+            || integer(b"Columns", 1)? != width as usize)
+    {
+        return Err(unsupported(
+            "PDF predictor layout differs from the image sample layout",
+        ));
+    }
+    Ok(Encoding::Samples { predictor })
 }
 
 impl Plane {
@@ -103,49 +178,13 @@ impl Plane {
                 };
             }
         }
-        let mut predictor = 1;
-        if let Some(params) = d.get(b"DecodeParms".as_slice()) {
-            let params = pdf.single_filter_entry(params)?;
-            if !matches!(params, Value::Null) {
-                if !pdf
-                    .single_filter_entry(field(d, b"Filter")?)?
-                    .named(b"FlateDecode")
-                {
-                    return Err(unsupported("PDF image prediction requires FlateDecode"));
-                }
-                let params = params.dict()?;
-                allowed(
-                    params,
-                    &[b"Predictor", b"Colors", b"BitsPerComponent", b"Columns"],
-                )?;
-                let integer = |key: &[u8], default| {
-                    params
-                        .get(key)
-                        .map(|v| pdf.resolve(v)?.integer())
-                        .transpose()
-                        .map(|v| v.unwrap_or(default))
-                };
-                predictor = integer(b"Predictor", 1)?;
-                if !matches!(predictor, 1 | 2 | 10..=15) {
-                    return Err(unsupported("Unknown PDF image predictor"));
-                }
-                if predictor != 1
-                    && (integer(b"Colors", 1)? != components
-                        || integer(b"BitsPerComponent", 8)? != bits
-                        || integer(b"Columns", 1)? != size[0] as usize)
-                {
-                    return Err(unsupported(
-                        "PDF predictor layout differs from the image sample layout",
-                    ));
-                }
-            }
-        }
+        let encoding = encoding(pdf, d, size[0], components, bits)?;
         Ok(Self {
             size,
             components,
             bits,
             invert,
-            predictor,
+            encoding,
         })
     }
 
@@ -160,13 +199,26 @@ impl Plane {
     ) -> Result<(), Error> {
         let samples = self.size[0] as usize * self.components;
         let row = (samples * self.bits).div_ceil(8);
-        let png = self.predictor >= 10;
+        let predictor = match self.encoding {
+            Encoding::Samples { predictor } => predictor,
+            Encoding::Jpeg { .. } => 1,
+        };
+        let png = predictor >= 10;
         let stride = row + usize::from(png);
         let expected = stride * self.size[1] as usize;
         if expected > *remaining {
             return Err(limit("PDF decoded stream budget exceeded"));
         }
-        let mut data = pdf.inflated_stream(&Value::Ref(id), expected, control)?;
+        let mut data = match self.encoding {
+            Encoding::Samples { .. } => pdf.inflated_stream(&Value::Ref(id), expected, control)?,
+            Encoding::Jpeg { transform } => crate::sample_import::pdf_samples(
+                pdf.stream_bytes(id)?,
+                self.size,
+                self.components,
+                transform,
+                control,
+            )?,
+        };
         if data.len() != expected {
             return Err(invalid(
                 "PDF image stream length disagrees with its dimensions",
@@ -193,7 +245,7 @@ impl Plane {
                 for (channel, last) in last[..self.components].iter_mut().enumerate() {
                     let offset = (x * self.components + channel) * self.bits;
                     let mut code = (row[offset / 8] >> (8 - self.bits - offset % 8)) & maximum;
-                    if self.predictor == 2 {
+                    if predictor == 2 {
                         code = code.wrapping_add(*last) & maximum;
                         *last = code;
                     }
@@ -277,6 +329,14 @@ impl Images {
             let mut rgba = vec![255; count as usize * 4];
             plane.unpack(pdf, id, remaining, control, &mut rgba, false)?;
             let mut source = json!({"object":id.0,"generation":id.1,"components":plane.components,"bits_per_component":plane.bits});
+            if let Encoding::Jpeg { transform } = plane.encoding {
+                source["filter"] = json!("DCTDecode");
+                source["jpeg_components"] = json!(match (plane.components, transform) {
+                    (1, _) => "gray",
+                    (_, true) => "ycbcr_to_rgb",
+                    (_, false) => "direct_rgb",
+                });
+            }
             if let Some(v) = d.get(b"SMask".as_slice()) {
                 let mask_id = reference(v)?;
                 let mut decode_mask = || {

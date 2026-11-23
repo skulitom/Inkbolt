@@ -6,6 +6,7 @@ import struct
 import unittest
 
 import test_pdf_import as pages
+import synthetic_jpeg as jpeg
 from test_mcp import Client
 
 
@@ -139,6 +140,72 @@ class PdfImageImport(unittest.TestCase):
                      image(1,1,b'\0',space='DeviceGray',extra=b'/SMask 6 0 R')]:
             error=self.read(document(image(1,1,b'\0'*3,extra=b'/SMask 6 0 R'),mask=mask),1)
             self.assertEqual(error['details']['object'],6)
+
+    def test_jpeg_direct_rgb_with_grayscale_jpeg_mask_and_pdf_placement(self):
+        width, height = 17, 9
+        for progressive in (False, True):
+            with self.subTest(progressive=progressive):
+                color = jpeg.jpeg(width, height, progressive=progressive, extras=jpeg.exif(6))
+                alpha = jpeg.jpeg(width, height, channels=1, progressive=progressive, restart=2)
+                bitmap = image(width, height, color, extra=b'/Filter [/DCTDecode] /DecodeParms [<< /ColorTransform 0 >>] /SMask 6 0 R')
+                mask = image(width, height, alpha, space='DeviceGray', extra=b'/Filter /DCTDecode /Decode [1 0]')
+                result = self.read(document(bitmap, b'q 17 0 0 9 0 0 cm /Picture Do Q /Picture Do', mask))
+                doc = result['document']
+                key, = doc['assets']
+                expected = bytearray()
+                for y in range(height):
+                    for x in range(width):
+                        rgb = [jpeg.value(x, y, c) for c in range(3)]
+                        expected.extend([*rgb, 255 - rgb[0]])
+                self.assertEqual(doc['assets'][key]['sha256'], identity(width, height, expected))
+                self.assertEqual([i['content']['asset_id'] for i in doc['items']], [key, key])
+                self.assertEqual(result['image_sources'][key]['jpeg_components'], 'direct_rgb')
+                self.assertEqual(result['image_sources'][key]['soft_mask']['object'], 6)
+                delivered = self.invoke(dict(command='document.export', format='pdf', document=doc))
+                reopened = self.read(base64.b64decode(delivered['data']))['document']
+                self.assertEqual(self.rgba(reopened), self.rgba(doc))
+
+    def test_jpeg_dictionary_selects_color_transform_and_inverts_decoded_channels(self):
+        formats = self.invoke(dict(command='capabilities'))['pdf']['editable_import']['images']
+        self.assertIn('DCTDecode', formats['filters'])
+        self.assertEqual(formats['jpeg']['color_transform'], [0, 1])
+        self.assertFalse(formats['jpeg']['app14'])
+        width, height = 17, 9
+        encoded = jpeg.jpeg(width, height, subsampling=(2, 2))
+        for params, converted in [(b'', True), (b'/DecodeParms << /ColorTransform 1 >>', True),
+                                  (b'/DecodeParms << /ColorTransform 0 >>', False)]:
+            with self.subTest(params=params):
+                bitmap = image(width, height, encoded, extra=b'/Filter /DCTDecode /Decode [1 0 0 1 0 1] '+params)
+                result = self.read(document(bitmap))
+                key, = result['document']['assets']
+                expected = bytearray()
+                for y in range(height):
+                    for x in range(width):
+                        luma = jpeg.value(x, y, 0)
+                        expected.extend([255 - luma, luma if converted else 128, luma if converted else 128, 255])
+                self.assertEqual(result['document']['assets'][key]['sha256'], identity(width, height, expected))
+                self.assertEqual(result['image_sources'][key]['filter'], 'DCTDecode')
+
+        # Non-neutral chroma distinguishes the two color-difference components.
+        chroma = jpeg.jpeg(8, 8, sample=lambda x, y, c: (128, 16, 240)[c])
+        result = self.read(document(image(8, 8, chroma, extra=b'/Filter /DCTDecode /DecodeParms << /ColorTransform 1 >>')))
+        sample = self.rgba(result['document'])[(33*48+2)*4:(33*48+3)*4]
+        self.assertEqual((sample[0], sample[2], sample[3]), (255, 0, 255))
+        self.assertLessEqual(abs(sample[1]-87), 1)
+
+    def test_jpeg_dimensions_components_depth_and_coding_are_checked_at_the_source_object(self):
+        color = jpeg.jpeg(8, 4)
+        gray = jpeg.jpeg(8, 4, channels=1)
+        for width, height, encoded, attrs, depth in [
+            (4, 8, color, b'', 8), (8, 4, gray, b'', 8), (8, 4, color, b'', 4),
+            (8, 4, color, b'/DecodeParms << /ColorTransform 2 >>', 8),
+            (8, 4, color, b'/DecodeParms << /Predictor 15 >>', 8),
+            (8, 4, color[:-2], b'', 8), (8, 4, color + b'extra', b'', 8),
+            (8, 4, jpeg.jpeg(8, 4, extras=jpeg.segment(0xee, bytes(12))), b'', 8),
+        ]:
+            with self.subTest(width=width, attrs=attrs, depth=depth):
+                bitmap = image(width, height, encoded, depth=depth, extra=b'/Filter /DCTDecode '+attrs)
+                self.assertEqual(self.read(document(bitmap), 1)['details']['object'], 5)
 
     def test_array_filter_in_clipped_form_keeps_image_and_invocation_alpha_separate(self):
         objects = pages.page_objects(
