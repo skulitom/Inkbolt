@@ -13,16 +13,16 @@ Each row uses the latest documented five-attempt batch for the standard task.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. The Inkbolt build varied by batch. A single-release model comparison
-remains open. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
+library. Four tasks now share one 0.85.1 executable. The other sixteen rows
+use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
 | Task | Inkbolt artifact | Inkbolt workflow | Baseline passes | Median tokens, Inkbolt / baseline | Evidence |
 | --- | ---: | ---: | ---: | ---: | --- |
-| B01 Labelled diagram | 5/5 | 5/5 | 5/5 | 108,481 / 57,108 | [Vector quickstart](#diagram-authoring-with-the-vector-quickstart) |
+| B01 Labelled diagram | 5/5 | 5/5 | 5/5 | 110,522 / 42,491 | [0.85.1 diagram trials](#diagram-svg-and-recovery-trials-on-0851) |
 | B02 Aligned icon sheet | 5/5 | 5/5 | 5/5 | 313,114 / 57,582 | [8586e82](#b02-at-8586e82-cli-help-and-sibling-index-guidance) |
 | B03 Edit a 5,000-object layout | 5/5 | 5/5 | 5/5 | 296,450 / 69,288 | [81e8830](BENCHMARK_ESSENTIALS.md) |
-| B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 206,924 / 57,528 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
+| B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 185,397 / 59,300 | [0.85.1 SVG receipt recheck](#diagram-svg-and-recovery-trials-on-0851) |
 | B05 Recolor a shared palette | 5/5 | 5/5 | 5/5 | 270,958 / 54,973 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
 | B06 Repair linked text overflow | 5/5 | 5/5 | 5/5 | 337,131 / 76,580 | [a7e034e](#b06b07-at-a7e034e-captured-trials-rejudged) |
 | B07 Multilingual typography | 5/5 | 5/5 | 4/5 | 240,831 / 217,180 | [Glyph order within a cluster](#glyph-order-within-a-cluster) |
@@ -35,7 +35,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B14 Deliver a print page | 5/5 | 5/5 | 4/5 | 384,883 / 79,691 | [Print delivery and preview timing](#observing-print-previews-in-delivery-folders) |
 | B15 Repair resource bindings | 5/5 | 5/5 | 5/5 | 274,948 / 56,972 | [7d31cf9](#b14b15-at-7d31cf9-print-delivery-and-resource-repair) |
 | B16 Repair a text layout | 5/5 | 5/5 | 5/5 | 377,956 / 128,438 | [d18ac62](BENCHMARK_CLI_EXAMPLES.md) |
-| B17 Recover a lost response | 5/5 | 5/5 | n/a | 178,056 / n/a | [77c6a17](#b17-with-the-workspace-in-the-cli-launch-command) |
+| B17 Recover a lost response | 5/5 | 5/5 | n/a | 263,170 / n/a | [0.85.1 recovery trials](#diagram-svg-and-recovery-trials-on-0851) |
 | B18 Resolve conflicting edits | 5/5 | 5/5 | n/a | 249,608 / n/a | [cae530a](#b17b18-at-cae530a-receipt-and-concurrent-edit-recovery) |
 | B19 Recover an interrupted export | 5/5 | 5/5 | n/a | 530,157 / n/a | [Command discovery during export recovery](#command-discovery-during-export-recovery) |
 | B20 Revise a linked video graphic | 5/5 | 5/5 | 5/5 | 921,483 / 284,822 | [Timed sequence example](#timed-sequence-handoff-with-one-discovery-example) |
@@ -97,12 +97,56 @@ locally optimized binary from commit `a546eef` had SHA-256
 `277681785bf7f47bc155bad7ef9c6bd3ffd2139f987cc801923a627bfd79db39`.
 The baseline used resvg 0.47.0 and Pillow 12.3.0. The capture and replay audit
 has SHA-256 `52cc076d4e09a2a147060bae2ce080c533dfadf8993c665e828e32663ee80cff`.
-The remaining nineteen tasks still need a comparison on the same release.
+
+## Diagram, SVG and recovery trials on 0.85.1
+
+The next 25 Windows attempts used the same client settings and the exact
+executable retained from the screen-delivery trials. The five engine attempts
+for each task ran first. Each applicable baseline used the same prompt,
+fixtures and pinned rendering tools. All 25 workspaces were captured and
+rejudged. The table reports per-attempt medians.
+
+| Task and arm | Passed | Shell commands | Shell output, bytes | Input + output tokens | First verified preview, s | Solve time, s |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| B01 diagram, Inkbolt | 5/5 | 6 | 7,150 | 110,522 | 38.0 | 45.9 |
+| B01 diagram, baseline | 5/5 | 4 | 5,476 | 42,491 | 20.5 | 24.4 |
+| B04 SVG revision, Inkbolt | 5/5 | 7 | 55,160 | 185,397 | 42.2 | 58.1 |
+| B04 SVG revision, baseline | 5/5 | 3 | 536 | 59,300 | 18.6 | 49.3 |
+| B17 lost edit reply, Inkbolt | 5/5 | 14 | 36,116 | 263,170 | 55.5 | 97.0 |
+
+All ten diagrams preserved the supplied font and produced the requested pixels.
+Each Inkbolt agent fetched the vector quickstart once. On B04, the revised
+path, editable group and PNG passed in both arms. All five Inkbolt imports
+reported remapped IDs and an omitted description. All five baseline SVGs kept
+the source IDs and description. The largest shell reply in each Inkbolt SVG
+trial came from a command that requested schema information about SVG import.
+Those replies ranged from 19,116 to 36,124 bytes. A compact example for
+importing, moving and exporting a path is a candidate for a measured trial.
+
+The original B04 judge recorded 0/5 Inkbolt workflows and 5/5 baseline
+workflows. All five agents had saved the full opt-in omission receipt, including
+an empty `omissions` list. The judge compared it with a strict-mode result.
+Repeating the import in the recorded mode reproduced every receipt exactly.
+Only the five loss-check verdicts changed. Each captured PNG also matched the
+expected 32 × 24 pixels independently. The regression checks invented and
+missing omissions and altered reuse data. [Judge correction](https://github.com/skulitom/Inkbolt/commit/bae20da7fded7684f971c3b4c691dfeec84c38f8)
+
+In B17, all five agents recovered the original edit receipt, retried the move
+before and after undo, and retained the restored state and valid history.
+This exercises `session.apply`. The simultaneous publication fix has separate
+tests. The baseline has no session receipt to recover. All fifteen Inkbolt
+attempts used the CLI. Host load was uncontrolled.
+
+| Capture audit | SHA-256 |
+| --- | --- |
+| B01 original and replay | `811df9c73a44133ba7be5668b3e9898973ca686d59c5a68749f0327e2d760379` |
+| B04 original and corrected verdicts | `20a2c6ba1c1d7a16689789b11c7901980bf34c9d3402383bd2c348bcb1193811` |
+| B17 original and replay | `56517f4c73028d653c7b6e871cc72d7e5007e1aebab2997d2d32d502ceac7e0c` |
 
 ## Shell and MCP activity across twenty tasks
 
-The 185 retained transcripts behind the task table contain 100 Inkbolt
-attempts and 85 baseline attempts. Among the 17 paired tasks, the Inkbolt
+This earlier survey covers 100 Inkbolt and 85 baseline transcripts. It
+predates the four 0.85.1 batches above. Among the 17 paired tasks, the Inkbolt
 agents used more shell commands at the median on every task. Across those
 85 attempts per arm, they ran 1,069 commands with 75 nonzero exits. Baseline
 agents ran 371 commands with eight nonzero exits. All exit codes were recorded.
