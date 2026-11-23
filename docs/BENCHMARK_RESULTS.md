@@ -2,9 +2,9 @@
 
 ## Results by task
 
-On the twelve tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
-completed 60 of 60 workflows. Agents using the baseline completed 52 of
-55 applicable attempts. Three print PDFs omitted a required color setting.
+On the thirteen tasks repeated with Inkbolt 0.85.1, agents using Inkbolt
+completed 65 of 65 workflows. Agents using the baseline completed 57 of
+60 applicable attempts. Three print PDFs omitted a required color setting.
 Lost-reply recovery has no baseline. Across all 20 tasks, including the
 earlier builds, median token use was lower for the baseline on all 17
 tasks where both approaches were evaluated.
@@ -16,7 +16,7 @@ B07 also records the client starts that ended before a trial could be judged.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Twelve tasks now share one 0.85.1 executable. The other eight rows
+library. Thirteen tasks now share one 0.85.1 executable. The other seven rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -31,7 +31,7 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | B07 Multilingual typography | 5/5 | 5/5 | 5/5 | 298,013 / 214,257 | [Typography on 0.85.1](#multilingual-typography-on-0851) |
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 287,596 / 44,219 | [Foreground masks on 0.85.1](#linked-text-and-foreground-masks-on-0851) |
 | B09 Retouch a local defect | 5/5 | 5/5 | 5/5 | 281,627 / 43,023 | [Local image repair on 0.85.1](#local-image-repair-on-0851) |
-| B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 580,184 / 75,230 | [447bbc2 captures](#b10-rejudging-the-saved-photo-stores) |
+| B10 Edit a multi-megapixel photo | 5/5 | 5/5 | 5/5 | 460,584 / 75,451 | [16-bit photo edits on 0.85.1](#editing-a-16-bit-photo-on-0851) |
 | B11 Revise a mixed composition | 5/5 | 5/5 | 5/5 | 367,710 / 72,324 | [Movable source layer](#mixed-composition-with-a-movable-source-layer) |
 | B12 Generate layout variants | 5/5 | 5/5 | 5/5 | 566,966 / 61,799 | [30c4ebd](#b11b12-at-30c4ebd-mixed-composition-and-layout-variants) |
 | B13 Deliver transparent artwork | 5/5 | 5/5 | 5/5 | 134,535 / 41,369 | [0.85.1 source build](#transparent-screen-artwork-on-0851) |
@@ -70,6 +70,48 @@ The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Editing a 16-bit photo on 0.85.1
+
+Ten agents cloned the requested 12 × 14 patch in a 1920 × 1080 RGBA16
+photo. An independent TIFF decoder and sample comparison confirmed all 168
+repaired pixels, all 2,073,432 untouched pixels and every pixel of the
+focused PNG preview in both arms. The five Inkbolt agents also retained
+the original TIFF and all four editable revisions. Checking all 135 native
+tiles at each revision found the same four tile replacements in every edit
+and redo. One saved session also reproduced all four TIFFs on Linux.
+[Move the photo and its history between machines](SESSION_BACKUPS.md#moving-a-16-bit-image-with-stored-tiles)
+
+| Median per attempt | Inkbolt | No engine |
+| --- | ---: | ---: |
+| Input plus output tokens | 460,584 | 75,451 |
+| Shell commands | 15 | 3 |
+| Shell output, UTF-8 bytes | 1,127,642 | 302 |
+| Seconds to first verified preview | 103.9 | 64.0 |
+| Solve time, seconds | 151.2 | 71.3 |
+
+The five Inkbolt trials ran first, followed by the five baseline trials,
+on the same Windows host and with the same client settings. Each agent used
+the CLI. All ten passed the 256 MiB memory check. The largest single-process
+peak commit in each owned client tree ranged from 74.95 to 99.15 MiB for
+Inkbolt and 66.64 to 93.54 MiB for the baseline. The measurement includes
+the launcher, client and tools. Linux peak commit remains unmeasured.
+[Separate 50 MP photo benchmark](B10_LARGE.md#five-matched-windows-trials)
+
+Four Inkbolt transcripts recorded a shell reply over 1 MiB containing the
+proposed edit's hex-encoded tiles. The task requires the full review on
+disk. In a separate scripted check on the first agent's source document,
+`review_output` reduced the Windows CLI reply from 1,073,816 to 1,041
+bytes and the Linux reply from 1,073,684 to 954 bytes. Each saved file
+contained the full review. Applying the returned proposal produced the same
+edited tile manifest as the agent. [Save a review to a file](SESSION_PROPOSALS.md#save-the-review-to-a-file)
+
+Replaying all 125 genuine attempts in the thirteen standard tasks
+reproduced their verdicts and recorded usage. Seven tasks still use earlier
+executables. B10 trial and replay audit SHA-256
+`41e7f83bf36ebe5bf94c6ebb7033336498f484d27f797ddd3d1fc43e3b0b7c7d`.
+Independent sample check SHA-256 `3b9dd8b39101e2b17220b2287f8bc0cefa98544980735c4f19e00c397cfa46e4`.
+Combined audit SHA-256 `a31c50f352b08dc59b2db6f1b5f19009f0dcb19da46301cd852d9218127d3ab6`.
 
 ## A focused lookup during local image repair
 
@@ -143,11 +185,11 @@ single `retouch` operation schema described the clone operation, sampling
 and transform in a 1,918-byte CLI reply, including the response envelope
 and excluding the newline. The [five-pair follow-up](#a-focused-lookup-during-local-image-repair) measured what happened when agents received that request.
 
-The combined replay now covers twelve tasks and 115 genuine attempts on
-one executable. All 60 Inkbolt workflows passed. The baseline passed 52
+At this stage the combined replay covered twelve tasks and 115 genuine
+attempts on one executable. All 60 Inkbolt workflows passed. The baseline passed 52
 of 55 applicable attempts. Its three failures were on print delivery.
 Lost-reply recovery requires an Inkbolt receipt and has no baseline arm.
-Eight standard tasks still use earlier binaries.
+Eight standard tasks still used earlier binaries.
 
 Capture and replay audit SHA-256 `033e32bd68b95b3dc890de7c5abd500dfa3861c5decab2935e4793b43f4be6bb`.
 Independent image check SHA-256 `a51f55e9c4945f72ff93a0ab68f13c7c87917a85108879ef5d8998abe990ae4e`.
