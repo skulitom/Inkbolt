@@ -4,7 +4,6 @@ import os
 import shutil
 import subprocess
 import traceback
-from pathlib import Path
 
 from benchmark_driver import (config,driver_identity,read_json,run_external_task,model_run_complete,MIGRATED_TASKS)
 from benchmark_baseline import tool_identity,file_hash
@@ -78,6 +77,12 @@ def cohort_sources(args, output, client, driver, baseline, consumer):
                 or prior.get('benchmark_variant', 'standard') != args.variant
                 or not isinstance(prior.get('selected_tasks'), list) or task not in prior['selected_tasks']):
             raise ValueError(f'{task} archive differs in task, repetition count, arm, variant or tool identities')
+        if 'imported_cohorts' in prior:
+            raise ValueError(f'{task} requires the underlying task archive, not a nested cohort report')
+        if (not isinstance(prior.get('conditions'),str) or not prior['conditions'].strip()
+                or not isinstance(prior.get('candidate_files'),dict) or not prior['candidate_files']
+                or prior.get('candidate_sha256') != sha(json.dumps(prior['candidate_files'],sort_keys=True,separators=(',',':')).encode())):
+            raise ValueError(f'{task} archive lacks its recorded conditions or candidate identity')
         if args.arm == 'model':
             digest = (prior.get('build') or {}).get('executable_sha256')
             if not isinstance(digest, str) or len(digest) != 64 or (engine is not None and digest != engine):
@@ -111,6 +116,14 @@ def run_suite(args, output, aggregate):
         git_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip())
     if archive:
         identity['imported_cohorts'] = archive
+        retained_inputs=output/'cohort-inputs'
+        retained_inputs.mkdir()
+        for task, directory in sources.items():
+            raw=read_metadata_bytes(directory/'inputs.json')
+            if sha(raw)!=archive['inputs_sha256'][task]:
+                raise ValueError(f'{task} source inputs changed before capture')
+            with (retained_inputs/(task+'.json')).open('xb') as stream:
+                stream.write(raw)
     save_json(output/'inputs.json',identity)
     save_json(output/'tasks.json',dict(suite=SUITE,tasks=[dict(id=task,title=title,outcome=outcome,
         migrated=task in MIGRATED_TASKS,checks=[dict(name=name,check_class=check_class(task,name)) for name in CHECKS[task]])

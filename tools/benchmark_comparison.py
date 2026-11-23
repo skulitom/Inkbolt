@@ -7,6 +7,7 @@ from pathlib import Path
 import statistics
 
 from benchmark_codex_driver import TOOL_ACTIVITY_METRICS, transcript_activity
+from benchmark_runtime import MAX_METADATA, strict_json
 
 from benchmark_tasks import (SUITE, TASKS, CHECKS, ARTIFACT_CHECKS, ENGINE_CHECKS, VARIANTS,
                              BASELINE_NOT_APPLICABLE, PREVIEWS_IN_SUBFOLDERS, allowed_preview_file, check_class)
@@ -138,6 +139,38 @@ def retained_contract(root, row, provenance):
     return contract,valid,activity
 
 
+def capture_conditions(root, provenance, selected, reps):
+    if 'imported_cohorts' not in provenance:
+        return dict.fromkeys(selected,(provenance['candidate_sha256'],provenance['conditions']))
+    archive=provenance['imported_cohorts']
+    require(isinstance(archive,dict) and hash_string(archive.get('index_sha256')) and
+            isinstance(archive.get('inputs_sha256'),dict) and set(archive['inputs_sha256'])==set(selected),
+            'Missing task-specific cohort manifest identities')
+    folder=root/'cohort-inputs'
+    if not folder.exists():
+        # Early cohort reports recorded hashes without retaining the source manifests.
+        return dict.fromkeys(selected)
+    require(folder.is_dir() and not folder.is_symlink(),'Invalid retained cohort inputs directory')
+    captures={}
+    for task in selected:
+        raw=read_bytes(folder/(task+'.json'),MAX_METADATA)
+        require(digest(raw)==archive['inputs_sha256'][task],task+' retained cohort manifest differs')
+        source=strict_json(raw)
+        require(isinstance(source,dict) and 'imported_cohorts' not in source and
+                all(source.get(k)==provenance.get(k) for k in ('arm','suite','client','model','driver_kind','driver','baseline_tools')) and
+                source.get('benchmark_variant','standard')==provenance.get('benchmark_variant','standard') and
+                (task!='B20' or source.get('consumer_tools')==provenance.get('consumer_tools')) and
+                (source.get('build') or {}).get('executable_sha256')==(provenance.get('build') or {}).get('executable_sha256') and
+                task in source.get('selected_tasks',[]) and source.get('repetitions')==reps and
+                isinstance(source.get('conditions'),str) and source['conditions'].strip() and
+                isinstance(source.get('candidate_files'),dict) and bool(source['candidate_files']) and
+                all(hash_string(value) for value in source['candidate_files'].values()) and
+                source.get('candidate_sha256')==digest(canonical(source['candidate_files'])),
+                task+' invalid task-specific capture provenance')
+        captures[task]=(source['candidate_sha256'],source['conditions'])
+    return captures
+
+
 def load_report(path, arm):
     path=Path(path);report=read_json(path,128*1024*1024);p=report['provenance']
     require(report['schema_version']==2 and report['suite']==SUITE and report['arm']==p['arm']==arm and
@@ -165,6 +198,7 @@ def load_report(path, arm):
             'Invalid task selection')
     require(type(reps) is int and 1<=reps<=10 and p['selected_tasks']==selected and p['repetitions']==reps,
             'Invalid repetition/selection provenance')
+    captures=capture_conditions(path.parent,p,selected,reps)
     rows={};contracts={};valid={};issues={}
     for row in report['rows']:
         key=(row['task'],row['repetition'])
@@ -191,7 +225,7 @@ def load_report(path, arm):
         # Derive these measurements from the verified transcript, including on
         # replay of older reports. No row-supplied count can replace it.
         rows[key]=dict(row,client_tool_activity=activity)
-    return dict(report=report,rows=rows,contracts=contracts,valid=valid,issues=issues,
+    return dict(report=report,rows=rows,contracts=contracts,valid=valid,issues=issues,captures=captures,
                 path=str(path.resolve()),sha256=digest(read_bytes(path,128*1024*1024)))
 
 
@@ -284,6 +318,12 @@ def compare(model, baseline):
         summaries={arm:summarize(data,task) for arm,data in arms.items()};issues=list(global_issues);pairs=[];identities=set()
         selected=all(task in data['report']['selected_tasks'] for data in arms.values())
         if not selected:issues.append('Task not selected in both arms')
+        if selected:
+            origins=[data['captures'][task] for data in arms.values()]
+            if None in origins:
+                issues.append('Original cohort conditions unavailable; replay the underlying archives')
+            elif origins[0]!=origins[1]:
+                issues.append('Archived task candidates or recorded conditions differ')
         if a['repetitions']!=b['repetitions']:issues.append('Different repetition counts')
         for arm,data in arms.items():
             if task not in data['report']['selected_tasks']:continue

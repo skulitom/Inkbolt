@@ -45,6 +45,8 @@ class BenchmarkDriverTests(unittest.TestCase):
             client = driver()
             identity = {'config_sha256':'fixture', 'files':{}}
             inputs = dict(schema_version=1, suite=SUITE, arm='model', benchmark_variant='standard',
+                          conditions='Original fixture run', candidate_files={'test.py':'a'*64},
+                          candidate_sha256=sha(json.dumps({'test.py':'a'*64},separators=(',',':')).encode()),
                           repetitions=5, driver=identity, client=client['client'], model=client['model'],
                           driver_kind=client['kind'], baseline_tools=None, build={'executable_sha256':'f'*64})
             for task, name in [('B01','first'),('B18','second')]:
@@ -60,7 +62,8 @@ class BenchmarkDriverTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'outside'):
                 select(root/'first/01-B01/workspace/replay')
             for update in [{'build':{'executable_sha256':'e'*64}}, {'driver':{}}, {'arm':'baseline'},
-                           {'repetitions':4}, {'benchmark_variant':'photo-50mp-v1'}, {'selected_tasks':['B02']}]:
+                           {'repetitions':4}, {'benchmark_variant':'photo-50mp-v1'}, {'selected_tasks':['B02']},
+                           {'conditions':' '}, {'candidate_sha256':'0'*64}, {'imported_cohorts':{}}]:
                 (root/'second/inputs.json').write_text(json.dumps({**inputs,'selected_tasks':['B18'],**update}))
                 with self.subTest(update=update), self.assertRaises(ValueError):
                     select()

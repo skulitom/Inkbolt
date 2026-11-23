@@ -89,8 +89,11 @@ Use a separate cohort file for the baseline arm and supply its original
 `--baseline-tools`. Include the three pinned consumer tools when selecting
 B20. Each selected archive must have the requested repetition count, task,
 variant, arm and client settings. Model archives must identify the same
-executable. The current judge reopens each capture and records the source
-manifest hashes. An optional `--task B01` limits the replay to that task.
+executable. The current judge reopens each capture and saves its archive's
+input manifest under `cohort-inputs`, with its SHA-256. Comparison checks the
+candidate and recorded conditions for each pair of task archives as well as
+the settings of the replay. Use underlying task archives as the sources.
+An optional `--task B01` limits the replay to that task.
 No model client is launched during replay.
 
 For B01, B06 and B07 native snapshots, the agent may choose any font store inside the captured
@@ -646,6 +649,12 @@ stdin. The harness owns every engine process and provides three bounded controls
 cancel-active, hold-queue and interrupt-queued. The client still imports, edits,
 reviews, submits, inspects, resumes and retries through ordinary engine commands.
 Controls accept no process IDs and use the observed owned runner/supervisor.
+
+For live B19 and B20 trials, start the harness with a Python installation
+already available to the solver. Both bridges use the absolute path of the
+interpreter that started the harness. `--prepare-only` exposes the bridge
+command in the generated request so its interpreter can be checked in the
+client environment before spending a trial.
 Admission must precede the newer edit; a client failure releases the queue gate
 and closes both the separate client tree and engine tree. No network listener,
 engine test hook or database mutation is introduced. Message/count/traffic bounds

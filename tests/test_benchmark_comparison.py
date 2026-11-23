@@ -222,6 +222,30 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(row['arms']['model']['artifact']['total'],5);self.assertEqual(row['arms']['model']['artifact']['passed'],4)
         self.assertFalse(row['comparable']);self.assertEqual(result['failures'][0]['status'],'missing')
 
+    def test_replay_conditions_cannot_mask_incompatible_task_archives(self):
+        model=suite(self.root/'model','model')
+        baseline=suite(self.root/'baseline','baseline')
+        def archive(path, conditions):
+            report=json.loads(path.read_bytes())
+            source={**report['provenance'],'conditions':conditions}
+            manifest=path.parent/'cohort-inputs/B01.json'
+            save(manifest,source)
+            report['provenance']['imported_cohorts']=dict(index_sha256=H,inputs_sha256={'B01':digest(manifest.read_bytes())})
+            save(path,report)
+            return manifest
+        a=archive(model,'Shared machine')
+        archive(baseline,'Different host load')
+        result=compare(load_report(model,'model'),load_report(baseline,'baseline'))
+        self.assertFalse(result['tasks'][0]['comparable'])
+        self.assertIn('Archived task candidates or recorded conditions differ',result['tasks'][0]['issues'])
+        a.write_bytes(a.read_bytes()+b' ')
+        with self.assertRaisesRegex(ValueError,'manifest differs'):
+            load_report(model,'model')
+        a.unlink()
+        a.parent.rmdir()
+        legacy=compare(load_report(model,'model'),load_report(baseline,'baseline'))
+        self.assertFalse(legacy['tasks'][0]['comparable'])
+
     def test_different_prompt_fixture_settings_host_or_conditions_block_matching(self):
         for field in ('prompt_sha256','fixtures','model','original_host','conditions','candidate_sha256','inputs_unchanged'):
             with self.subTest(field=field),tempfile.TemporaryDirectory() as directory:
