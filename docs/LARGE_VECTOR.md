@@ -91,3 +91,30 @@ large squares, 5,000-object geometry/persistence, measured construction and memo
 explicit limits, active cancellation and declared precision contracts. Broader
 agent scale readiness remains separate. Current totals are tracked in the
 [implementation report](IMPLEMENTATION.md).
+
+## Inspect one object in a saved layout
+
+If you know the object's ID, request just its geometry, world transform and
+bounds. Run this Python 3.11+ snippet in the workspace with `inkbolt` on
+your PATH. Change the filename and ID to match your drawing.
+
+```python
+import hashlib
+import json
+import subprocess
+from pathlib import Path
+
+workspace = Path.cwd()
+source = workspace / "source.json"
+with source.open("rb") as stream:
+    digest = hashlib.file_digest(stream, "sha256").hexdigest()
+request = {"command": "document.inspect.page",
+           "document": {"file_path": source.name, "sha256": digest},
+           "options": {"view": {"collection": "items", "ids": ["cell-2473"],
+                                "fields": ["geometry", "transform", "bounds"]}}}
+subprocess.run(["inkbolt", "--workspace", str(workspace), "--result-only"],
+               input=json.dumps(request), text=True, check=True)
+```
+
+On the 5,000-object benchmark layout this returned one record in a 770-byte
+CLI reply. The source was 672,387 bytes. [Layout trial results](BENCHMARK_RESULTS.md#large-layouts-and-shared-palettes-on-0851)

@@ -16,7 +16,7 @@ B07 also records the client starts that ended before a trial could be judged.
 The evidence links give the prompts, independent checks, trial conditions and
 judge corrections. Both arms used Codex CLI with `gpt-6.1-sol` and medium
 reasoning on Windows. The baseline used a pinned SVG renderer and Python imaging
-library. Seven tasks now share one 0.85.1 executable. The other thirteen rows
+library. Nine tasks now share one 0.85.1 executable. The other eleven rows
 use earlier builds. A separate [scripted comparison with Cutbolt](BENCHMARK_COMPARISON.md#saved-session-recovery-with-cutbolt)
 measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 
@@ -24,9 +24,9 @@ measures catalog size, receipt recovery and retry traffic on Windows and Linux.
 | --- | ---: | ---: | ---: | ---: | --- |
 | B01 Labelled diagram | 5/5 | 5/5 | 5/5 | 110,522 / 42,491 | [0.85.1 diagram trials](#diagram-svg-and-recovery-trials-on-0851) |
 | B02 Aligned icon sheet | 5/5 | 5/5 | 5/5 | 176,022 / 55,384 | [Aligned icon sheets on 0.85.1](#aligned-icon-sheets-on-0851) |
-| B03 Edit a 5,000-object layout | 5/5 | 5/5 | 5/5 | 296,450 / 69,288 | [81e8830](BENCHMARK_ESSENTIALS.md) |
+| B03 Edit a 5,000-object layout | 5/5 | 5/5 | 5/5 | 266,993 / 70,417 | [5,000-object layouts on 0.85.1](#large-layouts-and-shared-palettes-on-0851) |
 | B04 Revise imported vector artwork | 5/5 | 5/5 | 5/5 | 185,397 / 59,300 | [0.85.1 SVG receipt recheck](#diagram-svg-and-recovery-trials-on-0851) |
-| B05 Recolor a shared palette | 5/5 | 5/5 | 5/5 | 270,958 / 54,973 | [dabe447](#b04b05-at-dabe447-five-matched-pairs) |
+| B05 Recolor a shared palette | 5/5 | 5/5 | 5/5 | 204,832 / 41,573 | [Shared palettes on 0.85.1](#large-layouts-and-shared-palettes-on-0851) |
 | B06 Repair linked text overflow | 5/5 | 5/5 | 5/5 | 337,131 / 76,580 | [a7e034e](#b06b07-at-a7e034e-captured-trials-rejudged) |
 | B07 Multilingual typography | 5/5 | 5/5 | 5/5 | 298,013 / 214,257 | [Typography on 0.85.1](#multilingual-typography-on-0851) |
 | B08 Mask a foreground region | 5/5 | 5/5 | 5/5 | 327,734 / 43,824 | [38f0397](#b08b09-at-38f0397-five-matched-pairs) |
@@ -70,6 +70,50 @@ The [smaller-model transparent PNG trial](#transparent-screen-delivery-with-luna
 retain their own attempts. In the focused text-repair follow-up, median Inkbolt
 token use was 35.8% lower than in the preceding essentials batch and 2.94 times
 the fresh baseline's median. [Text-repair evaluation](BENCHMARK_CLI_EXAMPLES.md)
+
+## Large layouts and shared palettes on 0.85.1
+
+Both arms passed five of five attempts on each task. On the 5,000-object
+layout, moving one rectangle by one pixel along each axis changed exactly
+22 pixels. The other 4,999 objects stayed in place. On the palette task,
+one swatch edit changed both linked rectangles, covering 128 pixels, and
+the green rectangle kept its original color. Inkbolt preserved the live
+swatch references and reopened the original revision on every attempt.
+
+| Median per attempt | Layout, Inkbolt | Layout, no engine | Palette, Inkbolt | Palette, no engine |
+| --- | ---: | ---: | ---: | ---: |
+| Input plus output tokens | 266,993 | 70,417 | 204,832 | 41,573 |
+| Shell commands | 9 | 5 | 8 | 4 |
+| Shell output, UTF-8 bytes | 58,916 | 885 | 51,581 | 828 |
+| Seconds to first verified preview | 44.9 | 24.9 | 47.3 | 23.9 |
+| Solve time, seconds | 91.5 | 39.1 | 66.0 | 30.3 |
+
+Reading a whole layout was expensive in either arm. Two Inkbolt agents and
+one baseline agent printed the complete 672,387-byte, single-line source
+file. All twenty layout and palette attempts used the shell. A separate
+read-only lookup returned the target object's geometry, bounds and transform
+in 770 bytes. [Inspect one object](LARGE_VECTOR.md#inspect-one-object-in-a-saved-layout)
+
+Each batch used the same optimized Windows executable, external model
+configuration and baseline tools as the icon-sheet trials. The five
+Inkbolt attempts preceded the five baseline attempts on each task. Host
+and network load varied. Local verification overlapped some attempts.
+Replaying all twenty captures reproduced the
+checks, token counts, shell activity and preview times. A separate pixel
+check covered the ten delivered previews, five historical previews and
+five independently rendered baseline SVGs for each task.
+
+| Task | Capture and replay audit SHA-256 | Independent pixel check SHA-256 |
+| --- | --- | --- |
+| Large layout | `45031e6ec8b427310cf176787c6c8434bdf21be80f7d496448229ff87fe2a26c` | `464f5af45e8162015f6c8c22b313348f84f545ac86e9221570adfc5e2232f961` |
+| Shared palette | `2abe0180ab68cb6fe523fbf83d5da90e8c3998ac97c90a2783ec467240085d24` | `f2ef7eea4f4c0f36b4bfedaa0f876653e42365315bfc167a5cc49be6dcba8532` |
+
+A combined replay checked all nine standard tasks on this executable with
+the same evaluator. All 45 Inkbolt workflows passed. The baseline passed
+37 of its 40 applicable attempts. Its three failures were the previously
+recorded print deliveries. B17 requires a saved Inkbolt receipt. The
+combined audit SHA-256 is
+`c78f4dac697e9a3dc70f42104688cc8828090911ea9fb7de4ee4001a9d10fe67`.
 
 ## Aligned icon sheets on 0.85.1
 
